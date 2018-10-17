@@ -88,10 +88,13 @@ if ( WALBERLA_BUILD_WITH_OPENMESH )
    waLBerla_execute_test( NAME  QHullTestFloatMesh    COMMAND $<TARGET_FILE:QHullTest> --floatMesh 10000 CONFIGURATIONS Release RelWithDbgInfo )
    waLBerla_execute_test( NAME  QHullTestDbg          COMMAND $<TARGET_FILE:QHullTest>             10 )
    waLBerla_execute_test( NAME  QHullTestFloatMeshDbg COMMAND $<TARGET_FILE:QHullTest> --floatMesh 10 )
-   
+
    waLBerla_compile_test( FILES NumericIntegrationTest.cpp DEPENDS core mesh )
    waLBerla_execute_test( NAME  NumericIntegrationTestCube   COMMAND $<TARGET_FILE:NumericIntegrationTest> cube.obj )
    waLBerla_execute_test( NAME  NumericIntegrationTestSphere COMMAND $<TARGET_FILE:NumericIntegrationTest> sphere.obj )
    waLBerla_execute_test( NAME  NumericIntegrationTestBunny  COMMAND $<TARGET_FILE:NumericIntegrationTest> bunny.obj CONFIGURATIONS Release RelWithDbgInfo )
+
+waLBerla_compile_test( NAME  ConvexDecomposition FILES Decomposition.cpp DEPENDS core mesh) 
+waLBerla_execute_test( NAME  ConvexDecomposition )
 
 endif()
