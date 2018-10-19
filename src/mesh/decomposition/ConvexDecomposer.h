@@ -21,16 +21,37 @@
 #pragma once
 
 #include "mesh/TriangleMeshes.h"
+
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
+#include <CGAL/Polyhedron_3.h>
+#include <CGAL/Surface_mesh.h>
+#include <CGAL/Nef_polyhedron_3.h>
+#include <CGAL/boost/graph/convert_nef_polyhedron_to_polygon_mesh.h>
+#include <CGAL/IO/Nef_polyhedron_iostream_3.h>
+#include <CGAL/Nef_3/SNC_indexed_items.h>
+
 #include <vector>
 
 namespace walberla {
 namespace mesh {
+
+   typedef CGAL::Exact_predicates_exact_constructions_kernel Exact_kernel;
+   typedef CGAL::Polyhedron_3<Exact_kernel> Polyhedron;
+   typedef CGAL::Surface_mesh<Exact_kernel::Point_3> Surface_mesh;
+   typedef CGAL::Nef_polyhedron_3<Exact_kernel> Nef_polyhedron;
+   typedef Nef_polyhedron::Volume_const_iterator Volume_const_iterator;
+
    class ConvexDecomposer{
    public:
       /* Decompose a non-convex Triangle mesh into several convex parts */
       static std::vector<TriangleMesh> convexDecompose( const TriangleMesh& mesh);
 
    private:
+      static bool performDecompositionTests(const Nef_polyhedron &input, const std::vector<Nef_polyhedron> &convex_parts );
+
+      static void openMeshToPoly(const TriangleMesh &mesh, Polyhedron &poly);
+
+      static void nefToOpenMesh(const Nef_polyhedron &nef, TriangleMesh &mesh);
    };
 
 

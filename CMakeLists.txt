@@ -961,6 +961,24 @@ endif()
 
 ############################################################################################################################
 ##
+## CGAL (Computer Graphics Algorithms Library)
+##
+############################################################################################################################
+if( (NOT DEFINED WALBERLA_BUILD_WITH_CGAL) OR WALBERLA_BUILD_WITH_CGAL)
+   set( CGAL_DO_NOT_WARN_ABOUT_CMAKE_BUILD_TYPE TRUE )
+   find_package( CGAL )
+   if( CGAL_FOUND )
+      set( WALBERLA_BUILD_WITH_CGAL ON CACHE BOOL "Build with CGAL (Computer Graphics Algorithms Library) support" )
+      include_directories( SYSTEM ${CGAL_INCLUDE_DIRS} )
+      list( APPEND SERVICE_LIBS ${CGAL_LIBRARIES} ${GMP_LIBRARIES} ${MPFR_LIBRARIES})
+      add_definitions ( "-DUSE_CGAL" )
+   else()
+      set( WALBERLA_BUILD_WITH_CGAL OFF CACHE BOOL "Build with CGAL (Computer Graphics Algorithms Library) support" FORCE )
+   endif()
+endif()
+
+############################################################################################################################
+##
 ## DebugOptimized Build Configuration for fast execution of tests with enabled asserts
 ##
 ############################################################################################################################
