@@ -15,52 +15,105 @@
 //
 //! \file Decomposition.cpp
 //! \author Tobias Leemann <tobias.leemann@fau.de>
+//! \brief Tests for convex decomposition
 //
 //======================================================================================================================
 
 // Test of the convex decomposition
 
-#include "pe/basic.h"
-
 #include <core/timing/Timer.h>
 #include "core/debug/TestSubsystem.h"
+#include "core/logging/Logging.h"
 
 #include <geometry/mesh/TriangleMesh.h>
 
-#include <mesh/pe/rigid_body/ConvexPolyhedron.h>
-#include "mesh/MeshOperations.h"
 #include <mesh/PolyMeshes.h>
 #include <mesh/QHull.h>
 #include <mesh/TriangleMeshes.h>
 #include <mesh/decomposition/ConvexDecomposer.h>
+#include <OpenMesh/Core/Geometry/VectorT.hh>
 
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_on_sphere.hpp>
+#include <iostream>
 
 using namespace walberla;
-using namespace walberla::pe;
-using namespace walberla::mesh::pe;
+using namespace walberla::mesh;
+using namespace walberla::math;
 
 
-std::vector<Vector3<real_t>> generatPointCloudOnSphere( boost::random::mt19937& rng, const real_t radius, const uint_t numPoints )
-{
-   boost::uniform_on_sphere<real_t> distribution(3);
+typedef typename TriangleMesh::VertexHandle VertexHandle;
+typedef typename OpenMesh::VectorT<real_t, 3> OMVec3;
 
-   std::vector<Vector3<real_t>> pointCloud( numPoints );
-   for( auto & p : pointCloud )
-   {
-      auto v = distribution(rng);
-      p[0] = v[0] * radius;
-      p[1] = v[1] * radius;
-      p[2] = v[2] * radius;
-      WALBERLA_LOG_DEVEL("Point: " << p );
-
-   }
-
-   return pointCloud;
+// Add a quadrangle surface in two triangular parts..
+void generateQuadrangleSurface(TriangleMesh& mesh, const VertexHandle &v1, const VertexHandle &v2, const VertexHandle &v3, const VertexHandle &v4){
+   mesh.add_face( v1, v2, v4 );
+   mesh.add_face( v3, v4, v2 );
 }
 
-std::vector<Vector3<real_t>> generateHexahedron( const real_t radius)
+// Generate non-convex "cube" with one subcube missing
+// C = [-cube_size, cube_size]^3 without [0, cube_size]^3
+// with volume 7*cube_size^3;
+// This body has to be partitioned into at least 3 convex parts.
+void generateCubeTestMesh( TriangleMesh& mesh, real_t cube_size)
+{
+   mesh.clear();
+   mesh.request_face_normals();
+   mesh.request_face_status();
+   mesh.request_edge_status();
+   mesh.request_vertex_status();
+   mesh.request_halfedge_status();
+
+   const VertexHandle basennn = mesh.add_vertex( OMVec3(-cube_size, -cube_size, -cube_size));
+   const VertexHandle basennp = mesh.add_vertex( OMVec3(-cube_size, -cube_size, cube_size));
+   const VertexHandle basenpn = mesh.add_vertex( OMVec3(-cube_size, cube_size, -cube_size));
+   const VertexHandle basenpp = mesh.add_vertex( OMVec3(-cube_size, cube_size, cube_size));
+
+   const VertexHandle basepnn = mesh.add_vertex( OMVec3(cube_size, -cube_size, -cube_size));
+   const VertexHandle basepnp = mesh.add_vertex( OMVec3(cube_size, -cube_size, cube_size));
+   const VertexHandle baseppn = mesh.add_vertex( OMVec3(cube_size, cube_size, -cube_size));
+
+   const VertexHandle basecpp = mesh.add_vertex( OMVec3(0.0, cube_size, cube_size));
+   const VertexHandle basepcp = mesh.add_vertex( OMVec3(cube_size, 0.0, cube_size));
+   const VertexHandle baseppc = mesh.add_vertex( OMVec3(cube_size, cube_size, 0.0));
+   const VertexHandle baseccp = mesh.add_vertex( OMVec3(0.0, 0.0, cube_size));
+   const VertexHandle basepcc = mesh.add_vertex( OMVec3(cube_size, 0.0, 0.0));
+   const VertexHandle basecpc = mesh.add_vertex( OMVec3(0.0, cube_size, 0.0));
+
+   const VertexHandle baseccc = mesh.add_vertex( OMVec3(0.0, 0.0, 0.0));
+
+   //Y=-1
+   generateQuadrangleSurface(mesh, basennn, basepnn, basepnp, basennp);
+
+   //Z=-1
+   generateQuadrangleSurface(mesh, basennn, basenpn, baseppn, basepnn);
+
+   //X=-1
+   generateQuadrangleSurface(mesh, basennn, basennp, basenpp, basenpn);
+
+   //X=1
+   generateQuadrangleSurface(mesh, basepnn, baseppn, baseppc, basepcc);
+   generateQuadrangleSurface(mesh, basepnp, basepnn, basepcc, basepcp);
+
+   //Y=1
+   generateQuadrangleSurface(mesh, baseppn, basenpn,basecpc, baseppc);
+   generateQuadrangleSurface(mesh, basecpc, basenpn, basenpp, basecpp);
+
+   //Z=1
+   generateQuadrangleSurface(mesh, basennp, basepnp, basepcp, baseccp);
+   generateQuadrangleSurface(mesh, basennp, baseccp, basecpp, basenpp);
+
+   // Z=0
+   generateQuadrangleSurface(mesh, baseccc,basepcc, baseppc, basecpc);
+
+   // X=0
+   generateQuadrangleSurface(mesh, basecpp, baseccp, baseccc, basecpc);
+
+   // Y=0
+   generateQuadrangleSurface(mesh, baseccp, basepcp,  basepcc, baseccc);
+
+   mesh.update_face_normals();
+}
+
+std::vector<Vector3<real_t>> generateOctahedron( const real_t radius)
 {
 
    std::vector<Vector3<real_t>> okta( 6 );
@@ -77,27 +130,21 @@ int main( int argc, char** argv )
 {
    walberla::debug::enterTestMode();
    walberla::MPIManager::instance()->initializeMPI( &argc, &argv );
-
-   boost::random::mt19937 rng(42);
-
+   WALBERLA_LOG_INFO( "--- TESTING OCTAHEDRON ---");
+   // Test an convex octahedron, which is not decompositioned.
    shared_ptr< mesh::TriangleMesh > mesh = make_shared<mesh::TriangleMesh>();
-   mesh::QHull< mesh::TriangleMesh > qhull( generateHexahedron(real_t(1.0)), mesh );
+   mesh::QHull< mesh::TriangleMesh > qhull( generateOctahedron(real_t(1.0)), mesh );
    qhull.run();
-   Vec3 centroid = mesh::toWalberla( mesh::computeCentroid( *mesh ) );
-   mesh::translate( *mesh, -centroid );
    std::vector<mesh::TriangleMesh> convexParts = mesh::ConvexDecomposer::convexDecompose(*mesh);
    WALBERLA_CHECK_EQUAL( convexParts.size(), 1 );
-   /*ConvexPolyhedron cp(0,
-                       0,
-                       centroid,
-                       Vec3(0,0,0),
-                       Quat(),
-                       *mesh,
-                       Material::find("iron"),
-                       false,
-                       true,
-                       true);*/
 
+   WALBERLA_LOG_INFO( "--- TESTING CUBE ---");
+   // Test a cube, with one of its 8 subcubes missing.
+   TriangleMesh cubeMesh;
+   generateCubeTestMesh(cubeMesh, real_t(1.0));
+   WALBERLA_LOG_INFO( "Building complete. Testing...");
+   std::vector<mesh::TriangleMesh> convexPartsCube = mesh::ConvexDecomposer::convexDecompose(cubeMesh);
+   WALBERLA_CHECK_GREATER_EQUAL( convexPartsCube.size(), 3 ); // Decompose in at least 3 parts
 
    return EXIT_SUCCESS;
 }

@@ -43,14 +43,20 @@ namespace mesh {
 
    class ConvexDecomposer{
    public:
-      /* Decompose a non-convex Triangle mesh into several convex parts */
-      static std::vector<TriangleMesh> convexDecompose( const TriangleMesh& mesh);
+      /** Decompose a non-convex Triangle mesh into several convex parts
+       * \param mesh The mesh which is decomposed.
+       * \return Vector containing the convex parts.
+      */
+      static std::vector<TriangleMesh> convexDecompose(const TriangleMesh& mesh);
 
    private:
+      // Check decomposition result.
       static bool performDecompositionTests(const Nef_polyhedron &input, const std::vector<Nef_polyhedron> &convex_parts );
 
+      // Convert OpenMesh to polyhedron
       static void openMeshToPoly(const TriangleMesh &mesh, Polyhedron &poly);
 
+      // Convert Nef Polyhedron back to OpenMesh
       static void nefToOpenMesh(const Nef_polyhedron &nef, TriangleMesh &mesh);
    };
 
