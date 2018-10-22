@@ -20,31 +20,47 @@
 //======================================================================================================================
 
 // Test of the convex decomposition
+#include <boost/tuple/tuple.hpp>
 
-#include <core/timing/Timer.h>
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/Logging.h"
 
-#include <geometry/mesh/TriangleMesh.h>
+#include "geometry/mesh/TriangleMesh.h"
 
-#include <mesh/PolyMeshes.h>
-#include <mesh/QHull.h>
-#include <mesh/TriangleMeshes.h>
-#include <mesh/decomposition/ConvexDecomposer.h>
+#include "mesh/PolyMeshes.h"
+#include "mesh/QHull.h"
+#include "mesh/TriangleMeshes.h"
+#include "mesh/decomposition/ConvexDecomposer.h"
 #include <OpenMesh/Core/Geometry/VectorT.hh>
 
+#include "core/all.h"
+//#include "blockforest/all.h"
+#include "blockforest/StructuredBlockForest.h"
+#include "blockforest/Initialization.h"
+#include "domain_decomposition/all.h"
+
+
+#include "pe/basic.h"
+#include "pe/rigidbody/Union.h"
+#include "pe/rigidbody/UnionFactory.h"
+#include "mesh/pe/rigid_body/ConvexPolyhedron.h"
+#include "mesh/pe/rigid_body/ConvexPolyhedronFactory.h"
 #include <iostream>
+#include <memory>
 
 using namespace walberla;
-using namespace walberla::mesh;
-using namespace walberla::math;
+using namespace walberla::pe;
 
-
-typedef typename TriangleMesh::VertexHandle VertexHandle;
+// Typdefs for OpenMesh
+typedef typename mesh::TriangleMesh::VertexHandle OMVertexHandle;
 typedef typename OpenMesh::VectorT<real_t, 3> OMVec3;
 
+// Typdefs for Union
+using UnionType = Union<boost::tuple<mesh::pe::ConvexPolyhedron>> ;
+typedef boost::tuple<UnionType, mesh::pe::ConvexPolyhedron> BodyTuple ;
+
 // Add a quadrangle surface in two triangular parts..
-void generateQuadrangleSurface(TriangleMesh& mesh, const VertexHandle &v1, const VertexHandle &v2, const VertexHandle &v3, const VertexHandle &v4){
+void generateQuadrangleSurface(mesh::TriangleMesh& mesh, const OMVertexHandle &v1, const OMVertexHandle &v2, const OMVertexHandle &v3, const OMVertexHandle &v4){
    mesh.add_face( v1, v2, v4 );
    mesh.add_face( v3, v4, v2 );
 }
@@ -53,7 +69,7 @@ void generateQuadrangleSurface(TriangleMesh& mesh, const VertexHandle &v1, const
 // C = [-cube_size, cube_size]^3 without [0, cube_size]^3
 // with volume 7*cube_size^3;
 // This body has to be partitioned into at least 3 convex parts.
-void generateCubeTestMesh( TriangleMesh& mesh, real_t cube_size)
+void generateCubeTestMesh( mesh::TriangleMesh& mesh, real_t cube_size)
 {
    mesh.clear();
    mesh.request_face_normals();
@@ -62,23 +78,23 @@ void generateCubeTestMesh( TriangleMesh& mesh, real_t cube_size)
    mesh.request_vertex_status();
    mesh.request_halfedge_status();
 
-   const VertexHandle basennn = mesh.add_vertex( OMVec3(-cube_size, -cube_size, -cube_size));
-   const VertexHandle basennp = mesh.add_vertex( OMVec3(-cube_size, -cube_size, cube_size));
-   const VertexHandle basenpn = mesh.add_vertex( OMVec3(-cube_size, cube_size, -cube_size));
-   const VertexHandle basenpp = mesh.add_vertex( OMVec3(-cube_size, cube_size, cube_size));
+   const OMVertexHandle basennn = mesh.add_vertex( OMVec3(-cube_size, -cube_size, -cube_size));
+   const OMVertexHandle basennp = mesh.add_vertex( OMVec3(-cube_size, -cube_size, cube_size));
+   const OMVertexHandle basenpn = mesh.add_vertex( OMVec3(-cube_size, cube_size, -cube_size));
+   const OMVertexHandle basenpp = mesh.add_vertex( OMVec3(-cube_size, cube_size, cube_size));
 
-   const VertexHandle basepnn = mesh.add_vertex( OMVec3(cube_size, -cube_size, -cube_size));
-   const VertexHandle basepnp = mesh.add_vertex( OMVec3(cube_size, -cube_size, cube_size));
-   const VertexHandle baseppn = mesh.add_vertex( OMVec3(cube_size, cube_size, -cube_size));
+   const OMVertexHandle basepnn = mesh.add_vertex( OMVec3(cube_size, -cube_size, -cube_size));
+   const OMVertexHandle basepnp = mesh.add_vertex( OMVec3(cube_size, -cube_size, cube_size));
+   const OMVertexHandle baseppn = mesh.add_vertex( OMVec3(cube_size, cube_size, -cube_size));
 
-   const VertexHandle basecpp = mesh.add_vertex( OMVec3(0.0, cube_size, cube_size));
-   const VertexHandle basepcp = mesh.add_vertex( OMVec3(cube_size, 0.0, cube_size));
-   const VertexHandle baseppc = mesh.add_vertex( OMVec3(cube_size, cube_size, 0.0));
-   const VertexHandle baseccp = mesh.add_vertex( OMVec3(0.0, 0.0, cube_size));
-   const VertexHandle basepcc = mesh.add_vertex( OMVec3(cube_size, 0.0, 0.0));
-   const VertexHandle basecpc = mesh.add_vertex( OMVec3(0.0, cube_size, 0.0));
+   const OMVertexHandle basecpp = mesh.add_vertex( OMVec3(0.0, cube_size, cube_size));
+   const OMVertexHandle basepcp = mesh.add_vertex( OMVec3(cube_size, 0.0, cube_size));
+   const OMVertexHandle baseppc = mesh.add_vertex( OMVec3(cube_size, cube_size, 0.0));
+   const OMVertexHandle baseccp = mesh.add_vertex( OMVec3(0.0, 0.0, cube_size));
+   const OMVertexHandle basepcc = mesh.add_vertex( OMVec3(cube_size, 0.0, 0.0));
+   const OMVertexHandle basecpc = mesh.add_vertex( OMVec3(0.0, cube_size, 0.0));
 
-   const VertexHandle baseccc = mesh.add_vertex( OMVec3(0.0, 0.0, 0.0));
+   const OMVertexHandle baseccc = mesh.add_vertex( OMVec3(0.0, 0.0, 0.0));
 
    //Y=-1
    generateQuadrangleSurface(mesh, basennn, basepnn, basepnp, basennp);
@@ -139,12 +155,36 @@ int main( int argc, char** argv )
    WALBERLA_CHECK_EQUAL( convexParts.size(), 1 );
 
    WALBERLA_LOG_INFO( "--- TESTING CUBE ---");
+   const real_t cubehalflength = real_t(1.0);
    // Test a cube, with one of its 8 subcubes missing.
-   TriangleMesh cubeMesh;
-   generateCubeTestMesh(cubeMesh, real_t(1.0));
+   mesh::TriangleMesh cubeMesh;
+   generateCubeTestMesh(cubeMesh, cubehalflength);
    WALBERLA_LOG_INFO( "Building complete. Testing...");
    std::vector<mesh::TriangleMesh> convexPartsCube = mesh::ConvexDecomposer::convexDecompose(cubeMesh);
    WALBERLA_CHECK_GREATER_EQUAL( convexPartsCube.size(), 3 ); // Decompose in at least 3 parts
 
+   WALBERLA_LOG_INFO( "--- TESTING CUBE AS PE-UNION ---");
+   SetBodyTypeIDs<BodyTuple>::execute();
+   //shared_ptr<BodyStorage> globalBodyStorage = make_shared<BodyStorage>();
+   shared_ptr<BodyStorage> globalBodyStorage = make_shared<BodyStorage>();
+
+   // create blocks
+   shared_ptr< StructuredBlockForest > forest = blockforest::createUniformBlockGrid(
+            uint_c( 1), uint_c( 1), uint_c( 1), // number of blocks in x,y,z direction
+            uint_c( 1), uint_c( 1), uint_c( 1), // how many cells per block (x,y,z)
+            real_c(10),                         // dx: length of one cell in physical coordinates
+            0,                                  // max blocks per process
+            false, false,                       // include metis / force metis
+            false, false, false );                 // full periodicity
+   auto storageID = forest->addBlockData(createStorageDataHandling<BodyTuple>(), "Storage");
+
+   UnionType* un = createUnion<boost::tuple<mesh::pe::ConvexPolyhedron>>( *globalBodyStorage, forest->getBlockStorage(), storageID, convexPartsCube.size(), Vec3() );
+
+   for(int part = 0; part < (int)convexPartsCube.size(); part++){
+      Vec3 centroid = mesh::toWalberla( mesh::computeCentroid( convexPartsCube[part] ) );
+      mesh::translate( convexPartsCube[part], -centroid );
+      mesh::pe::createConvexPolyhedron(un, part, Vec3(), convexPartsCube[part]);
+   }
+   WALBERLA_CHECK_FLOAT_EQUAL(un->getVolume(), real_t(7.0)*cubehalflength*cubehalflength*cubehalflength)
    return EXIT_SUCCESS;
 }

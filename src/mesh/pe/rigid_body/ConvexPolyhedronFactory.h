@@ -108,6 +108,66 @@ ConvexPolyhedronID createConvexPolyhedron( BodyStorage& globalStorage, BlockStor
                                            bool global = false, bool communicating = true, bool infiniteMass = false );
 //*************************************************************************************************
 
+//*************************************************************************************************
+/**
+ * \ingroup pe
+ * \brief Setup of a new ConvexPolyhedron directly attached to a Union.
+ *
+ * \tparam BodyTypeTuple boost::tuple of all geometries the Union is able to contain
+ * \exception std::runtime_error    Polyhedron TypeID not initalized!
+ * \exception std::invalid_argument createSphere: Union argument is NULL
+ * \exception std::logic_error      createSphere: Union is remote
+ *
+ * \see createConvexPolyhedron for more details
+ */
+template <typename BodyTypeTuple>
+mesh::pe::ConvexPolyhedronID createConvexPolyhedron( Union<BodyTypeTuple>* un,
+                       id_t uid, Vec3 gpos, mesh::TriangleMesh mesh,
+                       MaterialID material = Material::find("iron"),
+                       bool global = false, bool communicating = true, bool infiniteMass = false )
+{
+   if (mesh::pe::ConvexPolyhedron::getStaticTypeID() == std::numeric_limits<id_t>::max())
+      throw std::runtime_error("Sphere TypeID not initalized!");
+
+   // union not on this process/block -> terminate creation
+   if (un == NULL)
+      throw std::invalid_argument( "createSphere: Union argument is NULL" );
+
+   // main union not on this process/block -> terminate creation
+   if ( un->isRemote() )
+      throw std::logic_error( "createSphere: Union is remote" );
+
+   id_t sid(0);
+
+   if (global)
+   {
+      sid = UniqueID<RigidBody>::createGlobal();
+      WALBERLA_ASSERT_EQUAL(communicating, false);
+      WALBERLA_ASSERT_EQUAL(infiniteMass, true);
+
+   } else
+   {
+      sid = UniqueID<RigidBody>::create();
+   }
+
+   std::unique_ptr<mesh::pe::ConvexPolyhedron> cpolyhedron = std::make_unique<mesh::pe::ConvexPolyhedron>(sid, uid, gpos, Vec3(0,0,0), Quat(), mesh, material, global, communicating, infiniteMass);
+   cpolyhedron->MPITrait.setOwner( un->MPITrait.getOwner() );
+
+   if (cpolyhedron != NULL)
+   {
+      // Logging the successful creation of the sphere
+      WALBERLA_LOG_DETAIL(
+                "Created ConvexPolyhedron " << cpolyhedron->getSystemID() << " as part of union " << un->getSystemID() << "\n"
+             << "   User-ID         = " << uid << "\n"
+             << "   Global position = " << gpos << "\n"
+             << "   LinVel          = " << cpolyhedron->getLinearVel() << "\n"
+             << "   Material        = " << Material::getName( material )
+               );
+   }
+
+   return static_cast<mesh::pe::ConvexPolyhedronID> (&(un->add( std::move(cpolyhedron) )));
+}
+
 
 } // namespace pe
 } // namespace mesh
