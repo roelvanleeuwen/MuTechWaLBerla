@@ -25,8 +25,6 @@
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/Logging.h"
 
-#include "geometry/mesh/TriangleMesh.h"
-
 #include "mesh/PolyMeshes.h"
 #include "mesh/QHull.h"
 #include "mesh/TriangleMeshes.h"
@@ -34,7 +32,6 @@
 #include <OpenMesh/Core/Geometry/VectorT.hh>
 
 #include "core/all.h"
-//#include "blockforest/all.h"
 #include "blockforest/StructuredBlockForest.h"
 #include "blockforest/Initialization.h"
 #include "domain_decomposition/all.h"
@@ -50,6 +47,7 @@
 
 using namespace walberla;
 using namespace walberla::pe;
+using namespace walberla::mesh::pe;
 
 // Typdefs for OpenMesh
 typedef typename mesh::TriangleMesh::VertexHandle OMVertexHandle;
@@ -156,6 +154,7 @@ int main( int argc, char** argv )
 
    WALBERLA_LOG_INFO( "--- TESTING CUBE ---");
    const real_t cubehalflength = real_t(1.0);
+   const real_t subcubeVol = cubehalflength *cubehalflength *cubehalflength;
    // Test a cube, with one of its 8 subcubes missing.
    mesh::TriangleMesh cubeMesh;
    generateCubeTestMesh(cubeMesh, cubehalflength);
@@ -178,13 +177,22 @@ int main( int argc, char** argv )
             false, false, false );                 // full periodicity
    auto storageID = forest->addBlockData(createStorageDataHandling<BodyTuple>(), "Storage");
 
-   UnionType* un = createUnion<boost::tuple<mesh::pe::ConvexPolyhedron>>( *globalBodyStorage, forest->getBlockStorage(), storageID, convexPartsCube.size(), Vec3() );
+   mesh::pe::TriangleMeshUnion* un = mesh::pe::createNonConvexUnion( *globalBodyStorage, forest->getBlockStorage(), storageID, 0, Vec3(), cubeMesh );
 
-   for(int part = 0; part < (int)convexPartsCube.size(); part++){
-      Vec3 centroid = mesh::toWalberla( mesh::computeCentroid( convexPartsCube[part] ) );
-      mesh::translate( convexPartsCube[part], -centroid );
-      mesh::pe::createConvexPolyhedron(un, part, Vec3(), convexPartsCube[part]);
-   }
-   WALBERLA_CHECK_FLOAT_EQUAL(un->getVolume(), real_t(7.0)*cubehalflength*cubehalflength*cubehalflength)
+   WALBERLA_CHECK_GREATER_EQUAL( un->size(), 3 ); // Decompose in at least 3 parts
+   //Check volume
+   WALBERLA_CHECK_FLOAT_EQUAL(un->getVolume(), real_t(7.0)*subcubeVol, "Volume is incorrect.");
+
+   //Check center of gravity
+   WALBERLA_CHECK_FLOAT_EQUAL((un->getPosition()-Vec3(real_t(-1./14.),real_t(-1./14.),real_t(-1./14.))).sqrLength(), real_t(0.0), "Center of gravity is not valid.");
+
+   //Check inertia
+   const real_t fac  = un->getMass()*subcubeVol;
+   const Mat3 analyticInertia = Mat3(real_t(fac*193./294.), real_t(fac*2./49.), real_t(fac*2./49.),
+                                             real_t(fac*2./49.), real_t(fac*193./294.), real_t(fac*2./49.),
+                                             real_t(fac*2./49.), real_t(fac*2./49.), real_t(fac*193./294.));
+
+   WALBERLA_CHECK(un->getInertia() == analyticInertia, "Inertia is incorrect.");
+
    return EXIT_SUCCESS;
 }
