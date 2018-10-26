@@ -24,6 +24,8 @@
 #include "tesselation/Box.h"
 #include "tesselation/ConvexPolyhedron.h"
 
+#include "rigid_body/ConvexPolyhedronFactory.h"
+
 #include "pe/rigidbody/Box.h"
 
 namespace walberla {
@@ -48,6 +50,10 @@ public:
       {
          (*this)( dynamic_cast<const ConvexPolyhedron &>(body), mesh, newVertices, newFaces );
       }
+      else if(typeId == TriangleMeshUnion::getStaticTypeID())
+      {
+         (*this)( dynamic_cast<const TriangleMeshUnion &>(body), mesh, newVertices, newFaces );
+      }
       else
       {
          WALBERLA_ABORT( "Tesselation not implemented for your body!" );
@@ -62,6 +68,15 @@ public:
    void operator()( const ConvexPolyhedron & body, MeshType & mesh, std::vector<VertexHandle> & newVertices, std::vector<FaceHandle> & newFaces )
    {
       tesselateConvexPolyhedron( body, mesh, newVertices, newFaces );
+   }
+
+   void operator()( const TriangleMeshUnion & body, MeshType & mesh, std::vector<VertexHandle> & newVertices, std::vector<FaceHandle> & newFaces )
+   {
+       WALBERLA_LOG_DEVEL("tesselate triangle mesh union.");
+      for(auto subBody = body.begin(); subBody != body.end(); subBody++){
+          (*this)( *subBody, mesh, newVertices, newFaces );
+      }
+
    }
 
 };

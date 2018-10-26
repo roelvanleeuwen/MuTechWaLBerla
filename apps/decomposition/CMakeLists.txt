@@ -1,0 +1,5 @@
+waLBerla_link_files_to_builddir( *.cfg )
+
+waLBerla_add_executable ( NAME CubeDecomposition
+                          FILES CubeDecomposition.cpp
+                          DEPENDS blockforest mesh core pe vtk)

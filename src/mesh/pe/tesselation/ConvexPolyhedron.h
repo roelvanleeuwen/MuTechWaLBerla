@@ -32,13 +32,14 @@ namespace pe {
 template<typename MeshType>
 void tesselateConvexPolyhedron( const ConvexPolyhedron & poly, MeshType & mesh, std::vector<typename MeshType::VertexHandle> & newVertices, std::vector<typename MeshType::FaceHandle> & newFaces )
 {
+    WALBERLA_LOG_DEVEL("tesselate convex polyhedron.");
    typedef typename MeshType::Scalar Scalar;
    typedef typename MeshType::Point Point;
    typedef typename MeshType::VertexHandle VertexHandle;
-
+   const size_t oldSize = newVertices.size();
    const TriangleMesh & polyhedronMesh = poly.getMesh();
 
-   newVertices.reserve( polyhedronMesh.n_vertices() );
+   newVertices.reserve( oldSize + polyhedronMesh.n_vertices() );
    for(auto vh : polyhedronMesh.vertices())
    {
       const TriangleMesh::Point & p0 = polyhedronMesh.point( vh );
@@ -51,9 +52,9 @@ void tesselateConvexPolyhedron( const ConvexPolyhedron & poly, MeshType & mesh, 
    for(auto fh : polyhedronMesh.faces())
    {
       auto it = polyhedronMesh.cfv_ccwbegin(fh);
-      VertexHandle v0 = newVertices[ size_t( (it++)->idx() ) ];
-      VertexHandle v1 = newVertices[ size_t( (it++)->idx() ) ];
-      VertexHandle v2 = newVertices[ size_t( (it++)->idx() ) ];
+      VertexHandle v0 = newVertices[ size_t( oldSize + (it++)->idx() ) ];
+      VertexHandle v1 = newVertices[ size_t( oldSize + (it++)->idx() ) ];
+      VertexHandle v2 = newVertices[ size_t( oldSize + (it++)->idx() ) ];
       WALBERLA_ASSERT_EQUAL(it, polyhedronMesh.cfv_ccwend(fh) );
       newFaces.push_back( mesh.add_face(v0, v1, v2) );
    }

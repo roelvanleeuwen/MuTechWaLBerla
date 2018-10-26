@@ -29,6 +29,11 @@
 #include <OpenMesh/Core/IO/importer/ImporterT.hh>
 #include <OpenMesh/Core/IO/Options.hh>
 
+// turn off warnings for CGAL
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#pragma GCC diagnostic ignored "-Wshadow"
+#pragma GCC diagnostic ignored "-Wpedantic"
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Polyhedron_3.h>
 #include <CGAL/Surface_mesh.h>
@@ -40,6 +45,7 @@
 #include <CGAL/convex_decomposition_3.h>
 #include <CGAL/convexity_check_3.h>
 #include <CGAL/OFF_to_nef_3.h>
+#pragma GCC diagnostic pop
 
 #include <iostream>
 #include <sstream>

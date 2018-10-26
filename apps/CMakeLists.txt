@@ -29,6 +29,9 @@ else ()
     add_subdirectory ( showcases EXCLUDE_FROM_ALL )
 endif()
 
+# Decomposition
+add_subdirectory( decomposition )
+
 # Python module
 if ( WALBERLA_BUILD_WITH_PYTHON )
     add_subdirectory( pythonmodule )
