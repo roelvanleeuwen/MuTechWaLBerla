@@ -72,7 +72,6 @@ public:
 
    void operator()( const TriangleMeshUnion & body, MeshType & mesh, std::vector<VertexHandle> & newVertices, std::vector<FaceHandle> & newFaces )
    {
-       WALBERLA_LOG_DEVEL("tesselate triangle mesh union.");
       for(auto subBody = body.begin(); subBody != body.end(); subBody++){
           (*this)( *subBody, mesh, newVertices, newFaces );
       }

@@ -32,7 +32,6 @@ namespace pe {
 template<typename MeshType>
 void tesselateConvexPolyhedron( const ConvexPolyhedron & poly, MeshType & mesh, std::vector<typename MeshType::VertexHandle> & newVertices, std::vector<typename MeshType::FaceHandle> & newFaces )
 {
-    WALBERLA_LOG_DEVEL("tesselate convex polyhedron.");
    typedef typename MeshType::Scalar Scalar;
    typedef typename MeshType::Point Point;
    typedef typename MeshType::VertexHandle VertexHandle;
