@@ -48,7 +48,7 @@
 #include <vtk/VTKOutput.h>
 #include <pe/vtk/SphereVtkOutput.h>
 
-#pragma GCC diagnostic push
+/*#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfloat-equal"
 #pragma GCC diagnostic ignored "-Wshadow"
 #pragma GCC diagnostic ignored "-Wpedantic"
@@ -58,7 +58,7 @@
 #include <CGAL/Nef_polyhedron_3.h>
 #include <CGAL/boost/graph/convert_nef_polyhedron_to_polygon_mesh.h>
 #include <CGAL/IO/Nef_polyhedron_iostream_3.h>
-#pragma GCC diagnostic pop
+#pragma GCC diagnostic pop*/
 
 #include <iostream>
 #include <sstream>
@@ -76,17 +76,17 @@ using namespace walberla::pe;
 typedef boost::tuple<Sphere, Plane, mesh::pe::TriangleMeshUnion, mesh::pe::ConvexPolyhedron> BodyTypeTuple ;
 //! [BodyTypeTuple]
 
-typedef CGAL::Exact_predicates_exact_constructions_kernel Exact_kernel;
+/*typedef CGAL::Exact_predicates_exact_constructions_kernel Exact_kernel;
 typedef CGAL::Polyhedron_3<Exact_kernel> Polyhedron;
 typedef CGAL::Surface_mesh<Exact_kernel::Point_3> Surface_mesh;
 typedef CGAL::Nef_polyhedron_3<Exact_kernel> Nef_polyhedron;
 typedef Nef_polyhedron::Vector_3  NefVector_3;
-typedef Nef_polyhedron::Aff_transformation_3  NefAff_transformation_3;
+typedef Nef_polyhedron::Aff_transformation_3  NefAff_transformation_3;*/
 
 using OutputMesh = mesh::PolyMesh;
 using TesselationType=mesh::pe::DefaultTesselation<OutputMesh>;
 
-void fill_hexagon_prism(Polyhedron& poly)
+/*void fill_hexagon_prism(Polyhedron& poly)
 {
     double l = 5.0;
     double u = 0.5;
@@ -115,7 +115,7 @@ void fill_hexagon_prism(Polyhedron& poly)
     }
     std::cout << ss.str();
     ss >> poly;
-}
+}*/
 
 
 int main( int argc, char ** argv )
@@ -123,7 +123,7 @@ int main( int argc, char ** argv )
    //! [Parameters]
    Environment env(argc, argv);
    WALBERLA_UNUSED(env);
-   if(argc > 1 && std::strcmp(argv[1],"-write")==0){
+   /*if(argc > 1 && std::strcmp(argv[1],"-write")==0){
       WALBERLA_LOG_INFO_ON_ROOT("Writing complex body");
       Polyhedron poly;
       fill_hexagon_prism(poly);
@@ -148,7 +148,7 @@ int main( int argc, char ** argv )
       output.open("ComplexBody.off");
       output << outMesh;
       output.close();
-   }else{
+   }else{*/
 
       std::ifstream input;
       input.open("ComplexBody.off");
@@ -308,7 +308,7 @@ int main( int argc, char ** argv )
       meanVelocity /= numParticles;
       WALBERLA_LOG_INFO( "mean velocity: " << meanVelocity );
       //! [PostProcessing]
-   }
+   //}
    return EXIT_SUCCESS;
 }
 } // namespace walberla

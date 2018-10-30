@@ -10,26 +10,30 @@ if(CGAL_INCLUDE_DIR AND CGAL_LIBRARIES AND Boost_FOUND AND GMP_LIBRARIES AND MPF
 
 else(CGAL_INCLUDE_DIR AND CGAL_LIBRARIES AND Boost_FOUND AND GMP_LIBRARIES AND MPFR_LIBRARIES)
 
- FIND_PATH(CGAL_INCLUDE_DIR CGAL/basic.h
+ FIND_PATH(CGAL_INCLUDE_DIR_TMP CGAL/basic.h
       ${CGAL_ROOT}/include
-      /usr/include
-      /usr/local/include
+#      /usr/include
+#      /usr/local/include
       $ENV{ProgramFiles}/CGAL/*/include
       $ENV{SystemDrive}/CGAL/*/include
+      NO_DEFAULT_PATH
       )
+  set(CGAL_INCLUDE_DIR ${CGAL_INCLUDE_DIR_TMP} CACHE PATH "Path to search for CGAL include files.")
 
-  find_library(CGAL_LIBRARIES NAMES CGAL libCGAL
+  find_library(CGAL_LIBRARIES_TMP NAMES CGAL libCGAL
      PATHS
       ${CGAL_ROOT}/lib
-     /usr/lib
-     /usr/local/lib
+#     /usr/lib
+#     /usr/local/lib
      /usr/lib/CGAL
      /usr/lib64
      /usr/local/lib64
      /usr/lib64/CGAL
      $ENV{ProgramFiles}/CGAL/*/lib
      $ENV{SystemDrive}/CGAL/*/lib
+     NO_DEFAULT_PATH
      )
+  set(CGAL_LIBRARIES ${CGAL_LIBRARIES_TMP} CACHE PATH "Path to search for CGAL libraries.")
 
   find_library(GMP_LIBRARIES NAMES gmp libgmp
      PATHS
@@ -57,6 +61,7 @@ else(CGAL_INCLUDE_DIR AND CGAL_LIBRARIES AND Boost_FOUND AND GMP_LIBRARIES AND M
      $ENV{SystemDrive}/mpfr/*/lib
      )
 
+message(STATUS "CGAL_ROOT=${CGAL_ROOT}")
 message(STATUS "CGAL_INCLUDE_DIR=${CGAL_INCLUDE_DIR}")
 message(STATUS "CGAL_LIBRARIES=${CGAL_LIBRARIES}")
 message(STATUS "GMP_LIBRARIES=${GMP_LIBRARIES}")

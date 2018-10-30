@@ -21,32 +21,21 @@
 #pragma once
 
 #include "mesh/TriangleMeshes.h"
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wfloat-equal"
-#pragma GCC diagnostic ignored "-Wshadow"
-#pragma GCC diagnostic ignored "-Wpedantic"
-#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-#include <CGAL/Polyhedron_3.h>
-#include <CGAL/Surface_mesh.h>
-#include <CGAL/Nef_polyhedron_3.h>
-#include <CGAL/boost/graph/convert_nef_polyhedron_to_polygon_mesh.h>
-#include <CGAL/IO/Nef_polyhedron_iostream_3.h>
-#include <CGAL/Nef_3/SNC_indexed_items.h>
-#pragma GCC diagnostic pop
+#include "CGALWrapper.h"
 #include <vector>
 
 namespace walberla {
 namespace mesh {
 
-   typedef CGAL::Exact_predicates_exact_constructions_kernel Exact_kernel;
-   typedef CGAL::Polyhedron_3<Exact_kernel> Polyhedron;
-   typedef CGAL::Surface_mesh<Exact_kernel::Point_3> Surface_mesh;
-   typedef CGAL::Nef_polyhedron_3<Exact_kernel> Nef_polyhedron;
-   typedef Nef_polyhedron::Volume_const_iterator Volume_const_iterator;
+   typedef walberla::cgalwraps::Exact_kernel Exact_kernel;
+   typedef walberla::cgalwraps::Polyhedron Polyhedron;
+   typedef walberla::cgalwraps::Surface_mesh Surface_mesh;
+   typedef walberla::cgalwraps::Nef_polyhedron  Nef_polyhedron;
+   typedef walberla::cgalwraps::Volume_const_iterator Volume_const_iterator;
 
    class ConvexDecomposer{
    public:
-      /** Decompose a non-convex Triangle mesh into several convex parts
+      /** Decompose a non-convex Triangle mesh into several convex parts.
        * \param mesh The mesh which is decomposed.
        * \return Vector containing the convex parts.
       */

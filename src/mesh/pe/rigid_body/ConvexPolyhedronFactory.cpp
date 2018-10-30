@@ -114,7 +114,6 @@ TriangleMeshUnion* createNonConvexUnion( BodyStorage& globalStorage, BlockStorag
                                                      MaterialID material, bool global, bool communicating, bool infiniteMass ){
 
    // Create Union
-   std::cout << gpos;
    TriangleMeshUnion* un = createUnion<PolyhedronTuple>( globalStorage, blocks, storageID, uid, gpos,
                                                                   global, communicating, infiniteMass );
    // Decompose

@@ -29,29 +29,12 @@
 #include <OpenMesh/Core/IO/importer/ImporterT.hh>
 #include <OpenMesh/Core/IO/Options.hh>
 
-// turn off warnings for CGAL
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wfloat-equal"
-#pragma GCC diagnostic ignored "-Wshadow"
-#pragma GCC diagnostic ignored "-Wpedantic"
-#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-#include <CGAL/Polyhedron_3.h>
-#include <CGAL/Surface_mesh.h>
-#include <CGAL/Nef_polyhedron_3.h>
-#include <CGAL/boost/graph/convert_nef_polyhedron_to_polygon_mesh.h>
-#include <CGAL/boost/graph/graph_traits_PolyMesh_ArrayKernelT.h>
-#include <CGAL/IO/Nef_polyhedron_iostream_3.h>
-#include <CGAL/Nef_3/SNC_indexed_items.h>
-#include <CGAL/convex_decomposition_3.h>
-#include <CGAL/convexity_check_3.h>
-#include <CGAL/OFF_to_nef_3.h>
-#pragma GCC diagnostic pop
-
 #include <iostream>
 #include <sstream>
 #include <fstream>
 
 #include <vector>
+
 
 namespace walberla {
 namespace mesh {
@@ -64,7 +47,7 @@ std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh&
    Nef_polyhedron nef(poly);
 
    // Partition the polyhedron into convex parts
-   CGAL::convex_decomposition_3(nef);
+   walberla::cgalwraps::convex_decomposition_3(nef);
    std::vector<Nef_polyhedron> convex_parts; // parts as nefs (for checks)
    std::vector<TriangleMesh> convex_meshes; // parts as meshes.
 
@@ -103,7 +86,7 @@ void ConvexDecomposer::nefToOpenMesh(const Nef_polyhedron &nef, TriangleMesh &me
    std::stringstream offstream;
 
    Surface_mesh output;
-   CGAL::convert_nef_polyhedron_to_polygon_mesh(nef, output);
+   walberla::cgalwraps::convert_nef_polyhedron_to_polygon_mesh(nef, output);
    offstream << output;
 
    OpenMesh::IO::ImporterT<TriangleMesh> importer(mesh);
@@ -123,9 +106,9 @@ bool ConvexDecomposer::performDecompositionTests(const Nef_polyhedron &input, co
    Nef_polyhedron unitedNefs(Nef_polyhedron::EMPTY);
    for(int i = 0; i < (int)convex_parts.size(); i++){
       Surface_mesh output;
-      CGAL::convert_nef_polyhedron_to_polygon_mesh(convex_parts[i], output);
+      walberla::cgalwraps::convert_nef_polyhedron_to_polygon_mesh(convex_parts[i], output);
 
-      if(!CGAL::is_strongly_convex_3(output)){
+      if(!walberla::cgalwraps::is_strongly_convex_3(output)){
          WALBERLA_LOG_INFO( "Output " << i << " is NOT convex." );
          return false;
       }
