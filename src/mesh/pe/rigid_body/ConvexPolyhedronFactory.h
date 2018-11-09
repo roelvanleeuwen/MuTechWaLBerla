@@ -171,11 +171,12 @@ mesh::pe::ConvexPolyhedronID createConvexPolyhedron( Union<BodyTypeTuple>* un,
 
    return static_cast<mesh::pe::ConvexPolyhedronID> (&(un->add( std::move(cpolyhedron) )));
 }
+//*************************************************************************************************
 
 //*************************************************************************************************
 /**
  * \ingroup pe
- * \brief Setup of a new Non-ConvexPolyhedron as a union of its part. The mesh passed will be automatically decomposed.
+ * \brief Setup of a new Non-ConvexPolyhedron as a union of its part. The mesh passed will be automatically decomposed into EXACT parts.
  *
  * \tparam BodyTypeTuple boost::tuple of all geometries (including Union<ConvexPolyhedron> and ConvexPolyhedron)
  * \exception std::runtime_error    Polyhedron TypeID not initalized!
@@ -190,7 +191,27 @@ TriangleMeshUnion* createNonConvexUnion( BodyStorage& globalStorage, BlockStorag
                                                      id_t uid, Vec3 gpos, TriangleMesh mesh,
                                                      MaterialID material = Material::find("iron"),
                                                      bool global = false, bool communicating = true, bool infiniteMass = false );
+//*************************************************************************************************
 
+//*************************************************************************************************
+/**
+ * \ingroup pe
+ * \brief Setup of a new Non-ConvexPolyhedron as a union of its part. The mesh passed will be automatically approximatly convex decomposed.
+ *
+ * \tparam BodyTypeTuple boost::tuple of all geometries (including Union<ConvexPolyhedron> and ConvexPolyhedron)
+ * \exception std::runtime_error    Polyhedron TypeID not initalized!
+ * \exception std::invalid_argument createSphere: Union argument is NULL
+ * \exception std::logic_error      createSphere: Union is remote
+ *
+ * \see createConvexPolyhedron for more details
+ */
+typedef boost::tuple<mesh::pe::ConvexPolyhedron> PolyhedronTuple;
+typedef Union<PolyhedronTuple> TriangleMeshUnion;
+TriangleMeshUnion* createApproximateNonConvexUnion( BodyStorage& globalStorage, BlockStorage& blocks, BlockDataID storageID,
+                                                     id_t uid, Vec3 gpos, TriangleMesh mesh,
+                                                     MaterialID material = Material::find("iron"),
+                                                     bool global = false, bool communicating = true, bool infiniteMass = false );
+//*************************************************************************************************
 } // namespace pe
 } // namespace mesh
 } // namespace walberla

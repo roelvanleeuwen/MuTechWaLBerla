@@ -41,7 +41,18 @@ namespace mesh {
       */
       static std::vector<TriangleMesh> convexDecompose(const TriangleMesh& mesh);
 
+
+      /** Decompose a non-convex Triangle mesh approximately into several convex parts.
+       * For complex meshes this method results in considerably fewer parts and should therfore
+       * be preferded over ConvexDecomposer::convexDecompose.
+       * \param mesh The mesh which is decomposed.
+       * \param max_concavity Maximum concavity allowed for the returned mesh.
+       * \return Vector containing the convex parts.
+      */
+      static std::vector<TriangleMesh> approximateConvexDecompose(const TriangleMesh& mesh, real_t max_concavity = real_t(1e-3));
+
    private:
+
       // Check decomposition result.
       static bool performDecompositionTests(const Nef_polyhedron &input, const std::vector<Nef_polyhedron> &convex_parts );
 
@@ -50,8 +61,13 @@ namespace mesh {
 
       // Convert Nef Polyhedron back to OpenMesh
       static void nefToOpenMesh(const Nef_polyhedron &nef, TriangleMesh &mesh);
-   };
 
+      // Fill Mesh vectors for HACD processing
+      static void openMeshToVectors(const TriangleMesh& mesh, std::vector<double> &points, std::vector<uint32_t> &triangles);
+
+      // Convert VHACD output vectors back to openmesh
+      static void vectorsToOpenMesh(const std::vector<double> &points, const std::vector<uint32_t> &triangles, TriangleMesh &mesh);
+   };
 
 } // mesh
 } // walberla

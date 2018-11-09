@@ -979,6 +979,23 @@ endif()
 
 ############################################################################################################################
 ##
+## vHACD (Library for hierachical approximate complex decomposition)
+##
+############################################################################################################################
+if( (NOT DEFINED WALBERLA_BUILD_WITH_VHACD) OR WALBERLA_BUILD_WITH_VHACD)
+   find_package( VHACD )
+   if( VHACD_FOUND )
+      set( WALBERLA_BUILD_WITH_VHACD ON CACHE BOOL "Build with vHACD (Library for hierachical approximate complex decomposition)" )
+      include_directories( SYSTEM ${VHACD_INCLUDE_DIRS} )
+      list( APPEND SERVICE_LIBS ${VHACD_LIBRARIES} )
+      add_definitions ( "-DUSE_VHACD" )
+   else()
+      set( WALBERLA_BUILD_WITH_VHACD OFF CACHE BOOL "Build with vHACD (Library for hierachical approximate complex decomposition)" FORCE )
+   endif()
+endif()
+
+############################################################################################################################
+##
 ## DebugOptimized Build Configuration for fast execution of tests with enabled asserts
 ##
 ############################################################################################################################

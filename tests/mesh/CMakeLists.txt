@@ -6,7 +6,7 @@
 
 if ( WALBERLA_BUILD_WITH_OPENMESH )
    waLBerla_link_files_to_builddir( "*.obj" )   
-
+   waLBerla_link_files_to_builddir( "*.off" )  
    waLBerla_compile_test( FILES MatrixVectorOperationsTest.cpp DEPENDS mesh )
    waLBerla_execute_test( NAME  MatrixVectorOperationsTest COMMAND $<TARGET_FILE:MatrixVectorOperationsTest> )
    waLBerla_compile_test( FILES MeshConversionTest.cpp DEPENDS mesh geometry )
@@ -96,5 +96,9 @@ if ( WALBERLA_BUILD_WITH_OPENMESH )
 
 waLBerla_compile_test( NAME  ConvexDecomposition FILES Decomposition.cpp DEPENDS core mesh) 
 waLBerla_execute_test( NAME  ConvexDecomposition )
+
+
+waLBerla_compile_test( NAME  ApproxConvexDecomposition FILES ApproxDecomposition.cpp DEPENDS core mesh) 
+waLBerla_execute_test( NAME  ApproxConvexDecomposition )
 
 endif()

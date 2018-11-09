@@ -109,6 +109,8 @@ ConvexPolyhedronID createConvexPolyhedron( BodyStorage& globalStorage, BlockStor
    return poly;
 }
 
+
+
 TriangleMeshUnion* createNonConvexUnion( BodyStorage& globalStorage, BlockStorage& blocks, BlockDataID storageID,
                                                      id_t uid, Vec3 gpos, TriangleMesh mesh,
                                                      MaterialID material, bool global, bool communicating, bool infiniteMass ){
@@ -118,6 +120,26 @@ TriangleMeshUnion* createNonConvexUnion( BodyStorage& globalStorage, BlockStorag
                                                                   global, communicating, infiniteMass );
    // Decompose
    std::vector<TriangleMesh> convexParts = ConvexDecomposer::convexDecompose(mesh);
+
+   // Centrate parts an add them to the union
+   for(int part = 0; part < (int)convexParts.size(); part++){
+      Vec3 centroid = mesh::toWalberla( mesh::computeCentroid( convexParts[part] ) );
+      mesh::translate( convexParts[part], -centroid );
+      createConvexPolyhedron(un, uid, centroid+gpos, convexParts[part], material,
+                                       global, communicating, infiniteMass );
+   }
+   return un;
+}
+
+TriangleMeshUnion* createApproximateNonConvexUnion( BodyStorage& globalStorage, BlockStorage& blocks, BlockDataID storageID,
+                                                     id_t uid, Vec3 gpos, TriangleMesh mesh,
+                                                     MaterialID material, bool global, bool communicating, bool infiniteMass ){
+
+   // Create Union
+   TriangleMeshUnion* un = createUnion<PolyhedronTuple>( globalStorage, blocks, storageID, uid, gpos,
+                                                                  global, communicating, infiniteMass );
+   // Decompose
+   std::vector<TriangleMesh> convexParts = ConvexDecomposer::approximateConvexDecompose(mesh);
 
    // Centrate parts an add them to the union
    for(int part = 0; part < (int)convexParts.size(); part++){

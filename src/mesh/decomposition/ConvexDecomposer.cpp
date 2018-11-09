@@ -20,6 +20,8 @@
 //======================================================================================================================
 #include "ConvexDecomposer.h"
 
+#include "VHACD.h"
+
 #include "mesh/TriangleMeshes.h"
 #include "core/logging/Logging.h"
 
@@ -70,6 +72,83 @@ std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh&
 
    return convex_meshes;
 
+}
+
+std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const TriangleMesh& mesh, real_t max_concavity){
+
+   std::vector<TriangleMesh> convex_meshes; // parts as meshes.
+
+   std::vector<double> pts;
+   std::vector<uint32_t> tris;
+   openMeshToVectors(mesh, pts, tris);
+   std::cout << "Points.size: " << pts.size() << " Tris: " << tris.size() << std::endl;
+
+   // Create interface
+   VHACD::IVHACD* interfaceVHACD = VHACD::CreateVHACD();
+   // Set parameters
+   VHACD::IVHACD::Parameters paramsVHACD;
+   paramsVHACD.m_concavity = (double)max_concavity;
+   bool res = interfaceVHACD->Compute(&pts[0], (unsigned int)pts.size() / 3,
+       &tris[0], (unsigned int)tris.size() / 3, paramsVHACD);
+
+
+   std::cout << "Result: " << res << std::endl;
+   std::cout << "Created " << interfaceVHACD->GetNConvexHulls() << " Hulls." << std::endl;
+
+   if (res) {
+       // save output
+       unsigned int nConvexHulls = interfaceVHACD->GetNConvexHulls();
+       VHACD::IVHACD::ConvexHull ch;
+       for (unsigned int p = 0; p < nConvexHulls; ++p) {
+           interfaceVHACD->GetConvexHull(p, ch);
+           TriangleMesh cmesh;
+           std::vector<double> points(ch.m_points, ch.m_points + (3*ch.m_nPoints));
+           std::vector<uint32_t> triangles(ch.m_triangles, ch.m_triangles + (3*ch.m_nTriangles));
+           vectorsToOpenMesh(points, triangles, cmesh);
+           convex_meshes.push_back(cmesh);
+       }
+   } else {
+      WALBERLA_LOG_INFO(" Decomposition was not successful.");
+   }
+   return convex_meshes;
+}
+
+void ConvexDecomposer::openMeshToVectors(const TriangleMesh& mesh, std::vector<double> &points, std::vector<uint32_t> &triangles){
+   for (auto v_it=mesh.vertices_begin(); v_it!=mesh.vertices_end(); ++v_it){
+      auto pt = mesh.point(*v_it);
+      points.push_back(pt[0]);
+      points.push_back(pt[1]);
+      points.push_back(pt[2]);
+   }
+
+   for (auto f_it=mesh.faces_begin(); f_it!=mesh.faces_end(); ++f_it){
+      auto face_vert_it = mesh.cfv_ccwiter (*f_it);
+      for(; face_vert_it.is_valid(); face_vert_it++){
+         auto vert_hdl = *face_vert_it;
+         triangles.push_back(vert_hdl.idx());
+      }
+   }
+}
+
+void ConvexDecomposer::vectorsToOpenMesh(const std::vector<double> &points, const std::vector<uint32_t> &triangles, TriangleMesh &mesh){
+
+   //std::cout << "Points: " << points.size()/3 << std::endl;
+   //std::cout << "Triangles: " << triangles.size()/3 << std::endl;
+
+   std::vector<TriangleMesh::VertexHandle> handles;
+   // generate vertices
+   for(int i = 0; i < (int)points.size()/3; i++){
+      handles.push_back(mesh.add_vertex(TriangleMesh::Point(points[3*i], points[3*i+1],  points[3*i+2])));
+   }
+   // Faces
+   std::vector<TriangleMesh::VertexHandle>  face_vhandles;
+   for(int i = 0; i < (int)triangles.size()/3; i++){
+      face_vhandles.clear();
+      face_vhandles.push_back(handles[triangles[3*i]]);
+      face_vhandles.push_back(handles[triangles[3*i+1]]);
+      face_vhandles.push_back(handles[triangles[3*i+2]]);
+      mesh.add_face(face_vhandles);
+   }
 }
 
 void ConvexDecomposer::openMeshToPoly(const TriangleMesh &mesh, Polyhedron &poly){
