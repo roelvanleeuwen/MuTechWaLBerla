@@ -87,7 +87,11 @@ std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const Tr
    VHACD::IVHACD* interfaceVHACD = VHACD::CreateVHACD();
    // Set parameters
    VHACD::IVHACD::Parameters paramsVHACD;
-   paramsVHACD.m_concavity = (double)max_concavity;
+   paramsVHACD.m_concavity = 0.002;
+   paramsVHACD.m_maxNumVerticesPerCH = 1024;
+   paramsVHACD.m_convexhullDownsampling = 16;
+   paramsVHACD.m_convexhullApproximation = false;
+   paramsVHACD.m_projectHullVertices  = false;
    bool res = interfaceVHACD->Compute(&pts[0], (unsigned int)pts.size() / 3,
        &tris[0], (unsigned int)tris.size() / 3, paramsVHACD);
 
@@ -97,19 +101,31 @@ std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const Tr
 
    if (res) {
        // save output
-       unsigned int nConvexHulls = interfaceVHACD->GetNConvexHulls();
-       VHACD::IVHACD::ConvexHull ch;
-       for (unsigned int p = 0; p < nConvexHulls; ++p) {
-           interfaceVHACD->GetConvexHull(p, ch);
-           TriangleMesh cmesh;
-           std::vector<double> points(ch.m_points, ch.m_points + (3*ch.m_nPoints));
-           std::vector<uint32_t> triangles(ch.m_triangles, ch.m_triangles + (3*ch.m_nTriangles));
-           vectorsToOpenMesh(points, triangles, cmesh);
-           convex_meshes.push_back(cmesh);
-       }
+      unsigned int nConvexHulls = interfaceVHACD->GetNConvexHulls();
+      VHACD::IVHACD::ConvexHull ch;
+      for (unsigned int p = 0; p < nConvexHulls; ++p) {
+         interfaceVHACD->GetConvexHull(p, ch);
+         TriangleMesh cmesh;
+         std::vector<double> points(ch.m_points, ch.m_points + (3*ch.m_nPoints));
+         std::vector<uint32_t> triangles(ch.m_triangles, ch.m_triangles + (3*ch.m_nTriangles));
+         vectorsToOpenMesh(points, triangles, cmesh);
+         convex_meshes.push_back(cmesh);
+         
+         //Output
+         std::ofstream output;
+         std::stringstream ss;
+         ss << "SubBody" << p << ".off";
+         output.open(ss.str());
+         OpenMesh::IO::ExporterT<TriangleMesh> exporter(cmesh);
+		   OpenMesh::IO::Options opt(OpenMesh::IO::Options::Default);
+			OpenMesh::IO::OFFWriter().write(output, exporter, opt);
+         output.close();
+      }
    } else {
       WALBERLA_LOG_INFO(" Decomposition was not successful.");
    }
+   interfaceVHACD->Clean();
+   interfaceVHACD->Release();
    return convex_meshes;
 }
 
@@ -149,6 +165,7 @@ void ConvexDecomposer::vectorsToOpenMesh(const std::vector<double> &points, cons
       face_vhandles.push_back(handles[triangles[3*i+2]]);
       mesh.add_face(face_vhandles);
    }
+
 }
 
 void ConvexDecomposer::openMeshToPoly(const TriangleMesh &mesh, Polyhedron &poly){

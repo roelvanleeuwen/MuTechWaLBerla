@@ -275,7 +275,7 @@ int main( int argc, char ** argv )
       inputArmadillo.close();
 
       // Scale Armadillo
-      double factor = 0.1;
+      double factor = 0.15;
       for (auto v_it=armadilloMesh.vertices_begin(); v_it!=armadilloMesh.vertices_end(); ++v_it){
          armadilloMesh.set_point(*v_it, factor * armadilloMesh.point(*v_it));
       }
@@ -370,9 +370,11 @@ int main( int argc, char ** argv )
       createPlane(*globalBodyStorage, 0, Vec3(0,0,-1), simulationDomain.maxCorner(), material );
       //! [Planes]
       
-      mesh::pe::createApproximateNonConvexUnion( *globalBodyStorage, *forest, storageID, 0, Vec3(0,0,70), armadilloMesh, Material::find("iron"), false, true, false);
-
-      mesh::pe::TriangleMeshUnion* un =  mesh::pe::createNonConvexUnion( *globalBodyStorage, *forest, storageID, 0, Vec3(0,0,20), hopperMesh, Material::find("iron"), false, true, false);
+      mesh::pe::TriangleMeshUnion* un = mesh::pe::createApproximateNonConvexUnion( *globalBodyStorage, *forest, storageID, 0, Vec3(0,0,70), armadilloMesh, Material::find("iron"), false, true, false);
+            Vec3 rndVel(math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax));
+            if (un != nullptr) un->setLinearVel(rndVel);
+            
+      mesh::pe::createNonConvexUnion( *globalBodyStorage, *forest, storageID, 0, Vec3(0,0,20), hopperMesh, Material::find("iron"), false, true, false);
       createBox( *globalBodyStorage, *forest, storageID, 0, Vec3(-20,0,12), Vec3(9,40,24), Material::find("iron"), false, true, false);
       createBox( *globalBodyStorage, *forest, storageID, 0, Vec3(20,0,12), Vec3(9,40,24), Material::find("iron"), false, true, false);
       //std::cout << un->isFixed() << std::endl;
