@@ -11,3 +11,8 @@ waLBerla_add_executable ( NAME ComplexDecomposition
 waLBerla_add_executable ( NAME Armadillo
                           FILES Armadillo.cpp
                           DEPENDS blockforest mesh core pe vtk)
+
+
+waLBerla_add_executable ( NAME Rhein
+                          FILES Rhein.cpp
+                          DEPENDS blockforest mesh core pe vtk)

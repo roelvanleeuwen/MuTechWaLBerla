@@ -12,8 +12,8 @@ else(CGAL_INCLUDE_DIR AND CGAL_LIBRARIES AND Boost_FOUND AND GMP_LIBRARIES AND M
 
  FIND_PATH(CGAL_INCLUDE_DIR_TMP CGAL/basic.h
       ${CGAL_ROOT}/include
-#      /usr/include
-#      /usr/local/include
+      /usr/include
+      /usr/local/include
       $ENV{ProgramFiles}/CGAL/*/include
       $ENV{SystemDrive}/CGAL/*/include
       NO_DEFAULT_PATH
@@ -23,8 +23,8 @@ else(CGAL_INCLUDE_DIR AND CGAL_LIBRARIES AND Boost_FOUND AND GMP_LIBRARIES AND M
   find_library(CGAL_LIBRARIES_TMP NAMES CGAL libCGAL
      PATHS
       ${CGAL_ROOT}/lib
-#     /usr/lib
-#     /usr/local/lib
+     /usr/lib
+     /usr/local/lib
      /usr/lib/CGAL
      /usr/lib64
      /usr/local/lib64

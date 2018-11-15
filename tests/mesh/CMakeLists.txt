@@ -98,7 +98,7 @@ waLBerla_compile_test( NAME  ConvexDecomposition FILES Decomposition.cpp DEPENDS
 waLBerla_execute_test( NAME  ConvexDecomposition )
 
 
-waLBerla_compile_test( NAME  ApproxConvexDecomposition FILES ApproxDecomposition.cpp DEPENDS core mesh) 
-waLBerla_execute_test( NAME  ApproxConvexDecomposition )
+waLBerla_compile_test( NAME  ApproxDecomposition FILES ApproxDecomposition.cpp DEPENDS core mesh) 
+waLBerla_execute_test( NAME  ApproxDecomposition )
 
 endif()
