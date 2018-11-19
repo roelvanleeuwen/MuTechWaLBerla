@@ -324,7 +324,7 @@ int main( int argc, char ** argv )
       auto vtkSphereOutput = vtk::createVTKOutput_PointData(vtkSphereHelper, "Bodies", 1, std::string("VTK"), "simulation_step", false, false);
 
       TesselationType tesselation;
-      auto vtkMeshWriter = shared_ptr<mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType> >( new mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType>(forest, storageID, tesselation, std::string("MeshOutput"), uint_t(1), std::string("VTK") ));
+      auto vtkMeshWriter = std::make_shared<mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType> >(forest, storageID, tesselation, std::string("MeshOutput"), uint_t(1), std::string("VTK") );
       vtkMeshWriter->setBodyFilter([](const RigidBody& rb){ return (rb.getTypeID() == mesh::pe::TriangleMeshUnion::getStaticTypeID() || rb.getTypeID() == Box::getStaticTypeID()); });
       vtkMeshWriter->addFacePropertyRank();
       shared_ptr<mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType>::FaceDataSource<uint64_t>> sidFace = make_shared<mesh::pe::SIDFaceDataSource<OutputMesh, TesselationType, uint64_t>>();

@@ -93,8 +93,9 @@ if ( WALBERLA_BUILD_WITH_OPENMESH )
    waLBerla_execute_test( NAME  NumericIntegrationTestCube   COMMAND $<TARGET_FILE:NumericIntegrationTest> cube.obj )
    waLBerla_execute_test( NAME  NumericIntegrationTestSphere COMMAND $<TARGET_FILE:NumericIntegrationTest> sphere.obj )
    waLBerla_execute_test( NAME  NumericIntegrationTestBunny  COMMAND $<TARGET_FILE:NumericIntegrationTest> bunny.obj CONFIGURATIONS Release RelWithDbgInfo )
-
-waLBerla_compile_test( NAME  ConvexDecomposition FILES Decomposition.cpp DEPENDS core mesh) 
-waLBerla_execute_test( NAME  ConvexDecomposition )
+   if ( WALBERLA_BUILD_WITH_CGAL )
+      waLBerla_compile_test( NAME  ConvexDecomposition FILES Decomposition.cpp DEPENDS core mesh) 
+      waLBerla_execute_test( NAME  ConvexDecomposition )
+   endif()
 
 endif()

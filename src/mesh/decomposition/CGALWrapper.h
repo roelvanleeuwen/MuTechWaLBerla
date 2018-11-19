@@ -120,10 +120,13 @@ namespace cgalwraps {
    };
 
    struct Nef_polyhedron {
-      static const Polyhedron EMPTY;
+      static const int EMPTY=0;
 
       inline Nef_polyhedron(Polyhedron){WALBERLA_CGAL_FUNCTION_ERROR}
-
+      
+      // This allows the construction of Nef_polyhedron(EMPTY)
+      inline Nef_polyhedron(int){WALBERLA_CGAL_FUNCTION_ERROR}
+      
       inline Volume_const_iterator volumes_begin(){WALBERLA_CGAL_FUNCTION_ERROR}
 
       inline Volume_const_iterator volumes_end(){WALBERLA_CGAL_FUNCTION_ERROR}

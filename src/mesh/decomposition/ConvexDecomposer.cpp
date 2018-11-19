@@ -105,7 +105,7 @@ bool ConvexDecomposer::performDecompositionTests(const Nef_polyhedron &input, co
    // Perform convexity check
    // Unite volumes
    Nef_polyhedron unitedNefs(Nef_polyhedron::EMPTY);
-   for(int i = 0; i < (int)convex_parts.size(); i++){
+   for(size_t i = 0; i < convex_parts.size(); i++){
       Surface_mesh output;
       walberla::cgalwraps::convert_nef_polyhedron_to_polygon_mesh(convex_parts[i], output);
       // Convexity check 

@@ -126,7 +126,7 @@ TriangleMeshUnion* createNonConvexUnionOfConvexParts( BodyStorage& globalStorage
 														  global, communicating, infiniteMass );
                                                                   
    // Centrate parts an add them to the union
-   for(int part = 0; part < (int)convexParts.size(); part++){
+   for(size_t part = 0; part < convexParts.size(); part++){
       createConvexPolyhedron(un, uid, gpos, convexParts[part], material,
                                        global, communicating, infiniteMass );
    }
