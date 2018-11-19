@@ -239,7 +239,7 @@ int main( int argc, char ** argv )
    mesh::TriangleMesh cubeMesh;
    generateCubeTestMesh(cubeMesh, cubehalflength);
 
-   mesh::pe::TriangleMeshUnion* un = mesh::pe::createNonConvexUnion( *globalBodyStorage, *forest, storageID, 0, Vec3(), cubeMesh );
+   mesh::pe::createNonConvexUnion( *globalBodyStorage, *forest, storageID, 0, Vec3(), cubeMesh );
 
    //! [Gas]
    uint_t numParticles = uint_c(0);

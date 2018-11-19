@@ -13,8 +13,8 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file   01_ConfinedGas.cpp
-//! \author Sebastian Eibl <sebastian.eibl@fau.de>
+//! \file   ComplexDecomposition.cpp
+//! \author Tobias Leeamnn <tobias.leemann@fau.de>
 //
 //======================================================================================================================
 
@@ -49,17 +49,8 @@
 #include <vtk/VTKOutput.h>
 #include <pe/vtk/SphereVtkOutput.h>
 
-/*#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wfloat-equal"
-#pragma GCC diagnostic ignored "-Wshadow"
-#pragma GCC diagnostic ignored "-Wpedantic"
-#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-#include <CGAL/Polyhedron_3.h>
-#include <CGAL/Surface_mesh.h>
-#include <CGAL/Nef_polyhedron_3.h>
-#include <CGAL/boost/graph/convert_nef_polyhedron_to_polygon_mesh.h>
-#include <CGAL/IO/Nef_polyhedron_iostream_3.h>
-#pragma GCC diagnostic pop*/
+// Minimal CGAL interface
+#include "mesh/decomposition/CGALWrapper.h"
 
 #include <iostream>
 #include <sstream>
@@ -71,19 +62,11 @@
 
 namespace walberla {
 using namespace walberla::pe;
-
+using namespace walberla::cgalwraps;
 
 //! [BodyTypeTuple]
 typedef boost::tuple<Sphere, Plane, Box, mesh::pe::TriangleMeshUnion, mesh::pe::ConvexPolyhedron> BodyTypeTuple ;
 //! [BodyTypeTuple]
-
-typedef CGAL::Exact_predicates_exact_constructions_kernel Exact_kernel;
-typedef CGAL::Polyhedron_3<Exact_kernel> Polyhedron;
-typedef CGAL::Surface_mesh<Exact_kernel::Point_3> Surface_mesh;
-typedef CGAL::Nef_polyhedron_3<Exact_kernel> Nef_polyhedron;
-typedef Nef_polyhedron::Vector_3  NefVector_3;
-typedef Nef_polyhedron::Aff_transformation_3  NefAff_transformation_3;
-typedef Nef_polyhedron::Plane_3  Plane_3;
 
 using OutputMesh = mesh::PolyMesh;
 using TesselationType=mesh::pe::DefaultTesselation<OutputMesh>;
@@ -215,7 +198,7 @@ int main( int argc, char ** argv )
       nefC += nefA;
       nefC += nefB;
       Surface_mesh outMesh;
-      CGAL::convert_nef_polyhedron_to_polygon_mesh(nefC, outMesh);
+      cgalwraps::convert_nef_polyhedron_to_polygon_mesh(nefC, outMesh);
       std::ofstream output;
       output.open("ComplexBody.off");
       output << outMesh;
@@ -255,11 +238,12 @@ int main( int argc, char ** argv )
       Nef_polyhedron lowerHalfSpace(pCube);
       hopper -= lowerHalfSpace;
       Surface_mesh outMeshHop;
-      CGAL::convert_nef_polyhedron_to_polygon_mesh(hopper, outMeshHop);
+      cgalwraps::convert_nef_polyhedron_to_polygon_mesh(hopper, outMeshHop);
       output.open("Hopper.off");
       output << outMeshHop;
       output.close();
       WALBERLA_LOG_INFO_ON_ROOT("Wrote complex hopper.");
+      
    }else{
       Environment env(argc, argv);
       WALBERLA_UNUSED(env);
@@ -369,18 +353,21 @@ int main( int argc, char ** argv )
       //! [Planes]
       
       
-      mesh::pe::TriangleMeshUnion* un =  mesh::pe::createNonConvexUnion( *globalBodyStorage, *forest, storageID, 0, Vec3(0,0,20), hopperMesh, Material::find("iron"), false, true, false);
+      mesh::pe::createNonConvexUnion( *globalBodyStorage, *forest, storageID, 0, Vec3(0,0,20), hopperMesh, Material::find("iron"), false, true, false);
       createBox( *globalBodyStorage, *forest, storageID, 0, Vec3(-20,0,12), Vec3(9,40,24), Material::find("iron"), false, true, false);
       createBox( *globalBodyStorage, *forest, storageID, 0, Vec3(20,0,12), Vec3(9,40,24), Material::find("iron"), false, true, false);
-      std::cout << un->isFixed() << std::endl;
+
       //! [Gas]
+      
       uint_t numParticles = uint_c(0);
+      // Compute decomposition
+      std::vector<mesh::TriangleMesh> convexParts = mesh::ConvexDecomposer::convexDecompose(mesh);
       for (auto blkIt = forest->begin(); blkIt != forest->end(); ++blkIt)
       {
          IBlock & currentBlock = *blkIt;
          for (auto it = grid_generator::SCIterator(currentBlock.getAABB().getIntersection(generationDomain), Vector3<real_t>(spacing, spacing, spacing) * real_c(0.5), spacing); it != grid_generator::SCIterator(); ++it)
          {
-            mesh::pe::TriangleMeshUnion* particle =  mesh::pe::createNonConvexUnion( *globalBodyStorage, *forest, storageID, numParticles, *it, mesh);
+            mesh::pe::TriangleMeshUnion* particle =  mesh::pe::createNonConvexUnionOfConvexParts( *globalBodyStorage, *forest, storageID, numParticles, *it, convexParts);
             Vec3 rndVel(math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax));
             if (particle != nullptr) particle->setLinearVel(rndVel);
             if (particle != nullptr) ++numParticles;

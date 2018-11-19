@@ -156,6 +156,7 @@ int main( int argc, char** argv )
    const real_t cubehalflength = real_t(1.0);
    const real_t subcubeVol = cubehalflength *cubehalflength *cubehalflength;
    // Test a cube, with one of its 8 subcubes missing.
+   
    mesh::TriangleMesh cubeMesh;
    generateCubeTestMesh(cubeMesh, cubehalflength);
    WALBERLA_LOG_INFO( "Building complete. Testing...");
@@ -185,7 +186,7 @@ int main( int argc, char** argv )
 
    //Check center of gravity
    WALBERLA_CHECK_FLOAT_EQUAL((un->getPosition()-Vec3(real_t(-1./14.),real_t(-1./14.),real_t(-1./14.))).sqrLength(), real_t(0.0), "Center of gravity is not valid.");
-
+	
    //Check inertia
    const real_t fac  = un->getMass()*subcubeVol;
    const Mat3 analyticInertia = Mat3(real_t(fac*193./294.), real_t(fac*2./49.), real_t(fac*2./49.),

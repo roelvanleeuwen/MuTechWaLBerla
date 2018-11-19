@@ -72,6 +72,7 @@ std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh&
 
 }
 
+
 void ConvexDecomposer::openMeshToPoly(const TriangleMesh &mesh, Polyhedron &poly){
    std::stringstream offstream;
    //Write mesh
@@ -107,19 +108,11 @@ bool ConvexDecomposer::performDecompositionTests(const Nef_polyhedron &input, co
    for(int i = 0; i < (int)convex_parts.size(); i++){
       Surface_mesh output;
       walberla::cgalwraps::convert_nef_polyhedron_to_polygon_mesh(convex_parts[i], output);
-
+      // Convexity check 
       if(!walberla::cgalwraps::is_strongly_convex_3(output)){
          WALBERLA_LOG_INFO( "Output " << i << " is NOT convex." );
          return false;
       }
-
-      // Write part to file (optional)
-      /*std::ofstream out;
-      std::stringstream filename;
-      filename << "outputPart" << i << ".off";
-      out.open(filename.str());
-      out << output;
-      out.close();*/
 
       // Check if unit and new part are disjoint except for boundaries...
       if(unitedNefs.interior().intersection(convex_parts[i].interior())!=Nef_polyhedron(Nef_polyhedron::EMPTY)){
@@ -128,6 +121,7 @@ bool ConvexDecomposer::performDecompositionTests(const Nef_polyhedron &input, co
       }
       unitedNefs += convex_parts[i];
    }
+   // Check if union of all nef is the original mesh
    if(unitedNefs != input){
       WALBERLA_LOG_INFO( "Union of all nefs does NOT match the input." );
       return false;
