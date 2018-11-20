@@ -68,6 +68,7 @@ public:
       DataSource( const std::string & _name ) : name_( _name ) { }
       typedef T value_type;
       virtual uint_t      numComponents() = 0;
+      virtual ~DataSource() = default;
       const std::string & name() { return name_; }
    protected:
       std::string name_;
