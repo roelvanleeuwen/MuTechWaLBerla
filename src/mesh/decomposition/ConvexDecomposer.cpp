@@ -58,10 +58,11 @@ std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh&
      if(ci->mark()) {
        Polyhedron P;
        nef.convert_inner_shell_to_polyhedron(ci->shells_begin(), P);
-       convex_parts.push_back(Nef_polyhedron(P));
-       TriangleMesh cmesh;
-       nefToOpenMesh(convex_parts.back(), cmesh);
-       convex_meshes.push_back(cmesh);
+       convex_parts.emplace_back(P);
+       
+       convex_meshes.emplace_back();
+       nefToOpenMesh(convex_parts.back(), convex_meshes.back());
+       
      }
    }
 
