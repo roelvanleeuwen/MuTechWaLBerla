@@ -74,44 +74,68 @@ int main( int argc, char ** argv )
 {
    //! [Parameters]
   Environment env(argc, argv);
-  WALBERLA_UNUSED(env);
+  auto cfg = env.config();
+  if (cfg == NULL) WALBERLA_ABORT("No config specified!");
+
+  const Config::BlockHandle mainConf  = cfg->getBlock( "Rhein" );
   
-  OpenMesh::IO::Options opt(OpenMesh::IO::Options::Default);
-  // Load Rhein-Stone off files
-  std::vector<mesh::TriangleMesh> stones;
-  for(int i = 0; i < 10; i++){
-	  std::stringstream ss;
-	  ss << "0" << i << "v500.off";
-	  WALBERLA_LOG_INFO("Loading file: " << ss.str());
-	  stones.push_back(mesh::TriangleMesh());
-	  std::ifstream input;
-	  input.open(ss.str());
-	  OpenMesh::IO::ImporterT<mesh::TriangleMesh> importer(stones.back());
-	  OpenMesh::IO::OFFReader().read(input, importer, opt);
-	  input.close();
-	  double factor = 3.0;
-	  for (auto v_it=stones.back().vertices_begin(); v_it!=stones.back().vertices_end(); ++v_it){
-		 stones.back().set_point(*v_it, factor * stones.back().point(*v_it));
-	  }
-  }
+
  
-  // Decomposition into convex parts
-  
- 
-  // Scale Armadillo
-  /*double factor = 0.15;
-  for (auto v_it=armadilloMesh.vertices_begin(); v_it!=armadilloMesh.vertices_end(); ++v_it){
-	 armadilloMesh.set_point(*v_it, factor * armadilloMesh.point(*v_it));
-  }*/
 
   // Simulation part
   math::seedRandomGenerator( static_cast<unsigned int>(1337 * mpi::MPIManager::instance()->worldRank()) );
 
-  real_t spacing          = real_c(2.5);
-  real_t vMax             = real_c(0.3);
-  int    simulationSteps  = 2000;
-  real_t dt               = real_c(0.01);
+  real_t spacing = mainConf.getParameter<real_t>("spacing", real_c(1.0) );
+  WALBERLA_LOG_INFO_ON_ROOT("spacing: " << spacing);
+
+  real_t dt = mainConf.getParameter<real_t>("dt", real_c(0.01) );
+  WALBERLA_LOG_INFO_ON_ROOT("dt: " << dt);
+
+  int simulationSteps = mainConf.getParameter<int>("steps", 2000 );
+  WALBERLA_LOG_INFO_ON_ROOT("steps: " << simulationSteps);
+
+  int visSpacing = mainConf.getParameter<int>("visSpacing", 10 );
+  WALBERLA_LOG_INFO_ON_ROOT("visSpacing: " << visSpacing);
+
+  real_t vMax = mainConf.getParameter<real_t>("vmax", real_c(0.5) );
+  WALBERLA_LOG_INFO_ON_ROOT("vmax: " << vMax);
+
+  int numStones = mainConf.getParameter<int>("numStones", 1 );
+  WALBERLA_LOG_INFO_ON_ROOT("Number of stone types: " << numStones);
+
+  // parameters of the riverbed
+  real_t height = mainConf.getParameter<real_t>("rbheight", real_c(5) );
+  WALBERLA_LOG_INFO_ON_ROOT("Riverbed: Height: " << height);
+
+  real_t max_vel = mainConf.getParameter<real_t>("rbmaxvel", real_c(5) );
+  WALBERLA_LOG_INFO_ON_ROOT("Riverbed: Max Flow: " << max_vel);
+
+  real_t decline = mainConf.getParameter<real_t>("rbdecline", real_c(5) );
+  WALBERLA_LOG_INFO_ON_ROOT("Riverbed: Decline: " << decline);
+
+  real_t drag = mainConf.getParameter<real_t>("rbdrag", real_c(5) );
+  WALBERLA_LOG_INFO_ON_ROOT("Riverbed: Drag: " << drag);
+
   //! [Parameters]
+  //!
+  OpenMesh::IO::Options opt(OpenMesh::IO::Options::Default);
+  // Load Rhein-Stone off files
+  std::vector<mesh::TriangleMesh> stones;
+  for(int i = 0; i < numStones; i++){
+     std::stringstream ss;
+     ss << "0" << i << "v500.off";
+     WALBERLA_LOG_INFO("Loading file: " << ss.str());
+     stones.push_back(mesh::TriangleMesh());
+     std::ifstream input;
+     input.open(ss.str());
+     OpenMesh::IO::ImporterT<mesh::TriangleMesh> importer(stones.back());
+     OpenMesh::IO::OFFReader().read(input, importer, opt);
+     input.close();
+     double factor = 3.0;
+     for (auto v_it=stones.back().vertices_begin(); v_it!=stones.back().vertices_end(); ++v_it){
+       stones.back().set_point(*v_it, factor * stones.back().point(*v_it));
+     }
+  }
 
   WALBERLA_LOG_INFO_ON_ROOT("*** GLOBALBODYSTORAGE ***");
   //! [GlobalBodyStorage]
@@ -121,10 +145,8 @@ int main( int argc, char ** argv )
   WALBERLA_LOG_INFO_ON_ROOT("*** BLOCKFOREST ***");
   // create forest
   //! [BlockForest]
-  shared_ptr< BlockForest > forest = createBlockForest( AABB(-11,-11, 0, 11, 11, 80), // simulation domain
-														Vector3<uint_t>(1,1,1), // blocks in each direction
-														Vector3<bool>(false, false, false) // periodicity
-														);
+  shared_ptr< BlockForest > forest = createBlockForestFromConfig( mainConf );
+
   //! [BlockForest]
   if (!forest)
   {
@@ -144,10 +166,11 @@ int main( int argc, char ** argv )
 
   WALBERLA_LOG_INFO_ON_ROOT("*** INTEGRATOR ***");
   //! [Integrator]
-  cr::HCSITS cr(globalBodyStorage, forest, storageID, ccdID, fcdID);
+  /*cr::HCSITS cr(globalBodyStorage, forest, storageID, ccdID, fcdID);
   cr.setMaxIterations( 10 );
   cr.setRelaxationModel( cr::HardContactSemiImplicitTimesteppingSolvers::ApproximateInelasticCoulombContactByDecoupling );
-  cr.setRelaxationParameter( real_t(0.7) );
+  cr.setRelaxationParameter( real_t(0.7) );*/
+  cr::DEM cr(globalBodyStorage, forest, storageID, ccdID, fcdID);
   cr.setGlobalLinearAcceleration( Vec3(0,0,-6) );
   //! [Integrator]
 
@@ -167,35 +190,34 @@ int main( int argc, char ** argv )
 
   TesselationType tesselation;
   auto vtkMeshWriter = shared_ptr<mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType> >( new mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType>(forest, storageID, tesselation, std::string("MeshOutput"), uint_t(1), std::string("VTK") ));
-  vtkMeshWriter->setBodyFilter([](const RigidBody& rb){ return (rb.getTypeID() == mesh::pe::TriangleMeshUnion::getStaticTypeID() || rb.getTypeID() == Box::getStaticTypeID()); });
+  vtkMeshWriter->setBodyFilter([](const RigidBody& rb){ return (rb.getTypeID() == mesh::pe::ConvexPolyhedron::getStaticTypeID() || rb.getTypeID() == Box::getStaticTypeID()); });
   vtkMeshWriter->addFacePropertyRank();
   shared_ptr<mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType>::FaceDataSource<uint64_t>> sidFace = make_shared<mesh::pe::SIDFaceDataSource<OutputMesh, TesselationType, uint64_t>>();
   shared_ptr<mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType>::FaceDataSource<uint64_t>> uidFace = make_shared<mesh::pe::UIDFaceDataSource<OutputMesh, TesselationType, uint64_t>>();
   vtkMeshWriter->addDataSource( sidFace );
   vtkMeshWriter->addDataSource( uidFace );
 
-  const int VTKSpacing = 10;
-
   WALBERLA_LOG_INFO_ON_ROOT("*** SETUP - START ***");
   //! [Material]
-  const real_t   static_cof  ( real_c(0.1) / 2 );   // Coefficient of static friction. Note: pe doubles the input coefficient of friction for material-material contacts.
+  const real_t   static_cof  ( real_c(1.2) / 2 );   // Coefficient of static friction. Note: pe doubles the input coefficient of friction for material-material contacts.
   const real_t   dynamic_cof ( static_cof ); // Coefficient of dynamic friction. Similar to static friction for low speed friction.
-  MaterialID     material = createMaterial( "granular", real_t( 1.0 ), 0, static_cof, dynamic_cof, real_t( 0.5 ), 1, 1, 0, 0 );
+  MaterialID     material = createMaterial( "granular", real_t( 1.0 ), 0, static_cof, dynamic_cof, real_t( 0.5 ), 1, real_t(8.11e5), real_t(6.86e1), real_t(6.86e1) );
   //! [Material]
 
   auto simulationDomain = forest->getDomain();
-  const auto& generationDomain = AABB(-9,-9, 3 ,9, 9, 70); // simulationDomain.getExtended(-real_c(0.5) * spacing);
+  const auto& generationDomain = simulationDomain.getExtended(-real_c(1) * spacing);
   //! [Planes]
-  createPlane(*globalBodyStorage, 0, Vec3(1,0,0), simulationDomain.minCorner(), material );
-  createPlane(*globalBodyStorage, 0, Vec3(-1,0,0), simulationDomain.maxCorner(), material );
+  //createPlane(*globalBodyStorage, 0, Vec3(1,0,0), simulationDomain.minCorner(), material );
+  //createPlane(*globalBodyStorage, 0, Vec3(-1,0,0), simulationDomain.maxCorner(), material );
   createPlane(*globalBodyStorage, 0, Vec3(0,1,0), simulationDomain.minCorner(), material );
   createPlane(*globalBodyStorage, 0, Vec3(0,-1,0), simulationDomain.maxCorner(), material );
   createPlane(*globalBodyStorage, 0, Vec3(0,0,1), simulationDomain.minCorner(), material );
   createPlane(*globalBodyStorage, 0, Vec3(0,0,-1), simulationDomain.maxCorner(), material );
   //! [Planes]
   
+    // Decomposition into convex parts
   std::vector<std::vector<mesh::TriangleMesh>> substones;
-  for(int i = 0; i < 10; i++){
+  for(int i = 0; i < numStones; i++){
      // Decompose
      substones.push_back(mesh::ConvexDecomposer::approximateConvexDecompose(stones[i]));
      for(int part = 0; part < (int)substones[i].size(); part++){
@@ -211,12 +233,13 @@ int main( int argc, char ** argv )
 	 IBlock & currentBlock = *blkIt;
 	 for (auto it = grid_generator::SCIterator(currentBlock.getAABB().getIntersection(generationDomain), Vector3<real_t>(spacing, spacing, spacing) * real_c(0.5), spacing); it != grid_generator::SCIterator(); ++it)
 	 {
-		 mesh::pe::TriangleMeshUnion* particle = createUnion<mesh::pe::PolyhedronTuple>( *globalBodyStorage, *forest, storageID, 0, Vec3());
+      //mesh::pe::TriangleMeshUnion* particle = createUnion<mesh::pe::PolyhedronTuple>( *globalBodyStorage, *forest, storageID, 0, Vec3());
 		// Centrate parts an add them to the union
-		int stonenr = (int)(math::realRandom<real_t>(0,10));
-		for(int part = 0; part < (int)substones[stonenr].size(); part++){
-			createConvexPolyhedron(particle, 0, (*it), substones[stonenr][part]);
-		}
+      int stonenr = (int)(math::realRandom<real_t>(0,numStones));
+      //for(int part = 0; part < (int)substones[stonenr].size(); part++){
+         //createConvexPolyhedron(particle, 0, (*it), substones[stonenr][part]);
+         auto particle = mesh::pe::createConvexPolyhedron( *globalBodyStorage, *forest, storageID, numParticles, *it, substones[stonenr][0], material );
+      //}
 		Vec3 rndVel(math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax));
 		if (particle != nullptr) particle->setLinearVel(rndVel);
 		if (particle != nullptr) ++numParticles;
@@ -229,18 +252,31 @@ int main( int argc, char ** argv )
   WALBERLA_LOG_INFO_ON_ROOT("*** SETUP - END ***");
 
   WALBERLA_LOG_INFO_ON_ROOT("*** SIMULATION - START ***");
+
+  real_t height = simulationDomain.maxCorner()[2];
   //! [GameLoop]
   for (int i=0; i < simulationSteps; ++i)
   {
-	 if( i % 10 == 0 )
+    if( i % visSpacing == 0 )
 	 {
 		WALBERLA_LOG_INFO_ON_ROOT( "Timestep " << i << " / " << simulationSteps );
-	 }
-	 if( i % VTKSpacing == 0 )
-	 {
 		vtkSphereOutput->write( true );
 		vtkMeshWriter->operator()();
 	 }
+    // Add riverbed force.
+    for (auto blockIt = forest->begin(); blockIt != forest->end(); ++blockIt)
+    {
+      for (auto bodyIt = LocalBodyIterator::begin(*blockIt, storageID); bodyIt != LocalBodyIterator::end(); ++bodyIt)
+      {
+         // my height
+         real_t my_height = bodyIt->getPosition()[2]; // z coordinate
+         // my velocity
+         real_t my_xvel = bodyIt->getLinearVel()[0];
+         real_t flow_xvel = my_height < height ? max_vel * exp((my_height-height)/decline) : max_vel;
+
+         bodyIt->addForce(drag*(flow_xvel-my_xvel),0,0);
+      }
+    }
 	 cr.timestep( real_c(dt) );
 	 syncNextNeighbors<BodyTypeTuple>(*forest, storageID);
   }
@@ -256,6 +292,7 @@ int main( int argc, char ** argv )
 	 for (auto bodyIt = LocalBodyIterator::begin(*blockIt, storageID); bodyIt != LocalBodyIterator::end(); ++bodyIt)
 	 {
 	   meanVelocity += bodyIt->getLinearVel();
+
 	 }
   }
   meanVelocity /= numParticles;
