@@ -81,7 +81,6 @@ std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const Tr
    std::vector<double> pts;
    std::vector<uint32_t> tris;
    openMeshToVectors(mesh, pts, tris);
-   std::cout << "Points.size: " << pts.size() << " Tris: " << tris.size() << std::endl;
 
    // Create interface
    VHACD::IVHACD* interfaceVHACD = VHACD::CreateVHACD();
@@ -93,12 +92,10 @@ std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const Tr
        &tris[0], (unsigned int)tris.size() / 3, paramsVHACD);
 
 
-   std::cout << "Result: " << res << std::endl;
-   std::cout << "Created " << interfaceVHACD->GetNConvexHulls() << " Hulls." << std::endl;
-
    if (res) {
        // save output
       unsigned int nConvexHulls = interfaceVHACD->GetNConvexHulls();
+      WALBERLA_LOG_INFO("Decomposition into " << nConvexHulls << " approximate convex parts." );
       VHACD::IVHACD::ConvexHull ch;
       for (unsigned int p = 0; p < nConvexHulls; ++p) {
          interfaceVHACD->GetConvexHull(p, ch);
@@ -107,19 +104,9 @@ std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const Tr
          std::vector<uint32_t> triangles(ch.m_triangles, ch.m_triangles + (3*ch.m_nTriangles));
          vectorsToOpenMesh(points, triangles, cmesh);
          convex_meshes.push_back(cmesh);
-         
-         //Output
-         /*std::ofstream output;
-         std::stringstream ss;
-         ss << "SubBody" << p << ".off";
-         output.open(ss.str());
-         OpenMesh::IO::ExporterT<TriangleMesh> exporter(cmesh);
-		   OpenMesh::IO::Options opt(OpenMesh::IO::Options::Default);
-			OpenMesh::IO::OFFWriter().write(output, exporter, opt);
-         output.close();*/
       }
    } else {
-      WALBERLA_LOG_INFO(" Decomposition was not successful.");
+      WALBERLA_LOG_INFO_ON_ROOT(" Decomposition was not successful.");
    }
    interfaceVHACD->Clean();
    interfaceVHACD->Release();

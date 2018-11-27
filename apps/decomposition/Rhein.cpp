@@ -103,6 +103,9 @@ int main( int argc, char ** argv )
   int numStones = mainConf.getParameter<int>("numStones", 1 );
   WALBERLA_LOG_INFO_ON_ROOT("Number of stone types: " << numStones);
 
+  real_t maxconcavity = mainConf.getParameter<real_t>("maxconcav", real_c(5) );
+  WALBERLA_LOG_INFO_ON_ROOT("Maximum concacity: " << maxconcavity);
+
   // parameters of the riverbed
   real_t height = mainConf.getParameter<real_t>("rbheight", real_c(5) );
   WALBERLA_LOG_INFO_ON_ROOT("Riverbed: Height: " << height);
@@ -124,7 +127,7 @@ int main( int argc, char ** argv )
   for(int i = 0; i < numStones; i++){
      std::stringstream ss;
      ss << "0" << i << "v500.off";
-     WALBERLA_LOG_INFO("Loading file: " << ss.str());
+     WALBERLA_LOG_INFO_ON_ROOT("Loading file: " << ss.str());
      stones.push_back(mesh::TriangleMesh());
      std::ifstream input;
      input.open(ss.str());
@@ -219,7 +222,7 @@ int main( int argc, char ** argv )
   std::vector<std::vector<mesh::TriangleMesh>> substones;
   for(int i = 0; i < numStones; i++){
      // Decompose
-     substones.push_back(mesh::ConvexDecomposer::approximateConvexDecompose(stones[i]));
+     substones.push_back(mesh::ConvexDecomposer::approximateConvexDecompose(stones[i], maxconcavity));
      for(int part = 0; part < (int)substones[i].size(); part++){
 		Vec3 centroid = mesh::toWalberla( mesh::computeCentroid( substones[i][part]));
 		mesh::translate( substones[i][part], -centroid );
@@ -236,16 +239,16 @@ int main( int argc, char ** argv )
       //mesh::pe::TriangleMeshUnion* particle = createUnion<mesh::pe::PolyhedronTuple>( *globalBodyStorage, *forest, storageID, 0, Vec3());
 		// Centrate parts an add them to the union
       int stonenr = (int)(math::realRandom<real_t>(0,numStones));
-      //for(int part = 0; part < (int)substones[stonenr].size(); part++){
+      for(int part = 0; part < (int)substones[stonenr].size(); part++){
          //createConvexPolyhedron(particle, 0, (*it), substones[stonenr][part]);
          auto particle = mesh::pe::createConvexPolyhedron( *globalBodyStorage, *forest, storageID, numParticles, *it, substones[stonenr][0], material );
-      //}
-		Vec3 rndVel(math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax));
-		if (particle != nullptr) particle->setLinearVel(rndVel);
-		if (particle != nullptr) ++numParticles;
+         Vec3 rndVel(math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax));
+         if (particle != nullptr) particle->setLinearVel(rndVel);
+         if (particle != nullptr) ++numParticles;
+      }
 	}
   }
-  WALBERLA_LOG_INFO_ON_ROOT("#particles created: " << numParticles);
+  WALBERLA_LOG_INFO_ON_ROOT("#particles created per process: " << numParticles);
   syncNextNeighbors<BodyTypeTuple>(*forest, storageID);
   //! [Gas]
 
@@ -253,7 +256,6 @@ int main( int argc, char ** argv )
 
   WALBERLA_LOG_INFO_ON_ROOT("*** SIMULATION - START ***");
 
-  real_t height = simulationDomain.maxCorner()[2];
   //! [GameLoop]
   for (int i=0; i < simulationSteps; ++i)
   {

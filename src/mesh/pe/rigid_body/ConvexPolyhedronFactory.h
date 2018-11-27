@@ -208,7 +208,7 @@ TriangleMeshUnion* createNonConvexUnion( BodyStorage& globalStorage, BlockStorag
 typedef boost::tuple<mesh::pe::ConvexPolyhedron> PolyhedronTuple;
 typedef Union<PolyhedronTuple> TriangleMeshUnion;
 TriangleMeshUnion* createApproximateNonConvexUnion( BodyStorage& globalStorage, BlockStorage& blocks, BlockDataID storageID,
-                                                     id_t uid, Vec3 gpos, TriangleMesh mesh,
+                                                     id_t uid, Vec3 gpos, TriangleMesh mesh, real_t max_concavity = real_t(1e-3),
                                                      MaterialID material = Material::find("iron"),
                                                      bool global = false, bool communicating = true, bool infiniteMass = false );
 //*************************************************************************************************

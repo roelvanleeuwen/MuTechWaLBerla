@@ -132,14 +132,14 @@ TriangleMeshUnion* createNonConvexUnion( BodyStorage& globalStorage, BlockStorag
 }
 
 TriangleMeshUnion* createApproximateNonConvexUnion( BodyStorage& globalStorage, BlockStorage& blocks, BlockDataID storageID,
-                                                     id_t uid, Vec3 gpos, TriangleMesh mesh,
+                                                     id_t uid, Vec3 gpos, TriangleMesh mesh, real_t max_concavity,
                                                      MaterialID material, bool global, bool communicating, bool infiniteMass ){
 
    // Create Union
    TriangleMeshUnion* un = createUnion<PolyhedronTuple>( globalStorage, blocks, storageID, uid, gpos,
                                                                   global, communicating, infiniteMass );
    // Decompose
-   std::vector<TriangleMesh> convexParts = ConvexDecomposer::approximateConvexDecompose(mesh);
+   std::vector<TriangleMesh> convexParts = ConvexDecomposer::approximateConvexDecompose(mesh, max_concavity);
 
    // Centrate parts an add them to the union
    for(int part = 0; part < (int)convexParts.size(); part++){
