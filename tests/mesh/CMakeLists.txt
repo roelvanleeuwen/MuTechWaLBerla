@@ -98,4 +98,7 @@ if ( WALBERLA_BUILD_WITH_OPENMESH )
       waLBerla_execute_test( NAME  ConvexDecomposition )
    endif()
 
+   waLBerla_compile_test( FILES MeshMarshalling.cpp DEPENDS core mesh )
+   waLBerla_execute_test( NAME  MeshMarshalling )
+
 endif()
