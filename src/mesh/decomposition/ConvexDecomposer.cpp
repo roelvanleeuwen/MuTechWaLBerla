@@ -60,10 +60,11 @@ std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh&
      if(ci->mark()) {
        Polyhedron P;
        nef.convert_inner_shell_to_polyhedron(ci->shells_begin(), P);
-       convex_parts.push_back(Nef_polyhedron(P));
-       TriangleMesh cmesh;
-       nefToOpenMesh(convex_parts.back(), cmesh);
-       convex_meshes.push_back(cmesh);
+       convex_parts.emplace_back(P);
+       
+       convex_meshes.emplace_back();
+       nefToOpenMesh(convex_parts.back(), convex_meshes.back());
+       
      }
    }
 
@@ -73,6 +74,7 @@ std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh&
    return convex_meshes;
 
 }
+
 
 std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const TriangleMesh& mesh, real_t max_concavity){
 
@@ -184,22 +186,14 @@ bool ConvexDecomposer::performDecompositionTests(const Nef_polyhedron &input, co
    // Perform convexity check
    // Unite volumes
    Nef_polyhedron unitedNefs(Nef_polyhedron::EMPTY);
-   for(int i = 0; i < (int)convex_parts.size(); i++){
+   for(size_t i = 0; i < convex_parts.size(); i++){
       Surface_mesh output;
       walberla::cgalwraps::convert_nef_polyhedron_to_polygon_mesh(convex_parts[i], output);
-
+      // Convexity check 
       if(!walberla::cgalwraps::is_strongly_convex_3(output)){
          WALBERLA_LOG_INFO( "Output " << i << " is NOT convex." );
          return false;
       }
-
-      // Write part to file (optional)
-      /*std::ofstream out;
-      std::stringstream filename;
-      filename << "outputPart" << i << ".off";
-      out.open(filename.str());
-      out << output;
-      out.close();*/
 
       // Check if unit and new part are disjoint except for boundaries...
       if(unitedNefs.interior().intersection(convex_parts[i].interior())!=Nef_polyhedron(Nef_polyhedron::EMPTY)){
@@ -208,6 +202,7 @@ bool ConvexDecomposer::performDecompositionTests(const Nef_polyhedron &input, co
       }
       unitedNefs += convex_parts[i];
    }
+   // Check if union of all nef is the original mesh
    if(unitedNefs != input){
       WALBERLA_LOG_INFO( "Union of all nefs does NOT match the input." );
       return false;

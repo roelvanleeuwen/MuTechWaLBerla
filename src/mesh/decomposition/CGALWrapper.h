@@ -15,6 +15,9 @@
 //
 //! \file CGALWrapper.h
 //! \author Tobias Leemann <tobias.leemann@fau.de>
+//! This file implements a dummy minimal CGAL interface which compiles the code,
+//! but throws runtime errors, if CGAL is not available and the functions 
+//! are called.
 //
 //======================================================================================================================
 
@@ -62,6 +65,10 @@ namespace cgalwraps {
    typedef CGAL::Surface_mesh<Exact_kernel::Point_3> Surface_mesh;
    typedef CGAL::Nef_polyhedron_3<Exact_kernel> Nef_polyhedron;
    typedef Nef_polyhedron::Volume_const_iterator Volume_const_iterator;
+   typedef Nef_polyhedron::Plane_3  Plane_3;
+   typedef Nef_polyhedron::Vector_3  NefVector_3;
+   typedef Nef_polyhedron::Aff_transformation_3  NefAff_transformation_3;
+
 
    template<class Poly>
    inline void convex_decomposition_3(Poly& nef){
@@ -83,9 +90,22 @@ namespace cgalwraps {
 
    struct Surface_mesh{};
 
+   // Return type of shells_begin
    struct ShellsBeginResult{};
 
    struct Exact_kernel{};
+   
+   struct Plane_3{};
+   
+   struct NefVector_3{};
+   
+   struct NefAff_transformation_3{
+      inline NefAff_transformation_3(double, double, double, double, double,
+                                       double, double, double, double, double = 1.0){
+         WALBERLA_CGAL_FUNCTION_ERROR
+      }
+                                       
+   };
 
    struct Volume{
       inline bool mark() const {WALBERLA_CGAL_FUNCTION_ERROR}
@@ -100,10 +120,13 @@ namespace cgalwraps {
    };
 
    struct Nef_polyhedron {
-      static const Polyhedron EMPTY;
+      static const int EMPTY=0;
 
       inline Nef_polyhedron(Polyhedron){WALBERLA_CGAL_FUNCTION_ERROR}
-
+      
+      // This allows the construction of Nef_polyhedron(EMPTY)
+      inline Nef_polyhedron(int){WALBERLA_CGAL_FUNCTION_ERROR}
+      
       inline Volume_const_iterator volumes_begin(){WALBERLA_CGAL_FUNCTION_ERROR}
 
       inline Volume_const_iterator volumes_end(){WALBERLA_CGAL_FUNCTION_ERROR}
@@ -113,12 +136,16 @@ namespace cgalwraps {
       inline Nef_polyhedron interior() const {WALBERLA_CGAL_FUNCTION_ERROR}
 
       inline Nef_polyhedron intersection(const Nef_polyhedron&) const {WALBERLA_CGAL_FUNCTION_ERROR}
+      
+      inline Nef_polyhedron transform(const NefAff_transformation_3&){WALBERLA_CGAL_FUNCTION_ERROR}
 
       inline bool operator==(const Nef_polyhedron&) const {WALBERLA_CGAL_FUNCTION_ERROR}
 
       inline bool operator!=(const Nef_polyhedron&) const {WALBERLA_CGAL_FUNCTION_ERROR}
 
       inline Nef_polyhedron operator+=(const Nef_polyhedron&){WALBERLA_CGAL_FUNCTION_ERROR}
+      
+      inline Nef_polyhedron operator-=(const Nef_polyhedron&){WALBERLA_CGAL_FUNCTION_ERROR}
    };
 
 
