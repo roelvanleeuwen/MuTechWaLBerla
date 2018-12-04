@@ -19,9 +19,6 @@
 //
 //======================================================================================================================
 #include "ConvexDecomposer.h"
-
-#include "VHACD.h"
-
 #include "mesh/TriangleMeshes.h"
 #include "core/logging/Logging.h"
 
@@ -38,9 +35,11 @@
 #include <vector>
 
 
+
+
 namespace walberla {
 namespace mesh {
-
+   using namespace walberla::vhacdwraps;
 
 std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh& mesh){
 
@@ -85,9 +84,10 @@ std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const Tr
    openMeshToVectors(mesh, pts, tris);
 
    // Create interface
-   VHACD::IVHACD* interfaceVHACD = VHACD::CreateVHACD();
+   IVHACD* interfaceVHACD = CreateVHACD();
    // Set parameters
-   VHACD::IVHACD::Parameters paramsVHACD;
+   IVHACD::Parameters paramsVHACD;
+
    paramsVHACD.m_concavity = max_concavity;
    paramsVHACD.m_projectHullVertices  = false;
    bool res = interfaceVHACD->Compute(&pts[0], (unsigned int)pts.size() / 3,
@@ -98,7 +98,7 @@ std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const Tr
        // save output
       unsigned int nConvexHulls = interfaceVHACD->GetNConvexHulls();
       WALBERLA_LOG_INFO("Decomposition into " << nConvexHulls << " approximate convex parts." );
-      VHACD::IVHACD::ConvexHull ch;
+      IVHACD::ConvexHull ch;
       for (unsigned int p = 0; p < nConvexHulls; ++p) {
          interfaceVHACD->GetConvexHull(p, ch);
          TriangleMesh cmesh;
