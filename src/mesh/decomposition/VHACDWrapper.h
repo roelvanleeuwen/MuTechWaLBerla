@@ -77,7 +77,7 @@ namespace vhacdwraps {
 		   bool	m_projectHullVertices;
       };
 
-      inline bool Compute(const real_t* const,
+      inline bool Compute(const double* const,
          const uint32_t,
          const uint32_t*,
          const uint32_t,

@@ -59,16 +59,14 @@
 
 namespace walberla {
 using namespace walberla::pe;
-
+using namespace walberla::cgalwraps;
 
 //! [BodyTypeTuple]
 typedef boost::tuple<Sphere, Plane, Box, mesh::pe::TriangleMeshUnion, mesh::pe::ConvexPolyhedron> BodyTypeTuple ;
 //! [BodyTypeTuple]
 
-typedef CGAL::Exact_predicates_exact_constructions_kernel Exact_kernel;
-typedef CGAL::Polyhedron_3<Exact_kernel> Polyhedron;
-typedef CGAL::Surface_mesh<Exact_kernel::Point_3> Surface_mesh;
-typedef CGAL::Nef_polyhedron_3<Exact_kernel> Nef_polyhedron;
+
+
 typedef Nef_polyhedron::Vector_3  NefVector_3;
 typedef Nef_polyhedron::Aff_transformation_3  NefAff_transformation_3;
 typedef Nef_polyhedron::Plane_3  Plane_3;
@@ -370,9 +368,9 @@ int main( int argc, char ** argv )
       createPlane(*globalBodyStorage, 0, Vec3(0,0,-1), simulationDomain.maxCorner(), material );
       //! [Planes]
       
-      mesh::pe::TriangleMeshUnion* un = mesh::pe::createApproximateNonConvexUnion( *globalBodyStorage, *forest, storageID, 0, Vec3(0,0,70), armadilloMesh, Material::find("iron"), false, true, false);
-            Vec3 rndVel(math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax));
-            if (un != nullptr) un->setLinearVel(rndVel);
+      mesh::pe::TriangleMeshUnion* un = mesh::pe::createApproximateNonConvexUnion( *globalBodyStorage, *forest, storageID, 0, Vec3(0,0,70), armadilloMesh);
+      Vec3 rndVel(math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax));
+      if (un != nullptr) un->setLinearVel(rndVel);
             
       mesh::pe::createNonConvexUnion( *globalBodyStorage, *forest, storageID, 0, Vec3(0,0,20), hopperMesh, Material::find("iron"), false, true, false);
       createBox( *globalBodyStorage, *forest, storageID, 0, Vec3(-20,0,12), Vec3(9,40,24), Material::find("iron"), false, true, false);
@@ -386,8 +384,8 @@ int main( int argc, char ** argv )
          for (auto it = grid_generator::SCIterator(currentBlock.getAABB().getIntersection(generationDomain), Vector3<real_t>(spacing, spacing, spacing) * real_c(0.5), spacing); it != grid_generator::SCIterator(); ++it)
          {
             mesh::pe::TriangleMeshUnion* particle =  mesh::pe::createNonConvexUnion( *globalBodyStorage, *forest, storageID, numParticles, *it, mesh);
-            Vec3 rndVel(math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax));
-            if (particle != nullptr) particle->setLinearVel(rndVel);
+            Vec3 rndVelo(math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax));
+            if (particle != nullptr) particle->setLinearVel(rndVelo);
             if (particle != nullptr) ++numParticles;
          }
       }

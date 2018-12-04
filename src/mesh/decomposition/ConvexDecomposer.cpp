@@ -127,7 +127,7 @@ void ConvexDecomposer::openMeshToVectors(const TriangleMesh& mesh, std::vector<d
       auto face_vert_it = mesh.cfv_ccwiter (*f_it);
       for(; face_vert_it.is_valid(); face_vert_it++){
          auto vert_hdl = *face_vert_it;
-         triangles.push_back(vert_hdl.idx());
+         triangles.push_back(int32_t(vert_hdl.idx()));
       }
    }
 }
@@ -144,7 +144,7 @@ void ConvexDecomposer::vectorsToOpenMesh(const std::vector<double> &points, cons
    }
    // Faces
    std::vector<TriangleMesh::VertexHandle>  face_vhandles;
-   for(int i = 0; i < (int)triangles.size()/3; i++){
+   for(size_t i = 0; i < triangles.size()/3u; i++){
       face_vhandles.clear();
       face_vhandles.push_back(handles[triangles[3*i]]);
       face_vhandles.push_back(handles[triangles[3*i+1]]);
