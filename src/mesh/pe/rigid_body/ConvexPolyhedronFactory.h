@@ -130,16 +130,21 @@ mesh::pe::ConvexPolyhedronID createConvexPolyhedron( Union<BodyTypeTuple>* un,
                        MaterialID material = Material::find("iron"),
                        bool global = false, bool communicating = true, bool infiniteMass = false )
 {
+   
+   Vec3 centroid = toWalberla( computeCentroid( mesh ) );
+   translate( mesh, -centroid );
+   gpos += centroid;
+   
    if (mesh::pe::ConvexPolyhedron::getStaticTypeID() == std::numeric_limits<id_t>::max())
-      throw std::runtime_error("Sphere TypeID not initalized!");
+      throw std::runtime_error("createConvexPolyhedron: TypeID not initalized!");
 
    // union not on this process/block -> terminate creation
    if (un == NULL)
-      throw std::invalid_argument( "createSphere: Union argument is NULL" );
+      throw std::invalid_argument( "createConvexPolyhedron: Union argument is NULL" );
 
    // main union not on this process/block -> terminate creation
    if ( un->isRemote() )
-      throw std::logic_error( "createSphere: Union is remote" );
+      throw std::logic_error( "createConvexPolyhedron: Union is remote" );
 
    id_t sid(0);
 
@@ -173,30 +178,34 @@ mesh::pe::ConvexPolyhedronID createConvexPolyhedron( Union<BodyTypeTuple>* un,
 }
 //*************************************************************************************************
 
-//*************************************************************************************************
-/**
- * \ingroup pe
- * \brief Setup of a new Non-ConvexPolyhedron as a union of its part. The mesh passed will be automatically decomposed into EXACT parts.
- *
- * \tparam BodyTypeTuple boost::tuple of all geometries (including Union<ConvexPolyhedron> and ConvexPolyhedron)
- * \exception std::runtime_error    Polyhedron TypeID not initalized!
- * \exception std::invalid_argument createSphere: Union argument is NULL
- * \exception std::logic_error      createSphere: Union is remote
- *
- * \see createConvexPolyhedron for more details
- */
 typedef boost::tuple<mesh::pe::ConvexPolyhedron> PolyhedronTuple;
 typedef Union<PolyhedronTuple> TriangleMeshUnion;
-TriangleMeshUnion* createNonConvexUnion( BodyStorage& globalStorage, BlockStorage& blocks, BlockDataID storageID,
-                                                     id_t uid, Vec3 gpos, TriangleMesh mesh,
-                                                     MaterialID material = Material::find("iron"),
-                                                     bool global = false, bool communicating = true, bool infiniteMass = false );
-//*************************************************************************************************
 
 //*************************************************************************************************
 /**
  * \ingroup pe
- * \brief Setup of a new Non-ConvexPolyhedron as a union of its part. The mesh passed will be automatically approximatly convex decomposed.
+ * \brief Setup mesh as a new Non-ConvexPolyhedron as a union. 
+ * The mesh passed will be automatically decomposed into
+ * convex parts, which are then added to the union.
+ *
+ * \exception std::runtime_error    Polyhedron TypeID not initalized!
+ * \exception std::invalid_argument createSphere: Union argument is NULL
+ * \exception std::logic_error      createSphere: Union is remote
+ *
+ * \see createConvexPolyhedron for more details
+ */
+TriangleMeshUnion* createNonConvexUnion( BodyStorage& globalStorage, BlockStorage& blocks, BlockDataID storageID,
+                                                     id_t uid, Vec3 gpos, const TriangleMesh &mesh,
+                                                     MaterialID material = Material::find("iron"),
+                                                     bool global = false, bool communicating = true, bool infiniteMass = false );
+//*************************************************************************************************
+
+
+//*************************************************************************************************
+/**
+ * \ingroup pe
+ * \brief Setup of a new Non-ConvexPolyhedron as a union of its parts.
+ * The mesh passed will be automatically approximatly convex decomposed.
  *
  * \tparam BodyTypeTuple boost::tuple of all geometries (including Union<ConvexPolyhedron> and ConvexPolyhedron)
  * \exception std::runtime_error    Polyhedron TypeID not initalized!
@@ -205,13 +214,28 @@ TriangleMeshUnion* createNonConvexUnion( BodyStorage& globalStorage, BlockStorag
  *
  * \see createConvexPolyhedron for more details
  */
-typedef boost::tuple<mesh::pe::ConvexPolyhedron> PolyhedronTuple;
-typedef Union<PolyhedronTuple> TriangleMeshUnion;
 TriangleMeshUnion* createApproximateNonConvexUnion( BodyStorage& globalStorage, BlockStorage& blocks, BlockDataID storageID,
-                                                     id_t uid, Vec3 gpos, TriangleMesh mesh,
+                                                     id_t uid, Vec3 gpos, TriangleMesh mesh, real_t max_concavity = real_t(1e-3),
                                                      MaterialID material = Material::find("iron"),
                                                      bool global = false, bool communicating = true, bool infiniteMass = false );
+//************************************************************************************************
+
+
 //*************************************************************************************************
+/**
+ * \ingroup pe
+ * \brief Setup of a new Non-ConvexPolyhedron as a union of its parts. 
+ * Use this function if you already have computed the vector of the decomposed 
+ * convex parts (either approximate or exact), and want to create a union of it.
+ * Manually decomposing is useful if you want to create multiple bodies with the same
+ * shape and only run the decomposition algorithm once.
+*/
+TriangleMeshUnion* createNonConvexUnionOfConvexParts( BodyStorage& globalStorage, BlockStorage& blocks, BlockDataID storageID,
+                                                     id_t uid, Vec3 gpos, const std::vector<TriangleMesh> &convexParts,
+                                                     MaterialID material = Material::find("iron"), bool global = false,
+                                                     bool communicating = true, bool infiniteMass = false );
+//*************************************************************************************************
+
 } // namespace pe
 } // namespace mesh
 } // namespace walberla

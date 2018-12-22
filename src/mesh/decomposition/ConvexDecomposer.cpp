@@ -19,9 +19,6 @@
 //
 //======================================================================================================================
 #include "ConvexDecomposer.h"
-
-#include "VHACD.h"
-
 #include "mesh/TriangleMeshes.h"
 #include "core/logging/Logging.h"
 
@@ -38,9 +35,11 @@
 #include <vector>
 
 
+
+
 namespace walberla {
 namespace mesh {
-
+   using namespace walberla::vhacdwraps;
 
 std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh& mesh){
 
@@ -60,10 +59,11 @@ std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh&
      if(ci->mark()) {
        Polyhedron P;
        nef.convert_inner_shell_to_polyhedron(ci->shells_begin(), P);
-       convex_parts.push_back(Nef_polyhedron(P));
-       TriangleMesh cmesh;
-       nefToOpenMesh(convex_parts.back(), cmesh);
-       convex_meshes.push_back(cmesh);
+       convex_parts.emplace_back(P);
+       
+       convex_meshes.emplace_back();
+       nefToOpenMesh(convex_parts.back(), convex_meshes.back());
+       
      }
    }
 
@@ -74,6 +74,7 @@ std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh&
 
 }
 
+
 std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const TriangleMesh& mesh, real_t max_concavity){
 
    std::vector<TriangleMesh> convex_meshes; // parts as meshes.
@@ -81,25 +82,23 @@ std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const Tr
    std::vector<double> pts;
    std::vector<uint32_t> tris;
    openMeshToVectors(mesh, pts, tris);
-   std::cout << "Points.size: " << pts.size() << " Tris: " << tris.size() << std::endl;
 
    // Create interface
-   VHACD::IVHACD* interfaceVHACD = VHACD::CreateVHACD();
+   IVHACD* interfaceVHACD = CreateVHACD();
    // Set parameters
-   VHACD::IVHACD::Parameters paramsVHACD;
+   IVHACD::Parameters paramsVHACD;
+
    paramsVHACD.m_concavity = max_concavity;
    paramsVHACD.m_projectHullVertices  = false;
    bool res = interfaceVHACD->Compute(&pts[0], (unsigned int)pts.size() / 3,
        &tris[0], (unsigned int)tris.size() / 3, paramsVHACD);
 
 
-   std::cout << "Result: " << res << std::endl;
-   std::cout << "Created " << interfaceVHACD->GetNConvexHulls() << " Hulls." << std::endl;
-
    if (res) {
        // save output
       unsigned int nConvexHulls = interfaceVHACD->GetNConvexHulls();
-      VHACD::IVHACD::ConvexHull ch;
+      WALBERLA_LOG_INFO("Decomposition into " << nConvexHulls << " approximate convex parts." );
+      IVHACD::ConvexHull ch;
       for (unsigned int p = 0; p < nConvexHulls; ++p) {
          interfaceVHACD->GetConvexHull(p, ch);
          TriangleMesh cmesh;
@@ -107,19 +106,9 @@ std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const Tr
          std::vector<uint32_t> triangles(ch.m_triangles, ch.m_triangles + (3*ch.m_nTriangles));
          vectorsToOpenMesh(points, triangles, cmesh);
          convex_meshes.push_back(cmesh);
-         
-         //Output
-         /*std::ofstream output;
-         std::stringstream ss;
-         ss << "SubBody" << p << ".off";
-         output.open(ss.str());
-         OpenMesh::IO::ExporterT<TriangleMesh> exporter(cmesh);
-		   OpenMesh::IO::Options opt(OpenMesh::IO::Options::Default);
-			OpenMesh::IO::OFFWriter().write(output, exporter, opt);
-         output.close();*/
       }
    } else {
-      WALBERLA_LOG_INFO(" Decomposition was not successful.");
+      WALBERLA_LOG_INFO_ON_ROOT(" Decomposition was not successful.");
    }
    interfaceVHACD->Clean();
    interfaceVHACD->Release();
@@ -138,7 +127,7 @@ void ConvexDecomposer::openMeshToVectors(const TriangleMesh& mesh, std::vector<d
       auto face_vert_it = mesh.cfv_ccwiter (*f_it);
       for(; face_vert_it.is_valid(); face_vert_it++){
          auto vert_hdl = *face_vert_it;
-         triangles.push_back(vert_hdl.idx());
+         triangles.push_back(int32_t(vert_hdl.idx()));
       }
    }
 }
@@ -155,7 +144,7 @@ void ConvexDecomposer::vectorsToOpenMesh(const std::vector<double> &points, cons
    }
    // Faces
    std::vector<TriangleMesh::VertexHandle>  face_vhandles;
-   for(int i = 0; i < (int)triangles.size()/3; i++){
+   for(size_t i = 0; i < triangles.size()/3u; i++){
       face_vhandles.clear();
       face_vhandles.push_back(handles[triangles[3*i]]);
       face_vhandles.push_back(handles[triangles[3*i+1]]);
@@ -197,22 +186,14 @@ bool ConvexDecomposer::performDecompositionTests(const Nef_polyhedron &input, co
    // Perform convexity check
    // Unite volumes
    Nef_polyhedron unitedNefs(Nef_polyhedron::EMPTY);
-   for(int i = 0; i < (int)convex_parts.size(); i++){
+   for(size_t i = 0; i < convex_parts.size(); i++){
       Surface_mesh output;
       walberla::cgalwraps::convert_nef_polyhedron_to_polygon_mesh(convex_parts[i], output);
-
+      // Convexity check 
       if(!walberla::cgalwraps::is_strongly_convex_3(output)){
          WALBERLA_LOG_INFO( "Output " << i << " is NOT convex." );
          return false;
       }
-
-      // Write part to file (optional)
-      /*std::ofstream out;
-      std::stringstream filename;
-      filename << "outputPart" << i << ".off";
-      out.open(filename.str());
-      out << output;
-      out.close();*/
 
       // Check if unit and new part are disjoint except for boundaries...
       if(unitedNefs.interior().intersection(convex_parts[i].interior())!=Nef_polyhedron(Nef_polyhedron::EMPTY)){
@@ -221,6 +202,7 @@ bool ConvexDecomposer::performDecompositionTests(const Nef_polyhedron &input, co
       }
       unitedNefs += convex_parts[i];
    }
+   // Check if union of all nef is the original mesh
    if(unitedNefs != input){
       WALBERLA_LOG_INFO( "Union of all nefs does NOT match the input." );
       return false;

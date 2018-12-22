@@ -51,9 +51,9 @@ void tesselateConvexPolyhedron( const ConvexPolyhedron & poly, MeshType & mesh, 
    for(auto fh : polyhedronMesh.faces())
    {
       auto it = polyhedronMesh.cfv_ccwbegin(fh);
-      VertexHandle v0 = newVertices[ size_t( oldSize + (it++)->idx() ) ];
-      VertexHandle v1 = newVertices[ size_t( oldSize + (it++)->idx() ) ];
-      VertexHandle v2 = newVertices[ size_t( oldSize + (it++)->idx() ) ];
+      VertexHandle v0 = newVertices[ size_t( oldSize + (size_t)(it++)->idx() ) ];
+      VertexHandle v1 = newVertices[ size_t( oldSize + (size_t)(it++)->idx() ) ];
+      VertexHandle v2 = newVertices[ size_t( oldSize + (size_t)(it++)->idx() ) ];
       WALBERLA_ASSERT_EQUAL(it, polyhedronMesh.cfv_ccwend(fh) );
       newFaces.push_back( mesh.add_face(v0, v1, v2) );
    }

@@ -22,6 +22,7 @@
 
 #include "mesh/TriangleMeshes.h"
 #include "CGALWrapper.h"
+#include "VHACDWrapper.h"
 #include <vector>
 
 namespace walberla {
