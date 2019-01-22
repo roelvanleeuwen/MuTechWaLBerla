@@ -100,7 +100,7 @@ int main( int argc, char ** argv )
   real_t vMax = mainConf.getParameter<real_t>("vmax", real_c(0.5) );
   WALBERLA_LOG_INFO_ON_ROOT("vmax: " << vMax);
 
-  int numStones = mainConf.getParameter<int>("numStones", 1 );
+  size_t numStones = mainConf.getParameter<size_t>("numStones", 1 );
   WALBERLA_LOG_INFO_ON_ROOT("Number of stone types: " << numStones);
 
   real_t maxconcavity = mainConf.getParameter<real_t>("maxconcav", real_c(5) );
@@ -124,7 +124,7 @@ int main( int argc, char ** argv )
   OpenMesh::IO::Options opt(OpenMesh::IO::Options::Default);
   // Load Rhein-Stone off files
   std::vector<mesh::TriangleMesh> stones;
-  for(int i = 0; i < numStones; i++){
+  for(size_t i = 0; i < numStones; i++){
      std::stringstream ss;
      ss << "0" << i << "v500.off";
      WALBERLA_LOG_INFO_ON_ROOT("Loading file: " << ss.str());
@@ -220,10 +220,10 @@ int main( int argc, char ** argv )
   
     // Decomposition into convex parts
   std::vector<std::vector<mesh::TriangleMesh>> substones;
-  for(int i = 0; i < numStones; i++){
+  for(size_t i = 0; i < (size_t)numStones; i++){
      // Decompose
      substones.push_back(mesh::ConvexDecomposer::approximateConvexDecompose(stones[i], maxconcavity));
-     for(size_t part = 0; part < (int)substones[i].size(); part++){
+     for(size_t part = 0; part < substones[i].size(); part++){
 		Vec3 centroid = mesh::toWalberla( mesh::computeCentroid( substones[i][part]));
 		mesh::translate( substones[i][part], -centroid );
 	 }
@@ -238,7 +238,7 @@ int main( int argc, char ** argv )
 	 {
       //mesh::pe::TriangleMeshUnion* particle = createUnion<mesh::pe::PolyhedronTuple>( *globalBodyStorage, *forest, storageID, 0, Vec3());
 		// Centrate parts an add them to the union
-      auto stonenr = (size_t)(math::realRandom<real_t>(0,numStones));
+      auto stonenr = int(math::realRandom<real_t>(0,real_t(numStones)));
       for(size_t part = 0; part < substones[stonenr].size(); part++){
          //createConvexPolyhedron(particle, 0, (*it), substones[stonenr][part]);
          auto particle = mesh::pe::createConvexPolyhedron( *globalBodyStorage, *forest, storageID, numParticles, *it, substones[stonenr][0], material );
