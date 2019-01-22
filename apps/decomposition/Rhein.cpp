@@ -223,7 +223,7 @@ int main( int argc, char ** argv )
   for(int i = 0; i < numStones; i++){
      // Decompose
      substones.push_back(mesh::ConvexDecomposer::approximateConvexDecompose(stones[i], maxconcavity));
-     for(int part = 0; part < (int)substones[i].size(); part++){
+     for(size_t part = 0; part < (int)substones[i].size(); part++){
 		Vec3 centroid = mesh::toWalberla( mesh::computeCentroid( substones[i][part]));
 		mesh::translate( substones[i][part], -centroid );
 	 }
@@ -238,8 +238,8 @@ int main( int argc, char ** argv )
 	 {
       //mesh::pe::TriangleMeshUnion* particle = createUnion<mesh::pe::PolyhedronTuple>( *globalBodyStorage, *forest, storageID, 0, Vec3());
 		// Centrate parts an add them to the union
-      int stonenr = (int)(math::realRandom<real_t>(0,numStones));
-      for(int part = 0; part < (int)substones[stonenr].size(); part++){
+      auto stonenr = (size_t)(math::realRandom<real_t>(0,numStones));
+      for(size_t part = 0; part < substones[stonenr].size(); part++){
          //createConvexPolyhedron(particle, 0, (*it), substones[stonenr][part]);
          auto particle = mesh::pe::createConvexPolyhedron( *globalBodyStorage, *forest, storageID, numParticles, *it, substones[stonenr][0], material );
          Vec3 rndVel(math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax), math::realRandom<real_t>(-vMax, vMax));
@@ -274,7 +274,7 @@ int main( int argc, char ** argv )
          real_t my_height = bodyIt->getPosition()[2]; // z coordinate
          // my velocity
          real_t my_xvel = bodyIt->getLinearVel()[0];
-         real_t flow_xvel = my_height < height ? max_vel * exp((my_height-height)/decline) : max_vel;
+         real_t flow_xvel = my_height < height ? max_vel * std::exp((my_height-height)/decline) : max_vel;
 
          bodyIt->addForce(drag*(flow_xvel-my_xvel),0,0);
       }
