@@ -140,7 +140,7 @@ void ConvexDecomposer::vectorsToOpenMesh(const std::vector<double> &points, cons
 
    std::vector<TriangleMesh::VertexHandle> handles;
    // generate vertices
-   for(int i = 0; i < (int)points.size()/3; i++){
+   for(size_t i = 0; i < points.size()/3; i++){
       handles.push_back(mesh.add_vertex(TriangleMesh::Point(points[3*i], points[3*i+1],  points[3*i+2])));
    }
    // Faces
