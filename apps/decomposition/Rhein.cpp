@@ -238,7 +238,7 @@ int main( int argc, char ** argv )
 	 {
       //mesh::pe::TriangleMeshUnion* particle = createUnion<mesh::pe::PolyhedronTuple>( *globalBodyStorage, *forest, storageID, 0, Vec3());
 		// Centrate parts an add them to the union
-      auto stonenr = int(math::realRandom<real_t>(0,real_t(numStones)));
+      auto stonenr = size_t(math::realRandom<real_t>(0,real_t(numStones)));
       for(size_t part = 0; part < substones[stonenr].size(); part++){
          //createConvexPolyhedron(particle, 0, (*it), substones[stonenr][part]);
          auto particle = mesh::pe::createConvexPolyhedron( *globalBodyStorage, *forest, storageID, numParticles, *it, substones[stonenr][0], material );
