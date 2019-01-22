@@ -28,12 +28,6 @@
 namespace walberla {
 namespace mesh {
 
-   typedef walberla::cgalwraps::Exact_kernel Exact_kernel;
-   typedef walberla::cgalwraps::Polyhedron Polyhedron;
-   typedef walberla::cgalwraps::Surface_mesh Surface_mesh;
-   typedef walberla::cgalwraps::Nef_polyhedron  Nef_polyhedron;
-   typedef walberla::cgalwraps::Volume_const_iterator Volume_const_iterator;
-
    class ConvexDecomposer{
    public:
       /** Decompose a non-convex Triangle mesh into several convex parts.
@@ -55,13 +49,13 @@ namespace mesh {
    private:
 
       // Check decomposition result.
-      static bool performDecompositionTests(const Nef_polyhedron &input, const std::vector<Nef_polyhedron> &convex_parts );
+      static bool performDecompositionTests(const cgalwraps::Nef_polyhedron &input, const std::vector<cgalwraps::Nef_polyhedron> &convex_parts );
 
-      // Convert OpenMesh to polyhedron
-      static void openMeshToPoly(const TriangleMesh &mesh, Polyhedron &poly);
+      // Convert OpenMesh to CGAL-polyhedron
+      static void openMeshToPoly(const TriangleMesh &mesh, cgalwraps::Polyhedron &poly);
 
-      // Convert Nef Polyhedron back to OpenMesh
-      static void nefToOpenMesh(const Nef_polyhedron &nef, TriangleMesh &mesh);
+      // Convert Nef-Polyhedron (CGAL) back to OpenMesh
+      static void nefToOpenMesh(const cgalwraps:: Nef_polyhedron &nef, TriangleMesh &mesh);
 
       // Fill Mesh vectors for HACD processing
       static void openMeshToVectors(const TriangleMesh& mesh, std::vector<double> &points, std::vector<uint32_t> &triangles);

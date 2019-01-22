@@ -65,12 +65,6 @@ using namespace walberla::cgalwraps;
 typedef boost::tuple<Sphere, Plane, Box, mesh::pe::TriangleMeshUnion, mesh::pe::ConvexPolyhedron> BodyTypeTuple ;
 //! [BodyTypeTuple]
 
-
-
-typedef Nef_polyhedron::Vector_3  NefVector_3;
-typedef Nef_polyhedron::Aff_transformation_3  NefAff_transformation_3;
-typedef Nef_polyhedron::Plane_3  Plane_3;
-
 using OutputMesh = mesh::PolyMesh;
 using TesselationType=mesh::pe::DefaultTesselation<OutputMesh>;
 
@@ -201,7 +195,7 @@ int main( int argc, char ** argv )
       nefC += nefA;
       nefC += nefB;
       Surface_mesh outMesh;
-      CGAL::convert_nef_polyhedron_to_polygon_mesh(nefC, outMesh);
+      cgalwraps::convert_nef_polyhedron_to_polygon_mesh(nefC, outMesh);
       std::ofstream output;
       output.open("ComplexBody.off");
       output << outMesh;
@@ -241,7 +235,7 @@ int main( int argc, char ** argv )
       Nef_polyhedron lowerHalfSpace(pCube);
       hopper -= lowerHalfSpace;
       Surface_mesh outMeshHop;
-      CGAL::convert_nef_polyhedron_to_polygon_mesh(hopper, outMeshHop);
+      cgalwraps::convert_nef_polyhedron_to_polygon_mesh(hopper, outMeshHop);
       output.open("Hopper.off");
       output << outMeshHop;
       output.close();

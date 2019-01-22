@@ -40,6 +40,7 @@
 namespace walberla {
 namespace mesh {
    using namespace walberla::vhacdwraps;
+   using namespace walberla::cgalwraps;
 
 std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh& mesh){
 
@@ -48,7 +49,7 @@ std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh&
    Nef_polyhedron nef(poly);
 
    // Partition the polyhedron into convex parts
-   walberla::cgalwraps::convex_decomposition_3(nef);
+   cgalwraps::convex_decomposition_3(nef);
    std::vector<Nef_polyhedron> convex_parts; // parts as nefs (for checks)
    std::vector<TriangleMesh> convex_meshes; // parts as meshes.
 
@@ -67,7 +68,7 @@ std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh&
      }
    }
 
-   WALBERLA_LOG_INFO( "Decomposition into " << convex_parts.size() << " convex parts.");
+   WALBERLA_LOG_INFO_ON_ROOT( "Decomposition into " << convex_parts.size() << " convex parts.");
    WALBERLA_ASSERT(performDecompositionTests(nef, convex_parts), "Test of convex decomposition has failed.");
 
    return convex_meshes;
@@ -97,7 +98,7 @@ std::vector<TriangleMesh> ConvexDecomposer::approximateConvexDecompose( const Tr
    if (res) {
        // save output
       unsigned int nConvexHulls = interfaceVHACD->GetNConvexHulls();
-      WALBERLA_LOG_INFO("Decomposition into " << nConvexHulls << " approximate convex parts." );
+      WALBERLA_LOG_INFO_ON_ROOT("Decomposition into " << nConvexHulls << " approximate convex parts." );
       IVHACD::ConvexHull ch;
       for (unsigned int p = 0; p < nConvexHulls; ++p) {
          interfaceVHACD->GetConvexHull(p, ch);
@@ -168,7 +169,7 @@ void ConvexDecomposer::nefToOpenMesh(const Nef_polyhedron &nef, TriangleMesh &me
    std::stringstream offstream;
 
    Surface_mesh output;
-   walberla::cgalwraps::convert_nef_polyhedron_to_polygon_mesh(nef, output);
+   cgalwraps::convert_nef_polyhedron_to_polygon_mesh(nef, output);
    offstream << output;
 
    OpenMesh::IO::ImporterT<TriangleMesh> importer(mesh);
@@ -188,9 +189,9 @@ bool ConvexDecomposer::performDecompositionTests(const Nef_polyhedron &input, co
    Nef_polyhedron unitedNefs(Nef_polyhedron::EMPTY);
    for(size_t i = 0; i < convex_parts.size(); i++){
       Surface_mesh output;
-      walberla::cgalwraps::convert_nef_polyhedron_to_polygon_mesh(convex_parts[i], output);
+      cgalwraps::convert_nef_polyhedron_to_polygon_mesh(convex_parts[i], output);
       // Convexity check 
-      if(!walberla::cgalwraps::is_strongly_convex_3(output)){
+      if(!cgalwraps::is_strongly_convex_3(output)){
          WALBERLA_LOG_INFO( "Output " << i << " is NOT convex." );
          return false;
       }
