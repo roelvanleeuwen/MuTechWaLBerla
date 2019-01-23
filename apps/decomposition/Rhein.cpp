@@ -75,7 +75,7 @@ int main( int argc, char ** argv )
    //! [Parameters]
   Environment env(argc, argv);
   auto cfg = env.config();
-  if (cfg == NULL) WALBERLA_ABORT("No config specified!");
+  if (cfg == nullptr) WALBERLA_ABORT("No config specified!");
 
   const Config::BlockHandle mainConf  = cfg->getBlock( "Rhein" );
   
@@ -128,7 +128,7 @@ int main( int argc, char ** argv )
      std::stringstream ss;
      ss << "0" << i << "v500.off";
      WALBERLA_LOG_INFO_ON_ROOT("Loading file: " << ss.str());
-     stones.push_back(mesh::TriangleMesh());
+     stones.emplace_back();
      std::ifstream input;
      input.open(ss.str());
      OpenMesh::IO::ImporterT<mesh::TriangleMesh> importer(stones.back());
@@ -192,7 +192,7 @@ int main( int argc, char ** argv )
   auto vtkSphereOutput = vtk::createVTKOutput_PointData(vtkSphereHelper, "Bodies", 1, std::string("VTK"), "simulation_step", false, false);
 
   TesselationType tesselation;
-  auto vtkMeshWriter = shared_ptr<mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType> >( new mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType>(forest, storageID, tesselation, std::string("MeshOutput"), uint_t(1), std::string("/local/iq72ehiq/VTK") ));
+  auto vtkMeshWriter = make_shared<mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType> >(forest, storageID, tesselation, std::string("MeshOutput"), uint_t(1), std::string("/local/iq72ehiq/VTK") );
   vtkMeshWriter->setBodyFilter([](const RigidBody& rb){ return (rb.getTypeID() == mesh::pe::ConvexPolyhedron::getStaticTypeID() || rb.getTypeID() == Box::getStaticTypeID()); });
   vtkMeshWriter->addFacePropertyRank();
   shared_ptr<mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType>::FaceDataSource<uint64_t>> sidFace = make_shared<mesh::pe::SIDFaceDataSource<OutputMesh, TesselationType, uint64_t>>();

@@ -136,7 +136,7 @@ TriangleMeshUnion* createNonConvexUnionOfConvexParts( BodyStorage& globalStorage
 }
 
 TriangleMeshUnion* createApproximateNonConvexUnion( BodyStorage& globalStorage, BlockStorage& blocks, BlockDataID storageID,
-                                                     id_t uid, Vec3 gpos, TriangleMesh mesh, real_t max_concavity,
+                                                     id_t uid, Vec3 gpos, const TriangleMesh &mesh, real_t max_concavity,
                                                      MaterialID material, bool global, bool communicating, bool infiniteMass ){
 
    // Create Union
