@@ -69,7 +69,7 @@ std::vector<TriangleMesh> ConvexDecomposer::convexDecompose( const TriangleMesh&
    }
 
    WALBERLA_LOG_INFO_ON_ROOT( "Decomposition into " << convex_parts.size() << " convex parts.");
-   WALBERLA_ASSERT(performDecompositionTests(nef, convex_parts), "Test of convex decomposition has failed.");
+   // WALBERLA_ASSERT(performDecompositionTests(nef, convex_parts), "Test of convex decomposition has failed.");
 
    return convex_meshes;
 
