@@ -118,6 +118,9 @@ namespace cuda {
 
       inline uint_t  nrOfGhostLayers() const { return nrOfGhostLayers_; }
 
+      inline CellInterval xyzSize()               const;
+      inline CellInterval xyzSizeWithGhostLayer() const;
+
       bool operator==( const GPUField & other ) const;
 
       void getGhostRegion( stencil::Direction d, CellInterval & ci,
@@ -143,6 +146,9 @@ namespace cuda {
       uint_t         ySize_;
       uint_t         zSize_;
       uint_t         fSize_;
+
+      uint_t         xAllocSize_;
+      uint_t         fAllocSize_;
       Layout         layout_;
       bool           usePitchedMem_;
    };

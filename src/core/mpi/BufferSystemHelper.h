@@ -35,6 +35,7 @@ namespace walberla {
 namespace mpi {
 namespace internal {
 
+   template< typename RecvBuffer_T, typename SendBuffer_T>
    class AbstractCommunication
    {
    public:
@@ -46,7 +47,7 @@ namespace internal {
 
 
       struct ReceiveInfo {
-         RecvBuffer buffer;
+         RecvBuffer_T buffer;
          MPISize size;
       };
 
@@ -54,7 +55,7 @@ namespace internal {
       /*************************************************************************************************************//**
       * Send buffer content to receiver using MPI_ISend, request is stored internally -> see waitForSends()
       *****************************************************************************************************************/
-      virtual void send( MPIRank rank, const SendBuffer & sendBuffer ) = 0;
+      virtual void send( MPIRank rank, const SendBuffer_T & sendBuffer ) = 0;
 
 
       /*************************************************************************************************************//**
@@ -100,16 +101,18 @@ namespace internal {
    };
 
 
-
-   class KnownSizeCommunication : public AbstractCommunication
+   template< typename RecvBuffer_T, typename SendBuffer_T>
+   class KnownSizeCommunication : public AbstractCommunication<RecvBuffer_T, SendBuffer_T>
    {
    public:
+      using typename AbstractCommunication<RecvBuffer_T, SendBuffer_T>::ReceiveInfo;
+
       KnownSizeCommunication( const MPI_Comm & communicator, int tag = 0 )
-           : AbstractCommunication( communicator, tag ), sending_(false), receiving_(false) {}
+           : AbstractCommunication<RecvBuffer_T, SendBuffer_T>( communicator, tag ), sending_(false), receiving_(false) {}
 
       virtual ~KnownSizeCommunication() {}
 
-      virtual void send( MPIRank receiver, const SendBuffer & sendBuffer );
+      virtual void send( MPIRank receiver, const SendBuffer_T & sendBuffer );
       virtual void waitForSends();
 
       virtual void    scheduleReceives  ( std::map<MPIRank, ReceiveInfo> & recvInfos );
@@ -126,16 +129,18 @@ namespace internal {
    };
 
 
-
-   class UnknownSizeCommunication : public AbstractCommunication
+   template< typename RecvBuffer_T, typename SendBuffer_T>
+   class UnknownSizeCommunication : public AbstractCommunication<RecvBuffer_T, SendBuffer_T>
    {
    public:
+      using typename AbstractCommunication<RecvBuffer_T, SendBuffer_T>::ReceiveInfo;
+
       UnknownSizeCommunication( const MPI_Comm & communicator, int tag = 0 )
-           :  AbstractCommunication( communicator, tag ), sending_(false), receiving_(false) {}
+           :  AbstractCommunication<RecvBuffer_T, SendBuffer_T>( communicator, tag ), sending_(false), receiving_(false) {}
 
       virtual ~UnknownSizeCommunication() {}
 
-      virtual void send( MPIRank receiver, const SendBuffer & sendBuffer );
+      virtual void send( MPIRank receiver, const SendBuffer_T & sendBuffer );
       virtual void waitForSends();
 
       virtual void scheduleReceives( std::map<MPIRank, ReceiveInfo> & recvInfos );
@@ -156,16 +161,18 @@ namespace internal {
    };
 
 
-
-   class NoMPICommunication : public AbstractCommunication
+   template< typename RecvBuffer_T, typename SendBuffer_T>
+   class UnknownSizeCommunicationIProbe : public AbstractCommunication<RecvBuffer_T, SendBuffer_T>
    {
    public:
-      NoMPICommunication( const MPI_Comm & communicator, int tag = 0 )
-         : AbstractCommunication( communicator, tag ), received_( false ) {}
+      using typename AbstractCommunication<RecvBuffer_T, SendBuffer_T>::ReceiveInfo;
 
-      virtual ~NoMPICommunication() {}
+      UnknownSizeCommunicationIProbe( const MPI_Comm & communicator, int tag = 0 )
+           :  AbstractCommunication<RecvBuffer_T, SendBuffer_T>( communicator, tag ), sending_(false), receiving_(false) {}
 
-      virtual void send( MPIRank receiver, const SendBuffer & sendBuffer );
+      virtual ~UnknownSizeCommunicationIProbe() {}
+
+      virtual void send( MPIRank receiver, const SendBuffer_T & sendBuffer );
       virtual void waitForSends();
 
       virtual void scheduleReceives( std::map<MPIRank, ReceiveInfo> & recvInfos );
@@ -174,8 +181,36 @@ namespace internal {
       virtual MPIRank waitForNextReceive( std::map<MPIRank, ReceiveInfo> & recvInfos );
 
    private:
-      bool       received_;
-      RecvBuffer tmpBuffer_;
+      bool sending_;
+      bool receiving_;
+      int  pendingReceives_;
+
+      std::vector<MPI_Request> sendRequests_;
+   };
+
+
+   template< typename RecvBuffer_T, typename SendBuffer_T>
+   class NoMPICommunication : public AbstractCommunication<RecvBuffer_T, SendBuffer_T>
+   {
+   public:
+      using typename AbstractCommunication<RecvBuffer_T, SendBuffer_T>::ReceiveInfo;
+
+      NoMPICommunication( const MPI_Comm & communicator, int tag = 0 )
+         : AbstractCommunication<RecvBuffer_T, SendBuffer_T>( communicator, tag ), received_( false ) {}
+
+      virtual ~NoMPICommunication() {}
+
+      virtual void send( MPIRank receiver, const SendBuffer_T & sendBuffer );
+      virtual void waitForSends();
+
+      virtual void scheduleReceives( std::map<MPIRank, ReceiveInfo> & recvInfos );
+
+      /// size field of recvInfos can be invalid, is filled in with the actual message size
+      virtual MPIRank waitForNextReceive( std::map<MPIRank, ReceiveInfo> & recvInfos );
+
+   private:
+      bool         received_;
+      RecvBuffer_T tmpBuffer_;
    };
 
 
@@ -184,4 +219,4 @@ namespace internal {
 } // namespace mpi
 } // namespace walberla
 
-
+#include "BufferSystemHelper.impl.h"

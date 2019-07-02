@@ -37,6 +37,7 @@
 #include <map>
 #include <set>
 #include <stack>
+#include <type_traits>
 #include <vector>
 
 
@@ -176,7 +177,7 @@ private:
 
    bool weightedBlocks() const
    {
-      return ! boost::is_same< PhantomData_T, NoPhantomData >::value;
+      return ! std::is_same< PhantomData_T, NoPhantomData >::value;
    }
    
    template< typename T >
@@ -719,7 +720,7 @@ void DynamicCurveBalance< PhantomData_T >::mortonOrderWeighted( const std::vecto
       }
    }
       
-#if defined(_OPENMP) && ((__INTEL_COMPILER < 1800) || (__INTEL_COMPILER > 1900)) // Disable OpenMP for Intel 2018/2019 due to a bug
+#if defined(_OPENMP) && ((__INTEL_COMPILER < 1700) || (__INTEL_COMPILER > 1900)) // Disable OpenMP for Intel 2018/2019 due to a bug
    #pragma omp parallel for schedule(static)
 #endif
    for( int i = 0; i < int_c( blocksPerLevel.size() ); ++i )
@@ -937,7 +938,7 @@ void DynamicCurveBalance< PhantomData_T >::finalAssignment( const uint_t index, 
 
 ///This class is deprecated use DynamicCurveBalance instead.
 template< typename PhantomData_T >
-using DynamicLevelwiseCurveBalance = DynamicCurveBalance<PhantomData_T> ;
+using DynamicLevelwiseCurveBalance [[deprecated]] = DynamicCurveBalance<PhantomData_T> ;
 
 } // namespace blockforest
 } // namespace walberla

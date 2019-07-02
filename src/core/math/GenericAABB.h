@@ -27,10 +27,8 @@
 #include "core/mpi/RecvBuffer.h"
 #include "core/mpi/SendBuffer.h"
 
-#include <boost/array.hpp>
-#include <boost/type_traits/is_floating_point.hpp>
-
 #include <random>
+#include <type_traits>
 
 
 namespace walberla {
@@ -46,7 +44,7 @@ namespace math {
 template< typename T >
 class GenericAABB
 {
-   static_assert( boost::is_floating_point< T >::value, "GenericAABB only works with floating point types for T!" );
+   static_assert( std::is_floating_point< T >::value, "GenericAABB only works with floating point types for T!" );
 
 public:
    // Typedefs
@@ -148,7 +146,7 @@ public:
    inline value_type sqDistance( const GenericAABB & other ) const;
    inline value_type sqMaxDistance( const GenericAABB & other ) const;
 
-   inline boost::array< vector_type, 8 > corners() const;
+   inline std::array< vector_type, 8 > corners() const;
 
    // Modifiers
    inline void init();
@@ -198,7 +196,10 @@ public:
    inline friend mpi::GenericRecvBuffer< ET > & operator>>( mpi::GenericRecvBuffer< ET > & buf, GenericAABB< T > & aabb )
    {
       buf.readDebugMarker( "bb" );
-      buf >> aabb.minCorner_ >> aabb.maxCorner_;
+      static_assert ( std::is_trivially_copyable< GenericAABB< T > >::value,
+                      "type has to be trivially copyable for the memcpy to work correctly" );
+      auto pos = buf.skip(sizeof(GenericAABB< T >));
+      std::memcpy(&aabb, pos, sizeof(GenericAABB< T >));
       WALBERLA_ASSERT( aabb.checkInvariant() );
       return buf;
    }

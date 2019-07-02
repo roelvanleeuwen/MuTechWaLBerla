@@ -34,6 +34,7 @@
 #include "core/debug/Debug.h"
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/Logging.h"
+#include "core/math/Constants.h"
 #include "core/math/Sample.h"
 #include "core/math/Vector3.h"
 #include "core/mpi/Environment.h"
@@ -95,6 +96,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -152,13 +154,13 @@ template< typename LatticeModel_T, class Enable = void >
 struct StencilString;
 
 template< typename LatticeModel_T >
-struct StencilString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::Stencil, stencil::D3Q19 >::value >::type >
+struct StencilString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::Stencil, stencil::D3Q19 >::value >::type >
 {
    static const char * str() { return "D3Q19"; }
 };
 
 template< typename LatticeModel_T >
-struct StencilString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::Stencil, stencil::D3Q27 >::value >::type >
+struct StencilString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::Stencil, stencil::D3Q27 >::value >::type >
 {
    static const char * str() { return "D3Q27"; }
 };
@@ -168,14 +170,14 @@ template< typename LatticeModel_T, class Enable = void >
 struct CollisionModelString;
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::SRT_tag >::value >::type >
 {
    static const char * str() { return "SRT"; }
 };
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::TRT_tag >::value >::type >
 {
    static const char * str() { return "TRT"; }
@@ -456,9 +458,7 @@ public:
    typedef lbm::NoSlip< LatticeModel_T, flag_t >      NoSlip_T;
    typedef lbm::Curved< LatticeModel_T, FlagField_T > Curved_T;
 
-   typedef boost::tuples::tuple< NoSlip_T, Curved_T > BoundaryConditions_T;
-
-   typedef BoundaryHandling< FlagField_T, typename Types<LatticeModel_T>::Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+   typedef BoundaryHandling< FlagField_T, typename Types<LatticeModel_T>::Stencil_T, NoSlip_T, Curved_T > BoundaryHandling_T;
 
 
 
@@ -486,8 +486,8 @@ MyBoundaryHandling<LatticeModel_T>::operator()( IBlock * const block ) const
    const flag_t fluid = flagField->registerFlag( Fluid_Flag );
 
    return new BoundaryHandling_T( "boundary handling", flagField, fluid,
-         boost::tuples::make_tuple( NoSlip_T( "no slip", NoSlip_Flag, pdfField ),
-                                    Curved_T( "curved", Curved_Flag, pdfField, flagField, fluid ) ) );
+                                   NoSlip_T( "no slip", NoSlip_Flag, pdfField ),
+                                   Curved_T( "curved", Curved_Flag, pdfField, flagField, fluid ) );
 }
 
 
@@ -762,7 +762,7 @@ void run( const shared_ptr< Config > & config, const LatticeModel_T & latticeMod
    {
       setup.maxVelocity_L = ( setup.acceleration_L * setup.radius_L * setup.radius_L ) / ( real_t(4) * setup.viscosity_L );
       setup.meanVelocity_L = ( setup.acceleration_L * setup.radius_L * setup.radius_L ) / ( real_t(8) * setup.viscosity_L );
-      setup.flowRate_L = setup.meanVelocity_L * math::PI * setup.radius_L * setup.radius_L;
+      setup.flowRate_L = setup.meanVelocity_L * math::M_PI * setup.radius_L * setup.radius_L;
    }
    else
    {

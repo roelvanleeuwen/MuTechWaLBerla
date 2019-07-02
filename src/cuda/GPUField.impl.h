@@ -21,7 +21,7 @@
 
 #include "GPUField.h"
 #include "ErrorChecking.h"
-
+#include "AlignedAllocation.h"
 #include "core/logging/Logging.h"
 
 namespace walberla {
@@ -51,12 +51,32 @@ GPUField<T>::GPUField( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSiz
 
    if ( usePitchedMem_ )
    {
-      WALBERLA_CUDA_CHECK ( cudaMalloc3D ( &pitchedPtr_, extent ) );
+      size_t pitch;
+      const size_t alignment = 256;
+      void * mem = allocate_pitched_with_offset( pitch, extent.width, extent.height * extent.depth, alignment,
+                                                 sizeof(T) * nrOfGhostLayers_ );
+      WALBERLA_ASSERT_EQUAL( size_t((char*)(mem) + sizeof(T) * nrOfGhostLayers_ ) % alignment, 0 );
+      pitchedPtr_ = make_cudaPitchedPtr( mem, pitch, extent.width, extent.height );
    }
    else
    {
       pitchedPtr_ = make_cudaPitchedPtr( NULL, extent.width, extent.width, extent.height );
       WALBERLA_CUDA_CHECK ( cudaMalloc( &pitchedPtr_.ptr, extent.width * extent.height * extent.depth ) );
+   }
+
+   // allocation size is stored in pitched pointer
+   // pitched pointer stores the amount of padded region in bytes
+   // but we keep track of the size in #elements
+   WALBERLA_ASSERT_EQUAL( pitchedPtr_.pitch % sizeof(T), 0 );
+   if ( layout_ == field::fzyx )
+   {
+      xAllocSize_ = pitchedPtr_.pitch / sizeof(T);
+      fAllocSize_ = fSize_;
+   }
+   else
+   {
+      fAllocSize_ = pitchedPtr_.pitch / sizeof(T);
+      xAllocSize_ = xSize_ + 2 * nrOfGhostLayers_;
    }
 }
 
@@ -64,8 +84,14 @@ GPUField<T>::GPUField( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSiz
 template<typename T>
 GPUField<T>::~GPUField()
 {
-   cudaFree( pitchedPtr_.ptr );
+   if( usePitchedMem_ )
+      free_aligned_with_offset(pitchedPtr_.ptr );
+   else
+   {
+      WALBERLA_CUDA_CHECK( cudaFree( pitchedPtr_.ptr ) );
+   }
 }
+
 
 template<typename T>
 T * GPUField<T>::dataAt(cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f)
@@ -111,6 +137,26 @@ void GPUField<T>::getGhostRegion(stencil::Direction d, CellInterval & ci,
       }
 }
 
+
+template<typename T>
+inline CellInterval GPUField<T>::xyzSize() const
+{
+   return CellInterval (0,0,0,
+                        cell_idx_c( xSize() )-1,
+                        cell_idx_c( ySize() )-1,
+                        cell_idx_c( zSize() )-1 );
+}
+
+template<typename T>
+inline CellInterval GPUField<T>::xyzSizeWithGhostLayer() const
+{
+   CellInterval ci = GPUField<T>::xyzSize();
+   for( uint_t i=0; i < 3; ++i ) {
+      ci.min()[i] -= cell_idx_c( nrOfGhostLayers_ );
+      ci.max()[i] += cell_idx_c( nrOfGhostLayers_ );
+   }
+   return ci;
+}
 
 template<typename T>
 void GPUField<T>::getSlice(stencil::Direction d, CellInterval & ci,
@@ -222,15 +268,7 @@ bool GPUField<T>::operator==( const GPUField & o ) const
 template<typename T>
 uint_t  GPUField<T>::xAllocSize() const
 {
-   if ( layout_ == field::fzyx )
-   {
-      // allocation size is stored in pitched pointer
-      // pitched pointer stores the amount of padded region in bytes
-      // but we have to return the size in #elements
-      WALBERLA_ASSERT_EQUAL( pitchedPtr_.pitch % sizeof(T), 0 );
-      return pitchedPtr_.pitch / sizeof(T);
-   }
-   return xSize_ + 2 * nrOfGhostLayers_;
+   return xAllocSize_;
 }
 
 template<typename T>
@@ -248,12 +286,7 @@ uint_t  GPUField<T>::zAllocSize() const
 template<typename T>
 uint_t GPUField<T>::fAllocSize() const
 {
-   if ( layout_ == field::zyxf )
-   {
-      WALBERLA_ASSERT_EQUAL( pitchedPtr_.pitch % sizeof(T), 0 );
-      return pitchedPtr_.pitch / sizeof(T);
-   }
-   return fSize_;
+   return fAllocSize_;
 }
 
 template<typename T>

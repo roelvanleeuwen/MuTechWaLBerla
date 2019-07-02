@@ -23,6 +23,7 @@
 #pragma once
 
 #include "Timer.h"
+#include "ReduceType.h"
 
 #include "core/debug/Debug.h"
 #include "core/logging/Logging.h"
@@ -30,7 +31,6 @@
 #include "core/mpi/MPIManager.h"
 #include "core/mpi/Reduce.h"
 #include "core/mpi/SetReduction.h"
-#include "core/extern/json.hpp"
 
 
 #include <algorithm>
@@ -197,20 +197,6 @@ size_t getHierarchyDepth(const TimingNode<TP>& tn)
    }
    return depth + maxDepth;
 }
-
-/// The reduce type describes which values are reduced from each process
-enum ReduceType
-{
-   /// Treats each process as one timing sample. For the timing sample the min value is used.
-   REDUCE_MIN,
-   /// Treats each process as one timing sample. For the timing sample the average value is used.
-   REDUCE_AVG,
-   /// Treats each process as one timing sample. For the timing sample the max value is used.
-   REDUCE_MAX,
-   /// Collects all timing samples from all processes and accumulates the data.
-   /// The number of measurements afterwards are: nrOfProcesses*measurementsPerProcess
-   REDUCE_TOTAL
-};
 
 /// Collects all the timing data from different processes
 /// \attention Will overwrite the current timer data! Multiple calls will accumulate!
@@ -483,21 +469,6 @@ std::ostream& operator<<(std::ostream& os, const TimingNode<TP>& tn)
    return os;
 }
 
-/// convertes a TimingNode to json. The signature is required by the json library
-/// \relates TimingNode
-template < typename TP > // Timing policy
-void to_json( nlohmann::json& j, const TimingNode< TP >& tn )
-{
-   /// ignore the first timer in the timing node since it is empty
-   if( tn.last_ == nullptr )
-   {
-      j = nlohmann::json( tn.tree_ );
-   } else
-   {
-      j           = nlohmann::json( tn.timer_ );
-      j["childs"] = nlohmann::json( tn.tree_ );
-   }
-}
 
 namespace internal {
 /// adds a sub timer containing the remainder of all other subtimers on the same hierarchy level

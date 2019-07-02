@@ -124,7 +124,7 @@ TriangleMeshUnion* createNonConvexUnionOfConvexParts( BodyStorage& globalStorage
                                                      MaterialID material, bool global, bool communicating, bool infiniteMass ){
 
    // Create Union
-   TriangleMeshUnion* un = createUnion<PolyhedronTuple>(  globalStorage, blocks, storageID, uid, gpos,
+   TriangleMeshUnion* un = createUnion<mesh::pe::ConvexPolyhedron>(  globalStorage, blocks, storageID, uid, gpos,
 														  global, communicating, infiniteMass );
                                                                   
    // Centrate parts an add them to the union
@@ -140,7 +140,7 @@ TriangleMeshUnion* createApproximateNonConvexUnion( BodyStorage& globalStorage, 
                                                      MaterialID material, bool global, bool communicating, bool infiniteMass ){
 
    // Create Union
-   TriangleMeshUnion* un = createUnion<PolyhedronTuple>( globalStorage, blocks, storageID, uid, gpos,
+   TriangleMeshUnion* un = createUnion<mesh::pe::ConvexPolyhedron>( globalStorage, blocks, storageID, uid, gpos,
                                                                   global, communicating, infiniteMass );
    // Decompose
    std::vector<TriangleMesh> convexParts = ConvexDecomposer::approximateConvexDecompose(mesh, max_concavity);

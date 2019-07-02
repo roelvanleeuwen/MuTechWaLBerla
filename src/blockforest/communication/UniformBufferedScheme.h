@@ -77,11 +77,11 @@ namespace communication {
 * for the schemes: the tag can be passed in the constructor.
 */
 //*******************************************************************************************************************
-template< typename Stencil >
+template< typename Stencil_T >
 class UniformBufferedScheme
 {
 public:
-
+   typedef Stencil_T Stencil;
    typedef mpi::SendBuffer SendBuffer;
    typedef mpi::RecvBuffer RecvBuffer;
 
@@ -210,7 +210,7 @@ protected:
 template< typename Stencil >
 inline void UniformBufferedScheme<Stencil>::addPackInfo( const PackInfo & packInfo )
 {
-   WALBERLA_ASSERT( !communicationInProgress_ ); // You cannot add PackInfo's while the communication is in progress!
+   WALBERLA_ASSERT( !communicationInProgress_, "Cannot add pack info while communication is in progress");
 
    packInfos_.push_back( packInfo );
    setupBeforeNextCommunication_ = true;
@@ -306,7 +306,7 @@ void UniformBufferedScheme<Stencil>::startCommunication()
             if( !selectable::isSetSelected( block->getNeighborState( neighborIdx, uint_t(0) ), requiredBlockSelectors_, incompatibleBlockSelectors_ ) )
                continue;
 
-            if( block->neighborExistsLocally( neighborIdx, uint_t(0) ) )
+            if( block->neighborExistsLocally( neighborIdx, uint_t(0) ) && localMode_ != NO_OPTIMIZATION )
             {
                auto neighbor = dynamic_cast< Block * >( forest->getBlock(nBlockId) );
                WALBERLA_ASSERT_EQUAL( neighbor->getProcess(), block->getProcess() );

@@ -83,10 +83,9 @@ namespace drag_force_sphere_psm_refinement
 
 using namespace walberla;
 using walberla::uint_t;
-using lbm::force_model::SimpleConstant;
 
 // PDF field, flag field & body field
-typedef lbm::D3Q19< lbm::collision_model::SRT, false, lbm::force_model::SimpleConstant, 1>  LatticeModel_T;
+typedef lbm::D3Q19< lbm::collision_model::SRT, false, lbm::force_model::SimpleConstant >  LatticeModel_T;
 
 using Stencil_T = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField<LatticeModel_T>;
@@ -100,10 +99,9 @@ typedef std::pair< pe::BodyID, real_t >                              BodyAndVolu
 typedef GhostLayerField< std::vector< BodyAndVolumeFraction_T >, 1 > BodyAndVolumeFractionField_T;
 
 typedef lbm::NoSlip< LatticeModel_T, flag_t > NoSlip_T;
-using BoundaryConditions_T = boost::tuples::tuple<NoSlip_T>;
-typedef BoundaryHandling< FlagField_T, Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+typedef BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T > BoundaryHandling_T;
 
-using BodyTypeTuple = boost::tuple<pe::Sphere> ;
+using BodyTypeTuple = std::tuple<pe::Sphere> ;
 
 ///////////
 // FLAGS //
@@ -244,7 +242,7 @@ BoundaryHandling_T * MyBoundaryHandling::operator()( IBlock * const block, const
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "fixed obstacle boundary handling", flagField, fluid,
-                                                           boost::tuples::make_tuple( NoSlip_T( "NoSlip", NoSlip_Flag, pdfField ) ) );
+                                                           NoSlip_T( "NoSlip", NoSlip_Flag, pdfField ) );
 
    handling->fillWithDomain( FieldGhostLayers );
 
@@ -298,9 +296,9 @@ public:
       real_t uBar = computeAverageVel();
 
       // f_total = f_drag + f_buoyancy
-      real_t totalForce = forceX  + real_c(4.0/3.0) * math::PI * setup_->radius * setup_->radius * setup_->radius * setup_->extForce ;
+      real_t totalForce = forceX  + real_c(4.0/3.0) * math::M_PI * setup_->radius * setup_->radius * setup_->radius * setup_->extForce ;
 
-      real_t normalizedDragForce = totalForce / real_c( 6.0 * math::PI * setup_->visc * setup_->radius * uBar );
+      real_t normalizedDragForce = totalForce / real_c( 6.0 * math::M_PI * setup_->visc * setup_->radius * uBar );
 
       // update drag force values
       normalizedDragOld_ = normalizedDragNew_;
@@ -536,7 +534,7 @@ int main( int argc, char **argv )
    ////////////////////////
 
    // create the lattice model
-   LatticeModel_T latticeModel = LatticeModel_T( omega, SimpleConstant( Vector3<real_t> ( setup.extForce, 0, 0 ) ) );
+   LatticeModel_T latticeModel = LatticeModel_T( omega, lbm::force_model::SimpleConstant( Vector3<real_t> ( setup.extForce, 0, 0 ) ) );
 
    // add PDF field ( uInit = <0,0,0>, rhoInit = 1 )
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >( blocks, "pdf field (zyxf)", latticeModel,

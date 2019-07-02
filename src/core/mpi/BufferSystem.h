@@ -26,7 +26,6 @@
 #include "core/DataTypes.h"
 #include "core/debug/Debug.h"
 
-#include <boost/range/counting_range.hpp>
 #include <map>
 #include <set>
 #include <vector>
@@ -35,7 +34,8 @@
 namespace walberla {
 namespace mpi  {
 
-class OpenMPBufferSystem;
+template< typename RecvBuffer_T, typename SendBuffer_T>
+class GenericOpenMPBufferSystem;
 
 //**********************************************************************************************************************
 /*! Manages MPI Communication with a set of known communication partners.
@@ -106,7 +106,8 @@ class OpenMPBufferSystem;
 *
 */
 //**********************************************************************************************************************
-class BufferSystem
+template< typename RecvBuffer_T = RecvBuffer, typename SendBuffer_T = SendBuffer>
+class GenericBufferSystem
 {
 public:
    class iterator;
@@ -114,10 +115,10 @@ public:
    //**Construction and Destruction*************************************************************************************
    /*!\name Constructors */
    //@{
-   explicit BufferSystem( const MPI_Comm & communicator, int tag = 0 );
-   BufferSystem( const BufferSystem & other );
-   BufferSystem & operator=( const BufferSystem & other );
-   ~BufferSystem() {}
+   explicit GenericBufferSystem( const MPI_Comm & communicator, int tag = 0 );
+   GenericBufferSystem( const GenericBufferSystem & other );
+   GenericBufferSystem & operator=( const GenericBufferSystem & other );
+   ~GenericBufferSystem() {}
    //@}
    //*******************************************************************************************************************
 
@@ -127,7 +128,7 @@ public:
    //@{
    template<typename RankIter> void setReceiverInfo( RankIter begin, RankIter end,              bool changingSize );
    template<typename Range>    void setReceiverInfo( const Range & range,                       bool changingSize );
-                               void setReceiverInfo( const std::set<MPIRank> & ranksToRecvFrom, bool changingSize );
+              void setReceiverInfo( const std::set<MPIRank> & ranksToRecvFrom, bool changingSize );
 
    void setReceiverInfo( const std::map<MPIRank,MPISize> & ranksToRecvFrom );
    void setReceiverInfoFromSendBufferState( bool useSizeFromSendBuffers, bool changingSize );
@@ -142,8 +143,8 @@ public:
    //@{
    void scheduleReceives() { startCommunication(); }
 
-   SendBuffer & sendBuffer ( MPIRank rank );
-   SendBuffer & sendBuffer ( uint_t  rank ) { return sendBuffer( int_c( rank ) ); }
+   SendBuffer_T & sendBuffer ( MPIRank rank );
+   SendBuffer_T & sendBuffer ( uint_t  rank ) { return sendBuffer( int_c( rank ) ); }
    inline size_t size() const;
 
 
@@ -162,22 +163,22 @@ public:
    class iterator
    {
    public:
-      MPIRank      rank()   { return currentSenderRank_;  }
-      RecvBuffer & buffer() { return *currentRecvBuffer_; }
+      MPIRank        rank()   { return currentSenderRank_;  }
+      RecvBuffer_T & buffer() { return *currentRecvBuffer_; }
 
       void operator++();
       bool operator==( const iterator & other );
       bool operator!=( const iterator & other );
 
    private:
-      iterator( BufferSystem & bufferSystem, bool begin );
+      iterator( GenericBufferSystem & bufferSystem, bool begin );
 
-      BufferSystem & bufferSystem_;
+      GenericBufferSystem & bufferSystem_;
 
-      RecvBuffer * currentRecvBuffer_;
-      MPIRank      currentSenderRank_;
+      RecvBuffer_T * currentRecvBuffer_;
+      MPIRank        currentSenderRank_;
 
-      friend class BufferSystem;
+      friend class GenericBufferSystem;
    };
    friend class iterator;
    //@}
@@ -193,12 +194,24 @@ public:
    //@}
    //*******************************************************************************************************************
 
+   void useIProbe(const bool use) { useIProbe_ = use; }
+   bool isIProbedUsed() const { return useIProbe_; }
+
+   ///Bytes sent during the current or last communication
+   int64_t getBytesSent() const { return bytesSent_; }
+   ///Bytes received during the current or last communication
+   int64_t getBytesReceived() const { return bytesReceived_; }
+
+   ///Communication partners during current or last send operation
+   int64_t getNumberOfSends() const { return numberOfSends_; }
+   ///Communication partners during current or last receive operation
+   int64_t getNumberOfReceives() const { return numberOfReceives_; }
+
 
    //* Rank Ranges     *************************************************************************************************
    /*! \name Rank Ranges  */
    //@{
-   typedef boost::counting_iterator<MPIRank> RankCountIter;
-   typedef boost::iterator_range< RankCountIter > RankRange;
+   typedef std::set<MPIRank> RankRange;
    static RankRange noRanks();
    static RankRange allRanks();
    static RankRange allRanksButRoot();
@@ -209,17 +222,18 @@ public:
 
 protected:
 
-   friend class OpenMPBufferSystem;
+   friend class GenericOpenMPBufferSystem<RecvBuffer_T, SendBuffer_T>;
 
    void startCommunication();
    void endCommunication();
-   RecvBuffer * waitForNext( MPIRank & fromRank );
+   RecvBuffer_T * waitForNext( MPIRank & fromRank );
    void setCommunicationType( const bool knownSize );
 
-   internal::KnownSizeCommunication   knownSizeComm_;
-   internal::UnknownSizeCommunication unknownSizeComm_;
-   internal::NoMPICommunication       noMPIComm_;
-   internal::AbstractCommunication *  currentComm_;  //< after receiver setup, this points to unknown- or knownSizeComm_
+   internal::KnownSizeCommunication<RecvBuffer_T, SendBuffer_T>         knownSizeComm_;
+   internal::UnknownSizeCommunication<RecvBuffer_T, SendBuffer_T>       unknownSizeComm_;
+   internal::UnknownSizeCommunicationIProbe<RecvBuffer_T, SendBuffer_T> unknownSizeCommIProbe_;
+   internal::NoMPICommunication<RecvBuffer_T, SendBuffer_T>             noMPIComm_;
+   internal::AbstractCommunication<RecvBuffer_T, SendBuffer_T> *        currentComm_;  //< after receiver setup, this points to unknown- or knownSizeComm_
 
    bool sizeChangesEverytime_; //< if set to true, the receiveSizeUnknown_ is set to true before communicating
    bool communicationRunning_; //< indicates if a communication step is currently running
@@ -227,12 +241,12 @@ protected:
 
    /// Info about the message to be received from a certain rank:
    /// information holds the buffer and, if known, the message size
-   std::map<MPIRank, internal::AbstractCommunication::ReceiveInfo> recvInfos_;
+   std::map<MPIRank, typename internal::AbstractCommunication<RecvBuffer_T, SendBuffer_T>::ReceiveInfo> recvInfos_;
 
 
    struct SendInfo {
       SendInfo() : alreadySent(false) {}
-      SendBuffer buffer;
+      SendBuffer_T buffer;
       bool alreadySent;
    };
    std::map<MPIRank, SendInfo> sendInfos_;
@@ -240,57 +254,20 @@ protected:
    //stores tags of running communications in debug mode to ensure that
    //each concurrently running communication uses different tags
    static std::set<int> activeTags_;
+
+   bool useIProbe_ = false; ///< switch betwenn IProbe and two message communication for varying size communication
+
+   int64_t bytesSent_        = 0; ///< number of bytes sent during last communication
+   int64_t bytesReceived_    = 0; ///< number of bytes received during last communication
+
+   int64_t numberOfSends_    = 0; ///< number of communication partners during last send
+   int64_t numberOfReceives_ = 0; ///< number of communication partners during last receive
 };
 
-
-
-
-
-
-
-//======================================================================================================================
-//
-//  Template function definitions
-//
-//======================================================================================================================
-
-
-
-template<typename Range>
-void BufferSystem::setReceiverInfo( const Range & range, bool changingSize )
-{
-   setReceiverInfo( range.begin(), range.end(), changingSize );
-}
-
-template<typename RankIter>
-void BufferSystem::setReceiverInfo( RankIter rankBegin, RankIter rankEnd, bool changingSize )
-{
-   WALBERLA_ASSERT( ! communicationRunning_ );
-
-   recvInfos_.clear();
-   for ( auto it = rankBegin; it != rankEnd; ++it )
-   {
-      const MPIRank sender = *it;
-      recvInfos_[ sender ].size = INVALID_SIZE;
-   }
-
-   sizeChangesEverytime_ = changingSize;
-   setCommunicationType( false );
-}
-
-inline size_t BufferSystem::size() const
-{
-   size_t sum = 0;
-   for( auto iter = sendInfos_.begin(); iter != sendInfos_.end(); ++iter )
-   {
-      sum += iter->second.buffer.size();
-   }
-   return sum;
-}
-
-
+typedef GenericBufferSystem<RecvBuffer, SendBuffer> BufferSystem;
 
 } // namespace mpi
 } // namespace walberla
 
+#include "BufferSystem.impl.h"
 

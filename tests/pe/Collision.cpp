@@ -119,8 +119,8 @@ void BoxTest()
    b4.rotate( Vec3(1,1,0), real_t(atan(sqrt(2))) );
 
    Box b5(123, 0, Vec3(0,0,0), Vec3(0,0,0), Quat(), Vec3(2,2,2), iron, false, true, false);
-   b5.rotate( Vec3(0,0,1), real_t(math::PI * 0.25) );
-   b5.rotate( Vec3(1,0,0), real_t(math::PI * 0.25) );
+   b5.rotate( Vec3(0,0,1), real_t(math::M_PI * 0.25) );
+   b5.rotate( Vec3(1,0,0), real_t(math::M_PI * 0.25) );
 
    std::vector<Contact> contacts;
    fcd::AnalyticCollideFunctor< std::vector<Contact> > collideFunc(contacts);
@@ -235,7 +235,7 @@ void CapsuleTest2()
 
 void UnionTest()
 {
-   using UnionT = Union<boost::tuple<Sphere> >;
+   using UnionT = Union<Sphere>;
    UnionT  un1(120, 0, Vec3(0,0,0), Vec3(0,0,0), Quat(), false, true, false);
    UnionT  un2(121, 0, Vec3(real_t(1.5),0,0), Vec3(0,0,0), Quat(), false, true, false);
    auto sp1 = createSphere(&un1, 123, Vec3(0,0,0), 1);
@@ -253,7 +253,7 @@ void UnionTest()
                  Contact( sp1, sp2, Vec3(real_t(0.75), 0, 0), Vec3(-1, 0, 0), real_t(-0.5)) );
 }
 
-typedef boost::tuple<Box, Capsule, Plane, Sphere> BodyTuple ;
+typedef std::tuple<Box, Capsule, Plane, Sphere> BodyTuple ;
 
 int main( int argc, char** argv )
 {

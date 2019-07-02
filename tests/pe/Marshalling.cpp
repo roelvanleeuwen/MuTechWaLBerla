@@ -32,18 +32,17 @@
 #include "pe/rigidbody/SetBodyTypeIDs.h"
 #include "pe/Materials.h"
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 
 namespace walberla {
 using namespace walberla::pe;
 using namespace walberla::pe::communication;
 
-using UnionTypeTuple = boost::tuple<Sphere>;
-using UnionT = Union<UnionTypeTuple>;
+using UnionT = Union<Sphere>;
 using UnionID = UnionT *;
 using UnionPtr = std::unique_ptr<UnionT>;
 
-typedef boost::tuple<Box, Capsule, Sphere, Squirmer, UnionT, Ellipsoid> BodyTuple ;
+typedef std::tuple<Box, Capsule, Sphere, Squirmer, UnionT, Ellipsoid> BodyTuple ;
 
 void testBox()
 {
@@ -171,8 +170,8 @@ void testUnion()
 {
    WALBERLA_LOG_INFO_ON_ROOT("*** testUnion ***");
    UnionT u1(159, 423, Vec3(real_c(1), real_c(2), real_c(3)), Vec3(0,0,0), Quat(), false, false, false);
-   SphereID s11 = createSphere< UnionTypeTuple >(&u1, 1234794, Vec3(real_c(1), real_c(2), real_c(3)), 2);
-   SphereID s21 = createSphere< UnionTypeTuple >(&u1, 4567789, Vec3(real_c(3), real_c(2), real_c(3)), real_c(1.5));
+   SphereID s11 = createSphere(&u1, 1234794, Vec3(real_c(1), real_c(2), real_c(3)), 2);
+   SphereID s21 = createSphere(&u1, 4567789, Vec3(real_c(3), real_c(2), real_c(3)), real_c(1.5));
    WALBERLA_CHECK_NOT_NULLPTR( s11 );
    WALBERLA_CHECK_NOT_NULLPTR( s21 );
 

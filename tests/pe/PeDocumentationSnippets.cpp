@@ -38,7 +38,7 @@
 #include "core/debug/TestSubsystem.h"
 #include "vtk/VTKOutput.h"
 
-#include <boost/tuple/tuple.hpp>
+#include <tuple>
 
 #include <algorithm>
 #include <vector>
@@ -47,13 +47,12 @@ namespace walberla {
 using namespace walberla::pe;
 
 //! [Definition of Union Types]
-typedef boost::tuple<Box, Capsule, Sphere>  UnionTypeTuple;
-using UnionT = Union<UnionTypeTuple>;
+using UnionT = Union<Box, Capsule, Sphere>;
 using UnionID = UnionT *;
 //! [Definition of Union Types]
 
 //! [Definition BodyTypeTuple]
-typedef boost::tuple<Box, Capsule, Plane, Sphere, UnionT> BodyTypeTuple ;
+typedef std::tuple<Box, Capsule, Plane, Sphere, UnionT> BodyTypeTuple ;
 //! [Definition BodyTypeTuple]
 
 int main( int argc, char ** argv )
@@ -98,14 +97,14 @@ int main( int argc, char ** argv )
    // be used to for instance rotate the box around the global y-axis.
    BoxID box = createBox( *globalBodyStorage, forest->getBlockStorage(), storageID, 1, Vec3(2,3,4), Vec3(2.5,2.5,2.5) );
    if (box != nullptr)
-      box->rotate( 0.0, real_c(math::PI/3.0), 0.0 );
+      box->rotate( 0.0, real_c(math::M_PI/3.0), 0.0 );
    //! [Create a Box]
 
    //! [Create a Capsule]
    // Create a capsule and rotate it after successfull creation.
    CapsuleID capsule = createCapsule( *globalBodyStorage, forest->getBlockStorage(), storageID, 1, Vec3(2,3,4), real_t(1), real_t(1) );
    if (capsule != nullptr)
-      capsule->rotate( 0.0, real_c(math::PI/3.0), 0.0 );
+      capsule->rotate( 0.0, real_c(math::M_PI/3.0), 0.0 );
    //! [Create a Capsule]
 
    //! [Create a Plane]
@@ -118,12 +117,12 @@ int main( int argc, char ** argv )
    // Create a sphere and rotate it after successfull creation.
    SphereID sphere = createSphere( *globalBodyStorage, forest->getBlockStorage(), storageID, 1, Vec3(2,3,4), real_t(1) );
    if (sphere != nullptr)
-      sphere->rotate( 0.0, real_c(math::PI/3.0), 0.0 );
+      sphere->rotate( 0.0, real_c(math::M_PI/3.0), 0.0 );
    //! [Create a Sphere]
 
    //! [Create a Union]
    // Create a union and add a box, capsule and sphere.
-   UnionID un = createUnion<UnionTypeTuple>( *globalBodyStorage, forest->getBlockStorage(), storageID, 1, Vec3(2,3,4) );
+   UnionID un = createUnion<Box, Capsule, Sphere>( *globalBodyStorage, forest->getBlockStorage(), storageID, 1, Vec3(2,3,4) );
    if (un != nullptr)
    {
       createBox    ( un, 1, Vec3(2,3,4), Vec3(2.5,2.5,2.5) );

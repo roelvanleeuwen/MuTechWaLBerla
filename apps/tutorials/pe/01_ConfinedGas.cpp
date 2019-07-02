@@ -21,18 +21,21 @@
 //! [Includes]
 #include <pe/basic.h>
 
+#include <blockforest/Initialization.h>
 #include <core/Environment.h>
 #include <core/grid_generator/HCPIterator.h>
 #include <core/grid_generator/SCIterator.h>
 #include <core/logging/Logging.h>
 #include <core/math/Random.h>
+
+#include <tuple>
 //! [Includes]
 
 namespace walberla {
 using namespace walberla::pe;
 
 //! [BodyTypeTuple]
-typedef boost::tuple<Sphere, Plane> BodyTypeTuple ;
+typedef std::tuple<Sphere, Plane> BodyTypeTuple ;
 //! [BodyTypeTuple]
 
 int main( int argc, char ** argv )
@@ -58,10 +61,10 @@ int main( int argc, char ** argv )
    WALBERLA_LOG_INFO_ON_ROOT("*** BLOCKFOREST ***");
    // create forest
    //! [BlockForest]
-   shared_ptr< BlockForest > forest = createBlockForest( AABB(0,0,0,20,20,20), // simulation domain
-                                                         Vector3<uint_t>(2,2,2), // blocks in each direction
-                                                         Vector3<bool>(false, false, false) // periodicity
-                                                         );
+   auto forest = blockforest::createBlockForest( AABB(0,0,0,20,20,20), // simulation domain
+                                                 Vector3<uint_t>(2,2,2), // blocks in each direction
+                                                 Vector3<bool>(false, false, false) // periodicity
+                                                 );
    //! [BlockForest]
    if (!forest)
    {

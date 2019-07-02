@@ -50,8 +50,7 @@
 
 #include "timeloop/SweepTimeloop.h"
 
-#include <boost/type_traits/is_same.hpp>
-#include <boost/utility/enable_if.hpp>
+#include <type_traits>
 
 
 //#define TEST_USES_VTK_OUTPUT
@@ -95,9 +94,7 @@ public:
    typedef lbm::NoSlip< LatticeModel_T, flag_t >    NoSlip_T;
    typedef lbm::SimpleUBB< LatticeModel_T, flag_t > UBB_T;
 
-   typedef boost::tuples::tuple< NoSlip_T, UBB_T > BoundaryConditions_T;
-
-   typedef BoundaryHandling< FlagField_T, typename LatticeModel_T::Stencil, BoundaryConditions_T > BoundaryHandling_T;
+   typedef BoundaryHandling< FlagField_T, typename LatticeModel_T::Stencil, NoSlip_T, UBB_T > BoundaryHandling_T;
 
    MyBoundaryHandling( const std::string & id, const BlockDataID & flagField, const BlockDataID & pdfField, const real_t velocity ) :
       id_( id ), flagField_( flagField ), pdfField_( pdfField ), velocity_( velocity ) {}
@@ -130,8 +127,8 @@ MyBoundaryHandling<LatticeModel_T>::operator()( IBlock * const block, const Stru
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( std::string("boundary handling ")+id_, flagField, fluid,
-         boost::tuples::make_tuple( NoSlip_T( "no slip", NoSlip_Flag, pdfField ),
-                                       UBB_T( "velocity bounce back", UBB_Flag, pdfField, velocity_, real_c(0), real_c(0) ) ) );
+                                                           NoSlip_T( "no slip", NoSlip_Flag, pdfField ),
+                                                           UBB_T( "velocity bounce back", UBB_Flag, pdfField, velocity_, real_c(0), real_c(0) ) );
 
    // Couette flow -> periodic in x- and y-direction!
 
@@ -186,7 +183,7 @@ template< typename LatticeModel_T, class Enable = void >
 struct AddTest;
 
 template< typename LatticeModel_T  >
-struct AddTest< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct AddTest< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                              lbm::collision_model::SRT_tag >::value >::type >
 {
    static void add( shared_ptr< StructuredBlockForest > & blocks, SweepTimeloop & timeloop, std::vector< BlockDataID > & fieldIds,
@@ -198,7 +195,7 @@ struct AddTest< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typ
 };
 
 template< typename LatticeModel_T  >
-struct AddTest< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct AddTest< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                              lbm::collision_model::TRT_tag >::value >::type >
 {
    static void add( shared_ptr< StructuredBlockForest > & blocks, SweepTimeloop & timeloop, std::vector< BlockDataID > & fieldIds,
@@ -210,7 +207,7 @@ struct AddTest< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typ
 };
 
 template< typename LatticeModel_T  >
-struct AddTest< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel,
+struct AddTest< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel,
                                                                              lbm::collision_model::D3Q19MRT >::value >::type >
 {
    static void add( shared_ptr< StructuredBlockForest > & blocks, SweepTimeloop & timeloop, std::vector< BlockDataID > & fieldIds,
@@ -228,7 +225,7 @@ template< typename LatticeModel_T, class Enable = void >
 struct AddTRTTest;
 
 template< typename LatticeModel_T  >
-struct AddTRTTest< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct AddTRTTest< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                 lbm::collision_model::TRT_tag >::value >::type >
 {
    static void add( shared_ptr< StructuredBlockForest > & blocks, SweepTimeloop & timeloop, std::vector< BlockDataID > & fieldIds,
@@ -240,7 +237,7 @@ struct AddTRTTest< LatticeModel_T, typename boost::enable_if_c< boost::is_same< 
 };
 
 template< typename LatticeModel_T  >
-struct AddTRTTest< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel,
+struct AddTRTTest< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel,
                                                                                 lbm::collision_model::D3Q19MRT >::value >::type >
 {
    static void add( shared_ptr< StructuredBlockForest > & blocks, SweepTimeloop & timeloop, std::vector< BlockDataID > & fieldIds,
@@ -289,7 +286,7 @@ void check( const shared_ptr< StructuredBlockForest > & blocks, const BlockDataI
                samples[2].insert( std::fabs( velocityReference[2] - velocity[2] ) );
                samples[3].insert( std::fabs( rhoReference - rho ) );
                #else
-               #ifdef __INTEL_COMPILER // boost::math::float_distance causes a segmentation fault with Intel compiler on our test machine...
+               #ifdef __INTEL_COMPILER // std::math::float_distance causes a segmentation fault with Intel compiler on our test machine...
                WALBERLA_CHECK( floatIsEqual( velocityReference[0], velocity[0] ), msg );
                WALBERLA_CHECK( floatIsEqual( velocityReference[1], velocity[1] ), msg );
                WALBERLA_CHECK( floatIsEqual( velocityReference[2], velocity[2] ), msg );
@@ -304,7 +301,7 @@ void check( const shared_ptr< StructuredBlockForest > & blocks, const BlockDataI
             }
 
       #ifdef DEVEL_OUTPUT
-      #ifdef __INTEL_COMPILER // boost::math::float_distance causes a segmentation fault with Intel compiler on our test machine...
+      #ifdef __INTEL_COMPILER // std::math::float_distance causes a segmentation fault with Intel compiler on our test machine...
       WALBERLA_LOG_DEVEL( "Velocity (x): " << samples[0].format( "[%min, %max], %mean, %med" ) );
       WALBERLA_CHECK( floatIsEqual( samples[0].range(), 0.0 ) );
       WALBERLA_LOG_DEVEL( "Velocity (y): " << samples[1].format( "[%min, %max], %mean, %med" ) );

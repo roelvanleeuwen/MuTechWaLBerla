@@ -95,10 +95,9 @@ const uint_t FieldGhostLayers = 4;
 typedef pe_coupling::SimpleBB< LatticeModel_T, FlagField_T > MO_SBB_T;
 typedef pe_coupling::CurvedLinear< LatticeModel_T, FlagField_T > MO_CLI_T;
 
-typedef boost::tuples::tuple< MO_SBB_T, MO_CLI_T > BoundaryConditions_T;
-typedef BoundaryHandling< FlagField_T, Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+typedef BoundaryHandling< FlagField_T, Stencil_T, MO_SBB_T, MO_CLI_T > BoundaryHandling_T;
 
-typedef boost::tuple< pe::Sphere, pe::Plane > BodyTypeTuple;
+typedef std::tuple< pe::Sphere, pe::Plane > BodyTypeTuple;
 
 ///////////
 // FLAGS //
@@ -238,8 +237,8 @@ BoundaryHandling_T * MyBoundaryHandling::operator()( IBlock * const block, const
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "moving obstacle boundary handling", flagField, fluid,
-         boost::tuples::make_tuple( MO_SBB_T( "MO_SBB", MO_SBB_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ),
-                                    MO_CLI_T( "MO_CLI", MO_CLI_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) ) );
+                                                           MO_SBB_T( "MO_SBB", MO_SBB_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ),
+                                                           MO_CLI_T( "MO_CLI", MO_CLI_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) );
 
    // boundary conditions are set by mapping the (moving) planes into the domain
 
@@ -361,7 +360,7 @@ private:
 };
 
 void initializeCouetteProfile( const shared_ptr< StructuredBlockStorage > & blocks, const BlockDataID & pdfFieldID, const BlockDataID & boundaryHandlingID,
-                               const real_t & substrateHeight, const real_t & domainHeight, const real_t wallVelocity )
+                               const real_t & domainHeight, const real_t wallVelocity )
 {
    const real_t rho = real_c(1);
 
@@ -377,17 +376,18 @@ void initializeCouetteProfile( const shared_ptr< StructuredBlockStorage > & bloc
 
                                  Vector3< real_t > velocity( real_c(0) );
 
-                                 if( coord[2] >= substrateHeight )
-                                 {
-                                    velocity[0] =  wallVelocity * (coord[2] - substrateHeight) / ( domainHeight - substrateHeight);
-                                 }
+                                 velocity[0] =  wallVelocity * coord[2] / domainHeight;
+
                                  pdfField->setToEquilibrium( x, y, z, velocity, rho );
       )
    }
 }
 
 void logFinalResult( const std::string & fileName, real_t Re, real_t wallDistance, real_t diameter, uint_t numLevels,
-                     real_t dragCoeff, real_t liftCoeff, real_t timestep )
+                     uint_t domainLength, uint_t domainWidth, uint_t domainHeight,
+                     real_t dragCoeff, real_t dragCoeffRef,
+                     real_t liftCoeff, real_t liftCoeffRef,
+                     uint_t timestep, real_t nonDimTimestep )
 {
    WALBERLA_ROOT_SECTION()
    {
@@ -395,11 +395,15 @@ void logFinalResult( const std::string & fileName, real_t Re, real_t wallDistanc
       file.open( fileName.c_str(), std::ofstream::app );
 
       file << Re << "\t " << wallDistance << "\t " << diameter << "\t " << numLevels << "\t "
-           << dragCoeff << "\t " << liftCoeff << "\t " << timestep
+           << domainLength << "\t " << domainWidth << "\t " << domainHeight << "\t "
+           << dragCoeff << "\t " << dragCoeffRef << "\t "<< std::abs(dragCoeff-dragCoeffRef) / dragCoeffRef << "\t "
+           << liftCoeff << "\t " << liftCoeffRef << "\t "<< std::abs(liftCoeff-liftCoeffRef) / liftCoeffRef << "\t "
+           << timestep << "\t " << nonDimTimestep
            << "\n";
       file.close();
    }
 }
+
 
 //////////
 // MAIN //
@@ -422,7 +426,7 @@ void logFinalResult( const std::string & fileName, real_t Re, real_t wallDistanc
  *  - Domain size [x, y, z] = [48 x 16 x 8 ] * diameter = [L(ength), W(idth), H(eight)]
  *  - horizontally periodic, bounded by two planes in z-direction
  *  - top plane is moving with constant wall velocity -> shear flow
- *  - sphere is placed in the vicinity of the bottom plane at [ L/2 + xOffset, W72 + yOffset, dist * diameter]
+ *  - sphere is placed in the vicinity of the bottom plane at [ L/2 + xOffset, W/2 + yOffset, dist * diameter]
  *  - distance of sphere center to the bottom plane is crucial parameter
  *  - viscosity is adjusted to match specified Reynolds number = shearRate * diameter * wallDistance / viscosity
  *  - dimensionless drag and lift forces are evaluated and written to logging file
@@ -632,7 +636,7 @@ int main( int argc, char **argv )
 
 
    // initialize Couette velocity profile in whole domain
-   if( !zeroShearTest ) initializeCouetteProfile(blocks, pdfFieldID, boundaryHandlingID, diameter, domainHeight, wallVelocity);
+   if( !zeroShearTest ) initializeCouetteProfile(blocks, pdfFieldID, boundaryHandlingID, domainHeight, wallVelocity);
 
    ///////////////
    // TIME LOOP //
@@ -801,8 +805,8 @@ int main( int argc, char **argv )
    if ( !zeroShearTest )
    {
       std::string resultFileName( baseFolderLogging + "/ResultForcesNearPlane.txt");
-      logFinalResult(resultFileName, ReynoldsNumberShear, normalizedWallDistance, diameter, numberOfLevels,
-                     logger->getLiftCoefficient(), logger->getLiftCoefficient(), real_c(timestep * lbmTimeStepsPerTimeLoopIteration) / physicalTimeScale );
+      logFinalResult(resultFileName, ReynoldsNumberShear, normalizedWallDistance, diameter, numberOfLevels, domainSize[0], domainSize[1], domainSize[2],
+                     logger->getDragCoefficient(), dragCorrelationZeng, logger->getLiftCoefficient(), liftCorrelationZeng, timestep, real_c(timestep) / physicalTimeScale );
    }
 
    return EXIT_SUCCESS;

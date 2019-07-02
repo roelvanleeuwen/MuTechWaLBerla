@@ -22,9 +22,7 @@
 
 #pragma once
 
-#include <boost/type_traits/is_arithmetic.hpp>
-
-#include <boost/utility/enable_if.hpp>
+#include <type_traits>
 
 
 namespace walberla {
@@ -45,7 +43,7 @@ struct VectorTrait
    static const uint_t F_SIZE = 1u;
    static T get   ( T   value, uint_t /*f*/ )        { return value; }
    static void set( T & value, uint_t /*f*/, T val ) { value = val;  }
-   static_assert( boost::is_arithmetic<T>::value, "Specialize OutputTrait for your type!" );
+   static_assert( std::is_arithmetic<T>::value, "Specialize OutputTrait for your type!" );
 };
 
 

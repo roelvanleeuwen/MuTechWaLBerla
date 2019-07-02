@@ -76,14 +76,13 @@ namespace segre_silberberg_psm
 
 using namespace walberla;
 using walberla::uint_t;
-using lbm::force_model::SimpleConstant;
 
 //////////////
 // TYPEDEFS //
 //////////////
 
 // PDF field, flag field & body field
-typedef lbm::D3Q19< lbm::collision_model::SRT, false, SimpleConstant >  LatticeModel_T;
+typedef lbm::D3Q19< lbm::collision_model::SRT, false, lbm::force_model::SimpleConstant >  LatticeModel_T;
 using Stencil_T = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField<LatticeModel_T>;
 
@@ -98,10 +97,9 @@ typedef GhostLayerField< std::vector< BodyAndVolumeFraction_T >, 1 > BodyAndVolu
 
 // boundary handling
 typedef lbm::NoSlip< LatticeModel_T, flag_t > NoSlip_T;
-using BoundaryConditions_T = boost::tuples::tuple<NoSlip_T>;
-typedef BoundaryHandling< FlagField_T, Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+typedef BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T > BoundaryHandling_T;
 
-typedef boost::tuple< pe::Sphere, pe::Plane > BodyTypeTuple;
+typedef std::tuple< pe::Sphere, pe::Plane > BodyTypeTuple;
 
 ///////////
 // FLAGS //
@@ -178,7 +176,7 @@ BoundaryHandling_T * MyBoundaryHandling::operator()( IBlock * const block, const
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "boundary handling", flagField, fluid,
-         boost::tuples::make_tuple(    NoSlip_T( "NoSlip", NoSlip_Flag, pdfField ) ) );
+                                                           NoSlip_T( "NoSlip", NoSlip_Flag, pdfField ) );
 
    const auto noslip = flagField->getFlag( NoSlip_Flag );
 
@@ -532,7 +530,7 @@ int main( int argc, char **argv )
    ////////////////////////
 
    // create the lattice model
-   LatticeModel_T latticeModel = LatticeModel_T( omega, SimpleConstant( Vector3<real_t> ( setup.forcing, real_c(0), real_c(0) ) ) );
+   LatticeModel_T latticeModel = LatticeModel_T( omega, lbm::force_model::SimpleConstant( Vector3<real_t> ( setup.forcing, real_c(0), real_c(0) ) ) );
 
    // add PDF field
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >( blocks, "pdf field (zyxf)", latticeModel,

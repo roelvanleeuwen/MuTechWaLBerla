@@ -56,7 +56,6 @@
 
 #include "vtk/VTKOutput.h"
 
-#include <boost/lexical_cast.hpp>
 #include <stdexcept>
 
 
@@ -109,8 +108,7 @@ class BoundaryHandlingCreator
 public:
    typedef lbm::NoSlip<LatticeModel,flag_t>                              MyNoSlip;
    typedef lbm::SimplePAB<LatticeModel,MyFlagField>                      MySimplePAB;
-   typedef boost::tuples::tuple< MyNoSlip, MySimplePAB, MySimplePAB >    BoundaryConditionsT;
-   typedef BoundaryHandling< MyFlagField, Stencil, BoundaryConditionsT > BoundaryHandlingT;
+   typedef BoundaryHandling< MyFlagField, Stencil, MyNoSlip, MySimplePAB, MySimplePAB > BoundaryHandlingT;
 
    BoundaryHandlingCreator( const BlockDataID& flagField, const BlockDataID& pdfField,
                             const real_t leftLatticeDensity, const real_t rightLatticeDensity,
@@ -149,11 +147,10 @@ BoundaryHandlingCreator::BoundaryHandlingT * BoundaryHandlingCreator::operator()
    */
 
    BoundaryHandlingT * handling = new BoundaryHandlingT( "Boundary Handling", flagField, fluidFlag,
-      boost::tuples::make_tuple(
          MyNoSlip( "NoSlip", getNoSlipFlag(), block->getData< PDFField >( pdfField_ ) ),
          MySimplePAB( "SimplePABLeft",  getSimplePABLeftFlag(),  block->getData< PDFField >( pdfField_ ), block->getData< MyFlagField >( flagField_ ), leftLatticeDensity_,  omega_, getFluidFlag(), getNoSlipFlag() ),
          MySimplePAB( "SimplePABRight", getSimplePABRightFlag(), block->getData< PDFField >( pdfField_ ), block->getData< MyFlagField >( flagField_ ), rightLatticeDensity_,  omega_, getFluidFlag(), getNoSlipFlag() )
-      ) );
+      );
 
    CellInterval channelBB(0, 0, 0,
       cell_idx_c(channelWidth_) - 1,  cell_idx_c(channelWidth_) - 1,  cell_idx_c(channelLength_) - 1 );
@@ -218,11 +215,11 @@ int main( int argc, char **argv )
       if( args.size() != 6 )
          throw std::invalid_argument( "Wrong number of command line arguments!" );
 
-      channelLength = boost::lexical_cast<uint_t>( args[1] );
-      channelWidth  = boost::lexical_cast<uint_t>( args[2] );
-      omega         = boost::lexical_cast<real_t>( args[3] );
-      deltaDensity  = boost::lexical_cast<real_t>( args[4] );
-      numTimesteps  = boost::lexical_cast<uint_t>( args[5] );
+      channelLength = string_to_num<uint_t>( args[1] );
+      channelWidth  = string_to_num<uint_t>( args[2] );
+      omega         = string_to_num<real_t>( args[3] );
+      deltaDensity  = string_to_num<real_t>( args[4] );
+      numTimesteps  = string_to_num<uint_t>( args[5] );
    }
    catch( std::exception & )
    {

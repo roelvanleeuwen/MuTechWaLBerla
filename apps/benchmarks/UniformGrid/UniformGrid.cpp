@@ -143,14 +143,14 @@ template< typename LatticeModel_T, class Enable = void >
 struct StencilString;
 
 template< typename LatticeModel_T >
-struct StencilString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::Stencil, stencil::D3Q19 >::value >::type >
+struct StencilString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::Stencil, stencil::D3Q19 >::value >::type >
 {
    static const char * str() { return "D3Q19"; }
 };
 
 
 template< typename LatticeModel_T >
-struct StencilString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::Stencil, stencil::D3Q27 >::value >::type >
+struct StencilString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::Stencil, stencil::D3Q27 >::value >::type >
 {
   static const char * str() { return "D3Q27"; }
 };
@@ -159,28 +159,28 @@ template< typename LatticeModel_T, class Enable = void >
 struct CollisionModelString;
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::SRT_tag >::value >::type >
 {
    static const char * str() { return "SRT"; }
 };
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::TRT_tag >::value >::type >
 {
    static const char * str() { return "TRT"; }
 };
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::MRT_tag >::value >::type >
 {
    static const char * str() { return "MRT"; }
 };
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::Cumulant_tag >::value >::type >
 {
   static const char * str() { return "Cumulant"; }
@@ -263,18 +263,27 @@ void createSetupBlockForest( blockforest::SetupBlockForest & sforest, const Conf
 
       WALBERLA_MPI_SECTION()
       {
-         MPIManager::instance()->createCartesianComm( numberOfXProcesses, numberOfYProcesses, numberOfZProcesses, false, false, false );
+         if ( MPIManager::instance()->isCartesianCommValid() )
+         {
+            MPIManager::instance()->createCartesianComm(numberOfXProcesses, numberOfYProcesses, numberOfZProcesses, false, false, false);
 
-         processIdMap = make_shared< std::vector<uint_t> >( numberOfXProcesses * numberOfYProcesses * numberOfZProcesses );
+            processIdMap = make_shared<std::vector<uint_t> >(numberOfXProcesses * numberOfYProcesses * numberOfZProcesses);
 
-         for( uint_t z = 0; z != numberOfZProcesses; ++z ) {
-            for( uint_t y = 0; y != numberOfYProcesses; ++y ) {
-               for( uint_t x = 0; x != numberOfXProcesses; ++x )
-               {
-                  (*processIdMap)[z * numberOfXProcesses * numberOfYProcesses + y * numberOfXProcesses + x] =
-                     uint_c( MPIManager::instance()->cartesianRank( x, y, z ) );
+            for (uint_t z = 0; z != numberOfZProcesses; ++z) {
+               for (uint_t y = 0; y != numberOfYProcesses; ++y) {
+                  for (uint_t x = 0; x != numberOfXProcesses; ++x)
+                  {
+                     (*processIdMap)[z * numberOfXProcesses * numberOfYProcesses + y * numberOfXProcesses + x] =
+                           uint_c(MPIManager::instance()->cartesianRank(x, y, z));
+                  }
                }
             }
+         }
+         else {
+            WALBERLA_LOG_WARNING_ON_ROOT( "Your version of OpenMPI contains a bug. See waLBerla issue #73 for more "
+                                          "information. As a workaround, MPI_COMM_WORLD instead of a "
+                                          "Cartesian MPI communicator is used." );
+            MPIManager::instance()->useWorldComm();
          }
       }
       else
@@ -344,9 +353,7 @@ public:
    typedef lbm::NoSlip< LatticeModel_T, flag_t >    NoSlip_T;
    typedef lbm::SimpleUBB< LatticeModel_T, flag_t > UBB_T;
 
-   typedef boost::tuples::tuple< NoSlip_T, UBB_T > BoundaryConditions_T;
-
-   typedef BoundaryHandling< FlagField_T, typename Types<LatticeModel_T>::Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+   typedef BoundaryHandling< FlagField_T, typename Types<LatticeModel_T>::Stencil_T, NoSlip_T, UBB_T > BoundaryHandling_T;
 
 
 
@@ -379,8 +386,8 @@ MyBoundaryHandling<LatticeModel_T>::operator()( IBlock * const block, const Stru
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "boundary handling", flagField, fluid,
-         boost::tuples::make_tuple( NoSlip_T( "no slip", NoSlip_Flag, pdfField ),
-                                       UBB_T( "velocity bounce back", UBB_Flag, pdfField, velocity_, real_c(0), real_c(0) ) ) );
+                                                           NoSlip_T( "no slip", NoSlip_Flag, pdfField ),
+                                                           UBB_T( "velocity bounce back", UBB_Flag, pdfField, velocity_, real_c(0), real_c(0) ) );
 
    CellInterval domainBB = storage->getDomainCellBB();
    storage->transformGlobalToBlockLocalCellInterval( domainBB, *block );
@@ -584,12 +591,9 @@ struct AddLB
 };
 
 template< typename LatticeModel_T  >
-struct AddLB< LatticeModel_T, typename boost::enable_if_c< boost::mpl::or_<
-                                                                           boost::is_same< typename LatticeModel_T::CollisionModel::tag,
-                                                                                           lbm::collision_model::MRT_tag >,
-                                                                           boost::is_same< typename LatticeModel_T::CollisionModel::tag,
-                                                                                           lbm::collision_model::Cumulant_tag >
-                                                                          >::value >::type >
+struct AddLB< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag, lbm::collision_model::MRT_tag >::value ||
+                                                       std::is_same< typename LatticeModel_T::CollisionModel::tag, lbm::collision_model::Cumulant_tag >::value
+                                                       >::type >
 {
    using PdfField = typename Types< LatticeModel_T >::PdfField_T;
    using CommunicationStencil = typename Types< LatticeModel_T >::CommunicationStencil_T;

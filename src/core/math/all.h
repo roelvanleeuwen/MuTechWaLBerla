@@ -23,6 +23,7 @@
 #pragma once
 
 #include "AABB.h"
+#include "Constants.h"
 #include "DistributedSample.h"
 #include "FPClassify.h"
 #include "FastInvSqrt.h"
@@ -35,7 +36,9 @@
 #include "Matrix3.h"
 #include "Parser.h"
 #include "ParserOMP.h"
+#ifdef WALBERLA_BUILD_WITH_BOOST
 #include "PhysicalCheck.h"
+#endif
 #include "Plane.h"
 #include "Primes.h"
 #include "Random.h"

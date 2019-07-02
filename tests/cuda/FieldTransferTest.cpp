@@ -26,23 +26,27 @@
 
 #include "cuda/GPUField.h"
 #include "cuda/FieldCopy.h"
+#include "core/math/Random.h"
 
 
 using namespace walberla;
 
 void simpleTransfer()
 {
-   Field<double,4>  h_f1 ( 16, 20, 30, 42.0, field::fzyx );
-   Field<double,4>  h_f2 ( 16, 20, 30,  0.0, field::fzyx );
+   Field<double, 4> h_f1( 16, 20, 30, 42.0, field::fzyx );
+   Field<double, 4> h_f2( 16, 20, 30, 0.0, field::fzyx );
 
+   WALBERLA_FOR_ALL_CELLS_XYZ(&h_f1,
+      h_f1(x, y, z, 0) = math::realRandom<double>();
+   )
 
-   cuda::GPUField<double> d_f ( 16,20,30,4,0, field::fzyx );
+   cuda::GPUField<double> d_f( 16, 20, 30, 4, 0, field::fzyx );
 
-   WALBERLA_CHECK_EQUAL(  h_f1.xSize() ,d_f.xSize() );
-   WALBERLA_CHECK_EQUAL(  h_f1.ySize() ,d_f.ySize() );
-   WALBERLA_CHECK_EQUAL(  h_f1.zSize() ,d_f.zSize() );
-   WALBERLA_CHECK_EQUAL(  h_f1.fSize() ,d_f.fSize() );
-   WALBERLA_CHECK_EQUAL(  h_f1.layout(),d_f.layout()     );
+   WALBERLA_CHECK_EQUAL( h_f1.xSize(), d_f.xSize());
+   WALBERLA_CHECK_EQUAL( h_f1.ySize(), d_f.ySize());
+   WALBERLA_CHECK_EQUAL( h_f1.zSize(), d_f.zSize());
+   WALBERLA_CHECK_EQUAL( h_f1.fSize(), d_f.fSize());
+   WALBERLA_CHECK_EQUAL( h_f1.layout(), d_f.layout());
 
 
    cuda::fieldCpy( d_f, h_f1 );
@@ -52,9 +56,7 @@ void simpleTransfer()
 }
 
 
-
-
-int main( int argc, char ** argv )
+int main( int argc, char **argv )
 {
    debug::enterTestMode();
    walberla::Environment walberlaEnv( argc, argv );

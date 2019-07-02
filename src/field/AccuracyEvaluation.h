@@ -40,7 +40,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
-
+#include <type_traits>
 
 
 namespace walberla {
@@ -161,7 +161,7 @@ public:
       L1_( real_t(0) ), L2_( real_t(0) ), Lmax_( real_t(0) ),
       requiredSelectors_(requiredSelectors), incompatibleSelectors_( incompatibleSelectors )
    {
-      static_assert( (boost::is_same< Filter_T, DefaultEvaluationFilter >::value),
+      static_assert( (std::is_same< Filter_T, DefaultEvaluationFilter >::value),
                      "This constructor is only available if DefaultEvaluationFilter is set as filter type!" );
    }
 
@@ -458,6 +458,9 @@ makeAccuracyEvaluation( const Config_T & config,
 }
 
 
+
+#undef WALBERLA_FIELD_MAKE_ACCURACY_EVALUATION_CONFIG_PARSER
+#undef WALBERLA_FIELD_MAKE_ACCURACY_EVALUATION_SET_AND_RETURN
 
 } // namespace field
 } // namespace walberla

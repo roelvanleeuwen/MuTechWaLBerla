@@ -35,7 +35,6 @@
 #include "core/uid/SUID.h"
 
 #include <functional>
-//#include <boost/type_traits/is_base_of.hpp>
 #include <string>
 #include <vector>
 
@@ -489,7 +488,10 @@ public:
                               const internal::SelectableBlockDataHandlingWrapper & dataHandling, const std::string & identifier = std::string() );
                               
    void saveBlockData( const std::string & file, const BlockDataID & id );
-   
+
+   void serializeBlockData( const BlockDataID & id, mpi::SendBuffer & buffer );
+   void deserializeBlockData( const BlockDataID & id, mpi::RecvBuffer & buffer );
+
    inline void clearBlockData( const BlockDataID & id );
 
    uint_t numberOfBlockDataItems() const { return blockDataItem_.size(); }
@@ -657,7 +659,7 @@ template< typename T >
 inline BlockDataID BlockStorage::addBlockData( const shared_ptr< T > & dataHandling, const std::string & identifier,
                                                const Set<SUID> & requiredSelectors, const Set<SUID> & incompatibleSelectors )
 {
-   //static_assert( boost::is_base_of< BlockDataHandling<typename T::value_type>, T >::value );
+   //static_assert( std::is_base_of< BlockDataHandling<typename T::value_type>, T >::value );
    internal::SelectableBlockDataHandlingWrapper sbdhw( walberla::make_shared< internal::BlockDataHandlingHelper<typename T::value_type> >( dataHandling ),
                                                        requiredSelectors, incompatibleSelectors, identifier );
 

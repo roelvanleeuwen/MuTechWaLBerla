@@ -22,6 +22,10 @@
 #pragma once
 
 #include "Timer.h"
+#include "ReduceType.h"
+
+#include "core/mpi/RecvBuffer.h"
+#include "core/mpi/SendBuffer.h"
 
 #include <iostream>
 #include <map>
@@ -46,6 +50,14 @@ class ScopeTimer;
 template< typename TP >  // Timing policy
 class TimingPool
 {
+   template< typename T,     // Element type of SendBuffer
+             typename G,     // Growth policy of SendBuffer
+             typename TP2 >  // Element type of vector
+   friend mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, const TimingPool<TP2> & tp );
+
+   template< typename T,     // Element type  of RecvBuffer
+             typename TP2 >  // Element type of vector
+   friend mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, TimingPool<TP2> & tp );
 public:
 
    //**Construction & Destruction***************************************************************************************
@@ -77,21 +89,6 @@ public:
    //** Reduction ******************************************************************************************************
    /*! \name Reduction */
    //@{
-
-   /// The reduce type describes which values are reduced from each process
-   enum ReduceType
-   {
-      /// Treats each process as one timing sample. For the timing sample the min value is used.
-      REDUCE_MIN,
-      /// Treats each process as one timing sample. For the timing sample the average value is used.
-      REDUCE_AVG,
-      /// Treats each process as one timing sample. For the timing sample the max value is used.
-      REDUCE_MAX,
-      /// Collects all timing samples from all processes and accumulates the data.
-      /// The number of measurements afterwards are: nrOfProcesses*measurementsPerProcess
-      REDUCE_TOTAL
-   };
-
    shared_ptr<TimingPool<TP> > getReduced ( ReduceType rt = REDUCE_TOTAL, int targetWorldRank = 0 ) const;
    //@}
    //*******************************************************************************************************************
@@ -211,6 +208,37 @@ std::ostream & operator<< ( std::ostream & os, const TimingPool<TP> & tp ) {
 
 } // namespace timing
 } // namespace walberla
+
+//======================================================================================================================
+//
+//  Send/Recv Buffer Serialization Specialization
+//
+//======================================================================================================================
+
+namespace walberla {
+namespace timing {
+
+   template< typename T,    // Element type of SendBuffer
+             typename G,    // Growth policy of SendBuffer
+             typename TP >  // Element type of vector
+   mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, const timing::TimingPool<TP> & tp )
+   {
+      buf.addDebugMarker( "tp" );
+      buf << tp.timerMap_;
+      return buf;
+   }
+
+   template< typename T,    // Element type  of RecvBuffer
+             typename TP >  // Element type of vector
+   mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, timing::TimingPool<TP> & tp )
+   {
+      buf.readDebugMarker( "tp" );
+      buf >> tp.timerMap_;
+      return buf;
+   }
+
+} //namespace timing
+} //namespace walberla
 
 
 //======================================================================================================================

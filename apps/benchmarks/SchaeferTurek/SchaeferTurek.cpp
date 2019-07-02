@@ -38,6 +38,7 @@
 #include "core/debug/Debug.h"
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/Logging.h"
+#include "core/math/Constants.h"
 #include "core/math/Sample.h"
 #include "core/math/Vector3.h"
 #include "core/mpi/Environment.h"
@@ -84,6 +85,7 @@
 #include "lbm/refinement/BoundarySetup.h"
 #include "lbm/refinement/PdfFieldSyncPackInfo.h"
 #include "lbm/refinement/TimeStep.h"
+#include "lbm/refinement/VorticityBasedLevelDetermination.h"
 #include "lbm/sweeps/CellwiseSweep.h"
 #include "lbm/sweeps/SplitPureSweep.h"
 #include "lbm/sweeps/SplitSweep.h"
@@ -103,10 +105,6 @@
 #include "vtk/Initialization.h"
 #include "vtk/VTKOutput.h"
 
-#include <boost/mpl/equal_to.hpp>
-#include <boost/mpl/int.hpp>
-#include <boost/mpl/or.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -114,6 +112,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -194,7 +193,7 @@ const Set<SUID> None( Set<SUID>::emptySet() );
 template< typename LatticeModel_T >
 struct Is2D
 {
-   static const bool value = boost::mpl::equal_to< boost::mpl::int_< LatticeModel_T::Stencil::D >, boost::mpl::int_< 2 > >::value;
+   static const bool value = LatticeModel_T::Stencil::D == 2;
 };
 
 /////////////////////
@@ -205,25 +204,25 @@ template< typename LatticeModel_T, class Enable = void >
 struct StencilString;
 
 template< typename LatticeModel_T >
-struct StencilString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::Stencil, stencil::D2Q9 >::value >::type >
+struct StencilString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::Stencil, stencil::D2Q9 >::value >::type >
 {
    static const char * str() { return "D2Q9"; }
 };
 
 template< typename LatticeModel_T >
-struct StencilString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::Stencil, stencil::D3Q15 >::value >::type >
+struct StencilString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::Stencil, stencil::D3Q15 >::value >::type >
 {
    static const char * str() { return "D3Q15"; }
 };
 
 template< typename LatticeModel_T >
-struct StencilString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::Stencil, stencil::D3Q19 >::value >::type >
+struct StencilString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::Stencil, stencil::D3Q19 >::value >::type >
 {
    static const char * str() { return "D3Q19"; }
 };
 
 template< typename LatticeModel_T >
-struct StencilString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::Stencil, stencil::D3Q27 >::value >::type >
+struct StencilString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::Stencil, stencil::D3Q27 >::value >::type >
 {
    static const char * str() { return "D3Q27"; }
 };
@@ -233,21 +232,21 @@ template< typename LatticeModel_T, class Enable = void >
 struct CollisionModelString;
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::SRT_tag >::value >::type >
 {
    static const char * str() { return "SRT"; }
 };
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::TRT_tag >::value >::type >
 {
    static const char * str() { return "TRT"; }
 };
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::MRT_tag >::value >::type >
 {
    static const char * str() { return "MRT"; }
@@ -745,8 +744,7 @@ public:
 
    void operator()( const real_t t )
    {
-      const real_t PI = real_t( 3.141592653589793238462643383279502884 );
-      tConstTerm_ = ( sinPeriod_ > real_t(0) ) ? ( std::abs( std::sin( PI * t / sinPeriod_ ) ) ) : real_t(1);
+      tConstTerm_ = ( sinPeriod_ > real_t(0) ) ? ( std::abs( std::sin( math::M_PI * t / sinPeriod_ ) ) ) : real_t(1);
       tConstTerm_ *= uTerm_ * HTerm_;
       tConstTerm_ *= ( raisingTime_ > real_t(0) ) ? std::min( t / raisingTime_, real_t(1) ) : real_t(1);
    }
@@ -786,11 +784,8 @@ struct MyBoundaryTypes
    typedef lbm::Outlet< LatticeModel_T, FlagField_T, 2, 1 >                       Outlet21_T;
    typedef lbm::Outlet< LatticeModel_T, FlagField_T, 4, 3 >                       Outlet43_T;
    typedef lbm::SimplePressure< LatticeModel_T, flag_t >                          PressureOutlet_T;
-   
 
-   typedef boost::tuples::tuple< NoSlip_T, Obstacle_T, Curved_T, DynamicUBB_T, Outlet21_T, Outlet43_T, PressureOutlet_T > BoundaryConditions_T;
-
-   typedef BoundaryHandling< FlagField_T, typename Types<LatticeModel_T>::Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+   typedef BoundaryHandling< FlagField_T, typename Types<LatticeModel_T>::Stencil_T, NoSlip_T, Obstacle_T, Curved_T, DynamicUBB_T, Outlet21_T, Outlet43_T, PressureOutlet_T > BoundaryHandling_T;
 };
 
 
@@ -806,8 +801,6 @@ public:
    using Outlet21_T = typename MyBoundaryTypes<LatticeModel_T>::Outlet21_T;
    using Outlet43_T = typename MyBoundaryTypes<LatticeModel_T>::Outlet43_T;
    using PressureOutlet_T = typename MyBoundaryTypes<LatticeModel_T>::PressureOutlet_T;
-
-   using BoundaryConditions_T = typename MyBoundaryTypes<LatticeModel_T>::BoundaryConditions_T;
 
    using BoundaryHandling_T = typename MyBoundaryTypes<LatticeModel_T>::BoundaryHandling_T;
 
@@ -850,13 +843,13 @@ MyBoundaryHandling<LatticeModel_T>::initialize( IBlock * const block )
    SinusInflowVelocity<Is2D< LatticeModel_T >::value> velocity( setup_.inflowVelocity_L, setup_.raisingTime_L, setup_.sinPeriod_L, setup_.H );
 
    return new BoundaryHandling_T( "boundary handling", flagField, fluid,
-         boost::tuples::make_tuple( NoSlip_T( "no slip", NoSlip_Flag, pdfField ),
+                                    NoSlip_T( "no slip", NoSlip_Flag, pdfField ),
                                   Obstacle_T( "obstacle (staircase)", Obstacle_Flag, pdfField ),
                                     Curved_T( "obstacle (curved)", Curved_Flag, pdfField, flagField, fluid ),
                                 DynamicUBB_T( "velocity bounce back", UBB_Flag, pdfField, timeTracker_, blocks->getLevel(*block), velocity, block->getAABB() ),
                                   Outlet21_T( "outlet (2/1)", Outlet21_Flag, pdfField, flagField, fluid ),
                                   Outlet43_T( "outlet (4/3)", Outlet43_Flag, pdfField, flagField, fluid ),
-                            PressureOutlet_T( "pressure outlet", PressureOutlet_Flag, pdfField, real_t(1) ) ) );
+                            PressureOutlet_T( "pressure outlet", PressureOutlet_Flag, pdfField, real_t(1) ) );
 }
 
 
@@ -1062,109 +1055,6 @@ Set<SUID> Pseudo2DBlockStateDetermination::operator()( const std::vector< std::p
    
    return state;
 }
-
-
-
-template< typename VectorField_T, typename Filter_T, bool Pseudo2D = false >
-class VorticityRefinement // used as a 'BlockForest::RefreshMinTargetLevelDeterminationFunction'
-{
-public:
-
-   VorticityRefinement( const ConstBlockDataID & fieldId, const Filter_T & filter,
-                       const real_t upperLimit, const real_t lowerLimit, const uint_t maxLevel ) :
-      fieldId_( fieldId ), filter_( filter ),
-      upperLimit_( upperLimit * upperLimit ), lowerLimit_( lowerLimit * lowerLimit ), maxLevel_( maxLevel )
-   {}
-
-   void operator()( std::vector< std::pair< const Block *, uint_t > > & minTargetLevels,
-                    std::vector< const Block * > & blocksAlreadyMarkedForRefinement,
-                    const BlockForest & forest );
-
-private:
-
-   ConstBlockDataID fieldId_;
-
-   Filter_T filter_;
-
-   real_t upperLimit_;
-   real_t lowerLimit_;
-
-   uint_t maxLevel_;
-   
-}; // class VorticityRefinement
-
-template< typename VectorField_T, typename Filter_T, bool Pseudo2D >
-void VorticityRefinement< VectorField_T, Filter_T, Pseudo2D >::operator()( std::vector< std::pair< const Block *, uint_t > > & minTargetLevels,
-                                                                           std::vector< const Block * > &, const BlockForest & )
-{
-   for( auto it = minTargetLevels.begin(); it != minTargetLevels.end(); ++it )
-   {
-      const Block * const block = it->first;
-      const VectorField_T * u = block->template getData< VectorField_T >( fieldId_ );
-
-      if( u == nullptr )
-      {
-         it->second = uint_t(0);
-         continue;
-      }
-      
-      CellInterval interval = u->xyzSize();
-      Cell expand( cell_idx_c(-1), cell_idx_c(-1), Pseudo2D ? cell_idx_t(0) : cell_idx_c(-1) );
-      interval.expand( expand );
-
-      const cell_idx_t one( cell_idx_t(1) );
-      const real_t half( real_c(0.5) );
-      
-      bool refine( false );
-      bool coarsen( true );
-
-      filter_( *block );
-
-      WALBERLA_FOR_ALL_CELLS_IN_INTERVAL_XYZ( interval,
-
-         if( filter_(x,y,z) && filter_(x+one,y,z) && filter_(x-one,y,z) && filter_(x,y+one,z) && filter_(x,y-one,z) &&
-                  ( Pseudo2D || (filter_(x,y,z+one) && filter_(x,y,z-one)) ) )
-         {
-            const Vector3< real_t >& xa = u->get(x+one,y,z);
-            const Vector3< real_t >& xb = u->get(x-one,y,z);
-            const Vector3< real_t >& ya = u->get(x,y+one,z);
-            const Vector3< real_t >& yb = u->get(x,y-one,z);
-            const Vector3< real_t >  za = Pseudo2D ? Vector3< real_t >(0) : u->get(x,y,z+one);
-            const Vector3< real_t >  zb = Pseudo2D ? Vector3< real_t >(0) : u->get(x,y,z-one);
-
-            // ATTENTION: dx/y/z is assumed to be equal to '1'!
-            const real_t duzdy = half * ( ya[2] - yb[2] );
-            const real_t duydz = half * ( za[1] - zb[1] );
-            const real_t duxdz = half * ( za[0] - zb[0] );
-            const real_t duzdx = half * ( xa[2] - xb[2] );
-            const real_t duydx = half * ( xa[1] - xb[1] );
-            const real_t duxdy = half * ( ya[0] - yb[0] );
-
-            const Vector3< real_t > curl( duzdy - duydz, duxdz - duzdx, duydx - duxdy );
-            const auto curlSqr = curl.sqrLength();
-
-            if( curlSqr > lowerLimit_ )
-            {
-               coarsen = false;
-               if( curlSqr > upperLimit_ )
-                  refine = true;
-            }
-         }
-      )
-      
-      if( refine && block->getLevel() < maxLevel_ )
-      {
-         WALBERLA_ASSERT( !coarsen );
-         it->second = block->getLevel() + uint_t(1);
-      }
-      if( coarsen && block->getLevel() > uint_t(0) )
-      {
-         WALBERLA_ASSERT( !refine );
-         it->second = block->getLevel() - uint_t(1);
-      }
-   }
-}
-
 
 
 // used as a 'BlockForest::RefreshMinTargetLevelDeterminationFunction
@@ -2415,11 +2305,11 @@ struct AddRefinementTimeStep
 };
 
 template< typename LatticeModel_T  >
-struct AddRefinementTimeStep< LatticeModel_T, typename boost::enable_if< boost::mpl::or_< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
-                                                                                                          lbm::collision_model::MRT_tag >,
-                                                                                          boost::is_same< typename LatticeModel_T::Stencil, stencil::D2Q9 >,
-                                                                                          boost::is_same< typename LatticeModel_T::Stencil, stencil::D3Q15 >,
-                                                                                          boost::is_same< typename LatticeModel_T::Stencil, stencil::D3Q27 > > >::type >
+struct AddRefinementTimeStep< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag, lbm::collision_model::MRT_tag >::value ||
+                                                                       std::is_same< typename LatticeModel_T::Stencil, stencil::D2Q9 >::value ||
+                                                                       std::is_same< typename LatticeModel_T::Stencil, stencil::D3Q15 >::value ||
+                                                                       std::is_same< typename LatticeModel_T::Stencil, stencil::D3Q27 >::value
+                                                                       >::type >
 {
    static void add( SweepTimeloop & timeloop, shared_ptr< blockforest::StructuredBlockForest > & blocks,
                     const BlockDataID & pdfFieldId, const BlockDataID & flagFieldId, const BlockDataID & boundaryHandlingId,
@@ -2578,8 +2468,8 @@ void run( const shared_ptr< Config > & config, const LatticeModel_T & latticeMod
       {
          const real_t lowerLimit = configBlock.getParameter< real_t >( "curlLowerLimit" );
          const real_t upperLimit = configBlock.getParameter< real_t >( "curlUpperLimit" );
-         
-         VorticityRefinement< VelocityField_T, field::FlagFieldEvaluationFilter<FlagField_T>, Is2D<LatticeModel_T>::value > vorticityRefinement(
+
+         lbm::refinement::VorticityBasedLevelDetermination< field::FlagFieldEvaluationFilter<FlagField_T>, Is2D<LatticeModel_T>::value > vorticityRefinement(
             velocityFieldId, flagFieldFilter, upperLimit, lowerLimit, configBlock.getParameter< uint_t >( "maxLevel", uint_t(0) ) );
 
          minTargetLevelDeterminationFunctions.add( vorticityRefinement );
@@ -2655,11 +2545,11 @@ void run( const shared_ptr< Config > & config, const LatticeModel_T & latticeMod
             blockforest.setRefreshBlockStateDeterminationFunction( Pseudo2DBlockStateDetermination( blockforest, Empty ) );
             blockforest.setRefreshPhantomBlockDataAssignmentFunction( Pseudo2DPhantomWeightAssignment( Empty ) );
             blockforest.setRefreshPhantomBlockMigrationPreparationFunction(
-                     blockforest::DynamicLevelwiseCurveBalance< Pseudo2DPhantomWeight >( hilbert, allGather ) );
+                     blockforest::DynamicCurveBalance< Pseudo2DPhantomWeight >( hilbert, allGather ) );
          }
          else
             blockforest.setRefreshPhantomBlockMigrationPreparationFunction(
-                     blockforest::DynamicLevelwiseCurveBalance< blockforest::NoPhantomData >( hilbert, allGather ) );
+                     blockforest::DynamicCurveBalance< blockforest::NoPhantomData >( hilbert, allGather ) );
       }
       else
       {
@@ -2673,11 +2563,11 @@ void run( const shared_ptr< Config > & config, const LatticeModel_T & latticeMod
             blockforest.setRefreshPhantomBlockDataPackFunction( Pseudo2DPhantomWeightPackUnpack() );
             blockforest.setRefreshPhantomBlockDataUnpackFunction( Pseudo2DPhantomWeightPackUnpack() );
             blockforest.setRefreshPhantomBlockMigrationPreparationFunction(
-                     blockforest::DynamicLevelwiseDiffusionBalance< Pseudo2DPhantomWeight >( maxIterations, flowIterations ) );
+                     blockforest::DynamicDiffusionBalance< Pseudo2DPhantomWeight >( maxIterations, flowIterations ) );
          }
          else
             blockforest.setRefreshPhantomBlockMigrationPreparationFunction(
-                     blockforest::DynamicLevelwiseDiffusionBalance< blockforest::NoPhantomData >( maxIterations, flowIterations ) );
+                     blockforest::DynamicDiffusionBalance< blockforest::NoPhantomData >( maxIterations, flowIterations ) );
       }
 
       // add callback functions which are executed after all block data was unpakced after the dynamic load balancing

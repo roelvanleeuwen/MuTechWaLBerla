@@ -26,7 +26,6 @@
 
 #include "ConvexPolyhedron.h"
 
-#include <boost/tuple/tuple.hpp>
 #include "domain_decomposition/BlockStorage.h"
 #include "mesh/decomposition/ConvexDecomposer.h"
 #include "mesh/MeshOperations.h"
@@ -34,6 +33,8 @@
 #include "pe/rigidbody/UnionFactory.h"
 #include "pe/rigidbody/Union.h"
 #include "pe/Materials.h"
+
+#include <tuple>
 
 namespace walberla {
 namespace mesh {
@@ -117,7 +118,7 @@ ConvexPolyhedronID createConvexPolyhedron( BodyStorage& globalStorage, BlockStor
  * \ingroup pe
  * \brief Setup of a new ConvexPolyhedron directly attached to a Union.
  *
- * \tparam BodyTypeTuple boost::tuple of all geometries the Union is able to contain
+ * \tparam BodyTypeTuple std::tuple of all geometries the Union is able to contain
  * \exception std::runtime_error    Polyhedron TypeID not initalized!
  * \exception std::invalid_argument createSphere: Union argument is NULL
  * \exception std::logic_error      createSphere: Union is remote
@@ -178,8 +179,7 @@ mesh::pe::ConvexPolyhedronID createConvexPolyhedron( Union<BodyTypeTuple>* un,
 }
 //*************************************************************************************************
 
-typedef boost::tuple<mesh::pe::ConvexPolyhedron> PolyhedronTuple;
-typedef Union<PolyhedronTuple> TriangleMeshUnion;
+using TriangleMeshUnion = Union<mesh::pe::ConvexPolyhedron>;
 
 //*************************************************************************************************
 /**
@@ -207,7 +207,7 @@ TriangleMeshUnion* createNonConvexUnion( BodyStorage& globalStorage, BlockStorag
  * \brief Setup of a new Non-ConvexPolyhedron as a union of its parts.
  * The mesh passed will be automatically approximatly convex decomposed.
  *
- * \tparam BodyTypeTuple boost::tuple of all geometries (including Union<ConvexPolyhedron> and ConvexPolyhedron)
+ * \tparam BodyTypeTuple std::tuple of all geometries (including Union<ConvexPolyhedron> and ConvexPolyhedron)
  * \exception std::runtime_error    Polyhedron TypeID not initalized!
  * \exception std::invalid_argument createSphere: Union argument is NULL
  * \exception std::logic_error      createSphere: Union is remote

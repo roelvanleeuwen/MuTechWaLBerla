@@ -98,10 +98,9 @@ typedef pe_coupling::SimpleBB< LatticeModel_T, FlagField_T >        MEM_BB_T;
 typedef pe_coupling::CurvedLinear< LatticeModel_T, FlagField_T >    MEM_CLI_T;
 typedef pe_coupling::CurvedQuadratic< LatticeModel_T, FlagField_T > MEM_MR_T;
 
-typedef boost::tuples::tuple< UBB_T, Outlet_T, MEM_BB_T, MEM_CLI_T, MEM_MR_T > BoundaryConditions_T;
-typedef BoundaryHandling< FlagField_T, Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+typedef BoundaryHandling< FlagField_T, Stencil_T, UBB_T, Outlet_T, MEM_BB_T, MEM_CLI_T, MEM_MR_T > BoundaryHandling_T;
 
-using BodyTypeTuple = boost::tuple<pe::Sphere>;
+using BodyTypeTuple = std::tuple<pe::Sphere>;
 
 ///////////
 // FLAGS //
@@ -199,11 +198,11 @@ BoundaryHandling_T * MyBoundaryHandling::operator()( IBlock * const block, const
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "moving obstacle boundary handling", flagField, fluid,
-         boost::tuples::make_tuple( UBB_T( "UBB", UBB_Flag, pdfField, velocity_),
+                                    UBB_T( "UBB", UBB_Flag, pdfField, velocity_),
                                     Outlet_T( "Outlet", Outlet_Flag, pdfField, real_t(1) ),
                                     MEM_BB_T (  "MEM_BB",  MEM_BB_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ),
                                     MEM_CLI_T( "MEM_CLI", MEM_CLI_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ),
-                                    MEM_MR_T (  "MEM_MR",  MEM_MR_Flag, pdfField, flagField, bodyField, fluid, *storage, *block, pdfFieldPreCol ) )  );
+                                    MEM_MR_T (  "MEM_MR",  MEM_MR_Flag, pdfField, flagField, bodyField, fluid, *storage, *block, pdfFieldPreCol ) );
 
    const auto ubb = flagField->getFlag( UBB_Flag );
    const auto outlet = flagField->getFlag( Outlet_Flag );
@@ -1081,7 +1080,7 @@ int main( int argc, char **argv )
       WALBERLA_LOG_INFO_ON_ROOT("Initial simulation has ended.")
 
       //evaluate the gravitational force necessary to keep the sphere at a approximately fixed position
-      gravity = forceEval->getForce() / ( (densityRatio - real_t(1) ) * diameter * diameter * diameter * math::PI / real_t(6) );
+      gravity = forceEval->getForce() / ( (densityRatio - real_t(1) ) * diameter * diameter * diameter * math::M_PI / real_t(6) );
       GalileoSim = std::sqrt( ( densityRatio - real_t(1) ) * gravity * diameter * diameter * diameter ) / viscosity;
       ReynoldsSim = uIn * diameter / viscosity;
       u_ref = std::sqrt( std::fabs(densityRatio - real_t(1)) * gravity * diameter );
@@ -1235,7 +1234,7 @@ int main( int argc, char **argv )
    }
 
    // add gravity
-   Vector3<real_t> extForcesOnSphere( real_t(0), real_t(0), - gravity * ( densityRatio - real_t(1) ) * diameter * diameter * diameter * math::PI / real_t(6));
+   Vector3<real_t> extForcesOnSphere( real_t(0), real_t(0), - gravity * ( densityRatio - real_t(1) ) * diameter * diameter * diameter * math::M_PI / real_t(6));
    timeloop.addFuncAfterTimeStep( pe_coupling::ForceOnBodiesAdder( blocks, bodyStorageID, extForcesOnSphere ), "Add external forces (gravity and buoyancy)" );
 
    // evaluate the sphere properties

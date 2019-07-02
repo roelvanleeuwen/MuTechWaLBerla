@@ -151,6 +151,7 @@ public:
    inline const Matrix2       getInverse()                               const;
    inline bool                isSingular()                               const;
    inline bool                isSymmetric()                              const;
+   inline Type*               data()                                     {return v_;}
    //@}
    //*******************************************************************************************************************
 
@@ -841,7 +842,7 @@ inline const Matrix2<Type> fabs( const Matrix2<Type>& m );
 //template< typename Type, typename Other >
 //inline const Matrix2<HIGH> operator*( Other scalar, const Matrix2<Type>& matrix )
 //{
-//   static_assert( ! boost::is_scalar<Other>::value, "Only scalar types allowed" );
+//   static_assert( ! std::is_scalar<Other>::value, "Only scalar types allowed" );
 //   return matrix*scalar;
 //}
 //**********************************************************************************************************************
@@ -957,9 +958,11 @@ template< typename T,    // Element type of SendBuffer
           typename MT >  // Element type of matrix
 mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, const Matrix2<MT> & m )
 {
-   for(unsigned int i=0; i<4; ++i)
-      buf << m[i];
-
+   buf.addDebugMarker( "m2" );
+   static_assert ( std::is_trivially_copyable< Matrix2<MT> >::value,
+                   "type has to be trivially copyable for the memcpy to work correctly" );
+   auto pos = buf.forward(sizeof(Matrix2<MT>));
+   std::memcpy(pos, &m, sizeof(Matrix2<MT>));
    return buf;
 }
 
@@ -967,9 +970,12 @@ template< typename T,    // Element type  of RecvBuffer
           typename MT >  // Element type of matrix
 mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, Matrix2<MT> & m )
 {
-   for(unsigned int i=0; i<4; ++i)
-      buf >> m[i];
-
+   buf.readDebugMarker( "m2" );
+   static_assert ( std::is_trivially_copyable< Matrix2<MT> >::value,
+                   "type has to be trivially copyable for the memcpy to work correctly" );
+   auto pos = buf.skip(sizeof(Matrix2<MT>));
+   //suppress https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html#index-Wclass-memaccess
+   std::memcpy(static_cast<void*>(&m), pos, sizeof(Matrix2<MT>));
    return buf;
 }
 

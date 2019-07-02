@@ -39,9 +39,10 @@
 #include "python_coupling/helper/MplHelpers.h"
 #include "python_coupling/helper/BoostPythonHelpers.h"
 
-#include <boost/type_traits/is_unsigned.hpp>
+#include <boost/mpl/vector.hpp>
 
 #include <iostream>
+#include <type_traits>
 
 namespace walberla {
 namespace field {
@@ -517,7 +518,7 @@ namespace internal {
    }
 
    template< typename GhostLayerField_T >
-   class GhostLayerFieldDataHandling : public blockforest::AlwaysInitializeBlockDataHandling< GhostLayerField_T >
+   class GhostLayerFieldDataHandling : public field::BlockDataHandling< GhostLayerField_T >
    {
    public:
       typedef typename GhostLayerField_T::value_type Value_T;
@@ -527,7 +528,7 @@ namespace internal {
               blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_( initValue ), layout_( layout ),
               alignment_( alignment ) {}
 
-      GhostLayerField_T * initialize( IBlock * const block )
+      GhostLayerField_T * allocate( IBlock * const block )
       {
          auto blocks = blocks_.lock();
          WALBERLA_CHECK_NOT_NULLPTR( blocks, "Trying to access 'AlwaysInitializeBlockDataHandling' for a block "
@@ -538,6 +539,11 @@ namespace internal {
                                                              nrOfGhostLayers_, initValue_, layout_,
                                                              getAllocator<Value_T>(alignment_) );
          return field;
+      }
+
+      GhostLayerField_T * reallocate( IBlock * const block )
+      {
+         return allocate(block);
       }
 
    private:
@@ -773,7 +779,7 @@ namespace internal {
    //===================================================================================================================
 
    template<typename T>
-   void exportFlagFieldIfUnsigned( typename boost::enable_if<boost::is_unsigned<T> >::type* = 0 )
+   void exportFlagFieldIfUnsigned( typename std::enable_if<std::is_unsigned<T>::value >::type* = 0 )
    {
       using namespace boost::python;
 
@@ -790,7 +796,7 @@ namespace internal {
 
    }
    template<typename T>
-   void exportFlagFieldIfUnsigned( typename boost::disable_if<boost::is_unsigned<T> >::type* = 0 )  {}
+   void exportFlagFieldIfUnsigned( typename std::enable_if< ! std::is_unsigned<T>::value >::type* = 0 )  {}
 
 
    struct FieldExporter

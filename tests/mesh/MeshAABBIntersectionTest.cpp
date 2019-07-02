@@ -23,6 +23,7 @@
 #include "core/logging/Logging.h"
 #include "core/math/AABB.h"
 #include "core/mpi/Environment.h"
+#include "core/Optional.h"
 
 #include "mesh/MeshIO.h"
 #include "mesh/MeshOperations.h"
@@ -30,7 +31,6 @@
 #include "mesh/TriangleMeshes.h"
 
 #include <random>
-#include <boost/lexical_cast.hpp>
 
 #include <vector>
 #include <string>
@@ -51,7 +51,7 @@ void runTests( const uint_t numAABBs )
 
    TriangleDistance<MeshType> triDist( mesh );
 
-   WALBERLA_CHECK( isIntersecting( triDist, meshAABB, real_t(0) ) );
+   WALBERLA_CHECK( isIntersecting( triDist, meshAABB, real_t(0) ).value_or( false ) );
 
    std::mt19937 rng( uint32_t(42) );
 
@@ -61,19 +61,18 @@ void runTests( const uint_t numAABBs )
 
       const real_t maxErr = real_t(1e-2);
 
-      boost::tribool result = isIntersecting( triDist, testAABB, maxErr );
+      walberla::optional< bool > result = isIntersecting( triDist, testAABB, maxErr );
 
-      if(result)
+      if ( result )
       {
-         WALBERLA_CHECK( meshAABB.intersects( testAABB ), "Box#: " << i );
-      }
-      else if(!result)
-      {
-         WALBERLA_CHECK( !meshAABB.intersects( testAABB ), "Box#: " << i );
-      }
-      else
-      {
-         WALBERLA_ASSERT( boost::logic::indeterminate( result ) );
+         if(result.value())
+         {
+            WALBERLA_CHECK( meshAABB.intersects( testAABB ), "Box#: " << i );
+         }
+         else if(!result.value())
+         {
+            WALBERLA_CHECK( !meshAABB.intersects( testAABB ), "Box#: " << i );
+         }
       }
    }
 }
@@ -88,7 +87,7 @@ int main( int argc, char * argv[] )
    if( args.size() != 2 )
       WALBERLA_ABORT_NO_DEBUG_INFO( "USAGE: " << args[0] << " NUM_AABBS" );
 
-   const uint_t numAABBs = boost::lexical_cast< uint_t >( args[1] );
+   const uint_t numAABBs = string_to_num< uint_t >( args[1] );
 
    runTests< mesh::TriangleMesh >( numAABBs );
    runTests< mesh::FloatTriangleMesh >( numAABBs );

@@ -73,11 +73,10 @@ namespace drag_force_sphere_mem
 
 using namespace walberla;
 using walberla::uint_t;
-using lbm::force_model::SimpleConstant;
 
 // PDF field, flag field & body field
 using ForceModel_T = lbm::force_model::LuoConstant;
-typedef lbm::D3Q19< lbm::collision_model::TRT, false, ForceModel_T, 1>  LatticeModel_T;
+typedef lbm::D3Q19< lbm::collision_model::TRT, false, ForceModel_T >  LatticeModel_T;
 
 using Stencil_T = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField<LatticeModel_T>;
@@ -93,10 +92,9 @@ typedef pe_coupling::SimpleBB       < LatticeModel_T, FlagField_T >  MO_BB_T;
 typedef pe_coupling::CurvedLinear   < LatticeModel_T, FlagField_T > MO_CLI_T;
 typedef pe_coupling::CurvedQuadratic< LatticeModel_T, FlagField_T >  MO_MR_T;
 
-typedef boost::tuples::tuple< MO_BB_T, MO_CLI_T, MO_MR_T >               BoundaryConditions_T;
-typedef BoundaryHandling< FlagField_T, Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+typedef BoundaryHandling< FlagField_T, Stencil_T, MO_BB_T, MO_CLI_T, MO_MR_T > BoundaryHandling_T;
 
-using BodyTypeTuple = boost::tuple<pe::Sphere> ;
+using BodyTypeTuple = std::tuple<pe::Sphere> ;
 
 ///////////
 // FLAGS //
@@ -176,9 +174,9 @@ BoundaryHandling_T * MyBoundaryHandling::operator()( IBlock * const block, const
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "fixed obstacle boundary handling", flagField, fluid,
-                                                           boost::tuples::make_tuple( MO_BB_T (  "MO_BB",  MO_BB_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ),
-                                                                                     MO_CLI_T ( "MO_CLI", MO_CLI_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ),
-                                                                                      MO_MR_T (  "MO_MR",  MO_MR_Flag, pdfField, flagField, bodyField, fluid, *storage, *block, pdfFieldPreCol ) ) );
+                                                           MO_BB_T (  "MO_BB",  MO_BB_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ),
+                                                           MO_CLI_T ( "MO_CLI", MO_CLI_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ),
+                                                           MO_MR_T (  "MO_MR",  MO_MR_Flag, pdfField, flagField, bodyField, fluid, *storage, *block, pdfFieldPreCol ) );
 
    handling->fillWithDomain( FieldGhostLayers );
 
@@ -227,9 +225,9 @@ public:
       real_t uBar = computeAverageVel();
 
       // f_total = f_drag + f_buoyancy
-      real_t totalForce = forceX  + real_c(4.0/3.0) * math::PI * setup_->radius * setup_->radius * setup_->radius * setup_->extForce ;
+      real_t totalForce = forceX  + real_c(4.0/3.0) * math::M_PI * setup_->radius * setup_->radius * setup_->radius * setup_->extForce ;
 
-      real_t normalizedDragForce = totalForce / real_c( 6.0 * math::PI * setup_->visc * setup_->radius * uBar );
+      real_t normalizedDragForce = totalForce / real_c( 6.0 * math::M_PI * setup_->visc * setup_->radius * uBar );
 
       // update drag force values
       normalizedDragOld_ = normalizedDragNew_;

@@ -1270,9 +1270,9 @@ inline typename GenericAABB< T >::value_type GenericAABB< T >::sqMaxDistance( co
  * \returns An array of size eight containing the corner points. Indices match those of the stencil::D3CornerStencil
  */
 template< typename T >
-inline boost::array< typename GenericAABB< T >::vector_type, 8 > GenericAABB< T >::corners() const
+inline std::array< typename GenericAABB< T >::vector_type, 8 > GenericAABB< T >::corners() const
 {
-   boost::array< vector_type, 8 > cornerArray;
+   std::array< vector_type, 8 > cornerArray;
 
    // TNE
    cornerArray[0][0] = maxCorner_[0];
@@ -1883,7 +1883,11 @@ template< typename T,    // Element type of SendBuffer
 mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, const GenericAABB< VT > & aabb )
 {
    buf.addDebugMarker( "bb" );
-   return buf << aabb.minCorner() << aabb.maxCorner();
+   static_assert ( std::is_trivially_copyable< GenericAABB< VT > >::value,
+                   "type has to be trivially copyable for the memcpy to work correctly" );
+   auto pos = buf.forward(sizeof(GenericAABB< VT >));
+   std::memcpy(pos, &aabb, sizeof(GenericAABB< VT >));
+   return buf;
 }
 
 

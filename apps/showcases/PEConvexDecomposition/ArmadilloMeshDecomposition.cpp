@@ -20,7 +20,6 @@
 //
 //======================================================================================================================
 
-//! [Includes]
 #include <pe/basic.h>
 #include "mesh/TriangleMeshes.h"
 
@@ -55,17 +54,15 @@
 #include <sstream>
 #include <fstream>
 #include <cstring>
+#include <tuple>
 
 
-//! [Includes]
 
 namespace walberla {
 using namespace walberla::pe;
 using namespace walberla::cgalwraps;
 
-//! [BodyTypeTuple]
-typedef boost::tuple<Sphere, Plane, Box, mesh::pe::TriangleMeshUnion, mesh::pe::ConvexPolyhedron> BodyTypeTuple ;
-//! [BodyTypeTuple]
+typedef std::tuple<Sphere, Plane, Box, mesh::pe::TriangleMeshUnion, mesh::pe::ConvexPolyhedron> BodyTypeTuple ;
 
 using OutputMesh = mesh::PolyMesh;
 using TesselationType=mesh::pe::DefaultTesselation<OutputMesh>;
@@ -319,21 +316,16 @@ int main( int argc, char ** argv ) {
    real_t vMax             = real_c(2.0);
    int    simulationSteps  = 2000;
    real_t dt               = real_c(0.01);
-   //! [Parameters]
 
    WALBERLA_LOG_INFO_ON_ROOT("*** GLOBALBODYSTORAGE ***");
-   //! [GlobalBodyStorage]
    shared_ptr<BodyStorage> globalBodyStorage = make_shared<BodyStorage>();
-   //! [GlobalBodyStorage]
 
    WALBERLA_LOG_INFO_ON_ROOT("*** BLOCKFOREST ***");
    // create forest
-   //! [BlockForest]
-   shared_ptr< BlockForest > forest = createBlockForest( AABB(-25,-25, 0, 25, 25, 100), // simulation domain
+   auto forest = blockforest::createBlockForest( AABB(-25,-25, 0, 25, 25, 100), // simulation domain
                                                          Vector3<uint_t>(1,1,1), // blocks in each direction
                                                          Vector3<bool>(false, false, false) // periodicity
                                                          );
-   //! [BlockForest]
    if (!forest)
    {
       WALBERLA_LOG_INFO_ON_ROOT( "No BlockForest created ... exiting!");
@@ -342,34 +334,24 @@ int main( int argc, char ** argv ) {
 
    WALBERLA_LOG_INFO_ON_ROOT("*** STORAGEDATAHANDLING ***");
    // add block data
-   //! [StorageDataHandling]
    auto storageID           = forest->addBlockData(createStorageDataHandling<BodyTypeTuple>(), "Storage");
-   //! [StorageDataHandling]
-   //! [AdditionalBlockData]
    auto ccdID               = forest->addBlockData(ccd::createHashGridsDataHandling( globalBodyStorage, storageID ), "CCD");
    auto fcdID               = forest->addBlockData(fcd::createGenericFCDDataHandling<BodyTypeTuple, fcd::GJKEPACollideFunctor>(), "FCD");
-   //! [AdditionalBlockData]
 
    WALBERLA_LOG_INFO_ON_ROOT("*** INTEGRATOR ***");
-   //! [Integrator]
    cr::HCSITS cr(globalBodyStorage, forest, storageID, ccdID, fcdID);
    cr.setMaxIterations( 10 );
    cr.setRelaxationModel( cr::HardContactSemiImplicitTimesteppingSolvers::ApproximateInelasticCoulombContactByDecoupling );
    cr.setRelaxationParameter( real_t(0.7) );
    cr.setGlobalLinearAcceleration( Vec3(0,0,-6) );
-   //! [Integrator]
 
    WALBERLA_LOG_INFO_ON_ROOT("*** BodyTypeTuple ***");
    // initialize body type ids
-   //! [SetBodyTypeIDs]
    SetBodyTypeIDs<BodyTypeTuple>::execute();
-   //! [SetBodyTypeIDs]
 
    WALBERLA_LOG_INFO_ON_ROOT("*** VTK OUTPUT ***");
-   //! [VTK Domain Output]
    auto vtkDomainOutput = vtk::createVTKOutput_DomainDecomposition( forest, "Domain", 1, std::string("VTK"), "simulation_step" );
    vtkDomainOutput->write(true);
-   //! [VTK Domain Output]
 
    TesselationType tesselation;
    auto vtkMeshWriter = make_shared<mesh::pe::PeVTKMeshWriter<OutputMesh, TesselationType> >(forest, storageID, tesselation, std::string("MeshOutput"), uint_t(1), std::string("VTK") );
@@ -383,22 +365,18 @@ int main( int argc, char ** argv ) {
    const int VTKSpacing = 10;
 
    WALBERLA_LOG_INFO_ON_ROOT("*** SETUP - START ***");
-   //! [Material]
    const real_t   static_cof  ( real_c(0.1) / 2 );   // Coefficient of static friction. Note: pe doubles the input coefficient of friction for material-material contacts.
    const real_t   dynamic_cof ( static_cof ); // Coefficient of dynamic friction. Similar to static friction for low speed friction.
    MaterialID     material = createMaterial( "granular", real_t( 1.0 ), 0, static_cof, dynamic_cof, real_t( 0.5 ), 1, 1, 0, 0 );
-   //! [Material]
 
    auto simulationDomain = forest->getDomain();
    const auto& generationDomain = AABB(-17,-17, 60 ,19, 19, 90);
-   //! [Planes]
    createPlane(*globalBodyStorage, 0, Vec3(1,0,0), simulationDomain.minCorner(), material );
    createPlane(*globalBodyStorage, 0, Vec3(-1,0,0), simulationDomain.maxCorner(), material );
    createPlane(*globalBodyStorage, 0, Vec3(0,1,0), simulationDomain.minCorner(), material );
    createPlane(*globalBodyStorage, 0, Vec3(0,-1,0), simulationDomain.maxCorner(), material );
    createPlane(*globalBodyStorage, 0, Vec3(0,0,1), simulationDomain.minCorner(), material );
    createPlane(*globalBodyStorage, 0, Vec3(0,0,-1), simulationDomain.maxCorner(), material );
-   //! [Planes]
 
    WALBERLA_LOG_INFO_ON_ROOT("*** PERFORMING DECOMPOSITIONS ***");
 
@@ -443,12 +421,10 @@ int main( int argc, char ** argv ) {
    }
    WALBERLA_LOG_INFO_ON_ROOT("#particles created: " << numParticles);
    syncNextNeighbors<BodyTypeTuple>(*forest, storageID);
-   //! [Gas]
 
    WALBERLA_LOG_INFO_ON_ROOT("*** SETUP - END ***");
 
    WALBERLA_LOG_INFO_ON_ROOT("*** SIMULATION - START ***");
-   //! [GameLoop]
    for (int i=0; i < simulationSteps; ++i)
    {
       if( i % 10 == 0 )
@@ -462,7 +438,6 @@ int main( int argc, char ** argv ) {
       cr.timestep( real_c(dt) );
       syncNextNeighbors<BodyTypeTuple>(*forest, storageID);
    }
-   //! [GameLoop]
    WALBERLA_LOG_INFO_ON_ROOT("*** SIMULATION - END ***");
 
    return EXIT_SUCCESS;

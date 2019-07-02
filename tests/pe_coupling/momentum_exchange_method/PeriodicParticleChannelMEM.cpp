@@ -78,14 +78,12 @@ namespace periodic_particle_channel_mem
 using namespace walberla;
 using walberla::uint_t;
 
-
-
 //////////////
 // TYPEDEFS //
 //////////////
 
 // pdf field & flag field
-typedef lbm::D3Q19< lbm::collision_model::TRT, false >  LatticeModel_T;
+typedef lbm::D3Q19< lbm::collision_model::TRT >  LatticeModel_T;
 using Stencil_T = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField<LatticeModel_T>;
 
@@ -99,10 +97,9 @@ typedef lbm::NoSlip< LatticeModel_T, flag_t >                 NoSlip_T;
 typedef lbm::SimpleUBB< LatticeModel_T, flag_t >              UBB_T;
 typedef pe_coupling::SimpleBB< LatticeModel_T, FlagField_T > MO_T;
 
-typedef boost::tuples::tuple< NoSlip_T, UBB_T, MO_T > BoundaryConditions_T;
-typedef BoundaryHandling< FlagField_T, Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+typedef BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T, UBB_T, MO_T > BoundaryHandling_T;
 
-typedef boost::tuple< pe::Sphere, pe::Plane > BodyTypeTuple;
+typedef std::tuple< pe::Sphere, pe::Plane > BodyTypeTuple;
 
 ///////////
 // FLAGS //
@@ -278,9 +275,9 @@ BoundaryHandling_T * MyBoundaryHandling::operator()( IBlock * const block, const
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "cf boundary handling", flagField, fluid,
-         boost::tuples::make_tuple( NoSlip_T( "NoSlip", NoSlip_Flag, pdfField ),
+                                    NoSlip_T( "NoSlip", NoSlip_Flag, pdfField ),
                                        UBB_T( "UBB", UBB_Flag, pdfField, velocity_, real_c(0), real_c(0) ),
-                                        MO_T( "MO", MO_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) ) );
+                                        MO_T( "MO", MO_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) );
 
    const auto ubb = flagField->getFlag( UBB_Flag );
 

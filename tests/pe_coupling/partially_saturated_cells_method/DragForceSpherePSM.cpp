@@ -73,11 +73,10 @@ namespace drag_force_sphere_psm
 
 using namespace walberla;
 using walberla::uint_t;
-using lbm::force_model::SimpleConstant;
 
 // PDF field, flag field & body field
 using ForceModel_T = lbm::force_model::LuoConstant;
-typedef lbm::D3Q19< lbm::collision_model::SRT, false, ForceModel_T, 1>  LatticeModel_T;
+typedef lbm::D3Q19< lbm::collision_model::SRT, false, ForceModel_T>  LatticeModel_T;
 
 using Stencil_T = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField<LatticeModel_T>;
@@ -88,7 +87,7 @@ using FlagField_T = FlagField<flag_t>;
 typedef std::pair< pe::BodyID, real_t >                              BodyAndVolumeFraction_T;
 typedef GhostLayerField< std::vector< BodyAndVolumeFraction_T >, 1 > BodyAndVolumeFractionField_T;
 
-using BodyTypeTuple = boost::tuple<pe::Sphere> ;
+using BodyTypeTuple = std::tuple<pe::Sphere> ;
 
 ///////////
 // FLAGS //
@@ -179,9 +178,9 @@ public:
       real_t uBar = computeAverageVel();
 
       // f_total = f_drag + f_buoyancy
-      real_t totalForce = forceX  + real_c(4.0/3.0) * math::PI * setup_->radius * setup_->radius * setup_->radius * setup_->extForce ;
+      real_t totalForce = forceX  + real_c(4.0/3.0) * math::M_PI * setup_->radius * setup_->radius * setup_->radius * setup_->extForce ;
 
-      real_t normalizedDragForce = totalForce / real_c( 6.0 * math::PI * setup_->visc * setup_->radius * uBar );
+      real_t normalizedDragForce = totalForce / real_c( 6.0 * math::M_PI * setup_->visc * setup_->radius * uBar );
 
       // update drag force values
       normalizedDragOld_ = normalizedDragNew_;

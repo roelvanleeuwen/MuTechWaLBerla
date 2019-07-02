@@ -24,8 +24,11 @@
 #include "blockforest/BlockDataHandling.h"
 #include "blockforest/StructuredBlockForest.h"
 #include "core/debug/CheckFunctions.h"
+#include "core/math/Vector2.h"
+#include "core/math/Vector3.h"
 #include "field/FlagField.h"
 
+#include <type_traits>
 
 
 namespace walberla {
@@ -80,6 +83,9 @@ protected:
 
    template< typename T > struct Merge
    { static T result( const T & value ) { return Pseudo2D ? static_cast<T>( value / numeric_cast<T>(4) ) : static_cast<T>( value / numeric_cast<T>(8) ); } };
+
+   template< typename T > struct Merge< Vector2<T> >
+   { static Vector2<T> result( const Vector2<T> & value ) { return Pseudo2D ? (value / numeric_cast<T>(4)) : (value / numeric_cast<T>(8)); } };
 
    template< typename T > struct Merge< Vector3<T> >
    { static Vector3<T> result( const Vector3<T> & value ) { return Pseudo2D ? (value / numeric_cast<T>(4)) : (value / numeric_cast<T>(8)); } };
@@ -409,7 +415,7 @@ public:
                              const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = internal::defaultSize ) :
       blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_( initValue ), layout_( layout ), calculateSize_( calculateSize )
    {
-      static_assert( !boost::is_same< GhostLayerField_T, FlagField< Value_T > >::value,
+      static_assert( !std::is_same< GhostLayerField_T, FlagField< Value_T > >::value,
                      "When using class FlagField, only constructors without the explicit specification of an initial value and the field layout are available!" );
    }
 
@@ -472,7 +478,7 @@ public:
                                       const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = internal::defaultSize ) :
       blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_( initValue ), layout_( layout ), calculateSize_( calculateSize )
    {
-      static_assert( !boost::is_same< GhostLayerField_T, FlagField< Value_T > >::value,
+      static_assert( ! std::is_same< GhostLayerField_T, FlagField< Value_T > >::value,
                      "When using class FlagField, only constructors without the explicit specification of an initial value and the field layout are available!" );
    }
 

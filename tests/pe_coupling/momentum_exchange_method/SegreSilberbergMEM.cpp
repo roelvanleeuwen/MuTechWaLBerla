@@ -76,14 +76,13 @@ namespace segre_silberberg_mem
 
 using namespace walberla;
 using walberla::uint_t;
-using lbm::force_model::SimpleConstant;
 
 //////////////
 // TYPEDEFS //
 //////////////
 
 // PDF field, flag field & body field
-typedef lbm::D3Q19< lbm::collision_model::TRT, false, SimpleConstant >  LatticeModel_T;
+typedef lbm::D3Q19< lbm::collision_model::TRT, false, lbm::force_model::SimpleConstant >  LatticeModel_T;
 using Stencil_T = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField<LatticeModel_T>;
 
@@ -100,10 +99,9 @@ typedef pe_coupling::SimpleBB       < LatticeModel_T, FlagField_T >  MO_BB_T;
 typedef pe_coupling::CurvedLinear   < LatticeModel_T, FlagField_T > MO_CLI_T;
 typedef pe_coupling::CurvedQuadratic< LatticeModel_T, FlagField_T >  MO_MR_T;
 
-typedef boost::tuples::tuple< NoSlip_T, MO_BB_T, MO_CLI_T, MO_MR_T >     BoundaryConditions_T;
-typedef BoundaryHandling< FlagField_T, Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+typedef BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T, MO_BB_T, MO_CLI_T, MO_MR_T > BoundaryHandling_T;
 
-typedef boost::tuple< pe::Sphere, pe::Plane > BodyTypeTuple;
+typedef std::tuple< pe::Sphere, pe::Plane > BodyTypeTuple;
 
 ///////////
 // FLAGS //
@@ -190,10 +188,10 @@ BoundaryHandling_T * MyBoundaryHandling::operator()( IBlock * const block, const
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "moving obstacle boundary handling", flagField, fluid,
-         boost::tuples::make_tuple(    NoSlip_T( "NoSlip", NoSlip_Flag, pdfField ),
+                                       NoSlip_T( "NoSlip", NoSlip_Flag, pdfField ),
                                        MO_BB_T (  "MO_BB",  MO_BB_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ),
                                        MO_CLI_T( "MO_CLI", MO_CLI_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ),
-                                       MO_MR_T (  "MO_MR",  MO_MR_Flag, pdfField, flagField, bodyField, fluid, *storage, *block, pdfFieldPreCol ) ) );
+                                       MO_MR_T (  "MO_MR",  MO_MR_Flag, pdfField, flagField, bodyField, fluid, *storage, *block, pdfFieldPreCol ) );
 
    const auto noslip = flagField->getFlag( NoSlip_Flag );
 
@@ -582,7 +580,8 @@ int main( int argc, char **argv )
    ////////////////////////
 
    // create the lattice model
-   LatticeModel_T latticeModel = LatticeModel_T( lbm::collision_model::TRT::constructWithMagicNumber( omega ), SimpleConstant( Vector3<real_t> ( setup.forcing, real_t(0), real_t(0) ) ) );
+   LatticeModel_T latticeModel = LatticeModel_T( lbm::collision_model::TRT::constructWithMagicNumber( omega ),
+                                                 lbm::force_model::SimpleConstant( Vector3<real_t> ( setup.forcing, real_t(0), real_t(0) ) ) );
 
    // add PDF field
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >( blocks, "pdf field (zyxf)", latticeModel,

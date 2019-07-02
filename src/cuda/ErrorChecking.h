@@ -40,7 +40,7 @@ inline void checkForError( cudaError_t code, const std::string & callerPath, con
   if(code != cudaSuccess)
   {
     std::stringstream ss;
-    ss << "CUDA Error: " << cudaGetErrorString( code );
+    ss << "CUDA Error: " << code << " " << cudaGetErrorName(code) << ": " << cudaGetErrorString( code );
     Abort::instance()->abort( ss.str(), callerPath, line );
   }
 }

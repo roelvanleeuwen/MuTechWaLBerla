@@ -33,7 +33,7 @@
 namespace walberla {
 using namespace walberla::pe;
 
-using BodyTuple = boost::tuple<Sphere> ;
+using BodyTuple = std::tuple<Sphere> ;
 
 class ReGrid
 {
@@ -111,7 +111,7 @@ int main( int argc, char** argv )
    blockforest.setRefreshMinTargetLevelDeterminationFunction( regrid );
 
    blockforest.setRefreshPhantomBlockMigrationPreparationFunction(
-            blockforest::DynamicLevelwiseCurveBalance< blockforest::NoPhantomData >( true, true ) );
+            blockforest::DynamicCurveBalance< blockforest::NoPhantomData >( true, true ) );
 
    real_t spacing(2.5);
    for (auto blkIt = forest->begin(); blkIt != forest->end(); ++blkIt)

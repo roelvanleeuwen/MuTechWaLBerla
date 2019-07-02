@@ -79,6 +79,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <type_traits>
 
 
 
@@ -136,7 +137,7 @@ template< typename LatticeModel_T, class Enable = void >
 struct StencilString;
 
 template< typename LatticeModel_T >
-struct StencilString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::Stencil, stencil::D3Q19 >::value >::type >
+struct StencilString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::Stencil, stencil::D3Q19 >::value >::type >
 {
    static const char * str() { return "D3Q19"; }
 };
@@ -145,21 +146,21 @@ template< typename LatticeModel_T, class Enable = void >
 struct CollisionModelString;
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::SRT_tag >::value >::type >
 {
    static const char * str() { return "SRT"; }
 };
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::TRT_tag >::value >::type >
 {
    static const char * str() { return "TRT"; }
 };
 
 template< typename LatticeModel_T >
-struct CollisionModelString< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct CollisionModelString< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                           lbm::collision_model::MRT_tag >::value >::type >
 {
    static const char * str() { return "MRT"; }
@@ -433,9 +434,7 @@ struct MyBoundaryTypes
    typedef lbm::NoSlip< LatticeModel_T, flag_t >    NoSlip_T;
    typedef lbm::SimpleUBB< LatticeModel_T, flag_t > UBB_T;
 
-   typedef boost::tuples::tuple< NoSlip_T, UBB_T > BoundaryConditions_T;
-
-   typedef BoundaryHandling< FlagField_T, typename Types<LatticeModel_T>::Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+   typedef BoundaryHandling< FlagField_T, typename Types<LatticeModel_T>::Stencil_T, NoSlip_T, UBB_T > BoundaryHandling_T;
 };  
 
 template< typename LatticeModel_T >
@@ -445,8 +444,6 @@ public:
 
    using NoSlip_T = typename MyBoundaryTypes< LatticeModel_T >::NoSlip_T;
    using UBB_T = typename MyBoundaryTypes< LatticeModel_T >::UBB_T;
-
-   using BoundaryConditions_T = typename MyBoundaryTypes< LatticeModel_T >::BoundaryConditions_T;
 
    using BoundaryHandling_T = typename MyBoundaryTypes< LatticeModel_T >::BoundaryHandling_T;
 
@@ -483,8 +480,8 @@ MyBoundaryHandling<LatticeModel_T>::initialize( IBlock * const block )
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "boundary handling", flagField, fluid,
-         boost::tuples::make_tuple( NoSlip_T( "no slip", NoSlip_Flag, pdfField ),
-                                       UBB_T( "velocity bounce back", UBB_Flag, pdfField, velocity_, real_c(0), real_c(0) ) ) );
+                                                           NoSlip_T( "no slip", NoSlip_Flag, pdfField ),
+                                                           UBB_T( "velocity bounce back", UBB_Flag, pdfField, velocity_, real_c(0), real_c(0) ) );
 
    auto forest = forest_.lock();
    WALBERLA_CHECK_NOT_NULLPTR( forest );
@@ -647,7 +644,7 @@ struct AddRefinementTimeStep
 };
 
 template< typename LatticeModel_T  >
-struct AddRefinementTimeStep< LatticeModel_T, typename boost::enable_if_c< boost::is_same< typename LatticeModel_T::CollisionModel::tag,
+struct AddRefinementTimeStep< LatticeModel_T, typename std::enable_if< std::is_same< typename LatticeModel_T::CollisionModel::tag,
                                                                                            lbm::collision_model::MRT_tag >::value >::type >
 {
    static void add( SweepTimeloop & timeloop, shared_ptr< blockforest::StructuredBlockForest > & blocks,
@@ -777,14 +774,14 @@ void run( const shared_ptr< Config > & config, const LatticeModel_T & latticeMod
       if( dynamicLoadBalancingType == 0 )
       {
          blockforest.setRefreshPhantomBlockMigrationPreparationFunction(
-                  blockforest::DynamicLevelwiseCurveBalance< blockforest::NoPhantomData >( curveHilbert, curveAllGather ) );
+                  blockforest::DynamicCurveBalance< blockforest::NoPhantomData >( curveHilbert, curveAllGather ) );
                   
          loadBalanceLogging << "\n   + type:            " << ( curveHilbert ? "Hilbert order" : "Morton order" ) <<
                                "\n   + parallelization: " << ( curveAllGather? "all gather" : "master-slave" );
       }
       else
       {
-         using DLDB = blockforest::DynamicLevelwiseDiffusionBalance<blockforest::NoPhantomData>;
+         using DLDB = blockforest::DynamicDiffusionBalance<blockforest::NoPhantomData>;
          DLDB balancer( diffusionMaxIterations, diffusionFlowIterations );
          if( diffusionMode == 0 )
             balancer.setMode( DLDB::DIFFUSION_PUSH );

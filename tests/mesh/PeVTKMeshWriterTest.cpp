@@ -31,6 +31,7 @@
 #include <mesh/pe/communication/ConvexPolyhedron.h>
 #include <mesh/PolyMeshes.h>
 
+#include <blockforest/Initialization.h>
 #include <core/Abort.h>
 #include <core/Environment.h>
 #include <core/grid_generator/HCPIterator.h>
@@ -45,12 +46,13 @@
 
 #include <functional>
 #include <random>
+#include <tuple>
 
 using namespace walberla;
 using namespace walberla::pe;
 using namespace walberla::mesh::pe;
 
-typedef boost::tuple<ConvexPolyhedron, Plane> BodyTuple ;
+typedef std::tuple<ConvexPolyhedron, Plane> BodyTuple ;
 
 std::vector<Vector3<real_t>> generatePointCloudCube()
 {
@@ -94,7 +96,7 @@ std::vector<Vector3<real_t>> generatPointCloudOnSphere( const real_t radius, con
    std::vector<Vector3<real_t>> pointCloud( numPoints );
    for( auto & p : pointCloud )
    {
-      real_t theta = 2 * math::PI * distribution(rng);
+      real_t theta = 2 * real_t(M_PI) * distribution(rng);
       real_t phi = std::acos( real_t(1.0) - real_t(2.0) * distribution(rng) );
       p[0] = std::sin(phi) * std::cos(theta) * radius;
       p[1] = std::sin(phi) * std::sin(theta) * radius;
@@ -128,8 +130,8 @@ int main( int argc, char ** argv )
 
    shared_ptr<BodyStorage> globalBodyStorage = make_shared<BodyStorage>();
 
-   shared_ptr< BlockForest > forest = createBlockForest( AABB( real_t(0), real_t(0), real_t(0), real_t(6), real_t(6), real_t(6) ), 
-                                                         Vector3<uint_t>( uint_t(2) ), Vector3<bool>( false ) );
+   auto forest = blockforest::createBlockForest( AABB( real_t(0), real_t(0), real_t(0), real_t(6), real_t(6), real_t(6) ),
+                                                 Vector3<uint_t>( uint_t(2) ), Vector3<bool>( false ) );
 
    SetBodyTypeIDs<BodyTuple>::execute();
 

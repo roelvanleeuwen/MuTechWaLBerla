@@ -34,7 +34,7 @@ set ( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${walberla_SOURCE_DIR}/cmake )
 
 include ( waLBerlaFunctions )
 
-set_version( 4 0 )
+set_version( 5 0 )
 
 include( CMakeParseArguments )
 
@@ -64,6 +64,7 @@ option ( WALBERLA_BUILD_BENCHMARKS          "Build Benchmarks"                  
 option ( WALBERLA_BUILD_TOOLS               "Build Tools"                                        )
 option ( WALBERLA_BUILD_TUTORIALS           "Build Tutorials"                                 ON )
 option ( WALBERLA_BUILD_SHOWCASES           "Build Showcases"                                OFF )
+option ( WALBERLA_BUILD_DOC                 "Build Documentation"                             ON )
 
 option ( WALBERLA_BUILD_WITH_MPI            "Build with MPI"                                  ON )
 option ( WALBERLA_BUILD_WITH_METIS          "Build with metis graph partitioner"             OFF )
@@ -128,6 +129,11 @@ option ( WALBERLA_SANITIZE_UNDEFINED  "Enables undefined behavior sanitizer in g
 list( APPEND WALBERLA_MODULE_DIRS "${walberla_SOURCE_DIR}/src" "${walberla_SOURCE_DIR}/tests" )
 list( REMOVE_DUPLICATES  WALBERLA_MODULE_DIRS )
 set ( WALBERLA_MODULE_DIRS  ${WALBERLA_MODULE_DIRS} CACHE INTERNAL "All folders that contain modules or tests" )
+
+# target_link_libraries needs to called with keywords everywhere if it is called with keywords once
+if( DEFINED CUDA_LINK_LIBRARIES_KEYWORD AND NOT CUDA_LINK_LIBRARIES_KEYWORD STREQUAL "" )
+    set( WALBERLA_LINK_LIBRARIES_KEYWORD PUBLIC )
+endif()
 
 ############################################################################################################################
 
@@ -275,7 +281,7 @@ set( CMAKE_CXX_STANDARD_REQUIRED ON )
 set( CMAKE_CXX_EXTENSIONS OFF )
 
 # common flags for intel and g++
-if( WALBERLA_CXX_COMPILER_IS_GNU OR WALBERLA_CXX_COMPILER_IS_INTEL )
+if ( NOT WARNING_DISABLE AND ( WALBERLA_CXX_COMPILER_IS_GNU OR WALBERLA_CXX_COMPILER_IS_INTEL ) )
    add_flag ( CMAKE_CXX_FLAGS "-Wall -Wconversion -Wshadow" )
 endif()
 
@@ -547,11 +553,13 @@ endif ( )
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_CODEGEN )
     find_package( PythonInterp 3 QUIET REQUIRED)
-    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import pystencils_walberla" RESULT_VARIABLE PYTHON_RET_CODE)
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import pystencils_walberla; from pystencils.include import get_pystencils_include_path; print(get_pystencils_include_path())"
+                    RESULT_VARIABLE PYTHON_RET_CODE
+                    OUTPUT_VARIABLE PYSTENCILS_INCLUDE_PATH)
     if(NOT PYTHON_RET_CODE EQUAL 0)
         message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated and pystencils_walberla package not found")
     endif()
-
+    include_directories( ${PYSTENCILS_INCLUDE_PATH} )
 endif()
 ############################################################################################################################
 
@@ -613,12 +621,13 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
     endif()
 
 
-    # Sphinx documentation
-    # to build documentation make sure to have sphinx and read-the-docs theme installed
-    # Install with: "pip install sphinx sphinx_rtd_theme"
-    add_custom_target( docPython sphinx-build -b html "${walberla_SOURCE_DIR}/python/waLBerla_docs" "${walberla_BINARY_DIR}/doc/python"
-                       COMMENT "Building HTML documentation for Python extension with Sphinx")
-
+    if(WALBERLA_BUILD_DOC)
+      # Sphinx documentation
+      # to build documentation make sure to have sphinx and read-the-docs theme installed
+      # Install with: "pip install sphinx sphinx_rtd_theme"
+      add_custom_target( docPython sphinx-build -b html "${walberla_SOURCE_DIR}/python/waLBerla_docs" "${walberla_BINARY_DIR}/doc/python"
+                         COMMENT "Building HTML documentation for Python extension with Sphinx")
+  endif()
 endif()
 
 
@@ -636,14 +645,15 @@ else()
 endif()
 
 if ( WALBERLA_BUILD_WITH_PYTHON AND WALBERLA_CXX_COMPILER_IS_MSVC )
-    list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS python3 )
+    list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS python36 )
 endif()
 
 # This variable is necessary, if the CMAKE version used is not aware of a more recent boost version (keep this up to date!)
 set ( Boost_ADDITIONAL_VERSIONS
       "1.45" "1.45.0" "1.46" "1.46.0" "1.46.1" "1.47" "1.47.0" "1.48" "1.48.0" "1.49" "1.49.0"
       "1.50" "1.50.0" "1.51" "1.51.0" "1.52" "1.52.0" "1.53" "1.53.0" "1.54" "1.54.0" "1.55" "1.55.0"
-      "1.56" "1.56.0" "1.57" "1.57.0" "1.58" "1.58.0" "1.59" "1.59.0" "1.60" "1.60.0" "1.61" "1.61.0" "1.62" "1.62.0" "1.63" "1.63.0")
+      "1.56" "1.56.0" "1.57" "1.57.0" "1.58" "1.58.0" "1.59" "1.59.0" "1.60" "1.60.0" "1.61" "1.61.0" "1.62" "1.62.0" "1.63" "1.63.0"
+      "1.64.0" "1.65.0" "1.65.1" "1.66.0" "1.67.0" "1.68.0" "1.69.0" "1.70.0" )
 
 set ( Boost_USE_STATIC_LIBS    OFF CACHE BOOL "Use boost static libraries" )
 set ( Boost_USE_MULTITHREADED  OFF CACHE BOOL "Use boost multithreaded libraries" )
@@ -708,9 +718,18 @@ if ( Boost_FOUND )
       list( APPEND LINK_DIRS ${PYTHON_LIBRARY_DIR}/libs )
    endif()
 
+   set( WALBERLA_BUILD_WITH_BOOST TRUE CACHE INTERNAL "Build with Boost" )
 else( Boost_FOUND )
-   # Search again, this time with the REQUIRED option. This will give a CMAKE error and a detailed error message for the user
-   find_package ( Boost ${waLBerla_REQUIRED_MIN_BOOST_VERSION} REQUIRED ${waLBerla_REQUIRED_BOOST_COMPONENTS} OPTIONAL_COMPONENTS ${waLBerla_OPTIONAL_BOOST_COMPONENTS} )
+   if( (WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM OR WALBERLA_USE_STD_FILESYSTEM) AND (WALBERLA_USE_STD_EXPERIMENTAL_ANY OR WALBERLA_USE_STD_ANY) AND (WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL OR WALBERLA_USE_STD_OPTIONAL) AND NOT WALBERLA_BUILD_WITH_PYTHON)
+      # we don't really need Boost
+      set( WALBERLA_BUILD_WITH_BOOST FALSE CACHE INTERNAL "Build with Boost" )
+   else()
+      # Search again, this time with the REQUIRED option. This will give a CMAKE error and a detailed error message for the user
+      find_package ( Boost ${waLBerla_REQUIRED_MIN_BOOST_VERSION} REQUIRED ${waLBerla_REQUIRED_BOOST_COMPONENTS} OPTIONAL_COMPONENTS ${waLBerla_OPTIONAL_BOOST_COMPONENTS} )
+      if( (WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM OR WALBERLA_USE_STD_FILESYSTEM) AND (WALBERLA_USE_STD_EXPERIMENTAL_ANY OR WALBERLA_USE_STD_ANY) AND (WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL OR WALBERLA_USE_STD_OPTIONAL) )
+         message(WARNING "If you set WALBERLA_BUILD_WITH_PYTHON=OFF, you can build without the Boost library.")
+      endif()
+   endif()
 endif( Boost_FOUND )
 
 
@@ -722,9 +741,10 @@ if ( WALBERLA_BUILD_WITH_PYTHON AND NOT WALBERLA_CXX_COMPILER_IS_MSVC)
     endif()
     if( PYTHON_LIBRARY MATCHES "python3" )
         find_library( BOOST_PYTHON_LIBRARY NAMES
-                boost_python-py36${_boost_MULTITHREADED} boost_python-py35${_boost_MULTITHREADED}
+                boost_python37${_boost_MULTITHREADED} boost_python36${_boost_MULTITHREADED} boost_python35${_boost_MULTITHREADED}
+                boost_python-py37${_boost_MULTITHREADED} boost_python-py36${_boost_MULTITHREADED} boost_python-py35${_boost_MULTITHREADED}
                 boost_python-py34${_boost_MULTITHREADED} boost_python-py33${_boost_MULTITHREADED}
-                boost_python-py32${_boost_MULTITHREADED} boost_python3${_boost_MULTITHREADED}
+                boost_python3${_boost_MULTITHREADED}
                 boost_python${_boost_MULTITHREADED}
                 PATHS ${Boost_LIBRARY_DIRS} NO_DEFAULT_PATH )
     else()
@@ -821,14 +841,6 @@ if ( WALBERLA_BUILD_WITH_MPI AND NOT WALBERLA_CXX_COMPILER_IS_MPI_WRAPPER )
      add_flag ( CMAKE_MODULE_LINKER_FLAGS "${MPI_CXX_LINK_FLAGS}" )
      add_flag ( CMAKE_EXE_LINKER_FLAGS    "${MPI_CXX_LINK_FLAGS}" )
      add_flag ( CMAKE_SHARED_LINKER_FLAGS "${MPI_CXX_LINK_FLAGS}" )
-
-     # When using Intel MPI, mpi.h has to be included before including the standard library
-     # therefore we use the -include flag to enforce this.
-     if ( MPI_C_INCLUDE_PATH MATCHES "intel" )
-         message (STATUS "Activating IntelMPI include workaround for mpi.h" )
-         add_flag ( CMAKE_CXX_FLAGS "-include mpi.h" )
-         add_flag ( CMAKE_C_FLAGS   "-include mpi.h" )
-     endif ( )
    endif ( )
 endif ( )
 
@@ -851,6 +863,7 @@ option (WALBERLA_ENABLE_GUI "This flag builds the graphical user interface, depe
 if ( WALBERLA_ENABLE_GUI )
 
     find_package( Qt4 COMPONENTS QtCore QtGui QtOpenGL QtXml REQUIRED )
+    set( OpenGL_GL_PREFERENCE LEGACY )
     find_package( OpenGL REQUIRED )
 
     INCLUDE( ${QT_USE_FILE} )
@@ -1123,6 +1136,14 @@ if ( WALBERLA_BUILD_WITH_CUDA )
             list ( APPEND CUDA_NVCC_FLAGS "-std=c++14" )
         endif ()
 
+        if(CMAKE_BUILD_TYPE MATCHES Debug)
+            list ( APPEND CUDA_NVCC_FLAGS "-g -G" )
+        endif()
+
+        if( WALBERLA_BUILD_WITH_FASTMATH )
+           list ( APPEND CUDA_NVCC_FLAGS "-use_fast_math" )
+        endif()
+
         # Bug with gcc5 and cuda7.5:
         #list( APPEND CUDA_NVCC_FLAGS  "-D_MWAITXINTRIN_H_INCLUDED -D_FORCE_INLINES  -D__STRICT_ANSI__")
 
@@ -1263,28 +1284,31 @@ endif()
 ############################################################################################################################
 # Documentation Generation
 #
-# Build documentation using Doxygen (www.doxygen.org)
-############################################################################################################################
-find_package ( Doxygen  )
-find_package ( HTMLHelp )
+if (WALBERLA_BUILD_DOC)
+  # Build documentation using Doxygen (www.doxygen.org)
+  ############################################################################################################################
+  find_package ( Doxygen  )
+  find_package ( HTMLHelp )
+  
+  if ( HTML_HELP_COMPILER EQUAL "" )
+     set ( HTML_HELP_FOUND "NO" )
+  else ( )
+     set ( HTML_HELP_FOUND "YES" )
+  endif ( )
+  
+  if ( DOXYGEN_FOUND )
+     set ( DOXYGEN_HTML_HEADER ${walberla_SOURCE_DIR}/doc/header.html )
+     set ( DOXYGEN_HTML_FOOTER ${walberla_SOURCE_DIR}/doc/footer.html )
+     set ( DOXYGEN_HTML_OUTPUT "html" )
+  
+     configure_file ( ${walberla_SOURCE_DIR}/doc/doxygen.in ${walberla_BINARY_DIR}/doc/doxygen.cfg @ONLY )
 
-if ( HTML_HELP_COMPILER EQUAL "" )
-   set ( HTML_HELP_FOUND "NO" )
-else ( )
-   set ( HTML_HELP_FOUND "YES" )
-endif ( )
+     add_custom_target ( doc   ${DOXYGEN_EXECUTABLE} ${walberla_BINARY_DIR}/doc/doxygen.cfg
+                            COMMENT "Generating API documentation with Doxygen" VERBATIM )
 
-if ( DOXYGEN_FOUND )
-   set ( DOXYGEN_HTML_HEADER ${walberla_SOURCE_DIR}/doc/header.html )
-   set ( DOXYGEN_HTML_FOOTER ${walberla_SOURCE_DIR}/doc/footer.html )
-   set ( DOXYGEN_HTML_OUTPUT "html" )
+  endif ( )
+endif()
 
-   configure_file ( ${walberla_SOURCE_DIR}/doc/doxygen.in ${walberla_BINARY_DIR}/doc/doxygen.cfg @ONLY )
-
-   add_custom_target ( doc   ${DOXYGEN_EXECUTABLE} ${walberla_BINARY_DIR}/doc/doxygen.cfg
-                       COMMENT "Generating API documentation with Doxygen" VERBATIM )
-
-endif ( )
 ############################################################################################################################
 
 

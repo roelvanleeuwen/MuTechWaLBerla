@@ -25,6 +25,7 @@
 #include <core/DataTypes.h>
 
 #include <string>
+#include <tuple>
 
 namespace walberla {
 
@@ -32,13 +33,13 @@ namespace dem {
 real_t calcCoefficientOfRestitution(const real_t k, const real_t gamma, const real_t meff)
 {
    auto a = real_t(0.5) * gamma / meff;
-   return std::exp(-a * math::PI / std::sqrt(k / meff - a*a));
+   return std::exp(-a * math::M_PI / std::sqrt(k / meff - a*a));
 }
 
 real_t calcCollisionTime(const real_t k, const real_t gamma, const real_t meff)
 {
    auto a = real_t(0.5) * gamma / meff;
-   return math::PI / std::sqrt( k/meff - a*a);
+   return math::M_PI / std::sqrt( k/meff - a*a);
 }
 }
 
@@ -47,7 +48,7 @@ int main( int argc, char** argv )
    using namespace walberla;
    using namespace walberla::pe;
 
-   typedef boost::tuple<Sphere, Plane> BodyTuple ;
+   typedef std::tuple<Sphere, Plane> BodyTuple ;
 
    walberla::MPIManager::instance()->initializeMPI( &argc, &argv );
 

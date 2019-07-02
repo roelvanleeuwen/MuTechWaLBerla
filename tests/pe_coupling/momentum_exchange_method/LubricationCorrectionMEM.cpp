@@ -77,8 +77,7 @@ using walberla::uint_t;
 //////////////
 
 // pdf field & flag field
-
-typedef lbm::D3Q19< lbm::collision_model::TRT, false >  LatticeModel_T;
+typedef lbm::D3Q19< lbm::collision_model::TRT >  LatticeModel_T;
 using Stencil_T = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField<LatticeModel_T>;
 
@@ -96,11 +95,9 @@ typedef GhostLayerField< pe::BodyID, 1 >  BodyField_T;
 typedef lbm::FreeSlip< LatticeModel_T, FlagField_T>           FreeSlip_T;
 typedef pe_coupling::SimpleBB< LatticeModel_T, FlagField_T > MO_T;
 
-typedef boost::tuples::tuple< FreeSlip_T, MO_T > BoundaryConditions_T;
+typedef BoundaryHandling< FlagField_T, Stencil_T, FreeSlip_T, MO_T > BoundaryHandling_T;
 
-typedef BoundaryHandling< FlagField_T, Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
-
-typedef boost::tuple<pe::Sphere, pe::Plane> BodyTypeTuple ;
+typedef std::tuple<pe::Sphere, pe::Plane> BodyTypeTuple ;
 
 ///////////
 // FLAGS //
@@ -262,10 +259,10 @@ private:
             WALBERLA_CHECK_FLOAT_EQUAL ( forceSphr2[0], -forceSphr1[0] );
 
             // according to the formula from Ding & Aidun 2003
-            // F = 3/2 * PI * rho_L * nu_L * relative velocity of both spheres * r * r * 1/gap
+            // F = 3/2 * M_PI * rho_L * nu_L * relative velocity of both spheres * r * r * 1/gap
             // the correct analytically calculated value is 339.2920063998
             // in this geometry setup the relative error is 0.1246489711 %
-            real_t analytical = real_c(3.0)/real_c(2.0) * walberla::math::PI * real_c(1.0) * nu_L_ * real_c(2.0) * real_c(vel_[0]) * radius_ * radius_ * real_c(1.0)/gap;
+            real_t analytical = real_c(3.0)/real_c(2.0) * walberla::math::M_PI * real_c(1.0) * nu_L_ * real_c(2.0) * real_c(vel_[0]) * radius_ * radius_ * real_c(1.0)/gap;
             real_t relErr     = std::fabs( analytical - forceSphr2[0] ) / analytical * real_c(100.0);
             WALBERLA_CHECK_LESS( relErr, real_t(1) );
          }
@@ -358,10 +355,10 @@ private:
          if ( timestep == uint_t(26399) )
          {
             // according to the formula from Ding & Aidun 2003
-            // F = 6 * PI * rho_L * nu_L * relative velocity of both bodies=relative velocity of the sphere * r * r * 1/gap
+            // F = 6 * M_PI * rho_L * nu_L * relative velocity of both bodies=relative velocity of the sphere * r * r * 1/gap
             // the correct analytically calculated value is 339.292006996217
             // in this geometry setup the relative error is 0.183515322065561 %
-            real_t analytical = real_c(6.0) * walberla::math::PI * real_c(1.0) * nu_L_ * real_c(-vel_[0]) * radius_ * radius_ * real_c(1.0)/gap;
+            real_t analytical = real_c(6.0) * walberla::math::M_PI * real_c(1.0) * nu_L_ * real_c(-vel_[0]) * radius_ * radius_ * real_c(1.0)/gap;
             real_t relErr     = std::fabs( analytical - forceSphr1[0] ) / analytical * real_c(100.0);
             WALBERLA_CHECK_LESS( relErr, real_t(1) );
          }
@@ -462,8 +459,8 @@ BoundaryHandling_T * SphSphTestBoundaryHandling::operator()( IBlock * const bloc
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "cf boundary handling", flagField, fluid,
-         boost::tuples::make_tuple( FreeSlip_T( "FreeSlip", FreeSlip_Flag, pdfField, flagField, fluid ),
-                                    MO_T( "MO", MO_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) ) );
+                                                           FreeSlip_T( "FreeSlip", FreeSlip_Flag, pdfField, flagField, fluid ),
+                                                           MO_T( "MO", MO_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) );
 
    const auto freeslip = flagField->getFlag( FreeSlip_Flag );
 
@@ -549,8 +546,8 @@ BoundaryHandling_T * SphWallTestBoundaryHandling::operator()( IBlock * const blo
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "cf boundary handling", flagField, fluid,
-         boost::tuples::make_tuple( FreeSlip_T( "FreeSlip", FreeSlip_Flag, pdfField, flagField, fluid ),
-                                    MO_T( "MO", MO_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) ) );
+                                                           FreeSlip_T( "FreeSlip", FreeSlip_Flag, pdfField, flagField, fluid ),
+                                                           MO_T( "MO", MO_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) );
 
    const auto freeslip = flagField->getFlag( FreeSlip_Flag );
 

@@ -38,9 +38,7 @@
 #include "core/mpi/RecvBuffer.h"
 #include <core/logging/Logging.h>
 
-#include <boost/type_traits/is_floating_point.hpp>
-#include <boost/type_traits/is_const.hpp>
-#include <boost/type_traits/is_volatile.hpp>
+#include <type_traits>
 
 #include <cmath>
 #include <istream>
@@ -102,9 +100,9 @@ class Quaternion
 {
    //**Compile time checks*************************************************************************
    /*! \cond internal */
-   static_assert(boost::is_floating_point<Type>::value, "T has to be floating point!");
-   static_assert(!boost::is_const<Type>::value, "T has to be non const!");
-   static_assert(!boost::is_volatile<Type>::value, "T has to be non volatile!");
+   static_assert(std::is_floating_point<Type>::value, "T has to be floating point!");
+   static_assert(!std::is_const<Type>::value, "T has to be non const!");
+   static_assert(!std::is_volatile<Type>::value, "T has to be non volatile!");
    /*! \endcond */
    //**********************************************************************************************
 
@@ -163,6 +161,8 @@ public:
                               inline void                       rotateZ( Type angle );
                               inline void                       swap( Quaternion& q ) /* throw() */;
                               inline const Vector3<Type>        getEulerAnglesXYZ() const;
+                              inline Type*                      data()                         {return v_;}
+                              inline Type const *               data()                         const {return v_;}
    //@}
    //**********************************************************************************************
 
@@ -237,7 +237,12 @@ template< typename Type >  // Data type of the quaternion
 inline Quaternion<Type>::Quaternion( Type r, Type i, Type j, Type k )
 {
    v_[0] = r; v_[1] = i; v_[2] = j; v_[3] = k;
-   WALBERLA_CHECK_FLOAT_EQUAL( r*r + i*i + j*j + k*k, Type(1), "Invalid quaternion parameters" );
+
+   WALBERLA_CHECK_FLOAT_EQUAL( r*r + i*i + j*j + k*k, Type(1), "Invalid quaternion parameters:\n" <<
+                               "r: " << r << "\n" <<
+                               "i: " << i << "\n" <<
+                               "j: " << j << "\n" <<
+                               "k: " << k);
 }
 //*************************************************************************************************
 
@@ -259,7 +264,7 @@ template< typename Type >  // Data type of the quaternion
 template< typename Axis >  // Data type of the rotation axis
 inline Quaternion<Type>::Quaternion( Vector3<Axis> axis, Type angle )
 {
-   static_assert(boost::is_floating_point<Axis>::value, "Axis has to be floating point!" );
+   static_assert(std::is_floating_point<Axis>::value, "Axis has to be floating point!" );
 
    auto axisLength = axis.length();
    if( (floatIsEqual(axisLength, 0)) || (math::equal(std::fabs(angle), real_t(0)))  ) {
@@ -497,7 +502,9 @@ inline const Matrix3<Type> Quaternion<Type>::toRotationMatrix() const
 template< typename Type >
 inline Type Quaternion<Type>::getAngle() const
 {
-   return Type(2)*std::acos(v_[0]);
+   //due to numerical accuracy v_[0] might be slightly larger than 1
+   //which will results in nan for the acos function.
+   if (v_[0]<Type(1)) return Type(2)*std::acos(v_[0]); else return Type(0);
 }
 //*************************************************************************************************
 
@@ -512,11 +519,17 @@ inline Type Quaternion<Type>::getAngle() const
 template< typename Type >
 inline const Vector3<Type> Quaternion<Type>::getAxis() const
 {
-   Type s( std::sqrt( 1-v_[0]*v_[0] ) );
-   if (s < std::numeric_limits<Type>::epsilon())
+   // tmp might be negative due to numerical accuracy
+   // check before putting it into sqrt!!!
+   auto tmp = Type(1)-v_[0]*v_[0];
+
+   if (tmp < std::numeric_limits<Type>::epsilon())
+   {
       return Vector3<Type>( 1, 0, 0 );
-   else
+   } else {
+      Type s( std::sqrt( tmp ) );
       return Vector3<Type>( v_[1] / s, v_[2] / s, v_[3] / s );
+   }
 }
 //*************************************************************************************************
 
@@ -1056,6 +1069,7 @@ inline const Quaternion< typename MathTrait<T1,T2>::MultType >
    const MT k( lhs[0]*rhs[3] + lhs[3]*rhs[0] + lhs[1]*rhs[2] - lhs[2]*rhs[1] );
 
    const MT len2( r*r + i*i + j*j + k*k );
+   WALBERLA_ASSERT(!std::isnan(len2), lhs << "\n" << rhs);
 
    if( std::fabs( len2 - MT(1) ) < MT(1E-8) ) {
       return Quaternion<MT>( r, i, j, k );
@@ -1085,7 +1099,10 @@ namespace mpi {
    mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, const math::Quaternion<VT> & quat )
    {
       buf.addDebugMarker( "q4" );
-      buf << quat[0] << quat[1] << quat[2] << quat[3];
+      static_assert ( std::is_trivially_copyable< math::Quaternion<VT> >::value,
+                      "type has to be trivially copyable for the memcpy to work correctly" );
+      auto pos = buf.forward(sizeof(math::Quaternion<VT>));
+      std::memcpy(pos, &quat, sizeof(math::Quaternion<VT>));
       return buf;
    }
 
@@ -1094,9 +1111,11 @@ namespace mpi {
    mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, math::Quaternion<VT> & quat )
    {
       buf.readDebugMarker( "q4" );
-      VT tmp1, tmp2, tmp3, tmp4;
-      buf >> tmp1 >> tmp2 >> tmp3 >> tmp4;
-      quat.set(tmp1, tmp2, tmp3, tmp4);
+      static_assert ( std::is_trivially_copyable< math::Quaternion<VT> >::value,
+                      "type has to be trivially copyable for the memcpy to work correctly" );
+      auto pos = buf.skip(sizeof(math::Quaternion<VT>));
+      //suppress https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html#index-Wclass-memaccess
+      std::memcpy(static_cast<void*>(&quat), pos, sizeof(math::Quaternion<VT>));
       return buf;
    }
 

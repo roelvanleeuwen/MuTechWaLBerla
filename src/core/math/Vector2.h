@@ -37,16 +37,10 @@
 #include "core/mpi/RecvBuffer.h"
 #include "core/mpi/SendBuffer.h"
 
-#include <boost/functional/hash.hpp>
-#include <boost/type_traits/is_floating_point.hpp>
-#include <boost/type_traits/is_fundamental.hpp>
-#include <boost/type_traits/is_same.hpp>
-#include <boost/utility/enable_if.hpp>
-
 #include <cmath>
 #include <iostream>
 #include <limits>
-
+#include <type_traits>
 
 namespace walberla {
 namespace math {
@@ -89,7 +83,7 @@ namespace math {
 template< typename Type >
 class Vector2
 {
-   static_assert( boost::is_arithmetic<Type>::value, "Vector2 only accepts arithmetic data types" );
+   static_assert( std::is_arithmetic<Type>::value, "Vector2 only accepts arithmetic data types" );
 
 private:
    //**Friend declarations*************************************************************************
@@ -165,6 +159,8 @@ public:
    inline Length          length()                       const;
    inline Type            sqrLength()                    const;
    inline Vector2<Length> getNormalized()                const;
+   inline Type*           data()                         {return v_;}
+   inline Type const *    data()                         const {return v_;}
    //@}
    //*******************************************************************************************************************
 
@@ -223,7 +219,7 @@ template< typename Type >
 template< typename Other >
 inline Vector2<Type>::Vector2( Other init )
 {
-   static_assert( boost::is_arithmetic<Other>::value, "Vector2 only accepts arithmetic data types in Vector2( Other init )");
+   static_assert( std::is_arithmetic<Other>::value, "Vector2 only accepts arithmetic data types in Vector2( Other init )");
 
    v_[0] = v_[1] = init;
 }
@@ -1326,7 +1322,7 @@ inline bool operator!=( long double scalar, const Vector2<Type>& vec )
 // \return The scaled result vector.
 */
 template< typename Type, typename Other >
-inline typename boost::enable_if_c< boost::is_fundamental<Other>::value, Vector2<HIGH> >::type
+inline typename std::enable_if< std::is_fundamental<Other>::value, Vector2<HIGH> >::type
    operator*( Other scalar, const Vector2<Type>& vec )
 {
    return vec * scalar;
@@ -1524,9 +1520,9 @@ inline const Vector2<Type> fabs( const Vector2<Type>& v )
 template<typename T>
 Vector2<T> & normalize( Vector2<T> & v )
 {
-   static_assert( boost::is_floating_point<T>::value,
+   static_assert( std::is_floating_point<T>::value,
       "You can only normalize floating point vectors in-place!");
-   static_assert( (boost::is_same<T, typename Vector2<T>::Length>::value),
+   static_assert( (std::is_same<T, typename Vector2<T>::Length>::value),
       "The type of your Vector2's length does not match its element type!" );
 
    const T len( v.length() );
@@ -1579,9 +1575,10 @@ template< typename T >
 size_t hash_value( const Vector2<T> & v )
 {
    size_t seed = 0;
+   std::hash<T> hasher;
 
-   boost::hash_combine( seed, v[0] );
-   boost::hash_combine( seed, v[1] );
+   seed ^= hasher(v[0]) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+   seed ^= hasher(v[1]) + 0x9e3779b9 + (seed<<6) + (seed>>2);
 
    return seed;
 
@@ -1613,7 +1610,10 @@ namespace mpi {
    mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, const Vector2<VT> & vec )
    {
       buf.addDebugMarker( "v2" );
-      buf << vec[0] << vec[1];
+      static_assert ( std::is_trivially_copyable< Vector2<VT> >::value,
+                      "type has to be trivially copyable for the memcpy to work correctly" );
+      auto pos = buf.forward(sizeof(Vector2<VT>));
+      std::memcpy(pos, &vec, sizeof(Vector2<VT>));
       return buf;
    }
 
@@ -1622,7 +1622,11 @@ namespace mpi {
    mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, Vector2<VT> & vec )
    {
       buf.readDebugMarker( "v2" );
-      buf >> vec[0] >> vec[1] ;
+      static_assert ( std::is_trivially_copyable< Vector2<VT> >::value,
+                      "type has to be trivially copyable for the memcpy to work correctly" );
+      auto pos = buf.skip(sizeof(Vector2<VT>));
+      //suppress https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html#index-Wclass-memaccess
+      std::memcpy(static_cast<void*>(&vec), pos, sizeof(Vector2<VT>));
       return buf;
    }
 

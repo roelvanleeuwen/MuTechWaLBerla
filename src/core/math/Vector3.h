@@ -38,17 +38,10 @@
 #include "core/mpi/SendBuffer.h"
 #include "core/debug/CheckFunctions.h"
 
-#include <boost/functional/hash.hpp>
-#include <boost/type_traits.hpp>
-#include <boost/type_traits/is_floating_point.hpp>
-#include <boost/type_traits/is_fundamental.hpp>
-#include <boost/type_traits/is_same.hpp>
-#include <boost/type_traits/is_arithmetic.hpp>
-#include <boost/utility/enable_if.hpp>
-
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <type_traits>
 
 
 namespace walberla {
@@ -90,7 +83,7 @@ namespace math {
 template< typename Type >
 class Vector3
 {
-   static_assert( boost::is_arithmetic<Type>::value, "Vector3 only accepts arithmetic data types" );
+   static_assert( std::is_arithmetic<Type>::value, "Vector3 only accepts arithmetic data types" );
 
 private:
    //**Friend declarations*************************************************************************
@@ -172,6 +165,8 @@ public:
    inline Vector3<Length> getNormalized()                const;
    inline Vector3<Length> getNormalizedOrZero()          const;
    inline void            reset();
+   inline Type*           data()                         {return v_;}
+   inline Type const *    data()                         const {return v_;}
    //@}
    //*******************************************************************************************************************
 
@@ -230,7 +225,7 @@ template< typename Type >
 template< typename Other >
 inline Vector3<Type>::Vector3( Other init )
 {
-   static_assert( boost::is_arithmetic<Other>::value, "Vector3 only accepts arithmetic data types in Vector3( Other init )");
+   static_assert( std::is_arithmetic<Other>::value, "Vector3 only accepts arithmetic data types in Vector3( Other init )");
 
    v_[0] = v_[1] = v_[2] = numeric_cast<Type>(init);
 }
@@ -888,7 +883,7 @@ Vector3<typename Vector3<Type>::Length> Vector3<Type>::getNormalizedOrZero() con
                             static_cast<Length>( v_[1] ) * ilen,
                             static_cast<Length>( v_[2] ) * ilen );
 
-   WALBERLA_ASSERT_FLOAT_EQUAL( result.sqrLength(), 1.0 );
+   WALBERLA_ASSERT_FLOAT_EQUAL( result.sqrLength(), 1.0, "initial vector: " << result );
 
    return result;
 }
@@ -1478,7 +1473,7 @@ inline bool operator!=( long double scalar, const Vector3<Type>& vec )
 // \return The scaled result vector.
 */
 template< typename Type, typename Other >
-inline typename boost::enable_if_c< boost::is_fundamental<Other>::value, Vector3<HIGH> >::type
+inline typename std::enable_if< std::is_fundamental<Other>::value, Vector3<HIGH> >::type
    operator*( Other scalar, const Vector3<Type>& vec )
 {
    return vec * scalar;
@@ -1745,9 +1740,9 @@ inline void normals(const Vector3<Type>& v, Vector3<Type>& defNor, Vector3<Type>
 template<typename T>
 Vector3<T> & normalize( Vector3<T> & v )
 {
-   static_assert( boost::is_floating_point<T>::value,
+   static_assert( std::is_floating_point<T>::value,
       "You can only normalize floating point vectors in-place!");
-   static_assert( (boost::is_same<T, typename Vector3<T>::Length>::value),
+   static_assert( (std::is_same<T, typename Vector3<T>::Length>::value),
       "The type of your Vector3's length does not match its element type!" );
 
    const T len( v.length() );
@@ -1837,10 +1832,11 @@ template< typename T >
 size_t hash_value( const Vector3<T> & v )
 {
    size_t seed = 0;
+   std::hash<T> hasher;
 
-   boost::hash_combine( seed, v[0] );
-   boost::hash_combine( seed, v[1] );
-   boost::hash_combine( seed, v[2] );
+   seed ^= hasher(v[0]) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+   seed ^= hasher(v[1]) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+   seed ^= hasher(v[2]) + 0x9e3779b9 + (seed<<6) + (seed>>2);
 
    return seed;
 
@@ -1869,7 +1865,10 @@ namespace mpi {
    mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, const Vector3<VT> & vec )
    {
       buf.addDebugMarker( "v3" );
-      buf << vec[0] << vec[1] << vec[2];
+      static_assert ( std::is_trivially_copyable< Vector3<VT> >::value,
+                      "type has to be trivially copyable for the memcpy to work correctly" );
+      auto pos = buf.forward(sizeof(Vector3<VT>));
+      std::memcpy(pos, &vec, sizeof(Vector3<VT>));
       return buf;
    }
 
@@ -1878,7 +1877,11 @@ namespace mpi {
    mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, Vector3<VT> & vec )
    {
       buf.readDebugMarker( "v3" );
-      buf >> vec[0] >> vec[1] >> vec[2];
+      static_assert ( std::is_trivially_copyable< Vector3<VT> >::value,
+                      "type has to be trivially copyable for the memcpy to work correctly" );
+      auto pos = buf.skip(sizeof(Vector3<VT>));
+      //suppress https://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Dialect-Options.html#index-Wclass-memaccess
+      std::memcpy(static_cast<void*>(&vec), pos, sizeof(Vector3<VT>));
       return buf;
    }
 

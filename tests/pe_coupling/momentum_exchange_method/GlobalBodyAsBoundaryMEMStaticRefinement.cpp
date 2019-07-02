@@ -79,7 +79,7 @@ using walberla::uint_t;
 //////////////
 
 // PDF field, flag field & body field
-typedef lbm::D3Q19< lbm::collision_model::TRT, false >  LatticeModel_T;
+typedef lbm::D3Q19< lbm::collision_model::TRT >  LatticeModel_T;
 using Stencil_T = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField<LatticeModel_T>;
 
@@ -92,10 +92,9 @@ const uint_t FieldGhostLayers = 4;
 // boundary handling
 typedef pe_coupling::SimpleBB< LatticeModel_T, FlagField_T > MO_SBB_T;
 
-using BoundaryConditions_T = boost::tuples::tuple<MO_SBB_T>;
-typedef BoundaryHandling< FlagField_T, Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+typedef BoundaryHandling< FlagField_T, Stencil_T, MO_SBB_T > BoundaryHandling_T;
 
-using BodyTypeTuple = boost::tuple<pe::Plane>;
+using BodyTypeTuple = std::tuple<pe::Plane>;
 
 ///////////
 // FLAGS //
@@ -224,7 +223,7 @@ BoundaryHandling_T * MyBoundaryHandling::operator()( IBlock * const block, const
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "moving obstacle boundary handling", flagField, fluid,
-         boost::tuples::make_tuple( MO_SBB_T( "MO_SBB", MO_SBB_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) ) );
+          MO_SBB_T( "MO_SBB", MO_SBB_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) );
 
    // boundary conditions are set by mapping the (moving) planes into the domain
 

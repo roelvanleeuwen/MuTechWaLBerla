@@ -21,12 +21,16 @@ waLBerla_execute_test( NAME CellIntervalTest )
 waLBerla_compile_test( FILES config/ConfigTest.cpp )
 waLBerla_execute_test( NAME ConfigTest COMMAND $<TARGET_FILE:ConfigTest> ${CMAKE_CURRENT_SOURCE_DIR}/config/ConfigTest.dat )
 
-waLBerla_compile_test( FILES config/PropertyTreeTest.cpp)
-#waLBerla_execute_test(NAME PropertyTreeTest COMMAND $<TARGET_FILE:PropertyTreeTest> )
+if( WALBERLA_BUILD_WITH_BOOST )
+   waLBerla_compile_test( FILES config/PropertyTreeTest.cpp)
+   #waLBerla_execute_test(NAME PropertyTreeTest COMMAND $<TARGET_FILE:PropertyTreeTest> )
+endif( WALBERLA_BUILD_WITH_BOOST )
 
 
-waLBerla_compile_test( FILES config/MultiArrayIOTest.cpp )
-waLBerla_execute_test( NAME MultiArrayIOTest COMMAND $<TARGET_FILE:MultiArrayIOTest> )
+if( WALBERLA_BUILD_WITH_BOOST )
+   waLBerla_compile_test( FILES config/MultiArrayIOTest.cpp )
+   waLBerla_execute_test( NAME MultiArrayIOTest COMMAND $<TARGET_FILE:MultiArrayIOTest> )
+endif( WALBERLA_BUILD_WITH_BOOST )
 
 
 #########
@@ -84,9 +88,11 @@ waLBerla_execute_test( NAME Matrix3Test )
 waLBerla_compile_test( FILES math/GenericAABBTest.cpp DEPENDS stencil domain_decomposition )
 waLBerla_execute_test( NAME GenericAABBTest )
 
-waLBerla_compile_test( FILES math/PhysicalCheckTest.cpp DEPENDS stencil )
-waLBerla_execute_test( NAME PhysicalCheckTest 
-                      COMMAND $<TARGET_FILE:PhysicalCheckTest>  ${CMAKE_CURRENT_SOURCE_DIR}/math/PhysicalCheckTestInput.prm )
+if( WALBERLA_BUILD_WITH_BOOST )
+   waLBerla_compile_test( FILES math/PhysicalCheckTest.cpp DEPENDS stencil )
+   waLBerla_execute_test( NAME PhysicalCheckTest 
+                          COMMAND $<TARGET_FILE:PhysicalCheckTest>  ${CMAKE_CURRENT_SOURCE_DIR}/math/PhysicalCheckTestInput.prm )
+endif( WALBERLA_BUILD_WITH_BOOST )
 
 
 waLBerla_compile_test( FILES math/FastInvSqrtTest.cpp )
@@ -96,8 +102,10 @@ waLBerla_execute_test( NAME FastInvSqrtTest )
 # math/equation_system #
 ########################
 
-waLBerla_compile_test( FILES math/equation_system/EquationSolverTest.cpp )
-waLBerla_execute_test( NAME EquationSolverTest )
+if( WALBERLA_BUILD_WITH_BOOST )
+   waLBerla_compile_test( FILES math/equation_system/EquationSolverTest.cpp )
+   waLBerla_execute_test( NAME EquationSolverTest )
+endif( WALBERLA_BUILD_WITH_BOOST )
 
 #######
 # mpi #
@@ -140,9 +148,6 @@ waLBerla_execute_test( NAME SetReductionTest27 COMMAND $<TARGET_FILE:SetReductio
 
 
 
-waLBerla_compile_test( FILES mpi/ProbeVsExtraMessage.cpp DEPENDS postprocessing)
-
-
 ##############
 # selectable #
 ##############
@@ -153,6 +158,9 @@ waLBerla_execute_test( NAME SetSelectableObjectTest  )
 ##########
 # timing #
 ##########
+
+waLBerla_compile_test( FILES timing/ParallelTimerTest.cpp )
+waLBerla_execute_test( NAME ParallelTimerTest PROCESSES 2 )
 
 waLBerla_compile_test( FILES timing/TimerTest.cpp )
 waLBerla_execute_test( NAME TimerTest )
@@ -180,8 +188,17 @@ waLBerla_execute_test( NAME ConcatIterator )
 waLBerla_compile_test( FILES DataTypesTest.cpp )
 waLBerla_execute_test( NAME DataTypesTest )
 
+waLBerla_compile_test( FILES FunctionTraitsTest.cpp )
+waLBerla_execute_test( NAME FunctionTraitsTest )
+
 waLBerla_compile_test( FILES GridGeneratorTest.cpp )
 waLBerla_execute_test( NAME GridGeneratorTest )
+
+waLBerla_compile_test( FILES OpenMPWrapperTest.cpp )
+waLBerla_execute_test( NAME OpenMPWrapperTest )
+
+waLBerla_compile_test( FILES RandomUUID.cpp )
+waLBerla_execute_test( NAME RandomUUID )
 
 waLBerla_compile_test( FILES SetTest.cpp )
 waLBerla_execute_test( NAME SetTest )

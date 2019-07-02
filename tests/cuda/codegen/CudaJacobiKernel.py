@@ -1,17 +1,26 @@
-from pystencils_walberla.sweep import Sweep
-from pystencils_walberla.cmake_integration import codegen
+import sympy as sp
+import pystencils as ps
+from pystencils_walberla import CodeGeneration, generate_sweep
 
-def jacobi2D(sweep):
-    src = sweep.field("f1")
-    dst = sweep.temporaryField(src)
 
-    dst[0, 0] @= (src[1, 0] + src[-1, 0] + src[0, 1] + src[0, -1]) / (4 * S.h ** 2)
+with CodeGeneration() as ctx:
+    h = sp.symbols("h")
 
-def jacobi3D(sweep):
-    src = sweep.field("f1")
-    dst = sweep.temporaryField(src)
+    # ----- Jacobi 2D - created by specifying weights in nested list --------------------------
+    src, dst = ps.fields("src, src_tmp: [2D]")
+    stencil = [[0, -1, 0],
+               [-1, 4, -1],
+               [0, -1, 0]]
+    assignments = ps.assignment_from_stencil(stencil, src, dst, normalization_factor=4 * h**2)
+    generate_sweep(ctx, 'CudaJacobiKernel2D', assignments, field_swaps=[(src, dst)], target="gpu")
 
-    dst[0,0,0] @= (src[1,0,0] + src[-1,0,0] + src[0,1,0] + src[0, -1, 0] + src[0, 0, 1] + src[0, 0 , -1] ) / (6 * S.h**2)
+    # ----- Jacobi 3D - created by using kernel_decorator with assignments in '@=' format -----
+    src, dst = ps.fields("src, src_tmp: [3D]")
 
-Sweep.generate('CudaJacobiKernel2D', jacobi2D, dim=2, target='gpu')
-Sweep.generate('CudaJacobiKernel3D', jacobi3D, dim=3, target='gpu')
+    @ps.kernel
+    def kernel_func():
+        dst[0, 0, 0] @= (src[1, 0, 0] + src[-1, 0, 0] +
+                         src[0, 1, 0] + src[0, -1, 0] +
+                         src[0, 0, 1] + src[0, 0, -1]) / (6 * h ** 2)
+
+    generate_sweep(ctx, 'CudaJacobiKernel3D', kernel_func, field_swaps=[(src, dst)], target="gpu")

@@ -69,14 +69,12 @@ namespace taylor_coette_flow_mem
 using namespace walberla;
 using walberla::uint_t;
 
-
-
 //////////////
 // TYPEDEFS //
 //////////////
 
 // pdf field & flag field
-typedef lbm::D3Q19< lbm::collision_model::TRT, false >  LatticeModel_T;
+typedef lbm::D3Q19< lbm::collision_model::TRT >  LatticeModel_T;
 using Stencil_T = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField<LatticeModel_T>;
 
@@ -88,10 +86,9 @@ const uint_t FieldGhostLayers = 1;
 
 typedef pe_coupling::CurvedLinear< LatticeModel_T, FlagField_T > MO_T;
 
-using BoundaryConditions_T = boost::tuples::tuple<MO_T>;
-typedef BoundaryHandling< FlagField_T, Stencil_T, BoundaryConditions_T > BoundaryHandling_T;
+typedef BoundaryHandling< FlagField_T, Stencil_T, MO_T > BoundaryHandling_T;
 
-typedef boost::tuple< pe::Capsule, pe::CylindricalBoundary > BodyTypeTuple;
+typedef std::tuple< pe::Capsule, pe::CylindricalBoundary > BodyTypeTuple;
 
 ///////////
 // FLAGS //
@@ -202,7 +199,7 @@ BoundaryHandling_T * MyBoundaryHandling::operator()( IBlock * const block, const
    const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
    BoundaryHandling_T * handling = new BoundaryHandling_T( "cf boundary handling", flagField, fluid,
-         boost::tuples::make_tuple( MO_T( "MO", MO_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) ) );
+                                                           MO_T( "MO", MO_Flag, pdfField, flagField, bodyField, fluid, *storage, *block ) );
 
    CellInterval domainBB = storage->getDomainCellBB();
    domainBB.xMin() -= cell_idx_c( FieldGhostLayers );
