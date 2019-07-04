@@ -12,54 +12,10 @@ if(CGAL_INCLUDE_DIR AND CGAL_LIBRARIES AND Boost_FOUND AND GMP_LIBRARIES AND MPF
 
 else(CGAL_INCLUDE_DIR AND CGAL_LIBRARIES AND Boost_FOUND AND GMP_LIBRARIES AND MPFR_LIBRARIES)
 
- FIND_PATH(CGAL_INCLUDE_DIR CGAL/basic.h
-      ${CGAL_ROOT}/include
-      /usr/include
-      /usr/local/include
-      $ENV{ProgramFiles}/CGAL/*/include
-      $ENV{SystemDrive}/CGAL/*/include
-      NO_DEFAULT_PATH
-      )
-
-  find_library(CGAL_LIBRARIES NAMES CGAL libCGAL
-     PATHS
-      ${CGAL_ROOT}/lib
-     /usr/lib
-     /usr/local/lib
-     /usr/lib/CGAL
-     /usr/lib64
-     /usr/local/lib64
-     /usr/lib64/CGAL
-     $ENV{ProgramFiles}/CGAL/*/lib
-     $ENV{SystemDrive}/CGAL/*/lib
-     NO_DEFAULT_PATH
-     )
-
-  find_library(GMP_LIBRARIES NAMES gmp libgmp
-     PATHS
-      ${GMP_ROOT}/lib
-     /usr/lib
-     /usr/local/lib
-     /usr/lib/gmp
-     /usr/lib64
-     /usr/local/lib64
-     /usr/lib64/gmp
-     $ENV{ProgramFiles}/gmp/*/lib
-     $ENV{SystemDrive}/gmp/*/lib
-     )
-
-  find_library(MPFR_LIBRARIES NAMES mpfr libmpfr
-     PATHS
-      ${MPFR_ROOT}/lib
-     /usr/lib
-     /usr/local/lib
-     /usr/lib/mpfr
-     /usr/lib64
-     /usr/local/lib64
-     /usr/lib64/mpfr
-     $ENV{ProgramFiles}/mpfr/*/lib
-     $ENV{SystemDrive}/mpfr/*/lib
-     )
+  find_path(CGAL_INCLUDE_DIR CGAL/basic.h)
+  find_library(CGAL_LIBRARIES NAMES CGAL libCGAL)
+  find_library(GMP_LIBRARIES NAMES gmp libgmp)
+  find_library(MPFR_LIBRARIES NAMES mpfr libmpfr)
 
   if(CGAL_INCLUDE_DIR AND CGAL_LIBRARIES AND Boost_FOUND AND GMP_LIBRARIES AND MPFR_LIBRARIES)
     set(CGAL_FOUND TRUE)
