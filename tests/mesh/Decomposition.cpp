@@ -20,8 +20,6 @@
 //======================================================================================================================
 
 // Test of the convex decomposition
-#include <boost/tuple/tuple.hpp>
-
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/Logging.h"
 
@@ -44,6 +42,7 @@
 #include "mesh/pe/rigid_body/ConvexPolyhedronFactory.h"
 #include <iostream>
 #include <memory>
+#include <tuple>
 
 using namespace walberla;
 using namespace walberla::pe;
@@ -54,8 +53,8 @@ typedef typename mesh::TriangleMesh::VertexHandle OMVertexHandle;
 typedef typename OpenMesh::VectorT<real_t, 3> OMVec3;
 
 // Typdefs for Union
-using UnionType = Union<boost::tuple<mesh::pe::ConvexPolyhedron>> ;
-typedef boost::tuple<UnionType, mesh::pe::ConvexPolyhedron> BodyTuple ;
+using UnionType = Union<mesh::pe::ConvexPolyhedron>;
+using BodyTuple = std::tuple<UnionType, mesh::pe::ConvexPolyhedron>;
 
 // Add a quadrangle surface in two triangular parts..
 void generateQuadrangleSurface(mesh::TriangleMesh& mesh, const OMVertexHandle &v1, const OMVertexHandle &v2, const OMVertexHandle &v3, const OMVertexHandle &v4){

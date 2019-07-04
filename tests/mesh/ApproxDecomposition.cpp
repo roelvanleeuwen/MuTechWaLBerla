@@ -20,8 +20,6 @@
 //======================================================================================================================
 
 // Test of the convex decomposition
-#include <boost/tuple/tuple.hpp>
-
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/Logging.h"
 
@@ -48,13 +46,14 @@
 #include "mesh/pe/rigid_body/ConvexPolyhedronFactory.h"
 #include <iostream>
 #include <memory>
+#include <tuple>
 
 using namespace walberla;
 using namespace walberla::pe;
 
 // Typdefs for Union
-using UnionType = Union<boost::tuple<mesh::pe::ConvexPolyhedron>> ;
-typedef boost::tuple<UnionType, mesh::pe::ConvexPolyhedron> BodyTuple ;
+using UnionType = Union<mesh::pe::ConvexPolyhedron> ;
+using BodyTuple = std::tuple<UnionType, mesh::pe::ConvexPolyhedron> ;
 
 int main( int argc, char** argv )
 {
