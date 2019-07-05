@@ -92,10 +92,10 @@ int main( int argc, char** argv )
    
    fcd::GenericFCD<BodyTuple, fcd::GJKEPACollideFunctor> testFCD;
    
-   mesh::pe::TriangleMeshUnion* un = createUnion<mesh::pe::PolyhedronTuple>( *globalBodyStorage, forest->getBlockStorage(), storageID, 0, Vec3());
+   mesh::pe::TriangleMeshUnion* un = createUnion<mesh::pe::ConvexPolyhedron>( *globalBodyStorage, forest->getBlockStorage(), storageID, 0, Vec3());
 
    // Centrate parts an add them to the union
-   for(int part = 0; part < (int)convexParts.size(); part++){
+   for(size_t part = 0; part < convexParts.size(); part++){
       Vec3 centroid = mesh::toWalberla( mesh::computeCentroid( convexParts[part] ) );
       mesh::translate( convexParts[part], -centroid );
       createConvexPolyhedron(un, 0, centroid, convexParts[part]);

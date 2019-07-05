@@ -9,21 +9,9 @@ if( VHACD_INCLUDE_DIR AND VHACD_LIBRARIES )
    set(VHACD_FOUND TRUE)
 
 else( VHACD_INCLUDE_DIR AND VHACD_LIBRARIES )
- FIND_PATH(VHACD_INCLUDE_DIR VHACD.h
-      ${VHACD_ROOT}/include
-      /usr/include
-      /usr/local/include
-      NO_DEFAULT_PATH
-      )
 
-  
-  find_library(VHACD_LIBRARIES NAMES libvhacd.a
-     PATHS
-      ${VHACD_ROOT}/lib
-     /usr/lib
-     /usr/local/lib
-     NO_DEFAULT_PATH
-     )
+  find_path(VHACD_INCLUDE_DIR VHACD.h)
+  find_library(VHACD_LIBRARIES NAMES libvhacd.so)
 
   if(VHACD_INCLUDE_DIR AND VHACD_LIBRARIES )
     set(VHACD_FOUND TRUE)

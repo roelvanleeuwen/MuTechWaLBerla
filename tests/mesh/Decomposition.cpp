@@ -130,7 +130,7 @@ std::vector<Vector3<real_t>> generateOctahedron( const real_t radius)
 {
 
    std::vector<Vector3<real_t>> okta( 6 );
-   for(int i = 0; i < 6; i++){
+   for(size_t i = 0; i < 6; i++){
       auto &p = okta[i];
       p[i%3]=(i<3) ? radius: -radius;
       WALBERLA_LOG_DEVEL("Point: " << p );
