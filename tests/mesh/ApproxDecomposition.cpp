@@ -113,9 +113,17 @@ int main( int argc, char** argv )
    } 
    Contacts& container = testFCD.generateContacts(pcs);
    WALBERLA_LOG_INFO("Checking " << container.size() << " intersections for deeper penetration.");
+
+   // Maximum allowed penetration varies with precision
+#ifdef WALBERLA_DOUBLE_ACCURACY
+   auto max_penetration = real_t(1e-4);
+#else
+   auto max_penetration = real_t(1e-2);
+#endif
+
    for(Contact &c : container){
 	   // Allow only small penetrations
-	   WALBERLA_CHECK(c.getDistance() > -1e-4);
+	   WALBERLA_CHECK_GREATER_EQUAL(c.getDistance(), -max_penetration);
    }
    WALBERLA_LOG_INFO("Bodies are nearly disjoint.");
    real_t unVol =  un->getVolume();

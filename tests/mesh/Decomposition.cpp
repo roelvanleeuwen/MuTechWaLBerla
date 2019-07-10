@@ -192,7 +192,7 @@ int main( int argc, char** argv )
                                              real_t(fac*2./49.), real_t(fac*193./294.), real_t(fac*2./49.),
                                              real_t(fac*2./49.), real_t(fac*2./49.), real_t(fac*193./294.));
 
-   WALBERLA_CHECK(un->getInertia() == analyticInertia, "Inertia is incorrect.");
+   WALBERLA_CHECK_FLOAT_EQUAL(un->getInertia(), analyticInertia, "Inertia is incorrect.");
 
    return EXIT_SUCCESS;
 }
