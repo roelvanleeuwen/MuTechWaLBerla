@@ -57,8 +57,16 @@ using BodyTuple = std::tuple<UnionType, mesh::pe::ConvexPolyhedron> ;
 
 int main( int argc, char** argv )
 {
+
+   if (std::is_same<walberla::real_t, float>::value)
+   {
+      WALBERLA_LOG_WARNING("waLBerla build in sp mode: skipping test due to low precision");
+      return EXIT_SUCCESS;
+   }
+
    walberla::debug::enterTestMode();
    walberla::MPIManager::instance()->initializeMPI( &argc, &argv );
+
    WALBERLA_LOG_INFO( "--- TESTING ARMADILLO ---");
    std::ifstream input;
    input.open("Armadillo.off");
@@ -115,11 +123,8 @@ int main( int argc, char** argv )
    WALBERLA_LOG_INFO("Checking " << container.size() << " intersections for deeper penetration.");
 
    // Maximum allowed penetration varies with precision
-#ifdef WALBERLA_DOUBLE_ACCURACY
    auto max_penetration = real_t(1e-4);
-#else
-   auto max_penetration = real_t(-0.5);
-#endif
+
 
    for(Contact &c : container){
 	   // Allow only small penetrations
