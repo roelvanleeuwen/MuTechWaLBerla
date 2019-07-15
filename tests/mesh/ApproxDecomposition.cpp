@@ -118,7 +118,7 @@ int main( int argc, char** argv )
 #ifdef WALBERLA_DOUBLE_ACCURACY
    auto max_penetration = real_t(1e-4);
 #else
-   auto max_penetration = real_t(1e-2);
+   auto max_penetration = real_t(-0.5);
 #endif
 
    for(Contact &c : container){
