@@ -57,15 +57,13 @@ using BodyTuple = std::tuple<UnionType, mesh::pe::ConvexPolyhedron> ;
 
 int main( int argc, char** argv )
 {
-
+   walberla::debug::enterTestMode();
+   walberla::MPIManager::instance()->initializeMPI( &argc, &argv );
    if (std::is_same<walberla::real_t, float>::value)
    {
       WALBERLA_LOG_WARNING("waLBerla build in sp mode: skipping test due to low precision");
       return EXIT_SUCCESS;
    }
-
-   walberla::debug::enterTestMode();
-   walberla::MPIManager::instance()->initializeMPI( &argc, &argv );
 
    WALBERLA_LOG_INFO( "--- TESTING ARMADILLO ---");
    std::ifstream input;
