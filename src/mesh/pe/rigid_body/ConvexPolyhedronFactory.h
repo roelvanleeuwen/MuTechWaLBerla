@@ -160,7 +160,7 @@ mesh::pe::ConvexPolyhedronID createConvexPolyhedron( Union<BodyTypeTuple>* un,
       sid = UniqueID<RigidBody>::create();
    }
 
-   std::unique_ptr<mesh::pe::ConvexPolyhedron> cpolyhedron = std::make_unique<mesh::pe::ConvexPolyhedron>(sid, uid, gpos, Vec3(0,0,0), Quat(), mesh, material, global, communicating, infiniteMass);
+   std::unique_ptr<mesh::pe::ConvexPolyhedron> cpolyhedron = std::make_unique<mesh::pe::ConvexPolyhedron>(sid, uid, gpos, Quat(), mesh, material, global, communicating, infiniteMass);
    cpolyhedron->MPITrait.setOwner( un->MPITrait.getOwner() );
 
    if (cpolyhedron != NULL)
