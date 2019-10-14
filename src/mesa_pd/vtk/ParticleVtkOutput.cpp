@@ -60,7 +60,7 @@ void ParticleVtkOutput::push( std::ostream& os, const uint_t data, const uint_t 
    WALBERLA_ASSERT_LESS( point, particleIndices_.size() );
    WALBERLA_ASSERT_LESS( particleIndices_[point], ps_->size() );
 
-   selectors_[data].second->push(os, *(*ps_)[particleIndices_[point]], component);
+   selectors_[data].second->push(os, (*ps_)[particleIndices_[point]], component);
 }
 
 void ParticleVtkOutput::push( walberla::vtk::Base64Writer& b64, const uint_t data, const uint_t point, const uint_t component )
@@ -69,10 +69,10 @@ void ParticleVtkOutput::push( walberla::vtk::Base64Writer& b64, const uint_t dat
    WALBERLA_ASSERT_LESS( point, particleIndices_.size() );
    WALBERLA_ASSERT_LESS( particleIndices_[point], ps_->size() );
 
-   selectors_[data].second->push(b64, *(*ps_)[particleIndices_[point]], component);
+   selectors_[data].second->push(b64, (*ps_)[particleIndices_[point]], component);
 }
 
-void ParticleVtkOutput::addOutput(const std::string& name, std::shared_ptr<IOutputSelector> selector)
+void ParticleVtkOutput::addOutput(const std::string& name, const std::shared_ptr<IOutputSelector>& selector)
 {
    if ( std::find_if(selectors_.begin(), selectors_.end(), [&name](const auto& item){return item.first==name;} ) !=
         selectors_.end() )

@@ -33,6 +33,12 @@ namespace domain {
 BlockForestDomain::BlockForestDomain(const std::shared_ptr<blockforest::BlockForest>& blockForest)
    : blockForest_(blockForest)
 {
+   refresh();
+}
+
+/// \post neighborSubdomains_ is sorted by rank
+void BlockForestDomain::refresh()
+{
    ownRank_ = mpi::MPIManager::instance()->rank();
 
    periodic_[0] = blockForest_->isPeriodic(0);
@@ -41,6 +47,9 @@ BlockForestDomain::BlockForestDomain(const std::shared_ptr<blockforest::BlockFor
 
    if (blockForest_->empty()) return;
 
+   localAABBs_.clear();
+   neighborSubdomains_.clear();
+   neighborProcesses_.clear();
    unionOfLocalAABBs_ = blockForest_->begin()->getAABB();
    for (auto& iBlk : *blockForest_)
    {
@@ -175,43 +184,63 @@ bool BlockForestDomain::intersectsWithProcessSubdomain(const uint_t rank, const 
 {
    if (blockForest_->empty()) return false;
 
-   WALBERLA_ASSERT(std::is_sorted(neighborSubdomains_.begin(),
-                                  neighborSubdomains_.end(),
-                                  [](const auto& lhs, const auto& rhs){ return lhs.rank < rhs.rank;}));
-
-   WALBERLA_CHECK_UNEQUAL(uint_c(ownRank_), rank, "checking own domain is currently not implemented");
-
-   if (isInsideGlobalDomain(pt, radius))
+   if (uint_c(ownRank_) == rank)
    {
-      size_t idx = 0;
-      WALBERLA_ASSERT_LESS(idx, neighborSubdomains_.size());
-      while (neighborSubdomains_[idx].rank != int_c(rank))
+      //=====================
+      // LOCAL DOMAIN
+      if (isInsideGlobalDomain(pt, radius))
       {
-         ++idx;
-         WALBERLA_ASSERT_LESS(idx, neighborSubdomains_.size());
-      }
-      while (neighborSubdomains_[idx].rank == int_c(rank))
+         for (auto& aabb : localAABBs_)
+         {
+            if (sqDistancePointToAABB(pt, aabb) <= radius * radius) return true;
+         }
+      } else
       {
-         if (sqDistancePointToAABB(pt, neighborSubdomains_[idx].aabb) <= radius * radius) return true;
-         ++idx;
-         if (idx >= neighborSubdomains_.size()) break;
-         WALBERLA_ASSERT_LESS(idx, neighborSubdomains_.size());
+         for (auto& aabb : localAABBs_)
+         {
+            if (sqDistancePointToAABBPeriodic(pt, aabb, blockForest_->getDomain(), periodic_) <= radius * radius) return true;
+         }
       }
    } else
    {
-      size_t idx = 0;
-      WALBERLA_ASSERT_LESS(idx, neighborSubdomains_.size());
-      while (neighborSubdomains_[idx].rank != int_c(rank))
+      //=====================
+      // NEIGHBORING DOMAIN
+      WALBERLA_ASSERT(std::is_sorted(neighborSubdomains_.begin(),
+                                     neighborSubdomains_.end(),
+                                     [](const auto& lhs, const auto& rhs){ return lhs.rank < rhs.rank;}));
+
+      if (isInsideGlobalDomain(pt, radius))
       {
-         ++idx;
+         size_t idx = 0;
          WALBERLA_ASSERT_LESS(idx, neighborSubdomains_.size());
-      }
-      while (neighborSubdomains_[idx].rank == int_c(rank))
+         while (neighborSubdomains_[idx].rank != int_c(rank))
+         {
+            ++idx;
+            WALBERLA_ASSERT_LESS(idx, neighborSubdomains_.size());
+         }
+         while (neighborSubdomains_[idx].rank == int_c(rank))
+         {
+            if (sqDistancePointToAABB(pt, neighborSubdomains_[idx].aabb) <= radius * radius) return true;
+            ++idx;
+            if (idx >= neighborSubdomains_.size()) break;
+            WALBERLA_ASSERT_LESS(idx, neighborSubdomains_.size());
+         }
+      } else
       {
-         if (sqDistancePointToAABBPeriodic(pt, neighborSubdomains_[idx].aabb, blockForest_->getDomain(), periodic_) <= radius * radius) return true;
-         ++idx;
-         if (idx >= neighborSubdomains_.size()) break;
+         size_t idx = 0;
          WALBERLA_ASSERT_LESS(idx, neighborSubdomains_.size());
+         while (neighborSubdomains_[idx].rank != int_c(rank))
+         {
+            ++idx;
+            WALBERLA_ASSERT_LESS(idx, neighborSubdomains_.size());
+         }
+         while (neighborSubdomains_[idx].rank == int_c(rank))
+         {
+            if (sqDistancePointToAABBPeriodic(pt, neighborSubdomains_[idx].aabb, blockForest_->getDomain(), periodic_) <= radius * radius) return true;
+            ++idx;
+            if (idx >= neighborSubdomains_.size()) break;
+            WALBERLA_ASSERT_LESS(idx, neighborSubdomains_.size());
+         }
       }
    }
 

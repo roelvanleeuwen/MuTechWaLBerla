@@ -636,13 +636,13 @@ int main( int argc, char **argv )
    if( MO_CLI )
    {
       timeloop.add()
-         << Sweep( pe_coupling::BodyMapping< BoundaryHandling_T >( blocks, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, MO_CLI_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies ), "Body Mapping" );
+         << Sweep( pe_coupling::BodyMapping< LatticeModel_T, BoundaryHandling_T >( blocks, pdfFieldID, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, MO_CLI_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies ), "Body Mapping" );
    }else if ( MO_MR ){
       timeloop.add()
-         << Sweep( pe_coupling::BodyMapping< BoundaryHandling_T >( blocks, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID,  MO_MR_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies ), "Body Mapping" );
+         << Sweep( pe_coupling::BodyMapping< LatticeModel_T, BoundaryHandling_T >( blocks, pdfFieldID, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID,  MO_MR_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies ), "Body Mapping" );
    }else{
       timeloop.add()
-         << Sweep( pe_coupling::BodyMapping< BoundaryHandling_T >( blocks, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID,  MO_BB_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies ), "Body Mapping" );
+         << Sweep( pe_coupling::BodyMapping< LatticeModel_T, BoundaryHandling_T >( blocks, pdfFieldID, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID,  MO_BB_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies ), "Body Mapping" );
    }
 
    // sweep for restoring PDFs in cells previously occupied by pe bodies
@@ -650,24 +650,24 @@ int main( int argc, char **argv )
    {
       pe_coupling::FlagFieldNormalExtrapolationDirectionFinder< BoundaryHandling_T > extrapolationFinder( blocks, boundaryHandlingID );
       typedef pe_coupling::ExtrapolationReconstructor< LatticeModel_T, BoundaryHandling_T, pe_coupling::FlagFieldNormalExtrapolationDirectionFinder<BoundaryHandling_T> > Reconstructor_T;
-      Reconstructor_T reconstructor( blocks, boundaryHandlingID, pdfFieldID, bodyFieldID, extrapolationFinder, true );
+      Reconstructor_T reconstructor( blocks, boundaryHandlingID, bodyFieldID, extrapolationFinder, true );
       timeloop.add()
          << Sweep( pe_coupling::PDFReconstruction< LatticeModel_T, BoundaryHandling_T, Reconstructor_T >
-                      ( blocks, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, reconstructor, FormerMO_Flag, Fluid_Flag  ), "PDF Restore" );
+                      ( blocks, pdfFieldID, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, reconstructor, FormerMO_Flag, Fluid_Flag  ), "PDF Restore" );
    } else if ( eanReconstructor )
    {
       pe_coupling::SphereNormalExtrapolationDirectionFinder extrapolationFinder( blocks, bodyFieldID );
       typedef pe_coupling::EquilibriumAndNonEquilibriumReconstructor< LatticeModel_T, BoundaryHandling_T, pe_coupling::SphereNormalExtrapolationDirectionFinder > Reconstructor_T;
-      Reconstructor_T reconstructor( blocks, boundaryHandlingID, pdfFieldID, bodyFieldID, extrapolationFinder );
+      Reconstructor_T reconstructor( blocks, boundaryHandlingID, bodyFieldID, extrapolationFinder );
       timeloop.add()
          << Sweep( pe_coupling::PDFReconstruction< LatticeModel_T, BoundaryHandling_T, Reconstructor_T >
-                      ( blocks, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, reconstructor, FormerMO_Flag, Fluid_Flag  ), "PDF Restore" );
+                      ( blocks, pdfFieldID, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, reconstructor, FormerMO_Flag, Fluid_Flag  ), "PDF Restore" );
    } else {
       typedef pe_coupling::EquilibriumReconstructor< LatticeModel_T, BoundaryHandling_T > Reconstructor_T;
-      Reconstructor_T reconstructor( blocks, boundaryHandlingID, pdfFieldID, bodyFieldID );
+      Reconstructor_T reconstructor( blocks, boundaryHandlingID, bodyFieldID );
       timeloop.add()
          << Sweep( pe_coupling::PDFReconstruction< LatticeModel_T, BoundaryHandling_T, Reconstructor_T >
-                      ( blocks, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, reconstructor, FormerMO_Flag, Fluid_Flag  ), "PDF Restore" );
+                      ( blocks, pdfFieldID, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, reconstructor, FormerMO_Flag, Fluid_Flag  ), "PDF Restore" );
    }
 
    shared_ptr<pe_coupling::BodiesForceTorqueContainer> bodiesFTContainer1 = make_shared<pe_coupling::BodiesForceTorqueContainer>(blocks, bodyStorageID);
@@ -729,7 +729,7 @@ int main( int argc, char **argv )
    // The buoyancy force on the body due to this pressure gradient has to be added 'artificially'
    // F_{buoyancy} = - V_{body} * grad ( p ) = V_{body} * \rho_{fluid} *  a
    // ( V_{body} := volume of body,  a := acceleration driving the flow )
-   Vector3<real_t> buoyancyForce(math::M_PI / real_t(6) * setup.forcing * setup.particleDiam * setup.particleDiam * setup.particleDiam ,
+   Vector3<real_t> buoyancyForce(math::pi / real_t(6) * setup.forcing * setup.particleDiam * setup.particleDiam * setup.particleDiam ,
                                  real_t(0), real_t(0));
    timeloop.addFuncAfterTimeStep( pe_coupling::ForceOnBodiesAdder( blocks, bodyStorageID, buoyancyForce ), "Buoyancy force" );
 

@@ -31,6 +31,7 @@
 #include <map>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <mesa_pd/data/ContactHistory.h>
@@ -44,6 +45,7 @@
 #include <core/Abort.h>
 #include <core/debug/Debug.h>
 #include <core/math/AABB.h>
+#include <core/mpi/MPIWrapper.h>
 #include <core/OpenMP.h>
 #include <core/STLIO.h>
 #include <core/UniqueID.h>
@@ -70,9 +72,13 @@ public:
       Particle* operator->(){return this;}
 
       {% for prop in properties %}
-      const {{prop.type}}& get{{prop.name | capFirst}}() const {return storage_.get{{prop.name | capFirst}}(i_);}
-      {{prop.type}}& get{{prop.name | capFirst}}Ref() {return storage_.get{{prop.name | capFirst}}Ref(i_);}
-      void set{{prop.name | capFirst}}(const {{prop.type}}& v) { storage_.set{{prop.name | capFirst}}(i_, v);}
+      using {{prop.name}}_type = {{prop.type}};
+      {%- endfor %}
+
+      {% for prop in properties %}
+      {{prop.name}}_type const & get{{prop.name | capFirst}}() const {return storage_.get{{prop.name | capFirst}}(i_);}
+      {{prop.name}}_type& get{{prop.name | capFirst}}Ref() {return storage_.get{{prop.name | capFirst}}Ref(i_);}
+      void set{{prop.name | capFirst}}({{prop.name}}_type const & v) { storage_.set{{prop.name | capFirst}}(i_, v);}
       {% endfor %}
 
       size_t getIdx() const {return i_;}
@@ -131,12 +137,16 @@ public:
 
    iterator begin() { return iterator(this, 0); }
    iterator end()   { return iterator(this, size()); }
-   iterator operator[](const size_t n) { return iterator(this, n); }
+   Particle operator[](const size_t n) { return *iterator(this, n); }
 
    {% for prop in properties %}
-   const {{prop.type}}& get{{prop.name | capFirst}}(const size_t idx) const {return {{prop.name}}_[idx];}
-   {{prop.type}}& get{{prop.name | capFirst}}Ref(const size_t idx) {return {{prop.name}}_[idx];}
-   void set{{prop.name | capFirst}}(const size_t idx, const {{prop.type}}& v) { {{prop.name}}_[idx] = v; }
+   using {{prop.name}}_type = {{prop.type}};
+   {%- endfor %}
+
+   {% for prop in properties %}
+   {{prop.name}}_type const & get{{prop.name | capFirst}}(const size_t idx) const {return {{prop.name}}_[idx];}
+   {{prop.name}}_type& get{{prop.name | capFirst}}Ref(const size_t idx) {return {{prop.name}}_[idx];}
+   void set{{prop.name | capFirst}}(const size_t idx, {{prop.name}}_type const & v) { {{prop.name}}_[idx] = v; }
    {% endfor %}
 
    /**
@@ -148,15 +158,17 @@ public:
     * @param uid unique id of the particle to be created
     * @return iterator to the newly created particle
     */
-   inline iterator create(const id_t& uid);
+   inline iterator create(const uid_type& uid);
    inline iterator create(const bool global = false);
    inline iterator erase(iterator& it);
    /// Finds the entry corresponding to \p uid.
    /// \return iterator to the object or end iterator
-   inline iterator find(const id_t& uid);
+   inline iterator find(const uid_type& uid);
    inline void reserve(const size_t size);
    inline void clear();
    inline size_t size() const;
+   template <class Compare>
+   void sort(Compare comp);
 
    /**
     * Calls the provided functor \p func for all Particles.
@@ -228,10 +240,10 @@ public:
 
    private:
    {%- for prop in properties %}
-   std::vector<{{prop.type}}> {{prop.name}}_ {};
+   std::vector<{{prop.name}}_type> {{prop.name}}_ {};
    {%- endfor %}
-   std::unordered_map<id_t, size_t> uidToIdx_;
-   static_assert(std::is_same<decltype(uid_)::value_type, id_t>::value,
+   std::unordered_map<uid_type, size_t> uidToIdx_;
+   static_assert(std::is_same<uid_type, id_t>::value,
                  "Property uid of type id_t is missing. This property is required!");
 };
 using Particle = ParticleStorage::Particle;
@@ -252,6 +264,15 @@ ParticleStorage::Particle& ParticleStorage::Particle::operator=(ParticleStorage:
    get{{prop.name | capFirst}}Ref() = std::move(rhs.get{{prop.name | capFirst}}Ref());
    {%- endfor %}
    return *this;
+}
+
+inline
+void swap(ParticleStorage::Particle lhs, ParticleStorage::Particle rhs)
+{
+   if (lhs.i_ == rhs.i_) return;
+   {%- for prop in properties %}
+   std::swap(lhs.get{{prop.name | capFirst}}Ref(), rhs.get{{prop.name | capFirst}}Ref());
+   {%- endfor %}
 }
 
 inline
@@ -390,7 +411,7 @@ inline ParticleStorage::iterator ParticleStorage::find(const id_t& uid)
    //use unordered_map for faster lookup
    auto it = uidToIdx_.find(uid);
    if (it == uidToIdx_.end()) return end();
-   WALBERLA_ASSERT_EQUAL(it->first, uid, "Lookup via uidToIdx map is not up to date!!!");
+   WALBERLA_ASSERT_EQUAL(getUid(it->second), uid, "Lookup via uidToIdx map is not up to date!!!");
    return iterator(this, it->second);
 }
 
@@ -415,6 +436,47 @@ inline size_t ParticleStorage::size() const
    //WALBERLA_ASSERT_EQUAL( {{properties[0].name}}_.size(), {{prop.name}}.size() );
    {%- endfor %}
    return {{properties[0].name}}_.size();
+}
+
+template <class Compare>
+void ParticleStorage::sort(Compare comp)
+{
+   using WeightPair = std::pair<size_t, double>; //idx, weight
+
+   const size_t length = size();
+   std::vector<size_t>     newIdx(length); //where is old idx now?
+   std::vector<size_t>     oldIdx(length); //what old idx is at that idx?
+   std::vector<WeightPair> weight(length);
+
+   for (size_t idx = 0; idx < length; ++idx)
+   {
+      newIdx[idx] = idx;
+      oldIdx[idx] = idx;
+      weight[idx] = std::make_pair(idx, comp.getWeight(operator[](idx)));
+   }
+   std::sort(weight.begin(), weight.end(), [](const WeightPair& lhs, const WeightPair& rhs){return lhs.second < rhs.second;});
+   for (size_t idx = 0; idx < length; ++idx)
+   {
+      using std::swap;
+      WALBERLA_ASSERT_IDENTICAL(weight[idx].second, comp.getWeight(operator[](newIdx[weight[idx].first])));
+
+      WALBERLA_ASSERT_LESS_EQUAL(comp.getWeight(operator[](newIdx[weight[idx].first])), comp.getWeight(operator[](idx)));
+      swap( operator[](idx), operator[](newIdx[weight[idx].first]) );
+      const auto lhsIDX = idx;
+      const auto rhsIDX = newIdx[weight[idx].first];
+
+      newIdx[oldIdx[lhsIDX]] = rhsIDX;
+      newIdx[oldIdx[rhsIDX]] = lhsIDX;
+
+      swap(oldIdx[lhsIDX], oldIdx[rhsIDX]);
+   }
+
+   //rebuild lookup table
+   uidToIdx_.clear();
+   for (size_t idx = 0; idx < length; ++idx)
+   {
+      uidToIdx_[getUid(idx)] = idx;
+   }
 }
 
 {%- for const in ["", "const"] %}
@@ -505,7 +567,7 @@ public:
    using return_type = {{prop.type}};
    {{prop.type}}& operator()(data::Particle& p) const {return p.get{{prop.name | capFirst}}Ref();}
    {{prop.type}}& operator()(data::Particle&& p) const {return p.get{{prop.name | capFirst}}Ref();}
-   const {{prop.type}}& operator()(const data::Particle& p) const {return p.get{{prop.name | capFirst}}();}
+   {{prop.type}} const & operator()(const data::Particle& p) const {return p.get{{prop.name | capFirst}}();}
 };
 {%- endfor %}
 

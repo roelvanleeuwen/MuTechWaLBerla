@@ -27,12 +27,14 @@ if __name__ == '__main__':
    os.makedirs(args.path + "/src/mesa_pd/mpi/notifications", exist_ok = True)
    os.makedirs(args.path + "/src/mesa_pd/vtk", exist_ok = True)
 
-   shapes = ["Sphere", "HalfSpace"]
+   shapes = ["Sphere", "HalfSpace", "CylindricalBoundary", "Box", "Ellipsoid"]
 
    ps    = data.ParticleStorage()
    ch    = data.ContactHistory()
    lc    = data.LinkedCells()
+   slc   = data.SparseLinkedCells()
    ss    = data.ShapeStorage(ps, shapes)
+   cs    = data.ContactStorage()
 
    ps.addProperty("position",         "walberla::mesa_pd::Vec3", defValue="real_t(0)", syncMode="ALWAYS")
    ps.addProperty("linearVelocity",   "walberla::mesa_pd::Vec3", defValue="real_t(0)", syncMode="ALWAYS")
@@ -46,6 +48,9 @@ if __name__ == '__main__':
    ps.addProperty("torque",           "walberla::mesa_pd::Vec3", defValue="real_t(0)", syncMode="NEVER")
    ps.addProperty("oldTorque",        "walberla::mesa_pd::Vec3", defValue="real_t(0)", syncMode="MIGRATION")
 
+   ps.addInclude("blockforest/BlockForest.h")
+   ps.addProperty("currentBlock",     "blockforest::Block*",     defValue="nullptr",   syncMode="NEVER")
+
    ps.addProperty("type",             "uint_t",                  defValue="0",         syncMode="COPY")
 
    ps.addProperty("flags",            "walberla::mesa_pd::data::particle_flags::FlagT", defValue="", syncMode="COPY")
@@ -54,20 +59,48 @@ if __name__ == '__main__':
    ps.addProperty("oldContactHistory", "std::map<walberla::id_t, walberla::mesa_pd::data::ContactHistory>", defValue="", syncMode="ALWAYS")
    ps.addProperty("newContactHistory", "std::map<walberla::id_t, walberla::mesa_pd::data::ContactHistory>", defValue="", syncMode="NEVER")
 
-   ps.addProperty("temperature",      "walberla::real_t", defValue="real_t(0)", syncMode="ALWAYS")
-   ps.addProperty("heatFlux",         "walberla::real_t", defValue="real_t(0)", syncMode="NEVER")
+   ps.addProperty("temperature",      "walberla::real_t",        defValue="real_t(0)", syncMode="ALWAYS")
+   ps.addProperty("heatFlux",         "walberla::real_t",        defValue="real_t(0)", syncMode="NEVER")
+
+   # Properties for HCSITS
+   ps.addProperty("dv",               "walberla::mesa_pd::Vec3", defValue="real_t(0)", syncMode="NEVER")
+   ps.addProperty("dw",               "walberla::mesa_pd::Vec3", defValue="real_t(0)", syncMode="NEVER")
 
    ch.addProperty("tangentialSpringDisplacement", "walberla::mesa_pd::Vec3", defValue="real_t(0)")
    ch.addProperty("isSticking",                   "bool",                    defValue="false")
    ch.addProperty("impactVelocityMagnitude",      "real_t",                  defValue="real_t(0)")
 
+   cs.addProperty("id1",              "walberla::id_t",          defValue = "walberla::id_t(-1)", syncMode="NEVER")
+   cs.addProperty("id2",              "walberla::id_t",          defValue = "walberla::id_t(-1)", syncMode="NEVER")
+   cs.addProperty("distance",         "real_t",                  defValue = "real_t(1)",          syncMode="NEVER")
+   cs.addProperty("normal",           "walberla::mesa_pd::Vec3", defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("position",         "walberla::mesa_pd::Vec3", defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("t",                "walberla::mesa_pd::Vec3", defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("o",                "walberla::mesa_pd::Vec3", defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("r1",               "walberla::mesa_pd::Vec3", defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("r2",               "walberla::mesa_pd::Vec3", defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("mu",               "real_t",                  defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("p",                "walberla::mesa_pd::Vec3", defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("diag_nto",         "walberla::mesa_pd::Mat3", defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("diag_nto_inv",     "walberla::mesa_pd::Mat3", defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("diag_to_inv",      "walberla::mesa_pd::Mat2", defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("diag_n_inv",       "real_t",                  defValue = "real_t(0)",          syncMode="NEVER")
+   cs.addProperty("p",                "walberla::mesa_pd::Vec3", defValue = "real_t(0)",          syncMode="NEVER")
+
+
    kernels = []
+   kernels.append( kernel.DetectAndStoreContacts() )
    kernels.append( kernel.DoubleCast(shapes) )
    kernels.append( kernel.ExplicitEuler() )
    kernels.append( kernel.ExplicitEulerWithShape() )
    kernels.append( kernel.ForceLJ() )
+   kernels.append( kernel.HCSITSRelaxationStep() )
    kernels.append( kernel.HeatConduction() )
+   kernels.append( kernel.InitParticlesForHCSITS() )
+   kernels.append( kernel.InitContactsForHCSITS() )
+   kernels.append( kernel.IntegrateParticlesHCSITS() )
    kernels.append( kernel.InsertParticleIntoLinkedCells() )
+   kernels.append( kernel.InsertParticleIntoSparseLinkedCells() )
    kernels.append( kernel.LinearSpringDashpot() )
    kernels.append( kernel.NonLinearSpringDashpot() )
    kernels.append( kernel.SingleCast(shapes) )
@@ -75,6 +108,7 @@ if __name__ == '__main__':
    kernels.append( kernel.TemperatureIntegration() )
    kernels.append( kernel.VelocityVerlet() )
    kernels.append( kernel.VelocityVerletWithShape() )
+
 
    ac = Accessor()
    for k in kernels:
@@ -86,13 +120,16 @@ if __name__ == '__main__':
    comm.append(mpi.ClearNextNeighborSync())
    comm.append(mpi.ReduceContactHistory())
    comm.append(mpi.ReduceProperty())
+   comm.append(mpi.SyncGhostOwners(ps))
    comm.append(mpi.SyncNextNeighbors(ps))
 
 
    ps.generate(args.path + "/src/mesa_pd/")
    ch.generate(args.path + "/src/mesa_pd/")
    lc.generate(args.path + "/src/mesa_pd/")
+   slc.generate(args.path + "/src/mesa_pd/")
    ss.generate(args.path + "/src/mesa_pd/")
+   cs.generate(args.path + "/src/mesa_pd/")
 
    for k in kernels:
       k.generate(args.path + "/src/mesa_pd/")

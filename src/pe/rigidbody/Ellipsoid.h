@@ -65,10 +65,10 @@ public:
    //**Constructors********************************************************************************
    /*!\name Constructors */
    //@{
-   explicit Ellipsoid( id_t sid, id_t uid, const Vec3& gpos, const Vec3& rpos, const Quat& q,
+   explicit Ellipsoid( id_t sid, id_t uid, const Vec3& gpos, const Quat& q,
                        const Vec3& semiAxes, MaterialID material,
                        const bool global, const bool communicating, const bool infiniteMass );
-   explicit Ellipsoid( id_t const typeID, id_t sid, id_t uid, const Vec3& gpos, const Vec3& rpos, const Quat& q,
+   explicit Ellipsoid( id_t const typeID, id_t sid, id_t uid, const Vec3& rpos, const Quat& q,
                        const Vec3& semiAxes, MaterialID material,
                        const bool global, const bool communicating, const bool infiniteMass );
    //@}
@@ -203,7 +203,7 @@ inline real_t Ellipsoid::getVolume() const
  */
 inline real_t Ellipsoid::calcVolume(const Vec3& semiAxes ) 
 {
-   return real_c(4.0)/real_c(3.0) * math::M_PI * semiAxes[0] * semiAxes[1] * semiAxes[2];
+   return real_c(4.0)/real_c(3.0) * math::pi * semiAxes[0] * semiAxes[1] * semiAxes[2];
 }
 //*************************************************************************************************
 
@@ -217,7 +217,7 @@ inline real_t Ellipsoid::calcVolume(const Vec3& semiAxes )
  */
 inline real_t Ellipsoid::calcMass(const Vec3& semiAxes, real_t density )
 {
-   return real_c(4.0)/real_c(3.0) * math::M_PI * semiAxes[0] * semiAxes[1] * semiAxes[2] * density;
+   return real_c(4.0)/real_c(3.0) * math::pi * semiAxes[0] * semiAxes[1] * semiAxes[2] * density;
 }
 //*************************************************************************************************
 
@@ -231,7 +231,7 @@ inline real_t Ellipsoid::calcMass(const Vec3& semiAxes, real_t density )
  */
 inline real_t Ellipsoid::calcDensity(const Vec3& semiAxes, real_t mass )
 {
-   return real_c(0.75) * mass / ( math::M_PI * semiAxes[0] * semiAxes[1] * semiAxes[2] );
+   return real_c(0.75) * mass / ( math::pi * semiAxes[0] * semiAxes[1] * semiAxes[2] );
 }
 //*************************************************************************************************
 
@@ -259,20 +259,21 @@ inline real_t Ellipsoid::calcDensity(const Vec3& semiAxes, real_t mass )
 inline void Ellipsoid::calcBoundingBox()
 {	
    using std::fabs;
-
-   const real_t xlength( fabs(R_[0]*semiAxes_[0]) + fabs(R_[1]*semiAxes_[1]) + fabs(R_[2]*semiAxes_[2])  + contactThreshold );
-   const real_t ylength( fabs(R_[3]*semiAxes_[0]) + fabs(R_[4]*semiAxes_[1]) + fabs(R_[5]*semiAxes_[2])  + contactThreshold );
-   const real_t zlength( fabs(R_[6]*semiAxes_[0]) + fabs(R_[7]*semiAxes_[1]) + fabs(R_[8]*semiAxes_[2])  + contactThreshold );
+   Mat3 R(getRotation());
+   Vec3 gpos = getPosition();
+   const real_t xlength( fabs(R[0]*semiAxes_[0]) + fabs(R[1]*semiAxes_[1]) + fabs(R[2]*semiAxes_[2])  + contactThreshold );
+   const real_t ylength( fabs(R[3]*semiAxes_[0]) + fabs(R[4]*semiAxes_[1]) + fabs(R[5]*semiAxes_[2])  + contactThreshold );
+   const real_t zlength( fabs(R[6]*semiAxes_[0]) + fabs(R[7]*semiAxes_[1]) + fabs(R[8]*semiAxes_[2])  + contactThreshold );
    aabb_ = math::AABB(
-            gpos_[0] - xlength,
-         gpos_[1] - ylength,
-         gpos_[2] - zlength,
-         gpos_[0] + xlength,
-         gpos_[1] + ylength,
-         gpos_[2] + zlength
+           gpos[0] - xlength,
+           gpos[1] - ylength,
+           gpos[2] - zlength,
+           gpos[0] + xlength,
+           gpos[1] + ylength,
+           gpos[2] + zlength
          );
    //   WALBERLA_ASSERT( aabb_.isValid()        , "Invalid bounding box detected" );
-   WALBERLA_ASSERT( aabb_.contains( gpos_ ), "Invalid bounding box detected("<< getSystemID() <<")\n" << "pos: " << gpos_ << "\nlengths: " << xlength << "," << ylength << ", " << zlength<< "\nvel: " << getLinearVel() << "\nbox: " << aabb_ );
+   WALBERLA_ASSERT( aabb_.contains( gpos ), "Invalid bounding box detected("<< getSystemID() <<")\n" << "pos: " << getPosition() << "\nlengths: " << xlength << "," << ylength << ", " << zlength<< "\nvel: " << getLinearVel() << "\nbox: " << aabb_ );
 }
 //*************************************************************************************************
 

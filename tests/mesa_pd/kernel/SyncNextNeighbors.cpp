@@ -50,6 +50,7 @@ walberla::id_t createSphere(data::ParticleStorage& ps, domain::IDomain& domain)
       p.getAngularVelocityRef()   = Vec3(4,5,6);
       p.getOwnerRef()             = walberla::mpi::MPIManager::instance()->rank();
       uid = p.getUid();
+      WALBERLA_LOG_DETAIL("SPHERE CREATED");
    }
 
    walberla::mpi::allReduceInplace(uid, walberla::mpi::SUM);
@@ -62,15 +63,22 @@ int main( int argc, char ** argv )
    WALBERLA_UNUSED(env);
    walberla::mpi::MPIManager::instance()->useWorldComm();
 
-//   logging::Logging::instance()->setStreamLogLevel(logging::Logging::DETAIL);
+   //logging::Logging::instance()->setStreamLogLevel(logging::Logging::DETAIL);
 //   logging::Logging::instance()->includeLoggingToFile("MESA_PD_Kernel_SyncNextNeighbor");
 //   logging::Logging::instance()->setFileLogLevel(logging::Logging::DETAIL);
 
    //init domain partitioning
    auto forest = blockforest::createBlockForest( AABB(-15,-15,-15,15,15,15), // simulation domain
                                                  Vector3<uint_t>(3,3,3), // blocks in each direction
-                                                 Vector3<bool>(true, true, true) // periodicity
+                                                 Vector3<bool>(true, true, true), // periodicity
+                                                 27, // number of processes
+                                                 1 // initial refinement
                                                  );
+   math::AABB localDomain = forest->begin()->getAABB();
+   for (auto& iBlk : *forest)
+   {
+      localDomain.merge(iBlk.getAABB());
+   }
    domain::BlockForestDomain domain(forest);
    std::array< bool, 3 > periodic;
    periodic[0] = forest->isPeriodic(0);
@@ -100,6 +108,7 @@ int main( int argc, char ** argv )
 
    for (auto delta : deltas)
    {
+      WALBERLA_LOG_DEVEL(delta);
       auto pos = Vec3(1,-1,1) * delta;
       WALBERLA_LOG_DETAIL("checking position: " << pos);
       // owner moves particle to new position
@@ -116,10 +125,10 @@ int main( int argc, char ** argv )
       SNN(ps, domain);
 
       //check
-      if (sqDistancePointToAABBPeriodic(pos, forest->begin()->getAABB(), forest->getDomain(), periodic) <= radius * radius)
+      if (sqDistancePointToAABBPeriodic(pos, localDomain, forest->getDomain(), periodic) <= radius * radius)
       {
          WALBERLA_CHECK_EQUAL(ps.size(), 1);
-         if (forest->begin()->getAABB().contains(pos))
+         if (localDomain.contains(pos))
          {
             WALBERLA_CHECK(!data::particle_flags::isSet(ps.begin()->getFlags(), data::particle_flags::GHOST));
          } else

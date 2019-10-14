@@ -53,7 +53,9 @@ AABB SetupBlockForest::RootBlockAABB::operator()( const uint_t index ) const // 
 {
    AABB aabb;
 
-   uint_t x,y,z;
+   uint_t x;
+   uint_t y;
+   uint_t z;
    SetupBlockForest::mapTreeIndexToForestCoordinates( index, xSize_, ySize_, x, y, z );
    SetupBlockForest::getRootBlockAABB( aabb, domain_, rootBlockXSize_, rootBlockYSize_, rootBlockZSize_, xSize_, ySize_, zSize_, x, y, z );
 
@@ -474,7 +476,8 @@ void SetupBlockForest::getBlocksOverlappedByAABB( std::vector< SetupBlock* >& bl
        aabb.zMin() >= domain_.zMax() || aabb.zMax() <= domain_.zMin() )
       return;
 
-   uint_t min[3], max[3];
+   uint_t min[3];
+   uint_t max[3];
 
    mapAABBToBoundingForestCoordinates( aabb, min, max );
 
@@ -713,7 +716,7 @@ void SetupBlockForest::init( const AABB& domain, const uint_t xSize, const uint_
 
    RootBlockAABB rootBlockAABB( domain, rootBlockSize_[0], rootBlockSize_[1], rootBlockSize_[2], xSize, ySize, zSize );
 
-   if( rootBlockExclusionFunctions.size() > 0 )
+   if( !rootBlockExclusionFunctions.empty() )
       WALBERLA_LOG_PROGRESS( "Initializing SetupBlockForest: Calling root block exclusion callback functions ..." );
 
    for( uint_t i = 0; i != rootBlockExclusionFunctions.size(); ++i )

@@ -4,8 +4,32 @@
 #
 ###################################################################################################
 
+waLBerla_compile_test( NAME   MESA_PD_COLLISIONDETECTION_AnalyticCollisionFunctions FILES collision_detection/AnalyticCollisionFunctions.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_COLLISIONDETECTION_AnalyticCollisionFunctions )
+
 waLBerla_compile_test( NAME   MESA_PD_COLLISIONDETECTION_AnalyticContactDetection FILES collision_detection/AnalyticContactDetection.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_COLLISIONDETECTION_AnalyticContactDetection )
+
+waLBerla_compile_test( NAME   MESA_PD_COLLISIONDETECTION_BoxSupport FILES collision_detection/BoxSupport.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_COLLISIONDETECTION_BoxSupport )
+
+waLBerla_compile_test( NAME   MESA_PD_COLLISIONDETECTION_EllipsoidSupport FILES collision_detection/EllipsoidSupport.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_COLLISIONDETECTION_EllipsoidSupport )
+
+waLBerla_compile_test( NAME   MESA_PD_COLLISIONDETECTION_EPA FILES collision_detection/EPA.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_COLLISIONDETECTION_EPA )
+
+waLBerla_compile_test( NAME   MESA_PD_COLLISIONDETECTION_GeneralContactDetection FILES collision_detection/GeneralContactDetection.cpp DEPENDS blockforest core pe)
+waLBerla_execute_test( NAME   MESA_PD_COLLISIONDETECTION_GeneralContactDetection )
+
+waLBerla_compile_test( NAME   MESA_PD_COLLISIONDETECTION_GJK FILES collision_detection/GJK.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_COLLISIONDETECTION_GJK )
+
+waLBerla_compile_test( NAME   MESA_PD_COLLISIONDETECTION_GJKEPA FILES collision_detection/GJK_EPA.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_COLLISIONDETECTION_GJKEPA )
+
+waLBerla_compile_test( NAME   MESA_PD_COLLISIONDETECTION_SphereSupport FILES collision_detection/SphereSupport.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_COLLISIONDETECTION_SphereSupport )
 
 waLBerla_compile_test( NAME   MESA_PD_COMMON_IntersectionRatio FILES common/IntersectionRatio.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_COMMON_IntersectionRatio )
@@ -16,8 +40,14 @@ waLBerla_execute_test( NAME   MESA_PD_ContactDetection PROCESSES 8 )
 waLBerla_compile_test( NAME   MESA_PD_Data_Flags FILES data/Flags.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Data_Flags )
 
+waLBerla_compile_test( NAME   MESA_PD_Data_LinkedCells FILES data/LinkedCells.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_Data_LinkedCells )
+
 waLBerla_compile_test( NAME   MESA_PD_Data_ParticleStorage FILES data/ParticleStorage.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Data_ParticleStorage )
+
+waLBerla_compile_test( NAME   MESA_PD_Data_SparseLinkedCells FILES data/SparseLinkedCells.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_Data_SparseLinkedCells )
 
 waLBerla_compile_test( NAME   MESA_PD_Domain_BlockForestDomain FILES domain/BlockForestDomain.cpp DEPENDS blockforest core )
 waLBerla_execute_test( NAME   MESA_PD_Domain_BlockForestDomain )
@@ -39,6 +69,12 @@ waLBerla_execute_test( NAME   MESA_PD_Domain_DynamicRefinement PROCESSES 8)
 waLBerla_compile_test( NAME   MESA_PD_Domain_SerializeDeserialize FILES domain/SerializeDeserialize.cpp DEPENDS blockforest core pe)
 waLBerla_execute_test( NAME   MESA_PD_Domain_SerializeDeserialize PROCESSES 8 )
 
+waLBerla_compile_test( NAME   MESA_PD_DropTestAnalytic FILES DropTestAnalytic.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_DropTestAnalytic )
+
+waLBerla_compile_test( NAME   MESA_PD_DropTestGeneral FILES DropTestGeneral.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_DropTestGeneral )
+
 waLBerla_compile_test( NAME   MESA_PD_Kernel_ClearNextNeighborSync FILES kernel/ClearNextNeighborSync.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_ClearNextNeighborSync PROCESSES 2 )
 
@@ -53,6 +89,9 @@ waLBerla_execute_test( NAME   MESA_PD_Kernel_CoefficientOfRestitutionLSDVelocity
 waLBerla_compile_test( NAME   MESA_PD_Kernel_CoefficientOfRestitutionNLSD FILES kernel/CoefficientOfRestitutionNLSD.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_CoefficientOfRestitutionNLSDEuler COMMAND $<TARGET_FILE:MESA_PD_Kernel_CoefficientOfRestitutionNLSD> )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_CoefficientOfRestitutionVelocityVerlet COMMAND $<TARGET_FILE:MESA_PD_Kernel_CoefficientOfRestitutionNLSD> --useVV )
+
+waLBerla_compile_test( NAME   MESA_PD_Kernel_DetectAndStoreContacts FILES kernel/DetectAndStoreContacts.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_Kernel_DetectAndStoreContacts )
 
 waLBerla_compile_test( NAME   MESA_PD_Kernel_DoubleCast FILES kernel/DoubleCast.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_DoubleCast )
@@ -71,6 +110,9 @@ waLBerla_execute_test( NAME   MESA_PD_Kernel_GenerateAnalyticContacts PROCESSES 
 
 waLBerla_compile_test( NAME   MESA_PD_Kernel_GenerateLinkedCells FILES kernel/GenerateLinkedCells.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_GenerateLinkedCells )
+
+waLBerla_compile_test( NAME   MESA_PD_Kernel_HCSITSKernels FILES kernel/HCSITSKernels.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_Kernel_HCSITSKernels )
 
 waLBerla_compile_test( NAME   MESA_PD_Kernel_HeatConduction FILES kernel/HeatConduction.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_HeatConduction )
@@ -95,8 +137,17 @@ waLBerla_execute_test( NAME   MESA_PD_Kernel_SingleCast )
 waLBerla_compile_test( NAME   MESA_PD_Kernel_SpringDashpot FILES kernel/SpringDashpot.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_SpringDashpot )
 
+waLBerla_compile_test( NAME   MESA_PD_Kernel_SyncGhostOwners FILES kernel/SyncGhostOwners.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_Kernel_SyncGhostOwners PROCESSES 27 )
+
+waLBerla_compile_test( NAME   MESA_PD_Kernel_SyncGhostOwnersLarge FILES kernel/SyncGhostOwnersLarge.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_Kernel_SyncGhostOwnersLarge PROCESSES 27 )
+
 waLBerla_compile_test( NAME   MESA_PD_Kernel_SyncNextNeighbors FILES kernel/SyncNextNeighbors.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_SyncNextNeighbors PROCESSES 27 )
+
+waLBerla_compile_test( NAME   MESA_PD_Kernel_SyncNextNeighborsBlockForest FILES kernel/SyncNextNeighborsBlockForest.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_Kernel_SyncNextNeighborsBlockForest PROCESSES 27 )
 
 waLBerla_compile_test( NAME   MESA_PD_Kernel_TemperatureIntegration FILES kernel/TemperatureIntegration.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_TemperatureIntegration )
@@ -118,6 +169,12 @@ waLBerla_execute_test( NAME   MESA_PD_MPI_ReduceContactHistory PROCESSES 8 )
 
 waLBerla_compile_test( NAME   MESA_PD_MPI_ReduceProperty FILES mpi/ReduceProperty.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_MPI_ReduceProperty PROCESSES 8 )
+
+waLBerla_compile_test( NAME   MESA_PD_MPI_VelocityCorrectionNotification FILES mpi/VelocityCorrectionNotification.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_MPI_VelocityCorrectionNotification PROCESSES 8)
+
+waLBerla_compile_test( NAME   MESA_PD_Sorting FILES Sorting.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_Sorting )
 
 waLBerla_compile_test( NAME   MESA_PD_VTK_Outputs FILES vtk/VTKOutputs.cpp DEPENDS blockforest core vtk )
 waLBerla_execute_test( NAME   MESA_PD_VTK_Outputs PROCESSES 8 )

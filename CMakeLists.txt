@@ -95,11 +95,13 @@ option ( WALBERLA_NO_OUTDATED_FEATURES      "Show warning/errors when outdated f
                                             "(i.e. features that will be deprecated) are used"   )
 
 # Profile guided optimization
-option ( WALBERLA_PROFILE_GENERATE  "Generates Profile for Optimization"             )
-option ( WALBERLA_PROFILE_USE       "Uses Profile to optimize"                       )
+option ( WALBERLA_PROFILE_GENERATE          "Generates Profile for Optimization"                 )
+option ( WALBERLA_PROFILE_USE               "Uses Profile to optimize"                           )
 
 # Compiler Optimization
-option ( WALBERLA_OPTIMIZE_FOR_LOCALHOST "Enable compiler optimizations spcific to localhost" )
+option ( WALBERLA_OPTIMIZE_FOR_LOCALHOST    "Enable compiler optimizations spcific to localhost" )
+
+option ( WALBERLA_LOG_SKIPPED               "Log skipped cmake targets"                      ON  )
 
 # Installation Directory
 set ( CMAKE_INSTALL_PREFIX /usr/local/waLBerla CACHE STRING "The default installation directory."   )
@@ -645,7 +647,8 @@ else()
 endif()
 
 if ( WALBERLA_BUILD_WITH_PYTHON AND WALBERLA_CXX_COMPILER_IS_MSVC )
-    list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS python36 )
+    get_filename_component(PYTHON_REQUIRED_LIB ${PYTHON_LIBRARY} NAME_WE)
+    list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS ${PYTHON_REQUIRED_LIB} )
 endif()
 
 # This variable is necessary, if the CMAKE version used is not aware of a more recent boost version (keep this up to date!)
@@ -1131,6 +1134,12 @@ if ( WALBERLA_BUILD_WITH_CUDA )
         list ( APPEND SERVICE_LIBS ${CUDA_LIBRARIES} )
 
         list( APPEND CUDA_NVCC_FLAGS "-Wno-deprecated-gpu-targets")
+
+        find_library( NVTX_LIBRARY nvToolsExt PATHS ${CUDA_TOOLKIT_ROOT_DIR} PATH_SUFFIXES lib lib64 )
+        if( NVTX_LIBRARY )
+            set( WALBERLA_CUDA_NVTX_AVAILABLE 1)
+            list ( APPEND SERVICE_LIBS ${NVTX_LIBRARY} )
+        endif()
 
         if ( NOT "${CUDA_NVCC_FLAGS}" MATCHES "-std=" AND NOT WALBERLA_CXX_COMPILER_IS_MSVC )
             list ( APPEND CUDA_NVCC_FLAGS "-std=c++14" )

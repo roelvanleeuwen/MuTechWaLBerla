@@ -64,7 +64,7 @@
 #include "lbm/vtk/Density.h"
 #include "lbm/vtk/Velocity.h"
 
-#include "postprocessing/sqlite/SQLite.h"
+#include "sqlite/SQLite.h"
 
 #include "stencil/D3Q19.h"
 #include "stencil/D3Q27.h"
@@ -265,8 +265,12 @@ static void workloadAndMemoryAssignment( SetupBlockForest & forest, const memory
 
 void createSetupBlockForest( blockforest::SetupBlockForest & sforest, const Config::BlockHandle & configBlock, const uint_t numberOfProcesses )
 {
-   uint_t numberOfXCellsPerBlock, numberOfYCellsPerBlock, numberOfZCellsPerBlock;
-   uint_t numberOfXBlocks, numberOfYBlocks, numberOfZBlocks;
+   uint_t numberOfXCellsPerBlock;
+   uint_t numberOfYCellsPerBlock;
+   uint_t numberOfZCellsPerBlock;
+   uint_t numberOfXBlocks;
+   uint_t numberOfYBlocks;
+   uint_t numberOfZBlocks;
    
    const uint_t bufferProcesses = configBlock.getParameter< uint_t >( "bufferProcesses", 0 );
    const uint_t fineBlocksPerProcess = configBlock.getParameter< uint_t >( "fineBlocksPerProcess", 4 );
@@ -313,7 +317,9 @@ void createSetupBlockForest( blockforest::SetupBlockForest & sforest, const Conf
 
 shared_ptr< blockforest::StructuredBlockForest > createStructuredBlockForest( const Config::BlockHandle & configBlock )
 {
-   uint_t numberOfXCellsPerBlock, numberOfYCellsPerBlock, numberOfZCellsPerBlock;
+   uint_t numberOfXCellsPerBlock;
+   uint_t numberOfYCellsPerBlock;
+   uint_t numberOfZCellsPerBlock;
    getCells( configBlock, numberOfXCellsPerBlock, numberOfYCellsPerBlock, numberOfZCellsPerBlock );
 
    if( configBlock.isDefined( "sbffile" ) )
@@ -1034,12 +1040,12 @@ void run( const shared_ptr< Config > & config, const LatticeModel_T & latticeMod
                }
             }
 
-            auto runId = postprocessing::storeRunInSqliteDB( sqlFile, integerProperties, stringProperties, realProperties );
-            postprocessing::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedTimeloopTiming, "Timeloop" );
-            postprocessing::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRTSTiming, "RefinementTimeStep" );
-            postprocessing::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRTSLTiming, "RefinementTimeStepLevelwise" );
+            auto runId = sqlite::storeRunInSqliteDB( sqlFile, integerProperties, stringProperties, realProperties );
+            sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedTimeloopTiming, "Timeloop" );
+            sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRTSTiming, "RefinementTimeStep" );
+            sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRTSLTiming, "RefinementTimeStepLevelwise" );
             if( blockStructureRefreshDuringMeasurement )
-               postprocessing::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRefreshTiming, "BlockForestRefresh" );
+               sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRefreshTiming, "BlockForestRefresh" );
          }
       }
    }

@@ -153,8 +153,11 @@ void Config::parseFromFile( const char* filename, Block& block, unsigned int lev
 {
    std::stringstream input;
    LineVector lineNumbers;
-   std::string line, key, value;
-   std::string::size_type pos1, pos2;
+   std::string line;
+   std::string key;
+   std::string value;
+   std::string::size_type pos1;
+   std::string::size_type pos2;
    unsigned int lineCounter(0);
    bool comment(false);
 
@@ -271,16 +274,16 @@ void Config::parseFromFile( const char* filename, Block& block, unsigned int lev
       else if( std::getline( input, value, ';' ) && !input.eof() )
       {
          input.ignore( 1 );
-         while( (value.find("$(") != value.npos) && (value.find(')') != value.npos) ) {
+         while( (value.find("$(") != std::string::npos) && (value.find(')') != std::string::npos) ) {
             size_t s = value.find("$("); size_t e = value.find(')');
             ValueReplacementMap::iterator mkey = valueReplacements_.find( value.substr( s+2, e-s+1-3 ) );
             if(mkey != valueReplacements_.end()) {
                value.replace( s,e-s+1, mkey->second );
             }
             else {
-               if(e!=value.npos)
+               if(e!=std::string::npos)
                   value.erase(e,1);
-               if(s!=value.npos)
+               if(s!=std::string::npos)
                   value.erase(s,2);
             }
          }
@@ -357,7 +360,8 @@ void Config::extractBlock( const char* filename, std::stringstream& input, Block
                            const LineVector& lineNumbers, unsigned int lineNumber,
                            unsigned int level )
 {
-   std::string key, value;
+   std::string key;
+   std::string value;
 
    while( input >> key )
    {
@@ -404,16 +408,16 @@ void Config::extractBlock( const char* filename, std::stringstream& input, Block
       else if( std::getline( input, value, ';' ) && !input.eof() )
       {
          input.ignore( 1 );
-         while( (value.find("$(") != value.npos) && (value.find(')') != value.npos) ) {
+         while( (value.find("$(") != std::string::npos) && (value.find(')') != std::string::npos) ) {
             size_t s = value.find("$("); size_t e = value.find(')');
             ValueReplacementMap::iterator mkey = valueReplacements_.find( value.substr( s+2, e-s+1-3 ) );
             if(mkey != valueReplacements_.end()) {
                value.replace( s,e-s+1, mkey->second );
             }
             else {
-               if(e!=value.npos)
+               if(e!=std::string::npos)
                   value.erase(e,1);
-               if(s!=value.npos)
+               if(s!=std::string::npos)
                   value.erase(s,2);
             }
          }
@@ -428,7 +432,6 @@ void Config::extractBlock( const char* filename, std::stringstream& input, Block
    error_ << "   Missing '}' for " << block.getKey()
       << " block starting in line " << lineNumber << "\n";
    stateFlag_ = false;
-   return;
 }
 //**********************************************************************************************************************
 
@@ -657,7 +660,7 @@ void Config::Block::getWritableBlocks( const std::string & key, std::vector<Bloc
 // \param value The value of the new parameter.
 // \return \a true if a new parameter was added, \a false if duplicate key is present.
  */
-bool Config::Block::addParameter( std::string key, const std::string& value )
+bool Config::Block::addParameter( const std::string& key, const std::string& value )
 {
    return params_.insert( std::pair<Key,Value>(key,value) ).second;
 }

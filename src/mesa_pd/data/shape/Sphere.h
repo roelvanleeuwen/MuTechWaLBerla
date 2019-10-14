@@ -37,9 +37,11 @@ public:
 
    void updateMassAndInertia(const real_t density) override;
 
-   real_t getVolume() const override { return (real_t(4) / real_t(3)) * math::M_PI * getRadius() * getRadius() * getRadius(); }
+   real_t getVolume() const override { return (real_t(4) / real_t(3)) * math::pi * getRadius() * getRadius() * getRadius(); }
 
-   static const int SHAPE_TYPE = 1; ///< Unique shape type identifier for spheres.\ingroup mesa_pd_shape
+   Vec3 support( const Vec3& d ) const override;
+
+   constexpr static int SHAPE_TYPE = 1; ///< Unique shape type identifier for spheres.\ingroup mesa_pd_shape
 
 private:
       real_t radius_; ///< radius of the sphere
@@ -48,11 +50,20 @@ private:
 inline
 void Sphere::updateMassAndInertia(const real_t density)
 {
-   const real_t m = (real_c(4.0)/real_c(3.0) * math::M_PI) * getRadius() * getRadius() * getRadius() * density;
+   const real_t m = (real_c(4.0)/real_c(3.0) * math::pi) * getRadius() * getRadius() * getRadius() * density;
    const Mat3   I = Mat3::makeDiagonalMatrix( real_c(0.4) * m * getRadius() * getRadius() );
 
-   getInvMass()      = real_t(1.0) / m;
-   getInvInertiaBF() = I.getInverse();
+   mass_         = m;
+   invMass_      = real_t(1.0) / m;
+
+   inertiaBF_    = I;
+   invInertiaBF_ = I.getInverse();
+}
+
+inline
+Vec3 Sphere::support( const Vec3& d ) const
+{
+   return radius_ * d;
 }
 
 } //namespace data

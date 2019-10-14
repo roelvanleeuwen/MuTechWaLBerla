@@ -197,7 +197,7 @@ void Raytracer::setupView_() {
    // viewing plane setup
    d_ = (cameraPosition_ - lookAtPoint_).length();
    aspectRatio_ = real_t(pixelsHorizontal_) / real_t(pixelsVertical_);
-   real_t fov_vertical_rad = fov_vertical_ * math::M_PI / real_t(180.0);
+   real_t fov_vertical_rad = fov_vertical_ * math::pi / real_t(180.0);
    viewingPlaneHeight_ = real_c(tan(fov_vertical_rad/real_t(2.))) * real_t(2.) * d_;
    viewingPlaneWidth_ = viewingPlaneHeight_ * aspectRatio_;
    viewingPlaneOrigin_ = lookAtPoint_ - u_*viewingPlaneWidth_/real_t(2.) - v_*viewingPlaneHeight_/real_t(2.);
@@ -241,7 +241,8 @@ void Raytracer::setupMPI_() {
    MPI_Datatype tmp_type;
    MPI_Type_create_struct(nblocks, blocklengths, displacements, types, &tmp_type);
    
-   MPI_Aint lb, extent;
+   MPI_Aint lb;
+   MPI_Aint extent;
    MPI_Type_get_extent( tmp_type, &lb, &extent );
    MPI_Type_create_resized( tmp_type, lb, extent, &bodyIntersectionInfo_mpi_type );
    
@@ -299,7 +300,9 @@ void Raytracer::writeImageToFile(const std::vector<BodyIntersectionInfo>& inters
    real_t patchSize = real_c(antiAliasFactor_*antiAliasFactor_);
    for (int y = pixelsVertical_-1; y >= 0; y--) {
       for (uint32_t x = 0; x < pixelsHorizontal_; x++) {
-         real_t r_sum = 0, g_sum = 0, b_sum = 0;
+         real_t r_sum = 0;
+         real_t g_sum = 0;
+         real_t b_sum = 0;
          for (uint32_t ay = uint32_c(y)*antiAliasFactor_; ay < (uint32_c(y+1))*antiAliasFactor_; ay++) {
             for (uint32_t ax = x*antiAliasFactor_; ax < (x+1)*antiAliasFactor_; ax++) {
                size_t i = coordinateToArrayIndex(ax, ay);

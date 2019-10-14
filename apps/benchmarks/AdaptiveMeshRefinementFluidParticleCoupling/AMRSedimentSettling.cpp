@@ -1229,7 +1229,7 @@ int main( int argc, char **argv )
 
    const Vector3<uint_t> domainSize( XBlocks * blockSize, YBlocks * blockSize, ZBlocks * blockSize );
    const auto domainVolume = real_t(domainSize[0] * domainSize[1] * domainSize[2]);
-   const real_t sphereVolume = math::M_PI / real_t(6) * diameter * diameter * diameter;
+   const real_t sphereVolume = math::pi / real_t(6) * diameter * diameter * diameter;
    const uint_t numberOfSediments = uint_c(std::ceil(solidVolumeFraction * domainVolume / sphereVolume));
 
    real_t expectedSedimentVolumeFraction = (useBox||useHopper) ? real_t(0.45) : real_t(0.52);
@@ -1840,13 +1840,13 @@ int main( int argc, char **argv )
                                                   "pe Time Step", finestLevel );
 
    // add sweep for updating the pe body mapping into the LBM simulation
-   refinementTimestep->addPostStreamVoidFunction(lbm::refinement::SweepAsFunctorWrapper( pe_coupling::BodyMapping< BoundaryHandling_T >( blocks, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID,  MO_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies ), blocks ),
+   refinementTimestep->addPostStreamVoidFunction(lbm::refinement::SweepAsFunctorWrapper( pe_coupling::BodyMapping< LatticeModel_T, BoundaryHandling_T >( blocks, pdfFieldID, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID,  MO_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies ), blocks ),
                                                  "Body Mapping", finestLevel );
 
    // add sweep for restoring PDFs in cells previously occupied by pe bodies
    typedef pe_coupling::EquilibriumReconstructor< LatticeModel_T, BoundaryHandling_T > Reconstructor_T;
-   Reconstructor_T reconstructor( blocks, boundaryHandlingID, pdfFieldID, bodyFieldID );
-   refinementTimestep->addPostStreamVoidFunction(lbm::refinement::SweepAsFunctorWrapper( pe_coupling::PDFReconstruction< LatticeModel_T, BoundaryHandling_T, Reconstructor_T > ( blocks,
+   Reconstructor_T reconstructor( blocks, boundaryHandlingID, bodyFieldID );
+   refinementTimestep->addPostStreamVoidFunction(lbm::refinement::SweepAsFunctorWrapper( pe_coupling::PDFReconstruction< LatticeModel_T, BoundaryHandling_T, Reconstructor_T > ( blocks, pdfFieldID,
                                                  boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, reconstructor, FormerMO_Flag, Fluid_Flag ), blocks ),
                                                  "PDF Restore", finestLevel );
 
@@ -2020,7 +2020,8 @@ int main( int argc, char **argv )
 
          // evaluate general simulation infos (on root)
          {
-            real_t totalTimeToCurrentTimestep, totalLBTimeToCurrentTimestep;
+            real_t totalTimeToCurrentTimestep;
+            real_t totalLBTimeToCurrentTimestep;
             evaluateTotalSimulationTimePassed(timeloopTiming, totalTimeToCurrentTimestep, totalLBTimeToCurrentTimestep);
             std::vector<math::DistributedSample> numberOfBlocksPerLevel(numberOfLevels);
 

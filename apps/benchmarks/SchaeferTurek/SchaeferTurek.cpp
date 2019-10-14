@@ -93,7 +93,7 @@
 #include "lbm/vtk/NonEquilibrium.h"
 #include "lbm/vtk/Velocity.h"
 
-#include "postprocessing/sqlite/SQLite.h"
+#include "sqlite/SQLite.h"
 
 #include "stencil/D3Q15.h"
 #include "stencil/D3Q19.h"
@@ -744,7 +744,7 @@ public:
 
    void operator()( const real_t t )
    {
-      tConstTerm_ = ( sinPeriod_ > real_t(0) ) ? ( std::abs( std::sin( math::M_PI * t / sinPeriod_ ) ) ) : real_t(1);
+      tConstTerm_ = ( sinPeriod_ > real_t(0) ) ? ( std::abs( std::sin( math::pi * t / sinPeriod_ ) ) ) : real_t(1);
       tConstTerm_ *= uTerm_ * HTerm_;
       tConstTerm_ *= ( raisingTime_ > real_t(0) ) ? std::min( t / raisingTime_, real_t(1) ) : real_t(1);
    }
@@ -961,12 +961,12 @@ void BoundarySetter< LatticeModel_T >::operator()()
       {
          CurvedDeltaValueCalculation< LatticeModel_T > deltaCalculation( blocks, *block, cylinder );
 
-         lbm::refinement::consistentlyForceBoundary< BoundaryHandling_T >( *blocks, dynamic_cast< blockforest::Block & >(*block.get()),
+         lbm::refinement::consistentlyForceBoundary< BoundaryHandling_T >( *blocks, dynamic_cast< blockforest::Block & >(*block),
                                                                            boundaryHandlingId_, Curved_Flag, cylinder, deltaCalculation );
       }
       else // staircase
       {
-         lbm::refinement::consistentlyForceBoundary< BoundaryHandling_T >( *blocks, dynamic_cast< blockforest::Block & >(*block.get()),
+         lbm::refinement::consistentlyForceBoundary< BoundaryHandling_T >( *blocks, dynamic_cast< blockforest::Block & >(*block),
                                                                            boundaryHandlingId_, Obstacle_Flag, cylinder );
       }
 
@@ -2787,12 +2787,12 @@ void run( const shared_ptr< Config > & config, const LatticeModel_T & latticeMod
             if( evaluationCheckFrequency != uint_t(0) )
                evaluation->getResultsForSQLOnRoot( realProperties, integerProperties );
 
-            auto runId = postprocessing::storeRunInSqliteDB( sqlFile, integerProperties, stringProperties, realProperties );
-            postprocessing::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedTimeloopTiming, "Timeloop" );
-            postprocessing::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRTSTiming, "RefinementTimeStep" );
-            postprocessing::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRTSLTiming, "RefinementTimeStepLevelwise" );
+            auto runId = sqlite::storeRunInSqliteDB( sqlFile, integerProperties, stringProperties, realProperties );
+            sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedTimeloopTiming, "Timeloop" );
+            sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRTSTiming, "RefinementTimeStep" );
+            sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRTSLTiming, "RefinementTimeStepLevelwise" );
             if( dynamicBlockStructure )
-               postprocessing::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRefreshTiming, "BlockForestRefresh" );
+               sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *reducedRefreshTiming, "BlockForestRefresh" );
          }
       }
    }

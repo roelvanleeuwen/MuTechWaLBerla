@@ -43,7 +43,7 @@ public:
 
    const Vec3& getNormal() const { return normal_; }
 
-   static const int SHAPE_TYPE = 0; ///< Unique shape type identifier for planes.\ingroup mesa_pd_shape
+   constexpr static int SHAPE_TYPE = 0; ///< Unique shape type identifier for planes.\ingroup mesa_pd_shape
 private:
    /**
     * Normal of the plane in reference to the global world frame.
@@ -56,8 +56,11 @@ private:
 inline
 void HalfSpace::updateMassAndInertia(const real_t /*density*/)
 {
-   getInvMass()      = real_t(0);
-   getInvInertiaBF() = Mat3(real_t(0));
+   mass_         = std::numeric_limits<real_t>::infinity();
+   invMass_      = real_t(0);
+
+   inertiaBF_    = Mat3(std::numeric_limits<real_t>::infinity());
+   invInertiaBF_ = Mat3(real_t(0));
 }
 
 } //namespace data

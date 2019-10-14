@@ -23,5 +23,6 @@
 #pragma once
 
 #include "boundary/all.h"
+#include "destruction/all.h"
 #include "restoration/all.h"
 #include "BodyMapping.h"

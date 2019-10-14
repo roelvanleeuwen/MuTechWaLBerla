@@ -40,17 +40,13 @@ class ParticleAccessorWithShape : public data::ParticleAccessor
 {
 public:
    ParticleAccessorWithShape(std::shared_ptr<data::ParticleStorage>& ps, std::shared_ptr<data::ShapeStorage>& ss)
-      : ParticleAccessor(ps)
-      , ss_(ss)
+         : ParticleAccessor(ps)
+         , ss_(ss)
    {}
 
-   const walberla::real_t& getInvMass(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvMass();}
-   walberla::real_t& getInvMassRef(const size_t p_idx) {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvMass();}
-   void setInvMass(const size_t p_idx, const walberla::real_t& v) { ss_->shapes[ps_->getShapeID(p_idx)]->getInvMass() = v;}
+   const auto& getInvMass(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvMass();}
 
    const auto& getInvInertiaBF(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvInertiaBF();}
-   auto& getInvInertiaBFRef(const size_t p_idx) {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvInertiaBF();}
-   void setInvInertiaBF(const size_t p_idx, const Mat3& v) { ss_->shapes[ps_->getShapeID(p_idx)]->getInvInertiaBF() = v;}
 
    data::BaseShape* getShape(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)].get();}
 private:
@@ -127,6 +123,15 @@ int main( int argc, char ** argv )
    WALBERLA_CHECK_FLOAT_EQUAL_EPSILON( ps->getForce(0),
                                        real_t(101) * Vec3(1,1,1).getNormalized() * ((std::sqrt(real_t(12)) - 4) * sd.getStiffness(0, 0)),
                                        real_t(1e-6) );
+
+   auto cor  = real_t(0.87);
+   auto ct   = real_t(0.17);
+   auto meff = real_t(0.65);
+   sd.setParametersFromCOR(0, 0, cor, ct, meff);
+   //WALBERLA_CHECK_FLOAT_EQUAL(sd.getStiffness(0,0), (math::pi*math::pi - std::log(cor)*std::log(cor)) / (ct*ct) * meff);
+   //WALBERLA_CHECK_FLOAT_EQUAL(sd.getDampingN(0,0),  -real_t(2)*std::log(cor)/ct*meff);
+   WALBERLA_CHECK_FLOAT_EQUAL(sd.calcCoefficientOfRestitution(0, 0, meff), cor);
+   WALBERLA_CHECK_FLOAT_EQUAL(sd.calcCollisionTime(0, 0, meff), ct);
 
    return EXIT_SUCCESS;
 }

@@ -137,7 +137,7 @@ public:
                   const BlockDataID & boundaryHandlingID, const BlockDataID & bodyFieldID, real_t sphereRadius) :
          blocks_( blocks ), bodyStorageID_( bodyStorageID ), globalBodyStorage_( globalBodyStorage ),
          boundaryHandlingID_( boundaryHandlingID ), bodyFieldID_( bodyFieldID ),
-         sphereVolume_( math::M_PI * real_t(4) / real_t(3) * sphereRadius * sphereRadius * sphereRadius )
+         sphereVolume_( math::pi * real_t(4) / real_t(3) * sphereRadius * sphereRadius * sphereRadius )
    { }
 
    // check the mapping in the inner domain of the block and check mapped volume against real sphere volume
@@ -477,8 +477,8 @@ int main( int argc, char **argv )
    // testing utilities
    MappingChecker mappingChecker(blocks, bodyStorageID, globalBodyStorage, boundaryHandlingID, bodyFieldID, radius);
    MappingResetter mappingResetter(blocks, boundaryHandlingID, bodyFieldID);
-   pe_coupling::BodyMapping<BoundaryHandling_T> regularBodyMapper(blocks, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, MO_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies );
-   pe_coupling::BodyMapping<BoundaryHandling_T> globalBodyMapper(blocks, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, MO_Flag, FormerMO_Flag, pe_coupling::selectGlobalBodies );
+   pe_coupling::BodyMapping<LatticeModel_T, BoundaryHandling_T> regularBodyMapper(blocks, pdfFieldID, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, MO_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies );
+   pe_coupling::BodyMapping<LatticeModel_T, BoundaryHandling_T> globalBodyMapper(blocks, pdfFieldID, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, MO_Flag, FormerMO_Flag, pe_coupling::selectGlobalBodies );
 
 
    // sphere positions for test scenarios

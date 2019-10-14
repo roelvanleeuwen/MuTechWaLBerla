@@ -23,6 +23,8 @@
 #include <mesa_pd/collision_detection/AnalyticCollisionFunctions.h>
 #include <mesa_pd/data/DataTypes.h>
 #include <mesa_pd/data/shape/BaseShape.h>
+#include <mesa_pd/data/shape/Box.h>
+#include <mesa_pd/data/shape/CylindricalBoundary.h>
 #include <mesa_pd/data/shape/HalfSpace.h>
 #include <mesa_pd/data/shape/Sphere.h>
 
@@ -44,6 +46,8 @@ namespace collision_detection {
 class AnalyticContactDetection
 {
 public:
+   virtual ~AnalyticContactDetection() {}
+
    size_t& getIdx1() {return idx1_;}
    size_t& getIdx2() {return idx2_;}
    Vec3&   getContactPoint() {return contactPoint_;}
@@ -76,6 +80,34 @@ public:
    bool operator()( const size_t idx1,
                     const size_t idx2,
                     const data::Sphere& s,
+                    const data::Box& bx,
+                    Accessor& ac );
+
+   template <typename Accessor>
+   bool operator()( const size_t idx1,
+                    const size_t idx2,
+                    const data::Box& bx,
+                    const data::Sphere& s,
+                    Accessor& ac);
+
+   template <typename Accessor>
+   bool operator()( const size_t idx1,
+                    const size_t idx2,
+                    const data::Sphere& s,
+                    const data::CylindricalBoundary& cb,
+                    Accessor& ac );
+
+   template <typename Accessor>
+   bool operator()( const size_t idx1,
+                    const size_t idx2,
+                    const data::CylindricalBoundary& cb,
+                    const data::Sphere& s,
+                    Accessor& ac);
+
+   template <typename Accessor>
+   bool operator()( const size_t idx1,
+                    const size_t idx2,
+                    const data::Sphere& s,
                     const data::HalfSpace& p,
                     Accessor& ac );
 
@@ -86,12 +118,40 @@ public:
                     const data::Sphere& s,
                     Accessor& ac);
 
-private:
-   size_t idx1_;
-   size_t idx2_;
-   Vec3   contactPoint_;
-   Vec3   contactNormal_;
-   real_t penetrationDepth_;
+   template <typename Accessor>
+   bool operator()( const size_t idx1,
+                    const size_t idx2,
+                    const data::HalfSpace& p0,
+                    const data::HalfSpace& p1,
+                    Accessor& ac);
+
+   template <typename Accessor>
+   bool operator()( const size_t idx1,
+                    const size_t idx2,
+                    const data::CylindricalBoundary& p0,
+                    const data::HalfSpace& p1,
+                    Accessor& ac);
+
+   template <typename Accessor>
+   bool operator()( const size_t idx1,
+                    const size_t idx2,
+                    const data::HalfSpace& p0,
+                    const data::CylindricalBoundary& p1,
+                    Accessor& ac);
+
+   template <typename Accessor>
+   bool operator()( const size_t idx1,
+                    const size_t idx2,
+                    const data::CylindricalBoundary& p0,
+                    const data::CylindricalBoundary& p1,
+                    Accessor& ac);
+
+protected:
+   size_t idx1_ = std::numeric_limits<size_t>::max();
+   size_t idx2_ = std::numeric_limits<size_t>::max();
+   Vec3   contactPoint_ = Vec3();
+   Vec3   contactNormal_ = Vec3();
+   real_t penetrationDepth_ = real_t(0);
 
    real_t contactThreshold_ = real_t(0.0);
 };
@@ -135,6 +195,68 @@ template <typename Accessor>
 inline bool AnalyticContactDetection::operator()( const size_t idx1,
                                                   const size_t idx2,
                                                   const data::Sphere& s,
+                                                  const data::Box& bx,
+                                                  Accessor& ac )
+{
+   getIdx1() = idx1;
+   getIdx2() = idx2;
+   return analytic::detectSphereBoxCollision(ac.getPosition(getIdx1()),
+                                             s.getRadius(),
+                                             ac.getPosition(getIdx2()),
+                                             bx.getEdgeLength(),
+                                             ac.getRotation(getIdx2()),
+                                             getContactPoint(),
+                                             getContactNormal(),
+                                             getPenetrationDepth(),
+                                             getContactThreshold());
+}
+
+template <typename Accessor>
+inline bool AnalyticContactDetection::operator()( const size_t idx1,
+                                                  const size_t idx2,
+                                                  const data::Box& bx,
+                                                  const data::Sphere& s,
+                                                  Accessor& ac)
+{
+   return operator()(idx2, idx1, s, bx, ac);
+}
+
+template <typename Accessor>
+inline bool AnalyticContactDetection::operator()( const size_t idx1,
+                                                  const size_t idx2,
+                                                  const data::Sphere& s,
+                                                  const data::CylindricalBoundary& cb,
+                                                  Accessor& ac )
+{
+   WALBERLA_ASSERT_UNEQUAL(idx1, idx2, "colliding with itself!");
+
+   getIdx1() = idx1;
+   getIdx2() = idx2;
+   return analytic::detectSphereCylindricalBoundaryCollision(ac.getPosition(getIdx1()),
+                                                             s.getRadius(),
+                                                             ac.getPosition(getIdx2()),
+                                                             cb.getRadius(),
+                                                             cb.getAxis(),
+                                                             getContactPoint(),
+                                                             getContactNormal(),
+                                                             getPenetrationDepth(),
+                                                             getContactThreshold());
+}
+
+template <typename Accessor>
+inline bool AnalyticContactDetection::operator()( const size_t idx1,
+                                                  const size_t idx2,
+                                                  const data::CylindricalBoundary& cb,
+                                                  const data::Sphere& s,
+                                                  Accessor& ac)
+{
+   return operator()(idx2, idx1, s, cb, ac);
+}
+
+template <typename Accessor>
+inline bool AnalyticContactDetection::operator()( const size_t idx1,
+                                                  const size_t idx2,
+                                                  const data::Sphere& s,
                                                   const data::HalfSpace& p,
                                                   Accessor& ac )
 {
@@ -160,6 +282,46 @@ inline bool AnalyticContactDetection::operator()( const size_t idx1,
                                                   Accessor& ac)
 {
    return operator()(idx2, idx1, s, p, ac);
+}
+
+template <typename Accessor>
+inline bool AnalyticContactDetection::operator()( const size_t /*idx1*/,
+                                                  const size_t /*idx2*/,
+                                                  const data::HalfSpace& /*geo1*/,
+                                                  const data::HalfSpace& /*geo2*/,
+                                                  Accessor& /*ac*/)
+{
+   WALBERLA_ABORT("Collision between two half spaces is not defined!")
+}
+
+template <typename Accessor>
+inline bool AnalyticContactDetection::operator()( const size_t /*idx1*/,
+                                                  const size_t /*idx2*/,
+                                                  const data::HalfSpace& /*geo1*/,
+                                                  const data::CylindricalBoundary& /*geo2*/,
+                                                  Accessor& /*ac*/)
+{
+   WALBERLA_ABORT("Collision between half spaces and cylindrical boundary is not defined!")
+}
+
+template <typename Accessor>
+inline bool AnalyticContactDetection::operator()( const size_t /*idx1*/,
+                                                  const size_t /*idx2*/,
+                                                  const data::CylindricalBoundary& /*geo1*/,
+                                                  const data::HalfSpace& /*geo2*/,
+                                                  Accessor& /*ac*/)
+{
+   WALBERLA_ABORT("Collision between half spaces and cylindrical boundary is not defined!")
+}
+
+template <typename Accessor>
+inline bool AnalyticContactDetection::operator()( const size_t /*idx1*/,
+                                                  const size_t /*idx2*/,
+                                                  const data::CylindricalBoundary& /*geo1*/,
+                                                  const data::CylindricalBoundary& /*geo2*/,
+                                                  Accessor& /*ac*/)
+{
+   WALBERLA_ABORT("Collision between two cylindrical boundaries is not defined!")
 }
 
 inline

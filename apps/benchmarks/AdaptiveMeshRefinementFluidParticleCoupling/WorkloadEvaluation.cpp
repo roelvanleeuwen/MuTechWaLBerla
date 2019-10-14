@@ -463,8 +463,8 @@ int main( int argc, char **argv )
    real_t domainHeight = real_c(ZCells) - topWallOffset;
    real_t fluidVolume =  real_c( XCells * YCells ) * domainHeight;
    real_t solidVolume = solidVolumeFraction * fluidVolume;
-   uint_t numberOfParticles = uint_c(std::ceil(solidVolume / ( math::M_PI / real_t(6) * diameter * diameter * diameter )));
-   diameter = std::cbrt( solidVolume / ( real_c(numberOfParticles) * math::M_PI / real_t(6) ) );
+   uint_t numberOfParticles = uint_c(std::ceil(solidVolume / ( math::pi / real_t(6) * diameter * diameter * diameter )));
+   diameter = std::cbrt( solidVolume / ( real_c(numberOfParticles) * math::pi / real_t(6) ) );
 
    auto densityRatio = real_t(2.5);
 
@@ -751,14 +751,14 @@ int main( int argc, char **argv )
 
    // sweep for updating the pe body mapping into the LBM simulation
    timeloop.add()
-         << Sweep( pe_coupling::BodyMapping< BoundaryHandling_T >( blocks, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, MO_CLI_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies ), "Body Mapping" );
+         << Sweep( pe_coupling::BodyMapping< LatticeModel_T, BoundaryHandling_T >( blocks, pdfFieldID, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, MO_CLI_Flag, FormerMO_Flag, pe_coupling::selectRegularBodies ), "Body Mapping" );
 
    // sweep for restoring PDFs in cells previously occupied by pe bodies
    typedef pe_coupling::EquilibriumReconstructor< LatticeModel_T, BoundaryHandling_T > Reconstructor_T;
-   Reconstructor_T reconstructor( blocks, boundaryHandlingID, pdfFieldID, bodyFieldID);
+   Reconstructor_T reconstructor( blocks, boundaryHandlingID, bodyFieldID);
    timeloop.add()
          << Sweep( pe_coupling::PDFReconstruction< LatticeModel_T, BoundaryHandling_T, Reconstructor_T >
-                         ( blocks, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, reconstructor, FormerMO_Flag, Fluid_Flag, pe_coupling::selectRegularBodies, optimizeForSmallObstacleFraction ), "PDF Restore" );
+                         ( blocks, pdfFieldID, boundaryHandlingID, bodyStorageID, globalBodyStorage, bodyFieldID, reconstructor, FormerMO_Flag, Fluid_Flag, pe_coupling::selectRegularBodies, optimizeForSmallObstacleFraction ), "PDF Restore" );
 
    shared_ptr<pe_coupling::BodiesForceTorqueContainer> bodiesFTContainer1 = make_shared<pe_coupling::BodiesForceTorqueContainer>(blocks, bodyStorageID);
    std::function<void(void)> storeForceTorqueInCont1 = std::bind(&pe_coupling::BodiesForceTorqueContainer::store, bodiesFTContainer1);
@@ -821,7 +821,7 @@ int main( int argc, char **argv )
 
    }
 
-   real_t sphereVolume = diameter * diameter * diameter * math::M_PI / real_t(6);
+   real_t sphereVolume = diameter * diameter * diameter * math::pi / real_t(6);
    Vector3<real_t> gravitationalForce( real_t(0), real_t(0), -(densityRatio - real_t(1)) * gravitationalAcceleration * sphereVolume );
    timeloop.addFuncAfterTimeStep(pe_coupling::ForceOnBodiesAdder( blocks, bodyStorageID, gravitationalForce ), "Gravitational force" );
 
@@ -867,7 +867,12 @@ int main( int argc, char **argv )
    peTimer.emplace_back("Simulation Step.Collision Response Resolution.Collision Response Solving");
    timerKeys.push_back(peTimer);
 
-   uint_t numCells, numFluidCells, numNBCells, numLocalParticles, numShadowParticles, numContacts;
+   uint_t numCells;
+   uint_t numFluidCells;
+   uint_t numNBCells;
+   uint_t numLocalParticles;
+   uint_t numShadowParticles;
+   uint_t numContacts;
    numCells = uint_t(0);
    numFluidCells = uint_t(0);
    numNBCells = uint_t(0);

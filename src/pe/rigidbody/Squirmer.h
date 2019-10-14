@@ -32,7 +32,7 @@ public:
    //**Constructors********************************************************************************
    /*!\name Constructors */
    //@{
-   explicit Squirmer( id_t sid, id_t uid, const Vec3& gpos, const Vec3& rpos, const Quat& q,
+   explicit Squirmer( id_t sid, id_t uid, const Vec3& gpos,  const Quat& q,
                     real_t radius, real_t squirmerVelocity, real_t squirmerBeta, MaterialID material,
                     const bool global, const bool communicating, const bool infiniteMass );
    //@}
@@ -53,10 +53,10 @@ public:
    inline real_t getSquirmerVelocity() const;
    inline real_t getSquirmerBeta()     const;
 
-   inline const Vec3     velFromBF       ( real_t px, real_t py, real_t pz ) const WALBERLA_OVERRIDE;
-   inline const Vec3     velFromBF       ( const Vec3& rpos )                const WALBERLA_OVERRIDE;
-   inline const Vec3     velFromWF       ( real_t px, real_t py, real_t pz ) const WALBERLA_OVERRIDE;
-   inline const Vec3     velFromWF       ( const Vec3& gpos )                const WALBERLA_OVERRIDE;
+   inline Vec3     velFromBF       ( real_t px, real_t py, real_t pz ) const WALBERLA_OVERRIDE;
+   inline Vec3     velFromBF       ( const Vec3& rpos )                const WALBERLA_OVERRIDE;
+   inline Vec3     velFromWF       ( real_t px, real_t py, real_t pz ) const WALBERLA_OVERRIDE;
+   inline Vec3     velFromWF       ( const Vec3& gpos )                const WALBERLA_OVERRIDE;
 
    static inline id_t getStaticTypeID() WALBERLA_OVERRIDE;
    //@}
@@ -67,7 +67,7 @@ protected:
    //**Get functions*******************************************************************************
    /*!\name Get functions */
    //@{
-   const Vec3 getSquirmerVelocity( const Vec3& rpos ) const;
+   Vec3 getSquirmerVelocity( const Vec3& rpos ) const;
    //@}
 
    //**Member variables****************************************************************************

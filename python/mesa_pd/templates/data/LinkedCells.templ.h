@@ -93,7 +93,10 @@ struct LinkedCells
 };
 
 inline
-math::AABB getCellAABB(const LinkedCells& ll, const int hash0, const int hash1, const int hash2)
+math::AABB getCellAABB(const LinkedCells& ll,
+                       const int64_t hash0,
+                       const int64_t hash1,
+                       const int64_t hash2)
 {
    {%- for dim in range(3) %}
    WALBERLA_ASSERT_GREATER_EQUAL(hash{{dim}}, 0);
@@ -110,13 +113,35 @@ math::AABB getCellAABB(const LinkedCells& ll, const int hash0, const int hash1, 
 }
 
 inline
-int getCellIdx(const LinkedCells& ll, const int hash0, const int hash1, const int hash2)
+uint_t getCellIdx(const LinkedCells& ll,
+                  const int64_t hash0,
+                  const int64_t hash1,
+                  const int64_t hash2)
 {
    {%- for dim in range(3) %}
    WALBERLA_ASSERT_GREATER_EQUAL(hash{{dim}}, 0);
    WALBERLA_ASSERT_LESS(hash{{dim}}, ll.numCellsPerDim_[{{dim}}]);
    {%- endfor %}
-   return hash2 * ll.numCellsPerDim_[1] * ll.numCellsPerDim_[0] + hash1 * ll.numCellsPerDim_[0] + hash0;
+   return uint_c(hash2 * ll.numCellsPerDim_[1] * ll.numCellsPerDim_[0] + hash1 * ll.numCellsPerDim_[0] + hash0);
+}
+
+inline
+void getCellCoordinates(const LinkedCells& ll,
+                        const uint64_t idx,
+                        int64_t& hash0,
+                        int64_t& hash1,
+                        int64_t& hash2)
+{
+   hash2 = int64_c(idx) / (ll.numCellsPerDim_[1] * ll.numCellsPerDim_[0]);
+   hash1 = (int64_c(idx) - (hash2 * ll.numCellsPerDim_[1] * ll.numCellsPerDim_[0])) / (ll.numCellsPerDim_[0]);
+   hash0 = int64_c(idx) - hash2 * ll.numCellsPerDim_[1] * ll.numCellsPerDim_[0] - hash1 * ll.numCellsPerDim_[0];
+
+   WALBERLA_ASSERT_GREATER_EQUAL(hash0, 0);
+   WALBERLA_ASSERT_LESS(hash0, ll.numCellsPerDim_[0]);
+   WALBERLA_ASSERT_GREATER_EQUAL(hash1, 0);
+   WALBERLA_ASSERT_LESS(hash1, ll.numCellsPerDim_[1]);
+   WALBERLA_ASSERT_GREATER_EQUAL(hash2, 0);
+   WALBERLA_ASSERT_LESS(hash2, ll.numCellsPerDim_[2]);
 }
 
 inline
@@ -143,15 +168,17 @@ LinkedCells::LinkedCells(const math::AABB& domain, const Vec3& cellDiameter)
 
    WALBERLA_CHECK_GREATER_EQUAL(numCellsPerDim_[{{dim}}], 0);
    {%- endfor %}
+
+   std::fill(cells_.begin(), cells_.end(), -1);
 }
 
 void LinkedCells::clear()
 {
    const uint64_t cellsSize = cells_.size();
    //clear existing linked cells
-   #ifdef _OPENMP
-   #pragma omp parallel for schedule(static)
-   #endif
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static)
+#endif
    for (int64_t i = 0; i < int64_c(cellsSize); ++i)
       cells_[uint64_c(i)] = -1;
    infiniteParticles_ = -1;
@@ -172,8 +199,8 @@ inline void LinkedCells::forEachParticlePair{%- if half %}Half{%- endif %}(const
       {
          for (int x = 0; x < numCellsPerDim_[0]; ++x)
          {
-            const int cell_idx = getCellIdx(*this, x, y, z); ///< current cell index
-            int p_idx = cells_[uint_c(cell_idx)]; ///< current particle index
+            const uint_t cell_idx = getCellIdx(*this, x, y, z); ///< current cell index
+            int p_idx = cells_[cell_idx]; ///< current particle index
             int np_idx = -1; ///< particle to be checked against
 
             while (p_idx != -1)
@@ -212,11 +239,11 @@ inline void LinkedCells::forEachParticlePair{%- if half %}Half{%- endif %}(const
                   if (ny >= numCellsPerDim_[1]) continue;
                   if (nz >= numCellsPerDim_[2]) continue;
 
-                  const int ncell_idx = getCellIdx(*this, nx, ny, nz); ///< neighbor cell index
+                  const uint_t ncell_idx = getCellIdx(*this, nx, ny, nz); ///< neighbor cell index
 
                   WALBERLA_ASSERT_GREATER_EQUAL(p_idx, 0);
                   WALBERLA_ASSERT_LESS(p_idx, acForLC.size());
-                  np_idx = cells_[uint_c(ncell_idx)]; ///< neighbor particle index
+                  np_idx = cells_[ncell_idx]; ///< neighbor particle index
                   while (np_idx != -1)
                   {
                      WALBERLA_ASSERT_GREATER_EQUAL(np_idx, 0);

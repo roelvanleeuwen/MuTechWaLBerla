@@ -47,13 +47,9 @@ public:
          , ss_(ss)
    {}
 
-   const walberla::real_t& getInvMass(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvMass();}
-   walberla::real_t& getInvMassRef(const size_t p_idx) {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvMass();}
-   void setInvMass(const size_t p_idx, const walberla::real_t& v) { ss_->shapes[ps_->getShapeID(p_idx)]->getInvMass() = v;}
+   const auto& getInvMass(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvMass();}
 
    const auto& getInvInertiaBF(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvInertiaBF();}
-   auto& getInvInertiaBFRef(const size_t p_idx) {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvInertiaBF();}
-   void setInvInertiaBF(const size_t p_idx, const Mat3& v) { ss_->shapes[ps_->getShapeID(p_idx)]->getInvInertiaBF() = v;}
 
    data::BaseShape* getShape(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)].get();}
 private:
@@ -121,16 +117,16 @@ int main( int argc, char ** argv )
    const real_t lnDryResCoeff = std::log(restitutionCoeff);
 
    // normal material aprameters
-   const real_t stiffnessN = math::M_PI * math::M_PI * Mij / ( collisionTime * collisionTime * ( real_t(1) - lnDryResCoeff * lnDryResCoeff / ( math::M_PI * math::M_PI + lnDryResCoeff* lnDryResCoeff ))  );
+   const real_t stiffnessN = math::pi * math::pi * Mij / ( collisionTime * collisionTime * ( real_t(1) - lnDryResCoeff * lnDryResCoeff / ( math::pi * math::pi + lnDryResCoeff* lnDryResCoeff ))  );
    const real_t dampingN = - real_t(2) * std::sqrt( Mij * stiffnessN ) *
-   ( lnDryResCoeff / std::sqrt( math::M_PI * math::M_PI + ( lnDryResCoeff * lnDryResCoeff ) ) );
+   ( lnDryResCoeff / std::sqrt( math::pi * math::pi + ( lnDryResCoeff * lnDryResCoeff ) ) );
 
    WALBERLA_LOG_INFO_ON_ROOT("normal: stiffness = " << stiffnessN << ", damping = " << dampingN);
 
    const real_t lnDryResCoeffTangential = lnDryResCoeff; // std::log(0.31); //TODO: was same as in normal direction
    const real_t kappa = real_t(2) * ( real_t(1) - nu ) / ( real_t(2) - nu ) ;
-   const real_t stiffnessT = kappa * Mij * math::M_PI * math::M_PI / ( collisionTime *  collisionTime );
-   const real_t dampingT = real_t(2) * std::sqrt(Mij * stiffnessT) * ( - lnDryResCoeffTangential ) / ( std::sqrt( math::M_PI * math::M_PI + lnDryResCoeffTangential * lnDryResCoeffTangential ));
+   const real_t stiffnessT = kappa * Mij * math::pi * math::pi / ( collisionTime *  collisionTime );
+   const real_t dampingT = real_t(2) * std::sqrt(Mij * stiffnessT) * ( - lnDryResCoeffTangential ) / ( std::sqrt( math::pi * math::pi + lnDryResCoeffTangential * lnDryResCoeffTangential ));
 
    WALBERLA_LOG_INFO_ON_ROOT("tangential: kappa = " << kappa << ", stiffness T = " << stiffnessT << ", damping T = " << dampingT);
 

@@ -97,7 +97,8 @@ void EquationSystem::match()
    WALBERLA_ASSERT( boost::checked_edmonds_maximum_cardinality_matching(eqGraph_, &mate[0]) );
 
    WALBERLA_LOG_RESULT( "Maximum matching:" );
-   EqGraph::vertex_iterator vi, vi_end;
+   EqGraph::vertex_iterator vi;
+   EqGraph::vertex_iterator vi_end;
    for(boost::tie(vi,vi_end) = vertices(eqGraph_); vi != vi_end; ++vi)
       if (mate[*vi] != boost::graph_traits<EqGraph>::null_vertex() && *vi < mate[*vi])
          //std::cout << "{" << *vi << ", " << mate[*vi] << "}" << std::endl;
@@ -171,7 +172,7 @@ size_t EquationSystem::getNumberOfEquations() const
    return eqMap_.size();
 }
 
-const std::string EquationSystem::writeEquations() const
+std::string EquationSystem::writeEquations() const
 {
    std::stringstream ss;
    ss << "Equations to solve:" << std::endl;
@@ -182,7 +183,7 @@ const std::string EquationSystem::writeEquations() const
    return ss.str();
 }
 
-const std::string EquationSystem::writeVariables() const
+std::string EquationSystem::writeVariables() const
 {
    std::stringstream ss;
    ss << "Solution for each variable:" << std::endl;

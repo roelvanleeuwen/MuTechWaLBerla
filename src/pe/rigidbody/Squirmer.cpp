@@ -48,10 +48,10 @@ namespace pe {
  * \param communicating specifies if the sphere should take part in synchronization (syncNextNeighbour, syncShadowOwner)
  * \param infiniteMass specifies if the sphere has infinite mass and will be treated as an obstacle
  */
-Squirmer::Squirmer( id_t sid, id_t uid, const Vec3& gpos, const Vec3& rpos, const Quat& q,
+Squirmer::Squirmer( id_t sid, id_t uid, const Vec3& gpos, const Quat& q,
                     real_t radius, real_t squirmerVelocity, real_t squirmerBeta, MaterialID material,
                     const bool global, const bool communicating, const bool infiniteMass )
-   : Sphere( getStaticTypeID(), sid, uid, gpos, rpos, q, radius, material, global, communicating, infiniteMass )  // Initialization of the parent class
+   : Sphere( getStaticTypeID(), sid, uid, gpos, q, radius, material, global, communicating, infiniteMass )  // Initialization of the parent class
    , squirmerVelocity_(squirmerVelocity), squirmerBeta_(squirmerBeta)
 {
 }
@@ -89,7 +89,7 @@ Squirmer::~Squirmer()
  *
  * The function calculates the global velocity of a point relative to the body's center of mass.
  */
-const Vec3 Squirmer::velFromBF( real_t px, real_t py, real_t pz ) const
+Vec3 Squirmer::velFromBF( real_t px, real_t py, real_t pz ) const
 {
    return velFromBF( Vec3( px, py, pz ) );
 }
@@ -104,9 +104,9 @@ const Vec3 Squirmer::velFromBF( real_t px, real_t py, real_t pz ) const
  *
  * The function calculates the global velocity of a point relative to the body's center of mass.
  */
-const Vec3 Squirmer::velFromBF( const Vec3& rpos ) const
+Vec3 Squirmer::velFromBF( const Vec3& rpos ) const
 {
-   return Sphere::velFromBF( rpos ) + getSquirmerVelocity( R_ * rpos );
+   return Sphere::velFromBF( rpos ) + getSquirmerVelocity( getRotation() * rpos );
 }
 //*************************************************************************************************
 
@@ -120,7 +120,7 @@ const Vec3 Squirmer::velFromBF( const Vec3& rpos ) const
  *
  * The function calculates the global velocity of a point in global coordinates.
  */
-const Vec3 Squirmer::velFromWF( real_t px, real_t py, real_t pz ) const
+Vec3 Squirmer::velFromWF( real_t px, real_t py, real_t pz ) const
 {
    return velFromWF( Vec3( px, py, pz ) );
 }
@@ -133,7 +133,7 @@ const Vec3 Squirmer::velFromWF( real_t px, real_t py, real_t pz ) const
  * \param rpos The relative global coordinate.
  * \return The local surface velocity of the squirmer.
  */
-const Vec3 Squirmer::getSquirmerVelocity( const Vec3& rpos ) const
+Vec3 Squirmer::getSquirmerVelocity( const Vec3& rpos ) const
 {
    const auto rs = rpos.getNormalized();
    const auto e = getQuaternion().rotate(Vec3(0.0,0.0,1.0)).getNormalized();
@@ -152,9 +152,9 @@ const Vec3 Squirmer::getSquirmerVelocity( const Vec3& rpos ) const
  *
  * The function calculates the global velocity of a point in global coordinates.
  */
-const Vec3 Squirmer::velFromWF( const Vec3& gpos ) const
+Vec3 Squirmer::velFromWF( const Vec3& gpos ) const
 {
-   return Sphere::velFromWF( gpos ) + getSquirmerVelocity( gpos - gpos_ );
+   return Sphere::velFromWF( gpos ) + getSquirmerVelocity( gpos - getPosition() );
 }
 //*************************************************************************************************
 
