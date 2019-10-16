@@ -254,7 +254,9 @@ int main( int argc, char ** argv ) {
 
    Environment env(argc, argv);
    WALBERLA_UNUSED(env);
-   std::ifstream input, inputHopper, inputArmadillo;
+   std::ifstream input;
+   std::ifstream inputHopper;
+   std::ifstream inputArmadillo;
 
    // Read ComplexBody and Hopper
    input.open("PrismAssembly.off");
