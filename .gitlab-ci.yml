@@ -1652,6 +1652,12 @@ gcc_8_hybrid_dbg_noboost:
          - $DISABLE_PER_COMMIT_BUILDS
    tags:
       - docker
+   rules:
+      - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
+        when: always
+      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        when: manual
+      - when: never
 
 
 
