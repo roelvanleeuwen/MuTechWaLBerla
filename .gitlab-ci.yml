@@ -121,8 +121,6 @@ intel_18_hybrid:
         when: always
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
         when: manual
-      - if: '$CI_PIPELINE_SOURCE == "push"'
-        when: always
       - when: never
    tags:
       - cuda
@@ -148,8 +146,6 @@ intel_18_serial_dbg:
         when: always
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
         when: manual
-      - if: '$CI_PIPELINE_SOURCE == "push"'
-        when: always
       - when: never
    tags:
       - cuda
@@ -326,8 +322,6 @@ intel_19_mpionly_dbg:
         when: always
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
         when: manual
-      - if: '$CI_PIPELINE_SOURCE == "push"'
-        when: always
       - when: never
    tags:
       - docker
@@ -370,8 +364,6 @@ intel_19_hybrid_dbg_sp:
         when: always
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
         when: manual
-      - if: '$CI_PIPELINE_SOURCE == "push"'
-        when: always
       - when: never
    tags:
       - docker
@@ -853,6 +845,8 @@ gcc_10_hybrid:
         when: always
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
         when: manual
+      - if: '$CI_PIPELINE_SOURCE == "push"'
+        when: always
       - when: never
    tags:
       - docker
@@ -876,6 +870,8 @@ gcc_10_serial_dbg:
         when: always
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
         when: manual
+      - if: '$CI_PIPELINE_SOURCE == "push"'
+        when: always
       - when: never
    tags:
       - docker
@@ -1593,6 +1589,8 @@ clang_10.0_mpionly_dbg:
         when: always
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
         when: manual
+      - if: '$CI_PIPELINE_SOURCE == "push"'
+        when: always
       - when: never
    tags:
       - docker
@@ -1631,6 +1629,8 @@ clang_10.0_hybrid_dbg_sp:
         when: always
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
         when: manual
+      - if: '$CI_PIPELINE_SOURCE == "push"'
+        when: always
       - when: never
    tags:
       - docker
@@ -1703,9 +1703,10 @@ doc:
       - cmake ..
       - cmake . -LAH
       - make doc
-   except:
-      variables:
-         - $DISABLE_PER_COMMIT_BUILDS
+   rules:
+      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        when: manual
+      - when: never
    tags:
       - docker
    artifacts:
@@ -1733,9 +1734,10 @@ clang-tidy:
       - cmake . -LAH
       - utilities/filterCompileCommands.py compile_commands.json
       - run-clang-tidy.py -quiet | tee clang-tidy-output.txt
-   except:
-      variables:
-         - $DISABLE_PER_COMMIT_BUILDS
+   rules:
+      - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+        when: manual
+      - when: never
    artifacts:
       paths:
          - $CI_PROJECT_DIR/build/clang-tidy-output.txt
@@ -2046,7 +2048,7 @@ mac_Serial_Dbg:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
         when: always
       - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-        when: always
+        when: manual
       - when: never
 
 mac_Serial:
