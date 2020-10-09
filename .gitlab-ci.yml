@@ -71,6 +71,7 @@ intel_18_serial:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -139,6 +140,7 @@ intel_18_serial_dbg:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
@@ -227,6 +229,7 @@ intel_19_serial:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -291,6 +294,7 @@ intel_19_serial_dbg:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
@@ -381,6 +385,7 @@ gcc_7_serial:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -445,6 +450,7 @@ gcc_7_serial_dbg:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_ENABLE_GUI: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -530,6 +536,7 @@ gcc_8_serial:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -589,6 +596,7 @@ gcc_8_serial_dbg:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
@@ -665,6 +673,7 @@ gcc_9_serial:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -724,6 +733,7 @@ gcc_9_serial_dbg:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
@@ -800,6 +810,7 @@ gcc_10_serial:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -863,6 +874,7 @@ gcc_10_serial_dbg:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
@@ -949,6 +961,7 @@ clang_6.0_serial:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -1011,6 +1024,7 @@ clang_6.0_serial_dbg:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
@@ -1093,6 +1107,7 @@ clang_7.0_serial:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -1152,6 +1167,7 @@ clang_7.0_serial_dbg:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
@@ -1228,6 +1244,7 @@ clang_8.0_serial:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -1287,6 +1304,7 @@ clang_8.0_serial_dbg:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
@@ -1363,6 +1381,7 @@ clang_9.0_serial:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -1422,6 +1441,7 @@ clang_9.0_serial_dbg:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
@@ -1498,6 +1518,7 @@ clang_10.0_serial:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -1559,6 +1580,7 @@ clang_10.0_serial_dbg:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    rules:
@@ -1868,6 +1890,7 @@ msvc-14.1_serial_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       BUILD_CONFIGURATION: "DebugOptimized"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -1881,6 +1904,7 @@ msvc-14.1_serial:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
         when: always
@@ -1962,6 +1986,7 @@ msvc-14.2_serial_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
       BUILD_CONFIGURATION: "DebugOptimized"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
@@ -1977,6 +2002,7 @@ msvc-14.2_serial:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
    rules:
       - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
         when: always
