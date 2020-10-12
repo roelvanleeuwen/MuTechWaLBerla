@@ -112,13 +112,13 @@ inline bool DictWrapper_pybind::has<DictWrapper_pybind >( const char* name )
 //===================================================================================================================
 
 // void()
-inline void runPythonObject( py::object obj ) {
+inline void runPythonObject_pybind( py::object obj ) {
    obj();
 }
 template<>
 inline std::function<void()> DictWrapper_pybind::get( const char* name ) {
    py::object obj ( d_[name] );
-   return std::bind( &runPythonObject, obj );
+   return std::bind( &runPythonObject_pybind, obj );
 }
 
 template<>

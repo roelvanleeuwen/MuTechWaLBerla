@@ -22,6 +22,7 @@
 #pragma once
 
 #include <string>
+#include "python_coupling/PythonWrapper.h"
 
 
 namespace walberla {

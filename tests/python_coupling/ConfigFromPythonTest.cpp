@@ -23,7 +23,7 @@
 #include "core/debug/TestSubsystem.h"
 #include "core/mpi/MPIManager.h"
 #include "core/mpi/Environment.h"
-#include "python_coupling/CreateConfig.h"
+#include "python_coupling/CreateConfig_pybind.h"
 
 using namespace walberla;
 

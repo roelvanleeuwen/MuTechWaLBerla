@@ -37,10 +37,12 @@
 #include <errno.h>
 #endif
 
+#include "pybind11/eval.h"
+
 namespace walberla {
 namespace python_coupling {
 
-   static py::object importModuleOrFileInternal( const std::string & fileOrModuleName, const std::vector< std::string > & argv )
+   static py::object importModuleOrFile_pybindInternal( const std::string & fileOrModuleName, const std::vector< std::string > & argv )
    {
       auto manager = python_coupling::Manager::instance();
       manager->triggerInitialization();
@@ -95,10 +97,10 @@ namespace python_coupling {
             code << "sys.path.append( r'" << p << "')" << "\n";
          }
       }
-      py::exec( code.str().c_str(), py::import("__main__").attr("__dict__") );
+      py::exec( code.str().c_str(), py::module::import("__main__").attr("__dict__") );
 
       try {
-         return py::import( moduleName.c_str() );
+         return py::module::import( moduleName.c_str() );
       }
       catch ( py::error_already_set & ) {
          python_coupling::terminateOnPythonException( std::string("Python Error while loading ") + fileOrModuleName );
@@ -106,9 +108,9 @@ namespace python_coupling {
       }
    }
 
-   void importModuleOrFile( const std::string & fileOrModuleName, const std::vector< std::string > & argv )
+   void importModuleOrFile_pybind( const std::string & fileOrModuleName, const std::vector< std::string > & argv )
    {
-      importModuleOrFileInternal( fileOrModuleName, argv );
+      importModuleOrFile_pybindInternal( fileOrModuleName, argv );
    }
 
    // initializes invalid/empty callback
@@ -128,10 +130,10 @@ namespace python_coupling {
       namespace py = pybind11;
 
       // Add empty callbacks module
-      importModuleOrFileInternal( fileOrModuleName, argv );
-      py::object callbackModule = import( "walberla_cpp.callbacks");
+      importModuleOrFile_pybindInternal( fileOrModuleName, argv );
+      py::object callbackModule = py::module::import( "walberla_cpp.callbacks");
 
-      callbackDict_->dict() = extract<dict>( callbackModule.attr( "__dict__" ) );
+      callbackDict_->dict() = py::dict( callbackModule.attr( "__dict__" ) );
    }
 
 
@@ -141,14 +143,14 @@ namespace python_coupling {
       Manager::instance()->triggerInitialization();
 
       // Add empty callbacks module
-      object callbackModule = import( "walberla_cpp.callbacks");
+      py::object callbackModule = py::module::import( "walberla_cpp.callbacks");
 
-      callbackDict_->dict() = extract<dict>( callbackModule.attr( "__dict__" ) );
+      callbackDict_->dict() = py::dict( callbackModule.attr( "__dict__" ) );
    }
 
    bool PythonCallback_pybind::isCallable() const
    {
-      return callbackDict_->dict().has_key( functionName_ );
+      return callbackDict_->dict().contains( functionName_ );
    }
 
    void PythonCallback_pybind::operator() ()
@@ -157,14 +159,14 @@ namespace python_coupling {
          WALBERLA_ABORT_NO_DEBUG_INFO( "Could not call python function '" << functionName_ << "'. " <<
                                         "Did you forget to set the callback function?" );
 
-      namespace py = boost::python;
+      namespace py = pybind11;
 
       try
       {
-         if ( exposedVars_->dict().has_key("returnValue"))
-            py::api::delitem( exposedVars_->dict(), "returnValue" );
+         //if ( exposedVars_->dict().contains("returnValue"))
+         //   py::dict::del( exposedVars_->dict(), "returnValue" );
 
-         py::object function = callbackDict_->dict()[ functionName_ ];
+         py::object function = callbackDict_->dict()[ functionName_.c_str() ];
 
          py::object returnVal;
          returnVal = function( *py::tuple(), **(exposedVars_->dict() ) );
@@ -185,7 +187,7 @@ namespace python_coupling {
 namespace walberla {
 namespace python_coupling {
 
-   void importModuleOrFile( const std::string &, const std::vector< std::string > & ) { }
+   void importModuleOrFile_pybind( const std::string &, const std::vector< std::string > & ) { }
 
    PythonCallback_pybind::PythonCallback_pybind( const std::string & functionName )
    : functionName_( functionName ), exposedVars_( new DictWrapper_pybind() ), callbackDict_( new DictWrapper_pybind() ) {}

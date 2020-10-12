@@ -32,8 +32,8 @@ namespace python_coupling {
    class DictWrapper_pybind;
 
 
-   void importModuleOrFile( const std::string & moduleOrFile,
-                            const std::vector< std::string > & argv = std::vector<std::string>() );
+   void importModuleOrFile_pybind( const std::string & moduleOrFile,
+                                   const std::vector< std::string > & argv = std::vector<std::string>() );
 
    //*******************************************************************************************************************
    /*! Run a Python function from C++ code
