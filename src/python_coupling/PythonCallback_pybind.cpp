@@ -40,12 +40,12 @@
 namespace walberla {
 namespace python_coupling {
 
-   static boost::python::object importModuleOrFileInternal( const std::string & fileOrModuleName, const std::vector< std::string > & argv )
+   static py::object importModuleOrFileInternal( const std::string & fileOrModuleName, const std::vector< std::string > & argv )
    {
       auto manager = python_coupling::Manager::instance();
       manager->triggerInitialization();
 
-      namespace bp = boost::python;
+      namespace py = pybind11;
 
       std::string moduleName = fileOrModuleName;
 
@@ -95,14 +95,14 @@ namespace python_coupling {
             code << "sys.path.append( r'" << p << "')" << "\n";
          }
       }
-      bp::exec( code.str().c_str(), bp::import("__main__").attr("__dict__") );
+      py::exec( code.str().c_str(), py::import("__main__").attr("__dict__") );
 
       try {
-         return bp::import( moduleName.c_str() );
+         return py::import( moduleName.c_str() );
       }
-      catch ( bp::error_already_set & ) {
+      catch ( py::error_already_set & ) {
          python_coupling::terminateOnPythonException( std::string("Python Error while loading ") + fileOrModuleName );
-         return boost::python::object();
+         return py::object();
       }
    }
 
@@ -116,7 +116,7 @@ namespace python_coupling {
       : exposedVars_( new DictWrapper_pybind() ), callbackDict_( new DictWrapper_pybind() )
    {
       Manager::instance()->triggerInitialization();
-      callbackDict_->dict() = boost::python::dict();
+      callbackDict_->dict() = py::dict();
    }
 
 
@@ -125,11 +125,11 @@ namespace python_coupling {
    {
       Manager::instance()->triggerInitialization();
 
-      using namespace boost::python;
+      namespace py = pybind11;
 
       // Add empty callbacks module
       importModuleOrFileInternal( fileOrModuleName, argv );
-      object callbackModule = import( "walberla_cpp.callbacks");
+      py::object callbackModule = import( "walberla_cpp.callbacks");
 
       callbackDict_->dict() = extract<dict>( callbackModule.attr( "__dict__" ) );
    }
@@ -139,8 +139,6 @@ namespace python_coupling {
       : functionName_( functionName ), exposedVars_( new DictWrapper_pybind() ), callbackDict_( new DictWrapper_pybind() )
    {
       Manager::instance()->triggerInitialization();
-
-      using namespace boost::python;
 
       // Add empty callbacks module
       object callbackModule = import( "walberla_cpp.callbacks");
@@ -159,21 +157,21 @@ namespace python_coupling {
          WALBERLA_ABORT_NO_DEBUG_INFO( "Could not call python function '" << functionName_ << "'. " <<
                                         "Did you forget to set the callback function?" );
 
-      namespace bp = boost::python;
+      namespace py = boost::python;
 
       try
       {
          if ( exposedVars_->dict().has_key("returnValue"))
-            bp::api::delitem( exposedVars_->dict(), "returnValue" );
+            py::api::delitem( exposedVars_->dict(), "returnValue" );
 
-         bp::object function = callbackDict_->dict()[ functionName_ ];
+         py::object function = callbackDict_->dict()[ functionName_ ];
 
-         bp::object returnVal;
-         returnVal = function( *bp::tuple(), **(exposedVars_->dict() ) );
+         py::object returnVal;
+         returnVal = function( *py::tuple(), **(exposedVars_->dict() ) );
 
          exposedVars_->dict()["returnValue"] = returnVal;
       }
-      catch ( bp::error_already_set & ) {
+      catch ( py::error_already_set & ) {
          python_coupling::terminateOnPythonException( std::string("Error while running Python function ") + functionName_ );
       }
    }

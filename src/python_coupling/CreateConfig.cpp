@@ -39,6 +39,7 @@
 #include "PythonCallback_pybind.h"
 
 #include "python_coupling/helper/ConfigFromDict.h"
+#include "python_coupling/helper/ConfigFromDict_pybind.h"
 #include "helper/ExceptionHandling.h"
 
 #include <pybind11/pybind11.h>
@@ -66,7 +67,7 @@ namespace python_coupling {
       using boost::python::extract;
 
       object returnValue = pythonCallback.data().dict()[ "returnValue" ];
-      if ( returnValue == object() )
+      if ( returnValue.is(object()) )
          return shared_ptr<Config>();
 
 
@@ -75,7 +76,7 @@ namespace python_coupling {
          WALBERLA_ABORT("Python configuration did not return a dictionary object.");
       }
       dict returnDict = dict( returnValue );
-      return configFromPythonDict( returnDict );
+      return configFromPythonDict_pybind( returnDict );
    }
 
 
