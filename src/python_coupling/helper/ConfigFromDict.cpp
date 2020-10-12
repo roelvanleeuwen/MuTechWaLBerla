@@ -32,7 +32,7 @@ namespace walberla {
 namespace python_coupling {
 
 
-void handlePythonBooleans( std::string & value) {
+void handlePythonBooleans_pybind( std::string & value) {
    if ( value=="True")  value="1";
    if ( value=="False") value="0";
 }
@@ -64,7 +64,7 @@ void configFromPythonDict( config::Config::Block & block, boost::python::dict & 
       {
          if( extracted_str_val.check() ){
             std::string value = extracted_str_val;
-            handlePythonBooleans( value );
+            handlePythonBooleans_pybind( value );
             block.addParameter( key, value );
          }
          else if ( extracted_dict_val.check() )
@@ -90,8 +90,8 @@ void configFromPythonDict( config::Config::Block & block, boost::python::dict & 
             {
                std::string e0 = extract<std::string>( childTuple[0].attr("__str__" )() );
                std::string e1 = extract<std::string>( childTuple[1].attr("__str__" )() );
-               handlePythonBooleans( e0 );
-               handlePythonBooleans( e1 );
+               handlePythonBooleans_pybind( e0 );
+               handlePythonBooleans_pybind( e1 );
                ss << "< " << e0 << " , " << e1 << " > ";
                block.addParameter( key, ss.str() );
             }
@@ -100,9 +100,9 @@ void configFromPythonDict( config::Config::Block & block, boost::python::dict & 
                std::string e0 = extract<std::string>( childTuple[0].attr("__str__" )() );
                std::string e1 = extract<std::string>( childTuple[1].attr("__str__" )() );
                std::string e2 = extract<std::string>( childTuple[2].attr("__str__" )() );
-               handlePythonBooleans( e0 );
-               handlePythonBooleans( e1 );
-               handlePythonBooleans( e2 );
+               handlePythonBooleans_pybind( e0 );
+               handlePythonBooleans_pybind( e1 );
+               handlePythonBooleans_pybind( e2 );
                ss << "< " << e0 << " , " << e1 << ", " << e2 << " > ";
                block.addParameter( key, ss.str() );
             }

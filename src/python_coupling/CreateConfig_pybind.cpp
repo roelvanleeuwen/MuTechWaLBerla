@@ -19,7 +19,7 @@
 //
 //======================================================================================================================
 
-#include "CreateConfig.h"
+#include "CreateConfig_pybind.h"
 
 
 #include "core/config/Config.h"
@@ -34,12 +34,12 @@
 
 // #include "PythonCallback_pybind.h.h"
 #include "PythonWrapper_pybind.h"
-#include "DictWrapper_pybind.h"
+// #include "DictWrapper_pybind.h"
 
 #include "PythonCallback_pybind.h"
 
 #include "python_coupling/helper/ConfigFromDict_pybind.h"
-#include "helper/ExceptionHandling.h"
+// #include "helper/ExceptionHandling.h"
 
 #include <pybind11/pybind11.h>
 
@@ -165,7 +165,9 @@ namespace python_coupling {
             generator= make_shared<PythonMultipleConfigGenerator>( returnValue );
          }
          catch ( py::error_already_set & ) {
-            python_coupling::terminateOnPythonException("Error while running Python config generator");
+            // TODO: implement the error
+            // WALBERLA_ABORT_NO_DEBUG_INFO
+            // python_coupling::terminateOnPythonException("Error while running Python config generator");
          }
       }
 
