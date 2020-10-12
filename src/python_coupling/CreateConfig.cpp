@@ -36,14 +36,19 @@
 #include "PythonWrapper.h"
 #include "DictWrapper.h"
 
+#include "PythonCallback_pybind.h"
+
 #include "python_coupling/helper/ConfigFromDict.h"
 #include "helper/ExceptionHandling.h"
+
+#include <pybind11/pybind11.h>
 
 
 namespace walberla {
 namespace python_coupling {
 
    namespace bp = boost::python;
+   namespace py = pybind11;
 
 
    shared_ptr<Config> createConfigFromPythonScript( const std::string & scriptFile,
@@ -52,23 +57,24 @@ namespace python_coupling {
    {
       importModuleOrFile( scriptFile, argv );
 
-      PythonCallback pythonCallback ( pythonFunctionName );
+      PythonCallback_pybind pythonCallback ( pythonFunctionName );
 
       pythonCallback();
 
-      using boost::python::object;
-      using boost::python::dict;
+      using py::object;
+      using py::dict;
       using boost::python::extract;
 
       object returnValue = pythonCallback.data().dict()[ "returnValue" ];
       if ( returnValue == object() )
          return shared_ptr<Config>();
 
-      bool isDict = extract< dict >( returnValue ).check();
+
+      bool isDict = py::isinstance< dict >(returnValue);
       if ( ! isDict ) {
          WALBERLA_ABORT("Python configuration did not return a dictionary object.");
       }
-      dict returnDict = extract<dict>( returnValue );
+      dict returnDict = dict( returnValue );
       return configFromPythonDict( returnDict );
    }
 
