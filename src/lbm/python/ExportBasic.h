@@ -30,12 +30,12 @@ namespace lbm {
     void exportCollisionModels();
     void exportForceModels();
 
-    template< typename LatticeModels > struct VelocityAdaptorsFromLatticeModels;
-    template< typename LatticeModels > struct DensityAdaptorsFromLatticeModels;
-    template< typename LatticeModels > struct AdaptorsFromLatticeModels;
-    template< typename LatticeModels > struct ExtendedBoundaryHandlingsFromLatticeModels;
+    template< typename... LatticeModels > struct VelocityAdaptorsFromLatticeModels;
+    template< typename... LatticeModels > struct DensityAdaptorsFromLatticeModels;
+    template< typename... LatticeModels > struct AdaptorsFromLatticeModels;
+    template< typename... LatticeModels > struct ExtendedBoundaryHandlingsFromLatticeModels;
 
-    template<typename LatticeModels, typename FlagFields>
+    template<typename... LatticeModels, typename FlagFields>
     void exportBasic();
 
 } // namespace lbm

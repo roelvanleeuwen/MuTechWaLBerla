@@ -38,9 +38,6 @@
 
 #include "field/python/FieldExport.h"
 
-#include <boost/mpl/transform.hpp>
-#include <boost/mpl/copy.hpp>
-
 
 namespace walberla {
 namespace lbm {
@@ -158,14 +155,14 @@ namespace internal
    };
 
 
-   template<typename LatticeModels>
+   template<typename... LatticeModels>
    boost::python::object makeLatticeModel( const std::string & stencil, boost::python::object collisionModel, boost::python::object forceModel,
                                            bool compressible, uint_t equilibriumAccuracyOrder )
    {
       using namespace boost::python;
 
       LatticeModelCreator creator( compressible, equilibriumAccuracyOrder, stencil, collisionModel, forceModel );
-      python_coupling::for_each_noncopyable_type<LatticeModels>( std::ref(creator) );
+      python_coupling::for_each_noncopyable_type<LatticeModels...>( std::ref(creator) );
 
       if ( creator.getResult() == object() )
       {
@@ -333,7 +330,7 @@ namespace internal
       bool found_;
    };
 
-   template<typename LatticeModels>
+   template<typename... LatticeModels>
    void addPdfFieldToStorage( const shared_ptr<StructuredBlockStorage> & blocks,
                               const std::string & identifier,
                               boost::python::object latticeModel,
@@ -346,7 +343,7 @@ namespace internal
 
       internal::AddPdfFieldToStorageExporter exporter( blocks, identifier, latticeModel, initialVelocity,
                                                        initialDensity, gl, layout, densityAdaptor, velocityAdaptor, shearRateAdaptor );
-      python_coupling::for_each_noncopyable_type< LatticeModels >  ( std::ref(exporter) );
+      python_coupling::for_each_noncopyable_type< LatticeModels... >  ( std::ref(exporter) );
       if ( ! exporter.successful() ) {
          PyErr_SetString( PyExc_ValueError, "Adding Pdf Field failed.");
          throw error_already_set();
@@ -437,39 +434,8 @@ namespace internal
     }
 }
 
-template< typename LatticeModels >
-struct VelocityAdaptorsFromLatticeModels
-{
-   typedef typename boost::mpl::transform< LatticeModels, internal::VelocityAdaptorFromLatticeModel<boost::mpl::_1 > >::type type;
-};
 
-template< typename LatticeModels >
-struct DensityAdaptorsFromLatticeModels
-{
-   typedef typename boost::mpl::transform< LatticeModels, internal::DensityAdaptorFromLatticeModel<boost::mpl::_1> >::type type;
-};
-
-template< typename LatticeModels >
-struct ShearRateAdaptorsFromLatticeModels
-{
-   typedef typename boost::mpl::transform< LatticeModels, internal::ShearRateAdaptorFromLatticeModel<boost::mpl::_1> >::type type;
-};
-
-template< typename LatticeModels >
-struct AdaptorsFromLatticeModels
-{
-   typedef typename boost::mpl::copy< typename DensityAdaptorsFromLatticeModels<LatticeModels>::type,
-                                      boost::mpl::front_inserter<  typename VelocityAdaptorsFromLatticeModels<LatticeModels>::type  > >
-                                     ::type  tmp1;
-
-   typedef typename boost::mpl::copy< typename ShearRateAdaptorsFromLatticeModels<LatticeModels>::type,
-                                      boost::mpl::front_inserter<  tmp1  > >
-                                     ::type  type;
-};
-
-
-
-template<typename LatticeModels, typename FlagFields>
+template<typename... LatticeModels, typename FlagFields>
 void exportBasic()
 {
    using namespace boost::python;
@@ -479,17 +445,17 @@ void exportBasic()
    // Lattice Models
    exportForceModels();
    exportCollisionModels();
-   python_coupling::for_each_noncopyable_type<LatticeModels>( internal::LatticeModelExporter() );
-   python_coupling::for_each_noncopyable_type<LatticeModels>( internal::AdaptorExporter() );
+   python_coupling::for_each_noncopyable_type<LatticeModels...>( internal::LatticeModelExporter() );
+   python_coupling::for_each_noncopyable_type<LatticeModels...>( internal::AdaptorExporter() );
 
-   def( "makeLatticeModel", internal::makeLatticeModel<LatticeModels>,
+   def( "makeLatticeModel", internal::makeLatticeModel<LatticeModels...>,
         ( arg("stencil"), arg("collisionModel"),
           arg("forceModel")= force_model::None(),
           arg("compressible")=false, arg("equilibriumAccuracyOrder")=2)  );
 
    // PdfField
-   python_coupling::for_each_noncopyable_type< LatticeModels > ( internal::PdfFieldExporter() );
-   def( "addPdfFieldToStorage", &internal::addPdfFieldToStorage<LatticeModels>,
+   python_coupling::for_each_noncopyable_type< LatticeModels... > ( internal::PdfFieldExporter() );
+   def( "addPdfFieldToStorage", &internal::addPdfFieldToStorage<LatticeModels...>,
             (( arg("blocks")                            ),
              ( arg("name")                              ),
              ( arg("latticeModel")                      ),
@@ -509,7 +475,9 @@ void exportBasic()
 
 
    auto pythonManager = python_coupling::Manager::instance();
-   pythonManager->addBlockDataConversion< typename AdaptorsFromLatticeModels                 < LatticeModels >::type > ();
+   pythonManager->addBlockDataConversion<internal::DensityAdaptorFromLatticeModel<LatticeModels>...,
+                                         internal::VelocityAdaptorFromLatticeModel<LatticeModels>...,
+                                         internal::ShearRateAdaptorFromLatticeModel<LatticeModels>...>();
 }
 
 

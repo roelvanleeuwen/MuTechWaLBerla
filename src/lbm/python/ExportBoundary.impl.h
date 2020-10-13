@@ -36,9 +36,6 @@
 #include "field/python/FieldExport.h"
 #include "field/adaptors/AdaptorCreators.h"
 
-#include <boost/mpl/transform.hpp>
-#include <boost/mpl/copy.hpp>
-
 namespace walberla {
 namespace lbm {
 
