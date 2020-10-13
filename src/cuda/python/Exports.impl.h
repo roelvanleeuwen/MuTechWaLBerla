@@ -271,7 +271,7 @@ namespace internal {
       }
 
       IBlock * firstBlock =  & ( * bs->begin() );
-      python_coupling::Dispatcher<GpuFields, Exporter_createGPUPackInfoToObject > dispatcher( firstBlock );
+      python_coupling::Dispatcher<Exporter_createGPUPackInfoToObject, GpuFields > dispatcher( firstBlock );
       return dispatcher( bdId )( bdId, numberOfGhostLayers ) ;
    }
 
@@ -307,7 +307,7 @@ namespace internal {
       }
 
       IBlock * firstBlock =  & ( * bs->begin() );
-      python_coupling::Dispatcher<GpuFields, Exporter_createMPIDatatypeInfoToObject > dispatcher( firstBlock );
+      python_coupling::Dispatcher<Exporter_createMPIDatatypeInfoToObject, GpuFields > dispatcher( firstBlock );
       return dispatcher( bdId )( bdId, numberOfGhostLayers );
    }
 
@@ -343,7 +343,7 @@ namespace internal {
       auto srcBdId = python_coupling::blockDataIDFromString( *bs, cpuFieldId );
 
       IBlock * firstBlock =  & ( * bs->begin() );
-      python_coupling::Dispatcher<FieldTypes, Exporter_copyFieldToGpuDispatch> dispatcher( firstBlock );
+      python_coupling::Dispatcher<Exporter_copyFieldToGpuDispatch, FieldTypes> dispatcher( firstBlock );
       dispatcher( srcBdId )( bs, srcBdId, dstBdId, toGpu );
    }
 

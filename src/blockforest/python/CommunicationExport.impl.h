@@ -54,7 +54,7 @@ namespace internal
    struct UniformBufferedSchemeExporter
    {
       template<typename Stencil>
-      void operator() ( python_coupling::NonCopyableWrap<Stencil> )
+      void operator() ( python_coupling::NonCopyableWrap<Stencil> ) const
       {
          using namespace boost::python;
          typedef UniformBufferedSchemeWrapper<Stencil> UBS;
@@ -137,7 +137,7 @@ namespace internal
    struct UniformDirectSchemeExporter
    {
       template<typename Stencil>
-      void operator() ( python_coupling::NonCopyableWrap<Stencil> )
+      void operator() ( python_coupling::NonCopyableWrap<Stencil> ) const
       {
          using namespace boost::python;
          typedef UniformDirectSchemeWrapper<Stencil> UDS;

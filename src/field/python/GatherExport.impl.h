@@ -74,7 +74,7 @@ namespace internal {
       }
 
       IBlock * firstBlock =  & ( * blocks->begin() );
-      python_coupling::Dispatcher<FieldTypes, Exporter_gatherToObject > dispatcher( firstBlock );
+      python_coupling::Dispatcher<Exporter_gatherToObject, FieldTypes > dispatcher( firstBlock );
       auto func = dispatcher( fieldID );
       if ( !func )
       {

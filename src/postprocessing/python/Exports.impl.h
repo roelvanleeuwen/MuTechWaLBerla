@@ -53,7 +53,7 @@ static shared_ptr<geometry::TriangleMesh> exp_realFieldToSurfaceMesh
 
    auto fieldID = python_coupling::blockDataIDFromString( *bs, blockDataStr );
 
-   python_coupling::Dispatcher<FieldVector, Exporter_realFieldToSurfaceMesh > dispatcher( firstBlock );
+   python_coupling::Dispatcher<Exporter_realFieldToSurfaceMesh, FieldVector > dispatcher( firstBlock );
    return dispatcher( fieldID )( bs, fieldID, threshold, fCoord, calcNormals, targetRank, MPI_COMM_WORLD) ;
 }
 
@@ -114,7 +114,7 @@ static boost::python::object exp_flagFieldToSurfaceMesh ( const shared_ptr<Struc
    auto fieldID = python_coupling::blockDataIDFromString( *bs, blockDataName );
 
    auto flagVector = python_coupling::pythonIterableToStdVector<std::string>( flagList );
-   python_coupling::Dispatcher<FieldVector, Exporter_adaptedFlagFieldToSurfaceMesh > dispatcher( firstBlock );
+   python_coupling::Dispatcher<Exporter_adaptedFlagFieldToSurfaceMesh, FieldVector > dispatcher( firstBlock );
    return dispatcher( fieldID )( bs, fieldID, flagVector, calcNormals, targetRank );
 }
 

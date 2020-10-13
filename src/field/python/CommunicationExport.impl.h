@@ -111,7 +111,7 @@ namespace internal {
 
    FunctionExporterClass( createStencilRestrictedPackInfoObject, boost::python::object( BlockDataID ) );
 
-   template< typename FieldVector>
+   template< typename... FieldTypes>
    boost::python::object createStencilRestrictedPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
                                                           const std::string & blockDataName )
    {
@@ -122,7 +122,7 @@ namespace internal {
       }
 
       IBlock * firstBlock =  & ( * bs->begin() );
-      python_coupling::Dispatcher<FieldVector, Exporter_createStencilRestrictedPackInfoObject > dispatcher( firstBlock );
+      python_coupling::Dispatcher<Exporter_createStencilRestrictedPackInfoObject, FieldTypes... > dispatcher( firstBlock );
       return dispatcher( bdId )( bdId ) ;
    }
 
@@ -146,7 +146,7 @@ namespace internal {
 
    FunctionExporterClass( createPackInfoToObject, boost::python::object( BlockDataID, uint_t  ) );
 
-   template< typename FieldVector>
+   template< typename... FieldTypes>
    boost::python::object createPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
                                          const std::string & blockDataName, uint_t numberOfGhostLayers )
    {
@@ -157,7 +157,7 @@ namespace internal {
       }
 
       IBlock * firstBlock =  & ( * bs->begin() );
-      python_coupling::Dispatcher<FieldVector, Exporter_createPackInfoToObject > dispatcher( firstBlock );
+      python_coupling::Dispatcher<Exporter_createPackInfoToObject, FieldTypes... > dispatcher( firstBlock );
       return dispatcher( bdId )( bdId, numberOfGhostLayers ) ;
    }
 
@@ -185,7 +185,7 @@ namespace internal {
 
    FunctionExporterClass( createMPIDatatypeInfoToObject, boost::python::object( BlockDataID, uint_t  ) );
 
-   template< typename FieldVector>
+   template< typename... FieldTypes>
    boost::python::object createMPIDatatypeInfo( const shared_ptr<StructuredBlockStorage> & bs,
                                                 const std::string & blockDataName,
                                                 uint_t numberOfGhostLayers)
@@ -197,7 +197,7 @@ namespace internal {
       }
 
       IBlock * firstBlock =  & ( * bs->begin() );
-      python_coupling::Dispatcher<FieldVector, Exporter_createMPIDatatypeInfoToObject > dispatcher( firstBlock );
+      python_coupling::Dispatcher<Exporter_createMPIDatatypeInfoToObject, FieldTypes... > dispatcher( firstBlock );
       return dispatcher( bdId )( bdId, numberOfGhostLayers );
    }
 
@@ -236,7 +236,7 @@ namespace internal {
 
 
 
-template<typename FieldTypes>
+template<typename... FieldTypes>
 void exportCommunicationClasses()
 {
    using namespace boost::python;
@@ -244,9 +244,9 @@ void exportCommunicationClasses()
    internal::exportStencilRestrictedPackInfo<float>();
    internal::exportStencilRestrictedPackInfo<double>();
 
-   def( "createMPIDatatypeInfo",&internal::createMPIDatatypeInfo<FieldTypes>, ( arg("blocks"), arg("blockDataName"), arg("numberOfGhostLayers" ) =0 ) );
-   def( "createPackInfo",       &internal::createPackInfo<FieldTypes>,        ( arg("blocks"), arg("blockDataName"), arg("numberOfGhostLayers" ) =0 ) );
-   def( "createStencilRestrictedPackInfo", &internal::createStencilRestrictedPackInfo<FieldTypes>,
+   def( "createMPIDatatypeInfo",&internal::createMPIDatatypeInfo<FieldTypes...>, ( arg("blocks"), arg("blockDataName"), arg("numberOfGhostLayers" ) =0 ) );
+   def( "createPackInfo",       &internal::createPackInfo<FieldTypes...>,        ( arg("blocks"), arg("blockDataName"), arg("numberOfGhostLayers" ) =0 ) );
+   def( "createStencilRestrictedPackInfo", &internal::createStencilRestrictedPackInfo<FieldTypes...>,
         (arg("blocks"), arg("blockDataName") ));
 }
 

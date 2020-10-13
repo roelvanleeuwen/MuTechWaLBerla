@@ -107,7 +107,7 @@ namespace internal
       IBlock * firstBlock =  & ( * bs->begin() );
 
       auto fieldID = python_coupling::blockDataIDFromString( *bs, blockDataStr );
-      python_coupling::Dispatcher<FlagFields, Exporter_markFlagFieldTmpl > dispatcher( firstBlock );
+      python_coupling::Dispatcher<Exporter_markFlagFieldTmpl, FlagFields > dispatcher( firstBlock );
       dispatcher( fieldID )(octree, bs, fieldID, flagName, ghostLayers);
    }
 }

@@ -66,14 +66,14 @@ namespace field {
    * \warning Make sure that the same field type is exported only once!
    */
    //*******************************************************************************************************************
-   template<typename FieldTypes>
+   template<typename... FieldTypes>
    void exportModuleToPython()
    {
       python_coupling::ModuleScope fieldModule( "field" );
 
-      exportFields<FieldTypes>();
+      exportFields<FieldTypes...>();
 
-      exportCommunicationClasses<FieldTypes>();
+      exportCommunicationClasses<FieldTypes...>();
    }
 
 

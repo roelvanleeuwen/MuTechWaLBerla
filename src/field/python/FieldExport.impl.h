@@ -39,8 +39,6 @@
 #include "python_coupling/helper/MplHelpers.h"
 #include "python_coupling/helper/BoostPythonHelpers.h"
 
-#include <boost/mpl/vector.hpp>
-
 #include <iostream>
 #include <type_traits>
 
@@ -802,7 +800,7 @@ namespace internal {
    struct FieldExporter
    {
       template< typename FieldType>
-      void operator() ( python_coupling::NonCopyableWrap<FieldType> )
+      void operator() ( python_coupling::NonCopyableWrap<FieldType> ) const
       {
          typedef typename FieldType::value_type T;
          const uint_t F_SIZE = FieldType::F_SIZE;
@@ -917,7 +915,7 @@ namespace internal {
       {}
 
       template< typename FieldType>
-      void operator() ( python_coupling::NonCopyableWrap<FieldType> )
+      void operator() ( python_coupling::NonCopyableWrap<FieldType> ) const
       {
          using namespace boost::python;
          typedef typename FieldType::value_type T;
@@ -946,7 +944,7 @@ namespace internal {
       shared_ptr<boost::python::object> resultPointer_;
    };
 
-   template<typename FieldTypes>
+   template<typename... FieldTypes>
    boost::python::object createPythonField( boost::python::list size,
                                             boost::python::object type,
                                             uint_t ghostLayers,
@@ -969,7 +967,7 @@ namespace internal {
 
       auto result = make_shared<boost::python::object>();
       CreateFieldExporter exporter( xSize,ySize, zSize, fSize, ghostLayers, layout, type, alignment, result );
-      python_coupling::for_each_noncopyable_type< FieldTypes >  ( exporter );
+      python_coupling::for_each_noncopyable_type< FieldTypes... >  ( exporter );
 
       if ( *result == object()  )
       {
@@ -1069,7 +1067,7 @@ namespace internal {
       bool found_;
    };
 
-   template<typename FieldTypes>
+   template<typename... FieldTypes>
    void addToStorage( const shared_ptr<StructuredBlockStorage> & blocks, const std::string & name,
                       boost::python::object type, uint_t fs, uint_t gl, Layout layout, boost::python::object initValue,
                       uint_t alignment)
@@ -1083,7 +1081,7 @@ namespace internal {
 
       auto result = make_shared<boost::python::object>();
       AddToStorageExporter exporter( blocks, name, fs, gl, layout, type, initValue, alignment );
-      python_coupling::for_each_noncopyable_type< FieldTypes >  ( std::ref(exporter) );
+      python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
 
       if ( ! exporter.successful() ) {
          PyErr_SetString( PyExc_ValueError, "Adding Field failed.");
@@ -1142,7 +1140,7 @@ namespace internal {
    };
 
 
-   template<typename FieldTypes>
+   template<typename... FieldTypes>
    inline shared_ptr<vtk::BlockCellDataWriterInterface> createVTKWriter(const shared_ptr<StructuredBlockStorage> & blocks,
                                                                         const std::string & name,
                                                                         const std::string & nameInVtkOutput = "")
@@ -1156,7 +1154,7 @@ namespace internal {
       auto fieldID = python_coupling::blockDataIDFromString( *blocks, name );
 
       CreateVTKWriterExporter exporter(blocks, fieldID, vtkName);
-      python_coupling::for_each_noncopyable_type< FieldTypes >  ( std::ref(exporter) );
+      python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
       if ( ! exporter.getCreatedWriter() ) {
          PyErr_SetString( PyExc_ValueError, "Failed to create writer");
          throw boost::python::error_already_set();
@@ -1216,7 +1214,7 @@ namespace internal {
    };
 
 
-   template<typename FieldTypes>
+   template<typename... FieldTypes>
    inline shared_ptr<vtk::BlockCellDataWriterInterface> createFlagFieldVTKWriter(const shared_ptr<StructuredBlockStorage> & blocks,
                                                                                  const std::string & name,
                                                                                  boost::python::dict flagMapping,
@@ -1231,7 +1229,7 @@ namespace internal {
       auto fieldID = python_coupling::blockDataIDFromString( *blocks, name );
 
       CreateFlagFieldVTKWriterExporter exporter(blocks, fieldID, vtkName, flagMapping);
-      python_coupling::for_each_noncopyable_type< FieldTypes >  ( std::ref(exporter) );
+      python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
       if ( ! exporter.getCreatedWriter() ) {
          PyErr_SetString( PyExc_ValueError, "Failed to create writer");
          throw boost::python::error_already_set();
@@ -1283,7 +1281,7 @@ namespace internal {
    };
 
 
-   template<typename FieldTypes>
+   template<typename... FieldTypes>
    inline shared_ptr<vtk::BlockCellDataWriterInterface> createBinarizationVTKWriter(const shared_ptr<StructuredBlockStorage> & blocks,
                                                                                     const std::string & name,
                                                                                     uint_t mask,
@@ -1298,7 +1296,7 @@ namespace internal {
       auto fieldID = python_coupling::blockDataIDFromString( *blocks, name );
 
       CreateBinarizationVTKWriterExporter exporter(blocks, fieldID, vtkName, mask);
-      python_coupling::for_each_noncopyable_type< FieldTypes >  ( std::ref(exporter) );
+      python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
       if ( ! exporter.getCreatedWriter() ) {
          PyErr_SetString( PyExc_ValueError, "Failed to create writer");
          throw boost::python::error_already_set();
@@ -1314,7 +1312,7 @@ namespace internal {
 
 
 
-template<typename FieldTypes >
+template<typename... FieldTypes >
 void exportFields()
 {
    using namespace boost::python;
@@ -1324,9 +1322,9 @@ void exportFields()
        .value("zyxf", zyxf)
        .export_values();
 
-   python_coupling::for_each_noncopyable_type< FieldTypes > ( internal::FieldExporter() );
+   python_coupling::for_each_noncopyable_type< FieldTypes... > ( internal::FieldExporter() );
 
-   def( "createField", &internal::createPythonField<FieldTypes>, ( ( arg("size")                    ),
+   def( "createField", &internal::createPythonField<FieldTypes...>, ( ( arg("size")                    ),
                                                                    ( arg("type")                    ),
                                                                    ( arg("ghostLayers") = uint_t(1) ),
                                                                    ( arg("layout")      = zyxf      ),
@@ -1336,7 +1334,7 @@ void exportFields()
                                                                ( arg("nrOfBits")    = uint_t(32)  ),
                                                                ( arg("ghostLayers") = uint_t(1)   )  ) );
 
-   def( "addToStorage",    &internal::addToStorage<FieldTypes>, ( ( arg("blocks")                  ),
+   def( "addToStorage",    &internal::addToStorage<FieldTypes...>, ( ( arg("blocks")                  ),
                                                                   ( arg("name")                    ),
                                                                   ( arg("type")                    ),
                                                                   ( arg("fSize")       = 1         ),
@@ -1350,41 +1348,30 @@ void exportFields()
                                                                     ( arg("nrOfBits")=8              ),
                                                                     ( arg("ghostLayers") = uint_t(1) ) ) );
 
-   def( "createVTKWriter", &internal::createVTKWriter<FieldTypes>, ( arg("blocks"), arg("name"), arg("vtkName")="" ));
+   def( "createVTKWriter", &internal::createVTKWriter<FieldTypes...>, ( arg("blocks"), arg("name"), arg("vtkName")="" ));
 
 
-   typedef boost::mpl::vector<
-           FlagField<uint8_t>,
-           FlagField<uint16_t>,
-           FlagField<uint32_t>,
-           FlagField<uint64_t> > FlagFields;
-
-   def( "createFlagFieldVTKWriter", &internal::createFlagFieldVTKWriter<FlagFields>,
+   def( "createFlagFieldVTKWriter", &internal::createFlagFieldVTKWriter<
+                                   FlagField<uint8_t>, FlagField<uint16_t>, FlagField<uint32_t>, FlagField<uint64_t>>,
                                    ( arg("blocks"), arg("name"), arg("flagMapping"), arg("vtkName")="" ));
 
 
-   typedef boost::mpl::vector<
-           Field<uint8_t,1 >,
-           Field<uint16_t, 1>,
-           Field<uint32_t, 1>,
-           Field<uint64_t, 1> > UintFields;
-
-   def( "createBinarizationVTKWriter", &internal::createBinarizationVTKWriter<UintFields>,
+   def( "createBinarizationVTKWriter", &internal::createBinarizationVTKWriter<
+        Field<uint8_t,1 >, Field<uint16_t, 1>, Field<uint32_t, 1>,  Field<uint64_t, 1>>,
         ( arg("blocks"), arg("name"), arg("mask"), arg("vtkName")="" ));
 }
 
 
-template<typename AdaptorTypes>
+template<typename... AdaptorTypes>
 void exportGhostLayerFieldAdaptors()
 {
-   python_coupling::for_each_noncopyable_type< AdaptorTypes > ( internal::GhostLayerFieldAdaptorExporter("FieldAdaptor") );
+   python_coupling::for_each_noncopyable_type< AdaptorTypes... > ( internal::GhostLayerFieldAdaptorExporter("FieldAdaptor") );
 }
 
 template<typename AdaptorType>
 void exportGhostLayerFieldAdaptor()
 {
-   typedef boost::mpl::vector< AdaptorType > AdaptorTypes;
-   exportGhostLayerFieldAdaptors<AdaptorTypes>( );
+   exportGhostLayerFieldAdaptors<AdaptorType>( );
 }
 
 
