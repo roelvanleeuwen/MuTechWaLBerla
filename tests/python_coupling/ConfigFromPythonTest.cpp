@@ -23,6 +23,7 @@
 #include "core/debug/TestSubsystem.h"
 #include "core/mpi/MPIManager.h"
 #include "core/mpi/Environment.h"
+#include "core/logging/Logging.h"
 #include "python_coupling/CreateConfig_pybind.h"
 
 using namespace walberla;
@@ -34,19 +35,16 @@ int main( int argc, char** argv )
 
    mpi::Environment env( argc, argv );
 
-   auto config =  python_coupling::createConfigFromPythonScript( argv[1] );
+   // auto config =  python_coupling::createConfigFromPythonScript( argv[1] );
 
-   WALBERLA_CHECK_EQUAL( argc, 2 );
+   for (auto cfg = python_coupling::configBegin(argc, argv); cfg != python_coupling::configEnd(); ++cfg)
+   {
+      auto config = *cfg;
+      auto parameters = config->getOneBlock("DomainSetup");
+      const std::string timeStepStrategy = parameters.getParameter<std::string>("testString", "normal");
 
-   config->listParameters();
-   WALBERLA_CHECK_EQUAL      ( int        ( config->getParameter<int>        ("testInt")  ),    4          );
-   WALBERLA_CHECK_EQUAL      ( std::string( config->getParameter<std::string>("testString")), "someString" );
-   WALBERLA_CHECK_FLOAT_EQUAL( double     ( config->getParameter<real_t>     ("testDouble")), real_t(42.42));
-
-
-   auto subBlock = config->getBlock("subBlock");
-   WALBERLA_CHECK_EQUAL      ( std::string( subBlock.getParameter<std::string>("subKey1") ), std::string("abc") );
-   WALBERLA_CHECK_EQUAL      ( std::string( subBlock.getParameter<std::string>("subKey2") ), std::string("def") );
+      WALBERLA_LOG_INFO_ON_ROOT(timeStepStrategy)
+   }
 
    return 0;
 }

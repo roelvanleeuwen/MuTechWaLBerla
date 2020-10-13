@@ -146,6 +146,7 @@ namespace python_coupling {
       py::object callbackModule = py::module::import( "walberla_cpp.callbacks");
 
       callbackDict_->dict() = py::dict( callbackModule.attr( "__dict__" ) );
+
    }
 
    bool PythonCallback_pybind::isCallable() const

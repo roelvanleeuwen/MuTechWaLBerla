@@ -1,15 +1,22 @@
-import waLBerla
+import waLBerla as wlb
 
 
-@waLBerla.callback("config")
-def waLBerlaConfig():
-    conf = {
-        'testInt': 4,
-        'testString': "someString",
-        'testDouble': 42.42,
-        '44242': 'ohoh_IntegerKey',
-        'subBlock': {'subKey1': 'abc',
-                     'subKey2': 'def'
-                     }
-    }
-    return conf
+class Scenario:
+    def __init__(self):
+        self.testInt = 4
+        self.testString = "someString"
+        self.testDouble = 4.43
+
+    @wlb.member_callback
+    def config(self):
+        return {
+            'DomainSetup': {
+                'testInt': self.testInt,
+                'testDouble': self.testDouble,
+                'testString': self.testString,
+            }
+        }
+
+
+scenarios = wlb.ScenarioManager()
+scenarios.add(Scenario())

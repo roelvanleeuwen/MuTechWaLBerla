@@ -54,7 +54,7 @@ namespace python_coupling {
 /*! \name Functions to load config directly from script  */
 //@{
 
-   shared_ptr<Config> createConfigFromPythonScript( const std::string & scriptFile,
+   shared_ptr<Config> createConfigFromPythonScript_pybind( const std::string & scriptFile,
                                                     const std::string & pythonFunctionName = "config",
                                                     const std::vector<std::string> & argv = std::vector<std::string>() );
 

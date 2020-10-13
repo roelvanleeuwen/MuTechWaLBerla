@@ -50,10 +50,11 @@ namespace python_coupling {
    namespace py = pybind11;
 
 
-   shared_ptr<Config> createConfigFromPythonScript( const std::string & scriptFile,
+   shared_ptr<Config> createConfigFromPythonScript_pybind( const std::string & scriptFile,
                                                     const std::string & pythonFunctionName,
                                                     const std::vector<std::string> & argv )
    {
+      std::cout << "test" << std::endl;
       importModuleOrFile_pybind( scriptFile, argv );
 
       PythonCallback_pybind pythonCallback ( pythonFunctionName );
@@ -232,7 +233,7 @@ namespace python_coupling {
       auto argVec = std::vector<std::string> (argv+1, argv + argc);
 
       if ( string_ends_with( filename, ".py")  ) {
-         config = createConfigFromPythonScript( filename, "config", argVec );
+         config = createConfigFromPythonScript_pybind( filename, "config", argVec );
       }
       else {
          config = make_shared<Config>();
