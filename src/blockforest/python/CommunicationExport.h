@@ -27,10 +27,10 @@ namespace walberla {
 namespace blockforest {
 
 
-   template<typename Stencils>
+   template<typename... Stencils>
    void exportUniformBufferedScheme();
 
-   template<typename Stencils>
+   template<typename... Stencils>
    void exportUniformDirectScheme();
 
 

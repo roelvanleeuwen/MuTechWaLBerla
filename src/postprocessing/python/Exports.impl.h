@@ -42,7 +42,7 @@ FunctionExporterClass( realFieldToSurfaceMesh,
                        shared_ptr<geometry::TriangleMesh>( const shared_ptr<StructuredBlockStorage> &,
                                                            ConstBlockDataID, real_t, uint_t, bool, int, MPI_Comm  ) );
 
-template<typename FieldVector>
+template<typename... FieldTypes>
 static shared_ptr<geometry::TriangleMesh> exp_realFieldToSurfaceMesh
       ( const shared_ptr<StructuredBlockStorage> & bs, const std::string & blockDataStr, real_t threshold,
         uint_t fCoord = 0, bool calcNormals = false, int targetRank = 0 )
@@ -53,7 +53,7 @@ static shared_ptr<geometry::TriangleMesh> exp_realFieldToSurfaceMesh
 
    auto fieldID = python_coupling::blockDataIDFromString( *bs, blockDataStr );
 
-   python_coupling::Dispatcher<Exporter_realFieldToSurfaceMesh, FieldVector > dispatcher( firstBlock );
+   python_coupling::Dispatcher<Exporter_realFieldToSurfaceMesh, FieldTypes... > dispatcher( firstBlock );
    return dispatcher( fieldID )( bs, fieldID, threshold, fCoord, calcNormals, targetRank, MPI_COMM_WORLD) ;
 }
 
@@ -100,7 +100,7 @@ FunctionExporterClass( adaptedFlagFieldToSurfaceMesh,
                                               const std::vector< std::string > &, bool,int  ) );
 
 
-template<typename FieldVector>
+template<typename... FieldTypes>
 static boost::python::object exp_flagFieldToSurfaceMesh ( const shared_ptr<StructuredBlockStorage> & bs,
                                                           const std::string & blockDataName,
                                                           const boost::python::list & flagList,
@@ -114,21 +114,21 @@ static boost::python::object exp_flagFieldToSurfaceMesh ( const shared_ptr<Struc
    auto fieldID = python_coupling::blockDataIDFromString( *bs, blockDataName );
 
    auto flagVector = python_coupling::pythonIterableToStdVector<std::string>( flagList );
-   python_coupling::Dispatcher<Exporter_adaptedFlagFieldToSurfaceMesh, FieldVector > dispatcher( firstBlock );
+   python_coupling::Dispatcher<Exporter_adaptedFlagFieldToSurfaceMesh, FieldTypes... > dispatcher( firstBlock );
    return dispatcher( fieldID )( bs, fieldID, flagVector, calcNormals, targetRank );
 }
 
 
 
-template<typename RealFields, typename FlagFields>
+template<typename RealFieldTuple, typename FlagFieldTuple>
 void exportModuleToPython()
 {
    python_coupling::ModuleScope fieldModule( "postprocessing" );
 
-   def( "realFieldToMesh", &exp_realFieldToSurfaceMesh<RealFields>,
+   def( "realFieldToMesh", &exp_realFieldToSurfaceMesh<RealFields...>,
             ( arg("blocks"), arg("blockDataName"),  arg("fCoord")=0, arg("calcNormals") = false, arg("targetRank")=0 ) );
 
-   def( "flagFieldToMesh", &exp_flagFieldToSurfaceMesh<FlagFields>,
+   def( "flagFieldToMesh", &exp_flagFieldToSurfaceMesh<FlagFields...>,
             ( arg("blocks"), arg("blockDataName"), arg("flagList"), arg("calcNormals") = false, arg("targetRank")=0  ) );
 }
 

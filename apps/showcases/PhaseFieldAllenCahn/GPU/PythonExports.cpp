@@ -41,44 +41,22 @@ namespace walberla {
     // clang-format off
     void exportDataStructuresToPython() {
 
-        namespace bmpl = boost::mpl;
-
         auto pythonManager = python_coupling::Manager::instance();
 
-        typedef bmpl::vector<
-                Field<walberla::real_t, 1>,
-                Field<walberla::real_t, 3>,
-                Field<walberla::real_t, 9>,
-                Field<walberla::real_t, 19>,
-                Field<walberla::real_t, 27>>
-                FieldTypes;
-
-        typedef bmpl::vector<stencil::D2Q9,
-                stencil::D3Q19,
-                stencil::D3Q27>
-                Stencils;
-
-        typedef bmpl::vector<
-                GhostLayerField<real_t,1>,
-                GhostLayerField<real_t,3>>
-                RealFieldTypes;
-
-        typedef bmpl::vector<
-                FlagField<flag_t>>
-                FlagFieldTypes;
         // Field
-        pythonManager->addExporterFunction(field::exportModuleToPython<FieldTypes>);
-        pythonManager->addExporterFunction(field::exportGatherFunctions<FieldTypes>);
-        pythonManager->addBlockDataConversion<FieldTypes>();
+        pythonManager->addExporterFunction(field::exportModuleToPython<Field<walberla::real_t, 1>, Field<walberla::real_t, 3>, Field<walberla::real_t, 9>, Field<walberla::real_t, 19>, Field<walberla::real_t, 27>>);
+        pythonManager->addExporterFunction(field::exportGatherFunctions<Field<walberla::real_t, 1>, Field<walberla::real_t, 3>, Field<walberla::real_t, 9>, Field<walberla::real_t, 19>, Field<walberla::real_t, 27>>);
+        pythonManager->addBlockDataConversion<Field<walberla::real_t, 1>, Field<walberla::real_t, 3>, Field<walberla::real_t, 9>, Field<walberla::real_t, 19>, Field<walberla::real_t, 27>>();
 
         // Blockforest
-        pythonManager->addExporterFunction(blockforest::exportModuleToPython<Stencils>);
+        pythonManager->addExporterFunction(blockforest::exportModuleToPython<stencil::D2Q9, stencil::D3Q19, stencil::D3Q27>);
 
         // Timeloop
         pythonManager->addExporterFunction(timeloop::exportModuleToPython);
 
         // Postprocessing
-        pythonManager->addExporterFunction( postprocessing::exportModuleToPython<RealFieldTypes, FlagFieldTypes> );
+        pythonManager->addExporterFunction( postprocessing::exportModuleToPython<std::tuple<GhostLayerField<real_t,1>, GhostLayerField<real_t,3>>,
+                                                                                 std::tuple<FlagField<flag_t>>> );
 
         // Geometry
         pythonManager->addExporterFunction( geometry::exportModuleToPython );

@@ -26,7 +26,7 @@ namespace walberla {
 namespace field {
 
 
-template<typename FieldTypes >
+template<typename... FieldTypes >
 void exportGatherFunctions();
 
 

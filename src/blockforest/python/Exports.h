@@ -36,12 +36,12 @@ namespace blockforest {
    void exportBlockForest();
 
 
-   template<typename Stencils>
+   template<typename... Stencils>
    void exportModuleToPython()
    {
       exportBlockForest();
-      exportUniformBufferedScheme<Stencils>();
-      exportUniformDirectScheme<Stencils>();
+      exportUniformBufferedScheme<Stencils...>();
+      exportUniformDirectScheme<Stencils...>();
    }
 
 } // namespace blockforest

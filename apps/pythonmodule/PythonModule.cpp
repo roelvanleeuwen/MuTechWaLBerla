@@ -35,55 +35,9 @@
 #include "cuda/python/Exports.h"
 #endif
 
-#include <boost/mpl/vector.hpp>
-#include <boost/mpl/insert_range.hpp>
 
-
-
-namespace bmpl = boost::mpl;
 using namespace walberla;
 
-typedef bmpl::vector<
-            Field<walberla::real_t,1>,
-            Field<walberla::real_t,2>,
-            Field<walberla::real_t,3>,
-            Field<walberla::real_t,4>,
-            Field<walberla::real_t,5>,
-            Field<walberla::real_t,6>,
-            Field<walberla::real_t,9>,
-            Field<walberla::real_t,15>,
-            Field<walberla::real_t,19>,
-            Field<walberla::real_t,27>,
-
-            Field<walberla::int8_t,1>,
-            Field<walberla::int16_t,1>,
-            Field<walberla::int32_t,1>,
-
-            Field<walberla::int64_t,1>,
-            Field<walberla::int64_t,2>,
-            Field<walberla::int64_t,3>,
-            Field<walberla::int64_t,4>,
-
-            Field<walberla::uint8_t,1>,
-            Field<walberla::uint16_t,1>,
-            Field<walberla::uint32_t,1>
-      > FieldTypes;
-
-
-typedef bmpl::vector<
-                      GhostLayerField<walberla::real_t,1>,
-                      GhostLayerField<walberla::real_t,3>
-                    >  FieldTypesForMeshGeneration;
-
-
-typedef bmpl::vector< FlagField<walberla::uint8_t>,
-                      FlagField<walberla::uint16_t> > FlagFieldTypes;
-
-typedef bmpl::vector< stencil::D2Q5,
-                      stencil::D2Q9,
-                      stencil::D3Q7,
-                      stencil::D3Q19,
-                      stencil::D3Q27 > Stencils;
 
 typedef GhostLayerField<walberla::real_t,3> VecField_T;
 
@@ -94,17 +48,33 @@ struct InitObject
 {
    InitObject()
    {
-      namespace bmpl = boost::mpl;
-
       auto pythonManager = python_coupling::Manager::instance();
 
       // Field
-      pythonManager->addExporterFunction( field::exportModuleToPython<FieldTypes> );
-      pythonManager->addExporterFunction( field::exportGatherFunctions<FieldTypes> );
-      pythonManager->addBlockDataConversion<FieldTypes>() ;
+      pythonManager->addExporterFunction( field::exportModuleToPython<Field<walberla::real_t,1>, Field<walberla::real_t,2>, Field<walberla::real_t,3>,
+                                                                      Field<walberla::real_t,4>, Field<walberla::real_t,5>, Field<walberla::real_t,6>,
+                                                                      Field<walberla::real_t,9>, Field<walberla::real_t,15>, Field<walberla::real_t,19>,
+                                                                      Field<walberla::real_t,27>, Field<walberla::int8_t,1>, Field<walberla::int16_t,1>,
+                                                                      Field<walberla::int32_t,1>, Field<walberla::int64_t,1>, Field<walberla::int64_t,2>,
+                                                                      Field<walberla::int64_t,3>, Field<walberla::int64_t,4>, Field<walberla::uint8_t,1>,
+                                                                      Field<walberla::uint16_t,1>, Field<walberla::uint32_t,1>> );
+      pythonManager->addExporterFunction( field::exportGatherFunctions<Field<walberla::real_t,1>, Field<walberla::real_t,2>, Field<walberla::real_t,3>,
+                                                                       Field<walberla::real_t,4>, Field<walberla::real_t,5>, Field<walberla::real_t,6>,
+                                                                       Field<walberla::real_t,9>, Field<walberla::real_t,15>, Field<walberla::real_t,19>,
+                                                                       Field<walberla::real_t,27>, Field<walberla::int8_t,1>, Field<walberla::int16_t,1>,
+                                                                       Field<walberla::int32_t,1>, Field<walberla::int64_t,1>, Field<walberla::int64_t,2>,
+                                                                       Field<walberla::int64_t,3>, Field<walberla::int64_t,4>, Field<walberla::uint8_t,1>,
+                                                                       Field<walberla::uint16_t,1>, Field<walberla::uint32_t,1>> );
+      pythonManager->addBlockDataConversion<Field<walberla::real_t,1>, Field<walberla::real_t,2>, Field<walberla::real_t,3>,
+                                            Field<walberla::real_t,4>, Field<walberla::real_t,5>, Field<walberla::real_t,6>,
+                                            Field<walberla::real_t,9>, Field<walberla::real_t,15>, Field<walberla::real_t,19>,
+                                            Field<walberla::real_t,27>, Field<walberla::int8_t,1>, Field<walberla::int16_t,1>,
+                                            Field<walberla::int32_t,1>, Field<walberla::int64_t,1>, Field<walberla::int64_t,2>,
+                                            Field<walberla::int64_t,3>, Field<walberla::int64_t,4>, Field<walberla::uint8_t,1>,
+                                            Field<walberla::uint16_t,1>, Field<walberla::uint32_t,1>>() ;
 
       // Blockforest
-      pythonManager->addExporterFunction( blockforest::exportModuleToPython<Stencils> );
+      pythonManager->addExporterFunction( blockforest::exportModuleToPython<stencil::D2Q5, stencil::D2Q9, stencil::D3Q7, stencil::D3Q19, stencil::D3Q27> );
 
       // Geometry
       pythonManager->addExporterFunction( geometry::exportModuleToPython );
@@ -113,23 +83,32 @@ struct InitObject
       pythonManager->addExporterFunction( vtk::exportModuleToPython );
 
       // Postprocessing
-      pythonManager->addExporterFunction( postprocessing::exportModuleToPython<FieldTypesForMeshGeneration, FlagFieldTypes> );
+      pythonManager->addExporterFunction( postprocessing::exportModuleToPython<std::tuple<GhostLayerField<walberla::real_t,1>, GhostLayerField<walberla::real_t,3>>,
+                                                                               std::tuple<FlagField<walberla::uint8_t>, FlagField<walberla::uint16_t>>> );
 
       // Timeloop
       pythonManager->addExporterFunction( timeloop::exportModuleToPython );
 
 #ifdef WALBERLA_BUILD_WITH_OPENMESH
-      pythonManager->addExporterFunction( mesh::exportModuleToPython<FlagFieldTypes> );
+      pythonManager->addExporterFunction( mesh::exportModuleToPython<FlagField<walberla::uint8_t>, FlagField<walberla::uint16_t>> );
 #endif
 
 #ifdef WALBERLA_BUILD_WITH_CUDA
       using walberla::cuda::GPUField;
-      typedef bmpl::vector<GPUField<double>, GPUField<float>,
-                           GPUField<int8_t>,  GPUField<int16_t>,  GPUField<int32_t>, GPUField<int64_t>,
-                           GPUField<uint8_t>, GPUField<uint16_t>, GPUField<uint32_t>,GPUField<uint64_t> > GPUFields;
 
-      pythonManager->addExporterFunction( cuda::exportModuleToPython<GPUFields, FieldTypes> );
-      pythonManager->addBlockDataConversion<GPUFields>();
+      pythonManager->addExporterFunction( cuda::exportModuleToPython<GPUField<double>, GPUField<float>,
+                                                                     GPUField<int8_t>,  GPUField<int16_t>,  GPUField<int32_t>, GPUField<int64_t>,
+                                                                     GPUField<uint8_t>, GPUField<uint16_t>, GPUField<uint32_t>,GPUField<uint64_t>,
+                                                                     Field<walberla::real_t,1>, Field<walberla::real_t,2>, Field<walberla::real_t,3>,
+                                                                     Field<walberla::real_t,4>, Field<walberla::real_t,5>, Field<walberla::real_t,6>,
+                                                                     Field<walberla::real_t,9>, Field<walberla::real_t,15>, Field<walberla::real_t,19>,
+                                                                     Field<walberla::real_t,27>, Field<walberla::int8_t,1>, Field<walberla::int16_t,1>,
+                                                                     Field<walberla::int32_t,1>, Field<walberla::int64_t,1>, Field<walberla::int64_t,2>,
+                                                                     Field<walberla::int64_t,3>, Field<walberla::int64_t,4>, Field<walberla::uint8_t,1>,
+                                                                     Field<walberla::uint16_t,1>, Field<walberla::uint32_t,1>> );
+      pythonManager->addBlockDataConversion<GPUField<double>, GPUField<float>,
+                                            GPUField<int8_t>,  GPUField<int16_t>,  GPUField<int32_t>, GPUField<int64_t>,
+                                            GPUField<uint8_t>, GPUField<uint16_t>, GPUField<uint32_t>,GPUField<uint64_t>>();
 #endif
 
       python_coupling::initWalberlaForPythonModule();
