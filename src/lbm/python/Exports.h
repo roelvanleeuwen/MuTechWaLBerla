@@ -33,12 +33,12 @@ namespace walberla {
 namespace lbm {
 
 
-    template<typename LatticeModels, typename FlagFields>
+    template<typename LatticeModels, typename FlagField>
     void exportModuleToPython()
     {
-       exportBasic<LatticeModels,FlagFields>();
-       exportSweeps<LatticeModels,FlagFields>();
-       exportBoundary<LatticeModels,FlagFields>();
+       exportBasic<LatticeModels>();
+       exportSweeps<LatticeModels,FlagField>();
+       exportBoundary<LatticeModels>();
     }
 
 

@@ -33,161 +33,86 @@
 #include "timeloop/python/Exports.h"
 #include "vtk/python/Exports.h"
 
-#include <boost/mpl/vector.hpp>
-#include <boost/mpl/insert_range.hpp>
 
-
-namespace bmpl = boost::mpl;
 using namespace walberla;
 
-typedef bmpl::vector<
-            Field<walberla::real_t,1>,
-            Field<walberla::real_t,2>,
-            Field<walberla::real_t,3>,
-            Field<walberla::real_t,4>,
-            Field<walberla::real_t,5>,
-            Field<walberla::real_t,9>,
-            Field<walberla::real_t,19>,
-            Field<walberla::real_t,27>,
-
-            Field<walberla::int8_t,1>,
-            Field<walberla::int16_t,1>,
-            Field<walberla::int32_t,1>,
-
-            Field<walberla::int64_t,1>,
-            Field<walberla::int64_t,2>,
-            Field<walberla::int64_t,3>,
-            Field<walberla::int64_t,4>,
-            Field<walberla::int64_t,5>,
-
-            Field<walberla::uint8_t,1>,
-            Field<walberla::uint16_t,1>,
-            Field<walberla::uint32_t,1>
-      > FieldTypes;
-
-
-typedef bmpl::vector<
-                      GhostLayerField<walberla::real_t,1>,
-                      GhostLayerField<walberla::real_t,3>
-                    >  FieldTypesForMeshGeneration;
-
-
-typedef bmpl::vector< FlagField<walberla::uint8_t>,
-                      FlagField<walberla::uint16_t> > FlagFieldTypes;
-
-typedef bmpl::vector< stencil::D2Q5,
-                      stencil::D2Q9,
-                      stencil::D3Q7,
-                      stencil::D3Q19,
-                      stencil::D3Q27 > Stencils;
 
 typedef lbm::collision_model::SRTField< GhostLayerField<walberla::real_t,1> > SRTField_T;
 
 typedef GhostLayerField<walberla::real_t,3> VecField_T;
 
-
-// -------------------------    D2Q9 -----------------------------------------------------------------------------
-
-typedef bmpl::list< lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::None, 2>,
-                    lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::SimpleConstant, 2>,
-                    lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::GuoConstant, 2>,
-                    lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::LuoConstant, 2>,
-                    lbm::D2Q9  < lbm::collision_model::SRT, true, lbm::force_model::None, 2>,
-                    lbm::D2Q9  < lbm::collision_model::SRT, true, lbm::force_model::SimpleConstant, 2>,
-                    lbm::D2Q9  < lbm::collision_model::SRT, true, lbm::force_model::GuoConstant, 2>,
-                    lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::GuoField<VecField_T>, 2>,
-                    lbm::D2Q9  < lbm::collision_model::SRT, true, lbm::force_model::LuoConstant, 2>,
-                    lbm::D2Q9  < lbm::collision_model::SRT, true, lbm::force_model::None, 1>,
-                    lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::None, 1>
-> LM_D2Q19_SRT;
-
-typedef bmpl::list<   lbm::D2Q9  < lbm::collision_model::TRT, false, lbm::force_model::None, 2>,
-                      lbm::D2Q9  < lbm::collision_model::TRT, false, lbm::force_model::SimpleConstant, 2>,
-                      lbm::D2Q9  < lbm::collision_model::TRT, false, lbm::force_model::GuoConstant, 2>,
-                      lbm::D2Q9  < lbm::collision_model::TRT, false, lbm::force_model::LuoConstant, 2>,
-
-                      lbm::D2Q9  < lbm::collision_model::TRT, true, lbm::force_model::None, 2>,
-                      lbm::D2Q9  < lbm::collision_model::TRT, true, lbm::force_model::SimpleConstant, 2>,
-                      lbm::D2Q9  < lbm::collision_model::TRT, true, lbm::force_model::GuoConstant, 2>,
-                      lbm::D2Q9  < lbm::collision_model::TRT, true, lbm::force_model::LuoConstant, 2>,
-                      lbm::D2Q9  < lbm::collision_model::TRT, true, lbm::force_model::None, 1>,
-                      lbm::D2Q9  < lbm::collision_model::TRT, false, lbm::force_model::None, 1>
-> LM_D2Q19_TRT;
-
 typedef lbm::collision_model::SRTField<GhostLayerField<real_t,1> > SRTFieldCollisionModel;
-typedef bmpl::list<   lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::None, 2>,
-                      lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::SimpleConstant, 2>,
-                      lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::GuoConstant, 2>,
-                      lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::LuoConstant, 2>,
 
-                      lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::None, 2>,
-                      lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::SimpleConstant, 2>,
-                      lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::GuoConstant, 2>,
-                      lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::LuoConstant, 2>
-> LM_D2Q9_SRTField;
-
-// -------------------------    D3Q19 ----------------------------------------------------------------------------
-
-
-typedef bmpl::list<   lbm::D3Q19  < lbm::collision_model::SRT, false, lbm::force_model::None, 2>,
-                      lbm::D3Q19  < lbm::collision_model::SRT, false, lbm::force_model::SimpleConstant, 2>,
-                      lbm::D3Q19  < lbm::collision_model::SRT, false, lbm::force_model::GuoConstant, 2>,
-                      lbm::D3Q19  < lbm::collision_model::SRT, false, lbm::force_model::LuoConstant, 2>,
-
-                      lbm::D3Q19  < lbm::collision_model::SRT, true, lbm::force_model::None, 2>,
-                      lbm::D3Q19  < lbm::collision_model::SRT, true, lbm::force_model::SimpleConstant, 2>,
-                      lbm::D3Q19  < lbm::collision_model::SRT, true, lbm::force_model::GuoConstant, 2>,
-                      lbm::D3Q19  < lbm::collision_model::SRT, true, lbm::force_model::LuoConstant, 2>
-> LM_D3Q19_SRT;
-
-typedef bmpl::list<   lbm::D3Q19  < lbm::collision_model::TRT, false, lbm::force_model::None, 2>,
-                      lbm::D3Q19  < lbm::collision_model::TRT, false, lbm::force_model::SimpleConstant, 2>,
-                      lbm::D3Q19  < lbm::collision_model::TRT, false, lbm::force_model::GuoConstant, 2>,
-                      lbm::D3Q19  < lbm::collision_model::TRT, false, lbm::force_model::LuoConstant, 2>,
-
-                      lbm::D3Q19  < lbm::collision_model::TRT, true, lbm::force_model::None, 2>,
-                      lbm::D3Q19  < lbm::collision_model::TRT, true, lbm::force_model::SimpleConstant, 2>,
-                      lbm::D3Q19  < lbm::collision_model::TRT, true, lbm::force_model::GuoConstant, 2>,
-                      lbm::D3Q19  < lbm::collision_model::TRT, true, lbm::force_model::LuoConstant, 2>
-> LM_D3Q19_TRT;
-
-
-typedef bmpl::list<lbm::D3Q19 < lbm::collision_model::D3Q19MRT, false, lbm::force_model::None, 2>,
-                   lbm::D3Q19 < lbm::collision_model::D3Q19MRT, false, lbm::force_model::SimpleConstant, 2>,
-                   lbm::D3Q19 < lbm::collision_model::D3Q19MRT, false, lbm::force_model::GuoConstant, 2>,
-                   lbm::D3Q19 < lbm::collision_model::D3Q19MRT, false, lbm::force_model::LuoConstant, 2>,
-
-                   lbm::D3Q27 < lbm::collision_model::D3Q27Cumulant, true, lbm::force_model::None, 2>
-
-> LM_D3Q19_Extra;
-
-
-
-typedef lbm::collision_model::SRTField<GhostLayerField<real_t,1> > SRTFieldCollisionModel;
-typedef bmpl::list<   lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::None, 2>,
-                      lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::SimpleConstant, 2>,
-                      lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::GuoConstant, 2>,
-                      lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::LuoConstant, 2>,
-
-                      lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::None, 2>,
-                      lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::SimpleConstant, 2>,
-                      lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::GuoConstant, 2>,
-                      lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::LuoConstant, 2>
-> LM_D3Q19_SRTField;
-
-
-typedef bmpl::insert_range< LM_D2Q19_SRT, bmpl::end< LM_D2Q19_SRT >::type, LM_D2Q19_TRT>     ::type D2Q9_SRT_TRT;
-typedef bmpl::insert_range< D2Q9_SRT_TRT, bmpl::end< D2Q9_SRT_TRT >::type, LM_D2Q9_SRTField>::type LatticeModels2D;
-
-
-typedef bmpl::insert_range< LM_D3Q19_SRT,  bmpl::end< LM_D3Q19_SRT > ::type, LM_D3Q19_TRT>::type D3Q19_SRT_TRT;
-typedef bmpl::insert_range< D3Q19_SRT_TRT, bmpl::end< D3Q19_SRT_TRT >::type, LM_D3Q19_Extra>::type D3Q19_SRT_TRT_MRT;
-typedef bmpl::insert_range< D3Q19_SRT_TRT_MRT, bmpl::end< D3Q19_SRT_TRT_MRT >::type, LM_D3Q19_SRTField>::type LatticeModels3D;
-
-
-typedef bmpl::insert_range< LatticeModels2D, bmpl::end< LatticeModels2D >::type, LatticeModels3D>::type LatticeModels;
-
-typedef typename lbm::AdaptorsFromLatticeModels<LatticeModels>::type LBMAdaptors;
+#define LatticeModels \
+   lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::None, 2>,\
+   lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::GuoConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::LuoConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::SRT, true, lbm::force_model::None, 2>,\
+   lbm::D2Q9  < lbm::collision_model::SRT, true, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::SRT, true, lbm::force_model::GuoConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::GuoField<VecField_T>, 2>,\
+   lbm::D2Q9  < lbm::collision_model::SRT, true, lbm::force_model::LuoConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::SRT, true, lbm::force_model::None, 1>,\
+   lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::None, 1>,\
+   \
+   lbm::D2Q9  < lbm::collision_model::TRT, false, lbm::force_model::None, 2>,\
+   lbm::D2Q9  < lbm::collision_model::TRT, false, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::TRT, false, lbm::force_model::GuoConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::TRT, false, lbm::force_model::LuoConstant, 2>,\
+   \
+   lbm::D2Q9  < lbm::collision_model::TRT, true, lbm::force_model::None, 2>,\
+   lbm::D2Q9  < lbm::collision_model::TRT, true, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::TRT, true, lbm::force_model::GuoConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::TRT, true, lbm::force_model::LuoConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::TRT, true, lbm::force_model::None, 1>,\
+   lbm::D2Q9  < lbm::collision_model::TRT, false, lbm::force_model::None, 1>,\
+   \
+   lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::None, 2>,\
+   lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::GuoConstant, 2>,\
+   lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::LuoConstant, 2>,\
+   \
+   lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::None, 2>,\
+   lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::GuoConstant, 2>,\
+   lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::LuoConstant, 2>,\
+   \
+   lbm::D3Q19  < lbm::collision_model::SRT, false, lbm::force_model::None, 2>,\
+   lbm::D3Q19  < lbm::collision_model::SRT, false, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D3Q19  < lbm::collision_model::SRT, false, lbm::force_model::GuoConstant, 2>,\
+   lbm::D3Q19  < lbm::collision_model::SRT, false, lbm::force_model::LuoConstant, 2>,\
+   \
+   lbm::D3Q19  < lbm::collision_model::SRT, true, lbm::force_model::None, 2>,\
+   lbm::D3Q19  < lbm::collision_model::SRT, true, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D3Q19  < lbm::collision_model::SRT, true, lbm::force_model::GuoConstant, 2>,\
+   lbm::D3Q19  < lbm::collision_model::SRT, true, lbm::force_model::LuoConstant, 2>,\
+   \
+   lbm::D3Q19  < lbm::collision_model::TRT, false, lbm::force_model::None, 2>,\
+   lbm::D3Q19  < lbm::collision_model::TRT, false, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D3Q19  < lbm::collision_model::TRT, false, lbm::force_model::GuoConstant, 2>,\
+   lbm::D3Q19  < lbm::collision_model::TRT, false, lbm::force_model::LuoConstant, 2>,\
+   \
+   lbm::D3Q19  < lbm::collision_model::TRT, true, lbm::force_model::None, 2>,\
+   lbm::D3Q19  < lbm::collision_model::TRT, true, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D3Q19  < lbm::collision_model::TRT, true, lbm::force_model::GuoConstant, 2>,\
+   lbm::D3Q19  < lbm::collision_model::TRT, true, lbm::force_model::LuoConstant, 2>,\
+   \
+   lbm::D3Q19 < lbm::collision_model::D3Q19MRT, false, lbm::force_model::None, 2>,\
+   lbm::D3Q19 < lbm::collision_model::D3Q19MRT, false, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D3Q19 < lbm::collision_model::D3Q19MRT, false, lbm::force_model::GuoConstant, 2>,\
+   lbm::D3Q19 < lbm::collision_model::D3Q19MRT, false, lbm::force_model::LuoConstant, 2>,\
+   lbm::D3Q27 < lbm::collision_model::D3Q27Cumulant, true, lbm::force_model::None, 2>,\
+   \
+   lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::None, 2>,\
+   lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::GuoConstant, 2>,\
+   lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::LuoConstant, 2>,\
+   \
+   lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::None, 2>,\
+   lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::GuoConstant, 2>,\
+   lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::LuoConstant, 2>
 
 
 
@@ -197,17 +122,19 @@ struct InitObject
 {
    InitObject()
    {
-      namespace bmpl = boost::mpl;
-
       auto pythonManager = python_coupling::Manager::instance();
 
       // Field
-      pythonManager->addExporterFunction( field::exportModuleToPython<FieldTypes> );
-      pythonManager->addExporterFunction( field::exportGatherFunctions<bmpl::joint_view<FieldTypes,LBMAdaptors>::type > );
-      pythonManager->addBlockDataConversion< bmpl::joint_view<FieldTypes,LBMAdaptors>::type >() ;
+      pythonManager->addExporterFunction( field::exportModuleToPython<Field<walberla::real_t,1>, Field<walberla::real_t,2>, Field<walberla::real_t,3>,
+                                                                      Field<walberla::real_t,4>, Field<walberla::real_t,5>, Field<walberla::real_t,9>,
+                                                                      Field<walberla::real_t,19>, Field<walberla::real_t,27>, Field<walberla::int8_t,1>,
+                                                                      Field<walberla::int16_t,1>, Field<walberla::int32_t,1>, Field<walberla::int64_t,1>,
+                                                                      Field<walberla::int64_t,2>, Field<walberla::int64_t,3>, Field<walberla::int64_t,4>,
+                                                                      Field<walberla::int64_t,5>, Field<walberla::uint8_t,1>, Field<walberla::uint16_t,1>,
+                                                                      Field<walberla::uint32_t,1>> );
 
       // Blockforest
-      pythonManager->addExporterFunction( blockforest::exportModuleToPython<Stencils> );
+      pythonManager->addExporterFunction( blockforest::exportModuleToPython<stencil::D2Q5, stencil::D2Q9, stencil::D3Q7, stencil::D3Q19, stencil::D3Q27> );
 
       // Geometry
       pythonManager->addExporterFunction( geometry::exportModuleToPython );
@@ -216,13 +143,13 @@ struct InitObject
       pythonManager->addExporterFunction( vtk::exportModuleToPython );
 
       // LBM
-      typedef bmpl::vector< FlagField<walberla::uint8_t> > FlagFieldTypesForLBM;
-      pythonManager->addExporterFunction( lbm::exportBasic<LatticeModels, FlagFieldTypesForLBM> );
-      pythonManager->addExporterFunction( lbm::exportBoundary<LatticeModels, FlagFieldTypesForLBM> );
-      pythonManager->addExporterFunction( lbm::exportSweeps<LatticeModels, FlagFieldTypesForLBM> );
+      pythonManager->addExporterFunction( lbm::exportBasic<LatticeModels> );
+      pythonManager->addExporterFunction( lbm::exportBoundary<LatticeModels> );
+      pythonManager->addExporterFunction( lbm::exportSweeps<FlagField<walberla::uint8_t>, LatticeModels> );
 
       // Postprocessing
-      pythonManager->addExporterFunction( postprocessing::exportModuleToPython<FieldTypesForMeshGeneration, FlagFieldTypes> );
+      pythonManager->addExporterFunction( postprocessing::exportModuleToPython<GhostLayerField<walberla::real_t,1>, GhostLayerField<walberla::real_t,3>,
+                                                                               FlagField<walberla::uint8_t>, FlagField<walberla::uint16_t>> );
 
       // Timeloop
       pythonManager->addExporterFunction( timeloop::exportModuleToPython );

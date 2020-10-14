@@ -35,8 +35,7 @@ namespace lbm {
     template< typename... LatticeModels > struct AdaptorsFromLatticeModels;
     template< typename... LatticeModels > struct ExtendedBoundaryHandlingsFromLatticeModels;
 
-    template<typename... LatticeModels, typename FlagFields>
-    void exportBasic();
+    template<typename... LatticeModels> void exportBasic();
 
 } // namespace lbm
 } // namespace walberla

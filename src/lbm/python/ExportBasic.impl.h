@@ -135,7 +135,7 @@ namespace internal
       }
 
       template<typename LatticeModel_T>
-      void operator()( python_coupling::NonCopyableWrap<LatticeModel_T>  )
+      void operator()( python_coupling::NonCopyableWrap<LatticeModel_T>  ) const
       {
          using namespace boost::python;
 
@@ -224,7 +224,7 @@ namespace internal
    struct PdfFieldExporter
    {
       template<typename LatticeModel_T>
-      void operator()( python_coupling::NonCopyableWrap<LatticeModel_T>  )
+      void operator()( python_coupling::NonCopyableWrap<LatticeModel_T>  ) const
       {
          using namespace boost::python;
 
@@ -353,7 +353,7 @@ namespace internal
    struct AdaptorExporter
    {
       template< typename LatticeModel_T>
-      void operator() ( python_coupling::NonCopyableWrap<LatticeModel_T> )
+      void operator() ( python_coupling::NonCopyableWrap<LatticeModel_T> ) const
       {
          field::exportGhostLayerFieldAdaptor< typename Adaptor< LatticeModel_T >::Density   > ( );
          field::exportGhostLayerFieldAdaptor< typename Adaptor< LatticeModel_T >::Velocity  > ( );
@@ -435,7 +435,7 @@ namespace internal
 }
 
 
-template<typename... LatticeModels, typename FlagFields>
+template<typename... LatticeModels>
 void exportBasic()
 {
    using namespace boost::python;

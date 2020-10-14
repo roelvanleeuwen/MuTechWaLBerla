@@ -27,7 +27,7 @@
 namespace walberla {
 namespace lbm {
 
-   template<typename LatticeModels, typename FlagFields>
+   template<typename... LatticeModels>
    void exportBoundary();
 
 } // namespace lbm

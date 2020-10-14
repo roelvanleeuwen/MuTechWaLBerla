@@ -200,7 +200,7 @@ namespace internal
    };
 
 
-   template<typename LatticeModels>
+   template<typename... LatticeModels>
    void addBoundaryHandlingToStorage( const shared_ptr<StructuredBlockStorage> & bs,
                                       const std::string & name,
                                       const std::string & pdfFieldStringID,
@@ -224,7 +224,7 @@ namespace internal
       }
 
       ExtendedBoundaryHandlingCreator creator( bs, name, pdfFieldID, flagFieldID );
-      python_coupling::for_each_noncopyable_type<LatticeModels>( std::ref( creator ) );
+      python_coupling::for_each_noncopyable_type<LatticeModels...>( std::ref( creator ) );
 
       if ( ! creator.successful() )
       {
@@ -241,14 +241,7 @@ namespace internal
  }
 
 
-template< typename LatticeModels >
-struct ExtendedBoundaryHandlingsFromLatticeModels
-{
-   typedef typename boost::mpl::transform< LatticeModels, internal::ExtendedBoundaryHandlingFromLatticeModel<boost::mpl::_1> >::type type;
-};
-
-
-template<typename LatticeModels, typename FlagFields>
+template<typename... LatticeModels>
 void exportBoundary()
 {
    using namespace boost::python;
@@ -256,16 +249,16 @@ void exportBoundary()
    python_coupling::ModuleScope scope("lbm");
 
    // Extended Boundary Handling
-   boundary::exportModuleToPython< typename ExtendedBoundaryHandlingsFromLatticeModels< LatticeModels >::type >();
+   boundary::exportModuleToPython<typename internal::ExtendedBoundaryHandlingFromLatticeModel< LatticeModels >::type...>();
 
-   def ( "addBoundaryHandlingToStorage", &internal::addBoundaryHandlingToStorage<LatticeModels>,
+   def ( "addBoundaryHandlingToStorage", &internal::addBoundaryHandlingToStorage<LatticeModels...>,
             ( arg("blocks"),
               arg("name"),
               arg("pdfField"),
               arg("flagField") ) );
 
    auto pythonManager = python_coupling::Manager::instance();
-   pythonManager->addBlockDataConversion< typename ExtendedBoundaryHandlingsFromLatticeModels< LatticeModels >::type > ();
+   pythonManager->addBlockDataConversion<internal::ExtendedBoundaryHandlingFromLatticeModel< LatticeModels>...>();
 }
 
 

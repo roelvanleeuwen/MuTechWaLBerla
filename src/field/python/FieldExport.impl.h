@@ -882,7 +882,7 @@ namespace internal {
       {}
 
       template< typename Adaptor>
-      void operator()( python_coupling::NonCopyableWrap<Adaptor> )
+      void operator()( python_coupling::NonCopyableWrap<Adaptor> ) const
       {
          using namespace boost::python;
 

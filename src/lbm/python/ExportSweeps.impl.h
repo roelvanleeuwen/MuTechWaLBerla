@@ -56,7 +56,7 @@ namespace internal
    struct CellwiseSweepExporterWithoutFlagField
    {
       template<typename LatticeModel_T>
-      void operator()( python_coupling::NonCopyableWrap<LatticeModel_T>  )
+      void operator()( python_coupling::NonCopyableWrap<LatticeModel_T>  ) const
       {
          using namespace boost::python;
 
@@ -83,7 +83,7 @@ namespace internal
    struct CellwiseSweepExporterWithFlagField
    {
       template<typename LatticeModel_FlagField_Pair>
-      void operator()( python_coupling::NonCopyableWrap<LatticeModel_FlagField_Pair>  )
+      void operator()( python_coupling::NonCopyableWrap<LatticeModel_FlagField_Pair>  ) const
       {
          using namespace boost::python;
 
@@ -233,7 +233,7 @@ namespace internal
 
 }
 
-template<typename LatticeModels, typename FlagFields>
+template<typename FlagField, typename... LatticeModels>
 void exportSweeps()
 {
    using namespace boost::python;
@@ -244,11 +244,11 @@ void exportSweeps()
    // Cellwise Sweep
    typedef python_coupling::combine_vectors<LatticeModels,FlagFields> LatticeModel_FlagField_Pairs;
    python_coupling::for_each_noncopyable_type<LatticeModel_FlagField_Pairs>( internal::CellwiseSweepExporterWithFlagField() );
-   python_coupling::for_each_noncopyable_type<LatticeModels>               ( internal::CellwiseSweepExporterWithoutFlagField() );
    def( "makeCellwiseSweep", internal::makeCellwiseSweep<LatticeModel_FlagField_Pairs>,
                   ( arg("blocks"), arg("pdfFieldID"),
                     arg("flagFieldID")=std::string(), arg("flagList")=boost::python::list(),
                     arg("velocityFieldID")=std::string() ) );
+   python_coupling::for_each_noncopyable_type<LatticeModels...>               ( internal::CellwiseSweepExporterWithoutFlagField() );
 
 }
 
