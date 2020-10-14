@@ -119,17 +119,62 @@ static boost::python::object exp_flagFieldToSurfaceMesh ( const shared_ptr<Struc
 }
 
 
+namespace internal {
 
-template<typename RealFieldTuple, typename FlagFieldTuple>
+template<typename FieldType, class Enable = void>
+struct ExportFieldToPython;
+
+template <typename FieldType>
+struct ExportFieldToPython<FieldType, typename std::enable_if< ! std::is_same<FieldType, FlagField<typename FieldType::value_type>>::value >::type>
+{
+   static void exec()
+   {
+      def( "realFieldToMesh", &exp_realFieldToSurfaceMesh<FieldType>,
+               ( arg("blocks"), arg("blockDataName"),  arg("fCoord")=0, arg("calcNormals") = false, arg("targetRank")=0 ) );
+   }
+};
+
+template <typename FieldType>
+struct ExportFieldToPython<FieldType, typename std::enable_if< std::is_same<FieldType, FlagField<typename FieldType::value_type>>::value >::type>
+{
+   static void exec()
+   {
+      def( "flagFieldToMesh", &exp_flagFieldToSurfaceMesh<FieldType>,
+               ( arg("blocks"), arg("blockDataName"), arg("flagList"), arg("calcNormals") = false, arg("targetRank")=0  ) );
+   }
+};
+
+
+template<typename... FieldTypes>
+struct ExportFieldsToPython;
+
+template<typename FieldType, typename... FieldTypes>
+struct ExportFieldsToPython<FieldType, FieldTypes...>
+{
+   static void exec()
+   {
+      ExportFieldToPython<FieldType>::exec();
+      ExportFieldsToPython<FieldTypes...>::exec();
+   }
+};
+
+template<>
+struct ExportFieldsToPython<>
+{
+   static void exec()
+   {}
+};
+
+} // namespace internal
+
+
+
+template<typename... FieldTypes>
 void exportModuleToPython()
 {
    python_coupling::ModuleScope fieldModule( "postprocessing" );
-
-   def( "realFieldToMesh", &exp_realFieldToSurfaceMesh<RealFields...>,
-            ( arg("blocks"), arg("blockDataName"),  arg("fCoord")=0, arg("calcNormals") = false, arg("targetRank")=0 ) );
-
-   def( "flagFieldToMesh", &exp_flagFieldToSurfaceMesh<FlagFields...>,
-            ( arg("blocks"), arg("blockDataName"), arg("flagList"), arg("calcNormals") = false, arg("targetRank")=0  ) );
+   
+   internal::ExportFieldsToPython<FieldTypes...>::exec();
 }
 
 

@@ -55,8 +55,8 @@ namespace walberla {
         pythonManager->addExporterFunction(timeloop::exportModuleToPython);
 
         // Postprocessing
-        pythonManager->addExporterFunction( postprocessing::exportModuleToPython<std::tuple<GhostLayerField<real_t,1>, GhostLayerField<real_t,3>>,
-                                                                                 std::tuple<FlagField<flag_t>>> );
+        pythonManager->addExporterFunction( postprocessing::exportModuleToPython<GhostLayerField<real_t,1>, GhostLayerField<real_t,3>,
+                                                                                 FlagField<flag_t>> );
 
         // Geometry
         pythonManager->addExporterFunction( geometry::exportModuleToPython );

@@ -83,8 +83,8 @@ struct InitObject
       pythonManager->addExporterFunction( vtk::exportModuleToPython );
 
       // Postprocessing
-      pythonManager->addExporterFunction( postprocessing::exportModuleToPython<std::tuple<GhostLayerField<walberla::real_t,1>, GhostLayerField<walberla::real_t,3>>,
-                                                                               std::tuple<FlagField<walberla::uint8_t>, FlagField<walberla::uint16_t>>> );
+      pythonManager->addExporterFunction( postprocessing::exportModuleToPython<GhostLayerField<walberla::real_t,1>, GhostLayerField<walberla::real_t,3>,
+                                                                               FlagField<walberla::uint8_t>, FlagField<walberla::uint16_t>> );
 
       // Timeloop
       pythonManager->addExporterFunction( timeloop::exportModuleToPython );

@@ -28,7 +28,7 @@ namespace walberla {
 namespace postprocessing {
 
 
-   template<typename RealFieldTuple, typename FlagFieldTuple>
+   template<typename... FieldTypes>
    void exportModuleToPython();
 
 
