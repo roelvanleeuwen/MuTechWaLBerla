@@ -258,7 +258,7 @@ void exportBoundary()
               arg("flagField") ) );
 
    auto pythonManager = python_coupling::Manager::instance();
-   pythonManager->addBlockDataConversion<internal::ExtendedBoundaryHandlingFromLatticeModel< LatticeModels>...>();
+   pythonManager->addBlockDataConversion<typename internal::ExtendedBoundaryHandlingFromLatticeModel< LatticeModels >::type...>();
 }
 
 

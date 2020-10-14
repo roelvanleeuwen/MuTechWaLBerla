@@ -419,19 +419,19 @@ namespace internal
 template< typename LatticeModel >
 struct VelocityAdaptorFromLatticeModel
 {
-    typedef typename lbm::Adaptor< LatticeModel>::Velocity type;
+   typedef typename lbm::Adaptor< LatticeModel>::Velocity type;
 };
 
 template< typename LatticeModel >
 struct DensityAdaptorFromLatticeModel
 {
-    typedef typename lbm::Adaptor< LatticeModel>::Density type;
+   typedef typename lbm::Adaptor< LatticeModel>::Density type;
 };
 
 template< typename LatticeModel >
 struct ShearRateAdaptorFromLatticeModel
 {
-    typedef typename lbm::Adaptor< LatticeModel>::ShearRate type;
+   typedef typename lbm::Adaptor< LatticeModel>::ShearRate type;
 };
 
 
