@@ -100,6 +100,8 @@ option ( WALBERLA_OPTIMIZE_FOR_LOCALHOST    "Enable compiler optimizations spcif
 
 option ( WALBERLA_LOG_SKIPPED               "Log skipped cmake targets"                      ON  )
 
+option ( WALBERLA_GIT_SUBMODULE_AUTO        "Check submodules during cmake run"               ON )
+
 # Installation Directory
 set ( CMAKE_INSTALL_PREFIX /usr/local/waLBerla CACHE STRING "The default installation directory."   )
 
@@ -577,6 +579,26 @@ endif()
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_PYTHON )
 
+    find_package(Git QUIET)
+    if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+       # Update submodules as needed
+       if(WALBERLA_GIT_SUBMODULE_AUTO)
+          message(STATUS "Submodule update")
+          execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                RESULT_VARIABLE GIT_SUBMOD_RESULT)
+          if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+             message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+          endif()
+       endif()
+    endif()
+
+    if(NOT EXISTS "${PROJECT_SOURCE_DIR}/extern/pybind11/CMakeLists.txt")
+       message(FATAL_ERROR "The submodules were not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
+    endif()
+
+    add_subdirectory(extern/pybind11)
+    include_directories( ${PYBIND11_INCLUDE_DIR} )
     set ( waLBerla_REQUIRED_MIN_PYTHON_VERSION "2.7")
 
     find_package( PythonInterp 3 QUIET) # search for Python3 first
