@@ -37,15 +37,33 @@
 using namespace walberla;
 
 
-typedef lbm::collision_model::SRTField< GhostLayerField<walberla::real_t,1> > SRTField_T;
-
+typedef lbm::collision_model::SRTField<GhostLayerField<real_t,1> > SRTField_T;
 typedef GhostLayerField<walberla::real_t,3> VecField_T;
 
-typedef lbm::collision_model::SRTField<GhostLayerField<real_t,1> > SRTFieldCollisionModel;
+#define FIELD_TYPES \
+   Field<walberla::real_t,1>,\
+   Field<walberla::real_t,2>,\
+   Field<walberla::real_t,3>,\
+   Field<walberla::real_t,4>,\
+   Field<walberla::real_t,5>,\
+   Field<walberla::real_t,9>,\
+   Field<walberla::real_t,19>,\
+   Field<walberla::real_t,27>,\
+   Field<walberla::int8_t,1>,\
+   Field<walberla::int16_t,1>,\
+   Field<walberla::int32_t,1>,\
+   Field<walberla::int64_t,1>,\
+   Field<walberla::int64_t,2>,\
+   Field<walberla::int64_t,3>,\
+   Field<walberla::int64_t,4>,\
+   Field<walberla::int64_t,5>,\
+   Field<walberla::uint8_t,1>,\
+   Field<walberla::uint16_t,1>,\
+   Field<walberla::uint32_t,1>
 
-#define LatticeModels \
+#define LATTICE_MODELS \
    lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::None, 2>,\
-   lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::SimpleConstant, 2> ,\
    lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::GuoConstant, 2>,\
    lbm::D2Q9  < lbm::collision_model::SRT, false, lbm::force_model::LuoConstant, 2>,\
    lbm::D2Q9  < lbm::collision_model::SRT, true, lbm::force_model::None, 2>,\
@@ -68,15 +86,15 @@ typedef lbm::collision_model::SRTField<GhostLayerField<real_t,1> > SRTFieldColli
    lbm::D2Q9  < lbm::collision_model::TRT, true, lbm::force_model::None, 1>,\
    lbm::D2Q9  < lbm::collision_model::TRT, false, lbm::force_model::None, 1>,\
    \
-   lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::None, 2>,\
-   lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::SimpleConstant, 2>,\
-   lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::GuoConstant, 2>,\
-   lbm::D2Q9  < SRTFieldCollisionModel, false, lbm::force_model::LuoConstant, 2>,\
+   lbm::D2Q9  < SRTField_T, false, lbm::force_model::None, 2>,\
+   lbm::D2Q9  < SRTField_T, false, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D2Q9  < SRTField_T, false, lbm::force_model::GuoConstant, 2>,\
+   lbm::D2Q9  < SRTField_T, false, lbm::force_model::LuoConstant, 2>,\
    \
-   lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::None, 2>,\
-   lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::SimpleConstant, 2>,\
-   lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::GuoConstant, 2>,\
-   lbm::D2Q9  < SRTFieldCollisionModel, true, lbm::force_model::LuoConstant, 2>,\
+   lbm::D2Q9  < SRTField_T, true, lbm::force_model::None, 2>,\
+   lbm::D2Q9  < SRTField_T, true, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D2Q9  < SRTField_T, true, lbm::force_model::GuoConstant, 2>,\
+   lbm::D2Q9  < SRTField_T, true, lbm::force_model::LuoConstant, 2>,\
    \
    lbm::D3Q19  < lbm::collision_model::SRT, false, lbm::force_model::None, 2>,\
    lbm::D3Q19  < lbm::collision_model::SRT, false, lbm::force_model::SimpleConstant, 2>,\
@@ -104,19 +122,35 @@ typedef lbm::collision_model::SRTField<GhostLayerField<real_t,1> > SRTFieldColli
    lbm::D3Q19 < lbm::collision_model::D3Q19MRT, false, lbm::force_model::LuoConstant, 2>,\
    lbm::D3Q27 < lbm::collision_model::D3Q27Cumulant, true, lbm::force_model::None, 2>,\
    \
-   lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::None, 2>,\
-   lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::SimpleConstant, 2>,\
-   lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::GuoConstant, 2>,\
-   lbm::D3Q19  < SRTFieldCollisionModel, false, lbm::force_model::LuoConstant, 2>,\
+   lbm::D3Q19  < SRTField_T, false, lbm::force_model::None, 2>,\
+   lbm::D3Q19  < SRTField_T, false, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D3Q19  < SRTField_T, false, lbm::force_model::GuoConstant, 2>,\
+   lbm::D3Q19  < SRTField_T, false, lbm::force_model::LuoConstant, 2>,\
    \
-   lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::None, 2>,\
-   lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::SimpleConstant, 2>,\
-   lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::GuoConstant, 2>,\
-   lbm::D3Q19  < SRTFieldCollisionModel, true, lbm::force_model::LuoConstant, 2>
+   lbm::D3Q19  < SRTField_T, true, lbm::force_model::None, 2>,\
+   lbm::D3Q19  < SRTField_T, true, lbm::force_model::SimpleConstant, 2>,\
+   lbm::D3Q19  < SRTField_T, true, lbm::force_model::GuoConstant, 2>,\
+   lbm::D3Q19  < SRTField_T, true, lbm::force_model::LuoConstant, 2>
 
 
 
 using namespace walberla;
+
+template<typename... LatticeModels>
+struct InitAdaptors
+{
+   static void exec(shared_ptr<python_coupling::Manager> & pythonManager)
+   {
+      pythonManager->addExporterFunction( field::exportGatherFunctions< FIELD_TYPES,
+                                                                        typename lbm::DensityAdaptorFromLatticeModel<LatticeModels>::type...,
+                                                                        typename lbm::VelocityAdaptorFromLatticeModel<LatticeModels>::type...,
+                                                                        typename lbm::ShearRateAdaptorFromLatticeModel<LatticeModels>::type... > );
+      pythonManager->addBlockDataConversion< FIELD_TYPES,
+                                             typename lbm::DensityAdaptorFromLatticeModel<LatticeModels>::type...,
+                                             typename lbm::VelocityAdaptorFromLatticeModel<LatticeModels>::type...,
+                                             typename lbm::ShearRateAdaptorFromLatticeModel<LatticeModels>::type... >() ;
+   }
+};
 
 struct InitObject
 {
@@ -125,13 +159,8 @@ struct InitObject
       auto pythonManager = python_coupling::Manager::instance();
 
       // Field
-      pythonManager->addExporterFunction( field::exportModuleToPython<Field<walberla::real_t,1>, Field<walberla::real_t,2>, Field<walberla::real_t,3>,
-                                                                      Field<walberla::real_t,4>, Field<walberla::real_t,5>, Field<walberla::real_t,9>,
-                                                                      Field<walberla::real_t,19>, Field<walberla::real_t,27>, Field<walberla::int8_t,1>,
-                                                                      Field<walberla::int16_t,1>, Field<walberla::int32_t,1>, Field<walberla::int64_t,1>,
-                                                                      Field<walberla::int64_t,2>, Field<walberla::int64_t,3>, Field<walberla::int64_t,4>,
-                                                                      Field<walberla::int64_t,5>, Field<walberla::uint8_t,1>, Field<walberla::uint16_t,1>,
-                                                                      Field<walberla::uint32_t,1>> );
+      pythonManager->addExporterFunction( field::exportModuleToPython<FIELD_TYPES> );
+      InitAdaptors<LATTICE_MODELS>::exec( pythonManager );
 
       // Blockforest
       pythonManager->addExporterFunction( blockforest::exportModuleToPython<stencil::D2Q5, stencil::D2Q9, stencil::D3Q7, stencil::D3Q19, stencil::D3Q27> );
@@ -143,9 +172,9 @@ struct InitObject
       pythonManager->addExporterFunction( vtk::exportModuleToPython );
 
       // LBM
-      pythonManager->addExporterFunction( lbm::exportBasic<LatticeModels> );
-      pythonManager->addExporterFunction( lbm::exportBoundary<LatticeModels> );
-      pythonManager->addExporterFunction( lbm::exportSweeps<FlagField<walberla::uint8_t>, LatticeModels> );
+      pythonManager->addExporterFunction( lbm::exportBasic<LATTICE_MODELS> );
+      pythonManager->addExporterFunction( lbm::exportBoundary<LATTICE_MODELS> );
+      pythonManager->addExporterFunction( lbm::exportSweeps<FlagField<walberla::uint8_t>, LATTICE_MODELS> );
 
       // Postprocessing
       pythonManager->addExporterFunction( postprocessing::exportModuleToPython<GhostLayerField<walberla::real_t,1>, GhostLayerField<walberla::real_t,3>,

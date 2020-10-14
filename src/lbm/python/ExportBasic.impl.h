@@ -361,24 +361,6 @@ namespace internal
       }
    };
 
-    template< typename LatticeModel >
-    struct VelocityAdaptorFromLatticeModel
-    {
-        typedef typename lbm::Adaptor< LatticeModel>::Velocity type;
-    };
-
-    template< typename LatticeModel >
-    struct DensityAdaptorFromLatticeModel
-    {
-        typedef typename lbm::Adaptor< LatticeModel>::Density type;
-    };
-
-    template< typename LatticeModel >
-    struct ShearRateAdaptorFromLatticeModel
-    {
-        typedef typename lbm::Adaptor< LatticeModel>::ShearRate type;
-    };
-
     class SweepWrapper
     {
     public:
@@ -434,6 +416,24 @@ namespace internal
     }
 }
 
+template< typename LatticeModel >
+struct VelocityAdaptorFromLatticeModel
+{
+    typedef typename lbm::Adaptor< LatticeModel>::Velocity type;
+};
+
+template< typename LatticeModel >
+struct DensityAdaptorFromLatticeModel
+{
+    typedef typename lbm::Adaptor< LatticeModel>::Density type;
+};
+
+template< typename LatticeModel >
+struct ShearRateAdaptorFromLatticeModel
+{
+    typedef typename lbm::Adaptor< LatticeModel>::ShearRate type;
+};
+
 
 template<typename... LatticeModels>
 void exportBasic()
@@ -475,9 +475,9 @@ void exportBasic()
 
 
    auto pythonManager = python_coupling::Manager::instance();
-   pythonManager->addBlockDataConversion<internal::DensityAdaptorFromLatticeModel<LatticeModels>...,
-                                         internal::VelocityAdaptorFromLatticeModel<LatticeModels>...,
-                                         internal::ShearRateAdaptorFromLatticeModel<LatticeModels>...>();
+   pythonManager->addBlockDataConversion<typename DensityAdaptorFromLatticeModel<LatticeModels>::type...,
+                                         typename VelocityAdaptorFromLatticeModel<LatticeModels>::type...,
+                                         typename ShearRateAdaptorFromLatticeModel<LatticeModels>::type...>();
 }
 
 

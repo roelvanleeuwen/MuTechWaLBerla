@@ -30,10 +30,9 @@ namespace lbm {
     void exportCollisionModels();
     void exportForceModels();
 
-    template< typename... LatticeModels > struct VelocityAdaptorsFromLatticeModels;
-    template< typename... LatticeModels > struct DensityAdaptorsFromLatticeModels;
-    template< typename... LatticeModels > struct AdaptorsFromLatticeModels;
-    template< typename... LatticeModels > struct ExtendedBoundaryHandlingsFromLatticeModels;
+    template< typename LatticeModel > struct VelocityAdaptorFromLatticeModel;
+    template< typename LatticeModel > struct DensityAdaptorFromLatticeModel;
+    template< typename LatticeModel > struct ShearRateAdaptorFromLatticeModel;
 
     template<typename... LatticeModels> void exportBasic();
 
