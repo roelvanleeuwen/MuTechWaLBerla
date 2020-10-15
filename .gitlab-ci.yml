@@ -75,10 +75,10 @@ intel_18_serial:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -98,10 +98,10 @@ intel_18_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -121,10 +121,6 @@ intel_18_hybrid:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_ENABLE_GUI: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - cuda
@@ -147,10 +143,6 @@ intel_18_serial_dbg:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - cuda
@@ -171,10 +163,10 @@ intel_18_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -194,10 +186,6 @@ intel_18_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - cuda
@@ -213,10 +201,10 @@ intel_18_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -238,10 +226,10 @@ intel_19_serial:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -260,10 +248,10 @@ intel_19_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -281,10 +269,6 @@ intel_19_hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - docker
@@ -306,10 +290,6 @@ intel_19_serial_dbg:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - docker
@@ -329,10 +309,6 @@ intel_19_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - docker
@@ -351,10 +327,6 @@ intel_19_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    tags:
       - docker
       - intel
@@ -368,10 +340,6 @@ intel_19_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - docker
@@ -392,10 +360,10 @@ gcc_7_serial:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -414,10 +382,10 @@ gcc_7_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -435,10 +403,6 @@ gcc_7_hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - cuda
@@ -461,10 +425,6 @@ gcc_7_serial_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_ENABLE_GUI: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - cuda
@@ -484,10 +444,10 @@ gcc_7_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -506,10 +466,6 @@ gcc_7_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - cuda
@@ -524,10 +480,10 @@ gcc_7_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -548,10 +504,10 @@ gcc_8_serial:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -569,10 +525,10 @@ gcc_8_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -589,10 +545,10 @@ gcc_8_hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -613,10 +569,10 @@ gcc_8_serial_dbg:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -635,10 +591,10 @@ gcc_8_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -656,10 +612,10 @@ gcc_8_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -673,10 +629,10 @@ gcc_8_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -696,10 +652,10 @@ gcc_9_serial:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -717,10 +673,10 @@ gcc_9_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -737,10 +693,10 @@ gcc_9_hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -761,10 +717,10 @@ gcc_9_serial_dbg:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -783,10 +739,10 @@ gcc_9_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -804,10 +760,10 @@ gcc_9_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -821,10 +777,10 @@ gcc_9_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -844,10 +800,10 @@ gcc_10_serial:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -865,10 +821,10 @@ gcc_10_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -885,10 +841,6 @@ gcc_10_hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    tags:
       - docker
 
@@ -908,10 +860,6 @@ gcc_10_serial_dbg:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    tags:
       - docker
 
@@ -929,10 +877,6 @@ gcc_10_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - docker
@@ -950,10 +894,6 @@ gcc_10_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - docker
@@ -967,10 +907,6 @@ gcc_10_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - docker
@@ -990,10 +926,10 @@ clang_6.0_serial:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -1012,10 +948,10 @@ clang_6.0_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -1033,10 +969,10 @@ clang_6.0_hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -1058,10 +994,10 @@ clang_6.0_serial_dbg:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -1081,10 +1017,10 @@ clang_6.0_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -1103,10 +1039,6 @@ clang_6.0_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - cuda
@@ -1121,10 +1053,10 @@ clang_6.0_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - cuda
@@ -1145,10 +1077,10 @@ clang_7.0_serial:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1166,10 +1098,10 @@ clang_7.0_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1186,10 +1118,10 @@ clang_7.0_hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1210,10 +1142,10 @@ clang_7.0_serial_dbg:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1232,10 +1164,10 @@ clang_7.0_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1253,10 +1185,10 @@ clang_7.0_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1270,10 +1202,10 @@ clang_7.0_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1293,10 +1225,10 @@ clang_8.0_serial:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1314,10 +1246,10 @@ clang_8.0_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1334,10 +1266,10 @@ clang_8.0_hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1358,10 +1290,10 @@ clang_8.0_serial_dbg:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1380,10 +1312,10 @@ clang_8.0_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1401,10 +1333,10 @@ clang_8.0_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1418,10 +1350,10 @@ clang_8.0_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1441,10 +1373,10 @@ clang_9.0_serial:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1462,10 +1394,10 @@ clang_9.0_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1482,10 +1414,10 @@ clang_9.0_hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1506,10 +1438,10 @@ clang_9.0_serial_dbg:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1528,10 +1460,10 @@ clang_9.0_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1549,10 +1481,10 @@ clang_9.0_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1566,10 +1498,10 @@ clang_9.0_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1589,10 +1521,10 @@ clang_10.0_serial:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1610,10 +1542,10 @@ clang_10.0_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
    tags:
       - docker
@@ -1630,10 +1562,6 @@ clang_10.0_hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - docker
@@ -1654,10 +1582,6 @@ clang_10.0_serial_dbg:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - docker
@@ -1676,10 +1600,6 @@ clang_10.0_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    tags:
       - docker
 
@@ -1696,10 +1616,6 @@ clang_10.0_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    stage: merge_request
    tags:
       - docker
@@ -1713,10 +1629,6 @@ clang_10.0_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
    tags:
       - docker
 
@@ -1906,10 +1818,10 @@ msvc-14.1_Hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
       BUILD_CONFIGURATION: "DebugOptimized"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
 
 
@@ -1920,10 +1832,10 @@ msvc-14.1_Hybrid_sp_dbg:
       CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
       BUILD_CONFIGURATION: "DebugOptimized"
       WALBERLA_DOUBLE_ACCURACY: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
 
 
@@ -1932,10 +1844,10 @@ msvc-14.1_Hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
 
 
@@ -1947,10 +1859,10 @@ msvc-14.1_serial_dbg:
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       BUILD_CONFIGURATION: "DebugOptimized"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
 
 
@@ -1961,10 +1873,10 @@ msvc-14.1_serial:
       CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
 
 
@@ -1975,10 +1887,10 @@ msvc-14.1_mpionly_dbg:
       CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
       BUILD_CONFIGURATION: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
 
 
@@ -1988,10 +1900,10 @@ msvc-14.1_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS != "true"'
-        when: never
-      - when: always
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    stage: merge_request
 
 
@@ -2001,8 +1913,6 @@ msvc-14.2_Hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       BUILD_CONFIGURATION: "DebugOptimized"
-   rules:
-      - when: always
 
 
 msvc-14.2_Hybrid_sp_dbg:
@@ -2012,8 +1922,6 @@ msvc-14.2_Hybrid_sp_dbg:
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       BUILD_CONFIGURATION: "DebugOptimized"
       WALBERLA_DOUBLE_ACCURACY: "OFF"
-   rules:
-      - when: always
    stage: merge_request
 
 
@@ -2022,8 +1930,6 @@ msvc-14.2_Hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 16 2019"
-   rules:
-      - when: always
    stage: merge_request
 
 
@@ -2035,8 +1941,6 @@ msvc-14.2_serial_dbg:
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       BUILD_CONFIGURATION: "DebugOptimized"
-   rules:
-      - when: always
    stage: merge_request
 
 
@@ -2047,8 +1951,6 @@ msvc-14.2_serial:
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-   rules:
-      - when: always
    stage: merge_request
 
 
@@ -2059,8 +1961,6 @@ msvc-14.2_mpionly_dbg:
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       BUILD_CONFIGURATION: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-   rules:
-      - when: always
    stage: merge_request
 
 
@@ -2070,8 +1970,6 @@ msvc-14.2_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-   rules:
-      - when: always
    stage: merge_request
 
 
