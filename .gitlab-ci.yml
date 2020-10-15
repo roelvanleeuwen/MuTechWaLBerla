@@ -82,6 +82,7 @@ intel_18_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -107,6 +108,7 @@ intel_18_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -128,6 +130,7 @@ intel_18_hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -152,6 +155,7 @@ intel_18_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -178,6 +182,7 @@ intel_18_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -199,6 +204,7 @@ intel_18_hybrid_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -220,6 +226,7 @@ intel_18_hybrid_dbg_sp:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -247,6 +254,7 @@ intel_19_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
       - intel
@@ -271,6 +279,7 @@ intel_19_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
       - intel
@@ -290,6 +299,7 @@ intel_19_hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
       - intel
@@ -313,6 +323,7 @@ intel_19_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
       - intel
@@ -334,6 +345,7 @@ intel_19_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
       - intel
@@ -367,6 +379,7 @@ intel_19_hybrid_dbg_sp:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
       - intel
@@ -393,6 +406,7 @@ gcc_7_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -417,6 +431,7 @@ gcc_7_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -436,6 +451,7 @@ gcc_7_hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -460,6 +476,7 @@ gcc_7_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -485,6 +502,7 @@ gcc_7_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -505,6 +523,7 @@ gcc_7_hybrid_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -525,6 +544,7 @@ gcc_7_hybrid_dbg_sp:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -551,6 +571,7 @@ gcc_8_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -574,6 +595,7 @@ gcc_8_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -596,6 +618,7 @@ gcc_8_hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -622,6 +645,7 @@ gcc_8_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -646,6 +670,7 @@ gcc_8_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -669,6 +694,7 @@ gcc_8_hybrid_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -688,6 +714,7 @@ gcc_8_hybrid_dbg_sp:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -713,6 +740,7 @@ gcc_9_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -736,6 +764,7 @@ gcc_9_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -758,6 +787,7 @@ gcc_9_hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -784,6 +814,7 @@ gcc_9_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -808,6 +839,7 @@ gcc_9_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -831,6 +863,7 @@ gcc_9_hybrid_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -850,6 +883,7 @@ gcc_9_hybrid_dbg_sp:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -875,6 +909,7 @@ gcc_10_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -898,6 +933,7 @@ gcc_10_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -952,6 +988,7 @@ gcc_10_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -971,6 +1008,7 @@ gcc_10_hybrid_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -986,6 +1024,7 @@ gcc_10_hybrid_dbg_sp:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1011,6 +1050,7 @@ clang_6.0_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1035,6 +1075,7 @@ clang_6.0_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1058,6 +1099,7 @@ clang_6.0_hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1085,6 +1127,7 @@ clang_6.0_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1110,6 +1153,7 @@ clang_6.0_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1130,6 +1174,7 @@ clang_6.0_hybrid_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1150,6 +1195,7 @@ clang_6.0_hybrid_dbg_sp:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1176,6 +1222,7 @@ clang_7.0_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1199,6 +1246,7 @@ clang_7.0_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1221,6 +1269,7 @@ clang_7.0_hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1247,6 +1296,7 @@ clang_7.0_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1271,6 +1321,7 @@ clang_7.0_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1294,6 +1345,7 @@ clang_7.0_hybrid_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1313,6 +1365,7 @@ clang_7.0_hybrid_dbg_sp:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1338,6 +1391,7 @@ clang_8.0_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1361,6 +1415,7 @@ clang_8.0_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1383,6 +1438,7 @@ clang_8.0_hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1409,6 +1465,7 @@ clang_8.0_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1433,6 +1490,7 @@ clang_8.0_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1456,6 +1514,7 @@ clang_8.0_hybrid_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1475,6 +1534,7 @@ clang_8.0_hybrid_dbg_sp:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1500,6 +1560,7 @@ clang_9.0_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1523,6 +1584,7 @@ clang_9.0_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1545,6 +1607,7 @@ clang_9.0_hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1571,6 +1634,7 @@ clang_9.0_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1595,6 +1659,7 @@ clang_9.0_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1618,6 +1683,7 @@ clang_9.0_hybrid_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1637,6 +1703,7 @@ clang_9.0_hybrid_dbg_sp:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1662,6 +1729,7 @@ clang_10.0_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1685,6 +1753,7 @@ clang_10.0_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1703,6 +1772,7 @@ clang_10.0_hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1725,6 +1795,7 @@ clang_10.0_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1761,6 +1832,7 @@ clang_10.0_hybrid_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
 
@@ -1791,6 +1863,9 @@ gcc_8_hybrid_dbg_noboost:
    tags:
       - docker
    stage: merge_request
+   when: manual
+   needs: []
+   allow_failure: false
 
 
 
@@ -1845,6 +1920,7 @@ doc:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
    tags:
       - docker
    artifacts:
@@ -1873,6 +1949,9 @@ clang-tidy:
       - utilities/filterCompileCommands.py compile_commands.json
       - run-clang-tidy.py -quiet | tee clang-tidy-output.txt
    stage: merge_request
+   when: manual
+   needs: []
+   allow_failure: false
    artifacts:
       paths:
          - $CI_PROJECT_DIR/build/clang-tidy-output.txt
@@ -1971,6 +2050,7 @@ msvc-14.1_Hybrid_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.1_Hybrid_sp_dbg:
@@ -1987,6 +2067,7 @@ msvc-14.1_Hybrid_sp_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.1_Hybrid:
@@ -2001,6 +2082,7 @@ msvc-14.1_Hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.1_serial_dbg:
@@ -2018,6 +2100,7 @@ msvc-14.1_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.1_serial:
@@ -2034,6 +2117,7 @@ msvc-14.1_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.1_mpionly_dbg:
@@ -2050,6 +2134,7 @@ msvc-14.1_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.1_mpionly:
@@ -2065,6 +2150,7 @@ msvc-14.1_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.2_Hybrid_dbg:
@@ -2085,6 +2171,7 @@ msvc-14.2_Hybrid_sp_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.2_Hybrid:
@@ -2095,6 +2182,7 @@ msvc-14.2_Hybrid:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.2_serial_dbg:
@@ -2108,6 +2196,7 @@ msvc-14.2_serial_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.2_serial:
@@ -2120,6 +2209,7 @@ msvc-14.2_serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.2_mpionly_dbg:
@@ -2132,6 +2222,7 @@ msvc-14.2_mpionly_dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 msvc-14.2_mpionly:
@@ -2143,6 +2234,7 @@ msvc-14.2_mpionly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 
 
@@ -2181,6 +2273,7 @@ mac_Serial_Dbg:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 mac_Serial:
    <<: *mac_build_definition
@@ -2193,6 +2286,7 @@ mac_Serial:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 mac_MpiOnly_Dbg:
    <<: *mac_build_definition
@@ -2216,6 +2310,7 @@ mac_MpiOnly:
    stage: merge_request
    when: manual
    needs: []
+   allow_failure: false
 
 ###############################################################################
 ##                                                                           ##
@@ -2235,6 +2330,7 @@ mac_MpiOnly:
    dependencies: []
    when: manual
    needs: []
+   allow_failure: false
    only:
       - master@walberla/walberla
       - tags@walberla/walberla
