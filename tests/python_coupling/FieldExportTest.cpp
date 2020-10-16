@@ -34,8 +34,6 @@
 #include "python_coupling/DictWrapper.h"
 #include "stencil/D2Q9.h"
 
-#include <boost/mpl/vector.hpp>
-
 using namespace walberla;
 
 
@@ -46,17 +44,10 @@ int main( int argc, char ** argv )
    mpi::Environment mpiEnv( argc, argv );
 
    auto pythonManager = python_coupling::Manager::instance();
-   typedef boost::mpl::vector<
-           Field<Vector2<int>,1>,
-           Field<Vector3<int>,1>,
-           Field<int,2>,
-           Field<int,3> > FieldTypes;
 
-   typedef boost::mpl::vector< stencil::D2Q9> Stencils;
-
-   pythonManager->addExporterFunction( field::exportModuleToPython<FieldTypes> );
-   pythonManager->addBlockDataConversion< FieldTypes >() ;
-   pythonManager->addExporterFunction( blockforest::exportModuleToPython<Stencils> );
+   pythonManager->addExporterFunction( field::exportModuleToPython<Field<Vector2<int>,1>, Field<Vector3<int>,1>, Field<int,2>, Field<int,3>> );
+   pythonManager->addBlockDataConversion< Field<Vector2<int>,1>, Field<Vector3<int>,1>, Field<int,2>, Field<int,3> >() ;
+   pythonManager->addExporterFunction( blockforest::exportModuleToPython<stencil::D2Q9> );
 
 
    shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid( 1,1,1, 20,20,1, real_t(1.0), false, true,true,true );

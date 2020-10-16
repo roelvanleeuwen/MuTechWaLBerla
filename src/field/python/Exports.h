@@ -42,14 +42,8 @@ namespace field {
    * so it is enough to add the basic Field<> types to the sequence
    * For fields that store and unsigned integer type and have an fSize of one, the FlagField is also exported
    *
-   * Example:
-    \code
-      typedef boost::mpl::vector< Field<real_t,1>,
-                                  Field<uint16_t, 1>
-                                  Field<Vector3<real_t>, 1 >  FieldVector;
-    \endcode
-
-   *  This exports the following types:
+   * For example, with the template arguments Field<real_t,1>, Field<uint16_t, 1>, and Field<Vector3<real_t>, 1 >,
+   * this exports the following types:
    *     - Field<real_t,1>, GhostLayerField<real_t,1>
    *     - Field<uint16_t,1>, GhostLayerField<uint16_t,1>, FlagField<uint16_t>
    *     - Field< Vector3<real_t>, 1 > , GhostLayerField< Vector3<real_t>, 1 >
@@ -66,14 +60,14 @@ namespace field {
    * \warning Make sure that the same field type is exported only once!
    */
    //*******************************************************************************************************************
-   template<typename FieldTypes>
+   template<typename... FieldTypes>
    void exportModuleToPython()
    {
       python_coupling::ModuleScope fieldModule( "field" );
 
-      exportFields<FieldTypes>();
+      exportFields<FieldTypes...>();
 
-      exportCommunicationClasses<FieldTypes>();
+      exportCommunicationClasses<FieldTypes...>();
    }
 
 

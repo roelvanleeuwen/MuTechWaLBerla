@@ -37,9 +37,8 @@ using namespace walberla;
 
 int main( int argc, char ** argv )
 {
-   typedef boost::mpl::vector< Field<int,1> > Fields;
    auto pythonManager = python_coupling::Manager::instance();
-   pythonManager->addExporterFunction( field::exportModuleToPython<Fields> );
+   pythonManager->addExporterFunction( field::exportModuleToPython<Field<int,1>> );
 
    if ( argc != 2 ) {
       WALBERLA_ABORT_NO_DEBUG_INFO("Wrong parameter count: \nUsage: \n ./CallbackTest CallbackTest.py");

@@ -57,7 +57,7 @@ namespace internal {
                           boost::python::object( const shared_ptr<StructuredBlockStorage> &,
                                                  BlockDataID, CellInterval,int ) );
 
-   template<typename FieldTypes>
+   template<typename... FieldTypes>
    static boost::python::object gatherWrapper (  const shared_ptr<StructuredBlockStorage> & blocks, const std::string & blockDataStr,
                                                  const boost::python::tuple & slice,  int targetRank = 0 )
    {
@@ -74,7 +74,7 @@ namespace internal {
       }
 
       IBlock * firstBlock =  & ( * blocks->begin() );
-      python_coupling::Dispatcher<FieldTypes, Exporter_gatherToObject > dispatcher( firstBlock );
+      python_coupling::Dispatcher<Exporter_gatherToObject, FieldTypes... > dispatcher( firstBlock );
       auto func = dispatcher( fieldID );
       if ( !func )
       {
@@ -91,13 +91,13 @@ namespace internal {
 
 
 
-template<typename FieldTypes >
+template<typename... FieldTypes >
 void exportGatherFunctions()
 {
    using namespace boost::python;
    python_coupling::ModuleScope fieldModule( "field" );
 
-   def( "gather",  &internal::gatherWrapper<FieldTypes>,  ( arg("blocks"), arg("blockDataName"), arg("slice"), arg("targetRank") = 0 ) );
+   def( "gather",  &internal::gatherWrapper<FieldTypes...>,  ( arg("blocks"), arg("blockDataName"), arg("slice"), arg("targetRank") = 0 ) );
 }
 
 

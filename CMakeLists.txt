@@ -317,7 +317,6 @@ if( WALBERLA_CXX_COMPILER_IS_IBM )
    add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1586-267" )  # 1586-267 (I) Inlining of specified subprogram failed due to the presence of a C++ exception handler
    add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1586-266" )  # 1586-266 (I) Inlining of specified subprogram failed due to the presence of a global label
    add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1540-0724" ) # 1540-0724 (W) The non-type template argument "2147483648" of type "T" has wrapped [coming from boost/integer_traits.hpp]
-   add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1540-0095" ) # 1540-0095 (W) The friend function declaration ... [coming from boost/mpl/map/aux_/map0.hpp]
    add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1500-030" )  # 1500-030: (I) INFORMATION: [...] Additional optimization may be attained by recompiling and specifying MAXMEM option with a value greater than 8192.
    add_flag ( CMAKE_C_FLAGS "-qsuppress=1500-030" )    # 1500-030: (I) INFORMATION: [...] Additional optimization may be attained by recompiling and specifying MAXMEM option with a value greater than 8192.
 endif()

@@ -23,11 +23,6 @@
 
 #include "domain_decomposition/IBlock.h"
 
-#include <boost/mpl/for_each.hpp>
-#include <boost/mpl/lambda.hpp>
-#include <boost/mpl/pair.hpp>
-#include <boost/mpl/transform.hpp>
-
 
 #include <functional>
 #include <map>
@@ -35,23 +30,6 @@
 
 namespace walberla {
 namespace python_coupling {
-
-
-template <typename V, typename T, typename Result>
-struct list_of_pairs
-  : boost::mpl::fold<V, Result,
-        boost::mpl::push_back<boost::mpl::_1, boost::mpl::pair<T, boost::mpl::_2> > >
-{};
-
-template<typename V1, typename V2>
-struct combine_vectors
-: boost::mpl::fold<
-    V1,
-    boost::mpl::vector<>,
-    boost::mpl::lambda<list_of_pairs<V2,boost::mpl::_2, boost::mpl::_1> >
->::type
-{};
-
 
 
 template <typename T>
@@ -78,15 +56,20 @@ struct NonCopyableWrap {};
 
 
 
-template< typename Sequence, typename F >
+template< typename F >
+void for_each_noncopyable_type( const F & f)
+{}
+
+template< typename Type, typename... Types, typename F >
 void for_each_noncopyable_type( const F & f)
 {
-   boost::mpl::for_each< Sequence, NonCopyableWrap< boost::mpl::placeholders::_1> >  ( f );
+   f(NonCopyableWrap<Type>());
+   for_each_noncopyable_type<Types...>(f);
 }
 
 
 
-template<typename FieldTypeList, typename Exporter>
+template<typename Exporter, typename... FieldTypes>
 class Dispatcher
 {
 public:
@@ -102,7 +85,7 @@ public:
          return map_[ blockDataID ];
 
       Exporter exporter( block_, blockDataID );
-      for_each_noncopyable_type< FieldTypeList>  ( std::ref(exporter) );
+      for_each_noncopyable_type< FieldTypes...>  ( std::ref(exporter) );
       map_[ blockDataID ] = exporter.result;
       return exporter.result;
    }

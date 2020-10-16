@@ -38,7 +38,7 @@ namespace field {
    * \warning Make sure that the same adaptor type is exported only once!
    */
    //*******************************************************************************************************************
-   template<typename FieldTypes >
+   template<typename... FieldTypes >
    void exportFields();
 
 
@@ -49,7 +49,7 @@ namespace field {
    * \warning Make sure that the same adaptor type is exported only once!
    */
    //*******************************************************************************************************************
-   template<typename AdaptorTypes>
+   template<typename... AdaptorTypes>
    void exportGhostLayerFieldAdaptors();
 
    template<typename AdaptorType>

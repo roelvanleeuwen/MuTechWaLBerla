@@ -27,7 +27,7 @@
 namespace walberla {
 namespace lbm {
 
-   template<typename BoundaryHandlings>
+   template<typename... BoundaryHandlings>
    void exportModuleToPython();
 
 } // namespace lbm

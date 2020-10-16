@@ -149,7 +149,7 @@ namespace boundary {
       struct BoundaryHandlingExporter
       {
          template< typename BH>
-         void operator() ( python_coupling::NonCopyableWrap<BH> )
+         void operator() ( python_coupling::NonCopyableWrap<BH> ) const
          {
             using namespace boost::python;
             void ( BH::*p_exe1 )( uint_t )= &BH::operator();
@@ -215,13 +215,13 @@ namespace boundary {
       };
    } // namespace internal
 
-   template<typename BoundaryHandlings>
+   template<typename... BoundaryHandlings>
    void exportModuleToPython()
    {
-      python_coupling::for_each_noncopyable_type< BoundaryHandlings > ( internal::BoundaryHandlingExporter() );
+      python_coupling::for_each_noncopyable_type< BoundaryHandlings... > ( internal::BoundaryHandlingExporter() );
 
       auto pythonManager = python_coupling::Manager::instance();
-      pythonManager->addBlockDataConversion< BoundaryHandlings> ();
+      pythonManager->addBlockDataConversion< BoundaryHandlings...> ();
 
    }
 

@@ -54,7 +54,7 @@ namespace internal
    struct UniformBufferedSchemeExporter
    {
       template<typename Stencil>
-      void operator() ( python_coupling::NonCopyableWrap<Stencil> )
+      void operator() ( python_coupling::NonCopyableWrap<Stencil> ) const
       {
          using namespace boost::python;
          typedef UniformBufferedSchemeWrapper<Stencil> UBS;
@@ -100,13 +100,13 @@ namespace internal
    };
 
 
-   template<typename Stencils>
+   template<typename... Stencils>
    boost::python::object createUniformBufferedScheme( const shared_ptr<StructuredBlockForest> & bf,
                                                       const std::string & stencil,
                                                       const int tag )
    {
       UniformBufferedSchemeCreator creator( bf, stencil, tag );
-      python_coupling::for_each_noncopyable_type< Stencils >  ( std::ref(creator) );
+      python_coupling::for_each_noncopyable_type< Stencils... >  ( std::ref(creator) );
 
       if ( creator.getResult() == boost::python::object() )
       {
@@ -137,7 +137,7 @@ namespace internal
    struct UniformDirectSchemeExporter
    {
       template<typename Stencil>
-      void operator() ( python_coupling::NonCopyableWrap<Stencil> )
+      void operator() ( python_coupling::NonCopyableWrap<Stencil> ) const
       {
          using namespace boost::python;
          typedef UniformDirectSchemeWrapper<Stencil> UDS;
@@ -180,12 +180,12 @@ namespace internal
    };
 
 
-   template<typename Stencils>
+   template<typename... Stencils>
    boost::python::object createUniformDirectScheme( const shared_ptr<StructuredBlockForest> & bf,
                                                     const std::string & stencil, const int tag )
    {
       UniformDirectSchemeCreator creator( bf, stencil, tag );
-      python_coupling::for_each_noncopyable_type< Stencils >  ( std::ref(creator) );
+      python_coupling::for_each_noncopyable_type< Stencils... >  ( std::ref(creator) );
 
       if ( creator.getResult() == boost::python::object() )
       {
@@ -198,7 +198,7 @@ namespace internal
 }
 
 
-template<typename Stencils>
+template<typename... Stencils>
 void exportUniformBufferedScheme()
 {
    using namespace boost::python;
@@ -209,21 +209,21 @@ void exportUniformBufferedScheme()
        .value("BUFFER", BUFFER)
        .export_values();
 
-   python_coupling::for_each_noncopyable_type< Stencils >  ( internal::UniformBufferedSchemeExporter() );
+   python_coupling::for_each_noncopyable_type< Stencils... >  ( internal::UniformBufferedSchemeExporter() );
 
-   def( "createUniformBufferedScheme", &internal::createUniformBufferedScheme<Stencils>,
+   def( "createUniformBufferedScheme", &internal::createUniformBufferedScheme<Stencils...>,
             ( ( arg("blockForest"), arg("stencilName"), arg("tag")=778  ) ) );
 
 }
 
-template<typename Stencils>
+template<typename... Stencils>
 void exportUniformDirectScheme()
 {
    using namespace boost::python;
 
-   python_coupling::for_each_noncopyable_type< Stencils >  ( internal::UniformDirectSchemeExporter() );
+   python_coupling::for_each_noncopyable_type< Stencils... >  ( internal::UniformDirectSchemeExporter() );
 
-   def( "createUniformDirectScheme", &internal::createUniformDirectScheme<Stencils>,
+   def( "createUniformDirectScheme", &internal::createUniformDirectScheme<Stencils...>,
             ( ( arg("blockForest"), arg("stencilName"), arg("tag")=778  ) ) );
 }
 

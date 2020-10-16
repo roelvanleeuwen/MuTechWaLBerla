@@ -57,11 +57,11 @@ namespace python_coupling {
       boost::python::object result_;
    };
 
-   template<typename TypeList>
+   template<typename... Types>
    boost::python::object testBlockData( IBlock & block, BlockDataID blockDataID )
    {
       BlockDataToObjectTester tester( &block, blockDataID );
-      for_each_noncopyable_type< TypeList > ( std::ref(tester) );
+      for_each_noncopyable_type< Types... > ( std::ref(tester) );
       return tester.getResult();
    }
 
@@ -84,8 +84,8 @@ namespace python_coupling {
 
       void addExporterFunction( const ExporterFunction & f ) { exporterFunctions_.push_back( f ); }
 
-      template<typename TypeList>
-      void addBlockDataConversion() { blockDataToObjectFunctions_.push_back( &testBlockData<TypeList>  ); }
+      template<typename... Types>
+      void addBlockDataConversion() { blockDataToObjectFunctions_.push_back( &testBlockData<Types...>  ); }
 
 
    protected:
