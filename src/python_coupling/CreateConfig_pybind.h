@@ -36,12 +36,12 @@ namespace python_coupling {
 /*! \name General Functions - fallback to non-python  */
 //@{
 
-   shared_ptr<Config> createConfig( int argc, char ** argv );
+   shared_ptr<Config> createConfig_pybind( int argc, char ** argv );
 
 
 
-          config::Iterator configBegin( int argc, char ** argv);
-   inline config::Iterator configEnd()                              { return config::Iterator(); }
+          config::Iterator configBegin_pybind( int argc, char ** argv);
+   inline config::Iterator configEnd_pybind()                              { return config::Iterator(); }
 
 //@}
 //****************************************************************************************************************
@@ -59,7 +59,7 @@ namespace python_coupling {
                                                     const std::vector<std::string> & argv = std::vector<std::string>() );
 
 
-   config::Iterator createConfigIteratorFromPythonScript( const std::string & scriptFile,
+   config::Iterator createConfigIteratorFromPythonScript_pybind( const std::string & scriptFile,
                                                           const std::string & pythonFunctionName = "config",
                                                           const std::vector<std::string> & argv = std::vector<std::string>() );
 

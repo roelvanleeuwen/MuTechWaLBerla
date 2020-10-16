@@ -21,250 +21,207 @@
 
 #include "CreateConfig_pybind.h"
 
-
+#include "core/StringUtility.h"
 #include "core/config/Config.h"
 #include "core/config/Create.h"
 #include "core/logging/Logging.h"
-#include "core/StringUtility.h"
 
 #include <exception>
-
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
 // #include "PythonCallback_pybind.h.h"
-#include "PythonWrapper_pybind.h"
+#   include "PythonWrapper_pybind.h"
 // #include "DictWrapper_pybind.h"
+#include "Manager.h"
 
-#include "PythonCallback_pybind.h"
+#   include "python_coupling/helper/ConfigFromDict_pybind.h"
 
-#include "python_coupling/helper/ConfigFromDict_pybind.h"
+#   include "PythonCallback_pybind.h"
 // #include "helper/ExceptionHandling.h"
+#   include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
+pybind11::scoped_interpreter guard{};
 
-#include <pybind11/pybind11.h>
+namespace walberla
+{
+namespace python_coupling
+{
+namespace py = pybind11;
 
+shared_ptr< Config > createConfigFromPythonScript_pybind(const std::string& scriptFile,
+                                                         const std::string& pythonFunctionName,
+                                                         const std::vector< std::string >& argv)
+{
+   importModuleOrFile_pybind(scriptFile, argv);
 
-namespace walberla {
-namespace python_coupling {
+   PythonCallback_pybind pythonCallback(pythonFunctionName);
 
-   namespace py = pybind11;
+   pythonCallback();
 
+   using py::dict;
+   using py::object;
 
-   shared_ptr<Config> createConfigFromPythonScript_pybind( const std::string & scriptFile,
-                                                    const std::string & pythonFunctionName,
-                                                    const std::vector<std::string> & argv )
+   object returnValue = pythonCallback.data().dict()["returnValue"];
+   if (returnValue.is(object())) return shared_ptr< Config >();
+
+   bool isDict = py::isinstance< dict >(returnValue);
+   if (!isDict) { WALBERLA_ABORT("Python configuration did not return a dictionary object."); }
+   dict returnDict = dict(returnValue);
+   return configFromPythonDict_pybind(returnDict);
+}
+
+//===================================================================================================================
+//
+//  Config Generators and iterators
+//
+//===================================================================================================================
+
+class PythonMultipleConfigGenerator : public config::ConfigGenerator
+{
+ public:
+   PythonMultipleConfigGenerator(py::list ConfigList) // NOLINT
+      : ConfigList_(ConfigList), counter(0)              // NOLINT
+   {}
+
+   shared_ptr< Config > next() override
    {
-      std::cout << "test" << std::endl;
-      importModuleOrFile_pybind( scriptFile, argv );
+      shared_ptr< Config > config = make_shared< Config >();
 
-      PythonCallback_pybind pythonCallback ( pythonFunctionName );
-
-      pythonCallback();
-
-      using py::object;
-      using py::dict;
-
-      object returnValue = pythonCallback.data().dict()[ "returnValue" ];
-      if ( returnValue.is(object()) )
+      if ( counter == ConfigList_.size()  )
          return shared_ptr<Config>();
 
+      py::dict configDict = ConfigList_[counter];
+      configFromPythonDict_pybind(config->getWritableGlobalBlock(), configDict);
 
-      bool isDict = py::isinstance< dict >(returnValue);
-      if ( ! isDict ) {
-         WALBERLA_ABORT("Python configuration did not return a dictionary object.");
-      }
-      dict returnDict = dict( returnValue );
-      return configFromPythonDict_pybind( returnDict );
-   }
+      WALBERLA_LOG_INFO_ON_ROOT("Simulating Scenario " <<  counter + 1 << " of "  << ConfigList_.size() << ":")
 
-
-   //===================================================================================================================
-   //
-   //  Config Generators and iterators
-   //
-   //===================================================================================================================
-
-
-   class PythonMultipleConfigGenerator : public config::ConfigGenerator
-   {
-   public:
-      PythonMultipleConfigGenerator( py::iterator iterator  )  //NOLINT
-         : iter_( iterator ), firstTime_(true) //NOLINT
-      {}
-
-      shared_ptr<Config> next() override
-      {
-//          this seemingly unnecessary complicated firstTime variable is used
-//          since in alternative version where (++iter_) is at the end of the function
-//          the python generator expression for the next time is already
-//          called before the current simulation finished
-            if ( !firstTime_ )
-               iter_++;
-            else
-               firstTime_ = false;
-
-            if ( iter_ == py::iterator::sentinel() )
-               return shared_ptr<Config>();
-
-            shared_ptr<Config> config = make_shared<Config>();
-
-            py::dict configDict = iter_;
-            configFromPythonDict_pybind( config->getWritableGlobalBlock(), configDict );
-
-         return config;
-      }
-   private:
-      py::iterator iter_;
-      bool firstTime_;
-
-   };
-
-
-
-   class PythonSingleConfigGenerator : public config::ConfigGenerator
-   {
-   public:
-      PythonSingleConfigGenerator( const shared_ptr<Config> & config ): config_ ( config ) {}
-
-      shared_ptr<Config> next() override
-      {
-         auto res = config_;
-         config_.reset();
-         return res;
-      }
-
-   private:
-      shared_ptr<Config> config_;
-   };
-
-
-   config::Iterator createConfigIteratorFromPythonScript( const std::string & scriptFile,
-                                                          const std::string & pythonFunctionName,
-                                                          const std::vector<std::string> & argv )
-   {
-      importModuleOrFile_pybind( scriptFile, argv );
-
-      PythonCallback_pybind pythonCallback ( pythonFunctionName );
-
-      pythonCallback();
-
-      py::object returnValue = pythonCallback.data().dict()[ "returnValue" ];
-
-      bool isDict = py::isinstance<py::dict>( returnValue );
-
-      shared_ptr< config::ConfigGenerator> generator;
-      if ( isDict )
-      {
-         auto config = make_shared<Config>();
-         py::dict extractedDict = py::dict( returnValue );
-         configFromPythonDict_pybind( config->getWritableGlobalBlock(), extractedDict );
-         generator = make_shared<PythonSingleConfigGenerator>( config );
-      }
-      else {
-
-         try {
-            generator= make_shared<PythonMultipleConfigGenerator>( returnValue );
-         }
-         catch ( py::error_already_set & ) {
-            // TODO: implement the error
-            // WALBERLA_ABORT_NO_DEBUG_INFO
-            // python_coupling::terminateOnPythonException("Error while running Python config generator");
-         }
-      }
-
-      return config::Iterator( generator );
-   }
-
-
-} // namespace python_coupling
-} // namespace walberla
-
-
-#else
-
-
-namespace walberla {
-namespace python_coupling {
-
-   shared_ptr<Config> createConfigFromPythonScript( const std::string &, const std::string &, const std::vector<std::string> &  )
-   {
-      WALBERLA_ABORT( "Tried to run with Python config but waLBerla was built without Python support." );
-      return shared_ptr<Config>();
-   }
-
-
-   config::Iterator createConfigIteratorFromPythonScript( const std::string & , const std::string &, const std::vector<std::string> &   )
-   {
-      WALBERLA_ABORT( "Tried to run with Python config but waLBerla was built without Python support." );
-      return config::Iterator();
-   }
-
-
-} // namespace python_coupling
-} // namespace walberla
-
-
-#endif
-
-
-
-
-
-
-
-
-
-
-
-
-namespace walberla {
-namespace python_coupling {
-
-
-
-   shared_ptr<Config> createConfig( int argc, char ** argv )
-   {
-      if(argc<2)
-         throw std::runtime_error( config::usageString(argv[0]) );
-
-      shared_ptr<Config> config;
-      std::string filename( argv[1] );
-
-      auto argVec = std::vector<std::string> (argv+1, argv + argc);
-
-      if ( string_ends_with( filename, ".py")  ) {
-         config = createConfigFromPythonScript_pybind( filename, "config", argVec );
-      }
-      else {
-         config = make_shared<Config>();
-         config::createFromTextFile( *config, filename );
-      }
-
-      config::substituteCommandLineArgs( *config, argc, argv );
+      counter++;
 
       return config;
    }
 
-   config::Iterator configBegin( int argc, char ** argv )
+ private:
+   py::list ConfigList_;
+   uint_t counter;
+};
+
+class PythonSingleConfigGenerator : public config::ConfigGenerator
+{
+ public:
+   PythonSingleConfigGenerator(const shared_ptr< Config >& config) : config_(config) {}
+
+   shared_ptr< Config > next() override
    {
-      if(argc<2)
-         throw std::runtime_error( config::usageString(argv[0]) );
-
-      std::string filename( argv[1] );
-      if ( string_ends_with( filename, ".py")  ) {
-         auto argVec = std::vector<std::string> (argv+1, argv + argc);
-         return createConfigIteratorFromPythonScript( filename, "config", argVec );
-      }
-      else {
-         return config::begin( argc, argv );
-      }
-
+      auto res = config_;
+      config_.reset();
+      return res;
    }
 
+ private:
+   shared_ptr< Config > config_;
+};
 
+config::Iterator createConfigIteratorFromPythonScript_pybind(const std::string& scriptFile,
+                                                             const std::string& pythonFunctionName,
+                                                             const std::vector< std::string >& argv)
+{
+   size_t lastindex    = scriptFile.find_last_of('.');
+   std::string rawname = scriptFile.substr(0, lastindex);
 
+   pybind11::module pythonConfigFile = pybind11::module::import(rawname.c_str());
+   pybind11::dict fileDict           = pythonConfigFile.attr("__dict__");
 
+   // TODO: generalise
+   pybind11::object function  = fileDict["scenarios"];
+   py::list listOfConfigDicts = function.attr("_scenarios");
+
+   shared_ptr< config::ConfigGenerator > generator;
+
+   try
+   {
+      generator = make_shared< PythonMultipleConfigGenerator >(listOfConfigDicts);
+   } catch (py::error_already_set&)
+   {
+      std::string message = std::string("Error while running Python function ") + pythonFunctionName;
+      //         if (PyErr_Occurred()) {
+      //            std::string decodedException = decodeException();
+      //            WALBERLA_ABORT_NO_DEBUG_INFO( message << "\n\n" << decodedException  );
+      //         }
+      WALBERLA_ABORT_NO_DEBUG_INFO(message);
+   }
+
+   return config::Iterator(generator);
+}
 
 } // namespace python_coupling
 } // namespace walberla
 
+#else
+
+namespace walberla
+{
+namespace python_coupling
+{
+shared_ptr< Config > createConfigFromPythonScript(const std::string&, const std::string&,
+                                                  const std::vector< std::string >&)
+{
+   WALBERLA_ABORT("Tried to run with Python config but waLBerla was built without Python support.");
+   return shared_ptr< Config >();
+}
+
+config::Iterator createConfigIteratorFromPythonScript(const std::string&, const std::string&,
+                                                      const std::vector< std::string >&)
+{
+   WALBERLA_ABORT("Tried to run with Python config but waLBerla was built without Python support.");
+   return config::Iterator();
+}
+
+} // namespace python_coupling
+} // namespace walberla
+
+#endif
+
+namespace walberla
+{
+namespace python_coupling
+{
+shared_ptr< Config > createConfig_pybind(int argc, char** argv)
+{
+   if (argc < 2) throw std::runtime_error(config::usageString(argv[0]));
+
+   shared_ptr< Config > config;
+   std::string filename(argv[1]);
+
+   auto argVec = std::vector< std::string >(argv + 1, argv + argc);
+
+   if (string_ends_with(filename, ".py")) { config = createConfigFromPythonScript_pybind(filename, "config", argVec); }
+   else
+   {
+      config = make_shared< Config >();
+      config::createFromTextFile(*config, filename);
+   }
+
+   config::substituteCommandLineArgs(*config, argc, argv);
+
+   return config;
+}
+
+config::Iterator configBegin_pybind(int argc, char** argv)
+{
+   if (argc < 2) throw std::runtime_error(config::usageString(argv[0]));
+
+   std::string filename(argv[1]);
+   if (string_ends_with(filename, ".py"))
+   {
+      auto argVec = std::vector< std::string >(argv + 1, argv + argc);
+      return createConfigIteratorFromPythonScript_pybind(filename, "config", argVec);
+   }
+   else
+   {
+      return config::begin(argc, argv);
+   }
+}
+
+} // namespace python_coupling
+} // namespace walberla

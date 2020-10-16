@@ -87,17 +87,20 @@ void configFromPythonDict_pybind( config::Config::Block & block, py::dict & pyth
                std::string e1 = py::str( childTuple[1].attr("__str__" )() );
                handlePythonBooleans( e0 );
                handlePythonBooleans( e1 );
-               ss << "< " << e0 << " , " << e1;
+               ss << "< " << e0 << " , " << e1 << " > ";
                block.addParameter( key, ss.str() );
             }
             else if ( len(childTuple) == 3)
             {
+               std::string e0 = py::str( childTuple[0].attr("__str__" )() );
+               std::string e1 = py::str( childTuple[1].attr("__str__" )() );
                std::string e2 = py::str( childTuple[2].attr("__str__" )() );
+               handlePythonBooleans( e0 );
+               handlePythonBooleans( e1 );
                handlePythonBooleans( e2 );
-               ss << ", " << e2;
+               ss << "< " << e0 << " , " << e1 << ", " << e2 << " > ";
                block.addParameter( key, ss.str() );
             }
-            ss  << " > ";
          }
          else
          {

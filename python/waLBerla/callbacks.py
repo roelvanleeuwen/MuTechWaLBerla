@@ -48,6 +48,10 @@ from __future__ import print_function, absolute_import, division, unicode_litera
 import os
 from functools import partial
 
+try:
+    import walberla_cpp
+except ImportError:
+    pass
 
 # ---------------------------- Simple callback functions -----------------------------------------------------------
 
@@ -96,73 +100,13 @@ class ScenarioManager:
            When config is called again the calbacks of the next scenario are activated.
 
     """
-
     def __init__(self):
         self._scenarios = []
         self._startScenario = 0
 
     def add(self, scenario):
         """Adds a scenario to the manager and activates the manager itself"""
-        self._scenarios.append(scenario)
-        self.activate()
-
-    def activate(self):
-        """Activates this scenario manager instance"""
         try:
-            import walberla_cpp
-            boundFunc = self._configLoopCallback
-            setattr(walberla_cpp.callbacks, "config", boundFunc)
-        except ImportError:
-            pass
-
-    def restrictScenarios(self, startScenario=0):
-        """Simulates not all scenarios registered at this manager, but skips the first startScenario-1 scenarios"""
-        self._startScenario = startScenario
-
-    def _configLoopCallback(self, *args, **kwargs):
-        def findCallbacks(classType):
-            res = dict()
-            for key, value in classType.__dict__.items():
-                if hasattr(value, "waLBerla_callback_member"):
-                    res[key] = value
-            return res
-
-        def get_config_from_scenario(sc):
-            callbacks = findCallbacks(type(sc))
-            for callback_name, callback_func in callbacks.items():
-                if callback_name == 'config':
-                    continue
-                bound_callback = partial(callback_func, sc)  # bind the 'self' parameter of member function
-                setattr(walberla_cpp.callbacks, callback_name, bound_callback)
-
-            if 'config' not in callbacks:
-                walberla_cpp.log_warning_on_root(
-                    "Error: Registered Scenario of class '%s' has no 'config' callback. Skipping... " % (type(sc),))
-                return None
-
-            config = sc.config(*args, **kwargs)
-            return config
-
-        try:
-            import walberla_cpp
-            if 'WALBERLA_SCENARIO_IDX' in os.environ:
-                scenario_idx = int(os.environ['WALBERLA_SCENARIO_IDX'])
-                try:
-                    scenario = self._scenarios[scenario_idx]
-                except IndexError:
-                    walberla_cpp.log_info_on_root("Scenario does not exists - all scenarios simulated?")
-                    exit(1)
-                walberla_cpp.log_info_on_root("Simulating Scenario %d of %d :" % (scenario_idx, len(self._scenarios)))
-                yield get_config_from_scenario(scenario)
-            else:
-                for idx, scenario in enumerate(self._scenarios):
-                    if idx < self._startScenario:
-                        continue  # Skip over all scenarios with id < startScenario
-                    cfg = None
-                    while cfg is None:
-                        cfg = get_config_from_scenario(scenario)
-                    walberla_cpp.log_info_on_root("Simulating Scenario %d of %d :" % (idx, len(self._scenarios)))
-                    yield cfg
-
-        except ImportError:
-            pass
+            self._scenarios.append(scenario.config())
+        except AttributeError:
+            walberla_cpp.log_info_on_root("Scenario has no config function")

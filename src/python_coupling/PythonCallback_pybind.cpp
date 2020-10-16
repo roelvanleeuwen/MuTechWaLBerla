@@ -31,12 +31,6 @@
 #include "helper/ExceptionHandling.h"
 #include "core/Filesystem.h"
 
-#if defined(__GLIBCXX__) && __GLIBCXX__ <= 20160609
-#define CURRENT_PATH_WORKAROUND
-#include <unistd.h>
-#include <errno.h>
-#endif
-
 #include "pybind11/eval.h"
 
 namespace walberla {
@@ -59,41 +53,15 @@ namespace python_coupling {
       code << "] \n";
 
       filesystem::path path ( fileOrModuleName );
-#ifdef CURRENT_PATH_WORKAROUND
-      // workaround for double free in filesystem::current_path in libstdc++ 5.4 and lower
-      size_t cwd_size = 16;
-      char * cwd_buf = (char*) std::malloc(cwd_size * sizeof(char));
-
-      while( getcwd( cwd_buf, cwd_size ) == NULL )
-      {
-         if (errno == ERANGE)
-         {
-            cwd_size *= 2;
-            cwd_buf = (char*) std::realloc( cwd_buf, cwd_size * sizeof(char) );
-         }
-         else
-         {
-            python_coupling::terminateOnPythonException( std::string("Could not determine working directory") );
-         }
-      }
-
-      std::string cwd(cwd_buf);
-      std::free(cwd_buf);
-      path = filesystem::absolute( path, cwd );
-#else
       path = filesystem::absolute( path );
-#endif
+
       if ( path.extension() == ".py" )
       {
          moduleName = path.stem().string();
 
 
          if ( ! path.parent_path().empty() )  {
-#ifdef CURRENT_PATH_WORKAROUND
-            std::string p = filesystem::canonical(path.parent_path(), cwd).string();
-#else
             std::string p = filesystem::canonical(path.parent_path()).string();
-#endif
             code << "sys.path.append( r'" << p << "')" << "\n";
          }
       }
@@ -146,7 +114,6 @@ namespace python_coupling {
       py::object callbackModule = py::module::import( "walberla_cpp.callbacks");
 
       callbackDict_->dict() = py::dict( callbackModule.attr( "__dict__" ) );
-
    }
 
    bool PythonCallback_pybind::isCallable() const

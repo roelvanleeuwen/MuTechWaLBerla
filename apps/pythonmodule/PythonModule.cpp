@@ -28,8 +28,6 @@
 #include "python_coupling/Manager.h"
 #include "python_coupling/helper/ModuleInit.h"
 #include "stencil/all.h"
-#include "timeloop/python/Exports.h"
-#include "vtk/python/Exports.h"
 
 #ifdef WALBERLA_BUILD_WITH_CUDA
 #include "cuda/python/Exports.h"
@@ -109,14 +107,8 @@ struct InitObject
       // Geometry
       pythonManager->addExporterFunction( geometry::exportModuleToPython );
 
-      // VTK
-      pythonManager->addExporterFunction( vtk::exportModuleToPython );
-
       // Postprocessing
       pythonManager->addExporterFunction( postprocessing::exportModuleToPython<FieldTypesForMeshGeneration, FlagFieldTypes> );
-
-      // Timeloop
-      pythonManager->addExporterFunction( timeloop::exportModuleToPython );
 
 #ifdef WALBERLA_BUILD_WITH_OPENMESH
       pythonManager->addExporterFunction( mesh::exportModuleToPython<FlagFieldTypes> );
