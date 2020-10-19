@@ -940,6 +940,7 @@ gcc_10_mpionly:
 gcc_10_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
+   stage: pretest
    before_script:
       - pip3 install lbmpy jinja2
       - cd python
@@ -1839,6 +1840,7 @@ clang_10.0_hybrid_dbg:
 clang_10.0_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:10.0
+   stage: pretest
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
