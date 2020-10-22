@@ -9,7 +9,6 @@ stages:
    - test
    - merge_request
    - deploy
-   - benchmark
 
 
 ###############################################################################
@@ -2414,7 +2413,6 @@ conda-py36-linux:
       - when: manual
         allow_failure: true
    needs: [ ]
-   stage: benchmark
    tags:
       - docker-benchmark
    artifacts:
