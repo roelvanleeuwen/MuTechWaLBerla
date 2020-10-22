@@ -2407,11 +2407,7 @@ conda-py36-linux:
       - python3 pe_upload.py
       - mpirun --allow-run-as-root -np 8 --map-by core --bind-to core --report-bindings ./MESA_PD_KernelBenchmark MESA_PD_Benchmark.cfg | tee mesa_pd.txt
       - python3 mesa_pd_upload.py
-   rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
-        when: always
-      - when: manual
-        allow_failure: true
+   when: manual
    needs: [ ]
    stage: test
    tags:
@@ -2463,7 +2459,6 @@ benchmark_ClangBuildAnalyzer:
   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:9.0
   tags:
     - docker-benchmark
-  rules:
-      - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
-        when: always
-      - when: never
+  only:
+     variables:
+        - $ENABLE_NIGHTLY_BUILDS
