@@ -2413,6 +2413,7 @@ conda-py36-linux:
       - when: manual
         allow_failure: true
    needs: [ ]
+   stage: test
    tags:
       - docker-benchmark
    artifacts:
