@@ -9,6 +9,7 @@ stages:
    - test
    - merge_request
    - deploy
+   - benchmark
 
 
 ###############################################################################
@@ -2408,9 +2409,12 @@ conda-py36-linux:
       - mpirun --allow-run-as-root -np 8 --map-by core --bind-to core --report-bindings ./MESA_PD_KernelBenchmark MESA_PD_Benchmark.cfg | tee mesa_pd.txt
       - python3 mesa_pd_upload.py
    rules:
-      - if: '$ENABLE_BENCHMARKS'
+      - if: '$ENABLE_NIGHTLY_BUILDS == "true"'
         when: always
-      - when: never
+      - when: manual
+        allow_failure: true
+   needs: [ ]
+   stage: benchmark
    tags:
       - docker-benchmark
    artifacts:
