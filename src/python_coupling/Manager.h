@@ -27,11 +27,13 @@
 #include "python_coupling/helper/MplHelpers.h"
 #include "core/singleton/Singleton.h"
 #include "domain_decomposition/IBlock.h"
+#include <pybind11/pybind11.h>
 
 void init_module_walberla_cpp();
 
 namespace walberla {
 namespace python_coupling {
+namespace py = pybind11;
 
 
    class BlockDataToObjectTester
@@ -44,21 +46,21 @@ namespace python_coupling {
       template<typename TypeToTest>
       void operator() ( NonCopyableWrap<TypeToTest> )
       {
-         using boost::python::object;
-         if ( result_ == object() &&  block_->isDataClassOrSubclassOf<TypeToTest>( blockDataID_ ) ) {
-            result_ = object( boost::python::ptr( block_->getData<TypeToTest>( blockDataID_ ) ) );
+         using py::object;
+         if ( result_.is(py::object()) &&  block_->isDataClassOrSubclassOf<TypeToTest>( blockDataID_ ) ) {
+            result_ = py::object( block_->getData<TypeToTest>( blockDataID_ ) );
          }
       }
 
-      boost::python::object getResult() { return result_; }
+      py::object getResult() { return result_; }
    private:
       IBlock * block_;
       BlockDataID blockDataID_;
-      boost::python::object result_;
+      py::object result_;
    };
 
    template<typename... Types>
-   boost::python::object testBlockData( IBlock & block, BlockDataID blockDataID )
+   py::object testBlockData( IBlock & block, BlockDataID blockDataID )
    {
       BlockDataToObjectTester tester( &block, blockDataID );
       for_each_noncopyable_type< Types... > ( std::ref(tester) );
@@ -71,8 +73,8 @@ namespace python_coupling {
    public:
       WALBERLA_BEFRIEND_SINGLETON;
 
-      typedef std::function<void()> ExporterFunction;
-      typedef std::function< boost::python::object ( IBlock&, BlockDataID ) > BlockDataToObjectFunction;
+      typedef std::function<void(py::module_)> ExporterFunction;
+      typedef std::function< py::object ( IBlock&, BlockDataID ) > BlockDataToObjectFunction;
 
 
       ~Manager();
@@ -82,19 +84,21 @@ namespace python_coupling {
       void addEntryToPythonPath( const std::string & path );
 
 
-      void addExporterFunction( const ExporterFunction & f ) { exporterFunctions_.push_back( f ); }
+      void addExporterFunction( const ExporterFunction & f())
+      {
+         exporterFunctions_.push_back( f() );
+      }
 
       template<typename... Types>
       void addBlockDataConversion() { blockDataToObjectFunctions_.push_back( &testBlockData<Types...>  ); }
 
-
-   protected:
+      void exportAll(py::module_ &m);
+    protected:
       void addPath( const std::string & path );
       friend void ::init_module_walberla_cpp();
-      void exportAll();
 
-      friend boost::python::object IBlock_getData( boost::python::object, const std::string &  );
-      boost::python::object pythonObjectFromBlockData( IBlock & block, BlockDataID  id );
+      friend py::object IBlock_getData( py::object, const std::string &  );
+      py::object pythonObjectFromBlockData( IBlock & block, BlockDataID  id );
 
       Manager();
 

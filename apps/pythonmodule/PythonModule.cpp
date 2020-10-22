@@ -17,27 +17,31 @@
 //! \author Martin Bauer <martin.bauer@fau.de>
 //
 //======================================================================================================================
-#include "python_coupling/PythonWrapper.h"
-#include "waLBerlaDefinitions.h"
+//#include "python_coupling/PythonWrapper.h"
+//#include "waLBerlaDefinitions.h"
 #include "blockforest/python/Exports.h"
-#include "field/GhostLayerField.h"
-#include "field/python/Exports.h"
-#include "mesh/python/Exports.h"
-#include "geometry/python/Exports.h"
-#include "postprocessing/python/Exports.h"
+//#include "field/GhostLayerField.h"
+//#include "field/python/Exports.h"
+// #include "mesh/python/Exports.h"
+// #include "geometry/python/Exports.h"
+// #include "postprocessing/python/Exports.h"
 #include "python_coupling/Manager.h"
-#include "python_coupling/helper/ModuleInit.h"
+// #include "python_coupling/helper/ModuleInit.h"
+#include "blockforest/communication/UniformBufferedScheme.h"
+#include "blockforest/SetupBlockForest.h"
 #include "stencil/all.h"
 
+#include <pybind11/pybind11.h>
+
 #ifdef WALBERLA_BUILD_WITH_CUDA
-#include "cuda/python/Exports.h"
+// #include "cuda/python/Exports.h"
 #endif
 
 
 using namespace walberla;
 
 
-typedef GhostLayerField<walberla::real_t,3> VecField_T;
+// typedef GhostLayerField<walberla::real_t,3> VecField_T;
 
 #define FIELD_TYPES \
    Field<walberla::real_t,1>,\
@@ -73,42 +77,39 @@ typedef GhostLayerField<walberla::real_t,3> VecField_T;
    GPUField<uint32_t>,\
    GPUField<uint64_t>
 
-using namespace walberla;
-
-struct InitObject
-{
-   InitObject()
+   PYBIND11_MODULE(walberla_cpp, m)
    {
+      m.doc() = "Python bindings for waLBerla";
+//      // m.def("add", &add, "A function which adds two numbers");
+//
+//      m.def("createUniformBufferedScheme", &createUniformBufferedScheme< stencil::D2Q5 >, "test");
       auto pythonManager = python_coupling::Manager::instance();
-
-      // Field
-      pythonManager->addExporterFunction( field::exportModuleToPython<FIELD_TYPES> );
-      pythonManager->addExporterFunction( field::exportGatherFunctions<FIELD_TYPES> );
-      pythonManager->addBlockDataConversion<FIELD_TYPES>() ;
-
-      // Blockforest
-      pythonManager->addExporterFunction( blockforest::exportModuleToPython<stencil::D2Q5, stencil::D2Q9, stencil::D3Q7, stencil::D3Q19, stencil::D3Q27> );
-
-      // Geometry
-      pythonManager->addExporterFunction( geometry::exportModuleToPython );
-
-      // Postprocessing
-      pythonManager->addExporterFunction( postprocessing::exportModuleToPython<GhostLayerField<walberla::real_t,1>, GhostLayerField<walberla::real_t,3>,
-                                                                               FlagField<walberla::uint8_t>, FlagField<walberla::uint16_t>> );
-
-#ifdef WALBERLA_BUILD_WITH_OPENMESH
-      pythonManager->addExporterFunction( mesh::exportModuleToPython<FlagField<walberla::uint8_t>, FlagField<walberla::uint16_t>> );
-#endif
-
-#ifdef WALBERLA_BUILD_WITH_CUDA
-      using walberla::cuda::GPUField;
-
-      pythonManager->addExporterFunction( cuda::exportModuleToPython<GPU_FIELD_TYPES, FIELD_TYPES> );
-      pythonManager->addBlockDataConversion<GPU_FIELD_TYPES>();
-#endif
-
-      python_coupling::initWalberlaForPythonModule();
+      //
+      //      // Field
+      //      pythonManager->addExporterFunction( field::exportModuleToPython<FIELD_TYPES> );
+      //      pythonManager->addExporterFunction( field::exportGatherFunctions<FIELD_TYPES> );
+      //      pythonManager->addBlockDataConversion<FIELD_TYPES>() ;
+      //
+      //      // Blockforest
+      pythonManager->addExporterFunction(blockforest::exportModuleToPython<stencil::D2Q5, stencil::D2Q9, stencil::D3Q7, stencil::D3Q19, stencil::D3Q27>);
+      //
+      //      // Geometry
+      //      pythonManager->addExporterFunction( geometry::exportModuleToPython );
+      //
+      //      // Postprocessing
+      //      pythonManager->addExporterFunction( postprocessing::exportModuleToPython<GhostLayerField<walberla::real_t,1>, GhostLayerField<walberla::real_t,3>,
+      //         FlagField<walberla::uint8_t>, FlagField<walberla::uint16_t>> );
+      //
+      //#ifdef WALBERLA_BUILD_WITH_OPENMESH
+      //      pythonManager->addExporterFunction( mesh::exportModuleToPython<FlagField<walberla::uint8_t>, FlagField<walberla::uint16_t>> );
+      //#endif
+      //
+      //#ifdef WALBERLA_BUILD_WITH_CUDA
+      //      using walberla::cuda::GPUField;
+      //
+      //      pythonManager->addExporterFunction( cuda::exportModuleToPython<GPU_FIELD_TYPES, FIELD_TYPES> );
+      //      pythonManager->addBlockDataConversion<GPU_FIELD_TYPES>();
+      //#endif
+      //
+      //      python_coupling::initWalberlaForPythonModule();
    }
-};
-InitObject globalInitObject;
-

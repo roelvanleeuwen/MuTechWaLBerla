@@ -27,21 +27,23 @@
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
 #include "blockforest/python/CommunicationExport.h"
+#include <pybind11/pybind11.h>
 
 
 namespace walberla {
 namespace blockforest {
 
+   namespace py = pybind11;
 
-   void exportBlockForest();
+   void exportBlockForest(py::module_ &m);
 
 
    template<typename... Stencils>
-   void exportModuleToPython()
+   void exportModuleToPython(py::module_ &m)
    {
-      exportBlockForest();
-      exportUniformBufferedScheme<Stencils...>();
-      exportUniformDirectScheme<Stencils...>();
+      exportBlockForest(m);
+      exportUniformBufferedScheme<Stencils...>(m);
+      exportUniformDirectScheme<Stencils...>(m);
    }
 
 } // namespace blockforest

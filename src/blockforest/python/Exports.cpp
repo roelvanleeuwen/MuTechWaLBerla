@@ -33,13 +33,17 @@
 
 #include "core/logging/Logging.h"
 #include "core/StringUtility.h"
+
 #include "domain_decomposition/StructuredBlockStorage.h"
+
 #include "python_coupling/Manager.h"
-#include "python_coupling/helper/ConfigFromDict.h"
+#include "python_coupling/helper/ConfigFromDict_pybind.h"
 
 #include "stencil/D3Q7.h"
 #include "stencil/D3Q19.h"
 #include "stencil/D3Q27.h"
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
 
 #include <memory>
 
@@ -51,88 +55,85 @@
 #  pragma warning( disable : 4267 )
 #endif //_MSC_VER
 #include <boost/python/raw_function.hpp>
+#include <utility>
 #ifdef _MSC_VER
 #  pragma warning(pop)
 #endif //_MSC_VER
 
 
-using namespace boost::python;
-
-
 namespace walberla {
 namespace blockforest {
+namespace py = pybind11;
 
 using walberla::blockforest::communication::UniformBufferedScheme;
 
-bool checkForThreeTuple( object obj ) //NOLINT
+bool checkForThreeTuple( py::object obj ) //NOLINT
 {
-   if( ! extract<tuple> ( obj ).check() )
+   if( py::isinstance<py::tuple>(obj) )
       return false;
 
-   tuple t = extract<tuple> ( obj );
-   return len(t) == 3;
+   py::tuple t = py::tuple ( obj );
+   return py::len(t) == 3;
 }
 
 
-object python_createUniformBlockGrid(tuple args, dict kw) //NOLINT
+py::object python_createUniformBlockGrid(py::tuple args, py::dict kw) //NOLINT
 {
-   if( len(args) > 0 ) {
+   if( py::len(std::move(args)) > 0 ) {
       PyErr_SetString( PyExc_ValueError, "This function takes only keyword arguments" );
-      throw boost::python::error_already_set();
+      throw py::error_already_set();
    }
 
-   using boost::python::stl_input_iterator;
-
-   boost::python::list keys = kw.keys();
-   for( auto it = stl_input_iterator<std::string>( keys ); it != stl_input_iterator<std::string>(); ++it )
+   for (auto item : kw)
    {
-      if ( *it != "cells" &&
-           *it != "cellsPerBlock" &&
-           *it != "blocks" &&
-           *it != "periodic" &&
-           *it != "dx" &&
-           *it != "oneBlockPerProcess"  )
+      std::string key = py::str(item.first);
+      if ( key != "cells" &&
+           key != "cellsPerBlock" &&
+           key != "blocks" &&
+           key != "periodic" &&
+           key != "dx" &&
+           key != "oneBlockPerProcess"  )
       {
-         PyErr_SetString( PyExc_ValueError, (std::string("Unknown Parameter: ") + (*it) ).c_str() );
-         throw boost::python::error_already_set();
+         PyErr_SetString( PyExc_ValueError, (std::string("Unknown Parameter: ") + key ).c_str());
+         throw py::error_already_set();
       }
    }
 
-   if( kw.has_key("cells ") && ! checkForThreeTuple( kw["cells"] ) ) {
+   if( kw.contains("cells ") && ! checkForThreeTuple( kw["cells"] ) ) {
       PyErr_SetString( PyExc_ValueError, "Parameter 'cells' has to be tuple of length 3, indicating cells in x,y,z direction" );
-      throw boost::python::error_already_set();
+      throw py::error_already_set();
    }
-   if( kw.has_key("cellsPerBlock ") && ! checkForThreeTuple( kw["cellsPerBlock"] ) ) {
+   if( kw.contains("cellsPerBlock ") && ! checkForThreeTuple( kw["cellsPerBlock"] ) ) {
       PyErr_SetString( PyExc_ValueError, "Parameter 'cellsPerBlock' has to be tuple of length 3, indicating cells in x,y,z direction" );
-      throw boost::python::error_already_set();
+      throw py::error_already_set();
    }
-   if( kw.has_key("blocks ") && ! checkForThreeTuple( kw["blocks"] ) ) {
+   if( kw.contains("blocks ") && ! checkForThreeTuple( kw["blocks"] ) ) {
       PyErr_SetString( PyExc_ValueError, "Parameter 'blocks' has to be tuple of length 3, indicating cells in x,y,z direction" );
-      throw boost::python::error_already_set();
+      throw py::error_already_set();
    }
 
    bool keepGlobalBlockInformation = false;
-   if ( kw.has_key("keepGlobalBlockInformation") )
+   if ( kw.contains("keepGlobalBlockInformation") )
    {
-      if ( extract<bool>( kw["keepGlobalBlockInformation"] ).check() )
-         keepGlobalBlockInformation = extract<bool>( kw["keepGlobalBlockInformation"] );
+      if ( py::isinstance<bool>(kw["keepGlobalBlockInformation"] ) )
+         keepGlobalBlockInformation =  kw["keepGlobalBlockInformation"].cast<bool>() ;
       else
       {
          PyErr_SetString( PyExc_ValueError, "Parameter 'keepGlobalBlockInformation' has to be a boolean" );
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
    }
 
-   shared_ptr<Config> cfg = python_coupling::configFromPythonDict( kw );
+   shared_ptr<Config> cfg = python_coupling::configFromPythonDict_pybind( kw );
 
    try {
       shared_ptr< StructuredBlockForest > blocks = createUniformBlockGridFromConfig( cfg->getGlobalBlock(), nullptr, keepGlobalBlockInformation );
-      return object(blocks);
+      return py::cast(blocks);
    }
    catch( std::exception & e)
    {
       PyErr_SetString( PyExc_ValueError, e.what() );
-      throw boost::python::error_already_set();
+      throw py::error_already_set();
    }
 
 }
@@ -140,9 +141,9 @@ object python_createUniformBlockGrid(tuple args, dict kw) //NOLINT
 shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> blocks,
                                                                Vector3<uint_t> cellsPerBlock,
                                                                Vector3<bool> periodic,
-                                                               object blockExclusionCallback = object(),
-                                                               object workloadMemoryCallback = object(),
-                                                               object refinementCallback = object(),
+                                                               py::object blockExclusionCallback = py::object(),
+                                                               py::object workloadMemoryCallback = py::object(),
+                                                               py::object refinementCallback = py::object(),
                                                                const real_t dx = 1.0,
                                                                memory_t processMemoryLimit = std::numeric_limits<memory_t>::max(),
                                                                const bool keepGlobalBlockInformation = false)
@@ -161,12 +162,12 @@ shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> b
       {
          AABB bb = aabb(i);
          auto pythonReturnVal = blockExclusionCallback(bb);
-         if( ! extract<bool>( pythonReturnVal ).check() ) {
+         if( py::isinstance<bool>( pythonReturnVal ) ) {
             PyErr_SetString( PyExc_ValueError, "blockExclusionCallback has to return a boolean");
-            throw boost::python::error_already_set();
+            throw py::error_already_set();
          }
 
-         bool returnVal = extract<bool>(pythonReturnVal);
+         bool returnVal = bool(pythonReturnVal);
          if ( returnVal )
             excludeBlock[i] = 1;
       }
@@ -180,7 +181,7 @@ shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> b
       for( uint_t i = 0; i != blockVector.size(); ++i ) {
          blockVector[i]->setMemory( memory_t(1) );
          blockVector[i]->setWorkload( workload_t(1) );
-         workloadMemoryCallback( boost::python::ptr(blockVector[i]) );
+         workloadMemoryCallback( blockVector[i] );
       }
    };
 
@@ -189,12 +190,12 @@ shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> b
       for( auto block = forest.begin(); block != forest.end(); ++block )
       {
          SetupBlock * sb = &(*block);
-         auto pythonRes = refinementCallback( boost::python::ptr(sb) );
-         if( ! extract<bool>( pythonRes ).check() ) {
+         auto pythonRes = refinementCallback( sb );
+         if( py::isinstance<bool>( pythonRes ) ) {
             PyErr_SetString( PyExc_ValueError, "refinementCallback has to return a boolean");
-            throw boost::python::error_already_set();
+            throw py::error_already_set();
          }
-         bool returnVal = extract<bool>( pythonRes );
+         bool returnVal = bool( pythonRes );
          if( returnVal )
             block->setMarker( true );
       }
@@ -203,7 +204,7 @@ shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> b
    if ( blockExclusionCallback ) {
       if( !PyCallable_Check( blockExclusionCallback.ptr() ) ) {
          PyErr_SetString( PyExc_ValueError, "blockExclusionCallback has to be callable");
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
       sforest.addRootBlockExclusionFunction( blockExclusionFunc );
    }
@@ -211,7 +212,7 @@ shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> b
    if ( workloadMemoryCallback ) {
       if( !PyCallable_Check( workloadMemoryCallback.ptr() ) ) {
          PyErr_SetString( PyExc_ValueError, "workloadMemoryCallback has to be callable");
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
       sforest.addWorkloadMemorySUIDAssignmentFunction( workloadMemoryFunc );
    }
@@ -221,7 +222,7 @@ shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> b
    if ( refinementCallback ) {
       if( !PyCallable_Check( refinementCallback.ptr() ) ) {
          PyErr_SetString( PyExc_ValueError, "refinementCallback has to be callable");
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
       sforest.addRefinementSelectionFunction( refinementFunc );
    }
@@ -245,28 +246,27 @@ shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> b
    return sbf;
 }
 
-object createUniformNeighborScheme(  const shared_ptr<StructuredBlockForest> & bf,
-                                     const std::string & stencil )
-{
-   if ( string_icompare(stencil, "D3Q7") == 0 )
-      return object ( make_shared< UniformBufferedScheme<stencil::D3Q7> > ( bf ) );
-   if ( string_icompare(stencil, "D3Q19") == 0 )
-      return object ( make_shared< UniformBufferedScheme<stencil::D3Q19> > ( bf ) );
-   if ( string_icompare(stencil, "D3Q27") == 0 )
-      return object ( make_shared< UniformBufferedScheme<stencil::D3Q27> > ( bf ) );
-   else {
-      PyErr_SetString( PyExc_RuntimeError, "Unknown stencil. Allowed values 'D3Q27', 'D3Q19', 'D3Q7'");
-      throw error_already_set();
-      return object();
-   }
-}
+//py::object createUniformNeighborScheme(  const shared_ptr<StructuredBlockForest> & bf,
+//                                         const std::string & stencil )
+//{
+//   if ( string_icompare(stencil, "D3Q7") == 0 )
+//      return py::object ( make_shared< UniformBufferedScheme<stencil::D3Q7> > ( bf ) );
+//   if ( string_icompare(stencil, "D3Q19") == 0 )
+//      return py::object ( make_shared< UniformBufferedScheme<stencil::D3Q19> > ( bf ) );
+//   if ( string_icompare(stencil, "D3Q27") == 0 )
+//      return py::object ( make_shared< UniformBufferedScheme<stencil::D3Q27> > ( bf ) );
+//   else {
+//      PyErr_SetString( PyExc_RuntimeError, "Unknown stencil. Allowed values 'D3Q27', 'D3Q19', 'D3Q7'");
+//      throw py::error_already_set();
+//      return py::object();
+//   }
+//}
 
 template<typename Stencil>
-void exportUniformBufferedScheme()
+void exportUniformBufferedScheme(py::module_ &m)
 {
    typedef UniformBufferedScheme<Stencil> UNS;
-
-   class_< UNS, shared_ptr<UNS>, boost::noncopyable >( "UniformBufferedScheme", no_init )
+   py::class_< UNS, shared_ptr<UNS> >(m, "UniformBufferedScheme" )
             .def( "__call__",             &UNS::operator()             )
             .def( "communicate",          &UNS::communicate            )
             .def( "startCommunication",   &UNS::startCommunication     )
@@ -285,39 +285,37 @@ std::string printSetupBlock(const SetupBlock & b )
 }
 
 
+namespace py = pybind11;
 
-void exportBlockForest()
+void exportBlockForest(py::module_ &m)
 {
-   class_< StructuredBlockForest, //NOLINT
-           shared_ptr<StructuredBlockForest>,
-           bases<StructuredBlockStorage>, boost::noncopyable > ( "StructuredBlockForest", no_init );
 
-   class_< SetupBlock, boost::noncopyable > ( "SetupBlock", no_init )
-            .add_property("level", &SetupBlock::getLevel)
-            .add_property("workload", &SetupBlock::getWorkload, &SetupBlock::setWorkload)
-            .add_property("memory",  &SetupBlock::getMemory, &SetupBlock::setMemory)
-            .add_property("aabb", make_function(&SetupBlock::getAABB, return_value_policy<copy_const_reference>()))
-            .def("__repr__", &printSetupBlock)
+//   py::class_< StructuredBlockForest, std::shared_ptr< StructuredBlockForest > >(m, "StructuredBlockForrest")
+//      .def("thread_blocks", &getThreadBlocks)
+//      .def("ghost_blocks", &getGhostBlocks)
+//      .def_property_readonly("aabb", &StructuredBlockStorage::getDomain);
+
+
+   py::class_< SetupBlock, shared_ptr<SetupBlock> > (m, "SetupBlock" )
+            .def("get_level",       &SetupBlock::getLevel      )
+            .def("set_workload",    &SetupBlock::setWorkload   )
+            .def("get_workload",    &SetupBlock::getWorkload   )
+            .def("set_memory",      &SetupBlock::setMemory     )
+            .def("get_memory",      &SetupBlock::getMemory     )
+            .def("get_aabb",        &SetupBlock::getAABB       )
+            .def("__repr__", &printSetupBlock           )
             ;
 
-#ifdef _MSC_VER
-#  pragma warning(push)
-// disable warning boost/python/raw_function.hpp(55): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
-#  pragma warning( disable : 4267 )
-#endif //_MSC_VER
-   def( "createUniformBlockGrid", raw_function(python_createUniformBlockGrid) );
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#endif //_MSC_VER
+   m.def( "createUniformBlockGrid", &python_createUniformBlockGrid );
 
-   def( "createCustomBlockGrid", createStructuredBlockForest,
-               (arg("blocks"), arg("cellsPerBlock"), arg("periodic"),
-                arg("blockExclusionCallback") = object(),
-                arg("workloadMemoryCallback") = object(),
-                arg("refinementCallback") = object() ,
-                arg("dx") = 1.0,
-                arg("processMemoryLimit") = std::numeric_limits<memory_t>::max(),
-                arg("keepGlobalBlockInformation") = false ) );
+   m.def( "createCustomBlockGrid", &createStructuredBlockForest,
+                py::arg("blocks"), py::arg("cellsPerBlock"), py::arg("periodic"),
+                py::arg("blockExclusionCallback") = py::object(),
+                py::arg("workloadMemoryCallback") = py::object(),
+                py::arg("refinementCallback") = py::object() ,
+                py::arg("dx") = 1.0,
+                py::arg("processMemoryLimit") = std::numeric_limits<memory_t>::max(),
+                py::arg("keepGlobalBlockInformation") = false );
 }
 
 } // namespace domain_decomposition

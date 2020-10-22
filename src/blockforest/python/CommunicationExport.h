@@ -20,6 +20,7 @@
 //======================================================================================================================
 
 #pragma once
+#include <pybind11/pybind11.h>
 
 
 
@@ -28,10 +29,10 @@ namespace blockforest {
 
 
    template<typename... Stencils>
-   void exportUniformBufferedScheme();
+   void exportUniformBufferedScheme(pybind11::module_& m);
 
    template<typename... Stencils>
-   void exportUniformDirectScheme();
+   void exportUniformDirectScheme(pybind11::module_& m);
 
 
 } // namespace blockforest

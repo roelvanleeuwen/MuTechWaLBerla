@@ -47,16 +47,16 @@ int main(int argc, char** argv)
       const bool testBool          = parameters.getParameter< bool >("testBool");
 
       if (counter == 0)
-         WALBERLA_ASSERT(test_int == 4)
+         WALBERLA_CHECK(test_int == 4)
       else
-         WALBERLA_ASSERT(test_int == 5)
+         WALBERLA_CHECK(test_int == 5)
 
       counter++;
 
-      WALBERLA_ASSERT(testString == "someString")
-      WALBERLA_ASSERT(testDouble > 42 && testDouble < 43)
-      WALBERLA_ASSERT(testVector == Vector3< real_t >(0.5, 0.5, 0.7))
-      WALBERLA_ASSERT(testBool == false)
+      WALBERLA_CHECK(testString == "someString")
+      WALBERLA_CHECK(testDouble > 42 && testDouble < 43)
+      WALBERLA_CHECK(testVector == Vector3< real_t >(0.5, 0.5, 0.7))
+      WALBERLA_CHECK(testBool == false)
 
       WALBERLA_LOG_INFO_ON_ROOT(test_int)
    }

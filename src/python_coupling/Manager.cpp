@@ -34,16 +34,13 @@
 #include <cstdlib>
 
 
-BOOST_PYTHON_MODULE( walberla_cpp )
+PYBIND11_MODULE( walberla_cpp, m)
 {
    using namespace walberla::python_coupling;
    auto manager =Manager::instance();
    exportBasicWalberlaDatastructures();
-   manager->exportAll();
+   manager->exportAll(m);
 }
-
-using namespace boost::python;
-
 
 namespace walberla {
 namespace python_coupling {
@@ -75,15 +72,13 @@ void Manager::addPath( const std::string & path )
 {
    WALBERLA_ASSERT( initialized_ );
 
-   object sys = import("sys");
-   list sys_path = extract<list>( sys.attr("path") );
+   py::object sys = py::module::import("sys");
+   py::list sys_path = py::list( sys.attr("path") );
    sys_path.append(path);
 }
 
 void Manager::triggerInitialization()
 {
-   using namespace boost::python;
-
    if ( initialized_ ){
       return;
    }
@@ -91,15 +86,10 @@ void Manager::triggerInitialization()
 
    try
    {
-#if PY_MAJOR_VERSION >= 3
-      PyImport_AppendInittab( (char*)"walberla_cpp", PyInit_walberla_cpp );
-#else
-      PyImport_AppendInittab( (char*)"walberla_cpp", initwalberla_cpp );
-#endif
-
+      // TODO: write with pybind11 interpreter
       Py_Initialize();
-      import("__main__");
-      import("walberla_cpp");
+      py::module::import("__main__");
+      py::module::import("walberla_cpp");
 
       // Setup python path
       addPath( std::string(WALBERLA_SOURCE_DIR) + "/python" );
@@ -113,54 +103,34 @@ void Manager::triggerInitialization()
       entriesForPythonPath_.clear();
 
    }
-   catch ( boost::python::error_already_set & ) {
-      PyObject *type_ptr = nullptr;
-
-      PyObject *value_ptr = nullptr;
-
-      PyObject *traceback_ptr = nullptr;
-      PyErr_Fetch(&type_ptr, &value_ptr, &traceback_ptr);
-
-      if( type_ptr )
-      {
-         extract<std::string> type_str(( str( handle<>( type_ptr ) ) ));
-         if( type_str.check() )
-            WALBERLA_LOG_DEVEL( type_str() );
-      }
-      if(value_ptr)
-      {
-         extract<std::string> value_str(( str( handle<>( value_ptr ) ) ));
-         if ( value_str.check() )
-            WALBERLA_LOG_DEVEL( value_str() );
-      }
-
+   catch ( py::error_already_set & ) {
       WALBERLA_ABORT( "Error while initializing Python" );
    }
 }
 
 
 
-void Manager::exportAll()
+void Manager::exportAll(py::module_ &m)
 {
    for( auto it = exporterFunctions_.begin(); it != exporterFunctions_.end(); ++it ) {
-      (*it)();
+      (*it)(m);
    }
 }
 
-boost::python::object Manager::pythonObjectFromBlockData( IBlock & block, BlockDataID id )
+py::object Manager::pythonObjectFromBlockData( IBlock & block, BlockDataID id )
 {
-   if( block.isDataOfType< boost::python::object > ( id )  )
-      return *block.getData< boost::python::object > ( id );
+   if( block.isDataOfType< py::object > ( id )  )
+      return *block.getData< py::object > ( id );
 
 
    for( auto it = blockDataToObjectFunctions_.begin(); it != blockDataToObjectFunctions_.end(); ++it )
    {
       auto res = (*it)( block, id );
-      if ( res != boost::python::object() )
+      if ( res.is(py::object()) )
          return res;
    }
 
-   return boost::python::object();
+   return py::object();
 }
 
 
