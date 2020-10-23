@@ -1896,11 +1896,13 @@ gcc_9_stl_debug:
       WALBERLA_BUILD_WITH_METIS: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_PYTHON: "OFF"
-   only:
-      variables:
-         - $ENABLE_NIGHTLY_BUILDS
+      CMAKE_CXX_FLAGS: "-D_GLIBCXX_DEBUG"
    tags:
       - docker
+   stage: merge_request
+   when: manual
+   needs: [ ]
+   allow_failure: false
 
 
 
