@@ -11,7 +11,7 @@
 
 #include <vector>
 
-using namespace boost::python;
+namespace py = pybind11;
 
 
 
@@ -45,43 +45,43 @@ namespace python_coupling {
    //
    //===================================================================================================================
 
-   static object broadcast_string( object value, int sendRank ) //NOLINT
+   static py::object broadcast_string( py::object value, int sendRank ) //NOLINT
    {
-      if ( extract<std::string>(value).check() )
+      if ( py::isinstance<std::string>(value) )
       {
-         std::string extractedValue = extract< std::string >(value);
+         std::string extractedValue = py::cast< std::string >(value);
          mpi::broadcastObject( extractedValue , sendRank );
-         return object( extractedValue );
+         return py::cast( extractedValue );
       }
       StringStdVector extractedValue = pythonIterableToStdVector< StringStdVector::value_type >( value );
       mpi::broadcastObject( extractedValue, sendRank );
-      return object( extractedValue );
+      return py::cast( extractedValue );
    }
 
-   static object broadcast_int( object value, int sendRank ) //NOLINT
+   static py::object broadcast_int( py::object value, int sendRank ) //NOLINT
    {
-      if ( extract<int64_t>(value).check() )
+      if ( py::isinstance<int64_t>(value) )
       {
-         int64_t extractedValue = extract< int64_t >(value);
+         int64_t extractedValue = py::cast< int64_t >(value);
          mpi::broadcastObject( extractedValue , sendRank );
-         return object( extractedValue );
+         return py::cast( extractedValue );
       }
       IntStdVector extractedValue = pythonIterableToStdVector< IntStdVector::value_type >( value );
       mpi::broadcastObject( extractedValue, sendRank );
-      return object( extractedValue );
+      return py::cast( extractedValue );
    }
 
-   static object broadcast_real( object value, int sendRank ) //NOLINT
+   static py::object broadcast_real( py::object value, int sendRank ) //NOLINT
    {
-      if ( extract<real_t>(value).check() )
+      if ( py::isinstance<real_t>(value) )
       {
-         real_t extractedValue = extract< real_t  >(value);
+         real_t extractedValue = py::cast< real_t  >(value);
          mpi::broadcastObject( extractedValue , sendRank);
-         return object( extractedValue );
+         return py::cast( extractedValue );
       }
       RealStdVector extractedValue = pythonIterableToStdVector< RealStdVector::value_type >( value );
       mpi::broadcastObject( extractedValue , sendRank);
-      return object( extractedValue );
+      return py::cast( extractedValue );
    }
 
 
@@ -92,57 +92,58 @@ namespace python_coupling {
    //===================================================================================================================
 
 
-   static object reduce_int( object value, mpi::Operation op, int recvRank ) //NOLINT
+   static py::object reduce_int( py::object value, mpi::Operation op, int recvRank ) //NOLINT
    {
-      if ( extract<int64_t>(value).check() )
+      if ( py::isinstance<int64_t>(value) )
       {
-         int64_t extractedValue = extract< int64_t >(value);
+         int64_t extractedValue = py::cast< int64_t >(value);
          mpi::reduceInplace( extractedValue , op, recvRank );
-         return object( extractedValue );
+         return py::cast( extractedValue );
       }
       IntStdVector extractedValue = pythonIterableToStdVector< IntStdVector::value_type >( value );
       mpi::reduceInplace( extractedValue, op, recvRank );
-      return object( extractedValue );
+      return py::cast( extractedValue );
    }
 
-   static object reduce_real( object value, mpi::Operation op, int recvRank ) //NOLINT
+   static py::object reduce_real( py::object value, mpi::Operation op, int recvRank ) //NOLINT
    {
-      if ( extract<real_t>(value).check() )
+      if ( py::isinstance<real_t>(value) )
       {
-         real_t extractedValue = extract< real_t  >(value);
+         real_t extractedValue = py::cast< real_t  >(value);
          mpi::reduceInplace( extractedValue , op, recvRank);
-         return object( extractedValue );
+         return py::cast( extractedValue );
       }
+      py::array test = py::cast<py::array>(value);
       RealStdVector extractedValue = pythonIterableToStdVector< RealStdVector::value_type >( value );
       mpi::reduceInplace( extractedValue , op, recvRank);
-      return object( extractedValue );
+      return py::cast( extractedValue );
    }
 
 
-   static object allreduce_int( object value, mpi::Operation op ) //NOLINT
+   static py::object allreduce_int( py::object value, mpi::Operation op ) //NOLINT
    {
-      if ( extract<int64_t>(value).check() )
+      if ( py::isinstance<int64_t>(value) )
       {
-         int64_t extractedValue = extract< int64_t >(value);
+         int64_t extractedValue = py::cast< int64_t >(value);
          mpi::allReduceInplace( extractedValue , op );
-         return object( extractedValue );
+         return py::cast( extractedValue );
       }
       IntStdVector extractedValue = pythonIterableToStdVector< IntStdVector::value_type >( value );
       mpi::allReduceInplace( extractedValue, op );
-      return object( extractedValue );
+      return py::cast( extractedValue );
    }
 
-   static object allreduce_real( object value, mpi::Operation op ) //NOLINT
+   static py::object allreduce_real( py::object value, mpi::Operation op ) //NOLINT
    {
-      if ( extract<real_t>(value).check() )
+      if ( py::isinstance<real_t>(value) )
       {
-         real_t extractedValue = extract< real_t  >(value);
+         real_t extractedValue = py::cast< real_t  >(value);
          mpi::allReduceInplace( extractedValue , op );
-         return object( extractedValue );
+         return py::cast( extractedValue );
       }
       RealStdVector extractedValue = pythonIterableToStdVector< RealStdVector::value_type >( value );
       mpi::allReduceInplace( extractedValue , op );
-      return object( extractedValue );
+      return py::cast( extractedValue );
    }
 
 
@@ -152,48 +153,48 @@ namespace python_coupling {
    //
    //===================================================================================================================
 
-   static IntStdVector gather_int( object value, int recvRank ) //NOLINT
+   static IntStdVector gather_int( py::object value, int recvRank ) //NOLINT
    {
-      if ( ! extract<int64_t>(value).check() )
+      if ( ! py::isinstance<int64_t>(value) )
       {
          PyErr_SetString( PyExc_RuntimeError, "Could not gather the given value - unknown type");
-         throw error_already_set();
+         throw py::error_already_set();
       }
-      int64_t extractedValue = extract< int64_t >(value);
+      int64_t extractedValue = py::cast< int64_t >(value);
       return mpi::gather( extractedValue , recvRank );
    }
 
-   static RealStdVector gather_real( object value, int recvRank ) //NOLINT
+   static RealStdVector gather_real( py::object value, int recvRank ) //NOLINT
    {
-      if ( ! extract<real_t>(value).check() )
+      if ( ! py::isinstance<real_t>(value) )
       {
          PyErr_SetString( PyExc_RuntimeError, "Could not gather the given value - unknown type");
-         throw error_already_set();
+         throw py::error_already_set();
       }
-      real_t extractedValue = extract< real_t  >(value);
+      real_t extractedValue = py::cast< real_t  >(value);
       return mpi::gather( extractedValue , recvRank);
    }
 
 
-   static IntStdVector allgather_int( object value ) //NOLINT
+   static IntStdVector allgather_int( py::object value ) //NOLINT
    {
-      if ( ! extract<int64_t>(value).check() )
+      if ( ! py::isinstance<int64_t>(value) )
       {
          PyErr_SetString( PyExc_RuntimeError, "Could not gather the given value - unknown type");
-         throw error_already_set();
+         throw py::error_already_set();
       }
-      int64_t extractedValue = extract< int64_t >(value);
+      int64_t extractedValue = py::cast< int64_t >(value);
       return mpi::allGather( extractedValue );
    }
 
-   static RealStdVector allgather_real( object value ) //NOLINT
+   static RealStdVector allgather_real( py::object value ) //NOLINT
    {
-      if ( ! extract<real_t>(value).check() )
+      if ( ! py::isinstance<real_t>(value) )
       {
          PyErr_SetString( PyExc_RuntimeError, "Could not gather the given value - unknown type");
-         throw error_already_set();
+         throw py::error_already_set();
       }
-      real_t extractedValue = extract< real_t  >(value);
+      real_t extractedValue = py::cast< real_t  >(value);
       return mpi::allGather( extractedValue );
    }
 
@@ -211,20 +212,20 @@ namespace python_coupling {
    }
 
 
-   void exportMPI()
+   void exportMPI(py::module_ &m)
    {
-      object mpiModule( handle<>( borrowed(PyImport_AddModule("walberla_cpp.mpi"))));
-      scope().attr("mpi") = mpiModule;
-      scope mpiScope = mpiModule;
+//      object mpiModule( handle<>( borrowed(PyImport_AddModule("walberla_cpp.mpi"))));
+//      scope().attr("mpi") = mpiModule;
+//      scope mpiScope = mpiModule;
 
-      def( "rank"             , &rank             );
-      def( "worldRank"        , &worldRank        );
-      def( "numProcesses"     , &numProcesses     );
-      def( "hasCartesianSetup", &hasCartesianSetup);
-      def( "rankValid"        , &rankValid        );
-      def( "worldBarrier"     , &worldBarrier     );
+      m.def( "rank"             , &rank             );
+      m.def( "worldRank"        , &worldRank        );
+      m.def( "numProcesses"     , &numProcesses     );
+      m.def( "hasCartesianSetup", &hasCartesianSetup);
+      m.def( "rankValid"        , &rankValid        );
+      m.def( "worldBarrier"     , &worldBarrier     );
 
-      enum_<mpi::Operation>("Operation")
+      py::enum_<mpi::Operation>(m, "Operation")
               .value("MIN"    ,      mpi::MIN )
               .value("MAX"    ,      mpi::MAX )
               .value("SUM"    ,      mpi::SUM )
@@ -237,24 +238,24 @@ namespace python_coupling {
               .value("BITWISE_XOR",  mpi::BITWISE_XOR )
               .export_values();
 
-      def( "broadcastInt",   &broadcast_int,    ( arg("sendRank") = 0) );
-      def( "broadcastReal",  &broadcast_real,   ( arg("sendRank") = 0) );
-      def( "broadcastString",&broadcast_string, ( arg("sendRank") = 0) );
+      m.def( "broadcastInt",   &broadcast_int);
+      m.def( "broadcastReal",  &broadcast_real);
+      m.def( "broadcastString",&broadcast_string);
 
-      def( "reduceInt",     &reduce_int,     ( arg("recvRank") = 0 ) );
-      def( "reduceReal",    &reduce_real,    ( arg("recvRank") = 0 ) );
-      def( "allreduceInt",  &allreduce_int  );
-      def( "allreduceReal", &allreduce_real );
+      m.def( "reduceInt",     &reduce_int);
+      m.def( "reduceReal",    &reduce_real);
+      m.def( "allreduceInt",  &allreduce_int  );
+      m.def( "allreduceReal", &allreduce_real );
 
 
-      class_< IntStdVector>   ("IntStdVector") .def(vector_indexing_suite<IntStdVector>()  );
-      class_< RealStdVector>  ("RealStdVector").def(vector_indexing_suite<RealStdVector>() );
-      class_< StringStdVector>("StringStdVector").def(vector_indexing_suite<StringStdVector>() );
+//      py::class_< IntStdVector>   (m, "IntStdVector") .def(vector_indexing_suite<IntStdVector>()  );
+//      py::class_< RealStdVector>  (m, "RealStdVector").def(vector_indexing_suite<RealStdVector>() );
+//      py::class_< StringStdVector> (m, "StringStdVector").def(vector_indexing_suite<StringStdVector>() );
 
-      def( "gatherInt",     &gather_int ,   ( arg("recvRank") = 0 ) );
-      def( "gatherReal",    &gather_real,   ( arg("recvRank") = 0 ) );
-      def( "allgatherInt",  &allgather_int  );
-      def( "allgatherReal", &allgather_real );
+      m.def( "gatherInt",     &gather_int);
+      m.def( "gatherReal",    &gather_real);
+      m.def( "allgatherInt",  &allgather_int  );
+      m.def( "allgatherReal", &allgather_real );
    }
 
 

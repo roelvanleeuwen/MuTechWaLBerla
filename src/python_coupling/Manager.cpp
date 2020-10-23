@@ -38,7 +38,7 @@ PYBIND11_MODULE( walberla_cpp, m)
 {
    using namespace walberla::python_coupling;
    auto manager =Manager::instance();
-   exportBasicWalberlaDatastructures();
+   exportBasicWalberlaDatastructures(m);
    manager->exportAll(m);
 }
 

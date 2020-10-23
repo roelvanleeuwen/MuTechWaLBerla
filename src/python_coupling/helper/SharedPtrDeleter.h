@@ -19,47 +19,47 @@
 //
 //======================================================================================================================
 
-#pragma once
-
-#include "python_coupling/PythonWrapper.h"
-
-namespace walberla {
-namespace python_coupling {
-
-
-namespace internal
-{
-
-template<typename T>
-class SharedPtrDeleterTiedToPythonObject
-{
-public:
-   SharedPtrDeleterTiedToPythonObject( PyObject *object ) : object_( object )
-   {
-   }
-
-   void operator()( T * )
-   {
-       Py_DECREF( object_ );
-   }
-
-private:
-   PyObject *object_;
-};
-
-} // namespace internal
-
-
-template<typename T>
-shared_ptr<T> createSharedPtrFromPythonObject(boost::python::object pythonObject) {
-    T * ptr = boost::python::extract<T*>( pythonObject);
-    auto deleter = internal::SharedPtrDeleterTiedToPythonObject<T>(pythonObject.ptr());
-    Py_INCREF(pythonObject.ptr());
-    return shared_ptr<T>(ptr, deleter);
-}
-
-
-} // namespace python_coupling
-} // namespace walberla
+//#pragma once
+//
+//#include "python_coupling/PythonWrapper.h"
+//
+//namespace walberla {
+//namespace python_coupling {
+//
+//
+//namespace internal
+//{
+//
+//template<typename T>
+//class SharedPtrDeleterTiedToPythonObject
+//{
+//public:
+//   SharedPtrDeleterTiedToPythonObject( PyObject *object ) : object_( object )
+//   {
+//   }
+//
+//   void operator()( T * )
+//   {
+//       Py_DECREF( object_ );
+//   }
+//
+//private:
+//   PyObject *object_;
+//};
+//
+//} // namespace internal
+//
+//
+//template<typename T>
+//shared_ptr<T> createSharedPtrFromPythonObject(boost::python::object pythonObject) {
+//    T * ptr = boost::python::extract<T*>( pythonObject);
+//    auto deleter = internal::SharedPtrDeleterTiedToPythonObject<T>(pythonObject.ptr());
+//    Py_INCREF(pythonObject.ptr());
+//    return shared_ptr<T>(ptr, deleter);
+//}
+//
+//
+//} // namespace python_coupling
+//} // namespace walberla
 
 

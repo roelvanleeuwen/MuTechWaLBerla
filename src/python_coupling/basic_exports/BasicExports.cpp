@@ -1,15 +1,15 @@
 //======================================================================================================================
 //
-//  This file is part of waLBerla. waLBerla is free software: you can 
+//  This file is part of waLBerla. waLBerla is free software: you can
 //  redistribute it and/or modify it under the terms of the GNU General Public
-//  License as published by the Free Software Foundation, either version 3 of 
+//  License as published by the Free Software Foundation, either version 3 of
 //  the License, or (at your option) any later version.
-//  
-//  waLBerla is distributed in the hope that it will be useful, but WITHOUT 
-//  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-//  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License 
+//
+//  waLBerla is distributed in the hope that it will be useful, but WITHOUT
+//  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+//  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
@@ -43,119 +43,11 @@
 #include "python_coupling/helper/BlockStorageExportHelpers.h"
 #include "stencil/Directions.h"
 
-#include <boost/version.hpp>
-
 #include <functional>
 
-using namespace boost::python;
-
-
+namespace py = pybind11;
 namespace walberla {
 namespace python_coupling {
-
-
-template <class T>
-struct NumpyIntConversion
-{
-    NumpyIntConversion()
-    {
-        converter::registry::push_back( &convertible, &construct, boost::python::type_id<T>() );
-    }
-
-    static void* convertible( PyObject* pyObj)
-    {
-       auto typeName = std::string( Py_TYPE(pyObj)->tp_name );
-       if ( typeName.substr(0,9) == "numpy.int" )
-          return pyObj;
-       return nullptr;
-    }
-
-    static void construct( PyObject* pyObj, converter::rvalue_from_python_stage1_data* data )
-    {
-        handle<> x(borrowed(pyObj));
-        object o(x);
-        T value = extract<T>(o.attr("__int__")());
-        void* storage =( (boost::python::converter::rvalue_from_python_storage<T>*) data)->storage.bytes;
-        new (storage) T(value);
-        data->convertible = storage;
-    }
-};
-
-template <class T>
-struct NumpyFloatConversion
-{
-    NumpyFloatConversion()
-    {
-        converter::registry::push_back( &convertible, &construct, boost::python::type_id<T>() );
-    }
-
-    static void* convertible(PyObject* pyObj)
-    {
-       auto typeName = std::string( Py_TYPE(pyObj)->tp_name );
-       if ( typeName.substr(0,11) == "numpy.float" )
-          return pyObj;
-        return nullptr;
-    }
-
-    static void construct(PyObject* pyObj, converter::rvalue_from_python_stage1_data* data)
-    {
-        handle<> x(borrowed(pyObj));
-        object o(x);
-#ifdef WALBERLA_CXX_COMPILER_IS_GNU
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
-        T value = extract<T>(o.attr("__float__")());
-#ifdef WALBERLA_CXX_COMPILER_IS_GNU
-#pragma GCC diagnostic pop
-#endif
-        void* storage =( (boost::python::converter::rvalue_from_python_storage<T>*) data)->storage.bytes;
-        new (storage) T(value);
-        data->convertible = storage;
-    }
-};
-
-
-#if BOOST_VERSION < 106300
-// taken from https://github.com/boostorg/python/commit/97e4b34a15978ca9d7c296da2de89b78bba4e0d5
-template <class T>
-struct exportSharedPtr
-{
-   exportSharedPtr()
-   {
-   converter::registry::insert( &convertible, &construct, boost::python::type_id<std::shared_ptr<T> >()
-#ifndef BOOST_PYTHON_NO_PY_SIGNATURES
-                                , &converter::expected_from_python_type_direct<T>::get_pytype
-#endif
-                              );
-   }
-
-private:
-   static void* convertible( PyObject* p )
-   {
-      if ( p == Py_None )
-         return p;
-
-      return converter::get_lvalue_from_python( p, converter::registered<T>::converters );
-   }
-
-   static void construct( PyObject* source, converter::rvalue_from_python_stage1_data* data )
-   {
-      void* const storage = ( (converter::rvalue_from_python_storage< std::shared_ptr<T> >*) data )->storage.bytes;
-      // Deal with the "None" case.
-      if ( data->convertible == source )
-         new (storage) std::shared_ptr<T>();
-      else
-      {
-         std::shared_ptr<void> hold_convertible_ref_count( (void*)0, converter::shared_ptr_deleter( handle<>( borrowed( source ) ) ) );
-         // use aliasing constructor
-         new (storage) std::shared_ptr<T>( hold_convertible_ref_count, static_cast<T*>(data->convertible) );
-      }
-
-      data->convertible = storage;
-   }
-};
-#endif
 
 //======================================================================================================================
 //
@@ -163,15 +55,15 @@ private:
 //
 //======================================================================================================================
 
-void checkForThreeSequence( const object & o, const char * message )
+void checkForThreeSequence( const py::object & o, const char * message )
 {
    // strange construct required because also the len function throws , if object has no len
    try {
-      if ( len(o ) != 3 )  throw error_already_set();
+      if ( py::len(o ) != 3 )  throw py::error_already_set();
    }
-   catch( error_already_set & ) {
+   catch( py::error_already_set & ) {
       PyErr_SetString(PyExc_RuntimeError, message);
-      throw error_already_set();
+      throw py::error_already_set();
    }
 }
 
@@ -182,93 +74,93 @@ void checkForThreeSequence( const object & o, const char * message )
 //======================================================================================================================
 
 
-template<typename T>
-struct Vector3_to_PythonTuple
-{
-   static PyObject* convert( Vector3<T> const& v )
-   {
-      auto resultTuple = boost::python::make_tuple(v[0], v[1], v[2] );
-      return boost::python::incref ( boost::python::object ( resultTuple ).ptr () );
-   }
-};
-
-template<typename T>
-struct PythonTuple_to_Vector3
-{
-   PythonTuple_to_Vector3()
-   {
-     boost::python::converter::registry::push_back(
-       &convertible,
-       &construct,
-       boost::python::type_id<Vector3<T> >());
-   }
-
-   static void* convertible(PyObject* obj)
-   {
-      using namespace boost::python;
-
-      if ( ! ( PySequence_Check(obj) && PySequence_Size( obj ) == 3 ))
-         return nullptr;
-
-      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
-      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
-      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
-
-      if (  extract<T>( element0 ).check() &&
-            extract<T>( element1 ).check() &&
-            extract<T>( element2 ).check() )
-         return obj;
-      else
-         return nullptr;
-   }
-
-   static void construct( PyObject* obj, boost::python::converter::rvalue_from_python_stage1_data* data )
-   {
-      using namespace boost::python;
-
-      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
-      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
-      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
-
-
-      // Grab pointer to memory into which to construct the new Vector3
-      void* storage = ( (boost::python::converter::rvalue_from_python_storage<Vector3<T> >*) data )->storage.bytes;
-
-      new (storage) Vector3<T> ( extract<T>( element0 ),
-                                 extract<T>( element1 ),
-                                 extract<T>( element2 ) );
-
-      // Stash the memory chunk pointer for later use by boost.python
-      data->convertible = storage;
-   }
-};
-
-void exportVector3()
-{
-   // To Python
-   boost::python::to_python_converter< Vector3<bool      >, Vector3_to_PythonTuple<bool      > >();
-
-   boost::python::to_python_converter< Vector3<real_t    >, Vector3_to_PythonTuple<real_t    > >();
-
-   boost::python::to_python_converter< Vector3<uint8_t   >, Vector3_to_PythonTuple<uint8_t   > >();
-   boost::python::to_python_converter< Vector3<uint16_t  >, Vector3_to_PythonTuple<uint16_t  > >();
-   boost::python::to_python_converter< Vector3<uint32_t  >, Vector3_to_PythonTuple<uint32_t  > >();
-   boost::python::to_python_converter< Vector3<uint64_t  >, Vector3_to_PythonTuple<uint64_t  > >();
-
-   boost::python::to_python_converter< Vector3<cell_idx_t>, Vector3_to_PythonTuple<cell_idx_t> >();
-
-   // From Python
-   PythonTuple_to_Vector3<bool   >();
-
-   PythonTuple_to_Vector3<real_t   >();
-
-   PythonTuple_to_Vector3<uint8_t  >();
-   PythonTuple_to_Vector3<uint16_t >();
-   PythonTuple_to_Vector3<uint32_t >();
-   PythonTuple_to_Vector3<uint64_t >();
-
-   PythonTuple_to_Vector3<cell_idx_t>();
-}
+//template<typename T>
+//struct Vector3_to_PythonTuple
+//{
+//   static PyObject* convert( Vector3<T> const& v )
+//   {
+//      auto resultTuple = py::make_tuple(v[0], v[1], v[2] );
+//      return py::incref ( py::object ( resultTuple ).ptr () );
+//   }
+//};
+//
+//template<typename T>
+//struct PythonTuple_to_Vector3
+//{
+//   PythonTuple_to_Vector3()
+//   {
+//     py::converter::registry::push_back(
+//       &convertible,
+//       &construct,
+//       py::type_id<Vector3<T> >());
+//   }
+//
+//   static void* convertible(PyObject* obj)
+//   {
+//      using namespace py;
+//
+//      if ( ! ( PySequence_Check(obj) && PySequence_Size( obj ) == 3 ))
+//         return nullptr;
+//
+//      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
+//      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
+//      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
+//
+//      if (  extract<T>( element0 ).check() &&
+//            extract<T>( element1 ).check() &&
+//            extract<T>( element2 ).check() )
+//         return obj;
+//      else
+//         return nullptr;
+//   }
+//
+//   static void construct( PyObject* obj, py::converter::rvalue_from_python_stage1_data* data )
+//   {
+//      using namespace py;
+//
+//      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
+//      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
+//      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
+//
+//
+//      // Grab pointer to memory into which to construct the new Vector3
+//      void* storage = ( (py::converter::rvalue_from_python_storage<Vector3<T> >*) data )->storage.bytes;
+//
+//      new (storage) Vector3<T> ( extract<T>( element0 ),
+//                                 extract<T>( element1 ),
+//                                 extract<T>( element2 ) );
+//
+//      // Stash the memory chunk pointer for later use by boost.python
+//      data->convertible = storage;
+//   }
+//};
+//
+//void exportVector3()
+//{
+//   // To Python
+//   py::to_python_converter< Vector3<bool      >, Vector3_to_PythonTuple<bool      > >();
+//
+//   py::to_python_converter< Vector3<real_t    >, Vector3_to_PythonTuple<real_t    > >();
+//
+//   py::to_python_converter< Vector3<uint8_t   >, Vector3_to_PythonTuple<uint8_t   > >();
+//   py::to_python_converter< Vector3<uint16_t  >, Vector3_to_PythonTuple<uint16_t  > >();
+//   py::to_python_converter< Vector3<uint32_t  >, Vector3_to_PythonTuple<uint32_t  > >();
+//   py::to_python_converter< Vector3<uint64_t  >, Vector3_to_PythonTuple<uint64_t  > >();
+//
+//   py::to_python_converter< Vector3<cell_idx_t>, Vector3_to_PythonTuple<cell_idx_t> >();
+//
+//   // From Python
+//   PythonTuple_to_Vector3<bool   >();
+//
+//   PythonTuple_to_Vector3<real_t   >();
+//
+//   PythonTuple_to_Vector3<uint8_t  >();
+//   PythonTuple_to_Vector3<uint16_t >();
+//   PythonTuple_to_Vector3<uint32_t >();
+//   PythonTuple_to_Vector3<uint64_t >();
+//
+//   PythonTuple_to_Vector3<cell_idx_t>();
+//}
 
 
 //======================================================================================================================
@@ -278,72 +170,72 @@ void exportVector3()
 //======================================================================================================================
 
 
-struct Cell_to_PythonTuple
-{
-   static PyObject* convert( Cell const& c )
-   {
-      auto resultTuple = boost::python::make_tuple(c[0], c[1], c[2] );
-      return boost::python::incref ( boost::python::object ( resultTuple ).ptr () );
-   }
-};
-
-struct PythonTuple_to_Cell
-{
-   PythonTuple_to_Cell()
-   {
-     boost::python::converter::registry::push_back(
-       &convertible,
-       &construct,
-       boost::python::type_id< Cell >());
-   }
-
-   static void* convertible( PyObject* obj )
-   {
-      using namespace boost::python;
-
-      if ( ! ( PySequence_Check(obj) && PySequence_Size( obj ) == 3 ))
-         return nullptr;
-
-      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
-      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
-      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
-
-      if (  extract<cell_idx_t>( element0 ).check() &&
-            extract<cell_idx_t>( element1 ).check() &&
-            extract<cell_idx_t>( element2 ).check() )
-         return obj;
-      else
-         return nullptr;
-   }
-
-   static void construct( PyObject* obj, boost::python::converter::rvalue_from_python_stage1_data* data )
-   {
-      using namespace boost::python;
-
-      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
-      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
-      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
-
-
-      // Grab pointer to memory into which to construct the new Vector3
-      void* storage = ( (boost::python::converter::rvalue_from_python_storage<Cell>*) data )->storage.bytes;
-
-      new (storage) Cell( extract<cell_idx_t>( element0 ),
-                          extract<cell_idx_t>( element1 ),
-                          extract<cell_idx_t>( element2 ) );
-
-      // Stash the memory chunk pointer for later use by boost.python
-      data->convertible = storage;
-   }
-};
-
-void exportCell()
-{
-   // To Python
-   boost::python::to_python_converter< Cell, Cell_to_PythonTuple >();
-   // From Python
-   PythonTuple_to_Cell();
-}
+//struct Cell_to_PythonTuple
+//{
+//   static PyObject* convert( Cell const& c )
+//   {
+//      auto resultTuple = py::make_tuple(c[0], c[1], c[2] );
+//      return py::incref ( py::object ( resultTuple ).ptr () );
+//   }
+//};
+//
+//struct PythonTuple_to_Cell
+//{
+//   PythonTuple_to_Cell()
+//   {
+//     py::converter::registry::push_back(
+//       &convertible,
+//       &construct,
+//       py::type_id< Cell >());
+//   }
+//
+//   static void* convertible( PyObject* obj )
+//   {
+//      using namespace py;
+//
+//      if ( ! ( PySequence_Check(obj) && PySequence_Size( obj ) == 3 ))
+//         return nullptr;
+//
+//      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
+//      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
+//      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
+//
+//      if (  extract<cell_idx_t>( element0 ).check() &&
+//            extract<cell_idx_t>( element1 ).check() &&
+//            extract<cell_idx_t>( element2 ).check() )
+//         return obj;
+//      else
+//         return nullptr;
+//   }
+//
+//   static void construct( PyObject* obj, py::converter::rvalue_from_python_stage1_data* data )
+//   {
+//      using namespace py;
+//
+//      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
+//      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
+//      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
+//
+//
+//      // Grab pointer to memory into which to construct the new Vector3
+//      void* storage = ( (py::converter::rvalue_from_python_storage<Cell>*) data )->storage.bytes;
+//
+//      new (storage) Cell( extract<cell_idx_t>( element0 ),
+//                          extract<cell_idx_t>( element1 ),
+//                          extract<cell_idx_t>( element2 ) );
+//
+//      // Stash the memory chunk pointer for later use by boost.python
+//      data->convertible = storage;
+//   }
+//};
+//
+//void exportCell()
+//{
+//   // To Python
+//   py::to_python_converter< Cell, Cell_to_PythonTuple >();
+//   // From Python
+//   PythonTuple_to_Cell();
+//}
 
 //======================================================================================================================
 //
@@ -362,8 +254,8 @@ void cellInterval_shift( CellInterval & ci, cell_idx_t xShift, cell_idx_t yShift
    ci.shift( xShift, yShift, zShift );
 }
 
-boost::python::tuple cellInterval_size( CellInterval & ci ) {
-   return boost::python::make_tuple( ci.xSize(), ci.ySize(), ci.zSize() );
+py::tuple cellInterval_size( CellInterval & ci ) {
+   return py::make_tuple( ci.xSize(), ci.ySize(), ci.zSize() );
 }
 
 CellInterval cellInterval_getIntersection( CellInterval & ci1, CellInterval & ci2 )
@@ -394,7 +286,7 @@ CellInterval cellInterval_getExpanded2( CellInterval & ci1, cell_idx_t xExpand, 
    return result;
 }
 
-void exportCellInterval()
+void exportCellInterval(py::module_ &m)
 {
    const Cell & ( CellInterval::*p_getMin )( ) const = &CellInterval::min;
    const Cell & ( CellInterval::*p_getMax )( ) const = &CellInterval::max;
@@ -404,15 +296,15 @@ void exportCellInterval()
 
    void ( CellInterval::*p_expand1) ( const cell_idx_t ) = &CellInterval::expand;
    void ( CellInterval::*p_expand2) ( const Cell &     ) = &CellInterval::expand;
-   
+
    bool          ( CellInterval::*p_overlaps ) ( const CellInterval & ) const = &CellInterval::overlaps;
 
-   class_<CellInterval>("CellInterval")
-      .def( init<const Cell&, const Cell&>() )
-      .def( init<cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t>() )
-      .add_property( "min", make_function( p_getMin, return_value_policy<copy_const_reference>() ), &cellInterval_setMin )
-      .add_property( "max", make_function( p_getMax, return_value_policy<copy_const_reference>() ), &cellInterval_setMax )
-      .add_property( "size", &cellInterval_size  )
+   py::class_<CellInterval>(m, "CellInterval")
+      .def( py::init<const Cell&, const Cell&>() )
+      .def( py::init<cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t>() )
+      .def_property( "min", p_getMin, &cellInterval_setMin )
+      .def_property( "max", p_getMax, &cellInterval_setMax )
+      .def_property_readonly( "size", &cellInterval_size  )
       .def( "empty", &CellInterval::empty )
       .def( "positiveIndicesOnly", &CellInterval::positiveIndicesOnly )
       .def( "contains",        p_contains1 )
@@ -428,8 +320,7 @@ void exportCellInterval()
       .def( "getIntersection", &cellInterval_getIntersection )
       .def("__eq__",           &CellInterval::operator==)
       .def("__ne__",           &CellInterval::operator!=)
-      .add_property( "numCells",  &CellInterval::numCells  )
-      .def( self_ns::str(self) )
+      .def_property_readonly( "numCells",  &CellInterval::numCells  )
       ;
 }
 
@@ -440,36 +331,36 @@ void exportCellInterval()
 //======================================================================================================================
 
 
-tuple aabb_getMin( const AABB & domainBB ) {
-   return boost::python::make_tuple( domainBB.xMin(), domainBB.yMin(), domainBB.zMin() );
+py::tuple aabb_getMin( const AABB & domainBB ) {
+   return py::make_tuple( domainBB.xMin(), domainBB.yMin(), domainBB.zMin() );
 }
-tuple aabb_getMax( const AABB & domainBB ) {
-   return boost::python::make_tuple( domainBB.xMax(), domainBB.yMax(), domainBB.zMax() );
+py::tuple aabb_getMax( const AABB & domainBB ) {
+   return py::make_tuple( domainBB.xMax(), domainBB.yMax(), domainBB.zMax() );
 }
 
-void aabb_setMin( AABB & domainBB, object min )
+void aabb_setMin( AABB & domainBB, const py::tuple& min )
 {
    checkForThreeSequence(min, "Error assigning minimum of AABB - Sequence of length 3 required" );
-   real_t min0 = extract<real_t>( min[0] );
-   real_t min1 = extract<real_t>( min[1] );
-   real_t min2 = extract<real_t>( min[2] );
+   real_t min0 = py::cast<real_t>( min[0] );
+   real_t min1 = py::cast<real_t>( min[1] );
+   real_t min2 = py::cast<real_t>( min[2] );
 
    domainBB = AABB( domainBB.max(), AABB::vector_type ( min0, min1, min2 ) );
 }
 
-void aabb_setMax( AABB & domainBB, object max )
+void aabb_setMax( AABB & domainBB, const py::tuple& max )
 {
    checkForThreeSequence( max, "Error assigning maximum of AABB - Sequence of length 3 required" );
 
-   real_t max0 = extract<real_t>( max[0] );
-   real_t max1 = extract<real_t>( max[1] );
-   real_t max2 = extract<real_t>( max[2] );
+   real_t max0 = py::cast<real_t>( max[0] );
+   real_t max1 = py::cast<real_t>( max[1] );
+   real_t max2 = py::cast<real_t>( max[2] );
 
    domainBB = AABB( domainBB.min(), AABB::vector_type ( max0, max1, max2 ) );
 }
 
 
-void exportAABB()
+void exportAABB(py::module_ &m)
 {
    bool ( AABB::*p_containsBB  )( const AABB & bb           )     const = &AABB::contains;
    bool ( AABB::*p_containsVec )( const Vector3<real_t> & point ) const = &AABB::contains;
@@ -509,14 +400,14 @@ void exportAABB()
    real_t  ( AABB::*p_sqMaxDistance2 ) ( const Vector3<real_t> & ) const = &AABB::sqMaxDistance;
 
 
-   class_<AABB>("AABB")
-      .def( init<real_t,real_t,real_t,real_t,real_t,real_t>() )
-      .def( init<Vector3<real_t>,Vector3<real_t> >() )
+   py::class_<AABB>(m, "AABB")
+      .def( py::init<real_t,real_t,real_t,real_t,real_t,real_t>() )
+      .def( py::init<Vector3<real_t>,Vector3<real_t> >() )
       .def("__eq__",     &walberla::math::operator==<real_t, real_t > )
       .def("__ne__",     &walberla::math::operator!=<real_t, real_t > )
-      .add_property( "min",  &aabb_getMin, &aabb_setMin )
-      .add_property( "max",  &aabb_getMax, &aabb_setMax )
-      .add_property( "size", &AABB::sizes )
+      .def_property( "min",  &aabb_getMin, &aabb_setMin )
+      .def_property( "max",  &aabb_getMax, &aabb_setMax )
+      .def_property_readonly( "size", &AABB::sizes )
       .def( "empty",    &AABB::empty )
       .def( "volume", &AABB::volume )
       .def( "center", &AABB::center )
@@ -555,7 +446,6 @@ void exportAABB()
       .def( "merge", p_merge1 )
       .def( "merge", p_merge2 )
       .def( "intersect", &AABB::intersect )
-      .def( self_ns::str(self) )
       ;
 }
 
@@ -565,26 +455,27 @@ void exportAABB()
 //
 //======================================================================================================================
 
-dict buildDictFromTimingNode(const WcTimingNode & tn)
+py::dict buildDictFromTimingNode(const WcTimingNode & tn)
 {
-   dict result;
+   py::dict result;
 
    result["all"] = tn.timer_;
    for ( auto it = tn.tree_.begin(); it != tn.tree_.end(); ++it)
    {
+      std::string key = it->first;
       if (it->second.tree_.empty())
       {
-         result[it->first] = it->second.timer_;
+         result[key.c_str()] = it->second.timer_;
       } else
       {
-         result[it->first] = buildDictFromTimingNode(it->second);
+         result[key.c_str()] = buildDictFromTimingNode(it->second);
       }
    }
 
    return result;
 }
 
-dict buildDictFromTimingTree(const WcTimingTree & tt)
+py::dict buildDictFromTimingTree(const WcTimingTree & tt)
 {
    return buildDictFromTimingNode( tt.getRawData() );
 }
@@ -594,48 +485,46 @@ void timingTreeStopWrapper(WcTimingTree & tt, const std::string& name)
    if (!tt.isTimerRunning(name))
    {
       PyErr_SetString( PyExc_ValueError, ("Timer '" + name + "' is currently not running!").c_str() );
-      throw error_already_set();
+      throw py::error_already_set();
    }
    tt.stop(name);
 }
 
-void exportTiming()
+void exportTiming(py::module_ &m)
 {
-   class_<WcTimer> ("Timer")
-      .def( init<>() )
+   py::class_<WcTimer> (m, "Timer")
+      .def( py::init<>() )
       .def( "start",  &WcTimer::start )
       .def( "stop",   &WcTimer::end   )
       .def( "reset",  &WcTimer::reset )
       .def( "merge",  &WcTimer::merge )
-      .add_property( "counter",      &WcTimer::getCounter   )
-      .add_property( "total",        &WcTimer::total        )
-      .add_property( "sumOfSquares", &WcTimer::sumOfSquares )
-      .add_property( "average",      &WcTimer::average      )
-      .add_property( "variance",     &WcTimer::variance     )
-      .add_property( "min",          &WcTimer::min          )
-      .add_property( "max",          &WcTimer::max          )
-      .add_property( "last",         &WcTimer::last         )
+      .def_property_readonly( "counter",      &WcTimer::getCounter   )
+      .def_property_readonly( "total",        &WcTimer::total        )
+      .def_property_readonly( "sumOfSquares", &WcTimer::sumOfSquares )
+      .def_property_readonly( "average",      &WcTimer::average      )
+      .def_property_readonly( "variance",     &WcTimer::variance     )
+      .def_property_readonly( "min",          &WcTimer::min          )
+      .def_property_readonly( "max",          &WcTimer::max          )
+      .def_property_readonly( "last",         &WcTimer::last         )
       ;
 
 
    WcTimer & ( WcTimingPool::*pGetItem ) ( const std::string & ) = &WcTimingPool::operator[];
 
    {
-      scope classScope =
-      class_<WcTimingPool, shared_ptr<WcTimingPool> > ("TimingPool")
-         .def( init<>() )
-         .def( self_ns::str(self) )
-         .def( "__getitem__",     pGetItem, return_internal_reference<1>() )
+      py::scope classScope =
+      py::class_<WcTimingPool, shared_ptr<WcTimingPool> > (m, "TimingPool")
+         .def( py::init<>() )
+         .def_property_readonly( "__getitem__",     pGetItem)
          .def( "__contains__",    &WcTimingPool::timerExists )
-         .def( "getReduced",      &WcTimingPool::getReduced,  ( arg("targetRank") = 0) )
-         .def( "merge",           &WcTimingPool::merge, ( arg("mergeDuplicates") = true) )
+         .def( "getReduced",      &WcTimingPool::getReduced)
+         .def( "merge",           &WcTimingPool::merge)
          .def( "clear",           &WcTimingPool::clear )
          .def( "unifyRegisteredTimersAcrossProcesses", &WcTimingPool::unifyRegisteredTimersAcrossProcesses )
-         .def( "logResultOnRoot", &WcTimingPool::logResultOnRoot, (arg("unifyRegisteredTimers") = false) )
-         .def( self_ns::str(self) )
+         .def( "logResultOnRoot", &WcTimingPool::logResultOnRoot)
          ;
 
-      enum_<timing::ReduceType>("ReduceType")
+      py::enum_<timing::ReduceType>(m, "ReduceType")
           .value("min"  , timing::REDUCE_MIN)
           .value("avg"  , timing::REDUCE_AVG)
           .value("max"  , timing::REDUCE_MAX)
@@ -645,20 +534,14 @@ void exportTiming()
    }
 
    const WcTimer & ( WcTimingTree::*pTimingTreeGet ) ( const std::string & ) const = &WcTimingTree::operator[];
-   class_<WcTimingTree, shared_ptr<WcTimingTree> > ("TimingTree")
-         .def( init<>() )
-         .def( "__getitem__",  pTimingTreeGet, return_internal_reference<1>() )
+   py::class_<WcTimingTree, shared_ptr<WcTimingTree> > (m, "TimingTree")
+         .def( py::init<>() )
+         .def_property_readonly( "__getitem__",  pTimingTreeGet )
          .def( "start",        &WcTimingTree::start )
          .def( "stop",         &timingTreeStopWrapper )
          .def( "getReduced",   &WcTimingTree::getReduced )
          .def( "toDict",       &buildDictFromTimingTree )
-         .def( self_ns::str(self) )
     ;
-
-#if BOOST_VERSION < 106300
-   exportSharedPtr<WcTimingTree>();
-#endif
-
 }
 
 
@@ -670,48 +553,33 @@ void exportTiming()
 //
 //======================================================================================================================
 
-boost::python::object IBlock_getData( boost::python::object iblockObject, const std::string & stringID ) //NOLINT
+py::object IBlock_getData( py::object iblockObject, const std::string & stringID ) //NOLINT
 {
-   IBlock * block = boost::python::extract<IBlock*>( iblockObject );
-
-   //typedef std::pair< IBlock *, std::string > BlockStringPair;
-   //static std::map< BlockStringPair, object > cache;
-
-   //auto blockStringPair = std::make_pair( &block, stringID );
-   //auto it = cache.find( blockStringPair );
-   //if ( it != cache.end() )
-   //   return it->second;
+   IBlock * block = py::cast<IBlock*>( iblockObject );
 
    BlockDataID id = blockDataIDFromString( *block, stringID );
 
    auto manager = python_coupling::Manager::instance();
-   boost::python::object res =  manager->pythonObjectFromBlockData( *block, id );
+   py::object res =  manager->pythonObjectFromBlockData( *block, id );
 
-   if ( res == boost::python::object() )
+   if ( res.is(py::object()) )
       throw BlockDataNotConvertible();
-
-   boost::python::objects::make_nurse_and_patient( res.ptr(), iblockObject.ptr() );
-
-   // write result to cache
-   //cache[blockStringPair] = res;
-   //TODO cache has bugs when cache is destroyed, probably since objects are freed after py_finalize is called
-   //move cache to Manager?
 
    return res;
 }
 
 
-boost::python::list IBlock_blockDataList( boost::python::object iblockObject ) //NOLINT
+py::list IBlock_blockDataList( py::object iblockObject ) //NOLINT
 {
-   IBlock * block = boost::python::extract<IBlock*>( iblockObject );
+   IBlock * block = py::cast<IBlock*>( iblockObject );
 
    const std::vector<std::string> & stringIds = block->getBlockStorage().getBlockDataIdentifiers();
 
-   boost::python::list resultList;
+   py::list resultList;
 
    for( auto it = stringIds.begin(); it != stringIds.end(); ++it ) {
       try {
-         resultList.append( boost::python::make_tuple( *it, IBlock_getData( iblockObject, *it) ) );
+         resultList.append( py::make_tuple( *it, IBlock_getData( iblockObject, *it) ) );
       }
       catch( BlockDataNotConvertible & /*e*/ ) {
       }
@@ -720,22 +588,22 @@ boost::python::list IBlock_blockDataList( boost::python::object iblockObject ) /
    return resultList;
 }
 
-boost::python::object IBlock_iter(  boost::python::object iblockObject )
+py::object IBlock_iter(  py::object iblockObject )
 {
-   boost::python::list resultList = IBlock_blockDataList( iblockObject ); //NOLINT
+   py::list resultList = IBlock_blockDataList( iblockObject ); //NOLINT
    return resultList.attr("__iter__");
 }
 
-boost::python::tuple IBlock_atDomainMinBorder( IBlock & block )
+py::tuple IBlock_atDomainMinBorder( IBlock & block )
 {
-   return boost::python::make_tuple( block.getBlockStorage().atDomainXMinBorder(block),
+   return py::make_tuple( block.getBlockStorage().atDomainXMinBorder(block),
                                      block.getBlockStorage().atDomainYMinBorder(block),
                                      block.getBlockStorage().atDomainZMinBorder(block) );
 }
 
-boost::python::tuple IBlock_atDomainMaxBorder( IBlock & block )
+py::tuple IBlock_atDomainMaxBorder( IBlock & block )
 {
-   return boost::python::make_tuple( block.getBlockStorage().atDomainXMaxBorder(block),
+   return py::make_tuple( block.getBlockStorage().atDomainXMaxBorder(block),
                                      block.getBlockStorage().atDomainYMaxBorder(block),
                                      block.getBlockStorage().atDomainZMaxBorder(block) );
 }
@@ -757,22 +625,23 @@ std::string IBlock_str( IBlock & b ) {
 
 }
 
-void exportIBlock()
+void exportIBlock(py::module_ &m)
 {
-   register_exception_translator<NoSuchBlockData>( & NoSuchBlockData::translate );
-   register_exception_translator<BlockDataNotConvertible>( & BlockDataNotConvertible::translate );
+   // TODO: register the exceptions: Does not work as done below
+   // py::register_exception_translator( & NoSuchBlockData::translate );
+   // py::register_exception_translator( & BlockDataNotConvertible::translate );
 
-   class_<IBlock, boost::noncopyable> ("Block", no_init)
-         .def         ( "__getitem__",       &IBlock_getData )
-         .add_property( "atDomainMinBorder", &IBlock_atDomainMinBorder )
-         .add_property( "atDomainMaxBorder", &IBlock_atDomainMaxBorder )
-         .add_property( "items",             &IBlock_blockDataList)
-         .add_property( "id",                &IBlock_getIntegerID)
-         .def         ( "__hash__",          &IBlock_getIntegerID)
-         .def         ( "__eq__",            &IBlock_equals)
-         .def         ( "__repr__",          &IBlock_str )
-         .add_property( "__iter__",          &IBlock_iter  )
-         .add_property("aabb", make_function(&IBlock::getAABB, return_value_policy<copy_const_reference>()))
+   py::class_<IBlock, std::unique_ptr<IBlock, py::nodelete>> (m, "Block")
+         .def         ( "__getitem__",                   &IBlock_getData, py::keep_alive<1, 2>()   )
+         .def_property_readonly( "atDomainMinBorder",    &IBlock_atDomainMinBorder                 )
+         .def_property_readonly( "atDomainMaxBorder",    &IBlock_atDomainMaxBorder                 )
+         .def_property_readonly( "items",                &IBlock_blockDataList                     )
+         .def_property_readonly( "id",                   &IBlock_getIntegerID                      )
+         .def         ( "__hash__",                      &IBlock_getIntegerID                      )
+         .def         ( "__eq__",                        &IBlock_equals                            )
+         .def         ( "__repr__",               &IBlock_str                               )
+         .def_property_readonly( "__iter__",             &IBlock_iter                              )
+         .def_property_readonly("aabb",            &IBlock::getAABB                          )
          ;
 
 }
@@ -819,22 +688,22 @@ static void wlb_log_detail_on_root     ( const std::string & ) {}
 
 static void wlb_abort                  ( const std::string & msg ) { WALBERLA_ABORT_NO_DEBUG_INFO ( msg ); }
 
-void exportLogging()
+void exportLogging(py::module_ &m)
 {
-   def ( "log_devel"         ,  wlb_log_devel           );
-   def ( "log_devel_on_root" ,  wlb_log_devel_on_root   );
-   def ( "log_result",          wlb_log_result          );
-   def ( "log_result_on_root",  wlb_log_result_on_root  );
-   def ( "log_warning",         wlb_log_warning         );
-   def ( "log_warning_on_root", wlb_log_warning_on_root );
-   def ( "log_info",            wlb_log_info            );
-   def ( "log_info_on_root",    wlb_log_info_on_root    );
-   def ( "log_progress",        wlb_log_progress        );
-   def ( "log_progress_on_root",wlb_log_progress_on_root);
-   def ( "log_detail",          wlb_log_detail          );
-   def ( "log_detail_on_root",  wlb_log_detail_on_root  );
+   m.def ( "log_devel"         ,  wlb_log_devel           );
+   m.def ( "log_devel_on_root" ,  wlb_log_devel_on_root   );
+   m.def ( "log_result",          wlb_log_result          );
+   m.def ( "log_result_on_root",  wlb_log_result_on_root  );
+   m.def ( "log_warning",         wlb_log_warning         );
+   m.def ( "log_warning_on_root", wlb_log_warning_on_root );
+   m.def ( "log_info",            wlb_log_info            );
+   m.def ( "log_info_on_root",    wlb_log_info_on_root    );
+   m.def ( "log_progress",        wlb_log_progress        );
+   m.def ( "log_progress_on_root",wlb_log_progress_on_root);
+   m.def ( "log_detail",          wlb_log_detail          );
+   m.def ( "log_detail_on_root",  wlb_log_detail_on_root  );
 
-   def ( "abort", wlb_abort );
+   m.def ( "abort", wlb_abort );
 }
 
 
@@ -847,36 +716,29 @@ void exportLogging()
 //======================================================================================================================
 
 
-object * blockDataCreationHelper( IBlock * block, StructuredBlockStorage * bs,  object callable ) //NOLINT
+py::object * blockDataCreationHelper( IBlock * block, StructuredBlockStorage * bs,  py::object callable ) //NOLINT
 {
-   object * res = new object( callable( ptr(block), ptr(bs) ) );
+   py::object * res = new py::object( callable( block, bs ) );
    return res;
 }
 
-uint_t StructuredBlockStorage_addBlockData( StructuredBlockStorage & s, const std::string & name, object functionPtr ) //NOLINT
+uint_t StructuredBlockStorage_addBlockData( StructuredBlockStorage & s, const std::string & name, py::object functionPtr ) //NOLINT
 {
    BlockDataID res = s.addStructuredBlockData(name)
-               << StructuredBlockDataCreator<object>( std::bind( &blockDataCreationHelper, std::placeholders::_1, std::placeholders::_2, functionPtr ) );
-   //TODO extend this for moving block data ( packing und unpacking with pickle )
+               << StructuredBlockDataCreator<py::object>( std::bind( &blockDataCreationHelper, std::placeholders::_1, std::placeholders::_2, functionPtr ) );
    return res;
 }
 
-// Helper function for iteration over StructuredBlockStorage
-// boost::python comes with iteration helpers but non of this worked:
-//    .def("__iter__"   range(&StructuredBlockStorage::begin, &StructuredBlockStorage::end))
-//    .def("__iter__",  range<return_value_policy<copy_non_const_reference> >( beginPtr, endPtr) )
-boost::python::object StructuredBlockStorage_iter( boost::python::object structuredBlockStorage ) //NOLINT
+py::object StructuredBlockStorage_iter( py::object structuredBlockStorage ) //NOLINT
 {
-   shared_ptr<StructuredBlockStorage> s = extract< shared_ptr<StructuredBlockStorage> > ( structuredBlockStorage );
+   shared_ptr<StructuredBlockStorage> s = py::cast< shared_ptr<StructuredBlockStorage> > ( structuredBlockStorage );
 
    std::vector< const IBlock* > blocks;
    s->getBlocks( blocks );
-   boost::python::list resultList;
+   py::list resultList;
 
    for( auto it = blocks.begin(); it != blocks.end(); ++it ) {
-      boost::python::object theObject( ptr( *it ) );
-      // Prevent blockstorage from being destroyed when references to blocks exist
-      boost::python::objects::make_nurse_and_patient( theObject.ptr(), structuredBlockStorage.ptr() );
+      py::object theObject = py::cast( *it );
       resultList.append( theObject );
    }
 
@@ -884,82 +746,81 @@ boost::python::object StructuredBlockStorage_iter( boost::python::object structu
 }
 
 
-boost::python::object StructuredBlockStorage_getItem( boost::python::object structuredBlockStorage, uint_t i ) //NOLINT
+py::object StructuredBlockStorage_getItem( py::object structuredBlockStorage, uint_t i ) //NOLINT
 {
-   shared_ptr<StructuredBlockStorage> s = extract< shared_ptr<StructuredBlockStorage> > ( structuredBlockStorage );
+   shared_ptr<StructuredBlockStorage> s = py::cast< shared_ptr<StructuredBlockStorage> > ( structuredBlockStorage );
 
    if ( i >= s->size() )
    {
       PyErr_SetString( PyExc_RuntimeError, "Index out of bounds");
-      throw error_already_set();
+      throw py::error_already_set();
    }
 
    std::vector< const IBlock* > blocks;
    s->getBlocks( blocks );
 
-   boost::python::object theObject( ptr( blocks[i] ) );
-   boost::python::objects::make_nurse_and_patient( theObject.ptr(), structuredBlockStorage.ptr() );
+   py::object theObject = py::cast( blocks[i] );
    return theObject;
 }
 
-boost::python::list StructuredBlockStorage_blocksOverlappedByAABB( StructuredBlockStorage & s, const AABB & aabb ) {
+py::list StructuredBlockStorage_blocksOverlappedByAABB( StructuredBlockStorage & s, const AABB & aabb ) {
    std::vector< IBlock*> blocks;
    s.getBlocksOverlappedByAABB( blocks, aabb );
 
-   boost::python::list resultList;
+   py::list resultList;
    for( auto it = blocks.begin(); it != blocks.end(); ++it )
-      resultList.append( ptr( *it ) );
+      resultList.append( py::cast( *it ) );
    return resultList;
 }
 
 
-boost::python::list StructuredBlockStorage_blocksContainedWithinAABB( StructuredBlockStorage & s, const AABB & aabb ) {
+py::list StructuredBlockStorage_blocksContainedWithinAABB( StructuredBlockStorage & s, const AABB & aabb ) {
    std::vector< IBlock*> blocks;
    s.getBlocksContainedWithinAABB( blocks, aabb );
 
-   boost::python::list resultList;
+   py::list resultList;
    for( auto it = blocks.begin(); it != blocks.end(); ++it )
-      resultList.append( ptr( *it ) );
+      resultList.append( py::cast( *it ) );
    return resultList;
 }
 
 
-object SbS_transformGlobalToLocal ( StructuredBlockStorage & s, IBlock & block, const object & global )
+py::object SbS_transformGlobalToLocal ( StructuredBlockStorage & s, IBlock & block, const py::object & global )
 {
-   if ( extract<CellInterval>( global ).check() )
+   if ( py::isinstance<CellInterval>(global) )
    {
       CellInterval ret;
-      s.transformGlobalToBlockLocalCellInterval( ret, block, extract<CellInterval>( global ) );
-      return object( ret );
+      s.transformGlobalToBlockLocalCellInterval( ret, block, py::cast<CellInterval>( global ) );
+      return py::cast( ret );
    }
-   else if ( extract<Cell>( global ).check() )
+   else if ( py::isinstance<Cell>(global) )
    {
       Cell ret;
-      s.transformGlobalToBlockLocalCell( ret, block, extract<Cell>( global ) );
-      return object( ret );
+      s.transformGlobalToBlockLocalCell( ret, block, py::cast<Cell>( global ) );
+      return py::cast( ret );
    }
 
    PyErr_SetString(PyExc_RuntimeError, "Only CellIntervals and cells can be transformed" );
-   throw error_already_set();
+   throw py::error_already_set();
 }
 
 
-object SbS_transformLocalToGlobal ( StructuredBlockStorage & s, IBlock & block, const object & local )
+py::object SbS_transformLocalToGlobal ( StructuredBlockStorage & s, IBlock & block, const py::object & local )
 {
-   if ( extract<CellInterval>( local ).check() )
+   if ( py::isinstance<CellInterval>( local ) )
    {
       CellInterval ret;
-      s.transformBlockLocalToGlobalCellInterval( ret, block, extract<CellInterval>( local ) );
-      return object( ret );
+      s.transformBlockLocalToGlobalCellInterval( ret, block, py::cast<CellInterval>( local ) );
+      return py::cast( ret );
    }
-   else if ( extract<Cell>( local ).check() )
+   else if ( py::isinstance<Cell>( local ) )
    {
       Cell ret;
-      s.transformBlockLocalToGlobalCell( ret, block, extract<Cell>( local ) );
-      return object( ret );
+      s.transformBlockLocalToGlobalCell( ret, block, py::cast<Cell>( local ) );
+      return py::cast( ret );
    }
    PyErr_SetString(PyExc_RuntimeError, "Only CellIntervals and cells can be transformed" );
-   throw error_already_set();
+   throw py::error_already_set();
 }
 
 void SbS_writeBlockData( StructuredBlockStorage & s,const std::string & blockDataId, const std::string & file )
@@ -977,7 +838,7 @@ void SbS_readBlockData( StructuredBlockStorage & s,const std::string & blockData
    s.deserializeBlockData( blockDataIDFromString(s, blockDataId), buffer );
    if ( ! buffer.isEmpty() ) {
       PyErr_SetString(PyExc_RuntimeError, "Reading failed - file does not contain matching data for this type." );
-      throw error_already_set();
+      throw py::error_already_set();
    }
 }
 
@@ -1004,19 +865,19 @@ Cell SbS_mapToPeriodicDomain3 ( StructuredBlockStorage & s, Cell in, uint_t leve
    return in;
 }
 
-object SbS_getBlock1 ( StructuredBlockStorage & s, const real_t x , const real_t y , const real_t z ) {
-   return object( ptr( s.getBlock( x,y,z ) ) );
+py::object SbS_getBlock1 ( StructuredBlockStorage & s, const real_t x , const real_t y , const real_t z ) {
+   return py::cast( s.getBlock( x,y,z ) ) ;
 
 }
 
-object SbS_getBlock2 ( StructuredBlockStorage & s, const Vector3<real_t> & v ) {
-   return object( ptr( s.getBlock( v ) ) );
+py::object SbS_getBlock2 ( StructuredBlockStorage & s, const Vector3<real_t> & v ) {
+   return  py::cast( s.getBlock( v ) ) ;
 }
 
 
-tuple SbS_periodic(  StructuredBlockStorage & s )
+py::tuple SbS_periodic(  StructuredBlockStorage & s )
 {
-   return make_tuple( s.isXPeriodic(), s.isYPeriodic(), s.isZPeriodic() );
+   return py::make_tuple( s.isXPeriodic(), s.isYPeriodic(), s.isZPeriodic() );
 }
 
 bool SbS_atDomainXMinBorder( StructuredBlockStorage & s, const IBlock * b ) { return s.atDomainXMinBorder( *b ); }
@@ -1026,7 +887,7 @@ bool SbS_atDomainYMaxBorder( StructuredBlockStorage & s, const IBlock * b ) { re
 bool SbS_atDomainZMinBorder( StructuredBlockStorage & s, const IBlock * b ) { return s.atDomainZMinBorder( *b ); }
 bool SbS_atDomainZMaxBorder( StructuredBlockStorage & s, const IBlock * b ) { return s.atDomainZMaxBorder( *b ); }
 
-void exportStructuredBlockStorage()
+void exportStructuredBlockStorage(py::module_ &m)
 {
    bool ( StructuredBlockStorage::*p_blockExists1         ) ( const Vector3< real_t > & ) const = &StructuredBlockStorage::blockExists;
    bool ( StructuredBlockStorage::*p_blockExistsLocally1  ) ( const Vector3< real_t > & ) const = &StructuredBlockStorage::blockExistsLocally;
@@ -1036,14 +897,14 @@ void exportStructuredBlockStorage()
    bool ( StructuredBlockStorage::*p_blockExistsLocally2  ) ( const real_t, const real_t, const real_t ) const = &StructuredBlockStorage::blockExistsLocally;
    bool ( StructuredBlockStorage::*p_blockExistsRemotely2 ) ( const real_t, const real_t, const real_t ) const = &StructuredBlockStorage::blockExistsRemotely;
 
-   class_<StructuredBlockStorage, shared_ptr<StructuredBlockStorage>, boost::noncopyable>("StructuredBlockStorage", no_init )
+   py::class_<StructuredBlockStorage, std::unique_ptr<StructuredBlockStorage, py::nodelete>>(m, "StructuredBlockStorage" )
        .def( "getNumberOfLevels",                       &StructuredBlockStorage::getNumberOfLevels )
-       .def( "getDomain",                               &StructuredBlockStorage::getDomain, return_internal_reference<1>() )
+       .def_property_readonly( "getDomain",                               &StructuredBlockStorage::getDomain)
        .def( "mapToPeriodicDomain",                     &SbS_mapToPeriodicDomain1                                 )
        .def( "mapToPeriodicDomain",                     &SbS_mapToPeriodicDomain2                                 )
-       .def( "mapToPeriodicDomain",                     &SbS_mapToPeriodicDomain3, (arg("level") = 0 )            )
+       .def( "mapToPeriodicDomain",                     &SbS_mapToPeriodicDomain3                                 )
        .def( "addBlockData",                            &StructuredBlockStorage_addBlockData                      )
-       .def( "__getitem__",                             &StructuredBlockStorage_getItem                           )
+       .def( "__getitem__",                             &StructuredBlockStorage_getItem, py::keep_alive<1, 2>()   )
        .def( "__len__",                                 &StructuredBlockStorage::size                             )
        .def( "getBlock",                                SbS_getBlock1                                             )
        .def( "getBlock",                                SbS_getBlock2                                             )
@@ -1062,23 +923,20 @@ void exportStructuredBlockStorage()
        .def( "atDomainYMaxBorder",                      &SbS_atDomainYMaxBorder                                   )
        .def( "atDomainZMinBorder",                      &SbS_atDomainZMinBorder                                   )
        .def( "atDomainZMaxBorder",                      &SbS_atDomainZMaxBorder                                   )
-       .def( "dx",                                      &StructuredBlockStorage::dx, ( args("level")=0 )          )
-       .def( "dy",                                      &StructuredBlockStorage::dy, ( args("level")=0 )          )
-       .def( "dz",                                      &StructuredBlockStorage::dz, ( args("level")=0 )          )
-       .def( "getDomainCellBB",                         &StructuredBlockStorage::getDomainCellBB, return_value_policy<copy_const_reference>(),  ( args( "level") = 0 )  )
+       .def( "dx",                                      &StructuredBlockStorage::dx         )
+       .def( "dy",                                      &StructuredBlockStorage::dy          )
+       .def( "dz",                                      &StructuredBlockStorage::dz          )
+       .def_property_readonly( "getDomainCellBB",                         &StructuredBlockStorage::getDomainCellBB)
        .def( "getBlockCellBB",                          &SbS_getBlockCellBB  )
        .def( "transformGlobalToLocal",                  &SbS_transformGlobalToLocal )
        .def( "transformLocalToGlobal",                  &SbS_transformLocalToGlobal )
        .def( "writeBlockData",                          &SbS_writeBlockData )
        .def( "readBlockData",                           &SbS_readBlockData )
-       .add_property("__iter__",                        &StructuredBlockStorage_iter                            )
-       .add_property( "containsGlobalBlockInformation", &StructuredBlockStorage::containsGlobalBlockInformation )
-       .add_property( "periodic",                       &SbS_periodic )
+       .def("__iter__",                        &StructuredBlockStorage_iter, py::keep_alive<1, 2>())
+       .def_property_readonly( "containsGlobalBlockInformation", &StructuredBlockStorage::containsGlobalBlockInformation )
+       .def_property_readonly( "periodic",                       &SbS_periodic )
        ;
 
-#if BOOST_VERSION < 106300
-   exportSharedPtr<StructuredBlockStorage>();
-#endif
 }
 
 //======================================================================================================================
@@ -1087,20 +945,16 @@ void exportStructuredBlockStorage()
 //
 //======================================================================================================================
 
-void exportCommunication()
+void exportCommunication(py::module_ &m)
 {
    using communication::UniformPackInfo;
-   class_< UniformPackInfo, shared_ptr<UniformPackInfo>, boost::noncopyable> //NOLINT
-      ( "UniformPackInfo", no_init );
+   py::class_< UniformPackInfo, shared_ptr<UniformPackInfo>> //NOLINT
+      (m, "UniformPackInfo" );
 
    using communication::UniformMPIDatatypeInfo;
-   class_< UniformMPIDatatypeInfo, shared_ptr<UniformMPIDatatypeInfo>, boost::noncopyable>
-      ( "UniformMPIDatatypeInfo", no_init );
+   py::class_< UniformMPIDatatypeInfo, shared_ptr<UniformMPIDatatypeInfo>>
+      (m, "UniformMPIDatatypeInfo" );
 
-#if BOOST_VERSION < 106300
-   exportSharedPtr<UniformPackInfo>();
-   exportSharedPtr<UniformMPIDatatypeInfo>();
-#endif
 }
 
 //======================================================================================================================
@@ -1109,65 +963,61 @@ void exportCommunication()
 //
 //======================================================================================================================
 
-void exportStencilDirections()
+void exportStencilDirections(py::module_ &m)
 {
-   ModuleScope build_info( "stencil");
+      py::enum_< stencil::Direction >(m, "Direction")
+         .value("C", stencil::C)
+         .value("N", stencil::N)
+         .value("S", stencil::S)
+         .value("W", stencil::W)
+         .value("E", stencil::E)
+         .value("T", stencil::T)
+         .value("B", stencil::B)
+         .value("NW", stencil::NW)
+         .value("NE", stencil::NE)
+         .value("SW", stencil::SW)
+         .value("SE", stencil::SE)
+         .value("TN", stencil::TN)
+         .value("TS", stencil::TS)
+         .value("TW", stencil::TW)
+         .value("TE", stencil::TE)
+         .value("BN", stencil::BN)
+         .value("BS", stencil::BS)
+         .value("BW", stencil::BW)
+         .value("BE", stencil::BE)
+         .value("TNE", stencil::TNE)
+         .value("TNW", stencil::TNW)
+         .value("TSE", stencil::TSE)
+         .value("TSW", stencil::TSW)
+         .value("BNE", stencil::BNE)
+         .value("BNW", stencil::BNW)
+         .value("BSE", stencil::BSE)
+         .value("BSW", stencil::BSW)
+         .export_values();
+      py::list cx;
 
-   enum_<stencil::Direction>("Direction")
-       .value("C"  , stencil::C  )
-       .value("N"  , stencil::N  )
-       .value("S"  , stencil::S  )
-       .value("W"  , stencil::W  )
-       .value("E"  , stencil::E  )
-       .value("T"  , stencil::T  )
-       .value("B"  , stencil::B  )
-       .value("NW" , stencil::NW )
-       .value("NE" , stencil::NE )
-       .value("SW" , stencil::SW )
-       .value("SE" , stencil::SE )
-       .value("TN" , stencil::TN )
-       .value("TS" , stencil::TS )
-       .value("TW" , stencil::TW )
-       .value("TE" , stencil::TE )
-       .value("BN" , stencil::BN )
-       .value("BS" , stencil::BS )
-       .value("BW" , stencil::BW )
-       .value("BE" , stencil::BE )
-       .value("TNE", stencil::TNE)
-       .value("TNW", stencil::TNW)
-       .value("TSE", stencil::TSE)
-       .value("TSW", stencil::TSW)
-       .value("BNE", stencil::BNE)
-       .value("BNW", stencil::BNW)
-       .value("BSE", stencil::BSE)
-       .value("BSW", stencil::BSW)
-       .export_values()
-       ;
-   boost::python::list cx;
+      py::list cy;
 
-   boost::python::list cy;
+      py::list cz;
 
-   boost::python::list cz;
+      py::list dirStrings;
+      for (uint_t i = 0; i < stencil::NR_OF_DIRECTIONS; ++i)
+      {
+         cx.append(stencil::cx[i]);
+         cy.append(stencil::cy[i]);
+         cz.append(stencil::cz[i]);
+         dirStrings.append(stencil::dirToString[i]);
+      }
+      py::list c;
+      c.append(cx);
+      c.append(cy);
+      c.append(cz);
 
-   boost::python::list dirStrings;
-   for( uint_t i=0; i < stencil::NR_OF_DIRECTIONS; ++i  )
-   {
-      cx.append( stencil::cx[i] );
-      cy.append( stencil::cy[i] );
-      cz.append( stencil::cz[i] );
-      dirStrings.append( stencil::dirToString[i] );
-   }
-   boost::python::list c;
-   c.append( cx );
-   c.append( cy );
-   c.append( cz );
-
-   using boost::python::scope;
-   scope().attr("cx") = cx;
-   scope().attr("cy") = cy;
-   scope().attr("cz") = cz;
-   scope().attr("c") = c;
-   scope().attr("dirStrings") = dirStrings;
+      m.attr("cx") = cx;
+      m.attr("cy") = cy;
+      m.attr("cz") = cz;
+      m.attr("c") = c;
+      m.attr("dirStrings") = dirStrings;
 }
 
 
@@ -1178,56 +1028,56 @@ void exportStencilDirections()
 //======================================================================================================================
 
 
-void exportBuildInfo()
+void exportBuildInfo(py::module_ &m)
 {
-   ModuleScope build_info( "build_info");
-   using boost::python::scope;
-   scope().attr("version")         = WALBERLA_GIT_SHA1;
-   scope().attr("type" )           = WALBERLA_BUILD_TYPE;
-   scope().attr("compiler_flags" ) = WALBERLA_COMPILER_FLAGS;
-   scope().attr("build_machine" )  = WALBERLA_BUILD_MACHINE;
-   scope().attr("source_dir")      = WALBERLA_SOURCE_DIR;
-   scope().attr("build_dir")       = WALBERLA_BUILD_DIR;
+//   ModuleScope build_info( "build_info");
+//   using py::scope;
+   m.attr("version")         = WALBERLA_GIT_SHA1;
+   m.attr("type" )           = WALBERLA_BUILD_TYPE;
+   m.attr("compiler_flags" ) = WALBERLA_COMPILER_FLAGS;
+   m.attr("build_machine" )  = WALBERLA_BUILD_MACHINE;
+   m.attr("source_dir")      = WALBERLA_SOURCE_DIR;
+   m.attr("build_dir")       = WALBERLA_BUILD_DIR;
 }
 
 
 
 
-void exportBasicWalberlaDatastructures()
+void exportBasicWalberlaDatastructures(py::module_ &m)
 {
 
-   NumpyIntConversion<uint8_t>();
-   NumpyIntConversion<int32_t>();
-   NumpyIntConversion<int64_t>();
-   NumpyIntConversion<uint32_t>();
-   NumpyIntConversion<uint64_t>();
-   NumpyIntConversion<size_t>();
-   NumpyIntConversion<bool>();
-   NumpyFloatConversion<float>();
-   NumpyFloatConversion<double>();
-   NumpyFloatConversion<long double>();
+//   NumpyIntConversion<uint8_t>();
+//   NumpyIntConversion<int32_t>();
+//   NumpyIntConversion<int64_t>();
+//   NumpyIntConversion<uint32_t>();
+//   NumpyIntConversion<uint64_t>();
+//   NumpyIntConversion<size_t>();
+//   NumpyIntConversion<bool>();
+//   NumpyFloatConversion<float>();
+//   NumpyFloatConversion<double>();
+//   NumpyFloatConversion<long double>();
 
 
-   exportMPI();
+   exportMPI(m);
 
-   exportBuildInfo();
-   exportVector3();
-   exportCell();
-   exportCellInterval();
-   exportAABB();
+   exportBuildInfo(m);
+//   exportVector3();
+//   exportCell();
+   exportCellInterval(m);
+   exportAABB(m);
 
-   exportTiming();
+   exportTiming(m);
 
-   exportIBlock();
-   exportStructuredBlockStorage();
-   exportCommunication();
+   exportIBlock(m);
+   exportStructuredBlockStorage(m);
+   exportCommunication(m);
 
-   exportLogging();
-   exportStencilDirections();
+   exportLogging(m);
+   exportStencilDirections(m);
 
    // Add empty callbacks module
-   object callbackModule( handle<>( borrowed(PyImport_AddModule("walberla_cpp.callbacks"))));
-   scope().attr("callbacks") = callbackModule;
+   // py::object callbackModule( handle<>( borrowed(PyImport_AddModule("walberla_cpp.callbacks"))));
+   // m.attr("callbacks") = callbackModule;
 
 }
 

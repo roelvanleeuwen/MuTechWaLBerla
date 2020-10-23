@@ -19,38 +19,38 @@
 //
 //======================================================================================================================
 
-#pragma once
-
-#include "python_coupling/PythonWrapper.h"
-
-#include <string>
-
-namespace walberla {
-namespace python_coupling {
-
-
-   class ModuleScope : public boost::python::scope
-   {
-   public:
-      ModuleScope( const std::string & name)
-         : boost::python::scope ( ModuleScope::createNew( name ) )
-      {}
-
-   private:
-      static boost::python::object createNew ( const std::string & name )
-      {
-         using namespace boost::python;
-         object module( handle<>( borrowed(PyImport_AddModule( name.c_str() ) ) ) );
-         scope().attr( name.c_str() ) = module;
-         return module;
-      }
-
-   };
-
-
-
-
-} // namespace python_coupling
-} // namespace walberla
+//#pragma once
+//
+//#include "python_coupling/PythonWrapper.h"
+//
+//#include <string>
+//
+//namespace walberla {
+//namespace python_coupling {
+//
+//
+//   class ModuleScope : public boost::python::scope
+//   {
+//   public:
+//      ModuleScope( const std::string & name)
+//         : boost::python::scope ( ModuleScope::createNew( name ) )
+//      {}
+//
+//   private:
+//      static boost::python::object createNew ( const std::string & name )
+//      {
+//         using namespace boost::python;
+//         object module( handle<>( borrowed(PyImport_AddModule( name.c_str() ) ) ) );
+//         scope().attr( name.c_str() ) = module;
+//         return module;
+//      }
+//
+//   };
+//
+//
+//
+//
+//} // namespace python_coupling
+//} // namespace walberla
 
 

@@ -37,7 +37,7 @@
 #include "domain_decomposition/StructuredBlockStorage.h"
 
 #include "python_coupling/Manager.h"
-#include "python_coupling/helper/ConfigFromDict_pybind.h"
+#include "python_coupling/helper/ConfigFromDict.h"
 
 #include "stencil/D3Q7.h"
 #include "stencil/D3Q19.h"
@@ -48,17 +48,7 @@
 #include <memory>
 
 #include <sstream>
-
-#ifdef _MSC_VER
-#  pragma warning(push)
-// disable warning boost/python/raw_function.hpp(55): warning C4267: 'argument' : conversion from 'size_t' to 'int', possible loss of data
-#  pragma warning( disable : 4267 )
-#endif //_MSC_VER
-#include <boost/python/raw_function.hpp>
 #include <utility>
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#endif //_MSC_VER
 
 
 namespace walberla {
@@ -124,7 +114,7 @@ py::object python_createUniformBlockGrid(py::tuple args, py::dict kw) //NOLINT
       }
    }
 
-   shared_ptr<Config> cfg = python_coupling::configFromPythonDict_pybind( kw );
+   shared_ptr<Config> cfg = python_coupling::configFromPythonDict( kw );
 
    try {
       shared_ptr< StructuredBlockForest > blocks = createUniformBlockGridFromConfig( cfg->getGlobalBlock(), nullptr, keepGlobalBlockInformation );

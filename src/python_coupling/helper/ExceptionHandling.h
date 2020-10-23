@@ -28,41 +28,45 @@
 namespace walberla {
 namespace python_coupling {
 
-   // Call this function when a boost::python::already_set exception was caught
-   // returns formatted error string with traceback
-   inline std::string decodeException()
+//   // Call this function when a boost::python::already_set exception was caught
+//   // returns formatted error string with traceback
+//   inline std::string decodeException()
+//   {
+//       namespace bp = boost::python;
+//
+//       PyObject *exc,*val,*tb;
+//
+//       bp::object formatted_list, formatted;
+//       PyErr_Fetch(&exc,&val,&tb);
+//       PyErr_NormalizeException(&exc, &val, &tb);
+//       bp::handle<> hexc( exc );
+//       bp::handle<> hval( bp::allow_null(val) );
+//       bp::handle<> htb ( bp::allow_null(tb)  );
+//       bp::object traceback( bp::import("traceback"));
+//
+//       if (!tb) {
+//           bp::object format_exception_only( traceback.attr("format_exception_only"));
+//           formatted_list = format_exception_only(hexc,hval);
+//       } else {
+//          bp::object format_exception(traceback.attr("format_exception"));
+//          formatted_list = format_exception(hexc,hval,htb);
+//       }
+//       formatted = bp::str("").join(formatted_list);
+//       return bp::extract<std::string>(formatted);
+//   }
+
+
+   inline void terminateOnPythonException(py::error_already_set &e, const std::string fileName )
    {
-       namespace bp = boost::python;
-
-       PyObject *exc,*val,*tb;
-
-       bp::object formatted_list, formatted;
-       PyErr_Fetch(&exc,&val,&tb);
-       PyErr_NormalizeException(&exc, &val, &tb);
-       bp::handle<> hexc( exc );
-       bp::handle<> hval( bp::allow_null(val) );
-       bp::handle<> htb ( bp::allow_null(tb)  );
-       bp::object traceback( bp::import("traceback"));
-
-       if (!tb) {
-           bp::object format_exception_only( traceback.attr("format_exception_only"));
-           formatted_list = format_exception_only(hexc,hval);
-       } else {
-          bp::object format_exception(traceback.attr("format_exception"));
-          formatted_list = format_exception(hexc,hval,htb);
-       }
-       formatted = bp::str("").join(formatted_list);
-       return bp::extract<std::string>(formatted);
-   }
-
-
-   inline void terminateOnPythonException( const std::string message )
-   {
-      if (PyErr_Occurred()) {
-          std::string decodedException = decodeException();
-          WALBERLA_ABORT_NO_DEBUG_INFO( message << "\n\n" << decodedException  );
+      if (e.matches(PyExc_FileNotFoundError)) {
+         WALBERLA_ABORT_NO_DEBUG_INFO(fileName << ": File not found")
+      } else if (e.matches(PyExc_PermissionError)) {
+         WALBERLA_ABORT_NO_DEBUG_INFO(fileName << ": File found but not accessible")
+      } else {
+         throw;
       }
-      WALBERLA_ABORT_NO_DEBUG_INFO( message << " (unable to decode Python exception) " );
+
+      WALBERLA_ABORT_NO_DEBUG_INFO( "Error while opening " << fileName << " unable to decode Python exception" );
    }
 
 

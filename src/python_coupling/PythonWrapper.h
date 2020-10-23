@@ -36,9 +36,7 @@
 #endif
 #endif
 
-#include <boost/python.hpp>
-#include <boost/python/stl_iterator.hpp>
-#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+#include "pybind11/pybind11.h"
 
 #ifdef _MSC_VER
 #ifdef __CREATED_HAVE_ROUND

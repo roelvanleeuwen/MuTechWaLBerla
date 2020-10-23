@@ -33,7 +33,7 @@ namespace python_coupling {
 
 
    void importModuleOrFile( const std::string & moduleOrFile,
-                            const std::vector< std::string > & argv = std::vector<std::string>() );
+                                   const std::vector< std::string > & argv = std::vector<std::string>() );
 
    //*******************************************************************************************************************
    /*! Run a Python function from C++ code
@@ -79,8 +79,8 @@ namespace python_coupling {
       PythonCallback();
       PythonCallback( const std::string & functionName );
       PythonCallback( const std::string & moduleOrFile,
-                      const std::string & functionName,
-                      const std::vector<std::string> & argv = std::vector<std::string>() );
+                             const std::string & functionName,
+                             const std::vector<std::string> & argv = std::vector<std::string>() );
 
             DictWrapper & data()       { return *exposedVars_; }
       const DictWrapper & data() const { return *exposedVars_; }

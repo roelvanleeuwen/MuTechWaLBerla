@@ -25,7 +25,8 @@
 
 #pragma once
 
-#include "PythonWrapper.h"
+// #include "PythonWrapper.h"
+#include <pybind11/pybind11.h>
 #include "core/DataTypes.h"
 #include "core/Abort.h"
 
@@ -34,6 +35,7 @@
 
 namespace walberla {
 namespace python_coupling {
+   namespace py = pybind11;
 
 
    class DictWrapper
@@ -43,9 +45,9 @@ namespace python_coupling {
       //** Expose Data *************************************************************************************************
       /*! \name Expose Data */
       //@{
-      template<typename T>  inline void exposePtr( const std::string & name, T * var );
-      template<typename T>  inline void exposePtr( const std::string & name, const shared_ptr<T> & var );
-      template<typename T>  void exposeValue     ( const std::string & name, const T & var );
+      template<typename T>  inline void exposePtr(const char* name, T * var );
+      template<typename T>  inline void exposePtr(const char* name, const shared_ptr<T> & var );
+      template<typename T>  void exposeValue     ( const char* name, const T & var );
       //@}
       //****************************************************************************************************************
 
@@ -53,19 +55,19 @@ namespace python_coupling {
       //** Get Data  ***************************************************************************************************
       /*! \name Get Data */
       //@{
-      template<typename T> inline T    get( const std::string & name );
-      template<typename T> inline bool has( const std::string & name );
-      template<typename T> inline bool checkedGet( const std::string & name, T output );
+      template<typename T> inline T    get( const char* name );
+      template<typename T> inline bool has( const char* name );
+      template<typename T> inline bool checkedGet( const char* name, T output );
       //@}
       //****************************************************************************************************************
 
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
    public:
-            boost::python::dict & dict()        { return d_; }
-      const boost::python::dict & dict() const  { return d_; }
+            py::dict & dict()        { return d_; }
+      const py::dict & dict() const  { return d_; }
    protected:
-      boost::python::dict d_;
+            py::dict d_;
 #endif
    };
 

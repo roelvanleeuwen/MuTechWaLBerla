@@ -22,14 +22,15 @@
 #pragma once
 
 #include "waLBerlaDefinitions.h"
+#include "python_coupling/PythonWrapper.h"
 #ifdef WALBERLA_BUILD_WITH_PYTHON
-
+namespace py = pybind11;
 namespace walberla {
 namespace mesh {
 
 
    template<typename FlagFields>
-   void exportModuleToPython();
+   void exportModuleToPython(py::module_ &m);
 
 
 } // namespace mesh

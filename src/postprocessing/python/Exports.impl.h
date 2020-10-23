@@ -32,7 +32,7 @@
 
 #include "postprocessing/FieldToSurfaceMesh.h"
 
-using namespace boost::python;
+namespace py = pybind11;
 
 
 namespace walberla {
@@ -84,38 +84,38 @@ typename FField::value_type maskFromFlagList(  const shared_ptr<StructuredBlockS
 
 
 template<typename FlagField_T>
-boost::python::object adaptedFlagFieldToSurfaceMesh( const shared_ptr<StructuredBlockStorage> & bs,
+py::object adaptedFlagFieldToSurfaceMesh( const shared_ptr<StructuredBlockStorage> & bs,
                                                      ConstBlockDataID fieldID, const std::vector< std::string > & flagList,
                                                      bool calcNormals = false, int targetRank = 0 )
 {
-   using namespace boost::python;
+   namespace py = pybind11;
 
    auto mask = maskFromFlagList<FlagField_T>( bs, fieldID, flagList );
-   return object( flagFieldToSurfaceMesh<FlagField_T>(bs, fieldID, mask, calcNormals, targetRank ) );
+   return py::object( flagFieldToSurfaceMesh<FlagField_T>(bs, fieldID, mask, calcNormals, targetRank ) );
 }
 
 
 FunctionExporterClass( adaptedFlagFieldToSurfaceMesh,
-                       boost::python::object( const shared_ptr<StructuredBlockStorage> &, ConstBlockDataID,
+                       py::object( const shared_ptr<StructuredBlockStorage> &, ConstBlockDataID,
                                               const std::vector< std::string > &, bool,int  ) );
 
 
 template<typename... FieldTypes>
-static boost::python::object exp_flagFieldToSurfaceMesh ( const shared_ptr<StructuredBlockStorage> & bs,
+static py::object exp_flagFieldToSurfaceMesh ( const shared_ptr<StructuredBlockStorage> & bs,
                                                           const std::string & blockDataName,
-                                                          const boost::python::list & flagList,
+                                                          const py::list & flagList,
                                                           bool calcNormals = false, int targetRank = 0 )
 {
    if ( bs->begin() == bs->end() )
-      return boost::python::object(); //TODO check if this is correct
+      return py::object(); //TODO check if this is correct
 
    IBlock * firstBlock =  & ( * bs->begin() );
 
    auto fieldID = python_coupling::blockDataIDFromString( *bs, blockDataName );
 
-   auto flagVector = python_coupling::pythonIterableToStdVector<std::string>( flagList );
+   // auto flagVector = python_coupling::pythonIterableToStdVector<std::string>( flagList );
    python_coupling::Dispatcher<Exporter_adaptedFlagFieldToSurfaceMesh, FieldTypes... > dispatcher( firstBlock );
-   return dispatcher( fieldID )( bs, fieldID, flagVector, calcNormals, targetRank );
+   return dispatcher( fieldID )( bs, fieldID, flagList, calcNormals, targetRank );
 }
 
 
@@ -127,20 +127,20 @@ struct ExportFieldToPython;
 template <typename FieldType>
 struct ExportFieldToPython<FieldType, typename std::enable_if< ! std::is_same<FieldType, FlagField<typename FieldType::value_type>>::value >::type>
 {
-   static void exec()
+   static void exec(py::module_ &m)
    {
-      def( "realFieldToMesh", &exp_realFieldToSurfaceMesh<FieldType>,
-               ( arg("blocks"), arg("blockDataName"),  arg("fCoord")=0, arg("calcNormals") = false, arg("targetRank")=0 ) );
+      m.def( "realFieldToMesh", &exp_realFieldToSurfaceMesh<FieldType>,
+            py::arg("blocks"), py::arg("blockDataName"),  py::arg("fCoord")=0, py::arg("calcNormals") = false, py::arg("targetRank")=0 );
    }
 };
 
 template <typename FieldType>
 struct ExportFieldToPython<FieldType, typename std::enable_if< std::is_same<FieldType, FlagField<typename FieldType::value_type>>::value >::type>
 {
-   static void exec()
+   static void exec(py::module_ &m)
    {
-      def( "flagFieldToMesh", &exp_flagFieldToSurfaceMesh<FieldType>,
-               ( arg("blocks"), arg("blockDataName"), arg("flagList"), arg("calcNormals") = false, arg("targetRank")=0  ) );
+      m.def( "flagFieldToMesh", &exp_flagFieldToSurfaceMesh<FieldType>,
+            py::arg("blocks"), py::arg("blockDataName"), py::arg("flagList"), py::arg("calcNormals") = false, py::arg("targetRank")=0  );
    }
 };
 
@@ -151,17 +151,17 @@ struct ExportFieldsToPython;
 template<typename FieldType, typename... FieldTypes>
 struct ExportFieldsToPython<FieldType, FieldTypes...>
 {
-   static void exec()
+   static void exec(py::module_ &m)
    {
-      ExportFieldToPython<FieldType>::exec();
-      ExportFieldsToPython<FieldTypes...>::exec();
+      ExportFieldToPython<FieldType>::exec(m);
+      ExportFieldsToPython<FieldTypes...>::exec(m);
    }
 };
 
 template<>
 struct ExportFieldsToPython<>
 {
-   static void exec()
+   static void exec(py::module_ &m)
    {}
 };
 
@@ -170,11 +170,11 @@ struct ExportFieldsToPython<>
 
 
 template<typename... FieldTypes>
-void exportModuleToPython()
+void exportModuleToPython(py::module_ &m)
 {
    python_coupling::ModuleScope fieldModule( "postprocessing" );
    
-   internal::ExportFieldsToPython<FieldTypes...>::exec();
+   internal::ExportFieldsToPython<FieldTypes...>::exec(m);
 }
 
 

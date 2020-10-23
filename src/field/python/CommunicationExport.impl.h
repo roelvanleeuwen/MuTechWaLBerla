@@ -45,6 +45,7 @@ namespace field {
 
 
 namespace internal {
+   namespace py = pybind11;
 
    //===================================================================================================================
    //
@@ -53,48 +54,48 @@ namespace internal {
    //===================================================================================================================
 
    template< typename FieldType >
-   typename std::enable_if<FieldType::F_SIZE == 27, boost::python::object>::type
+   typename std::enable_if<FieldType::F_SIZE == 27, py::object>::type
    createStencilRestrictedPackInfoObject( BlockDataID bdId )
    {
       typedef GhostLayerField<typename FieldType::value_type, 27> GlField_T;
       using field::communication::StencilRestrictedPackInfo;
-      return boost::python::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q27> >( bdId) );
+      return py::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q27> >( bdId) );
    }
 
    template< typename FieldType >
-   typename std::enable_if<FieldType::F_SIZE == 19, boost::python::object>::type
+   typename std::enable_if<FieldType::F_SIZE == 19, py::object>::type
    createStencilRestrictedPackInfoObject( BlockDataID bdId )
    {
       typedef GhostLayerField<typename FieldType::value_type, 19> GlField_T;
       using field::communication::StencilRestrictedPackInfo;
-      return boost::python::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q19> >( bdId) );
+      return py::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q19> >( bdId) );
    }
 
    template< typename FieldType >
-   typename std::enable_if<FieldType::F_SIZE == 15, boost::python::object>::type
+   typename std::enable_if<FieldType::F_SIZE == 15, py::object>::type
    createStencilRestrictedPackInfoObject( BlockDataID bdId )
    {
       typedef GhostLayerField<typename FieldType::value_type, 15> GlField_T;
       using field::communication::StencilRestrictedPackInfo;
-      return boost::python::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q15> >( bdId) );
+      return py::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q15> >( bdId) );
    }
 
    template< typename FieldType >
-   typename std::enable_if<FieldType::F_SIZE == 7, boost::python::object>::type
+   typename std::enable_if<FieldType::F_SIZE == 7, py::object>::type
    createStencilRestrictedPackInfoObject( BlockDataID bdId )
    {
       typedef GhostLayerField<typename FieldType::value_type, 7> GlField_T;
       using field::communication::StencilRestrictedPackInfo;
-      return boost::python::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q7> >( bdId) );
+      return py::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q7> >( bdId) );
    }
 
    template< typename FieldType >
-   typename std::enable_if<FieldType::F_SIZE == 9, boost::python::object>::type
+   typename std::enable_if<FieldType::F_SIZE == 9, py::object>::type
    createStencilRestrictedPackInfoObject( BlockDataID bdId )
    {
       typedef GhostLayerField<typename FieldType::value_type, 9> GlField_T;
       using field::communication::StencilRestrictedPackInfo;
-      return boost::python::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D2Q9> >( bdId) );
+      return py::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D2Q9> >( bdId) );
    }
 
    template< typename FieldType >
@@ -102,17 +103,17 @@ namespace internal {
                              FieldType::F_SIZE == 7  ||
                              FieldType::F_SIZE == 15 ||
                              FieldType::F_SIZE == 19 ||
-                             FieldType::F_SIZE == 27), boost::python::object>::type
+                             FieldType::F_SIZE == 27), py::object>::type
    createStencilRestrictedPackInfoObject( BlockDataID )
    {
       PyErr_SetString( PyExc_ValueError, "This works only for fields with fSize in 7, 9, 15, 19 or 27" );
-      throw boost::python::error_already_set();
+      throw py::error_already_set();
    }
 
-   FunctionExporterClass( createStencilRestrictedPackInfoObject, boost::python::object( BlockDataID ) );
+   FunctionExporterClass( createStencilRestrictedPackInfoObject, py::object( BlockDataID ) );
 
    template< typename... FieldTypes>
-   boost::python::object createStencilRestrictedPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
+   py::object createStencilRestrictedPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
                                                           const std::string & blockDataName )
    {
       auto bdId = python_coupling::blockDataIDFromString( *bs, blockDataName );
@@ -133,21 +134,21 @@ namespace internal {
    //===================================================================================================================
 
    template< typename FieldType >
-   boost::python::object createPackInfoToObject( BlockDataID bdId, uint_t numberOfGhostLayers )
+   py::object createPackInfoToObject( BlockDataID bdId, uint_t numberOfGhostLayers )
    {
       typedef typename FieldType::value_type T;
       const uint_t F_SIZE = FieldType::F_SIZE;
-      typedef GhostLayerField<T,F_SIZE> GlField_T;
+      typedef GhostLayerField<T, F_SIZE> GlField_T;
       if ( numberOfGhostLayers > 0  )
-         return boost::python::object( make_shared< field::communication::PackInfo<GlField_T> >( bdId, numberOfGhostLayers ) );
+         return py::object( make_shared< field::communication::PackInfo<GlField_T> >( bdId, numberOfGhostLayers ) );
       else
-         return boost::python::object( make_shared< field::communication::PackInfo<GlField_T> >( bdId ) );
+         return py::object( make_shared< field::communication::PackInfo<GlField_T> >( bdId ) );
    }
 
-   FunctionExporterClass( createPackInfoToObject, boost::python::object( BlockDataID, uint_t  ) );
+   FunctionExporterClass( createPackInfoToObject, py::object( BlockDataID, uint_t  ) );
 
    template< typename... FieldTypes>
-   boost::python::object createPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
+   py::object createPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
                                          const std::string & blockDataName, uint_t numberOfGhostLayers )
    {
       auto bdId = python_coupling::blockDataIDFromString( *bs, blockDataName );
@@ -170,23 +171,23 @@ namespace internal {
 
 
    template< typename FieldType >
-   boost::python::object createMPIDatatypeInfoToObject( BlockDataID bdId, uint_t numberOfGhostLayers )
+   py::object createMPIDatatypeInfoToObject( BlockDataID bdId, uint_t numberOfGhostLayers )
    {
       typedef typename FieldType::value_type T;
       const uint_t F_SIZE = FieldType::F_SIZE;
-      typedef GhostLayerField<T,F_SIZE> GlField_T;
+      typedef GhostLayerField<T, F_SIZE> GlField_T;
       using field::communication::UniformMPIDatatypeInfo;
 
       if ( numberOfGhostLayers > 0 )
-         return boost::python::object( make_shared< UniformMPIDatatypeInfo<GlField_T> >( bdId, numberOfGhostLayers ) );
+         return py::object( make_shared< UniformMPIDatatypeInfo<GlField_T> >( bdId, numberOfGhostLayers ) );
       else
-         return boost::python::object( make_shared< UniformMPIDatatypeInfo<GlField_T> >( bdId ) );
+         return py::object( make_shared< UniformMPIDatatypeInfo<GlField_T> >( bdId ) );
    }
 
-   FunctionExporterClass( createMPIDatatypeInfoToObject, boost::python::object( BlockDataID, uint_t  ) );
+   FunctionExporterClass( createMPIDatatypeInfoToObject, py::object( BlockDataID, uint_t  ) );
 
    template< typename... FieldTypes>
-   boost::python::object createMPIDatatypeInfo( const shared_ptr<StructuredBlockStorage> & bs,
+   py::object createMPIDatatypeInfo( const shared_ptr<StructuredBlockStorage> & bs,
                                                 const std::string & blockDataName,
                                                 uint_t numberOfGhostLayers)
    {
@@ -202,30 +203,28 @@ namespace internal {
    }
 
    template< typename T>
-   void exportStencilRestrictedPackInfo()
+   void exportStencilRestrictedPackInfo(py::module_ &m)
    {
       using field::communication::StencilRestrictedPackInfo;
-      using namespace boost::python;
-
       {
          typedef StencilRestrictedPackInfo<GhostLayerField<T, 9>, stencil::D2Q9> Pi;
-         class_< Pi, shared_ptr<Pi>, bases<walberla::communication::UniformPackInfo>,  boost::noncopyable >( "StencilRestrictedPackInfo", no_init );
+         py::class_< Pi, shared_ptr<Pi>, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo" );
       }
       {
          typedef StencilRestrictedPackInfo<GhostLayerField<T, 7>, stencil::D3Q7> Pi;
-         class_< Pi, shared_ptr<Pi>, bases<walberla::communication::UniformPackInfo>,  boost::noncopyable >( "StencilRestrictedPackInfo", no_init );
+         py::class_< Pi, shared_ptr<Pi>, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo" );
       }
       {
          typedef StencilRestrictedPackInfo<GhostLayerField<T, 15>, stencil::D3Q15> Pi;
-         class_< Pi, shared_ptr<Pi>, bases<walberla::communication::UniformPackInfo>,  boost::noncopyable >( "StencilRestrictedPackInfo", no_init );
+         py::class_< Pi, shared_ptr<Pi>, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo" );
       }
       {
          typedef StencilRestrictedPackInfo<GhostLayerField<T, 19>, stencil::D3Q19> Pi;
-         class_< Pi, shared_ptr<Pi>, bases<walberla::communication::UniformPackInfo>,  boost::noncopyable >( "StencilRestrictedPackInfo", no_init );
+         py::class_< Pi, shared_ptr<Pi>, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo" );
       }
       {
          typedef StencilRestrictedPackInfo<GhostLayerField<T, 27>, stencil::D3Q27> Pi;
-         class_< Pi, shared_ptr<Pi>, bases<walberla::communication::UniformPackInfo>,  boost::noncopyable >( "StencilRestrictedPackInfo", no_init );
+         py::class_< Pi, shared_ptr<Pi>, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo" );
       }
 
    }
@@ -234,20 +233,19 @@ namespace internal {
 
 
 
-
+namespace py = pybind11;
 
 template<typename... FieldTypes>
-void exportCommunicationClasses()
+void exportCommunicationClasses(py::module_ &m)
 {
-   using namespace boost::python;
 
-   internal::exportStencilRestrictedPackInfo<float>();
-   internal::exportStencilRestrictedPackInfo<double>();
+   internal::exportStencilRestrictedPackInfo<float>(m);
+   internal::exportStencilRestrictedPackInfo<double>(m);
 
-   def( "createMPIDatatypeInfo",&internal::createMPIDatatypeInfo<FieldTypes...>, ( arg("blocks"), arg("blockDataName"), arg("numberOfGhostLayers" ) =0 ) );
-   def( "createPackInfo",       &internal::createPackInfo<FieldTypes...>,        ( arg("blocks"), arg("blockDataName"), arg("numberOfGhostLayers" ) =0 ) );
-   def( "createStencilRestrictedPackInfo", &internal::createStencilRestrictedPackInfo<FieldTypes...>,
-        (arg("blocks"), arg("blockDataName") ));
+   m.def( "createMPIDatatypeInfo",&internal::createMPIDatatypeInfo<FieldTypes...>, py::arg("blocks"), py::arg("blockDataName"), py::arg("numberOfGhostLayers" ) =0  );
+   m.def( "createPackInfo",       &internal::createPackInfo<FieldTypes...>,        py::arg("blocks"), py::arg("blockDataName"), py::arg("numberOfGhostLayers" ) =0 );
+   m.def( "createStencilRestrictedPackInfo", &internal::createStencilRestrictedPackInfo<FieldTypes...>,
+        py::arg("blocks"), py::arg("blockDataName") );
 }
 
 

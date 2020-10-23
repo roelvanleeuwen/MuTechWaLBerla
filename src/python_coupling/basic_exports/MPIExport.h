@@ -27,7 +27,7 @@ namespace python_coupling {
 
 
 
-   void exportMPI();
+   void exportMPI(py::module_ &m);
 
 
 

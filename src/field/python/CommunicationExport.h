@@ -26,10 +26,11 @@
 
 namespace walberla {
 namespace field {
+namespace py = pybind11;
 
 
    template<typename... FieldTypes>
-   void exportCommunicationClasses();
+   void exportCommunicationClasses(py::module_ &m);
 
 
 } // namespace field

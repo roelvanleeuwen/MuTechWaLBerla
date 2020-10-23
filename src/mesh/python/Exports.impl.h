@@ -53,7 +53,7 @@
 #include "mesh/boundary/BoundarySetup.h"
 #include "mesh_common/vtk/VTKMeshWriter.h"
 
-using namespace boost::python;
+namespace py = pybind11;
 
 
 namespace walberla {

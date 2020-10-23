@@ -24,10 +24,11 @@
 
 namespace walberla {
 namespace python_coupling {
+namespace py = pybind11;
 
 
 
-   void exportBasicWalberlaDatastructures();
+   void exportBasicWalberlaDatastructures(py::module_ &m);
 
 
 

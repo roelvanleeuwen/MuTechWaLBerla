@@ -65,7 +65,7 @@ namespace internal {
     *         creates a numpy array which uses the field data in a read-write way! no data is copied
     *  - Python buffer protocol: http://docs.python.org/dev/c-api/buffer.html
     *  - Why so complicated?
-    *       boost::python does not yet (as in version 1.55) support the buffer protocol
+    *       py does not yet (as in version 1.55) support the buffer protocol
     *       so everything has to be written in the native Python C interface.
     *       In order to export the Field with boost python and keep the native C interface part as
     *       small as possible, a new Type called FieldBuffer is introduced which is exported in the
@@ -119,12 +119,12 @@ namespace internal {
    {
         static int get( FieldBufferPyObject * exporter, Py_buffer * view, int flags, bool withGhostLayer )
         {
-           namespace bp = boost::python;
+           namespace py = pybind11;
 
-           bp::object fieldObject ( bp::handle<>(bp::borrowed( exporter->field ) ) );
+           py::object fieldObject ( py::handle(bp::borrowed( exporter->field ) ) );
            Field<T,fs> * field = bp::extract< Field<T,fs> * > ( fieldObject );
 
-           bp::object fieldAllocObject ( bp::handle<>(bp::borrowed( exporter->fieldAlloc ) ) );
+           py::object fieldAllocObject ( bp::handle<>(bp::borrowed( exporter->fieldAlloc ) ) );
            FieldAllocator<T> * fieldAlloc = bp::extract< FieldAllocator<T> * > ( fieldAllocObject );
            fieldAlloc->incrementReferenceCount( field->data() );
 
@@ -197,7 +197,7 @@ namespace internal {
     {
         static int get( FieldBufferPyObject * exporter, Py_buffer * view, int flags, bool withGhostLayer )
         {
-           namespace bp = boost::python;
+           namespace py = pybind11;
 
            typedef VectorTrait<VectorType> VecTrait;
            typedef typename VecTrait::OutputType ElementType;
@@ -302,7 +302,7 @@ namespace internal {
    template<typename T, uint_t fs>
    static void fieldbuffer_dealloc( FieldBufferPyObject * exporter )
    {
-      namespace bp = boost::python;
+      namespace py = pybind11;
       bp::object fieldAllocObject ( bp::handle<>(bp::borrowed( exporter->fieldAlloc ) ) );
       FieldAllocator<T> * fieldAlloc = bp::extract< FieldAllocator<T> * > ( fieldAllocObject );
 
@@ -462,12 +462,12 @@ namespace internal {
    #endif
 
    // this will become the buffer() function of the field which creates the
-   // FieldBuffer object, so this function is between field (exported in boost::python) and
+   // FieldBuffer object, so this function is between field (exported in py) and
    // FieldBuffer which is exported in native Python C API
    template<typename T, uint_t fs>
-   boost::python::object field_getBufferInterface( boost::python::object field, bool withGhostLayers )
+   py::object field_getBufferInterface( py::object field, bool withGhostLayers )
    {
-      namespace bp = boost::python;
+      namespace py = pybind11;
 
       FieldBufferPyObject *obj;
       if ( withGhostLayers )
@@ -510,7 +510,7 @@ namespace internal {
          return make_shared< field::AllocateAligned<T, 128> >();
       else {
          PyErr_SetString( PyExc_ValueError, "Alignment parameter has to be one of 0, 16, 32, 64, 128." );
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
          return shared_ptr<field::FieldAllocator<T> >();
       }
    }
@@ -561,18 +561,18 @@ namespace internal {
    //===================================================================================================================
 
 
-   static inline Cell tupleToCell( boost::python::tuple & tuple  )
+   static inline Cell tupleToCell( py::tuple & tuple  )
    {
-      using boost::python::extract;
+      using py::extract;
       return Cell (  extract<cell_idx_t>( tuple[0] ),
                      extract<cell_idx_t>( tuple[1] ),
                      extract<cell_idx_t>( tuple[2] ) );
    }
 
    template<typename Field_T>
-   void field_setCellXYZ( Field_T & field, boost::python::tuple args, const typename Field_T::value_type & value )
+   void field_setCellXYZ( Field_T & field, py::tuple args, const typename Field_T::value_type & value )
    {
-      using namespace boost::python;
+      using namespace py;
 
       if ( len(args) < 3 || len(args) > 4 )
       {
@@ -594,9 +594,9 @@ namespace internal {
    }
 
    template<typename Field_T>
-   typename Field_T::value_type field_getCellXYZ( Field_T & field, boost::python::tuple args )
+   typename Field_T::value_type field_getCellXYZ( Field_T & field, py::tuple args )
    {
-      using namespace boost::python;
+      using namespace py;
       if ( len(args) < 3 || len(args) > 4 )
       {
          PyErr_SetString( PyExc_RuntimeError, "3 or 4 indices required");
@@ -619,41 +619,41 @@ namespace internal {
 
 
    template<typename Field_T>
-   boost::python::object field_size( const Field_T & field ) {
-      return boost::python::make_tuple( field.xSize(), field.ySize(), field.zSize(), field.fSize() );
+   py::object field_size( const Field_T & field ) {
+      return py::make_tuple( field.xSize(), field.ySize(), field.zSize(), field.fSize() );
    }
 
    template<typename GlField_T>
-   boost::python::object field_sizeWithGhostLayer( const GlField_T & field ) {
-      return boost::python::make_tuple( field.xSizeWithGhostLayer(), field.ySizeWithGhostLayer(), field.zSizeWithGhostLayer(), field.fSize() );
+   py::object field_sizeWithGhostLayer( const GlField_T & field ) {
+      return py::make_tuple( field.xSizeWithGhostLayer(), field.ySizeWithGhostLayer(), field.zSizeWithGhostLayer(), field.fSize() );
    }
 
 
    template<typename Field_T>
-   boost::python::object field_allocSize( const Field_T & field ) {
-      return boost::python::make_tuple( field.xAllocSize(), field.yAllocSize(),
+   py::object field_allocSize( const Field_T & field ) {
+      return py::make_tuple( field.xAllocSize(), field.yAllocSize(),
                                         field.zAllocSize(), field.fAllocSize() );
    }
 
 
    template<typename Field_T>
-   boost::python::object field_strides( const Field_T & field ) {
-      return boost::python::make_tuple( field.xStride(), field.yStride(),
+   py::object field_strides( const Field_T & field ) {
+      return py::make_tuple( field.xStride(), field.yStride(),
                                         field.zStride(), field.fStride() );
    }
 
    template<typename Field_T>
-   boost::python::object field_offsets( const Field_T & field ) {
-      return boost::python::make_tuple( field.xOff(), field.yOff(), field.zOff() );
+   py::object field_offsets( const Field_T & field ) {
+      return py::make_tuple( field.xOff(), field.yOff(), field.zOff() );
    }
 
 
    template<typename Field_T>
-   boost::python::object field_layout( const Field_T & f ) {
-      if ( f.layout() == field::fzyx ) return boost::python::object( "fzyx" );
-      if ( f.layout() == field::zyxf ) return boost::python::object( "zyxf" );
+   py::object field_layout( const Field_T & f ) {
+      if ( f.layout() == field::fzyx ) return py::object( "fzyx" );
+      if ( f.layout() == field::zyxf ) return py::object( "zyxf" );
 
-      return boost::python::object();
+      return py::object();
    }
 
 
@@ -665,7 +665,7 @@ namespace internal {
              f1.layout() != f2.layout() )
       {
          PyErr_SetString( PyExc_ValueError, "The data of fields with different sizes or layout cannot be swapped");
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
       f1.swapDataPointers( f2 );
    }
@@ -676,42 +676,42 @@ namespace internal {
       if ( ! ff.flagExists(flag) )
       {
          PyErr_SetString( PyExc_ValueError, "No such flag");
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
       return ff.getFlag( flag );
    }
 
    template<typename T>
-   boost::python::object FF_registeredFlags( const FlagField<T> & ff )
+   py::object FF_registeredFlags( const FlagField<T> & ff )
    {
       std::vector<FlagUID> flags;
       ff.getAllRegisteredFlags( flags );
-      boost::python::list result;
+      py::list result;
 
       for( auto i = flags.begin(); i != flags.end(); ++i )
          result.append( i->toString() );
-      boost::python::object objectResult = result;
+      py::object objectResult = result;
       return objectResult;
    }
 
 
    template<typename T>
-   boost::python::object FF_flagMap( const FlagField<T> & ff )
+   py::object FF_flagMap( const FlagField<T> & ff )
    {
       std::vector<FlagUID> flags;
       ff.getAllRegisteredFlags( flags );
-      boost::python::dict result;
+      py::dict result;
 
       for( auto i = flags.begin(); i != flags.end(); ++i )
          result[ i->toString() ] = ff.getFlag( *i );
-      boost::python::object objectResult = result;
+      py::object objectResult = result;
       return objectResult;
    }
 
    template<typename T>
-   boost::python::object FF_registerFlag( FlagField<T> & ff, const std::string & flag, boost::python::object bitNr )
+   py::object FF_registerFlag( FlagField<T> & ff, const std::string & flag, py::object bitNr )
    {
-      using namespace boost::python;
+      using namespace py;
 
       try {
 
@@ -725,13 +725,13 @@ namespace internal {
             }
             else {
                PyErr_SetString( PyExc_ValueError, "Parameter bitNr has to be a positive integer");
-               throw boost::python::error_already_set();
+               throw py::error_already_set();
             }
          }
       }
       catch ( std::runtime_error & e ) {
          PyErr_SetString( PyExc_ValueError, e.what() );
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
 
    }
@@ -744,13 +744,13 @@ namespace internal {
       }
       catch ( std::runtime_error & e ) {
          PyErr_SetString( PyExc_ValueError, e.what() );
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
    }
 
 
    template<typename Field_T>
-   boost::python::object copyAdaptorToField( const Field_T & f )
+   py::object copyAdaptorToField( const Field_T & f )
    {
       typedef GhostLayerField<typename Field_T::value_type, Field_T::F_SIZE> ResField;
       auto res = make_shared< ResField > ( f.xSize(), f.ySize(), f.zSize(), f.nrOfGhostLayers() );
@@ -765,7 +765,7 @@ namespace internal {
          ++srcIt;
          ++dstIt;
       }
-      return boost::python::object( res );
+      return py::object( res );
    }
 
 
@@ -779,7 +779,7 @@ namespace internal {
    template<typename T>
    void exportFlagFieldIfUnsigned( typename std::enable_if<std::is_unsigned<T>::value >::type* = 0 )
    {
-      using namespace boost::python;
+      using namespace py;
 
       class_< FlagField<T> ,
               shared_ptr<FlagField<T> >,
@@ -807,7 +807,7 @@ namespace internal {
          typedef GhostLayerField<T,F_SIZE> GlField_T;
          typedef Field<T,F_SIZE> Field_T;
 
-         using namespace boost::python;
+         using namespace py;
 
          class_<Field_T, shared_ptr<Field_T>, boost::noncopyable>( "Field", no_init )
             .add_property("layout",    &field_layout          < Field_T > )
@@ -838,7 +838,7 @@ namespace internal {
              return;
 
          Py_INCREF( (& FieldBufferType<T,F_SIZE>::value ) );
-         PyModule_AddObject( boost::python::scope().ptr(), "FieldBuffer", (PyObject *)&FieldBufferType<T,F_SIZE>::value );
+         PyModule_AddObject( py::scope().ptr(), "FieldBuffer", (PyObject *)&FieldBufferType<T,F_SIZE>::value );
 
          // Field Buffer with ghost layer
          FieldBufferTypeGl<T,F_SIZE>::value.tp_new = PyType_GenericNew;
@@ -846,7 +846,7 @@ namespace internal {
              return;
 
          Py_INCREF( (& FieldBufferTypeGl<T,F_SIZE>::value ) );
-         PyModule_AddObject( boost::python::scope().ptr(), "FieldBufferGl", (PyObject *)&FieldBufferTypeGl<T,F_SIZE>::value );
+         PyModule_AddObject( py::scope().ptr(), "FieldBufferGl", (PyObject *)&FieldBufferTypeGl<T,F_SIZE>::value );
 
 
          // Field Buffer type
@@ -884,7 +884,7 @@ namespace internal {
       template< typename Adaptor>
       void operator()( python_coupling::NonCopyableWrap<Adaptor> ) const
       {
-         using namespace boost::python;
+         using namespace py;
 
          class_< Adaptor, shared_ptr<Adaptor>, boost::noncopyable> ( name_.c_str(), no_init )
                .add_property("size",                &field_size              <Adaptor > )
@@ -908,8 +908,8 @@ namespace internal {
    {
    public:
       CreateFieldExporter( uint_t xs, uint_t ys, uint_t zs, uint_t fs, uint_t gl,
-                           Layout layout, const boost::python::object & type, uint_t alignment,
-                           const shared_ptr<boost::python::object> & resultPointer  )
+                           Layout layout, const py::object & type, uint_t alignment,
+                           const shared_ptr<py::object> & resultPointer  )
          : xs_( xs ), ys_(ys), zs_(zs), fs_(fs), gl_(gl),
            layout_( layout),  type_( type ), alignment_(alignment), resultPointer_( resultPointer )
       {}
@@ -917,7 +917,7 @@ namespace internal {
       template< typename FieldType>
       void operator() ( python_coupling::NonCopyableWrap<FieldType> ) const
       {
-         using namespace boost::python;
+         using namespace py;
          typedef typename FieldType::value_type T;
          const uint_t F_SIZE = FieldType::F_SIZE;
 
@@ -939,19 +939,19 @@ namespace internal {
       uint_t fs_;
       uint_t gl_;
       Layout layout_;
-      boost::python::object type_;
+      py::object type_;
       uint_t alignment_;
-      shared_ptr<boost::python::object> resultPointer_;
+      shared_ptr<py::object> resultPointer_;
    };
 
    template<typename... FieldTypes>
-   boost::python::object createPythonField( boost::python::list size,
-                                            boost::python::object type,
+   py::object createPythonField( py::list size,
+                                            py::object type,
                                             uint_t ghostLayers,
                                             Layout layout,
                                             uint_t alignment)
    {
-      using namespace boost::python;
+      using namespace py;
       uint_t xSize = extract<uint_t> ( size[0] );
       uint_t ySize = extract<uint_t> ( size[1] );
       uint_t zSize = extract<uint_t> ( size[2] );
@@ -965,7 +965,7 @@ namespace internal {
          throw error_already_set();
       }
 
-      auto result = make_shared<boost::python::object>();
+      auto result = make_shared<py::object>();
       CreateFieldExporter exporter( xSize,ySize, zSize, fSize, ghostLayers, layout, type, alignment, result );
       python_coupling::for_each_noncopyable_type< FieldTypes... >  ( exporter );
 
@@ -986,9 +986,9 @@ namespace internal {
    //===================================================================================================================
 
 
-   inline boost::python::object createPythonFlagField( boost::python::list size, uint_t nrOfBits, uint_t ghostLayers )
+   inline py::object createPythonFlagField( py::list size, uint_t nrOfBits, uint_t ghostLayers )
    {
-      using namespace boost::python;
+      using namespace py;
 
       uint_t sizeLen = uint_c( len( size ) );
       if ( sizeLen != 3 ) {
@@ -1022,8 +1022,8 @@ namespace internal {
    public:
       AddToStorageExporter(const shared_ptr<StructuredBlockStorage> & blocks,
                            const std::string & name, uint_t fs, uint_t gl, Layout layout,
-                           const boost::python::object & type,
-                           const boost::python::object & initObj,
+                           const py::object & type,
+                           const py::object & initObj,
                            uint_t alignment )
          : blocks_( blocks ), name_( name ), fs_( fs ),
            gl_(gl),layout_( layout),  type_( type ), initObj_( initObj), alignment_(alignment), found_(false)
@@ -1032,7 +1032,7 @@ namespace internal {
       template< typename FieldType>
       void operator() ( python_coupling::NonCopyableWrap<FieldType> )
       {
-         using namespace boost::python;
+         using namespace py;
          typedef typename FieldType::value_type T;
          const uint_t F_SIZE = FieldType::F_SIZE;
 
@@ -1061,25 +1061,25 @@ namespace internal {
       uint_t fs_;
       uint_t gl_;
       Layout layout_;
-      boost::python::object type_;
-      boost::python::object initObj_;
+      py::object type_;
+      py::object initObj_;
       uint_t alignment_;
       bool found_;
    };
 
    template<typename... FieldTypes>
    void addToStorage( const shared_ptr<StructuredBlockStorage> & blocks, const std::string & name,
-                      boost::python::object type, uint_t fs, uint_t gl, Layout layout, boost::python::object initValue,
+                      py::object type, uint_t fs, uint_t gl, Layout layout, py::object initValue,
                       uint_t alignment)
    {
-      using namespace boost::python;
+      using namespace py;
 
       if ( ! PyType_Check( type.ptr() ) ) {
          PyErr_SetString( PyExc_RuntimeError, "Invalid 'type' parameter");
          throw error_already_set();
       }
 
-      auto result = make_shared<boost::python::object>();
+      auto result = make_shared<py::object>();
       AddToStorageExporter exporter( blocks, name, fs, gl, layout, type, initValue, alignment );
       python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
 
@@ -1100,7 +1100,7 @@ namespace internal {
       else
       {
          PyErr_SetString( PyExc_ValueError, "Allowed values for number of bits are: 8,16,32,64");
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
    }
 
@@ -1121,7 +1121,7 @@ namespace internal {
       template< typename FieldType>
       void operator() ( python_coupling::NonCopyableWrap<FieldType> )
       {
-         using namespace boost::python;
+         using namespace py;
 
          IBlock * firstBlock =  & ( * blocks_->begin() );
          if( firstBlock->isDataClassOrSubclassOf<FieldType>(fieldId_) )
@@ -1157,7 +1157,7 @@ namespace internal {
       python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
       if ( ! exporter.getCreatedWriter() ) {
          PyErr_SetString( PyExc_ValueError, "Failed to create writer");
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
       else {
          return exporter.getCreatedWriter();
@@ -1175,14 +1175,14 @@ namespace internal {
    public:
       CreateFlagFieldVTKWriterExporter( const shared_ptr<StructuredBlockStorage> & blocks,
                                         ConstBlockDataID fieldId, const std::string & vtkName,
-                                        boost::python::dict flagMapping)
+                                        py::dict flagMapping)
          : blocks_( blocks ), fieldId_(fieldId), vtkName_( vtkName ), flagMapping_( flagMapping )
       {}
 
       template< typename FieldType>
       void operator() ( python_coupling::NonCopyableWrap<FieldType> )
       {
-         using namespace boost::python;
+         using namespace py;
 
          IBlock * firstBlock =  & ( * blocks_->begin() );
          if( firstBlock->isDataClassOrSubclassOf<FieldType>(fieldId_) )
@@ -1210,14 +1210,14 @@ namespace internal {
       shared_ptr< StructuredBlockStorage > blocks_;
       ConstBlockDataID fieldId_;
       std::string vtkName_;
-      boost::python::dict flagMapping_;
+      py::dict flagMapping_;
    };
 
 
    template<typename... FieldTypes>
    inline shared_ptr<vtk::BlockCellDataWriterInterface> createFlagFieldVTKWriter(const shared_ptr<StructuredBlockStorage> & blocks,
                                                                                  const std::string & name,
-                                                                                 boost::python::dict flagMapping,
+                                                                                 py::dict flagMapping,
                                                                                  const std::string & nameInVtkOutput = "" )
    {
       std::string vtkName = nameInVtkOutput;
@@ -1232,7 +1232,7 @@ namespace internal {
       python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
       if ( ! exporter.getCreatedWriter() ) {
          PyErr_SetString( PyExc_ValueError, "Failed to create writer");
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
       else {
          return exporter.getCreatedWriter();
@@ -1257,7 +1257,7 @@ namespace internal {
       template< typename FieldType>
       void operator() ( python_coupling::NonCopyableWrap<FieldType> )
       {
-         using namespace boost::python;
+         using namespace py;
 
          IBlock * firstBlock =  & ( * blocks_->begin() );
          if( firstBlock->isDataClassOrSubclassOf<FieldType>(fieldId_) )
@@ -1299,7 +1299,7 @@ namespace internal {
       python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
       if ( ! exporter.getCreatedWriter() ) {
          PyErr_SetString( PyExc_ValueError, "Failed to create writer");
-         throw boost::python::error_already_set();
+         throw py::error_already_set();
       }
       else {
          return exporter.getCreatedWriter();
@@ -1315,7 +1315,7 @@ namespace internal {
 template<typename... FieldTypes >
 void exportFields()
 {
-   using namespace boost::python;
+   using namespace py;
 
    enum_<Layout>("Layout")
        .value("fzyx", fzyx)

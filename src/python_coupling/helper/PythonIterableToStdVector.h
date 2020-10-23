@@ -22,18 +22,21 @@
 #pragma once
 
 #include <vector>
+#include "pybind11/numpy.h"
 
 namespace walberla {
 namespace python_coupling {
+namespace py = pybind11;
 
 
 template< typename T >
+
 inline
-std::vector< T > pythonIterableToStdVector( const boost::python::object& iterable )
+std::vector< T > pythonIterableToStdVector( const py::object& iterable )
 {
-    return std::vector< T >( boost::python::stl_input_iterator< T >( iterable ),
-                             boost::python::stl_input_iterator< T >( ) );
+   return py::cast<std::vector<T>>(py::array(iterable));
 }
+
 
 
 } // namespace python_coupling

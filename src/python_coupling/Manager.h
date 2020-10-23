@@ -73,7 +73,7 @@ namespace py = pybind11;
    public:
       WALBERLA_BEFRIEND_SINGLETON;
 
-      typedef std::function<void(py::module_)> ExporterFunction;
+      typedef std::function<void(py::module_&)> ExporterFunction;
       typedef std::function< py::object ( IBlock&, BlockDataID ) > BlockDataToObjectFunction;
 
 

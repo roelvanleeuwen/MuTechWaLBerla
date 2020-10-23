@@ -20,10 +20,8 @@
 //======================================================================================================================
 
 #include "ModuleInit.h"
-#include "waLBerlaDefinitions.h"
 #include "core/mpi/MPIManager.h"
 #include "core/Abort.h"
-#include "core/debug/CheckFunctions.h"
 
 // Workaround for OpenMPI library: it dynamically loads plugins which causes trouble when walberla itself is a shared lib
 #if defined(OPEN_MPI) && !defined(_WIN32) && OMPI_MAJOR_VERSION < 3

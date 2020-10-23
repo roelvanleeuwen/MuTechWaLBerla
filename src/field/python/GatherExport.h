@@ -25,9 +25,9 @@
 namespace walberla {
 namespace field {
 
-
+namespace py = pybind11;
 template<typename... FieldTypes >
-void exportGatherFunctions();
+void exportGatherFunctions(py::module_ &m);
 
 
 

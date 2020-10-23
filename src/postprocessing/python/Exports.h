@@ -27,9 +27,11 @@
 namespace walberla {
 namespace postprocessing {
 
+namespace py = pybind11;
+
 
    template<typename... FieldTypes>
-   void exportModuleToPython();
+   void exportModuleToPython(py::module_ &m);
 
 
 } // namespace postprocessing

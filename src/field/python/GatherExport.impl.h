@@ -31,7 +31,7 @@ namespace field {
 
 
 namespace internal {
-
+namespace py = pybind11;
    //===================================================================================================================
    //
    //  Gather
@@ -40,7 +40,7 @@ namespace internal {
 
 
    template<typename Field_T>
-   boost::python::object gatherToObject( const shared_ptr<StructuredBlockStorage> & blocks, BlockDataID fieldID,
+   py::object gatherToObject( const shared_ptr<StructuredBlockStorage> & blocks, BlockDataID fieldID,
                                          CellInterval boundingBox = CellInterval(), int targetRank = 0 )
    {
       typedef Field< typename Field_T::value_type, Field_T::F_SIZE > ResultField;
@@ -48,20 +48,20 @@ namespace internal {
       field::gather< Field_T, ResultField > ( *result, blocks, fieldID, boundingBox, targetRank, MPI_COMM_WORLD );
 
       if ( MPIManager::instance()->worldRank() == targetRank )
-         return boost::python::object(result);
+         return py::object(result);
       else
-         return boost::python::object();
+         return py::object();
    }
 
    FunctionExporterClass( gatherToObject,
-                          boost::python::object( const shared_ptr<StructuredBlockStorage> &,
+                          py::object( const shared_ptr<StructuredBlockStorage> &,
                                                  BlockDataID, CellInterval,int ) );
 
    template<typename... FieldTypes>
-   static boost::python::object gatherWrapper (  const shared_ptr<StructuredBlockStorage> & blocks, const std::string & blockDataStr,
-                                                 const boost::python::tuple & slice,  int targetRank = 0 )
+   static py::object gatherWrapper (  const shared_ptr<StructuredBlockStorage> & blocks, const std::string & blockDataStr,
+                                                 const py::tuple & slice,  int targetRank = 0 )
    {
-      using namespace boost::python;
+
 
       auto fieldID = python_coupling::blockDataIDFromString( *blocks, blockDataStr );
       CellInterval boundingBox = python_coupling::globalPythonSliceToCellInterval( blocks, slice );
@@ -70,7 +70,7 @@ namespace internal {
          // if no blocks are on this process the field::gather function can be called with any type
          // however we have to call it, otherwise a deadlock occurs
          gatherToObject< Field<real_t,1> > ( blocks, fieldID, boundingBox, targetRank );
-         return object();
+         return py::object();
       }
 
       IBlock * firstBlock =  & ( * blocks->begin() );
@@ -79,7 +79,7 @@ namespace internal {
       if ( !func )
       {
          PyErr_SetString( PyExc_RuntimeError, "This function cannot handle this type of block data.");
-         throw error_already_set();
+         throw py::error_already_set();
       }
       else
       {
@@ -90,14 +90,13 @@ namespace internal {
 } // namespace internal
 
 
-
+namespace py = pybind11;
 template<typename... FieldTypes >
-void exportGatherFunctions()
+void exportGatherFunctions(py::module_ &m)
 {
-   using namespace boost::python;
-   python_coupling::ModuleScope fieldModule( "field" );
+   // python_coupling::ModuleScope fieldModule( "field" );
 
-   def( "gather",  &internal::gatherWrapper<FieldTypes...>,  ( arg("blocks"), arg("blockDataName"), arg("slice"), arg("targetRank") = 0 ) );
+   m.def( "gather",  &internal::gatherWrapper<FieldTypes...>, py::arg("blocks"), py::arg("blockDataName"), py::arg("slice"), py::arg("targetRank") = 0 );
 }
 
 

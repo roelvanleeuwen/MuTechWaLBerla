@@ -65,11 +65,9 @@ namespace internal {
    struct GpuFieldExporter
    {
       template< typename GpuField_T>
-      void operator() ( python_coupling::NonCopyableWrap<GpuField_T> )
+      void operator() ( )
       {
-         using namespace boost::python;
-
-         class_<GpuField_T, shared_ptr<GpuField_T>, boost::noncopyable>( "GpuField", no_init )
+         py::class_<GpuField_T, shared_ptr<GpuField_T>>(m, "GpuField" )
             .add_property("layout",              &field::internal::field_layout            < GpuField_T > )
             .add_property("size",                &field::internal::field_size              < GpuField_T > )
             .add_property("sizeWithGhostLayers", &field::internal::field_sizeWithGhostLayer< GpuField_T > )
@@ -87,16 +85,15 @@ namespace internal {
 
          using field::communication::PackInfo;
          using communication::GPUPackInfo;
-         class_< GPUPackInfo<GpuField_T>,
+         py::class_< GPUPackInfo<GpuField_T>,
                  shared_ptr< GPUPackInfo<GpuField_T> >,
                  bases<walberla::communication::UniformPackInfo>,
-                 boost::noncopyable >( "GpuFieldPackInfo", no_init );
+                 boost::noncopyable >(m, "GpuFieldPackInfo" );
 
          using field::communication::UniformMPIDatatypeInfo;
-         class_< UniformMPIDatatypeInfo<GpuField_T>,
+         py::class_< UniformMPIDatatypeInfo<GpuField_T>,
                  shared_ptr< UniformMPIDatatypeInfo<GpuField_T> >,
-                 bases<walberla::communication::UniformMPIDatatypeInfo>,
-                 boost::noncopyable >( "GpuFieldMPIDataTypeInfo", no_init );
+                 bases<walberla::communication::UniformMPIDatatypeInfo>>(m, "GpuFieldMPIDataTypeInfo" );
 
       }
    };
@@ -112,8 +109,8 @@ namespace internal {
    {
    public:
       CreateFieldExporter( uint_t xs, uint_t ys, uint_t zs, uint_t fs, uint_t gl,
-                           Layout layout, const boost::python::object & type, bool usePitchedMem,
-                           const shared_ptr<boost::python::object> & resultPointer )
+                           Layout layout, const py::object & type, bool usePitchedMem,
+                           const shared_ptr<py::object> & resultPointer )
          : xs_( xs ), ys_(ys), zs_(zs), fs_(fs), gl_(gl),
            layout_( layout),  type_( type ), usePitchedMem_( usePitchedMem ) , resultPointer_( resultPointer )
       {}
@@ -121,7 +118,6 @@ namespace internal {
       template< typename GpuField_T>
       void operator() ( python_coupling::NonCopyableWrap<GpuField_T> )
       {
-         using namespace boost::python;
          typedef typename GpuField_T::value_type T;
          if( python_coupling::isCppEqualToPythonType<T>( (PyTypeObject *)type_.ptr() )  )
          {
@@ -136,19 +132,18 @@ namespace internal {
       uint_t fs_;
       uint_t gl_;
       Layout layout_;
-      boost::python::object type_;
+      py::object type_;
       bool usePitchedMem_;
-      shared_ptr<boost::python::object> resultPointer_;
+      shared_ptr<py::object> resultPointer_;
    };
 
    template<typename GpuFields>
-   boost::python::object createPythonGpuField( boost::python::list size,
-                                               boost::python::object type,
+   py::object createPythonGpuField( py::list size,
+                                               py::object type,
                                                uint_t ghostLayers,
                                                Layout layout,
                                                bool usePitchedMem)
    {
-      using namespace boost::python;
       uint_t xSize = extract<uint_t> ( size[0] );
       uint_t ySize = extract<uint_t> ( size[1] );
       uint_t zSize = extract<uint_t> ( size[2] );
@@ -162,7 +157,7 @@ namespace internal {
          throw error_already_set();
       }
 
-      auto result = make_shared<boost::python::object>();
+      auto result = make_shared<py::object>();
       CreateFieldExporter exporter( xSize,ySize, zSize, fSize, ghostLayers, layout, type, usePitchedMem, result );
       python_coupling::for_each_noncopyable_type< GpuFields >( exporter );
 
@@ -188,7 +183,7 @@ namespace internal {
    public:
       AddToStorageExporter( const shared_ptr<StructuredBlockStorage> & blocks,
                            const std::string & name, uint_t fs, uint_t gl, Layout layout,
-                           const boost::python::object & type,
+                           const py::object & type,
                            bool usePitchedMem )
          : blocks_( blocks ), name_( name ), fs_( fs ),
            gl_(gl),layout_( layout),  type_( type ), usePitchedMem_(usePitchedMem), found_(false)
@@ -213,23 +208,23 @@ namespace internal {
       uint_t fs_;
       uint_t gl_;
       Layout layout_;
-      boost::python::object type_;
+      py::object type_;
       bool usePitchedMem_;
       bool found_;
    };
 
    template<typename GpuFields>
    void addToStorage( const shared_ptr<StructuredBlockStorage> & blocks, const std::string & name,
-                      boost::python::object type, uint_t fs, uint_t gl, Layout layout, bool usePitchedMem )
+                      py::object type, uint_t fs, uint_t gl, Layout layout, bool usePitchedMem )
    {
-      using namespace boost::python;
+      namespace py = pybind11;
 
       if ( ! PyType_Check( type.ptr() ) ) {
          PyErr_SetString( PyExc_RuntimeError, "Invalid 'type' parameter");
          throw error_already_set();
       }
 
-      auto result = make_shared<boost::python::object>();
+      auto result = make_shared<py::object>();
       AddToStorageExporter exporter( blocks, name, fs, gl, layout, type, usePitchedMem );
       python_coupling::for_each_noncopyable_type<GpuFields>( std::ref(exporter) );
 
@@ -247,19 +242,19 @@ namespace internal {
    //===================================================================================================================
 
    template< typename GPUField_T >
-   boost::python::object createGPUPackInfoToObject( BlockDataID bdId, uint_t numberOfGhostLayers )
+   py::object createGPUPackInfoToObject( BlockDataID bdId, uint_t numberOfGhostLayers )
    {
       using cuda::communication::GPUPackInfo;
       if ( numberOfGhostLayers > 0  )
-         return boost::python::object( make_shared< GPUPackInfo<GPUField_T> >( bdId, numberOfGhostLayers ) );
+         return py::object( make_shared< GPUPackInfo<GPUField_T> >( bdId, numberOfGhostLayers ) );
       else
-         return boost::python::object( make_shared< GPUPackInfo<GPUField_T> >( bdId ) );
+         return py::object( make_shared< GPUPackInfo<GPUField_T> >( bdId ) );
    }
 
-   FunctionExporterClass( createGPUPackInfoToObject, boost::python::object( BlockDataID, uint_t  ) );
+   FunctionExporterClass( createGPUPackInfoToObject, py::object( BlockDataID, uint_t  ) );
 
    template< typename GpuFields>
-   boost::python::object createPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
+   py::object createPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
                                          const std::string & blockDataName, uint_t numberOfGhostLayers )
    {
       using cuda::communication::GPUPackInfo;
@@ -284,19 +279,19 @@ namespace internal {
 
 
    template< typename GpuField_T >
-   boost::python::object createMPIDatatypeInfoToObject( BlockDataID bdId, uint_t numberOfGhostLayers )
+   py::object createMPIDatatypeInfoToObject( BlockDataID bdId, uint_t numberOfGhostLayers )
    {
       using field::communication::UniformMPIDatatypeInfo;
       if ( numberOfGhostLayers > 0 )
-         return boost::python::object( make_shared< UniformMPIDatatypeInfo<GpuField_T> >( bdId, numberOfGhostLayers ) );
+         return py::object( make_shared< UniformMPIDatatypeInfo<GpuField_T> >( bdId, numberOfGhostLayers ) );
       else
-         return boost::python::object( make_shared< UniformMPIDatatypeInfo<GpuField_T> >( bdId ) );
+         return py::object( make_shared< UniformMPIDatatypeInfo<GpuField_T> >( bdId ) );
    }
 
-   FunctionExporterClass( createMPIDatatypeInfoToObject, boost::python::object( BlockDataID, uint_t  ) );
+   FunctionExporterClass( createMPIDatatypeInfoToObject, py::object( BlockDataID, uint_t  ) );
 
    template< typename GpuFields>
-   boost::python::object createMPIDatatypeInfo( const shared_ptr<StructuredBlockStorage> & bs,
+   py::object createMPIDatatypeInfo( const shared_ptr<StructuredBlockStorage> & bs,
                                                 const std::string & blockDataName,
                                                 uint_t numberOfGhostLayers)
    {
@@ -371,7 +366,7 @@ void exportModuleToPython()
 {
    python_coupling::ModuleScope fieldModule( "cuda" );
 
-   using namespace boost::python;
+   namespace py = pybind11;
 
    python_coupling::for_each_noncopyable_type<GpuFields>( internal::GpuFieldExporter() );
 

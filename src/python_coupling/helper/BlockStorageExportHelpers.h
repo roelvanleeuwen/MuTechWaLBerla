@@ -57,14 +57,14 @@ namespace python_coupling {
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
 
-   template<typename UID, typename StringContainer>
-   Set< UID > uidSetFromStringContainer( const StringContainer & stringContainer )
-   {
-      Set< UID > result;
-      result.insert( boost::python::stl_input_iterator< std::string >( stringContainer ),
-                     boost::python::stl_input_iterator< std::string >( ) );
-      return result;
-   }
+//   template<typename UID, typename StringContainer>
+//   Set< UID > uidSetFromStringContainer( const StringContainer & stringContainer )
+//   {
+//      Set< UID > result;
+//      result.insert( boost::python::stl_input_iterator< std::string >( stringContainer ),
+//                     boost::python::stl_input_iterator< std::string >( ) );
+//      return result;
+//   }
 
    template< typename FField>
    typename FField::value_type maskFromFlagList(  const shared_ptr<StructuredBlockStorage> & bs,

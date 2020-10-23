@@ -61,13 +61,13 @@ namespace field {
    */
    //*******************************************************************************************************************
    template<typename... FieldTypes>
-   void exportModuleToPython()
+   void exportModuleToPython(py::module_ &m)
    {
       python_coupling::ModuleScope fieldModule( "field" );
 
-      exportFields<FieldTypes...>();
+      exportFields<FieldTypes...>(m);
 
-      exportCommunicationClasses<FieldTypes...>();
+      exportCommunicationClasses<FieldTypes...>(m);
    }
 
 
