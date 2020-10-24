@@ -104,8 +104,7 @@ py::object createUniformBufferedScheme(const shared_ptr< StructuredBlockForest >
 
    if (py::isinstance< py::object() >(creator.getResult()))
    {
-      PyErr_SetString(PyExc_RuntimeError, "Unknown stencil.");
-      throw py::error_already_set();
+      throw py::cast_error("Unknown stencil.");
    }
    return creator.getResult();
 }
@@ -179,8 +178,7 @@ py::object createUniformBufferedScheme(const shared_ptr< StructuredBlockForest >
 
    if ( py::isinstance< py::object() >(creator.getResult()) )
    {
-      PyErr_SetString( PyExc_RuntimeError, "Unknown stencil.");
-      throw py::error_already_set();
+      throw py::cast_error("Unknown stencil.");
    }
    return creator.getResult();
 }

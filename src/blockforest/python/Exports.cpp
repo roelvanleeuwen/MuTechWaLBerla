@@ -70,8 +70,7 @@ bool checkForThreeTuple( py::object obj ) //NOLINT
 py::object python_createUniformBlockGrid(py::args args, py::kwargs kwargs) //NOLINT
 {
    if( py::len(std::move(args)) > 0 ) {
-      PyErr_SetString( PyExc_ValueError, "This function takes only keyword arguments" );
-      throw py::error_already_set();
+      throw py::value_error("This function takes only keyword arguments");
    }
 
    py::dict kw = py::dict(kwargs);
@@ -86,22 +85,18 @@ py::object python_createUniformBlockGrid(py::args args, py::kwargs kwargs) //NOL
            key != "dx" &&
            key != "oneBlockPerProcess"  )
       {
-         PyErr_SetString( PyExc_ValueError, (std::string("Unknown Parameter: ") + key ).c_str());
-         throw py::error_already_set();
+         throw py::value_error((std::string("Unknown Parameter: ") + key ).c_str());
       }
    }
 
    if( kw.contains("cells ") && ! checkForThreeTuple( kw["cells"] ) ) {
-      PyErr_SetString( PyExc_ValueError, "Parameter 'cells' has to be tuple of length 3, indicating cells in x,y,z direction" );
-      throw py::error_already_set();
+      throw py::value_error("Parameter 'cells' has to be tuple of length 3, indicating cells in x,y,z direction");
    }
    if( kw.contains("cellsPerBlock ") && ! checkForThreeTuple( kw["cellsPerBlock"] ) ) {
-      PyErr_SetString( PyExc_ValueError, "Parameter 'cellsPerBlock' has to be tuple of length 3, indicating cells in x,y,z direction" );
-      throw py::error_already_set();
+      throw py::value_error("Parameter 'cellsPerBlock' has to be tuple of length 3, indicating cells in x,y,z direction");
    }
    if( kw.contains("blocks ") && ! checkForThreeTuple( kw["blocks"] ) ) {
-      PyErr_SetString( PyExc_ValueError, "Parameter 'blocks' has to be tuple of length 3, indicating cells in x,y,z direction" );
-      throw py::error_already_set();
+      throw py::value_error("Parameter 'blocks' has to be tuple of length 3, indicating cells in x,y,z direction");
    }
 
    bool keepGlobalBlockInformation = false;
@@ -111,8 +106,7 @@ py::object python_createUniformBlockGrid(py::args args, py::kwargs kwargs) //NOL
          keepGlobalBlockInformation =  kw["keepGlobalBlockInformation"].cast<bool>() ;
       else
       {
-         PyErr_SetString( PyExc_ValueError, "Parameter 'keepGlobalBlockInformation' has to be a boolean" );
-         throw py::error_already_set();
+         throw py::value_error("Parameter 'keepGlobalBlockInformation' has to be a boolean");
       }
    }
 
@@ -183,8 +177,7 @@ shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> b
          SetupBlock * sb = &(*block);
          auto pythonRes = refinementCallback( sb );
          if( py::isinstance<bool>( pythonRes ) ) {
-            PyErr_SetString( PyExc_ValueError, "refinementCallback has to return a boolean");
-            throw py::error_already_set();
+            throw py::value_error("refinementCallback has to return a boolean");
          }
          bool returnVal = bool( pythonRes );
          if( returnVal )
@@ -194,16 +187,14 @@ shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> b
 
    if ( blockExclusionCallback ) {
       if( !PyCallable_Check( blockExclusionCallback.ptr() ) ) {
-         PyErr_SetString( PyExc_ValueError, "blockExclusionCallback has to be callable");
-         throw py::error_already_set();
+         throw py::value_error("blockExclusionCallback has to be callable");
       }
       sforest.addRootBlockExclusionFunction( blockExclusionFunc );
    }
 
    if ( workloadMemoryCallback ) {
       if( !PyCallable_Check( workloadMemoryCallback.ptr() ) ) {
-         PyErr_SetString( PyExc_ValueError, "workloadMemoryCallback has to be callable");
-         throw py::error_already_set();
+         throw py::value_error("workloadMemoryCallback has to be callable");
       }
       sforest.addWorkloadMemorySUIDAssignmentFunction( workloadMemoryFunc );
    }
@@ -212,8 +203,7 @@ shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> b
 
    if ( refinementCallback ) {
       if( !PyCallable_Check( refinementCallback.ptr() ) ) {
-         PyErr_SetString( PyExc_ValueError, "refinementCallback has to be callable");
-         throw py::error_already_set();
+         throw py::value_error("refinementCallback has to be callable");
       }
       sforest.addRefinementSelectionFunction( refinementFunc );
    }
