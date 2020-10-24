@@ -26,12 +26,10 @@
 // #include "geometry/python/Exports.h"
 // #include "postprocessing/python/Exports.h"
 #include "python_coupling/Manager.h"
-// #include "python_coupling/helper/ModuleInit.h"
+#include "python_coupling/helper/ModuleInit.h"
 #include "blockforest/communication/UniformBufferedScheme.h"
 #include "blockforest/SetupBlockForest.h"
 #include "stencil/all.h"
-
-#include <pybind11/pybind11.h>
 
 #ifdef WALBERLA_BUILD_WITH_CUDA
 // #include "cuda/python/Exports.h"
@@ -77,9 +75,11 @@ using namespace walberla;
    GPUField<uint32_t>,\
    GPUField<uint64_t>
 
-   PYBIND11_MODULE(walberla_cpp, m)
+struct InitObject
+{
+   InitObject()
    {
-      m.doc() = "Python bindings for waLBerla";
+
 //      // m.def("add", &add, "A function which adds two numbers");
 //
 //      m.def("createUniformBufferedScheme", &createUniformBufferedScheme< stencil::D2Q5 >, "test");
@@ -111,5 +111,8 @@ using namespace walberla;
       //      pythonManager->addBlockDataConversion<GPU_FIELD_TYPES>();
       //#endif
       //
-      //      python_coupling::initWalberlaForPythonModule();
+      python_coupling::initWalberlaForPythonModule();
+
    }
+};
+InitObject globalInitObject;

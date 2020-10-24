@@ -40,8 +40,6 @@
 #   include "PythonCallback.h"
 // #include "helper/ExceptionHandling.h"
 #   include <pybind11/pybind11.h>
-#include <pybind11/embed.h>
-pybind11::scoped_interpreter guard{};
 
 namespace walberla
 {
@@ -126,21 +124,29 @@ config::Iterator createConfigIteratorFromPythonScript(const std::string& scriptF
                                                              const std::string& pythonFunctionName,
                                                              const std::vector< std::string >& argv)
 {
-   size_t lastindex    = scriptFile.find_last_of('.');
-   std::string rawname = scriptFile.substr(0, lastindex);
+   std::cout << scriptFile << std::endl;
+   importModuleOrFile( scriptFile, argv );
+   // size_t lastindex    = scriptFile.find_last_of('.');
+   // std::string rawname = scriptFile.substr(0, lastindex);
+   PythonCallback pythonCallback ( pythonFunctionName );
+   std::cout << "test" << std::endl;
+   pythonCallback();
 
-   pybind11::module pythonConfigFile = pybind11::module::import(rawname.c_str());
-   pybind11::dict fileDict           = pythonConfigFile.attr("__dict__");
+   py::object returnValue = pythonCallback.data().dict()[ "returnValue" ];
 
-   // TODO: generalise
-   pybind11::object function  = fileDict["scenarios"];
-   py::list listOfConfigDicts = function.attr("_scenarios");
+
+//   pybind11::module pythonConfigFile = pybind11::module::import(rawname.c_str());
+//   pybind11::dict fileDict           = pythonConfigFile.attr("__dict__");
+//
+//   // TODO: generalise
+//   pybind11::object function  = fileDict["scenarios"];
+//   py::list listOfConfigDicts = function.attr("_scenarios");
 
    shared_ptr< config::ConfigGenerator > generator;
 
    try
    {
-      generator = make_shared< PythonMultipleConfigGenerator >(listOfConfigDicts);
+      generator = make_shared< PythonMultipleConfigGenerator >(returnValue);
    } catch (py::error_already_set&)
    {
       std::string message = std::string("Error while running Python function ") + pythonFunctionName;

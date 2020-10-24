@@ -84,9 +84,9 @@ namespace py = pybind11;
       void addEntryToPythonPath( const std::string & path );
 
 
-      void addExporterFunction( const ExporterFunction & f())
+      void addExporterFunction( const ExporterFunction & f)
       {
-         exporterFunctions_.push_back( f() );
+         exporterFunctions_.push_back( f );
       }
 
       template<typename... Types>

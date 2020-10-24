@@ -30,6 +30,7 @@
 #include "Manager.h"
 #include "core/logging/Logging.h"
 #include "python_coupling/basic_exports/BasicExports.h"
+#include <pybind11/embed.h>
 
 #include <cstdlib>
 
@@ -86,10 +87,10 @@ void Manager::triggerInitialization()
 
    try
    {
-      // TODO: write with pybind11 interpreter
-      Py_Initialize();
+      pybind11::scoped_interpreter guard{};
       py::module::import("__main__");
-      py::module::import("walberla_cpp");
+      // py::module::import("walberla_cpp");
+
 
       // Setup python path
       addPath( std::string(WALBERLA_SOURCE_DIR) + "/python" );

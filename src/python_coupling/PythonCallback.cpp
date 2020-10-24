@@ -30,11 +30,12 @@
 #include "core/Filesystem.h"
 
 #include "pybind11/eval.h"
+#include "pybind11/embed.h"
 
 namespace walberla {
 namespace python_coupling {
 
-   static py::object importModuleOrFileInternal( const std::string & fileOrModuleName, const std::vector< std::string > & argv )
+   static py::module importModuleOrFileInternal( const std::string & fileOrModuleName, const std::vector< std::string > & argv )
    {
       auto manager = python_coupling::Manager::instance();
       manager->triggerInitialization();
@@ -43,29 +44,16 @@ namespace python_coupling {
 
       std::string moduleName = fileOrModuleName;
 
-      std::stringstream code;
-      code << "import sys" << "\n" ;
-      code << "sys.argv = [ ";
-      for( auto argStrIt = argv.begin(); argStrIt != argv.end(); ++argStrIt )
-         code << "'" << *argStrIt  << "',";
-      code << "] \n";
-
       filesystem::path path ( fileOrModuleName );
       path = filesystem::absolute( path );
 
       if ( path.extension() == ".py" )
       {
          moduleName = path.stem().string();
-
-
-         if ( ! path.parent_path().empty() )  {
-            std::string p = filesystem::canonical(path.parent_path()).string();
-            code << "sys.path.append( r'" << p << "')" << "\n";
-         }
       }
-      py::exec( code.str().c_str(), py::module::import("__main__").attr("__dict__") );
 
       try {
+         py::scoped_interpreter guard{};
          return py::module::import( moduleName.c_str() );
       }
       catch ( py::error_already_set &e) {

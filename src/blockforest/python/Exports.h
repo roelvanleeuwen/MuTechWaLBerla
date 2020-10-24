@@ -42,8 +42,8 @@ namespace blockforest {
    void exportModuleToPython(py::module_ &m)
    {
       exportBlockForest(m);
-      exportUniformBufferedScheme<Stencils...>(m);
-      exportUniformDirectScheme<Stencils...>(m);
+//      exportUniformBufferedScheme<Stencils...>(m);
+//      exportUniformDirectScheme<Stencils...>(m);
    }
 
 } // namespace blockforest

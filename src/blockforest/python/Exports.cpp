@@ -67,12 +67,14 @@ bool checkForThreeTuple( py::object obj ) //NOLINT
 }
 
 
-py::object python_createUniformBlockGrid(py::tuple args, py::dict kw) //NOLINT
+py::object python_createUniformBlockGrid(py::args args, py::kwargs kwargs) //NOLINT
 {
    if( py::len(std::move(args)) > 0 ) {
       PyErr_SetString( PyExc_ValueError, "This function takes only keyword arguments" );
       throw py::error_already_set();
    }
+
+   py::dict kw = py::dict(kwargs);
 
    for (auto item : kw)
    {
@@ -125,7 +127,6 @@ py::object python_createUniformBlockGrid(py::tuple args, py::dict kw) //NOLINT
       PyErr_SetString( PyExc_ValueError, e.what() );
       throw py::error_already_set();
    }
-
 }
 
 shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> blocks,
@@ -298,14 +299,14 @@ void exportBlockForest(py::module_ &m)
 
    m.def( "createUniformBlockGrid", &python_createUniformBlockGrid );
 
-   m.def( "createCustomBlockGrid", &createStructuredBlockForest,
-                py::arg("blocks"), py::arg("cellsPerBlock"), py::arg("periodic"),
-                py::arg("blockExclusionCallback") = py::object(),
-                py::arg("workloadMemoryCallback") = py::object(),
-                py::arg("refinementCallback") = py::object() ,
-                py::arg("dx") = 1.0,
-                py::arg("processMemoryLimit") = std::numeric_limits<memory_t>::max(),
-                py::arg("keepGlobalBlockInformation") = false );
+//   m.def( "createCustomBlockGrid", &createStructuredBlockForest,
+//                py::arg("blocks"), py::arg("cellsPerBlock"), py::arg("periodic"),
+//                py::arg("blockExclusionCallback") = py::object(),
+//                py::arg("workloadMemoryCallback") = py::object(),
+//                py::arg("refinementCallback") = py::object() ,
+//                py::arg("dx") = 1.0,
+//                py::arg("processMemoryLimit") = std::numeric_limits<memory_t>::max(),
+//                py::arg("keepGlobalBlockInformation") = false );
 }
 
 } // namespace domain_decomposition

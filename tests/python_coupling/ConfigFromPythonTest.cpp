@@ -25,7 +25,7 @@
 #include "core/math/Vector3.h"
 #include "core/mpi/Environment.h"
 
-#include "python_coupling/CreateConfig_pybind.h"
+#include "python_coupling/CreateConfig.h"
 
 using namespace walberla;
 
@@ -36,7 +36,7 @@ int main(int argc, char** argv)
    mpi::Environment env(argc, argv);
 
    int counter = 0;
-   for (auto cfg = python_coupling::configBegin_pybind(argc, argv); cfg != python_coupling::configEnd_pybind(); ++cfg)
+   for (auto cfg = python_coupling::configBegin(argc, argv); cfg != python_coupling::configEnd(); ++cfg)
    {
       auto config                  = *cfg;
       auto parameters              = config->getOneBlock("DomainSetup");
