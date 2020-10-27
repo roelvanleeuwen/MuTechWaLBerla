@@ -1878,9 +1878,9 @@ gcc_8_hybrid_dbg_noboost:
 ##                                                                           ##
 ###############################################################################
 
-gcc_9_stl_debug:
+gcc_10_stl_debug:
    extends: .build_template
-   image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc-debug-stl:10
    before_script:
       - rm -rf /opt/boost /usr/include/boost
    variables:
