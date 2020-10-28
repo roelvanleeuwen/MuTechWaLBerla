@@ -23,7 +23,6 @@
 #include "core/debug/TestSubsystem.h"
 
 #include <sstream>
-#include <vector>
 
 using namespace walberla;
 
