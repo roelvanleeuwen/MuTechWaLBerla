@@ -61,8 +61,4 @@ int main( int /*argc*/, char** /*argv*/ )
    
    result = WALBERLA_VERSION_COMPARE( <, major, patch_level - 1 );
    WALBERLA_CHECK( !result );
-
-   std::vector<int> a(100);
-   std::cout << a[200] << std::endl;
-
 }
