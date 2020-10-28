@@ -25,7 +25,9 @@ int main(int /*argc*/, char** /*argv*/)
    int ret = 1;
 #ifdef _GLIBCXX_DEBUG
    std::vector< int > a(100);
-   ret = a[200];
+// this throws an exception if the debug STL is used
+// otherwise main will return 0 and the test fails since it is expected to fail
+   if (a[200] != 1337) { ret = 0; }
 #endif
    return ret;
 }
