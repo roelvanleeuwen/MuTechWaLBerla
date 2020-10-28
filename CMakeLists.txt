@@ -5,7 +5,7 @@
 ## Contents:
 ##   - definition of build options
 ##   - compiler variables ( c++ standard, warnings etc. )
-##   - Finding of service libraries. Required: boost, Optional: MPI, PE, METIS
+##   - Finding of service libraries. Optional: MPI, PE, METIS
 ##     the include paths are set, and the libraries are added to variable SERVICE_LIBS
 ##   - Subdirectory cmake lists are called
 ##       -> src/   this folder contains all modules, each module (that contains c or cpp files) is linked to a
@@ -316,7 +316,6 @@ endif()
 if( WALBERLA_CXX_COMPILER_IS_IBM )
    add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1586-267" )  # 1586-267 (I) Inlining of specified subprogram failed due to the presence of a C++ exception handler
    add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1586-266" )  # 1586-266 (I) Inlining of specified subprogram failed due to the presence of a global label
-   add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1540-0724" ) # 1540-0724 (W) The non-type template argument "2147483648" of type "T" has wrapped [coming from boost/integer_traits.hpp]
    add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1500-030" )  # 1500-030: (I) INFORMATION: [...] Additional optimization may be attained by recompiling and specifying MAXMEM option with a value greater than 8192.
    add_flag ( CMAKE_C_FLAGS "-qsuppress=1500-030" )    # 1500-030: (I) INFORMATION: [...] Additional optimization may be attained by recompiling and specifying MAXMEM option with a value greater than 8192.
 endif()
@@ -611,11 +610,6 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
 
     option( WALBERLA_USE_PYTHON_DEBUG_LIBRARY "Make use of the python debug library" OFF )
 
-    if( WALBERLA_USE_PYTHON_DEBUG_LIBRARY )
-      # you have to make sure this matches the settings you compiled boost with!
-      add_definitions( "-DBOOST_DEBUG_PYTHON" )
-    endif()
-
     if( NOT (PYTHON_LIBRARY AND PYTHON_INCLUDE_DIR ) )
         message( FATAL_ERROR "Couldn't find any python library" )
     endif()
@@ -654,146 +648,6 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
                          COMMENT "Building HTML documentation for Python extension with Sphinx")
   endif()
 endif()
-
-
-############################################################################################################################
-##
-## BOOST Libraries
-##
-#############################################################################################################################
-set ( waLBerla_REQUIRED_MIN_BOOST_VERSION "1.48")
-set ( Boost_NO_BOOST_CMAKE ON)
-
-if ( NOT WALBERLA_USE_STD_FILESYSTEM AND NOT WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
-  list ( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS filesystem system )
-else()
-  list ( APPEND waLBerla_OPTIONAL_BOOST_COMPONENTS system )
-endif()
-
-if ( WALBERLA_BUILD_WITH_PYTHON )
-  if( WALBERLA_CXX_COMPILER_IS_MSVC )
-    get_filename_component(PYTHON_REQUIRED_LIB ${PYTHON_LIBRARY} NAME_WE)
-    list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS ${PYTHON_REQUIRED_LIB} )
-  elseif( WALBERLA_USE_STD_FILESYSTEM OR WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
-    list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS system )
-    list( REMOVE_ITEM waLBerla_OPTIONAL_BOOST_COMPONENTS system )
-  endif()
-endif()
-
-# This variable is necessary, if the CMAKE version used is not aware of a more recent boost version (keep this up to date!)
-set ( Boost_ADDITIONAL_VERSIONS
-      "1.45" "1.45.0" "1.46" "1.46.0" "1.46.1" "1.47" "1.47.0" "1.48" "1.48.0" "1.49" "1.49.0"
-      "1.50" "1.50.0" "1.51" "1.51.0" "1.52" "1.52.0" "1.53" "1.53.0" "1.54" "1.54.0" "1.55" "1.55.0"
-      "1.56" "1.56.0" "1.57" "1.57.0" "1.58" "1.58.0" "1.59" "1.59.0" "1.60" "1.60.0" "1.61" "1.61.0" "1.62" "1.62.0" "1.63" "1.63.0"
-      "1.64.0" "1.65.0" "1.65.1" "1.66.0" "1.67.0" "1.68.0" "1.69.0" "1.70.0" "1.71.0" "1.72.0" "1.73.0")
-
-set ( Boost_USE_STATIC_LIBS    OFF CACHE BOOL "Use boost static libraries" )
-set ( Boost_USE_MULTITHREADED  OFF CACHE BOOL "Use boost multithreaded libraries" )
-set ( Boost_USE_STATIC_RUNTIME OFF CACHE BOOL "Use boost libraries statically linked to runtime libs" )
-
-# if you defined BOOST_ROOT or BOOST_BASE in your environment use it here to find boost too
-if ( NOT BOOST_ROOT )
-   foreach ( var  BOOST_ROOT  BOOST_BASE )
-      if ( NOT "$ENV{${var}}" STREQUAL "" )
-         message ( STATUS "Use environment boost directory: $ENV{${var}}" )
-         set ( BOOST_ROOT $ENV{${var}} CACHE INTERNAL "")
-         break ( )
-      endif ( )
-   endforeach ( )
-endif ( )
-
-find_package ( Boost ${waLBerla_REQUIRED_MIN_BOOST_VERSION} COMPONENTS ${waLBerla_REQUIRED_BOOST_COMPONENTS} OPTIONAL_COMPONENTS ${waLBerla_OPTIONAL_BOOST_COMPONENTS} QUIET )
-
-if( NOT Boost_FOUND )
-   message ( WARNING
-      "The specified configuration of the BOOST libraries was not found on your system! Now trying some other configuration..." )
-   foreach ( Boost_USE_STATIC_LIBS ON OFF )
-      foreach ( Boost_USE_MULTITHREADED ON OFF )
-         find_package ( Boost ${waLBerla_REQUIRED_MIN_BOOST_VERSION} COMPONENTS ${waLBerla_REQUIRED_BOOST_COMPONENTS} OPTIONAL_COMPONENTS ${waLBerla_OPTIONAL_BOOST_COMPONENTS} QUIET )
-         if ( Boost_FOUND )
-            set ( Boost_USE_STATIC_LIBS   ${Boost_USE_STATIC_LIBS}   CACHE BOOL "Use boost static libraries"        FORCE )
-            set ( Boost_USE_MULTITHREADED ${Boost_USE_MULTITHREADED} CACHE BOOL "Use boost multithreaded libraries" FORCE )
-            set ( Boost_USE_MULTITHREADED_LIBRARY ${Boost_USE_MULTITHREADED} )
-            message ( STATUS "Working configuration of the BOOST libraries was found :o)!" )
-            message ( STATUS "Boost_USE_STATIC_LIBS and Boost_USE_MULTITHREADED was adapted accordingly." )
-            BREAK ( )
-         endif ( Boost_FOUND )
-      endforeach ( Boost_USE_MULTITHREADED )
-      if ( Boost_FOUND )
-         BREAK ( )
-      endif ( Boost_FOUND )
-   endforeach ( Boost_USE_STATIC_LIBS )
-endif ( NOT Boost_FOUND )
-
-if ( Boost_FOUND )
-   if(CMAKE_GENERATOR STREQUAL "Xcode")
-      # this is needed because the SYSTEM flag to include_directories does not work
-      add_flag ( CMAKE_CXX_FLAGS "-isystem ${Boost_INCLUDE_DIRS}" )
-   else()
-      include_directories ( SYSTEM ${Boost_INCLUDE_DIRS} )
-   endif()
-   if( waLBerla_REQUIRED_BOOST_COMPONENTS )
-      link_directories ( ${Boost_LIBRARY_DIRS} )
-      list ( APPEND SERVICE_LIBS ${Boost_LIBRARIES} )
-   endif()
-   add_definitions ( -DBOOST_ALL_NO_LIB ) # Disable Boost auto-linking (CMAKE does that for us...)
-
-   #fix for static lib usage: http://stackoverflow.com/questions/11812463/boost-python-link-errors-under-windows-msvc10
-   if( PYTHONLIBS_FOUND AND Boost_USE_STATIC_LIBS)
-      add_definitions( -DBOOST_PYTHON_STATIC_LIB )
-   endif()
-
-   #fix for strange link behaviour of boost to python: boost only links to 'pyhton*.lib' and not to the absolute path
-   if( WIN32 AND PYTHONLIBS_FOUND )
-      get_filename_component( PYTHON_LIBRARY_DIR ${PYTHON_INCLUDE_DIR} PATH )
-      link_directories( ${PYTHON_LIBRARY_DIR}/libs )
-      list( APPEND LINK_DIRS ${PYTHON_LIBRARY_DIR}/libs )
-   endif()
-
-   set( WALBERLA_BUILD_WITH_BOOST TRUE CACHE INTERNAL "Build with Boost" )
-else( Boost_FOUND )
-   if( (WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM OR WALBERLA_USE_STD_FILESYSTEM) AND (WALBERLA_USE_STD_EXPERIMENTAL_ANY OR WALBERLA_USE_STD_ANY) AND (WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL OR WALBERLA_USE_STD_OPTIONAL) AND NOT WALBERLA_BUILD_WITH_PYTHON)
-      # we don't really need Boost
-      set( WALBERLA_BUILD_WITH_BOOST FALSE CACHE INTERNAL "Build with Boost" )
-   else()
-      # Search again, this time with the REQUIRED option. This will give a CMAKE error and a detailed error message for the user
-      find_package ( Boost ${waLBerla_REQUIRED_MIN_BOOST_VERSION} REQUIRED ${waLBerla_REQUIRED_BOOST_COMPONENTS} OPTIONAL_COMPONENTS ${waLBerla_OPTIONAL_BOOST_COMPONENTS} )
-      if( (WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM OR WALBERLA_USE_STD_FILESYSTEM) AND (WALBERLA_USE_STD_EXPERIMENTAL_ANY OR WALBERLA_USE_STD_ANY) AND (WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL OR WALBERLA_USE_STD_OPTIONAL) )
-         message(WARNING "If you set WALBERLA_BUILD_WITH_PYTHON=OFF, you can build without the Boost library.")
-      endif()
-   endif()
-endif( Boost_FOUND )
-
-
-# Check if Python3 found and look for according boost python library
-if ( WALBERLA_BUILD_WITH_PYTHON AND NOT WALBERLA_CXX_COMPILER_IS_MSVC)
-    SET(_boost_MULTITHREADED "")
-    if (Boost_USE_MULTITHREADED OR Boost_USE_MULTITHREADED_LIBRARY)
-        SET(_boost_MULTITHREADED "-mt")
-    endif()
-    if( PYTHON_LIBRARY MATCHES "python3" )
-        string(REPLACE "." ";" VERSION_LIST ${PYTHONLIBS_VERSION_STRING})
-        list(GET VERSION_LIST 0 PY_VER_MAJOR)
-        list(GET VERSION_LIST 1 PY_VER_MINOR)
-        find_library( BOOST_PYTHON_LIBRARY NAMES
-                boost_python${PY_VER_MAJOR}${PY_VER_MINOR}${_boost_MULTITHREADED}
-                boost_python-py${PY_VER_MAJOR}${PY_VER_MINOR}${_boost_MULTITHREADED}
-                boost_python${PY_VER_MAJOR}${_boost_MULTITHREADED}
-                boost_python${_boost_MULTITHREADED}
-                PATHS ${Boost_LIBRARY_DIRS} NO_DEFAULT_PATH )
-    else()
-        find_library( BOOST_PYTHON_LIBRARY NAMES boost_python${_boost_MULTITHREADED}
-                      PATHS ${Boost_LIBRARY_DIRS} NO_DEFAULT_PATH )
-    endif()
-    message(STATUS "Using Boost Python Library ${BOOST_PYTHON_LIBRARY}" )
-    list ( APPEND SERVICE_LIBS ${BOOST_PYTHON_LIBRARY} )
-endif()
-
-
-############################################################################################################################
-
-
-
 
 
 ############################################################################################################################
@@ -919,11 +773,6 @@ if ( WALBERLA_ENABLE_GUI )
 
     INCLUDE( ${QT_USE_FILE} )
     list ( APPEND SERVICE_LIBS ${OPENGL_LIBRARIES} ${QT_LIBRARIES} )
-
-    # Workaround for Qt4 moc and newer boost versions - moc cannot parse BOOST_JOIN
-    # so additional defines are passed to the moc compiler that prevent the problematic header to be parsed
-    set( QT_MOC_EXECUTABLE ${QT_MOC_EXECUTABLE} -DBOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION -DBOOST_TT_HAS_OPERATOR_HPP_INCLUDED )
-
 endif(WALBERLA_ENABLE_GUI)
 
 ############################################################################################################################
