@@ -19,11 +19,12 @@
 //======================================================================================================================
 
 #include <vector>
+#include "waLBerlaDefinitions.h"
 
 int main(int /*argc*/, char** /*argv*/)
 {
    int ret = 1;
-#ifdef _GLIBCXX_DEBUG
+#ifdef WALBERLA_STL_BOUNDS_CHECKS
    std::vector< int > a(100);
 // this throws an exception if the debug STL is used
 // otherwise main will return 0 and the test fails since it is expected to fail
