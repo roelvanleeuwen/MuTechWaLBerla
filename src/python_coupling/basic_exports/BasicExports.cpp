@@ -523,6 +523,7 @@ void exportTiming(py::module_ &m)
          .def( "unifyRegisteredTimersAcrossProcesses", &WcTimingPool::unifyRegisteredTimersAcrossProcesses )
          .def( "logResultOnRoot", &WcTimingPool::logResultOnRoot)
          ;
+      WALBERLA_UNUSED( classScope );
 
       py::enum_<timing::ReduceType>(m, "ReduceType")
           .value("min"  , timing::REDUCE_MIN)

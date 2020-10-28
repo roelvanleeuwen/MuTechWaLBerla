@@ -35,7 +35,7 @@
 namespace walberla {
 namespace python_coupling {
 
-   static py::module importModuleOrFileInternal( const std::string & fileOrModuleName, const std::vector< std::string > & argv )
+   static py::module importModuleOrFileInternal( const std::string & fileOrModuleName, const std::vector< std::string > & /*argv*/ )
    {
       auto manager = python_coupling::Manager::instance();
       manager->triggerInitialization();

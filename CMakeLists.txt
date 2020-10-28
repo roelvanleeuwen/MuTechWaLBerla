@@ -597,7 +597,8 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
     endif()
 
     add_subdirectory(extern/pybind11)
-    include_directories( ${PYBIND11_INCLUDE_DIR} )
+    include_directories( SYSTEM ${PYBIND11_INCLUDE_DIR} )
+    add_flag( CMAKE_CXX_FLAGS -fvisibility=hidden )
     set ( waLBerla_REQUIRED_MIN_PYTHON_VERSION "2.7")
 
     find_package( PythonInterp 3 QUIET) # search for Python3 first
