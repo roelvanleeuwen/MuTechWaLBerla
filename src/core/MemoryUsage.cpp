@@ -13,23 +13,44 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file all.h
-//! \ingroup lbm
-//! \author Florian Schornbaum <florian.schornbaum@fau.de>
-//! \brief Collective header file for module lbm
+//! \file MemoryUsage.cpp
+//! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
 
-#pragma once
+#include "MemoryUsage.h"
 
-#include "Density.h"
-#include "NonEquilibrium.h"
-#include "Velocity.h"
-#include "VTKOutput.h"
-#include "PressureTensor.h"
-#include "QCriterion.h"
-#include "Vorticity.h"
-#include "CurlMagnitude.h"
-#include "QCriterionCellFilter.h"
-#include "VelocityCellFilter.h"
+#ifdef __linux__
+#include <sys/resource.h>
+#endif
+#include "waLBerlaDefinitions.h"
+#include "core/logging/Logging.h"
+#include "core/math/Sample.h"
 
+namespace walberla {
+
+long getResidentMemorySize()
+{
+#ifdef __linux__
+   struct rusage usage;
+   int gru = getrusage(RUSAGE_SELF, &usage);
+
+   if (gru!=0)
+      WALBERLA_LOG_WARNING("There was an error getting memory statistics!");
+
+   return usage.ru_maxrss;
+#else
+   WALBERLA_LOG_WARNING("Getting memory statistics is currently not supported on non-Linux systems!");
+   return 0;
+#endif
+}
+
+void printResidentMemoryStatistics()
+{
+   math::Sample memory;
+   memory.castToRealAndInsert(getResidentMemorySize());
+   memory.mpiGatherRoot();
+   WALBERLA_LOG_INFO_ON_ROOT("resident memory: " << memory.format());
+}
+
+} // namespace walberla

@@ -13,23 +13,27 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file all.h
-//! \ingroup lbm
-//! \author Florian Schornbaum <florian.schornbaum@fau.de>
-//! \brief Collective header file for module lbm
+//! \file MemoryUsage.h
+//! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
 
 #pragma once
 
-#include "Density.h"
-#include "NonEquilibrium.h"
-#include "Velocity.h"
-#include "VTKOutput.h"
-#include "PressureTensor.h"
-#include "QCriterion.h"
-#include "Vorticity.h"
-#include "CurlMagnitude.h"
-#include "QCriterionCellFilter.h"
-#include "VelocityCellFilter.h"
+#include <string>
 
+namespace walberla {
+
+/**
+ * @return The current resident memory size of the calling process in kilobytes.
+ */
+long getResidentMemorySize();
+
+/**
+ * Determines memory usage on all MPI processes and prints statistics. Output
+ * is in kilobytes.
+ * \attention uses mpi gather operation
+ */
+void printResidentMemoryStatistics();
+
+} // namespace walberla

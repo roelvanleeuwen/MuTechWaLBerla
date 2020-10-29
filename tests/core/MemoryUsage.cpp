@@ -13,23 +13,37 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file all.h
-//! \ingroup lbm
-//! \author Florian Schornbaum <florian.schornbaum@fau.de>
-//! \brief Collective header file for module lbm
+//! \file MemoryUsage.cpp
+//! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
 
-#pragma once
+#include "core/Environment.h"
+#include "core/MemoryUsage.h"
+#include "core/debug/CheckFunctions.h"
+#include "core/debug/TestSubsystem.h"
+#include "core/logging/Logging.h"
 
-#include "Density.h"
-#include "NonEquilibrium.h"
-#include "Velocity.h"
-#include "VTKOutput.h"
-#include "PressureTensor.h"
-#include "QCriterion.h"
-#include "Vorticity.h"
-#include "CurlMagnitude.h"
-#include "QCriterionCellFilter.h"
-#include "VelocityCellFilter.h"
+#include <vector>
 
+using namespace walberla;
+
+int main( int argc, char** argv )
+{
+   Environment env(argc, argv);
+   WALBERLA_UNUSED(env);
+   debug::enterTestMode();
+
+   std::vector<int> stuff(200*1024*1024/sizeof(int),1);
+
+   auto memSize = getResidentMemorySize();
+#ifdef __linux__
+   WALBERLA_CHECK_GREATER(memSize, 200000);
+   WALBERLA_CHECK_LESS   (memSize, 250000);
+#else
+   WALBERLA_CHECK_EQUAL(memSize, 0);
+#endif
+   printResidentMemoryStatistics();
+   WALBERLA_LOG_DEVEL(stuff[0]); //make sure stuff is not optimized
+   return EXIT_SUCCESS;
+}
