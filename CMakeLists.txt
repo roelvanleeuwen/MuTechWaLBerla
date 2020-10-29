@@ -597,8 +597,6 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
     endif()
 
     add_subdirectory(extern/pybind11)
-    include_directories( SYSTEM ${PYBIND11_INCLUDE_DIR} )
-    add_flag( CMAKE_CXX_FLAGS -fvisibility=hidden )
     set ( waLBerla_REQUIRED_MIN_PYTHON_VERSION "2.7")
 
     find_package( PythonInterp 3 QUIET) # search for Python3 first
@@ -669,16 +667,6 @@ if ( NOT WALBERLA_USE_STD_FILESYSTEM AND NOT WALBERLA_USE_STD_EXPERIMENTAL_FILES
   list ( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS filesystem system )
 else()
   list ( APPEND waLBerla_OPTIONAL_BOOST_COMPONENTS system )
-endif()
-
-if ( WALBERLA_BUILD_WITH_PYTHON )
-  if( WALBERLA_CXX_COMPILER_IS_MSVC )
-    get_filename_component(PYTHON_REQUIRED_LIB ${PYTHON_LIBRARY} NAME_WE)
-    list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS ${PYTHON_REQUIRED_LIB} )
-  elseif( WALBERLA_USE_STD_FILESYSTEM OR WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
-    list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS system )
-    list( REMOVE_ITEM waLBerla_OPTIONAL_BOOST_COMPONENTS system )
-  endif()
 endif()
 
 # This variable is necessary, if the CMAKE version used is not aware of a more recent boost version (keep this up to date!)
