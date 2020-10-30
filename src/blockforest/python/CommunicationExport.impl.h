@@ -19,25 +19,26 @@
 //
 //======================================================================================================================
 
-
 #include "blockforest/communication/UniformBufferedScheme.h"
 #include "blockforest/communication/UniformDirectScheme.h"
+
 #include "python_coupling/helper/MplHelpers.h"
+
 #include <pybind11/pybind11.h>
 
-namespace walberla {
-namespace blockforest {
+namespace walberla
+{
+namespace blockforest
+{
 namespace py = pybind11;
 namespace internal
 {
-
 //===================================================================================================================
 //
 //  UniformBufferedScheme
 //
 //===================================================================================================================
 
-/// for details see documentation in core/WeakPtrWrapper.h
 /// the purpose of this class could also be solved by adding return_internal_reference to "createUniformDirectScheme"
 /// however this is not easily possible since it returns not a reference but an py::object
 template< typename Stencil >
@@ -54,12 +55,14 @@ class UniformBufferedSchemeWrapper : public blockforest::communication::UniformB
 
 struct UniformBufferedSchemeExporter
 {
+   UniformBufferedSchemeExporter(py::module_& m) : m_(m) {}
    template< typename Stencil >
-   void operator()(py::module_& m)
+   void operator()(python_coupling::NonCopyableWrap< Stencil >) const
    {
       typedef UniformBufferedSchemeWrapper< Stencil > UBS;
+      std::string class_name = "UniformBufferedScheme" + std::string(Stencil::NAME);
 
-      py::class_< UBS, shared_ptr< UBS > >(m, "UniformBufferedScheme")
+      py::class_< UBS, shared_ptr< UBS > >(m_, class_name.c_str())
          .def("__call__", &UBS::operator())
          .def("communicate", &UBS::communicate)
          .def("startCommunication", &UBS::startCommunication)
@@ -69,45 +72,8 @@ struct UniformBufferedSchemeExporter
          .def("localMode", &UBS::localMode)
          .def("setLocalMode", &UBS::setLocalMode);
    }
+   const py::module_& m_;
 };
-
-class UniformBufferedSchemeCreator
-{
- public:
-   UniformBufferedSchemeCreator(const shared_ptr< StructuredBlockForest >& bf, const std::string& stencilName,
-                                const int tag)
-      : blockforest_(bf), stencilName_(stencilName), tag_(tag)
-   {}
-
-   template< typename Stencil >
-   void operator()()
-   {
-      if (std::string(Stencil::NAME) == stencilName_)
-      { result_ = object(make_shared< UniformBufferedSchemeWrapper< Stencil > >(blockforest_, tag_)); }
-   }
-
-   py::object getResult() { return result_; }
-
- private:
-   shared_ptr< StructuredBlockForest > blockforest_;
-   std::string stencilName_;
-   const int tag_;
-   py::object result_;
-};
-
-template< typename Stencils >
-py::object createUniformBufferedScheme(const shared_ptr< StructuredBlockForest >& bf, const std::string& stencil,
-                                       const int tag)
-{
-   UniformBufferedSchemeCreator creator(bf, stencil, tag);
-   python_coupling::for_each_noncopyable_type< Stencils >  ( std::ref(creator) );
-
-   if (py::isinstance< py::object() >(creator.getResult()))
-   {
-      throw py::cast_error("Unknown stencil.");
-   }
-   return creator.getResult();
-}
 
 //===================================================================================================================
 //
@@ -115,77 +81,50 @@ py::object createUniformBufferedScheme(const shared_ptr< StructuredBlockForest >
 //
 //===================================================================================================================
 
- template<typename Stencil>
- class UniformDirectSchemeWrapper : public blockforest::communication::UniformDirectScheme<Stencil>
+template< typename Stencil >
+class UniformDirectSchemeWrapper : public blockforest::communication::UniformDirectScheme< Stencil >
 {
  public:
-   UniformDirectSchemeWrapper( const shared_ptr<StructuredBlockForest> & bf, const int tag )
-      : blockforest::communication::UniformDirectScheme<Stencil>( bf, shared_ptr<walberla::communication::UniformMPIDatatypeInfo>(), tag),
-        blockforest_( bf)
+   UniformDirectSchemeWrapper(const shared_ptr< StructuredBlockForest >& bf, const int tag)
+      : blockforest::communication::UniformDirectScheme< Stencil >(
+           bf, shared_ptr< walberla::communication::UniformMPIDatatypeInfo >(), tag),
+        blockforest_(bf)
    {}
+
  private:
    shared_ptr< StructuredBlockForest > blockforest_;
 };
 
- struct UniformDirectSchemeExporter
+struct UniformDirectSchemeExporter
 {
-   template<typename Stencil>
-   void operator() ( py::module_& m )
+   UniformDirectSchemeExporter(py::module_& m) : m_(m) {}
+   template< typename Stencil >
+   void operator()(python_coupling::NonCopyableWrap< Stencil >) const
    {
-      typedef UniformDirectSchemeWrapper<Stencil> UDS;
+      typedef UniformDirectSchemeWrapper< Stencil > UDS;
+      std::string class_name = "UniformDirectScheme_" + std::string(Stencil::NAME);
 
-      py::class_< UDS, shared_ptr<UDS>>(m, "UniformDirectScheme" )
-         .def( "__call__",             &UDS::operator()             )
-         .def( "communicate",          &UDS::communicate            )
-         .def( "startCommunication",   &UDS::startCommunication     )
-         .def( "wait",                 &UDS::wait                   )
-         .def( "addDataToCommunicate", &UDS::addDataToCommunicate   )
-         ;
+      py::class_< UDS, shared_ptr<UDS>>(m_, class_name.c_str() )
+         .def("__call__", &UDS::operator())
+         .def("communicate", &UDS::communicate)
+         .def("startCommunication", &UDS::startCommunication)
+         .def("wait", &UDS::wait)
+         .def("addDataToCommunicate", &UDS::addDataToCommunicate);
    }
+   const py::module_ m_;
 };
 
- class UniformDirectSchemeCreator
+} // namespace internal
+
+template< typename... Stencils >
+void exportUniformDirectScheme(py::module_& m)
 {
- public:
-   UniformDirectSchemeCreator( const shared_ptr<StructuredBlockForest> & bf,
-                               const std::string & stencilName,
-                               const int tag )
-      : blockforest_( bf), stencilName_( stencilName ), tag_( tag )
-   {}
+   using namespace py;
 
-   template<typename Stencil>
-   void operator() ( )
-   {
-      if ( std::string(Stencil::NAME) == stencilName_ ) {
-         result_ = py::object ( make_shared< UniformDirectSchemeWrapper<Stencil> > ( blockforest_, tag_ ) );
-      }
-   }
-
-   py::object getResult() { return result_; }
- private:
-   shared_ptr<StructuredBlockForest> blockforest_;
-   std::string stencilName_;
-   const int tag_;
-   py::object result_;
-};
-
- template<typename Stencils>
- py::object createUniformDirectScheme( const shared_ptr<StructuredBlockForest> & bf,
-                                                 const std::string & stencil, const int tag )
-{
-   UniformDirectSchemeCreator creator( bf, stencil, tag );
-   python_coupling::for_each_noncopyable_type< Stencils >  ( std::ref(creator) );
-
-   if ( py::isinstance< py::object() >(creator.getResult()) )
-   {
-      throw py::cast_error("Unknown stencil.");
-   }
-   return creator.getResult();
+   python_coupling::for_each_noncopyable_type< Stencils... >(internal::UniformDirectSchemeExporter(m));
 }
 
-}
-
-template< typename Stencils >
+template< typename... Stencils >
 void exportUniformBufferedScheme(py::module_& m)
 {
    py::enum_< LocalCommunicationMode >(m, "LocalCommunicationMode")
@@ -194,23 +133,8 @@ void exportUniformBufferedScheme(py::module_& m)
       .value("BUFFER", BUFFER)
       .export_values();
 
-   python_coupling::for_each_noncopyable_type< Stencils >  ( internal::UniformBufferedSchemeExporter() );
-
-   m.def("createUniformBufferedScheme", &internal::createUniformBufferedScheme< Stencils >,
-         py::arg("blockForest"), py::arg("stencilName"), py::arg("tag") = 778);
+   python_coupling::for_each_noncopyable_type< Stencils... >(internal::UniformBufferedSchemeExporter(m));
 }
-
- template<typename Stencils>
- void exportUniformDirectScheme(py::module_& m)
-{
-   using namespace py;
-
-   python_coupling::for_each_noncopyable_type< Stencils >  ( internal::UniformDirectSchemeExporter() );
-
-   m.def( "createUniformDirectScheme", &internal::createUniformDirectScheme<Stencils>,
-         py::arg("blockForest"), py::arg("stencilName"), py::arg("tag")=778 );
-}
-
 
 } // namespace blockforest
 } // namespace walberla

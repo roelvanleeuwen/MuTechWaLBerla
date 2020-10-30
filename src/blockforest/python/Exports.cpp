@@ -243,21 +243,6 @@ shared_ptr<StructuredBlockForest> createStructuredBlockForest( Vector3<uint_t> b
 //   }
 //}
 
-template<typename Stencil>
-void exportUniformBufferedScheme(py::module_ &m)
-{
-   typedef UniformBufferedScheme<Stencil> UNS;
-   py::class_< UNS, shared_ptr<UNS> >(m, "UniformBufferedScheme" )
-            .def( "__call__",             &UNS::operator()             )
-            .def( "communicate",          &UNS::communicate            )
-            .def( "startCommunication",   &UNS::startCommunication     )
-            .def( "wait",                 &UNS::wait                   )
-            .def( "addPackInfo",          &UNS::addPackInfo            )
-            .def( "addDataToCommunicate", &UNS::addDataToCommunicate   )
-    ;
-
-}
-
 std::string printSetupBlock(const SetupBlock & b )
 {
    std::stringstream out;

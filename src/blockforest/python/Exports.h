@@ -43,7 +43,7 @@ namespace blockforest {
    {
       exportBlockForest(m);
       exportUniformBufferedScheme<Stencils...>(m);
-//      exportUniformDirectScheme<Stencils...>(m);
+      exportUniformDirectScheme<Stencils...>(m);
    }
 
 } // namespace blockforest
