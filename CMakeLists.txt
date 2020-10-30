@@ -561,7 +561,13 @@ if ( WALBERLA_BUILD_WITH_CODEGEN )
                     RESULT_VARIABLE PYTHON_RET_CODE
                     OUTPUT_VARIABLE PYSTENCILS_INCLUDE_PATH)
     if(NOT PYTHON_RET_CODE EQUAL 0)
-        message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated and pystencils_walberla package not found")
+        message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated and pystencils package not found")
+    endif()
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import jinja2"
+          RESULT_VARIABLE PYTHON_RET_CODE
+          OUTPUT_VARIABLE PYSTENCILS_INCLUDE_PATH)
+    if(NOT PYTHON_RET_CODE EQUAL 0)
+       message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated and jinja2 package not found")
     endif()
     include_directories( ${PYSTENCILS_INCLUDE_PATH} )
 endif()
