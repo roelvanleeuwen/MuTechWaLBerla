@@ -98,7 +98,7 @@ void configFromPythonDict( config::Config::Block & block, py::dict & pythonDict 
                handlePythonBooleans( e0 );
                handlePythonBooleans( e1 );
                handlePythonBooleans( e2 );
-               ss << "< " << e0 << " , " << e1 << ", " << e2 << " > ";
+               ss << "< " << e0 << ", " << e1 << ", " << e2 << " > ";
                block.addParameter( key, ss.str() );
             }
          }

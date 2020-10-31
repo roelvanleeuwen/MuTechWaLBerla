@@ -104,7 +104,7 @@ struct UniformDirectSchemeExporter
       typedef UniformDirectSchemeWrapper< Stencil > UDS;
       std::string class_name = "UniformDirectScheme_" + std::string(Stencil::NAME);
 
-      py::class_< UDS, shared_ptr<UDS>>(m_, class_name.c_str() )
+      py::class_< UDS, shared_ptr<UDS> >(m_, class_name.c_str() )
          .def("__call__", &UDS::operator())
          .def("communicate", &UDS::communicate)
          .def("startCommunication", &UDS::startCommunication)
