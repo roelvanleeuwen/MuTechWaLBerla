@@ -75,8 +75,6 @@ option ( WALBERLA_BUILD_WITH_GCOV           "Enables gcov"                      
 option ( WALBERLA_BUILD_WITH_LTO            "Enable link time optimizations"                     )
 option ( WALBERLA_BUILD_WITH_OPENMP         "Enable OpenMP support"                              )
 option ( WALBERLA_BUILD_WITH_PYTHON         "Support for embedding Python"                       )
-option ( WALBERLA_BUILD_WITH_PYTHON_MODULE  "Build waLBerla python module"                       )
-option ( WALBERLA_BUILD_WITH_PYTHON_LBM     "Include LBM module into python module"          OFF )
 option ( WALBERLA_BUILD_WITH_CODEGEN        "Enable pystencils code generation"              OFF )
 
 
@@ -637,7 +635,7 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
         list ( APPEND SERVICE_LIBS -lutil )
     endif()
 
-    if ( WALBERLA_BUILD_WITH_PYTHON_MODULE )
+    if ( WALBERLA_BUILD_WITH_PYTHON )
         # a python module is a shared library - so everything has to be compiled to position independent code
         # otherwise linking the static libs into the shared lib will result in errors
         if( NOT WALBERLA_CXX_COMPILER_IS_MSVC )

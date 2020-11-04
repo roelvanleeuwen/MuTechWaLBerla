@@ -1,7 +1,7 @@
 # waLBerla Python module
 
 
-if ( WALBERLA_BUILD_WITH_PYTHON_MODULE )
+if ( WALBERLA_BUILD_WITH_PYTHON )
     # pybind11_add_module(walberla_cpp PythonModule.cpp)
 
     set(PYTHON_MODULE_DEPENDENCIES blockforest boundary domain_decomposition core field geometry lbm postprocessing python_coupling timeloop vtk)

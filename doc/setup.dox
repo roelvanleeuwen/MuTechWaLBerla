@@ -73,8 +73,7 @@ WALBERLA_BUILD_WITH_MPI            |    ON    | Since one main goal of waLBerla 
 WALBERLA_BUILD_WITH_OPENMP         |    OFF   | Enables/Disables OpenMP support for thread-parallel computation. Can also be combined with MPI for hybrid simulations!
 WALBERLA_BUILD_TESTS		       |	OFF   | If enabled, all tests are built when running make in the root build folder. But you can always go to a specific directory in your test folder and manually run make.
 WALBERLA_BUILD_BENCHMARKS          |	ON    | Enables/Disables the automatic build of all benchmarks located in "apps/benchmarks".  
-WALBERLA_BUILD_WITH_PYTHON         |	OFF   | Enables Python Support inside waLBerla (embedded Python). Then you can use Python scripts as configuration files and start an embedded python interpreter that can access waLBerla data structures. 
-WALBERLA_BUILD_WITH_PYTHON_MODULE  |	OFF   | This builds a shared library (and python module) walberla.so in "apps/pythonmodule" so that you can use walberla from python.  
+WALBERLA_BUILD_WITH_PYTHON         |	OFF   | Enables Python Support inside waLBerla (embedded Python). Then you can use Python scripts as configuration files and start an embedded python interpreter that can access waLBerla data structures. This builds a shared library (and python module) walberla.so in "apps/pythonmodule" so that you can use walberla from python.
 
 For a list of all switches, see CMakeLists.txt in the root source folder.
 
@@ -87,7 +86,7 @@ e.g. geometry setup, post-processing or steering. This mode can be enabled by th
 
 While in this first option the driving code is C++, the second option exports most of waLBerlas functionality as a
 Python module that can be imported from a regular Python script. Thus the application itself can be written in Python.
-To build and install the waLBerla Python module enable WALBERLA_BUILD_WITH_PYTHON and WALBERLA_BUILD_WITH_PYTHON_MODULE.
+To build and install the waLBerla Python module enable WALBERLA_BUILD_WITH_PYTHON.
 Then run 'make pythonModule' to build and 'make pythonModuleInstall' to install the module in your current environment.
 
 The third option is code generation using 'pystencils' and 'lbmpy' and is covered later.
