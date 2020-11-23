@@ -40,7 +40,7 @@ namespace py = pybind11;
 
 
    template<typename Field_T>
-   py::object gatherToObject( const shared_ptr<StructuredBlockStorage> & blocks, BlockDataID fieldID,
+   Field_T gatherToObject( const shared_ptr<StructuredBlockStorage> & blocks, BlockDataID fieldID,
                                          CellInterval boundingBox = CellInterval(), int targetRank = 0 )
    {
       typedef Field< typename Field_T::value_type, Field_T::F_SIZE > ResultField;
@@ -48,7 +48,7 @@ namespace py = pybind11;
       field::gather< Field_T, ResultField > ( *result, blocks, fieldID, boundingBox, targetRank, MPI_COMM_WORLD );
 
       if ( MPIManager::instance()->worldRank() == targetRank )
-         return py::object(result);
+         return result;
       else
          return py::object();
    }
@@ -59,7 +59,7 @@ namespace py = pybind11;
 
    template<typename... FieldTypes>
    static py::object gatherWrapper (  const shared_ptr<StructuredBlockStorage> & blocks, const std::string & blockDataStr,
-                                                 const py::tuple & slice,  int targetRank = 0 )
+                                      const py::tuple & slice,  int targetRank = 0 )
    {
 
 

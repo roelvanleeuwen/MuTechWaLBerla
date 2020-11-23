@@ -21,238 +21,126 @@
 
 #include "python_coupling/PythonWrapper.h"
 
-
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
+#   include "field/communication/PackInfo.h"
+#   include "field/communication/StencilRestrictedPackInfo.h"
+#   include "field/communication/UniformMPIDatatypeInfo.h"
 
-#include "field/communication/PackInfo.h"
-#include "field/communication/StencilRestrictedPackInfo.h"
-#include "field/communication/UniformMPIDatatypeInfo.h"
+#   include "python_coupling/helper/BoostPythonHelpers.h"
+#   include "python_coupling/helper/MplHelpers.h"
 
-#include "python_coupling/helper/MplHelpers.h"
-#include "python_coupling/helper/BoostPythonHelpers.h"
-#include "python_coupling/helper/MplHelpers.h"
+#   include "stencil/D2Q9.h"
+#   include "stencil/D3Q15.h"
+#   include "stencil/D3Q19.h"
+#   include "stencil/D3Q27.h"
+#   include "stencil/D3Q7.h"
 
-#include "stencil/D2Q9.h"
-#include "stencil/D3Q7.h"
-#include "stencil/D3Q15.h"
-#include "stencil/D3Q19.h"
-#include "stencil/D3Q27.h"
+#  include <typeinfo>
 
+namespace walberla
+{
+namespace field
+{
+namespace internal
+{
+namespace py = pybind11;
 
-namespace walberla {
-namespace field {
+//===================================================================================================================
+//
+//  createPackInfo Export
+//
+//===================================================================================================================
 
-
-namespace internal {
-   namespace py = pybind11;
-
-   //===================================================================================================================
-   //
-   //  createStencilRestrictedPackInfo Export
-   //
-   //===================================================================================================================
-
+struct PackInfoExporter
+{
+   PackInfoExporter(py::module_& m) : m_(m) {}
    template< typename FieldType >
-   typename std::enable_if<FieldType::F_SIZE == 27, py::object>::type
-   createStencilRestrictedPackInfoObject( BlockDataID bdId )
-   {
-      typedef GhostLayerField<typename FieldType::value_type, 27> GlField_T;
-      using field::communication::StencilRestrictedPackInfo;
-      return py::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q27> >( bdId) );
-   }
-
-   template< typename FieldType >
-   typename std::enable_if<FieldType::F_SIZE == 19, py::object>::type
-   createStencilRestrictedPackInfoObject( BlockDataID bdId )
-   {
-      typedef GhostLayerField<typename FieldType::value_type, 19> GlField_T;
-      using field::communication::StencilRestrictedPackInfo;
-      return py::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q19> >( bdId) );
-   }
-
-   template< typename FieldType >
-   typename std::enable_if<FieldType::F_SIZE == 15, py::object>::type
-   createStencilRestrictedPackInfoObject( BlockDataID bdId )
-   {
-      typedef GhostLayerField<typename FieldType::value_type, 15> GlField_T;
-      using field::communication::StencilRestrictedPackInfo;
-      return py::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q15> >( bdId) );
-   }
-
-   template< typename FieldType >
-   typename std::enable_if<FieldType::F_SIZE == 7, py::object>::type
-   createStencilRestrictedPackInfoObject( BlockDataID bdId )
-   {
-      typedef GhostLayerField<typename FieldType::value_type, 7> GlField_T;
-      using field::communication::StencilRestrictedPackInfo;
-      return py::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D3Q7> >( bdId) );
-   }
-
-   template< typename FieldType >
-   typename std::enable_if<FieldType::F_SIZE == 9, py::object>::type
-   createStencilRestrictedPackInfoObject( BlockDataID bdId )
-   {
-      typedef GhostLayerField<typename FieldType::value_type, 9> GlField_T;
-      using field::communication::StencilRestrictedPackInfo;
-      return py::object( make_shared< StencilRestrictedPackInfo<GlField_T, stencil::D2Q9> >( bdId) );
-   }
-
-   template< typename FieldType >
-   typename std::enable_if<!(FieldType::F_SIZE == 9  ||
-                             FieldType::F_SIZE == 7  ||
-                             FieldType::F_SIZE == 15 ||
-                             FieldType::F_SIZE == 19 ||
-                             FieldType::F_SIZE == 27), py::object>::type
-   createStencilRestrictedPackInfoObject( BlockDataID )
-   {
-      PyErr_SetString( PyExc_ValueError, "This works only for fields with fSize in 7, 9, 15, 19 or 27" );
-      throw py::error_already_set();
-   }
-
-   FunctionExporterClass( createStencilRestrictedPackInfoObject, py::object( BlockDataID ) );
-
-   template< typename... FieldTypes>
-   py::object createStencilRestrictedPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
-                                                          const std::string & blockDataName )
-   {
-      auto bdId = python_coupling::blockDataIDFromString( *bs, blockDataName );
-      if ( bs->begin() == bs->end() ) {
-         // if no blocks are on this field an arbitrary PackInfo can be returned
-         return createStencilRestrictedPackInfoObject< GhostLayerField<real_t,1> > ( bdId );
-      }
-
-      IBlock * firstBlock =  & ( * bs->begin() );
-      python_coupling::Dispatcher<Exporter_createStencilRestrictedPackInfoObject, FieldTypes... > dispatcher( firstBlock );
-      return dispatcher( bdId )( bdId ) ;
-   }
-
-   //===================================================================================================================
-   //
-   //  createPackInfo Export
-   //
-   //===================================================================================================================
-
-   template< typename FieldType >
-   py::object createPackInfoToObject( BlockDataID bdId, uint_t numberOfGhostLayers )
+   void operator()(python_coupling::NonCopyableWrap< FieldType >) const
    {
       typedef typename FieldType::value_type T;
       const uint_t F_SIZE = FieldType::F_SIZE;
-      typedef GhostLayerField<T, F_SIZE> GlField_T;
-      if ( numberOfGhostLayers > 0  )
-         return py::object( make_shared< field::communication::PackInfo<GlField_T> >( bdId, numberOfGhostLayers ) );
-      else
-         return py::object( make_shared< field::communication::PackInfo<GlField_T> >( bdId ) );
+      typedef GhostLayerField< T, F_SIZE > GlField_T;
+      typedef Field< T, F_SIZE > Field_T;
+
+      typedef field::communication::PackInfo< GlField_T > PackInfo;
+      std::string class_name = "PackInfo_" + std::string(typeid(T).name()) + "_" + std::to_string(F_SIZE);
+
+      py::class_< PackInfo, shared_ptr< PackInfo > >(m_, class_name.c_str());
    }
+   const py::module_ m_;
+};
 
-   FunctionExporterClass( createPackInfoToObject, py::object( BlockDataID, uint_t  ) );
+//===================================================================================================================
+//
+//  createMPIDatatypeInfo
+//
+//===================================================================================================================
 
-   template< typename... FieldTypes>
-   py::object createPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
-                                         const std::string & blockDataName, uint_t numberOfGhostLayers )
-   {
-      auto bdId = python_coupling::blockDataIDFromString( *bs, blockDataName );
-      if ( bs->begin() == bs->end() ) {
-         // if no blocks are on this field an arbitrary PackInfo can be returned
-         return createPackInfoToObject< GhostLayerField<real_t,1> > ( bdId, numberOfGhostLayers );
-      }
-
-      IBlock * firstBlock =  & ( * bs->begin() );
-      python_coupling::Dispatcher<Exporter_createPackInfoToObject, FieldTypes... > dispatcher( firstBlock );
-      return dispatcher( bdId )( bdId, numberOfGhostLayers ) ;
-   }
-
-
-   //===================================================================================================================
-   //
-   //  createMPIDatatypeInfo
-   //
-   //===================================================================================================================
-
-
+struct UniformMPIDatatypeInfoExporter
+{
+   UniformMPIDatatypeInfoExporter(py::module_& m) : m_(m) {}
    template< typename FieldType >
-   py::object createMPIDatatypeInfoToObject( BlockDataID bdId, uint_t numberOfGhostLayers )
+   void operator()(python_coupling::NonCopyableWrap< FieldType >) const
    {
       typedef typename FieldType::value_type T;
       const uint_t F_SIZE = FieldType::F_SIZE;
-      typedef GhostLayerField<T, F_SIZE> GlField_T;
-      using field::communication::UniformMPIDatatypeInfo;
+      typedef GhostLayerField< T, F_SIZE > GlField_T;
+      typedef Field< T, F_SIZE > Field_T;
 
-      if ( numberOfGhostLayers > 0 )
-         return py::object( make_shared< UniformMPIDatatypeInfo<GlField_T> >( bdId, numberOfGhostLayers ) );
-      else
-         return py::object( make_shared< UniformMPIDatatypeInfo<GlField_T> >( bdId ) );
+      typedef field::communication::UniformMPIDatatypeInfo< GlField_T > MPIDataTypeInfo;
+      std::string class_name =
+         "UniformMPIDatatypeInfo_" + std::string(typeid(T).name()) + "_" + std::to_string(FieldType::F_SIZE);
+
+      py::class_< MPIDataTypeInfo, shared_ptr< MPIDataTypeInfo > >(m_, class_name.c_str());
    }
+   const py::module_ m_;
+};
 
-   FunctionExporterClass( createMPIDatatypeInfoToObject, py::object( BlockDataID, uint_t  ) );
-
-   template< typename... FieldTypes>
-   py::object createMPIDatatypeInfo( const shared_ptr<StructuredBlockStorage> & bs,
-                                                const std::string & blockDataName,
-                                                uint_t numberOfGhostLayers)
+template< typename T >
+void exportStencilRestrictedPackInfo(py::module_& m)
+{
+   using field::communication::StencilRestrictedPackInfo;
    {
-      auto bdId = python_coupling::blockDataIDFromString( *bs, blockDataName );
-      if ( bs->begin() == bs->end() ) {
-         // if no blocks are on this field an arbitrary MPIDatatypeInfo can be returned
-         return createMPIDatatypeInfoToObject< GhostLayerField<real_t,1> > ( bdId, numberOfGhostLayers );
-      }
-
-      IBlock * firstBlock =  & ( * bs->begin() );
-      python_coupling::Dispatcher<Exporter_createMPIDatatypeInfoToObject, FieldTypes... > dispatcher( firstBlock );
-      return dispatcher( bdId )( bdId, numberOfGhostLayers );
+      typedef StencilRestrictedPackInfo< GhostLayerField< T, 9 >, stencil::D2Q9 > Pi;
+      py::class_< Pi, shared_ptr< Pi >, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo_D2Q9");
    }
-
-   template< typename T>
-   void exportStencilRestrictedPackInfo(py::module_ &m)
    {
-      using field::communication::StencilRestrictedPackInfo;
-      {
-         typedef StencilRestrictedPackInfo<GhostLayerField<T, 9>, stencil::D2Q9> Pi;
-         py::class_< Pi, shared_ptr<Pi>, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo" );
-      }
-      {
-         typedef StencilRestrictedPackInfo<GhostLayerField<T, 7>, stencil::D3Q7> Pi;
-         py::class_< Pi, shared_ptr<Pi>, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo" );
-      }
-      {
-         typedef StencilRestrictedPackInfo<GhostLayerField<T, 15>, stencil::D3Q15> Pi;
-         py::class_< Pi, shared_ptr<Pi>, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo" );
-      }
-      {
-         typedef StencilRestrictedPackInfo<GhostLayerField<T, 19>, stencil::D3Q19> Pi;
-         py::class_< Pi, shared_ptr<Pi>, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo" );
-      }
-      {
-         typedef StencilRestrictedPackInfo<GhostLayerField<T, 27>, stencil::D3Q27> Pi;
-         py::class_< Pi, shared_ptr<Pi>, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo" );
-      }
-
+      typedef StencilRestrictedPackInfo< GhostLayerField< T, 7 >, stencil::D3Q7 > Pi;
+      py::class_< Pi, shared_ptr< Pi >, walberla::communication::UniformPackInfo >(m, "StencilRestrictedPackInfo_D3Q7");
    }
+   {
+      typedef StencilRestrictedPackInfo< GhostLayerField< T, 15 >, stencil::D3Q15 > Pi;
+      py::class_< Pi, shared_ptr< Pi >, walberla::communication::UniformPackInfo >(m,
+                                                                                   "StencilRestrictedPackInfo_D3Q15");
+   }
+   {
+      typedef StencilRestrictedPackInfo< GhostLayerField< T, 19 >, stencil::D3Q19 > Pi;
+      py::class_< Pi, shared_ptr< Pi >, walberla::communication::UniformPackInfo >(m,
+                                                                                   "StencilRestrictedPackInfo_D3Q19");
+   }
+   {
+      typedef StencilRestrictedPackInfo< GhostLayerField< T, 27 >, stencil::D3Q27 > Pi;
+      py::class_< Pi, shared_ptr< Pi >, walberla::communication::UniformPackInfo >(m,
+                                                                                   "StencilRestrictedPackInfo_D3Q27");
+   }
+}
 
 } // namespace internal
 
-
-
 namespace py = pybind11;
 
-template<typename... FieldTypes>
-void exportCommunicationClasses(py::module_ &m)
+template< typename... FieldTypes >
+void exportCommunicationClasses(py::module_& m)
 {
+   // internal::exportStencilRestrictedPackInfo< float >(m);
+   internal::exportStencilRestrictedPackInfo< double >(m);
 
-   internal::exportStencilRestrictedPackInfo<float>(m);
-   internal::exportStencilRestrictedPackInfo<double>(m);
-
-   m.def( "createMPIDatatypeInfo",&internal::createMPIDatatypeInfo<FieldTypes...>, py::arg("blocks"), py::arg("blockDataName"), py::arg("numberOfGhostLayers" ) =0  );
-   m.def( "createPackInfo",       &internal::createPackInfo<FieldTypes...>,        py::arg("blocks"), py::arg("blockDataName"), py::arg("numberOfGhostLayers" ) =0 );
-   m.def( "createStencilRestrictedPackInfo", &internal::createStencilRestrictedPackInfo<FieldTypes...>,
-        py::arg("blocks"), py::arg("blockDataName") );
+   python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::UniformMPIDatatypeInfoExporter(m));
+   python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::PackInfoExporter(m));
 }
 
-
-} // namespace moduleName
+} // namespace field
 } // namespace walberla
-
-
-
 
 #endif // WALBERLA_BUILD_WITH_PYTHON
