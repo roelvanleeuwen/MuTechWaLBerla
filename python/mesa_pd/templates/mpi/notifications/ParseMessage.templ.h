@@ -31,7 +31,7 @@
 #include <mesa_pd/domain/IDomain.h>
 #include <mesa_pd/mpi/notifications/NewGhostParticleNotification.h>
 #include <mesa_pd/mpi/notifications/NotificationType.h>
-#include <mesa_pd/mpi/notifications/ParticleCopyNotification.h>
+#include <mesa_pd/mpi/notifications/ParticleGhostCopyNotification.h>
 #include <mesa_pd/mpi/notifications/ParticleMigrationNotification.h>
 #include <mesa_pd/mpi/notifications/ParticleRemoteMigrationNotification.h>
 #include <mesa_pd/mpi/notifications/ParticleRemovalNotification.h>
@@ -52,8 +52,11 @@ public:
                    walberla::mpi::RecvBuffer& rb,
                    data::ParticleStorage& ps,
                    const domain::IDomain& domain);
+   void allowMultipleGhostCopyNotifications(bool val) {allowMultipleGhostCopyNotifications_ = val;}
 private:
    int receiver_ = int_c( walberla::mpi::MPIManager::instance()->rank() );
+
+   bool allowMultipleGhostCopyNotifications_ = false;
 };
 
 inline
@@ -66,11 +69,11 @@ void ParseMessage::operator()(int sender,
    rb >> notificationType;
 
    switch( notificationType ) {
-   case PARTICLE_COPY_NOTIFICATION: {
-      typename ParticleCopyNotification::Parameters objparam;
+   case PARTICLE_GHOST_COPY_NOTIFICATION: {
+      typename ParticleGhostCopyNotification::Parameters objparam;
       rb >> objparam;
 
-      WALBERLA_LOG_DETAIL( "Received PARTICLE_COPY_NOTIFICATION for particle " << objparam.uid << "from neighboring process with rank " << sender );
+      WALBERLA_LOG_DETAIL( "Received PARTICLE_GHOST_COPY_NOTIFICATION for particle " << objparam.uid << "from neighboring process with rank " << sender );
 
       if ( ps.find(objparam.uid) == ps.end() )
       {
@@ -82,10 +85,17 @@ void ParseMessage::operator()(int sender,
          data::particle_flags::set(pIt->getFlagsRef(), data::particle_flags::GHOST);
       } else
       {
-         WALBERLA_LOG_DETAIL("Ghost particle with id " << objparam.uid << " already existend.");
+         if (allowMultipleGhostCopyNotifications_)
+         {
+            //superfluous ghost creation messages might be send during ghost owner sync
+            WALBERLA_LOG_DETAIL("Ghost particle with id " << objparam.uid << " already existend.");
+         } else
+         {
+            WALBERLA_ABORT("Ghost particle with id " << objparam.uid << " already existend.");
+         }
       }
 
-      WALBERLA_LOG_DETAIL( "Processed PARTICLE_COPY_NOTIFICATION for particle " << objparam.uid << "."  );
+      WALBERLA_LOG_DETAIL( "Processed PARTICLE_GHOST_COPY_NOTIFICATION for particle " << objparam.uid << "."  );
 
       break;
    }
@@ -103,7 +113,7 @@ void ParseMessage::operator()(int sender,
       WALBERLA_CHECK(data::particle_flags::isSet(pIt->getFlags(), data::particle_flags::GHOST),
                      "Update notification must only concern shadow copies.");
 
-      {%- for prop in properties %}
+      {%- for prop in particle.properties %}
       {%- if prop.syncMode in ["ALWAYS"] %}
       pIt->set{{prop.name | capFirst}}(objparam.{{prop.name}});
       {%- endif %}
@@ -134,8 +144,8 @@ void ParseMessage::operator()(int sender,
 
       pIt->setOwner(receiver_);
       data::particle_flags::unset(pIt->getFlagsRef(), data::particle_flags::GHOST);
-      {%- for prop in properties %}
-      {%- if prop.syncMode in ["MIGRATION"] %}
+      {%- for prop in particle.properties %}
+      {%- if prop.syncMode in ["ON_OWNERSHIP_CHANGE"] %}
       pIt->set{{prop.name | capFirst}}(objparam.{{prop.name}}_);
       {%- endif %}
       {%- endfor %}

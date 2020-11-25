@@ -70,12 +70,13 @@ int main( int argc, char ** argv )
    // create fields
    BlockDataID forceFieldId = field::addToStorage<VectorField_T>( blocks, "Force", real_t( 0.0 ));
 
-   LatticeModel_T latticeModel = LatticeModel_T( forceFieldId, omega, omega, seed, temperature, uint_t(0) );
+   LatticeModel_T latticeModel = LatticeModel_T( forceFieldId, omega, 0, omega, omega, seed, temperature, uint_t(0) );
    BlockDataID pdfFieldId = lbm::addPdfFieldToStorage( blocks, "pdf field", latticeModel, initialVelocity, real_t(1) );
    BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >( blocks, "flag field" );
 
-   // create and initialize boundary handling
+   // create and initialize flag field
    const FlagUID fluidFlagUID( "Fluid" );
+   geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
 
    // create time loop
    SweepTimeloop timeloop( blocks->getBlockStorage(), timesteps );
@@ -84,9 +85,14 @@ int main( int argc, char ** argv )
    blockforest::communication::UniformBufferedScheme< CommunicationStencil_T > communication( blocks );
    communication.addPackInfo( make_shared< lbm::PdfFieldPackInfo< LatticeModel_T > >( pdfFieldId ) );
 
+   // set the RNG counter to match the time step and propagate it to the fields' copies of the lattice model
+   timeloop.add() << BeforeFunction( [&](){ latticeModel.time_step_ = uint32_c(timeloop.getCurrentTimeStep()); }, "set RNG counter" )
+                  << Sweep( [&]( IBlock * block ){
+                        auto field = block->getData< PdfField_T >( pdfFieldId );
+                        field->latticeModel().time_step_ = latticeModel.time_step_;
+                     }, "set RNG counter" );
    // add LBM sweep and communication to time loop
-   timeloop.add() << BeforeFunction( [&](){ latticeModel.time_step = uint32_c(timeloop.getCurrentTimeStep()); }, "set RNG counter" )
-                  << BeforeFunction( communication, "communication" )
+   timeloop.add() << BeforeFunction( communication, "communication" )
                   << Sweep( LatticeModel_T::Sweep( pdfFieldId ), "LB stream & collide" );
 
    // LBM stability check

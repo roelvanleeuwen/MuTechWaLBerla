@@ -26,6 +26,7 @@
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/Logging.h"
 #include "core/mpi/Environment.h"
+#include "core/stringToNum.h"
 
 #include "field/AddToStorage.h"
 #include "field/vtk/VTKWriter.h"
@@ -33,14 +34,14 @@
 #include "geometry/mesh/TriangleMesh.h"
 #include "geometry/mesh/TriangleMeshIO.h"
 
-#include "mesh/TriangleMeshes.h"
-#include "mesh/MeshOperations.h"
-#include "mesh/DistanceComputations.h"
-#include "mesh/distance_octree/DistanceOctree.h"
-#include "mesh/MeshIO.h"
-#include "mesh/vtk/VTKMeshWriter.h"
-#include "mesh/vtk/CommonDataSources.h"
-#include "mesh/vtk/CommonFilters.h"
+#include "mesh_common/TriangleMeshes.h"
+#include "mesh_common/MeshOperations.h"
+#include "mesh_common/DistanceComputations.h"
+#include "mesh_common/distance_octree/DistanceOctree.h"
+#include "mesh_common/MeshIO.h"
+#include "mesh_common/vtk/VTKMeshWriter.h"
+#include "mesh_common/vtk/CommonDataSources.h"
+#include "mesh_common/vtk/CommonFilters.h"
 
 #include "stencil/D3Q27.h"
 
@@ -72,7 +73,7 @@ int main( int argc, char * argv[] )
       args.erase( vtkArgIt );
    }
    const std::string & meshFile = args[1];
-   real_t dx = string_to_num<real_t>( args[2] );
+   real_t dx = stringToNum<real_t>( args[2] );
 
    auto mesh = make_shared<mesh::TriangleMesh>();
    mesh::readAndBroadcast( meshFile, *mesh);

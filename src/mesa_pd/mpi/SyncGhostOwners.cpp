@@ -39,6 +39,11 @@ void SyncGhostOwners::operator()( data::ParticleStorage& ps,
 {
    if (numProcesses_ == 1) return;
 
+   bytesSent_ = 0;
+   bytesReceived_ = 0;
+   numberOfSends_ = 0;
+   numberOfReceives_ = 0;
+
    //==========================================================
    // STEP1: Update & Migrate
    //==========================================================
@@ -58,6 +63,8 @@ void SyncGhostOwners::updateAndMigrate( data::ParticleStorage& ps,
    //==========================================================
    // STEP1: Update & Migrate
    //==========================================================
+
+   walberla::mpi::BufferSystem bs1( walberla::mpi::MPIManager::instance()->comm(), 749861);
 
    WALBERLA_CHECK(!bs1.isCommunicationRunning());
 
@@ -181,6 +188,7 @@ void SyncGhostOwners::updateAndMigrate( data::ParticleStorage& ps,
    // Receiving the updates for the remote rigid bodies from the connected processes
    WALBERLA_LOG_DETAIL( "Parsing of Update&Migrate starts..." );
    ParseMessage parseMessage;
+   parseMessage.allowMultipleGhostCopyNotifications(true);
    for( auto it = bs1.begin(); it != bs1.end(); ++it )
    {
       walberla::uint8_t tmp;
@@ -191,6 +199,11 @@ void SyncGhostOwners::updateAndMigrate( data::ParticleStorage& ps,
       }
    }
    WALBERLA_LOG_DETAIL( "Parsing of Update&Migrate ended." );
+
+   bytesSent_ += bs1.getBytesSent();
+   bytesReceived_ += bs1.getBytesReceived();
+   numberOfSends_ += bs1.getNumberOfSends();
+   numberOfReceives_ += bs1.getNumberOfReceives();
 }
 
 void SyncGhostOwners::checkAndResolveOverlap( data::ParticleStorage& ps,
@@ -202,6 +215,8 @@ void SyncGhostOwners::checkAndResolveOverlap( data::ParticleStorage& ps,
    //==========================================================
    // STEP2: Check&Resolve
    //==========================================================
+
+   walberla::mpi::BufferSystem bs2( walberla::mpi::MPIManager::instance()->comm(), 255367);
 
    WALBERLA_CHECK(!bs2.isCommunicationRunning());
 
@@ -249,8 +264,8 @@ void SyncGhostOwners::checkAndResolveOverlap( data::ParticleStorage& ps,
             if( domain.intersectsWithProcessSubdomain( nbProcessRank, pIt->getPosition(), pIt->getInteractionRadius() + dx ) )
             {
                // no ghost there -> create ghost
-               WALBERLA_LOG_DETAIL( "Sending copy notification for body " << pIt->getUid() << " to process " << (nbProcessRank) << "\n master: " << pIt->getOwner());
-               packNotification(sb, ParticleCopyNotification( *pIt ));
+               WALBERLA_LOG_DETAIL( "Sending ghost copy notification for body " << pIt->getUid() << " to process " << (nbProcessRank) << "\n master: " << pIt->getOwner());
+               packNotification(sb, ParticleGhostCopyNotification( *pIt ));
                packNotification(sbMaster, NewGhostParticleNotification( *pIt, int_c(nbProcessRank) ));
                pIt->getNeighborStateRef().insert( int_c(nbProcessRank) );
             }
@@ -274,8 +289,8 @@ void SyncGhostOwners::checkAndResolveOverlap( data::ParticleStorage& ps,
             if( domain.intersectsWithProcessSubdomain( nbProcessRank, pIt->getPosition(), pIt->getInteractionRadius() + dx ) )
             {
                // no ghost there -> create ghost
-               WALBERLA_LOG_DETAIL( "Sending copy notification for body " << pIt->getUid() << " to process " << (nbProcessRank) << "\n master: " << pIt->getOwner());
-               packNotification(sb, ParticleCopyNotification( *pIt ));
+               WALBERLA_LOG_DETAIL( "Sending ghost copy notification for body " << pIt->getUid() << " to process " << (nbProcessRank) << "\n master: " << pIt->getOwner());
+               packNotification(sb, ParticleGhostCopyNotification( *pIt ));
                packNotification(sbMaster, NewGhostParticleNotification( *pIt, int_c(nbProcessRank) ));
                pIt->getNeighborStateRef().insert( int_c(nbProcessRank) );
             }
@@ -338,6 +353,7 @@ void SyncGhostOwners::checkAndResolveOverlap( data::ParticleStorage& ps,
    // Receiving the updates for the remote rigid bodies from the connected processes
    WALBERLA_LOG_DETAIL( "Parsing of Check&Resolve starts..." );
    ParseMessage parseMessage;
+   parseMessage.allowMultipleGhostCopyNotifications(true);
    for( auto it = bs2.begin(); it != bs2.end(); ++it )
    {
       walberla::uint8_t tmp;
@@ -348,6 +364,11 @@ void SyncGhostOwners::checkAndResolveOverlap( data::ParticleStorage& ps,
       }
    }
    WALBERLA_LOG_DETAIL( "Parsing of Check&Resolve ended." );
+
+   bytesSent_ += bs2.getBytesSent();
+   bytesReceived_ += bs2.getBytesReceived();
+   numberOfSends_ += bs2.getNumberOfSends();
+   numberOfReceives_ += bs2.getNumberOfReceives();
 }
 
 }  // namespace mpi

@@ -7,6 +7,9 @@
 waLBerla_compile_test( FILES AccuracyEvaluationTest.cpp DEPENDS blockforest )
 waLBerla_execute_test( NAME AccuracyEvaluationTest4 COMMAND $<TARGET_FILE:AccuracyEvaluationTest> PROCESSES 4  )
 
+waLBerla_compile_test( FILES AddToStorageTest.cpp DEPENDS blockforest )
+waLBerla_execute_test( NAME AddToStorageTest )
+
 waLBerla_compile_test( FILES communication/FieldPackInfoTest.cpp DEPENDS blockforest )
 waLBerla_execute_test( NAME  FieldPackInfoTest )
 
@@ -14,7 +17,7 @@ waLBerla_compile_test( FILES distributors/DistributionTest.cpp)
 waLBerla_execute_test( NAME DistributionTest )
 
 waLBerla_compile_test( FILES FieldTest.cpp )
-waLBerla_execute_test( NAME FieldTest ) 
+waLBerla_execute_test( NAME FieldTest )
 
 waLBerla_compile_test( FILES FieldOfCustomTypesTest.cpp  )
 waLBerla_execute_test( NAME FieldOfCustomTypesTest )
@@ -59,9 +62,19 @@ endif( WALBERLA_BUILD_WITH_MPI )
 
 
 # CodeGen Tests
-
-waLBerla_python_file_generates(codegen/JacobiKernel.py JacobiKernel2D.cpp JacobiKernel3D.cpp )
-waLBerla_compile_test( FILES codegen/CodegenJacobiCPU.cpp codegen/JacobiKernel.py DEPENDS gui timeloop )
+if( WALBERLA_BUILD_WITH_CODEGEN )
+waLBerla_generate_target_from_python(NAME CodegenJacobiCPUGeneratedJacobiKernel FILE codegen/JacobiKernel.py
+      OUT_FILES JacobiKernel2D.cpp JacobiKernel2D.h JacobiKernel3D.cpp JacobiKernel3D.h )
+waLBerla_compile_test( FILES codegen/CodegenJacobiCPU.cpp DEPENDS gui timeloop CodegenJacobiCPUGeneratedJacobiKernel)
 waLBerla_execute_test( NAME CodegenJacobiCPU )
 
+waLBerla_generate_target_from_python(NAME CodegenPoissonCPUGeneratedKernel FILE codegen/Poisson.py
+      OUT_FILES Poisson.cpp Poisson.h )
+waLBerla_compile_test( FILES codegen/CodegenPoissonCPU.cpp DEPENDS gui timeloop CodegenPoissonCPUGeneratedKernel)
+waLBerla_execute_test( NAME CodegenPoissonCPU )
 
+waLBerla_generate_target_from_python(NAME CodeGenMultipleFieldSwaps FILE codegen/MultipleFieldSwaps.py
+        OUT_FILES MultipleFieldSwaps.cpp MultipleFieldSwaps.h )
+waLBerla_compile_test( FILES codegen/MultipleFieldSwaps.cpp DEPENDS gui timeloop CodeGenMultipleFieldSwaps)
+waLBerla_execute_test( NAME MultipleFieldSwaps )
+endif()

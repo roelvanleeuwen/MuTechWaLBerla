@@ -2,7 +2,6 @@
 from .DetectAndStoreContacts import DetectAndStoreContacts
 from .DoubleCast import DoubleCast
 from .ExplicitEuler import ExplicitEuler
-from .ExplicitEulerWithShape import ExplicitEulerWithShape
 from .ForceLJ import ForceLJ
 from .HCSITSRelaxationStep import HCSITSRelaxationStep
 from .HeatConduction import HeatConduction
@@ -15,14 +14,13 @@ from .LinearSpringDashpot import LinearSpringDashpot
 from .NonLinearSpringDashpot import NonLinearSpringDashpot
 from .SingleCast import SingleCast
 from .SpringDashpot import SpringDashpot
+from .SpringDashpotSpring import SpringDashpotSpring
 from .TemperatureIntegration import TemperatureIntegration
 from .VelocityVerlet import VelocityVerlet
-from .VelocityVerletWithShape import VelocityVerletWithShape
 
 __all__ = ['DoubleCast',
            'DetectAndStoreContacts',
            'ExplicitEuler',
-           'ExplicitEulerWithShape',
            'ForceLJ',
            'HCSITSRelaxationStep',
            'HeatConduction',
@@ -35,6 +33,6 @@ __all__ = ['DoubleCast',
            'NonLinearSpringDashpot',
            'SingleCast',
            'SpringDashpot',
+           'SpringDashpotSpring',
            'TemperatureIntegration',
-           'VelocityVerlet',
-           'VelocityVerletWithShape']
+           'VelocityVerlet']

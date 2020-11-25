@@ -25,7 +25,7 @@
 ##
 ############################################################################################################################
 
-CMAKE_MINIMUM_REQUIRED (VERSION 3.1)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.10)
 
 
 PROJECT ( walberla )
@@ -91,9 +91,6 @@ option ( WALBERLA_SIMD_FORCE_SCALAR         "Do not use SIMD operations even whe
 
 option ( WALBERLA_BUFFER_DEBUG              "Type checking for BufferSystem ( slow )"        OFF )
 
-option ( WALBERLA_NO_OUTDATED_FEATURES      "Show warning/errors when outdated features "
-                                            "(i.e. features that will be deprecated) are used"   )
-
 # Profile guided optimization
 option ( WALBERLA_PROFILE_GENERATE          "Generates Profile for Optimization"                 )
 option ( WALBERLA_PROFILE_USE               "Uses Profile to optimize"                           )
@@ -139,6 +136,9 @@ endif()
 
 ############################################################################################################################
 
+set( CMAKE_CXX_STANDARD 14 )
+set( CMAKE_CXX_STANDARD_REQUIRED ON )
+set( CMAKE_CXX_EXTENSIONS OFF )
 
 ############################################################################################################################
 ##
@@ -172,7 +172,7 @@ if( CMAKE_CXX_COMPILER MATCHES "icpc" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "icpc" 
     MARK_AS_ADVANCED(XILD)
     if( CMAKE_VERSION VERSION_LESS 3.6.0 )
       set( CMAKE_CXX14_STANDARD_COMPILE_OPTION "-std=c++14" )
-      add_flag ( CMAKE_CXX_FLAGS ${CMAKE_CXX14_STANDARD_COMPILE_OPTION} )
+      add_flag ( CMAKE_CXX_FLAGS ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
     endif()
 else()
     option ( WALBERLA_CXX_COMPILER_IS_INTEL "Use Intel compiler" OFF  )
@@ -278,10 +278,6 @@ if ( WALBERLA_PROFILE_USE )
     endif()
 endif()
 
-set( CMAKE_CXX_STANDARD 14 )
-set( CMAKE_CXX_STANDARD_REQUIRED ON )
-set( CMAKE_CXX_EXTENSIONS OFF )
-
 # common flags for intel and g++
 if ( NOT WARNING_DISABLE AND ( WALBERLA_CXX_COMPILER_IS_GNU OR WALBERLA_CXX_COMPILER_IS_INTEL ) )
    add_flag ( CMAKE_CXX_FLAGS "-Wall -Wconversion -Wshadow" )
@@ -290,7 +286,7 @@ endif()
 # C++ language features for NEC compiler
 if( WALBERLA_CXX_COMPILER_IS_NEC )
    set( CMAKE_CXX14_STANDARD_COMPILE_OPTION "-Kcpp14" )
-   add_flag ( CMAKE_CXX_FLAGS "${CMAKE_CXX14_STANDARD_COMPILE_OPTION} -Krtti -Kexceptions -size_t64 -Kgcc" )
+   add_flag ( CMAKE_CXX_FLAGS "${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} -Krtti -Kexceptions -size_t64 -Kgcc" )
    add_flag ( CMAKE_CXX_FLAGS "-D__BIG_ENDIAN -D__BYTE_ORDER=__BIG_ENDIAN" )
    add_flag ( CMAKE_CXX_FLAGS "-Tnoauto,used" )
    add_flag ( CMAKE_EXE_LINKER_FLAGS "-Wl,-h,muldefs" )
@@ -377,6 +373,7 @@ endif ( )
 if( WALBERLA_CXX_COMPILER_IS_GNU OR WALBERLA_CXX_COMPILER_IS_INTEL OR WALBERLA_CXX_COMPILER_IS_CLANG )
     if ( WALBERLA_STL_BOUNDS_CHECKS )
         add_definitions ( "-D_GLIBCXX_DEBUG" )
+        add_definitions ( "-D_LIBCPP_DEBUG=1" )
     endif()
 endif()
 
@@ -442,19 +439,19 @@ endif()
 ############################################################################################################################
 
 try_compile( WALBERLA_USE_STD_FILESYSTEM "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdFilesystem.cpp"
-             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_FILESYSTEM ${CMAKE_CXX14_STANDARD_COMPILE_OPTION} )
+             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_FILESYSTEM ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
 if( WALBERLA_USE_STD_FILESYSTEM )
    message( STATUS "Found std::filesystem")
 else()
    try_compile( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdFilesystem.cpp"
-                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM ${CMAKE_CXX14_STANDARD_COMPILE_OPTION} )
+                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
    if( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
       message( STATUS "Found std::experimental::filesystem")
    endif()
    if( NOT WALBERLA_CXX_COMPILER_IS_MSVC AND NOT WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
       unset( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM CACHE )
       try_compile( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdFilesystem.cpp"
-                   COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM ${CMAKE_CXX14_STANDARD_COMPILE_OPTION}
+                   COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION}
                    LINK_LIBRARIES stdc++fs )
       if( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
          message( STATUS "Found std::experimental::filesystem in libstdc++fs")
@@ -464,7 +461,7 @@ else()
    if( NOT WALBERLA_CXX_COMPILER_IS_MSVC AND NOT WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
       unset( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM CACHE )
       try_compile( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdFilesystem.cpp"
-                   COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM ${CMAKE_CXX14_STANDARD_COMPILE_OPTION}
+                   COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION}
                    LINK_LIBRARIES c++experimental )
       if( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
          message( STATUS "Found std::experimental::filesystem in libc++experimental")
@@ -474,27 +471,33 @@ else()
 endif()
 
 try_compile( WALBERLA_USE_STD_ANY "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdAny.cpp"
-             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_ANY ${CMAKE_CXX14_STANDARD_COMPILE_OPTION} )
+             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_ANY ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
 if( WALBERLA_USE_STD_ANY )
    message( STATUS "Found std::any")
 else()
    try_compile( WALBERLA_USE_STD_EXPERIMENTAL_ANY "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdAny.cpp"
-                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_ANY ${CMAKE_CXX14_STANDARD_COMPILE_OPTION} )
+                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_ANY ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
    if( WALBERLA_USE_STD_EXPERIMENTAL_ANY )
       message( STATUS "Found std::experimental::any")
    endif()
 endif()
 
 try_compile( WALBERLA_USE_STD_OPTIONAL "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdOptional.cpp"
-             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_OPTIONAL ${CMAKE_CXX14_STANDARD_COMPILE_OPTION} )
+             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_OPTIONAL ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
 if( WALBERLA_USE_STD_OPTIONAL )
    message( STATUS "Found std::optional")
 else()
    try_compile( WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdOptional.cpp"
-                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL ${CMAKE_CXX14_STANDARD_COMPILE_OPTION} )
+                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
    if( WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL )
       message( STATUS "Found std::experimental::optional")
    endif()
+endif()
+
+try_compile( WALBERLA_USE_STD_VARIANT "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdVariant.cpp"
+             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_VARIANT ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
+if( WALBERLA_USE_STD_VARIANT )
+   message( STATUS "Found std::variant")
 endif()
 
 
@@ -554,14 +557,23 @@ endif ( )
 ##
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_CODEGEN )
-    find_package( PythonInterp 3 QUIET REQUIRED)
-    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import pystencils_walberla; from pystencils.include import get_pystencils_include_path; print(get_pystencils_include_path())"
-                    RESULT_VARIABLE PYTHON_RET_CODE
-                    OUTPUT_VARIABLE PYSTENCILS_INCLUDE_PATH)
-    if(NOT PYTHON_RET_CODE EQUAL 0)
-        message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated and pystencils_walberla package not found")
+   find_package( PythonInterp 3 QUIET REQUIRED)
+   execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import lbmpy"
+         RESULT_VARIABLE LBMPY_FOUND )
+    if(NOT LBMPY_FOUND EQUAL 0)
+       message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated but pystencils or lbmpy package not found.
+                            Please install lbmpy e.g.: 'pip3 install lbmpy'")
     endif()
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from pystencils.include import get_pystencils_include_path; print(get_pystencils_include_path())"
+                    OUTPUT_VARIABLE PYSTENCILS_INCLUDE_PATH)
     include_directories( ${PYSTENCILS_INCLUDE_PATH} )
+
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import jinja2"
+          RESULT_VARIABLE JINJA2_FOUND )
+    if(NOT JINJA2_FOUND EQUAL 0)
+       message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated and jinja2 package not found.
+       Please install jinja2 e.g.: 'pip3 install jinja2'")
+    endif()
 endif()
 ############################################################################################################################
 
@@ -639,6 +651,7 @@ endif()
 ##
 #############################################################################################################################
 set ( waLBerla_REQUIRED_MIN_BOOST_VERSION "1.48")
+set ( Boost_NO_BOOST_CMAKE ON)
 
 if ( NOT WALBERLA_USE_STD_FILESYSTEM AND NOT WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
   list ( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS filesystem system )
@@ -646,9 +659,14 @@ else()
   list ( APPEND waLBerla_OPTIONAL_BOOST_COMPONENTS system )
 endif()
 
-if ( WALBERLA_BUILD_WITH_PYTHON AND WALBERLA_CXX_COMPILER_IS_MSVC )
+if ( WALBERLA_BUILD_WITH_PYTHON )
+  if( WALBERLA_CXX_COMPILER_IS_MSVC )
     get_filename_component(PYTHON_REQUIRED_LIB ${PYTHON_LIBRARY} NAME_WE)
     list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS ${PYTHON_REQUIRED_LIB} )
+  elseif( WALBERLA_USE_STD_FILESYSTEM OR WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
+    list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS system )
+    list( REMOVE_ITEM waLBerla_OPTIONAL_BOOST_COMPONENTS system )
+  endif()
 endif()
 
 # This variable is necessary, if the CMAKE version used is not aware of a more recent boost version (keep this up to date!)
@@ -656,7 +674,7 @@ set ( Boost_ADDITIONAL_VERSIONS
       "1.45" "1.45.0" "1.46" "1.46.0" "1.46.1" "1.47" "1.47.0" "1.48" "1.48.0" "1.49" "1.49.0"
       "1.50" "1.50.0" "1.51" "1.51.0" "1.52" "1.52.0" "1.53" "1.53.0" "1.54" "1.54.0" "1.55" "1.55.0"
       "1.56" "1.56.0" "1.57" "1.57.0" "1.58" "1.58.0" "1.59" "1.59.0" "1.60" "1.60.0" "1.61" "1.61.0" "1.62" "1.62.0" "1.63" "1.63.0"
-      "1.64.0" "1.65.0" "1.65.1" "1.66.0" "1.67.0" "1.68.0" "1.69.0" "1.70.0" )
+      "1.64.0" "1.65.0" "1.65.1" "1.66.0" "1.67.0" "1.68.0" "1.69.0" "1.70.0" "1.71.0" "1.72.0" "1.73.0")
 
 set ( Boost_USE_STATIC_LIBS    OFF CACHE BOOL "Use boost static libraries" )
 set ( Boost_USE_MULTITHREADED  OFF CACHE BOOL "Use boost multithreaded libraries" )
@@ -743,11 +761,13 @@ if ( WALBERLA_BUILD_WITH_PYTHON AND NOT WALBERLA_CXX_COMPILER_IS_MSVC)
         SET(_boost_MULTITHREADED "-mt")
     endif()
     if( PYTHON_LIBRARY MATCHES "python3" )
+        string(REPLACE "." ";" VERSION_LIST ${PYTHONLIBS_VERSION_STRING})
+        list(GET VERSION_LIST 0 PY_VER_MAJOR)
+        list(GET VERSION_LIST 1 PY_VER_MINOR)
         find_library( BOOST_PYTHON_LIBRARY NAMES
-                boost_python37${_boost_MULTITHREADED} boost_python36${_boost_MULTITHREADED} boost_python35${_boost_MULTITHREADED}
-                boost_python-py37${_boost_MULTITHREADED} boost_python-py36${_boost_MULTITHREADED} boost_python-py35${_boost_MULTITHREADED}
-                boost_python-py34${_boost_MULTITHREADED} boost_python-py33${_boost_MULTITHREADED}
-                boost_python3${_boost_MULTITHREADED}
+                boost_python${PY_VER_MAJOR}${PY_VER_MINOR}${_boost_MULTITHREADED}
+                boost_python-py${PY_VER_MAJOR}${PY_VER_MINOR}${_boost_MULTITHREADED}
+                boost_python${PY_VER_MAJOR}${_boost_MULTITHREADED}
                 boost_python${_boost_MULTITHREADED}
                 PATHS ${Boost_LIBRARY_DIRS} NO_DEFAULT_PATH )
     else()
@@ -773,6 +793,23 @@ endif()
 
 if ( NOT WIN32 )
    add_flag( CMAKE_CXX_FLAGS "-pthread" )
+endif()
+
+
+
+############################################################################################################################
+##
+## backtrace may be in a separate library
+##
+############################################################################################################################
+
+if ( NOT WIN32 AND (WALBERLA_CXX_COMPILER_IS_GNU OR WALBERLA_CXX_COMPILER_IS_INTEL OR WALBERLA_CXX_COMPILER_IS_CLANG))
+   find_package ( Backtrace QUIET )
+   if ( Backtrace_FOUND )
+      list ( APPEND SERVICE_LIBS ${Backtrace_LIBRARIES} )
+      set ( WALBERLA_BUILD_WITH_BACKTRACE ON )
+      set ( WALBERLA_BACKTRACE_HEADER ${Backtrace_HEADER} )
+   endif ( Backtrace_FOUND )
 endif()
 
 
@@ -1104,66 +1141,28 @@ endif()
 ##
 ############################################################################################################################
 if ( WALBERLA_BUILD_WITH_CUDA )
+    include(CheckLanguage)
+    check_language(CUDA)
+    if( CMAKE_CUDA_COMPILER )
+      enable_language(CUDA)
 
-    get_directory_property(COMPILE_DEFINITIONS_SAVED_STATE DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMPILE_DEFINITIONS)
-    # cleanup compile definitions for CUDA (remove generator expression and empty elements which lead to warnings)
-    set(CLEANED_COMPILE_DEFINITIONS )
-    foreach( element ${COMPILE_DEFINITIONS_SAVED_STATE})
-        if(NOT ${element} MATCHES "^\\$")
-            list(APPEND CLEANED_COMPILE_DEFINITIONS ${element})
-        endif()
-    endforeach()
-    set_directory_properties(PROPERTIES COMPILE_DEFINITIONS CLEANED_COMPILE_DEFINITIONS)
+      #include directories and cudart lib is needed for cpp files that use cuda headers/libs
+      include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+      find_library(CUDART_LIBRARY cudart ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+      list ( APPEND SERVICE_LIBS ${CUDART_LIBRARY} )
 
-    #   set ( BUILD_SHARED_LIBS                      ON )
-    set ( CUDA_ATTACH_VS_BUILD_RULE_TO_CUDA_FILE ON )
+      #TODO: check if this is really needed? is it possible that nvtx is missing?
+      find_library( NVTX_LIBRARY nvToolsExt ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES} )
+      if( NVTX_LIBRARY )
+          set( WALBERLA_CUDA_NVTX_AVAILABLE 1)
+          list ( APPEND SERVICE_LIBS ${NVTX_LIBRARY} )
+      endif()
 
-    if( NOT WALBERLA_CXX_COMPILER_IS_MSVC )
-        set ( CUDA_PROPAGATE_HOST_FLAGS OFF CACHE BOOL "" )
-    endif()
-
-    if ( (NOT DEFINED CUDA_HOST_COMPILER) AND (${CMAKE_C_COMPILER} MATCHES "ccache") )
-        string ( STRIP "${CMAKE_C_COMPILER_ARG1}" stripped_compiler_string )
-        find_program ( CUDA_HOST_COMPILER ${stripped_compiler_string} )
-    endif ()
-
-    find_package ( CUDA REQUIRED )
-
-    if ( CUDA_FOUND )
-        include_directories ( ${CUDA_INCLUDE_DIRS} )
-        list ( APPEND SERVICE_LIBS ${CUDA_LIBRARIES} )
-
-        list( APPEND CUDA_NVCC_FLAGS "-Wno-deprecated-gpu-targets")
-
-        find_library( NVTX_LIBRARY nvToolsExt PATHS ${CUDA_TOOLKIT_ROOT_DIR} PATH_SUFFIXES lib lib64 )
-        if( NVTX_LIBRARY )
-            set( WALBERLA_CUDA_NVTX_AVAILABLE 1)
-            list ( APPEND SERVICE_LIBS ${NVTX_LIBRARY} )
-        endif()
-
-        if ( NOT "${CUDA_NVCC_FLAGS}" MATCHES "-std=" AND NOT WALBERLA_CXX_COMPILER_IS_MSVC )
-            list ( APPEND CUDA_NVCC_FLAGS "-std=c++14" )
-        endif ()
-
-        if(CMAKE_BUILD_TYPE MATCHES Debug)
-            list ( APPEND CUDA_NVCC_FLAGS "-g -G" )
-        endif()
-
-        if( WALBERLA_BUILD_WITH_FASTMATH )
-           list ( APPEND CUDA_NVCC_FLAGS "-use_fast_math" )
-        endif()
-
-        # Bug with gcc5 and cuda7.5:
-        #list( APPEND CUDA_NVCC_FLAGS  "-D_MWAITXINTRIN_H_INCLUDED -D_FORCE_INLINES  -D__STRICT_ANSI__")
-
-        # NOTICE: exisiting cuda flags are overwritten
-        #set ( CUDA_NVCC_FLAGS "--compiler-bindir=/usr/bin/g++-4.3" )
-        #set ( CUDA_NVCC_FLAGS "-arch sm_20" )
+      #CUDA_FOUND is need for our cmake mechanism
+      set ( CUDA_FOUND TRUE )
     else()
-        set ( WALBERLA_BUILD_WITH_CUDA FALSE )
+      set ( WALBERLA_BUILD_WITH_CUDA FALSE )
     endif ( )
-
-    set_directory_properties(PROPERTIES COMPILE_DEFINITIONS "${COMPILE_DEFINITIONS_SAVED_STATE}" )
 endif ( )
 ############################################################################################################################
 
@@ -1175,8 +1174,7 @@ endif ( )
 ##
 ############################################################################################################################
 if (WALBERLA_BUILD_WITH_GCOV AND CMAKE_COMPILER_IS_GNUCXX  )
-    add_flag ( CMAKE_CXX_FLAGS_DEBUG "-fprofile-arcs -ftest-coverage" )
-    add_flag ( LD_FLAGS              "-fprofile-arcs -ftest-coverage" )
+    add_flag ( CMAKE_CXX_FLAGS "--coverage" )
 endif()
 ############################################################################################################################
 
@@ -1298,18 +1296,18 @@ if (WALBERLA_BUILD_DOC)
   ############################################################################################################################
   find_package ( Doxygen  )
   find_package ( HTMLHelp )
-  
+
   if ( HTML_HELP_COMPILER EQUAL "" )
      set ( HTML_HELP_FOUND "NO" )
   else ( )
      set ( HTML_HELP_FOUND "YES" )
   endif ( )
-  
+
   if ( DOXYGEN_FOUND )
      set ( DOXYGEN_HTML_HEADER ${walberla_SOURCE_DIR}/doc/header.html )
      set ( DOXYGEN_HTML_FOOTER ${walberla_SOURCE_DIR}/doc/footer.html )
      set ( DOXYGEN_HTML_OUTPUT "html" )
-  
+
      configure_file ( ${walberla_SOURCE_DIR}/doc/doxygen.in ${walberla_BINARY_DIR}/doc/doxygen.cfg @ONLY )
 
      add_custom_target ( doc   ${DOXYGEN_EXECUTABLE} ${walberla_BINARY_DIR}/doc/doxygen.cfg

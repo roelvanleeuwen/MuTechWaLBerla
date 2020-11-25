@@ -72,22 +72,6 @@ public:
    std::unordered_set<walberla::mpi::MPIRank>& getGhostOwnersRef(const size_t p_idx) {return ps_->getGhostOwnersRef(p_idx);}
    void setGhostOwners(const size_t p_idx, std::unordered_set<walberla::mpi::MPIRank> const & v) { ps_->setGhostOwners(p_idx, v);}
    
-   size_t const & getShapeID(const size_t p_idx) const {return ps_->getShapeID(p_idx);}
-   size_t& getShapeIDRef(const size_t p_idx) {return ps_->getShapeIDRef(p_idx);}
-   void setShapeID(const size_t p_idx, size_t const & v) { ps_->setShapeID(p_idx, v);}
-   
-   walberla::mesa_pd::Rot3 const & getRotation(const size_t p_idx) const {return ps_->getRotation(p_idx);}
-   walberla::mesa_pd::Rot3& getRotationRef(const size_t p_idx) {return ps_->getRotationRef(p_idx);}
-   void setRotation(const size_t p_idx, walberla::mesa_pd::Rot3 const & v) { ps_->setRotation(p_idx, v);}
-   
-   walberla::mesa_pd::Vec3 const & getAngularVelocity(const size_t p_idx) const {return ps_->getAngularVelocity(p_idx);}
-   walberla::mesa_pd::Vec3& getAngularVelocityRef(const size_t p_idx) {return ps_->getAngularVelocityRef(p_idx);}
-   void setAngularVelocity(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setAngularVelocity(p_idx, v);}
-   
-   walberla::mesa_pd::Vec3 const & getTorque(const size_t p_idx) const {return ps_->getTorque(p_idx);}
-   walberla::mesa_pd::Vec3& getTorqueRef(const size_t p_idx) {return ps_->getTorqueRef(p_idx);}
-   void setTorque(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setTorque(p_idx, v);}
-   
    walberla::mesa_pd::Vec3 const & getLinearVelocity(const size_t p_idx) const {return ps_->getLinearVelocity(p_idx);}
    walberla::mesa_pd::Vec3& getLinearVelocityRef(const size_t p_idx) {return ps_->getLinearVelocityRef(p_idx);}
    void setLinearVelocity(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setLinearVelocity(p_idx, v);}
@@ -104,13 +88,33 @@ public:
    walberla::mesa_pd::Vec3& getOldForceRef(const size_t p_idx) {return ps_->getOldForceRef(p_idx);}
    void setOldForce(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setOldForce(p_idx, v);}
    
+   size_t const & getShapeID(const size_t p_idx) const {return ps_->getShapeID(p_idx);}
+   size_t& getShapeIDRef(const size_t p_idx) {return ps_->getShapeIDRef(p_idx);}
+   void setShapeID(const size_t p_idx, size_t const & v) { ps_->setShapeID(p_idx, v);}
+   
+   walberla::mesa_pd::Rot3 const & getRotation(const size_t p_idx) const {return ps_->getRotation(p_idx);}
+   walberla::mesa_pd::Rot3& getRotationRef(const size_t p_idx) {return ps_->getRotationRef(p_idx);}
+   void setRotation(const size_t p_idx, walberla::mesa_pd::Rot3 const & v) { ps_->setRotation(p_idx, v);}
+   
+   walberla::mesa_pd::Vec3 const & getAngularVelocity(const size_t p_idx) const {return ps_->getAngularVelocity(p_idx);}
+   walberla::mesa_pd::Vec3& getAngularVelocityRef(const size_t p_idx) {return ps_->getAngularVelocityRef(p_idx);}
+   void setAngularVelocity(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setAngularVelocity(p_idx, v);}
+   
+   walberla::mesa_pd::Vec3 const & getTorque(const size_t p_idx) const {return ps_->getTorque(p_idx);}
+   walberla::mesa_pd::Vec3& getTorqueRef(const size_t p_idx) {return ps_->getTorqueRef(p_idx);}
+   void setTorque(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setTorque(p_idx, v);}
+   
    walberla::mesa_pd::Vec3 const & getOldTorque(const size_t p_idx) const {return ps_->getOldTorque(p_idx);}
    walberla::mesa_pd::Vec3& getOldTorqueRef(const size_t p_idx) {return ps_->getOldTorqueRef(p_idx);}
    void setOldTorque(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setOldTorque(p_idx, v);}
    
-   blockforest::Block* const & getCurrentBlock(const size_t p_idx) const {return ps_->getCurrentBlock(p_idx);}
-   blockforest::Block*& getCurrentBlockRef(const size_t p_idx) {return ps_->getCurrentBlockRef(p_idx);}
-   void setCurrentBlock(const size_t p_idx, blockforest::Block* const & v) { ps_->setCurrentBlock(p_idx, v);}
+   walberla::real_t const & getRadiusAtTemperature(const size_t p_idx) const {return ps_->getRadiusAtTemperature(p_idx);}
+   walberla::real_t& getRadiusAtTemperatureRef(const size_t p_idx) {return ps_->getRadiusAtTemperatureRef(p_idx);}
+   void setRadiusAtTemperature(const size_t p_idx, walberla::real_t const & v) { ps_->setRadiusAtTemperature(p_idx, v);}
+   
+   blockforest::BlockID const & getCurrentBlock(const size_t p_idx) const {return ps_->getCurrentBlock(p_idx);}
+   blockforest::BlockID& getCurrentBlockRef(const size_t p_idx) {return ps_->getCurrentBlockRef(p_idx);}
+   void setCurrentBlock(const size_t p_idx, blockforest::BlockID const & v) { ps_->setCurrentBlock(p_idx, v);}
    
    uint_t const & getType(const size_t p_idx) const {return ps_->getType(p_idx);}
    uint_t& getTypeRef(const size_t p_idx) {return ps_->getTypeRef(p_idx);}
@@ -143,6 +147,22 @@ public:
    walberla::mesa_pd::Vec3 const & getDw(const size_t p_idx) const {return ps_->getDw(p_idx);}
    walberla::mesa_pd::Vec3& getDwRef(const size_t p_idx) {return ps_->getDwRef(p_idx);}
    void setDw(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setDw(p_idx, v);}
+   
+   walberla::mesa_pd::Vec3 const & getHydrodynamicForce(const size_t p_idx) const {return ps_->getHydrodynamicForce(p_idx);}
+   walberla::mesa_pd::Vec3& getHydrodynamicForceRef(const size_t p_idx) {return ps_->getHydrodynamicForceRef(p_idx);}
+   void setHydrodynamicForce(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setHydrodynamicForce(p_idx, v);}
+   
+   walberla::mesa_pd::Vec3 const & getHydrodynamicTorque(const size_t p_idx) const {return ps_->getHydrodynamicTorque(p_idx);}
+   walberla::mesa_pd::Vec3& getHydrodynamicTorqueRef(const size_t p_idx) {return ps_->getHydrodynamicTorqueRef(p_idx);}
+   void setHydrodynamicTorque(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setHydrodynamicTorque(p_idx, v);}
+   
+   walberla::mesa_pd::Vec3 const & getOldHydrodynamicForce(const size_t p_idx) const {return ps_->getOldHydrodynamicForce(p_idx);}
+   walberla::mesa_pd::Vec3& getOldHydrodynamicForceRef(const size_t p_idx) {return ps_->getOldHydrodynamicForceRef(p_idx);}
+   void setOldHydrodynamicForce(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setOldHydrodynamicForce(p_idx, v);}
+   
+   walberla::mesa_pd::Vec3 const & getOldHydrodynamicTorque(const size_t p_idx) const {return ps_->getOldHydrodynamicTorque(p_idx);}
+   walberla::mesa_pd::Vec3& getOldHydrodynamicTorqueRef(const size_t p_idx) {return ps_->getOldHydrodynamicTorqueRef(p_idx);}
+   void setOldHydrodynamicTorque(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setOldHydrodynamicTorque(p_idx, v);}
    
    std::unordered_set<walberla::mpi::MPIRank> const & getNeighborState(const size_t p_idx) const {return ps_->getNeighborState(p_idx);}
    std::unordered_set<walberla::mpi::MPIRank>& getNeighborStateRef(const size_t p_idx) {return ps_->getNeighborStateRef(p_idx);}
@@ -217,22 +237,6 @@ public:
    void setGhostOwners(const size_t /*p_idx*/, std::unordered_set<walberla::mpi::MPIRank> const & v) { ghostOwners_ = v;}
    std::unordered_set<walberla::mpi::MPIRank>& getGhostOwnersRef(const size_t /*p_idx*/) {return ghostOwners_;}
    
-   size_t const & getShapeID(const size_t /*p_idx*/) const {return shapeID_;}
-   void setShapeID(const size_t /*p_idx*/, size_t const & v) { shapeID_ = v;}
-   size_t& getShapeIDRef(const size_t /*p_idx*/) {return shapeID_;}
-   
-   walberla::mesa_pd::Rot3 const & getRotation(const size_t /*p_idx*/) const {return rotation_;}
-   void setRotation(const size_t /*p_idx*/, walberla::mesa_pd::Rot3 const & v) { rotation_ = v;}
-   walberla::mesa_pd::Rot3& getRotationRef(const size_t /*p_idx*/) {return rotation_;}
-   
-   walberla::mesa_pd::Vec3 const & getAngularVelocity(const size_t /*p_idx*/) const {return angularVelocity_;}
-   void setAngularVelocity(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { angularVelocity_ = v;}
-   walberla::mesa_pd::Vec3& getAngularVelocityRef(const size_t /*p_idx*/) {return angularVelocity_;}
-   
-   walberla::mesa_pd::Vec3 const & getTorque(const size_t /*p_idx*/) const {return torque_;}
-   void setTorque(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { torque_ = v;}
-   walberla::mesa_pd::Vec3& getTorqueRef(const size_t /*p_idx*/) {return torque_;}
-   
    walberla::mesa_pd::Vec3 const & getLinearVelocity(const size_t /*p_idx*/) const {return linearVelocity_;}
    void setLinearVelocity(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { linearVelocity_ = v;}
    walberla::mesa_pd::Vec3& getLinearVelocityRef(const size_t /*p_idx*/) {return linearVelocity_;}
@@ -249,13 +253,33 @@ public:
    void setOldForce(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { oldForce_ = v;}
    walberla::mesa_pd::Vec3& getOldForceRef(const size_t /*p_idx*/) {return oldForce_;}
    
+   size_t const & getShapeID(const size_t /*p_idx*/) const {return shapeID_;}
+   void setShapeID(const size_t /*p_idx*/, size_t const & v) { shapeID_ = v;}
+   size_t& getShapeIDRef(const size_t /*p_idx*/) {return shapeID_;}
+   
+   walberla::mesa_pd::Rot3 const & getRotation(const size_t /*p_idx*/) const {return rotation_;}
+   void setRotation(const size_t /*p_idx*/, walberla::mesa_pd::Rot3 const & v) { rotation_ = v;}
+   walberla::mesa_pd::Rot3& getRotationRef(const size_t /*p_idx*/) {return rotation_;}
+   
+   walberla::mesa_pd::Vec3 const & getAngularVelocity(const size_t /*p_idx*/) const {return angularVelocity_;}
+   void setAngularVelocity(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { angularVelocity_ = v;}
+   walberla::mesa_pd::Vec3& getAngularVelocityRef(const size_t /*p_idx*/) {return angularVelocity_;}
+   
+   walberla::mesa_pd::Vec3 const & getTorque(const size_t /*p_idx*/) const {return torque_;}
+   void setTorque(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { torque_ = v;}
+   walberla::mesa_pd::Vec3& getTorqueRef(const size_t /*p_idx*/) {return torque_;}
+   
    walberla::mesa_pd::Vec3 const & getOldTorque(const size_t /*p_idx*/) const {return oldTorque_;}
    void setOldTorque(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { oldTorque_ = v;}
    walberla::mesa_pd::Vec3& getOldTorqueRef(const size_t /*p_idx*/) {return oldTorque_;}
    
-   blockforest::Block* const & getCurrentBlock(const size_t /*p_idx*/) const {return currentBlock_;}
-   void setCurrentBlock(const size_t /*p_idx*/, blockforest::Block* const & v) { currentBlock_ = v;}
-   blockforest::Block*& getCurrentBlockRef(const size_t /*p_idx*/) {return currentBlock_;}
+   walberla::real_t const & getRadiusAtTemperature(const size_t /*p_idx*/) const {return radiusAtTemperature_;}
+   void setRadiusAtTemperature(const size_t /*p_idx*/, walberla::real_t const & v) { radiusAtTemperature_ = v;}
+   walberla::real_t& getRadiusAtTemperatureRef(const size_t /*p_idx*/) {return radiusAtTemperature_;}
+   
+   blockforest::BlockID const & getCurrentBlock(const size_t /*p_idx*/) const {return currentBlock_;}
+   void setCurrentBlock(const size_t /*p_idx*/, blockforest::BlockID const & v) { currentBlock_ = v;}
+   blockforest::BlockID& getCurrentBlockRef(const size_t /*p_idx*/) {return currentBlock_;}
    
    uint_t const & getType(const size_t /*p_idx*/) const {return type_;}
    void setType(const size_t /*p_idx*/, uint_t const & v) { type_ = v;}
@@ -289,6 +313,22 @@ public:
    void setDw(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { dw_ = v;}
    walberla::mesa_pd::Vec3& getDwRef(const size_t /*p_idx*/) {return dw_;}
    
+   walberla::mesa_pd::Vec3 const & getHydrodynamicForce(const size_t /*p_idx*/) const {return hydrodynamicForce_;}
+   void setHydrodynamicForce(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { hydrodynamicForce_ = v;}
+   walberla::mesa_pd::Vec3& getHydrodynamicForceRef(const size_t /*p_idx*/) {return hydrodynamicForce_;}
+   
+   walberla::mesa_pd::Vec3 const & getHydrodynamicTorque(const size_t /*p_idx*/) const {return hydrodynamicTorque_;}
+   void setHydrodynamicTorque(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { hydrodynamicTorque_ = v;}
+   walberla::mesa_pd::Vec3& getHydrodynamicTorqueRef(const size_t /*p_idx*/) {return hydrodynamicTorque_;}
+   
+   walberla::mesa_pd::Vec3 const & getOldHydrodynamicForce(const size_t /*p_idx*/) const {return oldHydrodynamicForce_;}
+   void setOldHydrodynamicForce(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { oldHydrodynamicForce_ = v;}
+   walberla::mesa_pd::Vec3& getOldHydrodynamicForceRef(const size_t /*p_idx*/) {return oldHydrodynamicForce_;}
+   
+   walberla::mesa_pd::Vec3 const & getOldHydrodynamicTorque(const size_t /*p_idx*/) const {return oldHydrodynamicTorque_;}
+   void setOldHydrodynamicTorque(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { oldHydrodynamicTorque_ = v;}
+   walberla::mesa_pd::Vec3& getOldHydrodynamicTorqueRef(const size_t /*p_idx*/) {return oldHydrodynamicTorque_;}
+   
    std::unordered_set<walberla::mpi::MPIRank> const & getNeighborState(const size_t /*p_idx*/) const {return neighborState_;}
    void setNeighborState(const size_t /*p_idx*/, std::unordered_set<walberla::mpi::MPIRank> const & v) { neighborState_ = v;}
    std::unordered_set<walberla::mpi::MPIRank>& getNeighborStateRef(const size_t /*p_idx*/) {return neighborState_;}
@@ -310,16 +350,17 @@ private:
    walberla::mesa_pd::data::particle_flags::FlagT flags_;
    int owner_;
    std::unordered_set<walberla::mpi::MPIRank> ghostOwners_;
-   size_t shapeID_;
-   walberla::mesa_pd::Rot3 rotation_;
-   walberla::mesa_pd::Vec3 angularVelocity_;
-   walberla::mesa_pd::Vec3 torque_;
    walberla::mesa_pd::Vec3 linearVelocity_;
    walberla::real_t invMass_;
    walberla::mesa_pd::Vec3 force_;
    walberla::mesa_pd::Vec3 oldForce_;
+   size_t shapeID_;
+   walberla::mesa_pd::Rot3 rotation_;
+   walberla::mesa_pd::Vec3 angularVelocity_;
+   walberla::mesa_pd::Vec3 torque_;
    walberla::mesa_pd::Vec3 oldTorque_;
-   blockforest::Block* currentBlock_;
+   walberla::real_t radiusAtTemperature_;
+   blockforest::BlockID currentBlock_;
    uint_t type_;
    int nextParticle_;
    std::map<walberla::id_t, walberla::mesa_pd::data::ContactHistory> oldContactHistory_;
@@ -328,6 +369,10 @@ private:
    walberla::real_t heatFlux_;
    walberla::mesa_pd::Vec3 dv_;
    walberla::mesa_pd::Vec3 dw_;
+   walberla::mesa_pd::Vec3 hydrodynamicForce_;
+   walberla::mesa_pd::Vec3 hydrodynamicTorque_;
+   walberla::mesa_pd::Vec3 oldHydrodynamicForce_;
+   walberla::mesa_pd::Vec3 oldHydrodynamicTorque_;
    std::unordered_set<walberla::mpi::MPIRank> neighborState_;
 };
 

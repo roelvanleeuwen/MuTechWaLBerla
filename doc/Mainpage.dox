@@ -40,7 +40,22 @@ all the basic data strcutures and concepts of the framework.
 
 - \ref tutorial_lbm01 \n
   A full LBM simulation is built.
-   
+- \ref tutorial_lbm04 \n
+  A LBM simulation with complex geometries is built.
+- \ref tutorial_lbm05 \n
+  A LBM simulation with a backward-facing step is set up.
+
+\subsection codegen Code Generation
+
+- \ref tutorial_codegen01 \n
+  This tutorial shows how to use pystencils to generate waLBerla sweeps from symbolic descriptions.
+- \ref tutorial_codegen02 \n
+  This tutorial demonstrates how to use lbmpy to generate an efficient lattice model for a waLBerla sweep.
+- \ref tutorial_codegen03 \n
+  This tutorial describes how to use lbmpy to generate a full LBM sweep for waLBerla.
+
+
+
 \section further_info Further information
 
 Not all features of the framework are covered in the tutorials.
@@ -52,12 +67,14 @@ Additionally, there is a folder for full-fledged application codes to be found u
 \section cite Please cite us
 
 If you use waLBerla in the preparation of a publication, please cite
-\cite godenschwager2013framework. There are separate publications for some modules,
+\cite godenschwager2013framework and \cite bauer2020walberla. There are separate publications for some modules,
 which you should cite in addition if you use them.
 
 - Grid refinement: \cite schornbaum2016massively
 - PE coupling: \cite rettinger2017comparative
 - Python interface: \cite bauer2015python
+- pystencils code generation: \cite bauer2019code
+- lbmpy LB model generation: \cite bauer2020lbmpy
 
 \htmlonly
 <!--

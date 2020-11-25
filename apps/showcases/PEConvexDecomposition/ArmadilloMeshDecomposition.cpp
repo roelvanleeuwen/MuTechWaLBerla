@@ -21,7 +21,7 @@
 //======================================================================================================================
 
 #include <pe/basic.h>
-#include "mesh/TriangleMeshes.h"
+#include "mesh_common/TriangleMeshes.h"
 
 #include <core/Environment.h>
 #include <core/grid_generator/HCPIterator.h>
@@ -40,12 +40,12 @@
 #include "pe/fcd/GJKEPACollideFunctor.h"
 #include "mesh/pe/rigid_body/ConvexPolyhedron.h"
 #include "mesh/pe/rigid_body/ConvexPolyhedronFactory.h"
-#include "mesh/vtk/VTKMeshWriter.h"
+#include "mesh_common/vtk/VTKMeshWriter.h"
 #include "mesh/pe/tesselation/ConvexPolyhedron.h"
 #include "mesh/pe/vtk/PeVTKMeshWriter.h"
 #include "mesh/pe/DefaultTesselation.h"
 #include "mesh/pe/vtk/CommonDataSources.h"
-#include "mesh/PolyMeshes.h"
+#include "mesh_common/PolyMeshes.h"
 #include "pe/rigidbody/BoxFactory.h"
 #include <vtk/VTKOutput.h>
 #include <pe/vtk/SphereVtkOutput.h>

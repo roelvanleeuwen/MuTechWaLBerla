@@ -188,11 +188,18 @@ waLBerla_execute_test( NAME ConcatIterator )
 waLBerla_compile_test( FILES DataTypesTest.cpp )
 waLBerla_execute_test( NAME DataTypesTest )
 
+waLBerla_compile_test( FILES DebugSTLTest.cpp )
+waLBerla_execute_test( NAME DebugSTLTest )
+set_tests_properties(DebugSTLTest PROPERTIES WILL_FAIL TRUE)
+
 waLBerla_compile_test( FILES FunctionTraitsTest.cpp )
 waLBerla_execute_test( NAME FunctionTraitsTest )
 
 waLBerla_compile_test( FILES GridGeneratorTest.cpp )
 waLBerla_execute_test( NAME GridGeneratorTest )
+
+waLBerla_compile_test( FILES MemoryUsage.cpp )
+waLBerla_execute_test( NAME MemoryUsage )
 
 waLBerla_compile_test( FILES OpenMPWrapperTest.cpp )
 waLBerla_execute_test( NAME OpenMPWrapperTest )
@@ -208,6 +215,11 @@ waLBerla_execute_test( NAME UNIQUEID PROCESSES 4)
 
 waLBerla_compile_test( FILES VersionTest.cpp )
 waLBerla_execute_test( NAME VersionTest )
+
+if( WALBERLA_BUILD_WITH_BOOST OR WALBERLA_USE_STD_VARIANT )
+  waLBerla_compile_test( FILES VariantTest )
+  waLBerla_execute_test( NAME VariantTest )
+endif()
 
 ##################
 # load_balancing #

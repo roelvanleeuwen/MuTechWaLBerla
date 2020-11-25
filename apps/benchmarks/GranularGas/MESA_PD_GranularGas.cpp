@@ -38,11 +38,13 @@
 #include <mesa_pd/domain/BlockForestDomain.h>
 #include <mesa_pd/kernel/AssocToBlock.h>
 #include <mesa_pd/kernel/DoubleCast.h>
-#include <mesa_pd/kernel/ExplicitEulerWithShape.h>
+#include <mesa_pd/kernel/ExplicitEuler.h>
 #include <mesa_pd/kernel/InsertParticleIntoLinkedCells.h>
 #include <mesa_pd/kernel/ParticleSelector.h>
 #include <mesa_pd/kernel/SpringDashpot.h>
+#include <mesa_pd/kernel/SpringDashpotSpring.h>
 #include <mesa_pd/mpi/ContactFilter.h>
+#include <mesa_pd/mpi/ReduceContactHistory.h>
 #include <mesa_pd/mpi/ReduceProperty.h>
 #include <mesa_pd/mpi/SyncNextNeighbors.h>
 #include <mesa_pd/mpi/SyncNextNeighborsBlockForest.h>
@@ -70,6 +72,81 @@
 
 namespace walberla {
 namespace mesa_pd {
+
+class DEM
+{
+public:
+   DEM(const std::shared_ptr<domain::BlockForestDomain>& domain, real_t dt, real_t mass)
+   : dt_(dt)
+   , domain_(domain)
+   {
+      sd_.setDampingT(0, 0, real_t(0));
+      sd_.setFriction(0, 0, real_t(0));
+      sd_.setParametersFromCOR(0, 0, real_t(0.9), dt*real_t(20), mass * real_t(0.5));
+
+      sds_.setParametersFromCOR(0, 0, real_t(0.9), dt*real_t(20), mass * real_t(0.5));
+      sds_.setCoefficientOfFriction(0,0,real_t(0.4));
+      sds_.setStiffnessT(0,0,real_t(0.9) * sds_.getStiffnessN(0,0));
+   }
+
+   inline
+   void operator()(const size_t idx1, const size_t idx2, ParticleAccessorWithShape& ac)
+   {
+
+      ++contactsChecked_;
+      if (double_cast_(idx1, idx2, ac, acd_, ac))
+      {
+         ++contactsDetected_;
+         if (contact_filter_(acd_.getIdx1(), acd_.getIdx2(), ac, acd_.getContactPoint(),
+                             *domain_))
+         {
+            ++contactsTreated_;
+//            sd_(acd_.getIdx1(), acd_.getIdx2(), ac, acd_.getContactPoint(),
+//                 acd_.getContactNormal(), acd_.getPenetrationDepth());
+            sds_(acd_.getIdx1(), acd_.getIdx2(), ac, acd_.getContactPoint(),
+                 acd_.getContactNormal(), acd_.getPenetrationDepth(), dt_);
+         }
+      }
+   }
+
+   inline
+   void resetCounters()
+   {
+      contactsChecked_ = 0;
+      contactsDetected_ = 0;
+      contactsTreated_ = 0;
+   }
+
+   inline
+   int64_t getContactsChecked() const
+   {
+      return contactsChecked_;
+   }
+
+   inline
+   int64_t getContactsDetected() const
+   {
+      return contactsDetected_;
+   }
+
+   inline
+   int64_t getContactsTreated() const
+   {
+      return contactsTreated_;
+   }
+
+private:
+   real_t dt_;
+   kernel::DoubleCast double_cast_;
+   mpi::ContactFilter contact_filter_;
+   std::shared_ptr<domain::BlockForestDomain> domain_;
+   kernel::SpringDashpot sd_ = kernel::SpringDashpot(1);
+   kernel::SpringDashpotSpring sds_ = kernel::SpringDashpotSpring(1);
+   collision_detection::AnalyticContactDetection acd_;
+   int64_t contactsChecked_ = 0;
+   int64_t contactsDetected_ = 0;
+   int64_t contactsTreated_ = 0;
+};
 
 int main( int argc, char ** argv )
 {
@@ -141,20 +218,20 @@ int main( int argc, char ** argv )
 
    if (!forest->isPeriodic(0))
    {
-      createPlane(*ps, *ss, confiningDomain.minCorner(), Vec3(+1,0,0));
-      createPlane(*ps, *ss, confiningDomain.maxCorner(), Vec3(-1,0,0));
+      createPlane(*ps, *ss, confiningDomain.minCorner()+params.shift, Vec3(+1,0,0));
+      createPlane(*ps, *ss, confiningDomain.maxCorner()+params.shift, Vec3(-1,0,0));
    }
 
    if (!forest->isPeriodic(1))
    {
-      createPlane(*ps, *ss, confiningDomain.minCorner(), Vec3(0,+1,0));
-      createPlane(*ps, *ss, confiningDomain.maxCorner(), Vec3(0,-1,0));
+      createPlane(*ps, *ss, confiningDomain.minCorner()+params.shift, Vec3(0,+1,0));
+      createPlane(*ps, *ss, confiningDomain.maxCorner()+params.shift, Vec3(0,-1,0));
    }
 
    if (!forest->isPeriodic(2))
    {
-      createPlane(*ps, *ss, confiningDomain.minCorner(), Vec3(0,0,+1));
-      createPlane(*ps, *ss, confiningDomain.maxCorner(), Vec3(0,0,-1));
+      createPlane(*ps, *ss, confiningDomain.minCorner()+params.shift, Vec3(0,0,+1));
+      createPlane(*ps, *ss, confiningDomain.maxCorner()+params.shift, Vec3(0,0,-1));
    }
 
    WALBERLA_LOG_INFO_ON_ROOT("*** SETUP - END ***");
@@ -169,17 +246,11 @@ int main( int argc, char ** argv )
 
    WALBERLA_LOG_INFO_ON_ROOT("*** SIMULATION - START ***");
    // Init kernels
-   kernel::ExplicitEulerWithShape        explicitEulerWithShape( params.dt );
+   kernel::ExplicitEuler        explicitEuler( params.dt );
+   DEM dem(domain, params.dt, ss->shapes[smallSphere]->getMass());
    kernel::InsertParticleIntoLinkedCells ipilc;
-   kernel::SpringDashpot                 dem(1);
-   dem.setStiffness(0, 0, real_t(0));
-   dem.setDampingN (0, 0, real_t(0));
-   dem.setDampingT (0, 0, real_t(0));
-   dem.setFriction (0, 0, real_t(0));
-   collision_detection::AnalyticContactDetection              acd;
    kernel::AssocToBlock                  assoc(forest);
-   kernel::DoubleCast                    double_cast;
-   mpi::ContactFilter                    contact_filter;
+   mpi::ReduceContactHistory             RCH;
    mpi::ReduceProperty                   RP;
    mpi::SyncNextNeighborsBlockForest     SNN;
 
@@ -203,10 +274,7 @@ int main( int argc, char ** argv )
       auto    RPBytesReceived  = RP.getBytesReceived();
       auto    RPSends          = RP.getNumberOfSends();
       auto    RPReceives       = RP.getNumberOfReceives();
-      int64_t contactsChecked  = 0;
-      int64_t contactsDetected = 0;
-      int64_t contactsTreated  = 0;
-      if (params.bBarrier) WALBERLA_MPI_BARRIER();
+      WALBERLA_MPI_BARRIER();
       timer.start();
       for (int64_t i=0; i < params.simulationSteps; ++i)
       {
@@ -226,27 +294,13 @@ int main( int argc, char ** argv )
          if (params.bBarrier) WALBERLA_MPI_BARRIER();
          tp["GenerateLinkedCells"].end();
 
+         dem.resetCounters();
          tp["DEM"].start();
-         contactsChecked  = 0;
-         contactsDetected = 0;
-         contactsTreated  = 0;
          lc.forEachParticlePairHalf(true,
                                     kernel::SelectAll(),
                                     accessor,
-                                    [&](const size_t idx1, const size_t idx2, auto& ac)
-         {
-            ++contactsChecked;
-            if (double_cast(idx1, idx2, ac, acd, ac ))
-            {
-               ++contactsDetected;
-               if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *domain))
-               {
-                  ++contactsTreated;
-                  dem(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), acd.getContactNormal(), acd.getPenetrationDepth());
-               }
-            }
-         },
-         accessor );
+                                    dem,
+                                    accessor);
          if (params.bBarrier) WALBERLA_MPI_BARRIER();
          tp["DEM"].end();
 
@@ -255,9 +309,14 @@ int main( int argc, char ** argv )
          if (params.bBarrier) WALBERLA_MPI_BARRIER();
          tp["ReduceForce"].end();
 
+         tp["ReduceContactHistory"].start();
+         RCH(*ps);
+         if (params.bBarrier) WALBERLA_MPI_BARRIER();
+         tp["ReduceContactHistory"].end();
+
          tp["Euler"].start();
          //ps->forEachParticle(false, [&](const size_t idx){WALBERLA_CHECK_EQUAL(ps->getForce(idx), Vec3(0,0,0), *(*ps)[idx] << "\n" << idx);});
-         ps->forEachParticle(true, kernel::SelectLocal(), accessor, explicitEulerWithShape, accessor);
+         ps->forEachParticle(true, kernel::SelectLocal(), accessor, explicitEuler, accessor);
          if (params.bBarrier) WALBERLA_MPI_BARRIER();
          tp["Euler"].end();
 
@@ -268,6 +327,10 @@ int main( int argc, char ** argv )
       }
       timer.end();
 
+      int64_t contactsChecked = dem.getContactsChecked();
+      int64_t contactsDetected = dem.getContactsDetected();
+      int64_t contactsTreated = dem.getContactsTreated();
+      
       SNNBytesSent     = SNN.getBytesSent();
       SNNBytesReceived = SNN.getBytesReceived();
       SNNSends         = SNN.getNumberOfSends();
@@ -309,7 +372,8 @@ int main( int argc, char ** argv )
 
       if (params.checkSimulation)
       {
-         check(*ps, *forest, params.spacing);
+         //if you want to activate checking you have to deactivate sorting
+         check(*ps, *forest, params.spacing, params.shift);
       }
 
       WALBERLA_LOG_INFO_ON_ROOT("*** SQL OUTPUT - START ***");

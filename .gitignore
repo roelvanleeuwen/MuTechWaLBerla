@@ -26,16 +26,22 @@ qrc_*
 /CMakeSettings.json
 /.vs
 
+# Visual Studio Code
+/.vscode
 
 # CLion
 *.idea
+
+
+# QtCreator
+CMakeLists.txt.user.*
 
 
 # Binary Files
 /bin/
 /lib/
 *.a
-/build
+/build*
 
 
 # Logfiles
@@ -46,6 +52,8 @@ logfile*.txt
 # Compiled python
 *.pyc
 
+# Jupyter Notebook
+**/.ipynb_checkpoints
 
 # Blockforest saves
 *.sav
@@ -64,3 +72,5 @@ cmake_install.cmake
 CMakeDefs.h
 /moduleStatistics.json
 /walberla-config.cmake
+/cmake-build-debug/
+/cmake-build-release/

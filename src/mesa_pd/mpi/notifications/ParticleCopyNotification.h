@@ -28,6 +28,7 @@
 
 #include <mesa_pd/data/DataTypes.h>
 #include <mesa_pd/data/ParticleStorage.h>
+#include <mesa_pd/mpi/ShapePackUnpack.h>
 #include <mesa_pd/mpi/notifications/NotificationType.h>
 
 #include <core/mpi/Datatype.h>
@@ -38,9 +39,9 @@ namespace walberla {
 namespace mesa_pd {
 
 /**
- * A complete particle copy for a new ghost particle.
+ * A complete particle copy.
  *
- * Copies all properties marked COPY or ALWAYS.
+ * Copies all properties that are not marked NEVER.
  */
 class ParticleCopyNotification
 {
@@ -52,14 +53,22 @@ public:
       walberla::real_t interactionRadius {real_t(0)};
       walberla::mesa_pd::data::particle_flags::FlagT flags {};
       int owner {-1};
+      std::unordered_set<walberla::mpi::MPIRank> ghostOwners {};
+      walberla::mesa_pd::Vec3 linearVelocity {real_t(0)};
+      walberla::real_t invMass {real_t(1)};
+      walberla::mesa_pd::Vec3 oldForce {real_t(0)};
       size_t shapeID {};
       walberla::mesa_pd::Rot3 rotation {};
       walberla::mesa_pd::Vec3 angularVelocity {real_t(0)};
-      walberla::mesa_pd::Vec3 linearVelocity {real_t(0)};
-      walberla::real_t invMass {real_t(1)};
+      walberla::mesa_pd::Vec3 oldTorque {real_t(0)};
+      walberla::real_t radiusAtTemperature {real_t(0)};
       uint_t type {0};
       std::map<walberla::id_t, walberla::mesa_pd::data::ContactHistory> oldContactHistory {};
       walberla::real_t temperature {real_t(0)};
+      walberla::mesa_pd::Vec3 hydrodynamicForce {real_t(0)};
+      walberla::mesa_pd::Vec3 hydrodynamicTorque {real_t(0)};
+      walberla::mesa_pd::Vec3 oldHydrodynamicForce {real_t(0)};
+      walberla::mesa_pd::Vec3 oldHydrodynamicTorque {real_t(0)};
    };
 
    inline explicit ParticleCopyNotification( const data::Particle& particle ) : particle_(particle) {}
@@ -76,14 +85,22 @@ inline data::ParticleStorage::iterator createNewParticle(data::ParticleStorage& 
    pIt->setInteractionRadius(data.interactionRadius);
    pIt->setFlags(data.flags);
    pIt->setOwner(data.owner);
+   pIt->setGhostOwners(data.ghostOwners);
+   pIt->setLinearVelocity(data.linearVelocity);
+   pIt->setInvMass(data.invMass);
+   pIt->setOldForce(data.oldForce);
    pIt->setShapeID(data.shapeID);
    pIt->setRotation(data.rotation);
    pIt->setAngularVelocity(data.angularVelocity);
-   pIt->setLinearVelocity(data.linearVelocity);
-   pIt->setInvMass(data.invMass);
+   pIt->setOldTorque(data.oldTorque);
+   pIt->setRadiusAtTemperature(data.radiusAtTemperature);
    pIt->setType(data.type);
    pIt->setOldContactHistory(data.oldContactHistory);
    pIt->setTemperature(data.temperature);
+   pIt->setHydrodynamicForce(data.hydrodynamicForce);
+   pIt->setHydrodynamicTorque(data.hydrodynamicTorque);
+   pIt->setOldHydrodynamicForce(data.oldHydrodynamicForce);
+   pIt->setOldHydrodynamicTorque(data.oldHydrodynamicTorque);
    return pIt;
 }
 
@@ -115,14 +132,22 @@ mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, cons
    buf << obj.particle_.getInteractionRadius();
    buf << obj.particle_.getFlags();
    buf << obj.particle_.getOwner();
+   buf << obj.particle_.getGhostOwners();
+   buf << obj.particle_.getLinearVelocity();
+   buf << obj.particle_.getInvMass();
+   buf << obj.particle_.getOldForce();
    buf << obj.particle_.getShapeID();
    buf << obj.particle_.getRotation();
    buf << obj.particle_.getAngularVelocity();
-   buf << obj.particle_.getLinearVelocity();
-   buf << obj.particle_.getInvMass();
+   buf << obj.particle_.getOldTorque();
+   buf << obj.particle_.getRadiusAtTemperature();
    buf << obj.particle_.getType();
    buf << obj.particle_.getOldContactHistory();
    buf << obj.particle_.getTemperature();
+   buf << obj.particle_.getHydrodynamicForce();
+   buf << obj.particle_.getHydrodynamicTorque();
+   buf << obj.particle_.getOldHydrodynamicForce();
+   buf << obj.particle_.getOldHydrodynamicTorque();
    return buf;
 }
 
@@ -135,14 +160,22 @@ mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, mesa_pd:
    buf >> objparam.interactionRadius;
    buf >> objparam.flags;
    buf >> objparam.owner;
+   buf >> objparam.ghostOwners;
+   buf >> objparam.linearVelocity;
+   buf >> objparam.invMass;
+   buf >> objparam.oldForce;
    buf >> objparam.shapeID;
    buf >> objparam.rotation;
    buf >> objparam.angularVelocity;
-   buf >> objparam.linearVelocity;
-   buf >> objparam.invMass;
+   buf >> objparam.oldTorque;
+   buf >> objparam.radiusAtTemperature;
    buf >> objparam.type;
    buf >> objparam.oldContactHistory;
    buf >> objparam.temperature;
+   buf >> objparam.hydrodynamicForce;
+   buf >> objparam.hydrodynamicTorque;
+   buf >> objparam.oldHydrodynamicForce;
+   buf >> objparam.oldHydrodynamicTorque;
    return buf;
 }
 

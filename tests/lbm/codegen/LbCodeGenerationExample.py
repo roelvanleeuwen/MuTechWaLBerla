@@ -7,18 +7,20 @@ from lbmpy_walberla import RefinementScaling, generate_boundary, generate_lattic
 
 with CodeGeneration() as ctx:
     omega, omega_free = sp.symbols("omega, omega_free")
-    force_field, vel_field, omega_out = ps.fields("force(3), velocity(3), omega_out: [3D]", layout='fzyx')
+    force_field, vel_field, omega_out = ps.fields("force(3), velocity(3), omega_out: [3D]", layout='zyxf')
 
     # the collision rule of the LB method where the some advanced features
     collision_rule = create_lb_collision_rule(
         stencil='D3Q19', compressible=True,
-        method='mrt3', relaxation_rates=[omega, omega, omega_free],
+        method='mrt', relaxation_rates=[omega, omega, omega_free, omega_free, omega_free, omega_free],
         entropic=True,                    # entropic method where second omega is chosen s.t. entropy condition
-        omega_output_field=omega_out,     # scalar field where automatically chosen omega of entropic or Smagorinsky method is written to
+        omega_output_field=omega_out,     # scalar field where automatically chosen omega of entropic or
+                                          # Smagorinsky method is written to
         force=force_field.center_vector,  # read forces for each lattice cell from an external force field
                                           # that is initialized and changed in C++ app
         output={'velocity': vel_field},   # write macroscopic velocity to field in every time step
-                                          # useful for coupling multiple LB methods, e.g. hydrodynamic to advection/diffusion LBM
+                                          # useful for coupling multiple LB methods,
+                                          # e.g. hydrodynamic to advection/diffusion LBM
         optimization={'cse_global': True}
     )
 

@@ -150,9 +150,7 @@ LinkedCells::LinkedCells(const math::AABB& domain, const Vec3& cellDiameter)
    , numCellsPerDim_( static_cast<int>(std::ceil( domain.sizes()[0] / cellDiameter[0])),
      static_cast<int>(std::ceil( domain.sizes()[1] / cellDiameter[1])),
      static_cast<int>(std::ceil( domain.sizes()[2] / cellDiameter[2])) )
-   , cellDiameter_( domain.sizes()[0] / real_c(numCellsPerDim_[0]),
-     domain.sizes()[1] / real_c(numCellsPerDim_[1]),
-     domain.sizes()[2] / real_c(numCellsPerDim_[2]) )
+   , cellDiameter_( cellDiameter)
    , invCellDiameter_( real_t(1) / cellDiameter_[0], real_t(1) / cellDiameter_[1], real_t(1) / cellDiameter_[2] )
    , cells_(uint_c(numCellsPerDim_[0]*numCellsPerDim_[1]*numCellsPerDim_[2]))
 {
@@ -163,10 +161,7 @@ LinkedCells::LinkedCells(const math::AABB& domain, const Vec3& cellDiameter)
 
    //postcondition
    {%- for dim in range(3) %}
-   WALBERLA_CHECK_GREATER_EQUAL(cellDiameter_[{{dim}}], real_t(0));
-   WALBERLA_CHECK_LESS_EQUAL(cellDiameter_[{{dim}}], cellDiameter[{{dim}}]);
-
-   WALBERLA_CHECK_GREATER_EQUAL(numCellsPerDim_[{{dim}}], 0);
+   WALBERLA_CHECK_GREATER_EQUAL(real_c(numCellsPerDim_[{{dim}}]) * cellDiameter_[{{dim}}], domain.size({{dim}}));
    {%- endfor %}
 
    std::fill(cells_.begin(), cells_.end(), -1);
@@ -176,9 +171,9 @@ void LinkedCells::clear()
 {
    const uint64_t cellsSize = cells_.size();
    //clear existing linked cells
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
+   {%- if module.enableOpenMP %}
+   #pragma omp parallel for schedule(static)
+   {%- endif %}
    for (int64_t i = 0; i < int64_c(cellsSize); ++i)
       cells_[uint64_c(i)] = -1;
    infiniteParticles_ = -1;
@@ -190,9 +185,9 @@ inline void LinkedCells::forEachParticlePair{%- if half %}Half{%- endif %}(const
 {
    static_assert(std::is_base_of<data::IAccessor, Accessor>::value, "please provide a valid accessor");
    WALBERLA_UNUSED(openmp);
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static) if (openmp)
-#endif
+   {%- if module.enableOpenMP %}
+   #pragma omp parallel for collapse(2) schedule(static) firstprivate(selector,func) if (openmp)
+   {%- endif %}
    for (int z = 0; z < numCellsPerDim_[2]; ++z)
    {
       for (int y = 0; y < numCellsPerDim_[1]; ++y)

@@ -28,6 +28,7 @@
 
 #include <mesa_pd/data/DataTypes.h>
 #include <mesa_pd/data/ParticleStorage.h>
+#include <mesa_pd/mpi/ShapePackUnpack.h>
 #include <mesa_pd/mpi/notifications/NotificationType.h>
 
 #include <core/mpi/Datatype.h>
@@ -38,17 +39,17 @@ namespace walberla {
 namespace mesa_pd {
 
 /**
- * A complete particle copy for a new ghost particle.
+ * A complete particle copy.
  *
- * Copies all properties marked COPY or ALWAYS.
+ * Copies all properties that are not marked NEVER.
  */
 class ParticleCopyNotification
 {
 public:
    struct Parameters
    {
-      {%- for prop in properties %}
-      {%- if prop.syncMode in ["COPY", "ALWAYS"] %}
+      {%- for prop in particle.properties %}
+      {%- if not prop.syncMode == "NEVER" %}
       {{prop.type}} {{prop.name}} {{'{'}}{{prop.defValue}}{{'}'}};
       {%- endif %}
       {%- endfor %}
@@ -63,8 +64,8 @@ inline data::ParticleStorage::iterator createNewParticle(data::ParticleStorage& 
    WALBERLA_ASSERT_EQUAL(ps.find(data.uid), ps.end(), "Particle with same uid already existent!");
 
    auto pIt = ps.create(data.uid);
-   {%- for prop in properties %}
-   {%- if prop.syncMode in ["COPY", "ALWAYS"] %}
+   {%- for prop in particle.properties %}
+   {%- if not prop.syncMode == "NEVER" %}
    pIt->set{{prop.name | capFirst}}(data.{{prop.name}});
    {%- endif %}
    {%- endfor %}
@@ -94,8 +95,8 @@ template< typename T,    // Element type of SendBuffer
 mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, const mesa_pd::ParticleCopyNotification& obj )
 {
    buf.addDebugMarker( "cn" );
-   {%- for prop in properties %}
-   {%- if prop.syncMode in ["COPY", "ALWAYS"] %}
+   {%- for prop in particle.properties %}
+   {%- if not prop.syncMode == "NEVER" %}
    buf << obj.particle_.get{{prop.name | capFirst}}();
    {%- endif %}
    {%- endfor %}
@@ -106,8 +107,8 @@ template< typename T>    // Element type  of RecvBuffer
 mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, mesa_pd::ParticleCopyNotification::Parameters& objparam )
 {
    buf.readDebugMarker( "cn" );
-   {%- for prop in properties %}
-   {%- if prop.syncMode in ["COPY", "ALWAYS"] %}
+   {%- for prop in particle.properties %}
+   {%- if not prop.syncMode == "NEVER" %}
    buf >> objparam.{{prop.name}};
    {%- endif %}
    {%- endfor %}

@@ -20,17 +20,14 @@
 
 #pragma once
 
-#include "BlockInfo.h"
-
 #include "blockforest/BlockForest.h"
+#include "blockforest/loadbalancing/BlockInfo.h"
+#include "blockforest/loadbalancing/InfoCollection.h"
 
 #include <map>
 
 namespace walberla {
 namespace pe {
-
-typedef std::map<blockforest::BlockID, BlockInfo>  InfoCollection;
-typedef std::pair<blockforest::BlockID, BlockInfo> InfoCollectionPair;
 
 /**
  * @brief Fills \a InfoCollection with up to date information.
@@ -41,7 +38,7 @@ typedef std::pair<blockforest::BlockID, BlockInfo> InfoCollectionPair;
  */
 void createWithNeighborhoodLocalShadow( const BlockForest& bf,
                                         const BlockDataID storageID,
-                                        InfoCollection& ic );
+                                        blockforest::InfoCollection& ic );
 
 /**
  * @brief Fills \a InfoCollection with up to date information.
@@ -53,7 +50,7 @@ void createWithNeighborhoodLocalShadow( const BlockForest& bf,
 void createWithNeighborhoodContactsShadow( BlockForest& bf,
                                            const BlockDataID storageID,
                                            const BlockDataID fcdID,
-                                           InfoCollection& ic );
+                                           blockforest::InfoCollection& ic );
 
 }
 }

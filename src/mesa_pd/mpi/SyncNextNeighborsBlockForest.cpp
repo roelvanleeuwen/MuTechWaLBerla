@@ -18,12 +18,6 @@
 //
 //======================================================================================================================
 
-//======================================================================================================================
-//
-//  THIS FILE IS GENERATED - PLEASE CHANGE THE TEMPLATE !!!
-//
-//======================================================================================================================
-
 #include "SyncNextNeighborsBlockForest.h"
 #include <mesa_pd/domain/BlockForestDomain.h>
 
@@ -57,7 +51,10 @@ void SyncNextNeighborsBlockForest::operator()(data::ParticleStorage& ps,
 {
    if (numProcesses_ == 1) return;
 
-   bs = walberla::mpi::BufferSystem( walberla::mpi::MPIManager::instance()->comm() );
+   walberla::mpi::BufferSystem bs( walberla::mpi::MPIManager::instance()->comm() );
+
+   WALBERLA_CHECK(!bs.isCommunicationRunning());
+   WALBERLA_CHECK_EQUAL(bs.size(), 0);
 
    for (auto& blk : bf->getBlockMap())
    {
@@ -72,7 +69,7 @@ void SyncNextNeighborsBlockForest::operator()(data::ParticleStorage& ps,
       }
    }
 
-   generateSynchronizationMessages(ps, bf, dx);
+   generateSynchronizationMessages(bs, ps, bf, dx);
 
    // size of buffer is unknown and changes with each send
    bs.setReceiverInfoFromSendBufferState(false, true);
@@ -91,9 +88,15 @@ void SyncNextNeighborsBlockForest::operator()(data::ParticleStorage& ps,
       }
    }
    WALBERLA_LOG_DETAIL( "Parsing of particle synchronization response ended." );
+
+   bytesSent_ = bs.getBytesSent();
+   bytesReceived_ = bs.getBytesReceived();
+   numberOfSends_ = bs.getNumberOfSends();
+   numberOfReceives_ = bs.getNumberOfReceives();
 }
 
-void SyncNextNeighborsBlockForest::generateSynchronizationMessages(data::ParticleStorage& ps,
+void SyncNextNeighborsBlockForest::generateSynchronizationMessages(walberla::mpi::BufferSystem& bs,
+                                                                   data::ParticleStorage& ps,
                                                                    const std::shared_ptr<blockforest::BlockForest>& bf,
                                                                    const real_t dx) const
 {
@@ -122,8 +125,8 @@ void SyncNextNeighborsBlockForest::generateSynchronizationMessages(data::Particl
          continue;
       }
 
-      auto& currentBlock = pIt->getCurrentBlockRef();
-      WALBERLA_CHECK_NOT_NULLPTR(currentBlock);
+      auto currentBlock = bf->getBlock(pIt->getCurrentBlock());
+      WALBERLA_CHECK_NOT_NULLPTR(currentBlock, *pIt);
       if (isInsideAABB(pIt->getPosition(), pIt->getInteractionRadius() + dx, currentBlock->getAABB()))
       {
          //no sync needed
@@ -186,8 +189,8 @@ void SyncNextNeighborsBlockForest::generateSynchronizationMessages(data::Particl
             {
                // no ghost there -> create ghost
                auto& buffer( bs.sendBuffer(nbProcessRank) );
-               WALBERLA_LOG_DETAIL( "Sending shadow copy notification for particle " << pIt->getUid() << " to process " << (nbProcessRank) );
-               packNotification(buffer, ParticleCopyNotification( *pIt ));
+               WALBERLA_LOG_DETAIL( "Sending ghost copy notification for particle " << pIt->getUid() << " to process " << (nbProcessRank) );
+               packNotification(buffer, ParticleGhostCopyNotification( *pIt ));
                pIt->getGhostOwnersRef().insert( int_c(nbProcessRank) );
             }
          }

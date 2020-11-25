@@ -45,8 +45,8 @@ class ParticleMigrationNotification {
 public:
    struct Parameters {
       id_t uid_;
-      {%- for prop in properties %}
-      {%- if prop.syncMode in ["MIGRATION"] %}
+      {%- for prop in particle.properties %}
+      {%- if prop.syncMode in ["ON_OWNERSHIP_CHANGE"] %}
       {{prop.type}} {{prop.name}}_ {{'{'}}{{prop.defValue}}{{'}'}};
       {%- endif %}
       {%- endfor %}
@@ -80,8 +80,8 @@ mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, cons
 {
    buf.addDebugMarker( "mn" );
    buf << obj.particle_.getUid();
-   {%- for prop in properties %}
-   {%- if prop.syncMode in ["MIGRATION"] %}
+   {%- for prop in particle.properties %}
+   {%- if prop.syncMode in ["ON_OWNERSHIP_CHANGE"] %}
    buf << obj.particle_.get{{prop.name | capFirst}}();
    {%- endif %}
    {%- endfor %}
@@ -93,8 +93,8 @@ mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, mesa_pd:
 {
    buf.readDebugMarker( "mn" );
    buf >> objparam.uid_;
-   {%- for prop in properties %}
-   {%- if prop.syncMode in ["MIGRATION"] %}
+   {%- for prop in particle.properties %}
+   {%- if prop.syncMode in ["ON_OWNERSHIP_CHANGE"] %}
    buf >> objparam.{{prop.name}}_;
    {%- endif %}
    {%- endfor %}

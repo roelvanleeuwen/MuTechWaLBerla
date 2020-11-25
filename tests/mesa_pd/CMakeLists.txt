@@ -99,9 +99,6 @@ waLBerla_execute_test( NAME   MESA_PD_Kernel_DoubleCast )
 waLBerla_compile_test( NAME   MESA_PD_Kernel_ExplicitEuler FILES kernel/ExplicitEuler.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_ExplicitEuler )
 
-waLBerla_compile_test( NAME   MESA_PD_Kernel_ExplicitEulerWithShape FILES kernel/ExplicitEulerWithShape.cpp DEPENDS core )
-waLBerla_execute_test( NAME   MESA_PD_Kernel_ExplicitEulerWithShape )
-
 waLBerla_compile_test( NAME   MESA_PD_Kernel_ForceLJ FILES kernel/ForceLJ.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_ForceLJ )
 
@@ -134,6 +131,9 @@ waLBerla_execute_test( NAME   MESA_PD_Kernel_LinkedCellsVsBruteForce PROCESSES 2
 waLBerla_compile_test( NAME   MESA_PD_Kernel_SingleCast FILES kernel/SingleCast.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_SingleCast )
 
+waLBerla_compile_test( NAME   MESA_PD_Kernel_SpherePile FILES kernel/SpherePile.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_Kernel_SpherePile )
+
 waLBerla_compile_test( NAME   MESA_PD_Kernel_SpringDashpot FILES kernel/SpringDashpot.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_SpringDashpot )
 
@@ -155,11 +155,14 @@ waLBerla_execute_test( NAME   MESA_PD_Kernel_TemperatureIntegration )
 waLBerla_compile_test( NAME   MESA_PD_Kernel_VelocityVerlet FILES kernel/VelocityVerlet.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_VelocityVerlet )
 
-waLBerla_compile_test( NAME   MESA_PD_Kernel_VelocityVerletWithShape FILES kernel/VelocityVerletWithShape.cpp DEPENDS core )
-waLBerla_execute_test( NAME   MESA_PD_Kernel_VelocityVerletWithShape )
-
 waLBerla_compile_test( NAME   MESA_PD_MPI_BroadcastProperty FILES mpi/BroadcastProperty.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_MPI_BroadcastProperty PROCESSES 8 )
+
+waLBerla_compile_test( NAME   MESA_PD_MPI_ClearGhostOwnerSync FILES mpi/ClearGhostOwnerSync.cpp DEPENDS blockforest core)
+waLBerla_execute_test( NAME   MESA_PD_MPI_ClearGhostOwnerSync PROCESSES 8 )
+
+waLBerla_compile_test( NAME   MESA_PD_MPI_ClearNextNeighborSync FILES mpi/ClearNextNeighborSync.cpp DEPENDS blockforest core )
+waLBerla_execute_test( NAME   MESA_PD_MPI_ClearNextNeighborSync PROCESSES 8 )
 
 waLBerla_compile_test( NAME   MESA_PD_MPI_Notifications FILES mpi/Notifications.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_MPI_Notifications )
@@ -170,6 +173,12 @@ waLBerla_execute_test( NAME   MESA_PD_MPI_ReduceContactHistory PROCESSES 8 )
 waLBerla_compile_test( NAME   MESA_PD_MPI_ReduceProperty FILES mpi/ReduceProperty.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_MPI_ReduceProperty PROCESSES 8 )
 
+waLBerla_compile_test( NAME   MESA_PD_MPI_ShapePackUnpack FILES mpi/ShapePackUnpack.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_MPI_ShapePackUnpack )
+
+waLBerla_compile_test( NAME   MESA_PD_MPI_SyncNextNeighborsNoGhosts FILES mpi/SyncNextNeighborsNoGhosts.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_MPI_SyncNextNeighborsNoGhosts PROCESSES 2 )
+
 waLBerla_compile_test( NAME   MESA_PD_MPI_VelocityCorrectionNotification FILES mpi/VelocityCorrectionNotification.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_MPI_VelocityCorrectionNotification PROCESSES 8)
 
@@ -179,3 +188,13 @@ waLBerla_execute_test( NAME   MESA_PD_Sorting )
 waLBerla_compile_test( NAME   MESA_PD_VTK_Outputs FILES vtk/VTKOutputs.cpp DEPENDS blockforest core vtk )
 waLBerla_execute_test( NAME   MESA_PD_VTK_Outputs PROCESSES 8 )
 
+if (WALBERLA_MESAPD_CONVEX_POLYHEDRON_AVAILABLE)
+    waLBerla_compile_test( NAME   MESA_PD_VTK_ConvexPolyhedron FILES vtk/ConvexPolyhedronVTKOutput.cpp DEPENDS core mesa_pd mesh_common vtk )
+    waLBerla_execute_test( NAME   MESA_PD_VTK_ConvexPolyhedron )
+
+    waLBerla_compile_test( NAME   MESA_PD_Data_ConvexPolyhedron FILES data/ConvexPolyhedron.cpp DEPENDS core mesa_pd mesh_common )
+    waLBerla_execute_test( NAME   MESA_PD_Data_ConvexPolyhedron )
+
+    waLBerla_compile_test( NAME   MESA_PD_COLLISIONDETECTION_ConvexPolyhedron_GJK_EPA FILES collision_detection/ConvexPolyhedron_GJK_EPA.cpp DEPENDS core mesa_pd mesh_common )
+    waLBerla_execute_test( NAME   MESA_PD_COLLISIONDETECTION_ConvexPolyhedron_GJK_EPA )
+endif()

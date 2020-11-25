@@ -48,6 +48,10 @@ public:
       std::unordered_set<walberla::mpi::MPIRank> ghostOwners_ {};
       walberla::mesa_pd::Vec3 oldForce_ {real_t(0)};
       walberla::mesa_pd::Vec3 oldTorque_ {real_t(0)};
+      walberla::mesa_pd::Vec3 hydrodynamicForce_ {real_t(0)};
+      walberla::mesa_pd::Vec3 hydrodynamicTorque_ {real_t(0)};
+      walberla::mesa_pd::Vec3 oldHydrodynamicForce_ {real_t(0)};
+      walberla::mesa_pd::Vec3 oldHydrodynamicTorque_ {real_t(0)};
    };
 
    inline explicit ParticleMigrationNotification( const data::Particle& particle ) : particle_(particle) {}
@@ -81,6 +85,10 @@ mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, cons
    buf << obj.particle_.getGhostOwners();
    buf << obj.particle_.getOldForce();
    buf << obj.particle_.getOldTorque();
+   buf << obj.particle_.getHydrodynamicForce();
+   buf << obj.particle_.getHydrodynamicTorque();
+   buf << obj.particle_.getOldHydrodynamicForce();
+   buf << obj.particle_.getOldHydrodynamicTorque();
    return buf;
 }
 
@@ -92,6 +100,10 @@ mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, mesa_pd:
    buf >> objparam.ghostOwners_;
    buf >> objparam.oldForce_;
    buf >> objparam.oldTorque_;
+   buf >> objparam.hydrodynamicForce_;
+   buf >> objparam.hydrodynamicTorque_;
+   buf >> objparam.oldHydrodynamicForce_;
+   buf >> objparam.oldHydrodynamicTorque_;
    return buf;
 }
 

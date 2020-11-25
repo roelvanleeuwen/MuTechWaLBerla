@@ -41,7 +41,7 @@
 #include <mesa_pd/domain/InfoCollection.h>
 #include <mesa_pd/kernel/AssocToBlock.h>
 #include <mesa_pd/kernel/DoubleCast.h>
-#include <mesa_pd/kernel/ExplicitEulerWithShape.h>
+#include <mesa_pd/kernel/ExplicitEuler.h>
 #include <mesa_pd/kernel/InsertParticleIntoLinkedCells.h>
 #include <mesa_pd/kernel/InsertParticleIntoSparseLinkedCells.h>
 #include <mesa_pd/kernel/ParticleSelector.h>
@@ -58,6 +58,7 @@
 #include <blockforest/Initialization.h>
 #include <blockforest/loadbalancing/DynamicCurve.h>
 #include <blockforest/loadbalancing/DynamicParMetis.h>
+#include <blockforest/loadbalancing/InfoCollection.h>
 #include <blockforest/loadbalancing/PODPhantomData.h>
 #include <core/Abort.h>
 #include <core/Environment.h>
@@ -134,7 +135,7 @@ int main( int argc, char ** argv )
    forest->checkForEarlyOutInRefresh( params.checkForEarlyOutInRefresh );
    forest->checkForLateOutInRefresh( params.checkForLateOutInRefresh );
 
-   auto ic = make_shared<pe::InfoCollection>();
+   auto ic = make_shared<blockforest::InfoCollection>();
 
    pe::amr::MinMaxLevelDetermination regrid(ic, params.regridMin, params.regridMax);
    forest->setRefreshMinTargetLevelDeterminationFunction( regrid );
@@ -235,7 +236,7 @@ int main( int argc, char ** argv )
 
    WALBERLA_LOG_INFO_ON_ROOT("*** SIMULATION - START ***");
    // Init kernels
-   kernel::ExplicitEulerWithShape        explicitEulerWithShape( params.dt );
+   kernel::ExplicitEuler                 explicitEuler( params.dt );
    kernel::InsertParticleIntoLinkedCells ipilc;
    kernel::SpringDashpot                 dem(1);
    dem.setStiffness(0, 0, real_t(0));
@@ -333,7 +334,7 @@ int main( int argc, char ** argv )
    tpImbalanced["Euler"].start();
    for (int64_t i=0; i < params.simulationSteps; ++i)
    {
-      ps->forEachParticle(true, kernel::SelectLocal(), accessor, explicitEulerWithShape, accessor);
+      ps->forEachParticle(true, kernel::SelectLocal(), accessor, explicitEuler, accessor);
    }
    tpImbalanced["Euler"].end();
 
@@ -478,7 +479,7 @@ int main( int argc, char ** argv )
    tpBalanced["Euler"].start();
    for (int64_t i=0; i < params.simulationSteps; ++i)
    {
-      ps->forEachParticle(true, kernel::SelectLocal(), accessor, explicitEulerWithShape, accessor);
+      ps->forEachParticle(true, kernel::SelectLocal(), accessor, explicitEuler, accessor);
    }
    tpBalanced["Euler"].end();
 
@@ -494,7 +495,7 @@ int main( int argc, char ** argv )
 
    if (params.checkSimulation)
    {
-      check(*ps, *forest, params.spacing);
+      check(*ps, *forest, params.spacing, params.shift);
    }
 
 

@@ -10,6 +10,7 @@ from pystencils.fast_approximation import insert_fast_sqrts, insert_fast_divisio
 from lbmpy.macroscopic_value_kernels import macroscopic_values_getter, macroscopic_values_setter
 
 omega = sp.symbols("omega")
+omega_free = sp.Symbol("omega_free")
 compile_time_block_size = False
 
 if compile_time_block_size:
@@ -36,13 +37,13 @@ options_dict = {
     'mrt': {
         'method': 'mrt',
         'stencil': 'D3Q19',
-        'relaxation_rates': [0, omega, 1.3, 1.4, omega, 1.2, 1.1],
+        'relaxation_rates': [omega, 1.3, 1.4, omega, 1.2, 1.1],
     },
     'entropic': {
-        'method': 'mrt3',
+        'method': 'mrt',
         'stencil': 'D3Q19',
         'compressible': True,
-        'relaxation_rates': [omega, omega, sp.Symbol("omega_free")],
+        'relaxation_rates': [omega, omega, omega_free, omega_free, omega_free],
         'entropic': True,
     },
     'smagorinsky': {
@@ -55,7 +56,7 @@ options_dict = {
 
 
 info_header = """
-#include "stencil/D3Q{q}.h"\nusing Stencil_T = walberla::stencil::D3Q{q}; 
+#include "stencil/D3Q{q}.h"\nusing Stencil_T = walberla::stencil::D3Q{q};
 const char * infoStencil = "{stencil}";
 const char * infoConfigName = "{configName}";
 const bool infoCseGlobal = {cse_global};
@@ -112,8 +113,10 @@ with CodeGeneration() as ctx:
     generate_sweep(ctx, 'UniformGridGPU_AA_MacroGetter', getter_assignments)
 
     # communication
-    generate_pack_info_from_kernel(ctx, 'UniformGridGPU_AA_PackInfoPull', update_rules['Odd'], kind='pull', target='gpu')
-    generate_pack_info_from_kernel(ctx, 'UniformGridGPU_AA_PackInfoPush', update_rules['Odd'], kind='push', target='gpu')
+    generate_pack_info_from_kernel(ctx, 'UniformGridGPU_AA_PackInfoPull', update_rules['Odd'],
+                                   kind='pull', target='gpu')
+    generate_pack_info_from_kernel(ctx, 'UniformGridGPU_AA_PackInfoPush', update_rules['Odd'],
+                                   kind='push', target='gpu')
 
     infoHeaderParams = {
         'stencil': stencil_str,

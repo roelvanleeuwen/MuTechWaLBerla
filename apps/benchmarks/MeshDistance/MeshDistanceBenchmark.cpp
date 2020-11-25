@@ -22,17 +22,18 @@
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/Logging.h"
 #include "core/mpi/Environment.h"
+#include "core/stringToNum.h"
 #include "core/timing/Timer.h"
 
 #include "geometry/containment_octree/ContainmentOctree.h"
 #include "geometry/mesh/TriangleMesh.h"
 #include "geometry/mesh/TriangleMeshIO.h"
 
-#include "mesh/TriangleMeshes.h"
-#include "mesh/MeshOperations.h"
-#include "mesh/DistanceComputations.h"
-#include "mesh/distance_octree/DistanceOctree.h"
-#include "mesh/MeshIO.h"
+#include "mesh_common/TriangleMeshes.h"
+#include "mesh_common/MeshOperations.h"
+#include "mesh_common/DistanceComputations.h"
+#include "mesh_common/distance_octree/DistanceOctree.h"
+#include "mesh_common/MeshIO.h"
 
 #include <random>
 
@@ -164,8 +165,8 @@ int main( int argc, char * argv[] )
       WALBERLA_ABORT_NO_DEBUG_INFO( "USAGE: " << args[0] << " [--no-brute-force] [--force-float] MESH_FILE NUM_POINTS NUM_REPETITIONS" );
 
    const std::string & meshFile = args[1];
-   const uint_t numPoints       = string_to_num<uint_t>( args[2] );
-   const uint_t numRepetitions  = string_to_num<uint_t>( args[3] );
+   const uint_t numPoints       = stringToNum<uint_t>( args[2] );
+   const uint_t numRepetitions  = stringToNum<uint_t>( args[3] );
 
    if(forceFloat)
    {

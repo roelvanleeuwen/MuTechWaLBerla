@@ -27,8 +27,8 @@
 #include "ConvexPolyhedron.h"
 
 #include "domain_decomposition/BlockStorage.h"
-#include "mesh/decomposition/ConvexDecomposer.h"
-#include "mesh/MeshOperations.h"
+#include "mesh_common/decomposition/ConvexDecomposer.h"
+#include "mesh_common/MeshOperations.h"
 #include "pe/rigidbody/BodyStorage.h"
 #include "pe/rigidbody/UnionFactory.h"
 #include "pe/rigidbody/Union.h"
@@ -131,11 +131,11 @@ mesh::pe::ConvexPolyhedronID createConvexPolyhedron( Union<BodyTypeTuple>* un,
                        MaterialID material = Material::find("iron"),
                        bool global = false, bool communicating = true, bool infiniteMass = false )
 {
-   
+
    Vec3 centroid = toWalberla( computeCentroid( mesh ) );
    translate( mesh, -centroid );
    gpos += centroid;
-   
+
    if (mesh::pe::ConvexPolyhedron::getStaticTypeID() == std::numeric_limits<id_t>::max())
       throw std::runtime_error("createConvexPolyhedron: TypeID not initalized!");
 
@@ -184,7 +184,7 @@ using TriangleMeshUnion = Union<mesh::pe::ConvexPolyhedron>;
 //*************************************************************************************************
 /**
  * \ingroup pe
- * \brief Setup mesh as a new Non-ConvexPolyhedron as a union. 
+ * \brief Setup mesh as a new Non-ConvexPolyhedron as a union.
  * The mesh passed will be automatically decomposed into
  * convex parts, which are then added to the union.
  *
@@ -224,8 +224,8 @@ TriangleMeshUnion* createApproximateNonConvexUnion( BodyStorage& globalStorage, 
 //*************************************************************************************************
 /**
  * \ingroup pe
- * \brief Setup of a new Non-ConvexPolyhedron as a union of its parts. 
- * Use this function if you already have computed the vector of the decomposed 
+ * \brief Setup of a new Non-ConvexPolyhedron as a union of its parts.
+ * Use this function if you already have computed the vector of the decomposed
  * convex parts (either approximate or exact), and want to create a union of it.
  * Manually decomposing is useful if you want to create multiple bodies with the same
  * shape and only run the decomposition algorithm once.
