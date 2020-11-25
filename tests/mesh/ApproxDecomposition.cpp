@@ -1,15 +1,15 @@
 //======================================================================================================================
 //
-//  This file is part of waLBerla. waLBerla is free software: you can 
+//  This file is part of waLBerla. waLBerla is free software: you can
 //  redistribute it and/or modify it under the terms of the GNU General Public
-//  License as published by the Free Software Foundation, either version 3 of 
+//  License as published by the Free Software Foundation, either version 3 of
 //  the License, or (at your option) any later version.
-//  
-//  waLBerla is distributed in the hope that it will be useful, but WITHOUT 
-//  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-//  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License 
+//
+//  waLBerla is distributed in the hope that it will be useful, but WITHOUT
+//  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+//  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
@@ -23,9 +23,9 @@
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/Logging.h"
 
-#include "mesh/QHull.h"
-#include "mesh/TriangleMeshes.h"
-#include "mesh/decomposition/ConvexDecomposer.h"
+#include "mesh_common/QHull.h"
+#include "mesh_common/TriangleMeshes.h"
+#include "mesh_common/decomposition/ConvexDecomposer.h"
 
 #include <OpenMesh/Core/Geometry/VectorT.hh>
 #include <OpenMesh/Core/IO/reader/OFFReader.hh>
@@ -77,11 +77,11 @@ int main( int argc, char** argv )
 
    std::vector<mesh::TriangleMesh> convexParts = mesh::ConvexDecomposer::approximateConvexDecompose(meshArm);
    WALBERLA_LOG_INFO("Decomposed mesh into " << convexParts.size() << " convex parts.");
-   WALBERLA_CHECK_GREATER_EQUAL( convexParts.size(), 1 ); 
-   
+   WALBERLA_CHECK_GREATER_EQUAL( convexParts.size(), 1 );
+
    // Check if subbodies are disjoint
    WALBERLA_LOG_INFO( "--- CHECK SUBBODIES ---");
-   
+
    SetBodyTypeIDs<BodyTuple>::execute();
    //shared_ptr<BodyStorage> globalBodyStorage = make_shared<BodyStorage>();
    shared_ptr<BodyStorage> globalBodyStorage = make_shared<BodyStorage>();
@@ -95,9 +95,9 @@ int main( int argc, char** argv )
             false, false,                       // include metis / force metis
             false, false, false );                 // full periodicity
    auto storageID = forest->addBlockData(createStorageDataHandling<BodyTuple>(), "Storage");
-   
+
    fcd::GenericFCD<BodyTuple, fcd::GJKEPACollideFunctor> testFCD;
-   
+
    mesh::pe::TriangleMeshUnion* un = createUnion<mesh::pe::ConvexPolyhedron>( *globalBodyStorage, forest->getBlockStorage(), storageID, 0, Vec3());
 
    // Centrate parts an add them to the union
@@ -106,7 +106,7 @@ int main( int argc, char** argv )
       mesh::translate( convexParts[part], -centroid );
       createConvexPolyhedron(un, 0, centroid, convexParts[part]);
    }
-   
+
    PossibleContacts pcs;
    for(auto subBodyA = un->begin(); subBodyA != un->end(); subBodyA++){
 	   RigidBody &rba = *subBodyA;
@@ -116,7 +116,7 @@ int main( int argc, char** argv )
 			   pcs.push_back(std::pair<mesh::pe::ConvexPolyhedron*, mesh::pe::ConvexPolyhedron*>(&dynamic_cast<mesh::pe::ConvexPolyhedron&>(rba), &dynamic_cast<mesh::pe::ConvexPolyhedron&>(rbb)));
 		   }
 	   }
-   } 
+   }
    Contacts& container = testFCD.generateContacts(pcs);
    WALBERLA_LOG_INFO("Checking " << container.size() << " intersections for deeper penetration.");
 

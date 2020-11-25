@@ -1,15 +1,15 @@
 //======================================================================================================================
 //
-//  This file is part of waLBerla. waLBerla is free software: you can 
+//  This file is part of waLBerla. waLBerla is free software: you can
 //  redistribute it and/or modify it under the terms of the GNU General Public
-//  License as published by the Free Software Foundation, either version 3 of 
+//  License as published by the Free Software Foundation, either version 3 of
 //  the License, or (at your option) any later version.
-//  
-//  waLBerla is distributed in the hope that it will be useful, but WITHOUT 
-//  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-//  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License 
+//
+//  waLBerla is distributed in the hope that it will be useful, but WITHOUT
+//  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+//  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
@@ -23,10 +23,10 @@
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/Logging.h"
 
-#include "mesh/PolyMeshes.h"
-#include "mesh/QHull.h"
-#include "mesh/TriangleMeshes.h"
-#include "mesh/decomposition/ConvexDecomposer.h"
+#include "mesh_common/PolyMeshes.h"
+#include "mesh_common/QHull.h"
+#include "mesh_common/TriangleMeshes.h"
+#include "mesh_common/decomposition/ConvexDecomposer.h"
 #include <OpenMesh/Core/Geometry/VectorT.hh>
 
 #include "core/all.h"
@@ -155,7 +155,7 @@ int main( int argc, char** argv )
    const real_t cubehalflength = real_t(1.0);
    const real_t subcubeVol = cubehalflength *cubehalflength *cubehalflength;
    // Test a cube, with one of its 8 subcubes missing.
-   
+
    mesh::TriangleMesh cubeMesh;
    generateCubeTestMesh(cubeMesh, cubehalflength);
    WALBERLA_LOG_INFO( "Building complete. Testing...");
@@ -185,7 +185,7 @@ int main( int argc, char** argv )
 
    //Check center of gravity
    WALBERLA_CHECK_FLOAT_EQUAL((un->getPosition()-Vec3(real_t(-1./14.),real_t(-1./14.),real_t(-1./14.))).sqrLength(), real_t(0.0), "Center of gravity is not valid.");
-	
+
    //Check inertia
    const real_t fac  = un->getMass()*subcubeVol;
    const Mat3 analyticInertia = Mat3(real_t(fac*193./294.), real_t(fac*2./49.), real_t(fac*2./49.),
