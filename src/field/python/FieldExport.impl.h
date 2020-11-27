@@ -47,6 +47,22 @@ namespace field
 namespace internal
 {
 namespace py = pybind11;
+
+template<class T> struct PythonFormatString                    { inline static char * get() { static char value [] = "B"; return value; } };
+
+template<>        struct PythonFormatString<double>            { inline static char * get() { static char value [] = "d"; return value; } };
+template<>        struct PythonFormatString<float>             { inline static char * get() { static char value [] = "f"; return value; } };
+template<>        struct PythonFormatString<unsigned short>    { inline static char * get() { static char value [] = "H"; return value; } };
+template<>        struct PythonFormatString<int>               { inline static char * get() { static char value [] = "i"; return value; } };
+template<>        struct PythonFormatString<unsigned int>      { inline static char * get() { static char value [] = "I"; return value; } };
+template<>        struct PythonFormatString<long>              { inline static char * get() { static char value [] = "l"; return value; } };
+template<>        struct PythonFormatString<unsigned long>     { inline static char * get() { static char value [] = "L"; return value; } };
+template<>        struct PythonFormatString<long long>         { inline static char * get() { static char value [] = "q"; return value; } };
+template<>        struct PythonFormatString<unsigned long long>{ inline static char * get() { static char value [] = "Q"; return value; } };
+template<>        struct PythonFormatString<int8_t>            { inline static char * get() { static char value [] = "c"; return value; } };
+template<>        struct PythonFormatString<int16_t>           { inline static char * get() { static char value [] = "h"; return value; } };
+template<>        struct PythonFormatString<uint8_t>           { inline static char * get() { static char value [] = "C"; return value; } };
+
 //===================================================================================================================
 //
 //  Aligned Allocation
@@ -306,7 +322,9 @@ struct FieldExporter
       typedef GhostLayerField< T, F_SIZE > GlField_T;
       typedef Field< T, F_SIZE > Field_T;
 
-      std::string class_name = "Field_" + std::string(typeid(T).name()) + "_" + std::to_string(FieldType::F_SIZE);
+      std::string data_type_name = PythonFormatString<T>::get();
+
+      std::string class_name = "Field_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
 
       py::class_< Field_T, shared_ptr< Field_T > >(m_, class_name.c_str())
          .def("layout", &field_layout< Field_T >)
@@ -322,7 +340,7 @@ struct FieldExporter
          .def("__array__", &toNumpyArray< Field_T >);
 
       std::string class_nameGL =
-         "GhostLayerField_" + std::string(typeid(T).name()) + "_" + std::to_string(FieldType::F_SIZE);
+         "GhostLayerField_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
 
       py::class_< GlField_T, shared_ptr< GlField_T > >(m_, class_nameGL.c_str())
          .def("sizeWithGhostLayer", &GlField_T::xSizeWithGhostLayer)
@@ -332,19 +350,34 @@ struct FieldExporter
 //
 //      // Field Buffer type
 //
-      py::class_< FieldAllocator< T >, shared_ptr< FieldAllocator< T > > >(m_, "FieldAllocator")
-         .def("incrementReferenceCount", &FieldAllocator< T >::incrementReferenceCount)
-         .def("decrementReferenceCount", &FieldAllocator< T >::decrementReferenceCount);
-
       using field::communication::PackInfo;
-      py::class_< PackInfo< GlField_T >, shared_ptr< PackInfo< GlField_T > > >(m_, "FieldPackInfo");
+      std::string FieldPackInfo_name = "FieldPackInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
+      py::class_< PackInfo< GlField_T >, shared_ptr< PackInfo< GlField_T > > >(m_, FieldPackInfo_name.c_str());
 
-      using field::communication::UniformMPIDatatypeInfo;
-      py::class_< UniformMPIDatatypeInfo< GlField_T >, shared_ptr< UniformMPIDatatypeInfo< GlField_T > > >(
-         m_, "FieldMPIDataTypeInfo");
+//      using field::communication::UniformMPIDatatypeInfo;
+//      std::string FieldMPIDataTypeInfo_name = "FieldMPIDataTypeInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
+//      py::class_< UniformMPIDatatypeInfo< GlField_T >, shared_ptr< UniformMPIDatatypeInfo< GlField_T > > >(
+//         m_, FieldMPIDataTypeInfo_name.c_str());
    }
    const py::module_& m_;
 };
+
+
+struct FieldAllocatorExporter
+{
+   FieldAllocatorExporter(py::module_& m) : m_(m) {}
+   template< typename T >
+   void operator()(python_coupling::NonCopyableWrap< T >) const
+   {
+      std::string data_type_name = PythonFormatString<T>::get();
+      std::string class_nameFieldAllocator = "FieldAllocator_" + data_type_name;
+      py::class_< FieldAllocator< T >, shared_ptr< FieldAllocator< T > > >(m_, class_nameFieldAllocator.c_str())
+         .def("incrementReferenceCount", &FieldAllocator< T >::incrementReferenceCount)
+         .def("decrementReferenceCount", &FieldAllocator< T >::decrementReferenceCount);
+   }
+   const py::module_& m_;
+};
+
 
 struct GhostLayerFieldAdaptorExporter
 {
@@ -460,7 +493,9 @@ class CreateVTKWriterExporter
    {
       typedef typename FieldType::value_type T;
       typedef field::VTKWriter< FieldType > VTKWriter;
-      std::string class_name = "VTKWriter_" + std::string(typeid(T).name()) + "_" + std::to_string(FieldType::F_SIZE);
+      std::string data_type_name = PythonFormatString<T>::get();
+
+      std::string class_name = "VTKWriter_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
 
       py::class_< VTKWriter, shared_ptr<VTKWriter> >(m_, class_name.c_str() );
 
@@ -488,8 +523,9 @@ class CreateBinarizationVTKWriterExporter
    void operator()()
    {
       typedef typename FieldType::value_type T;
+      std::string data_type_name = PythonFormatString<T>::get();
       typedef field::BinarizationFieldWriter< FieldType > VTKWriter;
-      std::string class_name = "BinarizationFieldWriter_" + std::string(typeid(T).name()) + "_" + std::to_string(FieldType::F_SIZE);
+      std::string class_name = "BinarizationFieldWriter_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
 
       py::class_< VTKWriter, shared_ptr<VTKWriter> >(m_, class_name.c_str() );
    }
@@ -508,6 +544,7 @@ void exportFields(py::module_& m)
    py::enum_< Layout >(m, "Layout").value("fzyx", fzyx).value("zyxf", zyxf).export_values();
 
    python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::FieldExporter(m));
+   python_coupling::for_each_noncopyable_type< real_t, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t >(internal::FieldAllocatorExporter(m));
 
    m.def(
       "addToStorage",

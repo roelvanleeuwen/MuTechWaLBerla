@@ -59,12 +59,13 @@ struct PackInfoExporter
    void operator()(python_coupling::NonCopyableWrap< FieldType >) const
    {
       typedef typename FieldType::value_type T;
+      std::string data_type_name = field::internal::PythonFormatString<T>::get();
       const uint_t F_SIZE = FieldType::F_SIZE;
       typedef GhostLayerField< T, F_SIZE > GlField_T;
       typedef Field< T, F_SIZE > Field_T;
 
       typedef field::communication::PackInfo< GlField_T > PackInfo;
-      std::string class_name = "PackInfo_" + std::string(typeid(T).name()) + "_" + std::to_string(F_SIZE);
+      std::string class_name = "PackInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
 
       py::class_< PackInfo, shared_ptr< PackInfo > >(m_, class_name.c_str());
    }
@@ -84,13 +85,14 @@ struct UniformMPIDatatypeInfoExporter
    void operator()(python_coupling::NonCopyableWrap< FieldType >) const
    {
       typedef typename FieldType::value_type T;
+      std::string data_type_name = field::internal::PythonFormatString<T>::get();
       const uint_t F_SIZE = FieldType::F_SIZE;
       typedef GhostLayerField< T, F_SIZE > GlField_T;
       typedef Field< T, F_SIZE > Field_T;
 
       typedef field::communication::UniformMPIDatatypeInfo< GlField_T > MPIDataTypeInfo;
       std::string class_name =
-         "UniformMPIDatatypeInfo_" + std::string(typeid(T).name()) + "_" + std::to_string(FieldType::F_SIZE);
+         "UniformMPIDatatypeInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
 
       py::class_< MPIDataTypeInfo, shared_ptr< MPIDataTypeInfo > >(m_, class_name.c_str());
    }
@@ -136,8 +138,8 @@ void exportCommunicationClasses(py::module_& m)
    // internal::exportStencilRestrictedPackInfo< float >(m);
    internal::exportStencilRestrictedPackInfo< double >(m);
 
-   python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::UniformMPIDatatypeInfoExporter(m));
-   python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::PackInfoExporter(m));
+   //python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::UniformMPIDatatypeInfoExporter(m));
+   //python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::PackInfoExporter(m));
 }
 
 } // namespace field

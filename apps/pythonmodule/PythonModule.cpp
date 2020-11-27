@@ -32,7 +32,7 @@
 #include "stencil/all.h"
 
 #ifdef WALBERLA_BUILD_WITH_CUDA
-// #include "cuda/python/Exports.h"
+ #include "cuda/python/Exports.h"
 #endif
 
 
@@ -86,7 +86,7 @@ struct InitObject
       auto pythonManager = python_coupling::Manager::instance();
       //
       //      // Field
-            pythonManager->addExporterFunction( field::exportModuleToPython<FIELD_TYPES> );
+      pythonManager->addExporterFunction( field::exportModuleToPython<FIELD_TYPES> );
             // pythonManager->addExporterFunction( field::exportGatherFunctions<FIELD_TYPES> );
            // pythonManager->addBlockDataConversion<FIELD_TYPES>() ;
       //
@@ -104,12 +104,13 @@ struct InitObject
       //      pythonManager->addExporterFunction( mesh::exportModuleToPython<FlagField<walberla::uint8_t>, FlagField<walberla::uint16_t>> );
       //#endif
       //
-      //#ifdef WALBERLA_BUILD_WITH_CUDA
-      //      using walberla::cuda::GPUField;
-      //
-      //      pythonManager->addExporterFunction( cuda::exportModuleToPython<GPU_FIELD_TYPES, FIELD_TYPES> );
-      //      pythonManager->addBlockDataConversion<GPU_FIELD_TYPES>();
-      //#endif
+      #ifdef WALBERLA_BUILD_WITH_CUDA
+            using walberla::cuda::GPUField;
+
+            pythonManager->addExporterFunction( cuda::exportModuleToPython<GPU_FIELD_TYPES> );
+            pythonManager->addExporterFunction( cuda::exportCopyFunctionsToPython<FIELD_TYPES> );
+            // pythonManager->addBlockDataConversion<GPU_FIELD_TYPES>();
+      #endif
       //
       python_coupling::initWalberlaForPythonModule();
 
