@@ -11,6 +11,7 @@ bugprone-*,
 
 misc-*,
 -misc-misplaced-const,
+-misc-no-recursion
 -misc-non-private-member-variables-in-classes,
 
 modernize-*,
