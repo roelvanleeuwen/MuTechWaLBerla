@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ExplicitEuler.h
+//! \file SemiImplicitEuler.h
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -34,10 +34,7 @@ namespace mesa_pd {
 namespace kernel {
 
 /**
- * Explicit Euler integration.
- * Uses the 0.5at^2 extension for position integration.
- * Boils down to using v_{t+0.5dt} for position integration.
- * This version exhibits increased stability compared to standard explicit euler.
+ * Semi-implicit Euler integration for position and velocity.
  *
  * This kernel requires the following particle accessor interface
  * \code
@@ -59,10 +56,10 @@ namespace kernel {
  * \post All forces and torques are reset to 0.
  * \ingroup mesa_pd_kernel
  */
-class ExplicitEuler
+class SemiImplicitEuler
 {
 public:
-   explicit ExplicitEuler(const real_t dt) : dt_(dt) {}
+   explicit SemiImplicitEuler(const real_t dt) : dt_(dt) {}
 
    template <typename Accessor>
    void operator()(const size_t i, Accessor& ac) const;
@@ -71,25 +68,27 @@ private:
 };
 
 template <typename Accessor>
-inline void ExplicitEuler::operator()(const size_t idx,
-                                      Accessor& ac) const
+inline void SemiImplicitEuler::operator()(const size_t idx,
+                                          Accessor& ac) const
 {
    static_assert(std::is_base_of<data::IAccessor, Accessor>::value, "please provide a valid accessor");
 
    if (!data::particle_flags::isSet( ac.getFlags(idx), data::particle_flags::FIXED))
    {
-      ac.setPosition      (idx, 0.5_r * ac.getInvMass(idx) * ac.getForce(idx) * dt_ * dt_ +
-                                ac.getLinearVelocity(idx) * dt_ +
-                                ac.getPosition(idx));
-      ac.setLinearVelocity(idx, ac.getInvMass(idx) * ac.getForce(idx) * dt_ +
-                                ac.getLinearVelocity(idx));
+      ac.setLinearVelocity( idx, ac.getInvMass(idx) * ac.getForce(idx) * dt_ +
+                                 ac.getLinearVelocity(idx));
+      ac.setPosition      ( idx, ac.getLinearVelocity(idx) * dt_ +
+                                 ac.getPosition(idx));
 
       {%- if bIntegrateRotation %}
       const Vec3 wdot = math::transformMatrixRART(ac.getRotation(idx).getMatrix(),
                                                   ac.getInvInertiaBF(idx)) * ac.getTorque(idx);
 
+      ac.setAngularVelocity(idx, wdot * dt_ +
+                                 ac.getAngularVelocity(idx));
+
       // Calculating the rotation angle
-      const Vec3 phi( 0.5_r * wdot * dt_ * dt_ +
+      const Vec3 phi( wdot * dt_ * dt_ +
                       ac.getAngularVelocity(idx) * dt_ );
 
       // Calculating the new orientation
@@ -97,7 +96,6 @@ inline void ExplicitEuler::operator()(const size_t idx,
       rotation.rotate( phi );
       ac.setRotation(idx, rotation);
 
-      ac.setAngularVelocity(idx, wdot * dt_ + ac.getAngularVelocity(idx));
       {%- endif %}
    }
 
