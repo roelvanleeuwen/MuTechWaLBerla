@@ -38,7 +38,6 @@
 #   include "python_coupling/helper/ConfigFromDict.h"
 
 #   include "PythonCallback.h"
-// #include "helper/ExceptionHandling.h"
 #   include <pybind11/pybind11.h>
 
 namespace walberla

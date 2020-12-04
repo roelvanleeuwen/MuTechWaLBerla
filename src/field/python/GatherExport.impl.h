@@ -22,7 +22,6 @@
 #include "field/Gather.h"
 #include "python_coupling/helper/MplHelpers.h"
 #include "python_coupling/helper/BlockStorageExportHelpers.h"
-#include "python_coupling/helper/ModuleScope.h"
 #include "python_coupling/helper/SliceToCellInterval.h"
 
 

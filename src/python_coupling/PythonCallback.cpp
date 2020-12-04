@@ -26,7 +26,6 @@
 
 #include "Manager.h"
 #include "core/Abort.h"
-#include "helper/ExceptionHandling.h"
 #include "core/Filesystem.h"
 
 #include "pybind11/eval.h"

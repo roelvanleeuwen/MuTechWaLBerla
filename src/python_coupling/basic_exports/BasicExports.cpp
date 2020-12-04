@@ -26,7 +26,6 @@
 
 #include "BasicExports.h"
 #include "MPIExport.h"
-#include "python_coupling/helper/ModuleScope.h"
 #include "core/waLBerlaBuildInfo.h"
 #include "core/logging/Logging.h"
 #include "core/Abort.h"

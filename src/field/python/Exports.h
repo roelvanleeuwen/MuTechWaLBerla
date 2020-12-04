@@ -26,7 +26,6 @@
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
-#include "python_coupling/helper/ModuleScope.h"
 #include "FieldExport.h"
 #include "GatherExport.h"
 #include "CommunicationExport.h"

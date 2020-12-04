@@ -32,7 +32,6 @@
 #include "field/vtk/VTKWriter.h"
 
 #include "python_coupling/PythonWrapper.h"
-#include "python_coupling/helper/BoostPythonHelpers.h"
 #include "python_coupling/helper/MplHelpers.h"
 
 #include <iostream>

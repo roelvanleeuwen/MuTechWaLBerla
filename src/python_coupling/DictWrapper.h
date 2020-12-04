@@ -16,7 +16,7 @@
 //! \file DictWrapper.h
 //! \ingroup python_coupling
 //! \author Martin Bauer <martin.bauer@fau.de>
-//! \brief Wrapper to store and extract values from boost::python::dict
+//! \brief Wrapper to store and extract values from pybind11
 //
 //! \warning: if you include this header you also have to include Python.h as first header in your
 //!           cpp file

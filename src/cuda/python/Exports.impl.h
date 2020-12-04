@@ -32,7 +32,6 @@
 #include "field/AddToStorage.h"
 #include "field/python/FieldExport.h"
 #include "python_coupling/helper/MplHelpers.h"
-#include "python_coupling/helper/BoostPythonHelpers.h"
 
 #include <type_traits>
 #include <iostream>

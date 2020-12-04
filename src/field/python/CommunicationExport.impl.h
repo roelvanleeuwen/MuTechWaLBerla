@@ -27,7 +27,6 @@
 #   include "field/communication/StencilRestrictedPackInfo.h"
 #   include "field/communication/UniformMPIDatatypeInfo.h"
 
-#   include "python_coupling/helper/BoostPythonHelpers.h"
 #   include "python_coupling/helper/MplHelpers.h"
 
 #   include "stencil/D2Q9.h"
