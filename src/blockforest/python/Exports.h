@@ -33,6 +33,21 @@
 namespace walberla {
 namespace blockforest {
 
+   struct NoSuchBlockData : public std::out_of_range {
+      explicit NoSuchBlockData ( ) : std::out_of_range( "No blockdata with the given name found" ) {}
+      explicit NoSuchBlockData ( const std::string & w ) : std::out_of_range(w) {}
+      static void translate( const NoSuchBlockData & e );
+   };
+   struct BlockDataNotConvertible : public std::runtime_error {
+      explicit BlockDataNotConvertible (  ) : std::runtime_error( "This blockdata is not accessible from Python" ) {}
+      explicit BlockDataNotConvertible ( const std::string & w ) : std::runtime_error(w) {}
+      static void translate( const BlockDataNotConvertible &  e );
+   };
+
+   BlockDataID blockDataIDFromString( IBlock & block, const std::string & stringID );
+   BlockDataID blockDataIDFromString( BlockStorage & bs, const std::string & stringID );
+   BlockDataID blockDataIDFromString( StructuredBlockStorage & bs, const std::string & stringID );
+
    namespace py = pybind11;
 
    void exportBlockForest(py::module_ &m);

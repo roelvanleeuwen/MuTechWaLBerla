@@ -408,9 +408,9 @@ struct GhostLayerFieldAdaptorExporter
 class AddToStorageExporter
 {
  public:
-   AddToStorageExporter(const shared_ptr< StructuredBlockStorage >& blocks, const std::string& name, uint_t fs,
+   AddToStorageExporter(const shared_ptr< StructuredBlockForest >& blocks, const std::string& name, uint_t fs,
                         uint_t gl, Layout layout, uint_t alignment)
-      : blocks_(blocks), name_(name), fs_(fs), gl_(gl), layout_(layout), alignment_(alignment), found_(false)
+      : blocks_(blocks), name_(name), fs_(fs), gl_(gl), layout_(layout), alignment_(alignment), found_(true)
    {}
 
    template< typename FieldType >
@@ -425,7 +425,6 @@ class AddToStorageExporter
       typedef internal::GhostLayerFieldDataHandling< GhostLayerField< T, F_SIZE > > DataHandling;
       auto dataHandling = walberla::make_shared< DataHandling >(blocks_, gl_, T(), layout_, alignment_);
       blocks_->addBlockData(dataHandling, name_);
-      // found_ = true;
    }
 
    bool successful() const { return found_; }
@@ -441,7 +440,7 @@ class AddToStorageExporter
 };
 
 template< typename... FieldTypes >
-void addToStorage(const shared_ptr< StructuredBlockStorage >& blocks, const std::string& name,
+void addToStorage(const shared_ptr< StructuredBlockForest >& blocks, const std::string& name,
                   uint_t fs, uint_t gl, Layout layout, uint_t alignment)
 {
    using namespace py;
@@ -547,7 +546,7 @@ void exportFields(py::module_& m)
 
    m.def(
       "addToStorage",
-      [](const shared_ptr< StructuredBlockStorage > & blocks, const std::string & name, uint_t values_per_cell,
+      [](const shared_ptr< StructuredBlockForest > & blocks, const std::string & name, uint_t values_per_cell,
          uint_t ghost_layers, Layout layout, uint_t alignment) {
          return internal::addToStorage< FieldTypes... >(blocks, name, values_per_cell, ghost_layers, layout, alignment);
       },
