@@ -57,7 +57,7 @@ namespace python_coupling {
          return py::module::import( moduleName.c_str() );
       }
       catch ( py::error_already_set &e) {
-         python_coupling::terminateOnPythonException(e, fileOrModuleName );
+         throw py::value_error(e.what());
          return py::object();
       }
    }
@@ -128,7 +128,7 @@ namespace python_coupling {
          exposedVars_->dict()["returnValue"] = returnVal;
       }
       catch ( py::error_already_set &e ) {
-         python_coupling::terminateOnPythonException(e,  functionName_ );
+         throw py::value_error(e.what());
       }
    }
 

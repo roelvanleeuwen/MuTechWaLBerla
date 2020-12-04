@@ -62,180 +62,9 @@ void checkForThreeSequence( const py::object & o, const char * message )
       if ( py::len(o ) != 3 )  throw py::error_already_set();
    }
    catch( py::error_already_set & ) {
-      PyErr_SetString(PyExc_RuntimeError, message);
-      throw py::error_already_set();
+      throw py::cast_error(message);
    }
 }
-
-//======================================================================================================================
-//
-//  Vector3
-//
-//======================================================================================================================
-
-
-//template<typename T>
-//struct Vector3_to_PythonTuple
-//{
-//   static PyObject* convert( Vector3<T> const& v )
-//   {
-//      auto resultTuple = py::make_tuple(v[0], v[1], v[2] );
-//      return py::incref ( py::object ( resultTuple ).ptr () );
-//   }
-//};
-//
-//template<typename T>
-//struct PythonTuple_to_Vector3
-//{
-//   PythonTuple_to_Vector3()
-//   {
-//     py::converter::registry::push_back(
-//       &convertible,
-//       &construct,
-//       py::type_id<Vector3<T> >());
-//   }
-//
-//   static void* convertible(PyObject* obj)
-//   {
-//      using namespace py;
-//
-//      if ( ! ( PySequence_Check(obj) && PySequence_Size( obj ) == 3 ))
-//         return nullptr;
-//
-//      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
-//      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
-//      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
-//
-//      if (  extract<T>( element0 ).check() &&
-//            extract<T>( element1 ).check() &&
-//            extract<T>( element2 ).check() )
-//         return obj;
-//      else
-//         return nullptr;
-//   }
-//
-//   static void construct( PyObject* obj, py::converter::rvalue_from_python_stage1_data* data )
-//   {
-//      using namespace py;
-//
-//      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
-//      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
-//      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
-//
-//
-//      // Grab pointer to memory into which to construct the new Vector3
-//      void* storage = ( (py::converter::rvalue_from_python_storage<Vector3<T> >*) data )->storage.bytes;
-//
-//      new (storage) Vector3<T> ( extract<T>( element0 ),
-//                                 extract<T>( element1 ),
-//                                 extract<T>( element2 ) );
-//
-//      // Stash the memory chunk pointer for later use by boost.python
-//      data->convertible = storage;
-//   }
-//};
-//
-//void exportVector3()
-//{
-//   // To Python
-//   py::to_python_converter< Vector3<bool      >, Vector3_to_PythonTuple<bool      > >();
-//
-//   py::to_python_converter< Vector3<real_t    >, Vector3_to_PythonTuple<real_t    > >();
-//
-//   py::to_python_converter< Vector3<uint8_t   >, Vector3_to_PythonTuple<uint8_t   > >();
-//   py::to_python_converter< Vector3<uint16_t  >, Vector3_to_PythonTuple<uint16_t  > >();
-//   py::to_python_converter< Vector3<uint32_t  >, Vector3_to_PythonTuple<uint32_t  > >();
-//   py::to_python_converter< Vector3<uint64_t  >, Vector3_to_PythonTuple<uint64_t  > >();
-//
-//   py::to_python_converter< Vector3<cell_idx_t>, Vector3_to_PythonTuple<cell_idx_t> >();
-//
-//   // From Python
-//   PythonTuple_to_Vector3<bool   >();
-//
-//   PythonTuple_to_Vector3<real_t   >();
-//
-//   PythonTuple_to_Vector3<uint8_t  >();
-//   PythonTuple_to_Vector3<uint16_t >();
-//   PythonTuple_to_Vector3<uint32_t >();
-//   PythonTuple_to_Vector3<uint64_t >();
-//
-//   PythonTuple_to_Vector3<cell_idx_t>();
-//}
-
-
-//======================================================================================================================
-//
-//  Cell
-//
-//======================================================================================================================
-
-
-//struct Cell_to_PythonTuple
-//{
-//   static PyObject* convert( Cell const& c )
-//   {
-//      auto resultTuple = py::make_tuple(c[0], c[1], c[2] );
-//      return py::incref ( py::object ( resultTuple ).ptr () );
-//   }
-//};
-//
-//struct PythonTuple_to_Cell
-//{
-//   PythonTuple_to_Cell()
-//   {
-//     py::converter::registry::push_back(
-//       &convertible,
-//       &construct,
-//       py::type_id< Cell >());
-//   }
-//
-//   static void* convertible( PyObject* obj )
-//   {
-//      using namespace py;
-//
-//      if ( ! ( PySequence_Check(obj) && PySequence_Size( obj ) == 3 ))
-//         return nullptr;
-//
-//      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
-//      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
-//      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
-//
-//      if (  extract<cell_idx_t>( element0 ).check() &&
-//            extract<cell_idx_t>( element1 ).check() &&
-//            extract<cell_idx_t>( element2 ).check() )
-//         return obj;
-//      else
-//         return nullptr;
-//   }
-//
-//   static void construct( PyObject* obj, py::converter::rvalue_from_python_stage1_data* data )
-//   {
-//      using namespace py;
-//
-//      object element0 ( handle<>( borrowed( PySequence_GetItem(obj,0) )));
-//      object element1 ( handle<>( borrowed( PySequence_GetItem(obj,1) )));
-//      object element2 ( handle<>( borrowed( PySequence_GetItem(obj,2) )));
-//
-//
-//      // Grab pointer to memory into which to construct the new Vector3
-//      void* storage = ( (py::converter::rvalue_from_python_storage<Cell>*) data )->storage.bytes;
-//
-//      new (storage) Cell( extract<cell_idx_t>( element0 ),
-//                          extract<cell_idx_t>( element1 ),
-//                          extract<cell_idx_t>( element2 ) );
-//
-//      // Stash the memory chunk pointer for later use by boost.python
-//      data->convertible = storage;
-//   }
-//};
-//
-//void exportCell()
-//{
-//   // To Python
-//   py::to_python_converter< Cell, Cell_to_PythonTuple >();
-//   // From Python
-//   PythonTuple_to_Cell();
-//}
 
 //======================================================================================================================
 //
@@ -484,8 +313,7 @@ void timingTreeStopWrapper(WcTimingTree & tt, const std::string& name)
 {
    if (!tt.isTimerRunning(name))
    {
-      PyErr_SetString( PyExc_ValueError, ("Timer '" + name + "' is currently not running!").c_str() );
-      throw py::error_already_set();
+      throw py::value_error(("Timer '" + name + "' is currently not running!").c_str());
    }
    tt.stop(name);
 }
@@ -753,8 +581,7 @@ py::object StructuredBlockStorage_getItem( py::object structuredBlockStorage, ui
 
    if ( i >= s->size() )
    {
-      PyErr_SetString( PyExc_RuntimeError, "Index out of bounds");
-      throw py::error_already_set();
+      throw py::value_error("Index out of bounds");
    }
 
    std::vector< const IBlock* > blocks;
@@ -801,8 +628,7 @@ py::object SbS_transformGlobalToLocal ( StructuredBlockStorage & s, IBlock & blo
       return py::cast( ret );
    }
 
-   PyErr_SetString(PyExc_RuntimeError, "Only CellIntervals and cells can be transformed" );
-   throw py::error_already_set();
+   throw py::value_error("Only CellIntervals and cells can be transformed");
 }
 
 
@@ -820,8 +646,7 @@ py::object SbS_transformLocalToGlobal ( StructuredBlockStorage & s, IBlock & blo
       s.transformBlockLocalToGlobalCell( ret, block, py::cast<Cell>( local ) );
       return py::cast( ret );
    }
-   PyErr_SetString(PyExc_RuntimeError, "Only CellIntervals and cells can be transformed" );
-   throw py::error_already_set();
+   throw py::value_error("Only CellIntervals and cells can be transformed");
 }
 
 void SbS_writeBlockData( StructuredBlockStorage & s,const std::string & blockDataId, const std::string & file )
@@ -838,8 +663,7 @@ void SbS_readBlockData( StructuredBlockStorage & s,const std::string & blockData
 
    s.deserializeBlockData( blockDataIDFromString(s, blockDataId), buffer );
    if ( ! buffer.isEmpty() ) {
-      PyErr_SetString(PyExc_RuntimeError, "Reading failed - file does not contain matching data for this type." );
-      throw py::error_already_set();
+      throw py::cast_error("Reading failed - file does not contain matching data for this type.");
    }
 }
 
@@ -1075,10 +899,6 @@ void exportBasicWalberlaDatastructures(py::module_ &m)
 
    exportLogging(m);
    exportStencilDirections(m);
-
-   // Add empty callbacks module
-   // py::object callbackModule( handle<>( borrowed(PyImport_AddModule("walberla_cpp.callbacks"))));
-   // m.attr("callbacks") = callbackModule;
 
 }
 

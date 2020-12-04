@@ -150,10 +150,6 @@ config::Iterator createConfigIteratorFromPythonScript(const std::string& scriptF
    } catch (py::error_already_set&)
    {
       std::string message = std::string("Error while running Python function ") + pythonFunctionName;
-      //         if (PyErr_Occurred()) {
-      //            std::string decodedException = decodeException();
-      //            WALBERLA_ABORT_NO_DEBUG_INFO( message << "\n\n" << decodedException  );
-      //         }
       WALBERLA_ABORT_NO_DEBUG_INFO(message);
    }
 

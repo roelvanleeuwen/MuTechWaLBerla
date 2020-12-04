@@ -157,8 +157,7 @@ namespace python_coupling {
    {
       if ( ! py::isinstance<int64_t>(value) )
       {
-         PyErr_SetString( PyExc_RuntimeError, "Could not gather the given value - unknown type");
-         throw py::error_already_set();
+         throw py::cast_error("Could not gather the given value - unknown type");
       }
       int64_t extractedValue = py::cast< int64_t >(value);
       return mpi::gather( extractedValue , recvRank );
@@ -168,8 +167,7 @@ namespace python_coupling {
    {
       if ( ! py::isinstance<real_t>(value) )
       {
-         PyErr_SetString( PyExc_RuntimeError, "Could not gather the given value - unknown type");
-         throw py::error_already_set();
+         throw py::cast_error("Could not gather the given value - unknown type");
       }
       real_t extractedValue = py::cast< real_t  >(value);
       return mpi::gather( extractedValue , recvRank);
@@ -180,8 +178,7 @@ namespace python_coupling {
    {
       if ( ! py::isinstance<int64_t>(value) )
       {
-         PyErr_SetString( PyExc_RuntimeError, "Could not gather the given value - unknown type");
-         throw py::error_already_set();
+         throw py::cast_error("Could not gather the given value - unknown type");
       }
       int64_t extractedValue = py::cast< int64_t >(value);
       return mpi::allGather( extractedValue );
@@ -191,8 +188,7 @@ namespace python_coupling {
    {
       if ( ! py::isinstance<real_t>(value) )
       {
-         PyErr_SetString( PyExc_RuntimeError, "Could not gather the given value - unknown type");
-         throw py::error_already_set();
+         throw py::cast_error("Could not gather the given value - unknown type");
       }
       real_t extractedValue = py::cast< real_t  >(value);
       return mpi::allGather( extractedValue );
@@ -214,9 +210,6 @@ namespace python_coupling {
 
    void exportMPI(py::module_ &m)
    {
-//      object mpiModule( handle<>( borrowed(PyImport_AddModule("walberla_cpp.mpi"))));
-//      scope().attr("mpi") = mpiModule;
-//      scope mpiScope = mpiModule;
 
       m.def( "rank"             , &rank             );
       m.def( "worldRank"        , &worldRank        );

@@ -56,18 +56,18 @@ namespace python_coupling {
 //   }
 
 
-   inline void terminateOnPythonException(py::error_already_set &e, const std::string fileName )
-   {
-      if (e.matches(PyExc_FileNotFoundError)) {
-         WALBERLA_ABORT_NO_DEBUG_INFO(fileName << ": File not found")
-      } else if (e.matches(PyExc_PermissionError)) {
-         WALBERLA_ABORT_NO_DEBUG_INFO(fileName << ": File found but not accessible")
-      } else {
-         throw;
-      }
-
-      WALBERLA_ABORT_NO_DEBUG_INFO( "Error while opening " << fileName << " unable to decode Python exception" );
-   }
+//   inline void terminateOnPythonException(py::error_already_set &e, const std::string fileName )
+//   {
+//      if (e.matches(PyExc_FileNotFoundError)) {
+//         WALBERLA_ABORT_NO_DEBUG_INFO(fileName << ": File not found")
+//      } else if (e.matches(PyExc_PermissionError)) {
+//         WALBERLA_ABORT_NO_DEBUG_INFO(fileName << ": File found but not accessible")
+//      } else {
+//         throw;
+//      }
+//
+//      WALBERLA_ABORT_NO_DEBUG_INFO( "Error while opening " << fileName << " unable to decode Python exception" );
+//   }
 
 
 } // namespace python_coupling

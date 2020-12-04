@@ -42,8 +42,7 @@ inline cell_idx_t normalizeIdx(py::object pyIndex, uint_t coordinateSize)
       index = cell_idx_c(double(py::cast< double >(pyIndex)) * double(coordinateSize));
    else
    {
-      PyErr_SetString(PyExc_IndexError, "Incompatible index data type");
-      throw py::error_already_set();
+      throw py::index_error("Incompatible index data type");
    }
 
    if (index < 0)
@@ -75,8 +74,7 @@ inline CellInterval globalPythonSliceToCellInterval(const shared_ptr< Structured
 
    if (len(indexTuple) != 3)
    {
-      PyErr_SetString(PyExc_IndexError, "Slice needs three components");
-      throw py::error_already_set();
+      throw py::index_error("Slice needs three components");
    }
 
    CellInterval interval;
@@ -136,14 +134,12 @@ CellInterval localPythonSliceToCellInterval(const Field_T& field, py::tuple inde
             withGhostLayer = true;
          else
          {
-            PyErr_SetString(PyExc_IndexError, "Unknown marker in slice");
-            throw py::error_already_set();
+            throw py::index_error("Unknown marker in slice");
          }
       }
       else
       {
-         PyErr_SetString(PyExc_IndexError, "Slice needs three components ( + optional ghost layer marker )");
-         throw py::error_already_set();
+         throw py::index_error("Slice needs three components ( + optional ghost layer marker )");
       }
    }
 
@@ -194,8 +190,7 @@ CellInterval localPythonSliceToCellInterval(const Field_T& field, py::tuple inde
    // Range check
    if (!field.xyzAllocSize().contains(interval))
    {
-      PyErr_SetString(PyExc_IndexError, "Index out of bounds.");
-      throw py::error_already_set();
+      throw py::index_error("Index out of bounds.");
    }
 
    return interval;
