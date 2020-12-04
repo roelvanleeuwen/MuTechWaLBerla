@@ -61,7 +61,6 @@ struct PackInfoExporter
       std::string data_type_name = field::internal::PythonFormatString<T>::get();
       const uint_t F_SIZE = FieldType::F_SIZE;
       typedef GhostLayerField< T, F_SIZE > GlField_T;
-      typedef Field< T, F_SIZE > Field_T;
 
       typedef field::communication::PackInfo< GlField_T > PackInfo;
       std::string class_name = "PackInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
@@ -87,7 +86,6 @@ struct UniformMPIDatatypeInfoExporter
       std::string data_type_name = field::internal::PythonFormatString<T>::get();
       const uint_t F_SIZE = FieldType::F_SIZE;
       typedef GhostLayerField< T, F_SIZE > GlField_T;
-      typedef Field< T, F_SIZE > Field_T;
 
       typedef field::communication::UniformMPIDatatypeInfo< GlField_T > MPIDataTypeInfo;
       std::string class_name =

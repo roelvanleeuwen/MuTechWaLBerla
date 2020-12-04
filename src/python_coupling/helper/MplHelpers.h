@@ -57,7 +57,7 @@ struct NonCopyableWrap {};
 
 
 template< typename F >
-void for_each_noncopyable_type( const F & f)
+void for_each_noncopyable_type( const F & )
 {}
 
 template< typename Type, typename... Types, typename F >

@@ -22,6 +22,7 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
         set_target_properties( walberla_cpp PROPERTIES SUFFIX ".so")
     endif()
     set_target_properties( walberla_cpp PROPERTIES MACOSX_RPATH TRUE )
+    set_target_properties( walberla_cpp PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
     configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/setup.py  ${CMAKE_CURRENT_BINARY_DIR}/setup.py )
 
