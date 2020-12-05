@@ -48,7 +48,7 @@ namespace py = pybind11;
       {
          using py::object;
          if ( result_.is(py::object()) &&  block_->isDataClassOrSubclassOf<TypeToTest>( blockDataID_ ) ) {
-            result_ = py::object( block_->getData<TypeToTest>( blockDataID_ ) );
+            result_ = py::cast( block_->getData<TypeToTest>( blockDataID_ ) );
          }
       }
 

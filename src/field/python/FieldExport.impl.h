@@ -341,7 +341,7 @@ struct FieldExporter
       std::string class_nameGL =
          "GhostLayerField_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
 
-      py::class_< GlField_T, shared_ptr< GlField_T > >(m_, class_nameGL.c_str())
+      py::class_< GlField_T, shared_ptr< GlField_T >, Field_T >(m_, class_nameGL.c_str())
          .def("sizeWithGhostLayer", &GlField_T::xSizeWithGhostLayer)
          .def("nrOfGhostLayers", &GlField_T::nrOfGhostLayers);
 //
@@ -414,6 +414,8 @@ class AddToStorageExporter
    {}
 
    template< typename FieldType >
+   // TODO: Due to the NonCopyableWrap the operator needs to be set const thus found_ can not be changed to indicated
+   // if there was an error when adding the field. Why do we need the NonCopyableWrap at all?
    void operator()(python_coupling::NonCopyableWrap<FieldType>) const
    {
       using namespace py;

@@ -120,15 +120,15 @@ void Manager::exportAll(py::module_ &m)
 
 py::object Manager::pythonObjectFromBlockData( IBlock & block, BlockDataID id )
 {
-   if( block.isDataOfType< py::object > ( id )  )
-      return *block.getData< py::object > ( id );
+   if( block.isDataOfType< py::object > ( id )  ){
+      return *block.getData< py::object > ( id );}
 
 
    for( auto it = blockDataToObjectFunctions_.begin(); it != blockDataToObjectFunctions_.end(); ++it )
    {
       auto res = (*it)( block, id );
-      if ( res.is(py::object()) )
-         return res;
+      if ( !res.is(py::object()) ){
+         return res;}
    }
 
    return py::object();

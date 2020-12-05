@@ -320,13 +320,12 @@ void exportBlockForest(py::module_& m)
    m.def(
       "createUniformBlockGrid",
       [](std::array< uint_t, 3 > blocks, std::array< uint_t, 3 > cellsPerBlock, real_t dx,
-         std::array< uint_t, 3 > numberOfProcesses, std::array< bool, 3 > periodic, bool keepGlobalBlockInformation) {
+         bool oneBlockPerProcess, std::array< bool, 3 > periodic, bool keepGlobalBlockInformation) {
          return blockforest::createUniformBlockGrid(blocks[0], blocks[1], blocks[2], cellsPerBlock[0], cellsPerBlock[1],
-                                                    cellsPerBlock[2], dx, numberOfProcesses[0], numberOfProcesses[1],
-                                                    numberOfProcesses[2], periodic[0], periodic[1], periodic[2],
+                                                    cellsPerBlock[2], dx, oneBlockPerProcess, periodic[0], periodic[1], periodic[2],
                                                     keepGlobalBlockInformation);
       },
-      "blocks"_a, "cellsPerBlock"_a, "dx"_a = real_t(1), "numberOfProcesses"_a = std::array< uint_t, 3 >{ 1, 1, 1 },
+      "blocks"_a, "cellsPerBlock"_a, "dx"_a = real_t(1), "oneBlockPerProcess"_a = true,
       "periodic"_a = std::array< bool, 3 >{ false, false, false }, "keepGlobalBlockInformation"_a = false);
 }
 
