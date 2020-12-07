@@ -394,18 +394,12 @@ void exportTiming(py::module_ &m)
 
 py::object IBlock_getData( py::object iblockObject, const std::string & stringID ) //NOLINT
 {
-   typedef GhostLayerField< double, 1 > GlField_T;
    IBlock * block = py::cast<IBlock*>( iblockObject );
 
    BlockDataID id = blockDataIDFromString( *block, stringID );
 
    auto manager = python_coupling::Manager::instance();
    py::object res =  manager->pythonObjectFromBlockData( *block, id );
-
-   //if ( res.is(py::object()) )
-   //   throw BlockDataNotConvertible();
-
-   // py::cast(block->getData<GlField_T>(id))
 
    return manager->pythonObjectFromBlockData( *block, id );
 }
