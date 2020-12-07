@@ -61,7 +61,7 @@ void DictWrapper::exposeValue( const char* name, const T & var ) {
 
 template<typename T>
 T DictWrapper::get( const char* name ) {
-   return py::class_<T>( d_[name] );
+   return py::cast<T>( d_[name] );
 }
 
 template<typename T>
