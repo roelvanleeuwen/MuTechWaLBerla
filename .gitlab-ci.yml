@@ -7,7 +7,6 @@
 stages:
    - pretest
    - test
-   - merge_request
    - deploy
    - benchmark
 
@@ -97,10 +96,6 @@ intel_18_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -123,10 +118,6 @@ intel_18_mpionly:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -145,10 +136,10 @@ intel_18_hybrid:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_ENABLE_GUI: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    tags:
       - cuda
       - docker
@@ -170,10 +161,10 @@ intel_18_serial_dbg:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    tags:
       - cuda
       - docker
@@ -197,10 +188,6 @@ intel_18_mpionly_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -219,10 +206,6 @@ intel_18_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -241,10 +224,6 @@ intel_18_hybrid_dbg_sp:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -260,7 +239,7 @@ intel_19_serial:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -269,11 +248,8 @@ intel_19_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
       - intel
 
@@ -287,18 +263,15 @@ intel_19_mpionly:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
       - intel
 
@@ -312,13 +285,10 @@ intel_19_hybrid:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
       - intel
 
@@ -332,17 +302,14 @@ intel_19_serial_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
       - intel
 
@@ -356,15 +323,12 @@ intel_19_mpionly_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
       - intel
 
@@ -378,10 +342,11 @@ intel_19_hybrid_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    tags:
+      - cuda
       - docker
       - intel
 
@@ -389,16 +354,13 @@ intel_19_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/intel:19
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
       - intel
 
@@ -421,10 +383,6 @@ gcc_7_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -446,10 +404,6 @@ gcc_7_mpionly:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -466,10 +420,10 @@ gcc_7_hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    tags:
       - cuda
       - docker
@@ -491,10 +445,10 @@ gcc_7_serial_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_ENABLE_GUI: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   
    tags:
       - cuda
       - docker
@@ -517,10 +471,6 @@ gcc_7_mpionly_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -538,10 +488,6 @@ gcc_7_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -559,10 +505,6 @@ gcc_7_hybrid_dbg_sp:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -577,7 +519,7 @@ gcc_8_serial:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -586,11 +528,8 @@ gcc_8_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 gcc_8_mpionly:
@@ -603,18 +542,15 @@ gcc_8_mpionly:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 gcc_8_hybrid:
@@ -627,17 +563,14 @@ gcc_8_hybrid:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 gcc_8_serial_dbg:
@@ -650,7 +583,7 @@ gcc_8_serial_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -660,11 +593,8 @@ gcc_8_serial_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 gcc_8_mpionly_dbg:
@@ -677,7 +607,7 @@ gcc_8_mpionly_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -685,11 +615,8 @@ gcc_8_mpionly_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 gcc_8_hybrid_dbg:
@@ -702,25 +629,22 @@ gcc_8_hybrid_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 gcc_8_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -729,11 +653,8 @@ gcc_8_hybrid_dbg_sp:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 gcc_9_serial:
@@ -755,10 +676,6 @@ gcc_9_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -779,10 +696,6 @@ gcc_9_mpionly:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -802,10 +715,6 @@ gcc_9_hybrid:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -829,10 +738,6 @@ gcc_9_serial_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -854,10 +759,6 @@ gcc_9_mpionly_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -878,10 +779,6 @@ gcc_9_hybrid_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -898,10 +795,6 @@ gcc_9_hybrid_dbg_sp:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -924,10 +817,6 @@ gcc_10_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -948,10 +837,6 @@ gcc_10_mpionly:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -1004,10 +889,6 @@ gcc_10_mpionly_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -1024,10 +905,6 @@ gcc_10_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -1040,10 +917,6 @@ gcc_10_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
 
@@ -1066,10 +939,6 @@ clang_6.0_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1091,10 +960,6 @@ clang_6.0_mpionly:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1115,10 +980,6 @@ clang_6.0_hybrid:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1143,10 +1004,6 @@ clang_6.0_serial_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1169,10 +1026,6 @@ clang_6.0_mpionly_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1190,10 +1043,6 @@ clang_6.0_hybrid_dbg:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1211,10 +1060,6 @@ clang_6.0_hybrid_dbg_sp:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - cuda
       - docker
@@ -1229,7 +1074,7 @@ clang_7.0_serial:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -1238,11 +1083,8 @@ clang_7.0_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_7.0_mpionly:
@@ -1255,18 +1097,15 @@ clang_7.0_mpionly:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_7.0_hybrid:
@@ -1279,17 +1118,14 @@ clang_7.0_hybrid:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_7.0_serial_dbg:
@@ -1302,7 +1138,7 @@ clang_7.0_serial_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -1312,11 +1148,8 @@ clang_7.0_serial_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_7.0_mpionly_dbg:
@@ -1329,7 +1162,7 @@ clang_7.0_mpionly_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -1337,11 +1170,8 @@ clang_7.0_mpionly_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_7.0_hybrid_dbg:
@@ -1354,25 +1184,22 @@ clang_7.0_hybrid_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_7.0_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:7.0
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -1381,11 +1208,8 @@ clang_7.0_hybrid_dbg_sp:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_8.0_serial:
@@ -1398,7 +1222,7 @@ clang_8.0_serial:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -1407,11 +1231,8 @@ clang_8.0_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_8.0_mpionly:
@@ -1424,18 +1245,15 @@ clang_8.0_mpionly:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_8.0_hybrid:
@@ -1448,17 +1266,14 @@ clang_8.0_hybrid:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_8.0_serial_dbg:
@@ -1471,7 +1286,7 @@ clang_8.0_serial_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -1481,11 +1296,8 @@ clang_8.0_serial_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_8.0_mpionly_dbg:
@@ -1498,7 +1310,7 @@ clang_8.0_mpionly_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -1506,11 +1318,8 @@ clang_8.0_mpionly_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_8.0_hybrid_dbg:
@@ -1523,25 +1332,22 @@ clang_8.0_hybrid_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_8.0_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:8.0
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -1550,11 +1356,8 @@ clang_8.0_hybrid_dbg_sp:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_9.0_serial:
@@ -1567,7 +1370,7 @@ clang_9.0_serial:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -1576,11 +1379,8 @@ clang_9.0_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_9.0_mpionly:
@@ -1593,18 +1393,15 @@ clang_9.0_mpionly:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_9.0_hybrid:
@@ -1617,17 +1414,14 @@ clang_9.0_hybrid:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_9.0_serial_dbg:
@@ -1640,7 +1434,7 @@ clang_9.0_serial_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -1650,11 +1444,8 @@ clang_9.0_serial_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_9.0_mpionly_dbg:
@@ -1667,7 +1458,7 @@ clang_9.0_mpionly_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -1675,11 +1466,8 @@ clang_9.0_mpionly_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_9.0_hybrid_dbg:
@@ -1692,25 +1480,22 @@ clang_9.0_hybrid_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_9.0_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:9.0
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -1719,11 +1504,8 @@ clang_9.0_hybrid_dbg_sp:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_10.0_serial:
@@ -1736,7 +1518,7 @@ clang_10.0_serial:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -1745,11 +1527,8 @@ clang_10.0_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_10.0_mpionly:
@@ -1762,18 +1541,15 @@ clang_10.0_mpionly:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_10.0_hybrid:
@@ -1786,13 +1562,10 @@ clang_10.0_hybrid:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_10.0_serial_dbg:
@@ -1805,17 +1578,14 @@ clang_10.0_serial_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_10.0_mpionly_dbg:
@@ -1828,11 +1598,12 @@ clang_10.0_mpionly_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
    tags:
+      - cuda
       - docker
 
 clang_10.0_hybrid_dbg:
@@ -1845,14 +1616,11 @@ clang_10.0_hybrid_dbg:
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
+      - cuda
       - docker
 
 clang_10.0_hybrid_dbg_sp:
@@ -1860,12 +1628,13 @@ clang_10.0_hybrid_dbg_sp:
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:10.0
    stage: pretest
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
    tags:
+      - cuda
       - docker
 
 
@@ -1882,10 +1651,6 @@ gcc_8_hybrid_dbg_noboost:
       WALBERLA_BUILD_WITH_PYTHON: "OFF"
    tags:
       - docker
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 
@@ -1916,10 +1681,6 @@ gcc_10_stl_debug:
       WALBERLA_STL_BOUNDS_CHECKS: "ON"
    tags:
       - docker
-   stage: merge_request
-   when: manual
-   needs: [ ]
-   allow_failure: false
 
 
 
@@ -1939,10 +1700,6 @@ doc:
       - cmake ..
       - cmake . -LAH
       - make doc
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    tags:
       - docker
    artifacts:
@@ -1970,10 +1727,6 @@ clang-tidy:
       - cmake . -LAH
       - utilities/filterCompileCommands.py compile_commands.json
       - run-clang-tidy.py -quiet | tee clang-tidy-output.txt
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
    artifacts:
       paths:
          - $CI_PROJECT_DIR/build/clang-tidy-output.txt
@@ -2069,10 +1822,6 @@ msvc-14.1_Hybrid_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.1_Hybrid_sp_dbg:
@@ -2086,10 +1835,6 @@ msvc-14.1_Hybrid_sp_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.1_Hybrid:
@@ -2101,10 +1846,6 @@ msvc-14.1_Hybrid:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.1_serial_dbg:
@@ -2119,10 +1860,6 @@ msvc-14.1_serial_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.1_serial:
@@ -2136,10 +1873,6 @@ msvc-14.1_serial:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.1_mpionly_dbg:
@@ -2153,10 +1886,6 @@ msvc-14.1_mpionly_dbg:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.1_mpionly:
@@ -2169,10 +1898,6 @@ msvc-14.1_mpionly:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
    
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.2_Hybrid_dbg:
@@ -2190,10 +1915,6 @@ msvc-14.2_Hybrid_sp_dbg:
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       BUILD_CONFIGURATION: "DebugOptimized"
       WALBERLA_DOUBLE_ACCURACY: "OFF"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.2_Hybrid:
@@ -2201,10 +1922,6 @@ msvc-14.2_Hybrid:
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 16 2019"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.2_serial_dbg:
@@ -2215,10 +1932,6 @@ msvc-14.2_serial_dbg:
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       BUILD_CONFIGURATION: "DebugOptimized"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.2_serial:
@@ -2228,10 +1941,6 @@ msvc-14.2_serial:
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.2_mpionly_dbg:
@@ -2241,10 +1950,6 @@ msvc-14.2_mpionly_dbg:
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       BUILD_CONFIGURATION: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 msvc-14.2_mpionly:
@@ -2253,10 +1958,6 @@ msvc-14.2_mpionly:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_GENERATOR: "Visual Studio 16 2019"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 
 
@@ -2292,10 +1993,6 @@ mac_Serial_Dbg:
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 mac_Serial:
    <<: *mac_build_definition
@@ -2305,10 +2002,6 @@ mac_Serial:
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 mac_MpiOnly_Dbg:
    <<: *mac_build_definition
@@ -2329,10 +2022,6 @@ mac_MpiOnly:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
       OMPI_MCA_btl: "self,tcp"
-   stage: merge_request
-   when: manual
-   needs: []
-   allow_failure: false
 
 ###############################################################################
 ##                                                                           ##
@@ -2351,8 +2040,6 @@ mac_MpiOnly:
       - anaconda logout
    dependencies: []
    when: manual
-   needs: []
-   allow_failure: false
    only:
       - master@walberla/walberla
       - tags@walberla/walberla
