@@ -28,28 +28,18 @@
 #   include "blockforest/SetupBlock.h"
 #   include "blockforest/SetupBlockForest.h"
 #   include "blockforest/StructuredBlockForest.h"
-#   include "blockforest/communication/UniformBufferedScheme.h"
-#   include "blockforest/loadbalancing/StaticCurve.h"
 #   include "blockforest/python/Exports.h"
 
 #   include "core/StringUtility.h"
-#   include "core/logging/Logging.h"
 #   include "core/mpi/MPIIO.h"
 
-#   include "python_coupling/Manager.h"
-#   include "python_coupling/helper/ConfigFromDict.h"
-
 #   include "stencil/D3Q19.h"
-#   include "stencil/D3Q27.h"
-#   include "stencil/D3Q7.h"
 
 #   include <memory>
-#   include <pybind11/functional.h>
-#   include <pybind11/numpy.h>
+
 #   include <pybind11/pybind11.h>
 #   include <pybind11/stl.h>
 #   include <sstream>
-#   include <utility>
 
 namespace walberla
 {
@@ -271,16 +261,16 @@ void exportBlockForest(py::module_& m)
       &StructuredBlockForest::blockExistsRemotely;
 
    py::class_< StructuredBlockForest, std::shared_ptr< StructuredBlockForest > >(m, "StructuredBlockForest")
-      .def("getNumberOfLevels", &StructuredBlockStorage::getNumberOfLevels)
-      .def_property_readonly("getDomain", &StructuredBlockStorage::getDomain)
+      .def("getNumberOfLevels", &StructuredBlockForest::getNumberOfLevels)
+      .def_property_readonly("getDomain", &StructuredBlockForest::getDomain)
       .def("mapToPeriodicDomain", &SbS_mapToPeriodicDomain1)
       .def("mapToPeriodicDomain", &SbS_mapToPeriodicDomain2)
       .def("mapToPeriodicDomain", &SbS_mapToPeriodicDomain3)
       .def("__getitem__", &StructuredBlockForest_getItem, py::keep_alive< 1, 2 >())
-      .def("__len__", &StructuredBlockStorage::size)
+      .def("__len__", &StructuredBlockForest::size)
       .def("getBlock", SbS_getBlock1)
       .def("getBlock", SbS_getBlock2)
-      .def("containsGlobalBlockInformation", &StructuredBlockStorage::containsGlobalBlockInformation)
+      .def("containsGlobalBlockInformation", &StructuredBlockForest::containsGlobalBlockInformation)
       .def("blocksOverlappedByAABB", &StructuredBlockForest_blocksOverlappedByAABB)
       .def("blocksContainedWithinAABB", &StructuredBlockForest_blocksContainedWithinAABB)
       .def("blockExists", p_blockExists1)
@@ -295,17 +285,17 @@ void exportBlockForest(py::module_& m)
       .def("atDomainYMaxBorder", &SbS_atDomainYMaxBorder)
       .def("atDomainZMinBorder", &SbS_atDomainZMinBorder)
       .def("atDomainZMaxBorder", &SbS_atDomainZMaxBorder)
-      .def("dx", &StructuredBlockStorage::dx)
-      .def("dy", &StructuredBlockStorage::dy)
-      .def("dz", &StructuredBlockStorage::dz)
-      .def_property_readonly("getDomainCellBB", &StructuredBlockStorage::getDomainCellBB)
+      .def("dx", &StructuredBlockForest::dx)
+      .def("dy", &StructuredBlockForest::dy)
+      .def("dz", &StructuredBlockForest::dz)
+      .def("getDomainCellBB", &StructuredBlockForest::getDomainCellBB, "level"_a=0)
       .def("getBlockCellBB", &SbS_getBlockCellBB)
       .def("transformGlobalToLocal", &SbS_transformGlobalToLocal)
       .def("transformLocalToGlobal", &SbS_transformLocalToGlobal)
       .def("writeBlockData", &SbS_writeBlockData)
       .def("readBlockData", &SbS_readBlockData)
       .def("__iter__", &StructuredBlockForest_iter)
-      .def_property_readonly("containsGlobalBlockInformation", &StructuredBlockStorage::containsGlobalBlockInformation)
+      .def_property_readonly("containsGlobalBlockInformation", &StructuredBlockForest::containsGlobalBlockInformation)
       .def_property_readonly("periodic", &SbS_periodic);
 
    py::class_< SetupBlock, shared_ptr< SetupBlock > >(m, "SetupBlock")

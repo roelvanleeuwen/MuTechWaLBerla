@@ -36,13 +36,12 @@ namespace internal
 inline cell_idx_t normalizeIdx(py::object pyIndex, uint_t coordinateSize)
 {
    cell_idx_t index;
-   if (py::isinstance< cell_idx_t >(pyIndex))
+
+   try {
       index = py::cast< cell_idx_t >(pyIndex);
-   else if (py::isinstance< double >(pyIndex))
-      index = cell_idx_c(double(py::cast< double >(pyIndex)) * double(coordinateSize));
-   else
-   {
-      throw py::index_error("Incompatible index data type");
+   }
+   catch (py::error_already_set & ){
+      throw py::cast_error("Incompatible index data type");
    }
 
    if (index < 0)
@@ -89,21 +88,17 @@ inline CellInterval globalPythonSliceToCellInterval(const shared_ptr< Structured
       else if (py::isinstance< py::slice >(indexTuple[i]))
       {
          py::slice s = py::cast< py::slice >(indexTuple[i]);
+         // Min
+         if ( py::isinstance< py::none >(s.attr("start")) )
+            interval.min()[i] = bounds.min()[i];
+         else
+            interval.min()[i] = normalizeIdx( s.attr("start"), uint_c( bounds.min()[i] ) );
 
-         for (auto it = s.begin(); it != s.end(); it++)
-         {
-            // Min
-            if (it == s.begin() && it.equal(py::object()))
-               interval.min()[i] = bounds.min()[i];
-            else
-               interval.min()[i] = normalizeIdx(it, uint_c(bounds.max()[i]));
-
-            // Max
-            if (std::next(it) != s.end() && it.equal(py::object()))
-               interval.max()[i] = bounds.max()[i];
-            else
-               interval.max()[i] = normalizeIdx(it, uint_c(bounds.max()[i]));
-         }
+         // Max
+         if ( py::isinstance< py::none >(s.attr("stop")) )
+            interval.max()[i] = bounds.max()[i];
+         else
+            interval.max()[i] = normalizeIdx( s.attr("stop"), uint_c( bounds.max()[i] ) );
       }
    }
    return interval;
@@ -159,7 +154,7 @@ CellInterval localPythonSliceToCellInterval(const Field_T& field, py::tuple inde
 
    for (uint_t i = 0; i < 3; ++i)
    {
-      if (!py::cast< py::slice >(indexTuple[i]).check())
+      if (!py::isinstance< py::slice >(indexTuple[i]))
       {
          interval.min()[i] = normalizeIdx(indexTuple[i], uint_c(bounds.max()[i]));
          interval.max()[i] = normalizeIdx(indexTuple[i], uint_c(bounds.max()[i]));
@@ -168,20 +163,18 @@ CellInterval localPythonSliceToCellInterval(const Field_T& field, py::tuple inde
       {
          py::slice s = py::cast< py::slice >(indexTuple[i]);
 
-         for (auto it = s.begin(); it != s.end(); it++)
-         {
-            // Min
-            if (it == s.begin() && it.equal(py::object()))
-               interval.min()[i] = bounds.min()[i];
-            else
-               interval.min()[i] = normalizeIdx(it, uint_c(bounds.max()[i]));
+         // Min
+         if ( py::isinstance< py::none >(s.attr("start")) )
+            interval.min()[i] = bounds.min()[i];
+         else
+            interval.min()[i] = normalizeIdx( s.attr("start"), uint_c( bounds.min()[i] ) );
 
-            // Max
-            if (std::next(it) != s.end() && it.equal(py::object()))
-               interval.max()[i] = bounds.max()[i];
-            else
-               interval.max()[i] = normalizeIdx(it, uint_c(bounds.max()[i]));
-         }
+         // Max
+         if ( py::isinstance< py::none >(s.attr("stop")) )
+            interval.max()[i] = bounds.max()[i];
+         else
+            interval.max()[i] = normalizeIdx( s.attr("stop"), uint_c( bounds.max()[i] ) );
+
       }
    }
 

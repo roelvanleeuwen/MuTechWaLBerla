@@ -75,6 +75,47 @@ struct UniformBufferedSchemeExporter
    const py::module_& m_;
 };
 
+class UniformBufferedSchemeCreator
+{
+ public:
+   UniformBufferedSchemeCreator( const shared_ptr<StructuredBlockForest> & bf,
+                               const std::string & stencilName,
+                               const int tag )
+      : blockforest_( bf), stencilName_( stencilName ), tag_( tag )
+   {}
+
+   template<typename Stencil>
+   void operator() ( python_coupling::NonCopyableWrap<Stencil> )
+   {
+
+      if ( std::string(Stencil::NAME) == stencilName_ ) {
+         result_ = py::cast( make_shared< UniformBufferedSchemeWrapper<Stencil> > ( blockforest_, tag_ ) );
+      }
+   }
+
+   py::object getResult() { return result_; }
+ private:
+   py::object result_;
+   shared_ptr<StructuredBlockForest> blockforest_;
+   std::string stencilName_;
+   const int tag_;
+};
+
+
+template<typename... Stencils>
+py::object createUniformBufferedScheme( const shared_ptr<StructuredBlockForest> & bf,
+                                        const std::string & stencil, const int tag )
+{
+   UniformBufferedSchemeCreator creator( bf, stencil, tag );
+   python_coupling::for_each_noncopyable_type< Stencils... >  ( std::ref(creator) );
+
+   if ( !creator.getResult() )
+   {
+      throw py::value_error("Unknown stencil.");
+   }
+   return creator.getResult();
+}
+
 //===================================================================================================================
 //
 //  UniformDirectScheme
@@ -114,6 +155,50 @@ struct UniformDirectSchemeExporter
    const py::module_ m_;
 };
 
+class UniformDirectSchemeCreator
+{
+ public:
+   UniformDirectSchemeCreator( const shared_ptr<StructuredBlockForest> & bf,
+                               const std::string & stencilName,
+                               const int tag )
+      : blockforest_( bf), stencilName_( stencilName ), tag_( tag )
+   {}
+
+   template<typename Stencil>
+   void operator() ( python_coupling::NonCopyableWrap<Stencil> )
+   {
+
+      if ( std::string(Stencil::NAME) == stencilName_ ) {
+         result_ = py::cast( make_shared< UniformDirectSchemeWrapper<Stencil> > ( blockforest_, tag_ ) );
+      }
+   }
+
+   py::object getResult() { return result_; }
+ private:
+   py::object result_;
+   shared_ptr<StructuredBlockForest> blockforest_;
+   std::string stencilName_;
+   const int tag_;
+};
+
+
+template<typename... Stencils>
+py::object createUniformDirectScheme( const shared_ptr<StructuredBlockForest> & bf,
+                                      const std::string & stencil, const int tag )
+{
+   UniformDirectSchemeCreator creator( bf, stencil, tag );
+   python_coupling::for_each_noncopyable_type< Stencils... >  ( std::ref(creator) );
+
+   if ( !creator.getResult() )
+   {
+      throw py::value_error("Unknown stencil.");
+   }
+   return creator.getResult();
+}
+
+
+
+
 } // namespace internal
 
 template< typename... Stencils >
@@ -122,11 +207,21 @@ void exportUniformDirectScheme(py::module_& m)
    using namespace py;
 
    python_coupling::for_each_noncopyable_type< Stencils... >(internal::UniformDirectSchemeExporter(m));
+   m.def( "createUniformDirectScheme",
+           [](const shared_ptr<StructuredBlockForest> & blocks, const std::string & stencil, const int tag)
+            {
+             return internal::createUniformDirectScheme< Stencils... >(blocks, stencil, tag);
+            },
+           "blocks"_a, "stencil"_a, "tag"_a=778 );
+
+
 }
 
 template< typename... Stencils >
 void exportUniformBufferedScheme(py::module_& m)
 {
+   using namespace py;
+
    py::enum_< LocalCommunicationMode >(m, "LocalCommunicationMode")
       .value("START", START)
       .value("WAIT", WAIT)
@@ -134,6 +229,12 @@ void exportUniformBufferedScheme(py::module_& m)
       .export_values();
 
    python_coupling::for_each_noncopyable_type< Stencils... >(internal::UniformBufferedSchemeExporter(m));
+   m.def( "createUniformBufferedScheme",
+          [](const shared_ptr<StructuredBlockForest> & blocks, const std::string & stencil, const int tag)
+          {
+            return internal::createUniformBufferedScheme< Stencils... >(blocks, stencil, tag);
+          },
+          "blocks"_a, "stencil"_a, "tag"_a=778 );
 }
 
 } // namespace blockforest

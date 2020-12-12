@@ -33,6 +33,7 @@
 
 #include "python_coupling/PythonWrapper.h"
 #include "python_coupling/helper/MplHelpers.h"
+#include "python_coupling/helper/PybindHelper.h"
 
 #include <iostream>
 #include <type_traits>
@@ -309,6 +310,33 @@ py::array_t< typename Field_T::value_type > toNumpyArray(const Field_T& field)
    }
 }
 
+template< typename GlField_T >
+py::array_t< typename GlField_T::value_type > toNumpyArrayWithGhostLayers(const GlField_T& field)
+{
+   using T    = typename GlField_T::value_type;
+   const T* ptr     = field.dataAt(-static_cast< cell_idx_t >(field.nrOfGhostLayers()),
+                                   -static_cast< cell_idx_t >(field.nrOfGhostLayers()),
+                                   -static_cast< cell_idx_t >(field.nrOfGhostLayers()), 0);
+
+
+   if (field.fSize() == 1)
+   {
+      return pybind11::array_t< T, 0 >({ field.xSizeWithGhostLayer(), field.ySizeWithGhostLayer(), field.zSizeWithGhostLayer() },
+                                       { static_cast< size_t >(field.xStride()) * sizeof(T),
+                                         static_cast< size_t >(field.yStride()) * sizeof(T),
+                                         static_cast< size_t >(field.zStride()) * sizeof(T) },
+                                       ptr, py::cast(field));
+   }
+   else
+   {
+      return pybind11::array_t< T, 0 >(
+         { field.xSizeWithGhostLayer(), field.ySizeWithGhostLayer(), field.zSizeWithGhostLayer(), field.fSize() },
+         { static_cast< size_t >(field.xStride()) * sizeof(T), static_cast< size_t >(field.yStride()) * sizeof(T),
+           static_cast< size_t >(field.zStride()) * sizeof(T), static_cast< size_t >(field.fStride()) * sizeof(T) },
+         ptr, py::cast(field));
+   }
+}
+
 
 struct FieldExporter
 {
@@ -334,8 +362,6 @@ struct FieldExporter
          .def("clone", &Field_T::clone, py::return_value_policy::copy)
          .def("cloneUninitialized", &Field_T::cloneUninitialized, py::return_value_policy::copy)
          .def("swapDataPointers", &field_swapDataPointers< Field_T >)
-         // .def("__getitem__", py::object([](){}&toNumpyArray< T, F_SIZE >))
-         // .def("__setitem__", &field_setCellXYZ< Field_T >)
          .def("__array__", &toNumpyArray< Field_T >);
 
       std::string class_nameGL =
@@ -343,20 +369,17 @@ struct FieldExporter
 
       py::class_< GlField_T, shared_ptr< GlField_T >, Field_T >(m_, class_nameGL.c_str())
          .def("sizeWithGhostLayer", &GlField_T::xSizeWithGhostLayer)
-         .def("nrOfGhostLayers", &GlField_T::nrOfGhostLayers);
-//
-//      exportFlagField< T >(m_);
-//
-//      // Field Buffer type
-//
+         .def("nrOfGhostLayers", &GlField_T::nrOfGhostLayers)
+         .def("__array__", &toNumpyArrayWithGhostLayers< GlField_T >);
+
       using field::communication::PackInfo;
       std::string FieldPackInfo_name = "FieldPackInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
-      py::class_< PackInfo< GlField_T >, shared_ptr< PackInfo< GlField_T > > >(m_, FieldPackInfo_name.c_str());
+      py::class_< PackInfo< GlField_T >, shared_ptr< PackInfo< GlField_T > >, walberla::communication::UniformPackInfo >(m_, FieldPackInfo_name.c_str());
 
-//      using field::communication::UniformMPIDatatypeInfo;
-//      std::string FieldMPIDataTypeInfo_name = "FieldMPIDataTypeInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
-//      py::class_< UniformMPIDatatypeInfo< GlField_T >, shared_ptr< UniformMPIDatatypeInfo< GlField_T > > >(
-//         m_, FieldMPIDataTypeInfo_name.c_str());
+      using field::communication::UniformMPIDatatypeInfo;
+      std::string FieldMPIDataTypeInfo_name = "FieldMPIDataTypeInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
+      py::class_< UniformMPIDatatypeInfo< GlField_T >, shared_ptr< UniformMPIDatatypeInfo< GlField_T > >, walberla::communication::UniformMPIDatatypeInfo >(
+         m_, FieldMPIDataTypeInfo_name.c_str());
    }
    const py::module_& m_;
 };
@@ -408,9 +431,9 @@ struct GhostLayerFieldAdaptorExporter
 class AddToStorageExporter
 {
  public:
-   AddToStorageExporter(const shared_ptr< StructuredBlockForest >& blocks, const std::string& name, uint_t fs,
+   AddToStorageExporter(const shared_ptr< StructuredBlockForest >& blocks, const std::string& name, py::object& dtype, uint_t fs,
                         uint_t gl, Layout layout, uint_t alignment)
-      : blocks_(blocks), name_(name), fs_(fs), gl_(gl), layout_(layout), alignment_(alignment), found_(true)
+      : blocks_(blocks), name_(name), dtype_(dtype), fs_(fs), gl_(gl), layout_(layout), alignment_(alignment), found_(true)
    {}
 
    template< typename FieldType >
@@ -423,10 +446,12 @@ class AddToStorageExporter
       const uint_t F_SIZE = FieldType::F_SIZE;
 
       if (F_SIZE != fs_) return;
-
-      typedef internal::GhostLayerFieldDataHandling< GhostLayerField< T, F_SIZE > > DataHandling;
-      auto dataHandling = walberla::make_shared< DataHandling >(blocks_, gl_, T(), layout_, alignment_);
-      blocks_->addBlockData(dataHandling, name_);
+      if(python_coupling::isCppEqualToPythonType<T>(py::cast<std::string>(dtype_.attr("__name__"))))
+      {
+         typedef internal::GhostLayerFieldDataHandling< GhostLayerField< T, F_SIZE > > DataHandling;
+         auto dataHandling = walberla::make_shared< DataHandling >(blocks_, gl_, T(), layout_, alignment_);
+         blocks_->addBlockData(dataHandling, name_);
+      }
    }
 
    bool successful() const { return found_; }
@@ -434,6 +459,7 @@ class AddToStorageExporter
  private:
    shared_ptr< StructuredBlockStorage > blocks_;
    std::string name_;
+   py::object dtype_;
    uint_t fs_;
    uint_t gl_;
    Layout layout_;
@@ -442,13 +468,13 @@ class AddToStorageExporter
 };
 
 template< typename... FieldTypes >
-void addToStorage(const shared_ptr< StructuredBlockForest >& blocks, const std::string& name,
+void addToStorage(const shared_ptr< StructuredBlockForest >& blocks, const std::string& name, py::object& dtype,
                   uint_t fs, uint_t gl, Layout layout, uint_t alignment)
 {
    using namespace py;
 
    auto result = make_shared< py::object >();
-   AddToStorageExporter exporter(blocks, name, fs, gl, layout, alignment);
+   AddToStorageExporter exporter(blocks, name, dtype, fs, gl, layout, alignment);
    python_coupling::for_each_noncopyable_type< FieldTypes... >(exporter);
 
    if (!exporter.successful())
@@ -470,8 +496,7 @@ inline void addFlagFieldToStorage(const shared_ptr< StructuredBlockStorage >& bl
       field::addFlagFieldToStorage< FlagField< uint64_t > >(blocks, name, gl);
    else
    {
-      PyErr_SetString(PyExc_ValueError, "Allowed values for number of bits are: 8,16,32,64");
-      throw py::error_already_set();
+      throw py::value_error("Allowed values for number of bits are: 8,16,32,64");
    }
 }
 
@@ -484,26 +509,53 @@ inline void addFlagFieldToStorage(const shared_ptr< StructuredBlockStorage >& bl
 class CreateVTKWriterExporter
 {
  public:
-   CreateVTKWriterExporter(py::module_& m)
-      : m_(m)
+   CreateVTKWriterExporter( const shared_ptr<StructuredBlockForest> & blocks,
+                            ConstBlockDataID fieldId, const std::string & vtkName)
+      : blocks_( blocks ), fieldId_(fieldId), vtkName_( vtkName )
    {}
 
-   template< typename FieldType >
-   void operator()(python_coupling::NonCopyableWrap<FieldType>) const
+   template< typename FieldType>
+   void operator() ( python_coupling::NonCopyableWrap<FieldType> )
    {
-      typedef typename FieldType::value_type T;
-      typedef field::VTKWriter< FieldType > VTKWriter;
-      std::string data_type_name = PythonFormatString<T>::get();
+      IBlock * firstBlock =  & ( * blocks_->begin() );
+      if( firstBlock->isDataClassOrSubclassOf<FieldType>(fieldId_) )
+         writer_ = shared_ptr<field::VTKWriter<FieldType> >( new field::VTKWriter<FieldType>(fieldId_, vtkName_));
+   }
 
-      std::string class_name = "VTKWriter_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
-
-      py::class_< VTKWriter, shared_ptr<VTKWriter> >(m_, class_name.c_str() );
-
+   shared_ptr< vtk::BlockCellDataWriterInterface > getCreatedWriter() {
+      return writer_;
    }
 
  private:
-   const py::module_ m_;
+   shared_ptr< vtk::BlockCellDataWriterInterface > writer_;
+   shared_ptr< StructuredBlockStorage > blocks_;
+   ConstBlockDataID fieldId_;
+   std::string vtkName_;
 };
+
+
+template<typename... FieldTypes>
+inline shared_ptr<vtk::BlockCellDataWriterInterface> createVTKWriter(const shared_ptr<StructuredBlockForest> & blocks,
+                                                                     const std::string & name,
+                                                                     const std::string & nameInVtkOutput = "")
+{
+   std::string vtkName = nameInVtkOutput;
+   if( vtkName.empty())
+      vtkName = name;
+
+   if ( blocks->begin() == blocks->end() )
+      return shared_ptr<vtk::BlockCellDataWriterInterface>();
+   auto fieldID = python_coupling::blockDataIDFromString( *blocks, name );
+
+   CreateVTKWriterExporter exporter(blocks, fieldID, vtkName);
+   python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
+   if ( ! exporter.getCreatedWriter() ) {
+      throw py::value_error("Failed to create writer");
+   }
+   else {
+      return exporter.getCreatedWriter();
+   }
+}
 
 
 //===================================================================================================================
@@ -515,23 +567,58 @@ class CreateVTKWriterExporter
 class CreateBinarizationVTKWriterExporter
 {
  public:
-   CreateBinarizationVTKWriterExporter(py::module_& m)
-      : m_(m)
+   CreateBinarizationVTKWriterExporter( const shared_ptr<StructuredBlockStorage> & blocks,
+                                        ConstBlockDataID fieldId, const std::string & vtkName, uint_t mask)
+      : blocks_( blocks ), fieldId_(fieldId), vtkName_( vtkName ), mask_(mask)
    {}
 
-   template< typename FieldType >
-   void operator()()
+   template< typename FieldType>
+   void operator() ( python_coupling::NonCopyableWrap<FieldType> )
    {
-      typedef typename FieldType::value_type T;
-      std::string data_type_name = PythonFormatString<T>::get();
-      typedef field::BinarizationFieldWriter< FieldType > VTKWriter;
-      std::string class_name = "BinarizationFieldWriter_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
-
-      py::class_< VTKWriter, shared_ptr<VTKWriter> >(m_, class_name.c_str() );
+      IBlock * firstBlock =  & ( * blocks_->begin() );
+      if( firstBlock->isDataClassOrSubclassOf<FieldType>(fieldId_) )
+      {
+         typedef field::BinarizationFieldWriter< FieldType > Writer;
+         writer_ = shared_ptr< Writer >(new Writer(fieldId_, vtkName_, static_cast< typename FieldType::value_type >(mask_)));
+      }
    }
+
+   shared_ptr< vtk::BlockCellDataWriterInterface > getCreatedWriter() {
+      return writer_;
+   }
+
  private:
-   const py::module_ m_;
+   shared_ptr< vtk::BlockCellDataWriterInterface > writer_;
+   shared_ptr< StructuredBlockStorage > blocks_;
+   ConstBlockDataID fieldId_;
+   std::string vtkName_;
+   uint_t mask_;
 };
+
+
+template<typename... FieldTypes>
+inline shared_ptr<vtk::BlockCellDataWriterInterface> createBinarizationVTKWriter(const shared_ptr<StructuredBlockStorage> & blocks,
+                                                                                 const std::string & name,
+                                                                                 uint_t mask,
+                                                                                 const std::string & nameInVtkOutput = "")
+{
+   std::string vtkName = nameInVtkOutput;
+   if( vtkName.empty())
+      vtkName = name;
+
+   if ( blocks->begin() == blocks->end() )
+      return shared_ptr<vtk::BlockCellDataWriterInterface>();
+   auto fieldID = python_coupling::blockDataIDFromString( *blocks, name );
+
+   CreateBinarizationVTKWriterExporter exporter(blocks, fieldID, vtkName, mask);
+   python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
+   if ( ! exporter.getCreatedWriter() ) {
+      throw py::value_error("Failed to create writer");
+   }
+   else {
+      return exporter.getCreatedWriter();
+   }
+}
 
 } // namespace internal
 
@@ -541,21 +628,38 @@ void exportFields(py::module_& m)
 {
    using namespace py;
 
-   py::enum_< Layout >(m, "Layout").value("fzyx", fzyx).value("zyxf", zyxf).export_values();
+   py::module_ m2 = m.def_submodule("field", "Field Extension of the waLBerla python bindings");
 
-   python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::FieldExporter(m));
-   python_coupling::for_each_noncopyable_type< real_t, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t >(internal::FieldAllocatorExporter(m));
+   py::enum_< Layout >(m2, "Layout").value("fzyx", fzyx).value("zyxf", zyxf).export_values();
 
-   m.def(
+   python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::FieldExporter(m2));
+   python_coupling::for_each_noncopyable_type< real_t, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t >(internal::FieldAllocatorExporter(m2));
+
+   m2.def(
       "addToStorage",
-      [](const shared_ptr< StructuredBlockForest > & blocks, const std::string & name, uint_t values_per_cell,
-         uint_t ghost_layers, Layout layout, uint_t alignment) {
-         return internal::addToStorage< FieldTypes... >(blocks, name, values_per_cell, ghost_layers, layout, alignment);
+      [](const shared_ptr< StructuredBlockForest > & blocks, const std::string & name, py::object &dtype, uint_t fSize,
+         Layout layout, uint_t ghostLayers, uint_t alignment) {
+         return internal::addToStorage< FieldTypes... >(blocks, name, dtype, fSize, ghostLayers, layout, alignment);
       },
-      "blocks"_a, "name"_a, "values_per_cell"_a = 1, "ghost_layers"_a = uint_t(1), "layout"_a = zyxf, "alignment"_a = 0);
-//
-   python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::CreateVTKWriterExporter(m));
-//   python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::CreateBinarizationVTKWriterExporter(m));
+      "blocks"_a, "name"_a, "dtype"_a, "fSize"_a = 1, "layout"_a = zyxf, "ghostLayers"_a = uint_t(1), "alignment"_a = 0);
+
+   m2.def( "createVTKWriter",
+           [](const shared_ptr<StructuredBlockForest> & blocks, const std::string & name,
+              const std::string & nameInVtkOutput = ""){
+              return internal::createVTKWriter< FieldTypes... >(blocks, name, nameInVtkOutput);
+           },
+       "blocks"_a, "name"_a, "nameInVtkOutput"_a="" );
+
+
+   #define UintFields Field<uint8_t,1 >, Field<uint16_t, 1>, Field<uint32_t, 1>, Field<uint64_t, 1>
+   m2.def( "createBinarizationVTKWriter",
+           [](const shared_ptr<StructuredBlockForest> & blocks, const std::string & name,
+              uint_t mask, const std::string & nameInVtkOutput = ""){
+             return internal::createBinarizationVTKWriter< UintFields >(blocks, name, mask, nameInVtkOutput);
+           },
+           "blocks"_a, "name"_a, "mask"_a, "nameInVtkOutput"_a="" );
+
+
 }
 
 } // namespace field

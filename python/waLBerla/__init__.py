@@ -4,14 +4,13 @@ from .callbacks import memberCallback as member_callback  # noqa:F401
 
 import sys
 
+
 try:
     from .walberla_cpp import *  # noqa: F403
-
     cpp_available = True
 except ImportError:
     try:
         from walberla_cpp import *  # noqa: F403
-
         cpp_available = True
     except ImportError:
         cpp_available = False
@@ -41,12 +40,11 @@ if cpp_available:
         sys.modules[__name__ + '.field'] = field  # noqa: F405
         # extend the C++ module with some python functions
         from .field_extension import extend as extend_field
-
         extend_field(field)  # noqa: F405
+
     if 'cuda' in globals():
         sys.modules[__name__ + '.cuda'] = cuda  # noqa: F405
         from .cuda_extension import extend as extend_cuda
-
         extend_cuda(cuda)  # noqa: F405
     if 'geometry' in globals():
         sys.modules[__name__ + '.geometry'] = geometry  # noqa: F405

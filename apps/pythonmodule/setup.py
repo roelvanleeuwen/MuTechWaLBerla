@@ -22,8 +22,6 @@ def collectFiles():
     dst_shared_lib = join(walberla_binary_dir, 'waLBerla', 'walberla_cpp.' + extension[1])
     # copy everything inplace
 
-    print(src_shared_lib)
-
     if not exists(src_shared_lib):
         print("Python Module was not built yet - run 'make walberla_cpp'")
         exit(1)

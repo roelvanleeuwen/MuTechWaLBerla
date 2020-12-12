@@ -62,10 +62,7 @@ namespace field {
    template<typename... FieldTypes>
    void exportModuleToPython(py::module_ &m)
    {
-      // python_coupling::ModuleScope fieldModule( "field" );
-
       exportFields<FieldTypes...>(m);
-
       exportCommunicationClasses<FieldTypes...>(m);
    }
 

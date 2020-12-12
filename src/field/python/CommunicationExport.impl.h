@@ -51,24 +51,65 @@ namespace py = pybind11;
 //
 //===================================================================================================================
 
-struct PackInfoExporter
+class PackInfoExporter
 {
-   PackInfoExporter(py::module_& m) : m_(m) {}
-   template< typename FieldType >
-   void operator()(python_coupling::NonCopyableWrap< FieldType >) const
+ public:
+   PackInfoExporter(const shared_ptr<StructuredBlockForest> & blocks, BlockDataID fieldId, uint_t numberOfGhostLayers)
+      : blocks_(blocks), fieldId_(fieldId), numberOfGhostLayers_( numberOfGhostLayers )
+   {}
+
+   template< typename FieldType>
+   void operator() ( python_coupling::NonCopyableWrap<FieldType> )
    {
       typedef typename FieldType::value_type T;
-      std::string data_type_name = field::internal::PythonFormatString<T>::get();
       const uint_t F_SIZE = FieldType::F_SIZE;
-      typedef GhostLayerField< T, F_SIZE > GlField_T;
-
-      typedef field::communication::PackInfo< GlField_T > PackInfo;
-      std::string class_name = "PackInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
-
-      py::class_< PackInfo, shared_ptr< PackInfo > >(m_, class_name.c_str());
+      typedef GhostLayerField<T, F_SIZE> GlField_T;
+      IBlock * firstBlock =  & ( * blocks_->begin() );
+      if( firstBlock->isDataClassOrSubclassOf<FieldType>(fieldId_) )
+      {
+         if ( numberOfGhostLayers_ > 0  )
+         {
+            resultPackInfo_ = py::cast(make_shared< field::communication::PackInfo< GlField_T > >(fieldId_, numberOfGhostLayers_));
+         }
+         else
+         {
+            resultPackInfo_ = py::cast(make_shared< field::communication::PackInfo< GlField_T > >(fieldId_));
+         }
+      }
    }
-   const py::module_ m_;
+   py::object getResultPackInfo()
+   {
+      return resultPackInfo_;
+   }
+
+ private:
+   py::object resultPackInfo_;
+   shared_ptr< StructuredBlockStorage > blocks_;
+   BlockDataID fieldId_;
+   uint_t numberOfGhostLayers_;
 };
+
+
+template<typename... FieldTypes>
+static py::object PackInfoWrapper(const shared_ptr<StructuredBlockForest> & blocks,
+                                  const std::string & name, uint_t numberOfGhostLayers )
+{
+   BlockDataID fieldID = python_coupling::blockDataIDFromString( *blocks, name );
+
+   if ( blocks->begin() == blocks->end() ) {
+      // if no blocks are on this field an arbitrary PackInfo can be returned
+      return py::cast( make_shared< field::communication::PackInfo<GhostLayerField<real_t,1>> >( fieldID, numberOfGhostLayers ) );
+   }
+
+   PackInfoExporter exporter(blocks, fieldID, numberOfGhostLayers);
+   python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
+   if ( ! exporter.getResultPackInfo() ) {
+      throw py::value_error("Failed to create PackInfo");
+   }
+   else {
+      return exporter.getResultPackInfo();
+   }
+}
 
 //===================================================================================================================
 //
@@ -76,25 +117,68 @@ struct PackInfoExporter
 //
 //===================================================================================================================
 
-struct UniformMPIDatatypeInfoExporter
+class UniformMPIDatatypeInfoExporter
 {
-   UniformMPIDatatypeInfoExporter(py::module_& m) : m_(m) {}
-   template< typename FieldType >
-   void operator()(python_coupling::NonCopyableWrap< FieldType >) const
+ public:
+   UniformMPIDatatypeInfoExporter(const shared_ptr<StructuredBlockForest> & blocks, BlockDataID fieldId, uint_t numberOfGhostLayers)
+      : blocks_(blocks), fieldId_(fieldId), numberOfGhostLayers_( numberOfGhostLayers )
+   {}
+
+   template< typename FieldType>
+   void operator() ( python_coupling::NonCopyableWrap<FieldType> )
    {
       typedef typename FieldType::value_type T;
-      std::string data_type_name = field::internal::PythonFormatString<T>::get();
       const uint_t F_SIZE = FieldType::F_SIZE;
-      typedef GhostLayerField< T, F_SIZE > GlField_T;
+      typedef GhostLayerField<T, F_SIZE> GlField_T;
+      IBlock * firstBlock =  & ( * blocks_->begin() );
+      if( firstBlock->isDataClassOrSubclassOf<FieldType>(fieldId_) )
+      {
+         if ( numberOfGhostLayers_ > 0  )
+            resultMPIDatatypeInfo_ =  py::cast( make_shared< field::communication::UniformMPIDatatypeInfo<GlField_T> >( fieldId_, numberOfGhostLayers_ ) );
+         else
+            resultMPIDatatypeInfo_ =  py::cast( make_shared< field::communication::UniformMPIDatatypeInfo<GlField_T> >( fieldId_ ) );
 
-      typedef field::communication::UniformMPIDatatypeInfo< GlField_T > MPIDataTypeInfo;
-      std::string class_name =
-         "UniformMPIDatatypeInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
-
-      py::class_< MPIDataTypeInfo, shared_ptr< MPIDataTypeInfo > >(m_, class_name.c_str());
+      }
    }
-   const py::module_ m_;
+   py::object getResultUniformMPIDatatype()
+   {
+      return resultMPIDatatypeInfo_;
+   }
+
+ private:
+   py::object resultMPIDatatypeInfo_;
+   shared_ptr< StructuredBlockStorage > blocks_;
+   BlockDataID fieldId_;
+   uint_t numberOfGhostLayers_;
 };
+
+
+template<typename... FieldTypes>
+static py::object UniformMPIDatatypeInfoWrapper(const shared_ptr<StructuredBlockForest> & blocks,
+                                  const std::string & name, uint_t numberOfGhostLayers )
+{
+   BlockDataID fieldID = python_coupling::blockDataIDFromString( *blocks, name );
+
+   if ( blocks->begin() == blocks->end() ) {
+      // if no blocks are on this field an arbitrary PackInfo can be returned
+      return py::cast( make_shared< field::communication::UniformMPIDatatypeInfo<GhostLayerField<real_t,1>> >( fieldID, numberOfGhostLayers ) );
+   }
+
+   UniformMPIDatatypeInfoExporter exporter(blocks, fieldID, numberOfGhostLayers);
+   python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
+   if ( ! exporter.getResultUniformMPIDatatype() ) {
+      throw py::value_error("Failed to create UniformMPIDatatype");
+   }
+   else {
+      return exporter.getResultUniformMPIDatatype();
+   }
+}
+
+//===================================================================================================================
+//
+//  exportStencilRestrictedPackInfo
+//
+//===================================================================================================================
 
 template< typename T >
 void exportStencilRestrictedPackInfo(py::module_& m)
@@ -132,8 +216,24 @@ namespace py = pybind11;
 template< typename... FieldTypes >
 void exportCommunicationClasses(py::module_& m)
 {
-   // internal::exportStencilRestrictedPackInfo< float >(m);
-   internal::exportStencilRestrictedPackInfo< double >(m);
+   py::module_ m2 = m.def_submodule("field", "Field Extension of the waLBerla python bindings");
+   internal::exportStencilRestrictedPackInfo< real_t >(m2);
+
+   m2.def(
+      "createPackInfo",
+      [](const shared_ptr<StructuredBlockForest> & blocks,
+         const std::string & blockDataName, uint_t numberOfGhostLayers ) {
+        return internal::PackInfoWrapper< FieldTypes... >(blocks, blockDataName, numberOfGhostLayers);
+      },
+      "blocks"_a, "blockDataName"_a, "numberOfGhostLayers"_a = uint_t(0));
+
+   m2.def(
+      "createMPIDatatypeInfo",
+      [](const shared_ptr<StructuredBlockForest> & blocks,
+         const std::string & blockDataName, uint_t numberOfGhostLayers ) {
+        return internal::UniformMPIDatatypeInfoWrapper< FieldTypes... >(blocks, blockDataName, numberOfGhostLayers);
+      },
+      "blocks"_a, "blockDataName"_a, "numberOfGhostLayers"_a = uint_t(0));
 
    //python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::UniformMPIDatatypeInfoExporter(m));
    //python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::PackInfoExporter(m));

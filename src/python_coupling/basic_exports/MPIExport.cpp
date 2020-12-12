@@ -10,6 +10,7 @@
 #include "core/mpi/Broadcast.h"
 
 #include <vector>
+#include "pybind11/stl.h"
 
 namespace py = pybind11;
 
@@ -113,7 +114,6 @@ namespace python_coupling {
          mpi::reduceInplace( extractedValue , op, recvRank);
          return py::cast( extractedValue );
       }
-      py::array test = py::cast<py::array>(value);
       RealStdVector extractedValue = pythonIterableToStdVector< RealStdVector::value_type >( value );
       mpi::reduceInplace( extractedValue , op, recvRank);
       return py::cast( extractedValue );
@@ -210,15 +210,16 @@ namespace python_coupling {
 
    void exportMPI(py::module_ &m)
    {
+      py::module_ m2 = m.def_submodule("mpi", "MPI Extension of the waLBerla python bindings");
 
-      m.def( "rank"             , &rank             );
-      m.def( "worldRank"        , &worldRank        );
-      m.def( "numProcesses"     , &numProcesses     );
-      m.def( "hasCartesianSetup", &hasCartesianSetup);
-      m.def( "rankValid"        , &rankValid        );
-      m.def( "worldBarrier"     , &worldBarrier     );
+      m2.def( "rank"             , &rank             );
+      m2.def( "worldRank"        , &worldRank        );
+      m2.def( "numProcesses"     , &numProcesses     );
+      m2.def( "hasCartesianSetup", &hasCartesianSetup);
+      m2.def( "rankValid"        , &rankValid        );
+      m2.def( "worldBarrier"     , &worldBarrier     );
 
-      py::enum_<mpi::Operation>(m, "Operation")
+      py::enum_<mpi::Operation>(m2, "Operation")
               .value("MIN"    ,      mpi::MIN )
               .value("MAX"    ,      mpi::MAX )
               .value("SUM"    ,      mpi::SUM )
@@ -231,24 +232,19 @@ namespace python_coupling {
               .value("BITWISE_XOR",  mpi::BITWISE_XOR )
               .export_values();
 
-      m.def( "broadcastInt",   &broadcast_int);
-      m.def( "broadcastReal",  &broadcast_real);
-      m.def( "broadcastString",&broadcast_string);
+      m2.def( "broadcastInt",   &broadcast_int);
+      m2.def( "broadcastReal",  &broadcast_real);
+      m2.def( "broadcastString",&broadcast_string);
 
-      m.def( "reduceInt",     &reduce_int);
-      m.def( "reduceReal",    &reduce_real);
-      m.def( "allreduceInt",  &allreduce_int  );
-      m.def( "allreduceReal", &allreduce_real );
+      m2.def( "reduceInt",     &reduce_int);
+      m2.def( "reduceReal",    &reduce_real);
+      m2.def( "allreduceInt",  &allreduce_int  );
+      m2.def( "allreduceReal", &allreduce_real );
 
-
-//      py::class_< IntStdVector>   (m, "IntStdVector") .def(vector_indexing_suite<IntStdVector>()  );
-//      py::class_< RealStdVector>  (m, "RealStdVector").def(vector_indexing_suite<RealStdVector>() );
-//      py::class_< StringStdVector> (m, "StringStdVector").def(vector_indexing_suite<StringStdVector>() );
-
-      m.def( "gatherInt",     &gather_int);
-      m.def( "gatherReal",    &gather_real);
-      m.def( "allgatherInt",  &allgather_int  );
-      m.def( "allgatherReal", &allgather_real );
+      m2.def( "gatherInt",     &gather_int);
+      m2.def( "gatherReal",    &gather_real);
+      m2.def( "allgatherInt",  &allgather_int  );
+      m2.def( "allgatherReal", &allgather_real );
    }
 
 

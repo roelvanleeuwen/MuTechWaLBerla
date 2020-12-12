@@ -78,6 +78,21 @@ void checkForThreeSequence( const py::object & o, const char * message )
 
 //======================================================================================================================
 //
+//  Cell
+//
+//======================================================================================================================
+
+void exportCell(py::module_ &m)
+{
+   py::class_<Cell>(m, "Cell")
+         .def("__getitem__",
+           [](const Cell & cell, py::object & idx){
+              return py::make_tuple(cell.x(), cell.y(), cell.z()).attr("__getitem__")(idx);
+           });
+}
+
+//======================================================================================================================
+//
 //  CellInterval
 //
 //======================================================================================================================
@@ -127,6 +142,7 @@ CellInterval cellInterval_getExpanded2( CellInterval & ci1, cell_idx_t xExpand, 
 
 void exportCellInterval(py::module_ &m)
 {
+   using namespace pybind11::literals;
    const Cell & ( CellInterval::*p_getMin )( ) const = &CellInterval::min;
    const Cell & ( CellInterval::*p_getMax )( ) const = &CellInterval::max;
 
@@ -136,12 +152,11 @@ void exportCellInterval(py::module_ &m)
    void ( CellInterval::*p_expand1) ( const cell_idx_t ) = &CellInterval::expand;
    void ( CellInterval::*p_expand2) ( const Cell &     ) = &CellInterval::expand;
 
-   bool          ( CellInterval::*p_overlaps ) ( const CellInterval & ) const = &CellInterval::overlaps;
+   bool ( CellInterval::*p_overlaps ) ( const CellInterval & ) const = &CellInterval::overlaps;
 
    py::class_<CellInterval>(m, "CellInterval")
-      .def( py::init<const Cell&, const Cell&>() )
-      .def( py::init<cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t>() )
-      .def_property( "min", p_getMin, &cellInterval_setMin )
+      .def( py::init<cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t>())
+      .def_property( "min",  p_getMin, &cellInterval_setMin )
       .def_property( "max", p_getMax, &cellInterval_setMax )
       .def_property_readonly( "size", &cellInterval_size  )
       .def( "empty", &CellInterval::empty )
@@ -158,7 +173,7 @@ void exportCellInterval(py::module_ &m)
       .def( "intersect",       &CellInterval::intersect )
       .def( "getIntersection", &cellInterval_getIntersection )
       .def("__eq__",           &CellInterval::operator==)
-      .def("__ne__",           &CellInterval::operator!=)
+      .def("__ne__",    &CellInterval::operator!=)
       .def_property_readonly( "numCells",  &CellInterval::numCells  )
       ;
 }
@@ -394,7 +409,6 @@ void exportTiming(py::module_ &m)
 
 py::object IBlock_getData( py::object iblockObject, const std::string & stringID ) //NOLINT
 {
-   typedef GhostLayerField< double, 1 > GlField_T;
    IBlock * block = py::cast<IBlock*>( iblockObject );
 
    BlockDataID id = blockDataIDFromString( *block, stringID );
@@ -402,8 +416,8 @@ py::object IBlock_getData( py::object iblockObject, const std::string & stringID
    auto manager = python_coupling::Manager::instance();
    py::object res =  manager->pythonObjectFromBlockData( *block, id );
 
-   //if ( res.is(py::object()) )
-   //   throw BlockDataNotConvertible();
+   if ( res.is(py::object()) )
+      throw BlockDataNotConvertible();
 
    // py::cast(block->getData<GlField_T>(id))
 
@@ -574,7 +588,9 @@ void exportCommunication(py::module_ &m)
 
 void exportStencilDirections(py::module_ &m)
 {
-      py::enum_< stencil::Direction >(m, "Direction")
+
+      py::module_ m2 = m.def_submodule("stencil", "Stencil Extension of the waLBerla python bindings");
+      py::enum_< stencil::Direction >(m2, "Direction")
          .value("C", stencil::C)
          .value("N", stencil::N)
          .value("S", stencil::S)
@@ -622,11 +638,11 @@ void exportStencilDirections(py::module_ &m)
       c.append(cy);
       c.append(cz);
 
-      m.attr("cx") = cx;
-      m.attr("cy") = cy;
-      m.attr("cz") = cz;
-      m.attr("c") = c;
-      m.attr("dirStrings") = dirStrings;
+      m2.attr("cx") = cx;
+      m2.attr("cy") = cy;
+      m2.attr("cz") = cz;
+      m2.attr("c") = c;
+      m2.attr("dirStrings") = dirStrings;
 }
 
 
@@ -641,12 +657,13 @@ void exportBuildInfo(py::module_ &m)
 {
 //   ModuleScope build_info( "build_info");
 //   using py::scope;
-   m.attr("version")         = WALBERLA_GIT_SHA1;
-   m.attr("type" )           = WALBERLA_BUILD_TYPE;
-   m.attr("compiler_flags" ) = WALBERLA_COMPILER_FLAGS;
-   m.attr("build_machine" )  = WALBERLA_BUILD_MACHINE;
-   m.attr("source_dir")      = WALBERLA_SOURCE_DIR;
-   m.attr("build_dir")       = WALBERLA_BUILD_DIR;
+   py::module_ m2 = m.def_submodule("build_info", "Get waLBerla Build Information");
+   m2.attr("version")         = WALBERLA_GIT_SHA1;
+   m2.attr("type" )           = WALBERLA_BUILD_TYPE;
+   m2.attr("compiler_flags" ) = WALBERLA_COMPILER_FLAGS;
+   m2.attr("build_machine" )  = WALBERLA_BUILD_MACHINE;
+   m2.attr("source_dir")      = WALBERLA_SOURCE_DIR;
+   m2.attr("build_dir")       = WALBERLA_BUILD_DIR;
 }
 
 
@@ -671,7 +688,7 @@ void exportBasicWalberlaDatastructures(py::module_ &m)
 
    exportBuildInfo(m);
 //   exportVector3();
-//   exportCell();
+   exportCell(m);
    exportCellInterval(m);
    exportAABB(m);
 

@@ -25,6 +25,7 @@
 #include "blockforest/communication/UniformBufferedScheme.h"
 #include "blockforest/SetupBlockForest.h"
 #include "stencil/all.h"
+#include "vtk/python/Exports.h"
 
 #ifdef WALBERLA_BUILD_WITH_CUDA
  #include "cuda/python/Exports.h"
@@ -75,16 +76,18 @@ struct InitObject
       auto pythonManager = python_coupling::Manager::instance();
       // Field
       pythonManager->addExporterFunction( field::exportModuleToPython<FIELD_TYPES> );
-      // pythonManager->addExporterFunction( field::exportGatherFunctions<FIELD_TYPES> );
+      pythonManager->addExporterFunction( field::exportGatherFunctions<FIELD_TYPES> );
       pythonManager->addBlockDataConversion<FIELD_TYPES>();
       // Blockforest
       pythonManager->addExporterFunction(blockforest::exportModuleToPython<stencil::D2Q5, stencil::D2Q9, stencil::D3Q7, stencil::D3Q19, stencil::D3Q27>);
+      // VTK
+      pythonManager->addExporterFunction( vtk::exportModuleToPython );
       #ifdef WALBERLA_BUILD_WITH_CUDA
             using walberla::cuda::GPUField;
 
             pythonManager->addExporterFunction( cuda::exportModuleToPython<GPU_FIELD_TYPES> );
             pythonManager->addExporterFunction( cuda::exportCopyFunctionsToPython<FIELD_TYPES> );
-            // pythonManager->addBlockDataConversion<GPU_FIELD_TYPES>();
+            pythonManager->addBlockDataConversion<GPU_FIELD_TYPES>();
       #endif
       //
       python_coupling::initWalberlaForPythonModule();

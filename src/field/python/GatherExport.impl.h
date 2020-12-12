@@ -37,65 +37,90 @@ namespace py = pybind11;
    //
    //===================================================================================================================
 
+class GatherExporter
+{
+ public:
+   GatherExporter(const shared_ptr<StructuredBlockForest> & blocks, ConstBlockDataID fieldId,
+                  CellInterval boundingBox = CellInterval(),  int targetRank = 0 )
+      : blocks_( blocks ), fieldId_(fieldId), boundingBox_( boundingBox ), targetRank_(targetRank)
+   {}
 
-   template<typename Field_T>
-   Field_T gatherToObject( const shared_ptr<StructuredBlockStorage> & blocks, BlockDataID fieldID,
-                                         CellInterval boundingBox = CellInterval(), int targetRank = 0 )
+   template< typename FieldType>
+   void operator() ( python_coupling::NonCopyableWrap<FieldType> )
    {
-      typedef Field< typename Field_T::value_type, Field_T::F_SIZE > ResultField;
-      auto result = make_shared< ResultField > ( 0,0,0 );
-      field::gather< Field_T, ResultField > ( *result, blocks, fieldID, boundingBox, targetRank, MPI_COMM_WORLD );
-
-      if ( MPIManager::instance()->worldRank() == targetRank )
-         return result;
-      else
-         return py::object();
-   }
-
-   FunctionExporterClass( gatherToObject,
-                          py::object( const shared_ptr<StructuredBlockStorage> &,
-                                                 BlockDataID, CellInterval,int ) );
-
-   template<typename... FieldTypes>
-   static py::object gatherWrapper (  const shared_ptr<StructuredBlockStorage> & blocks, const std::string & blockDataStr,
-                                      const py::tuple & slice,  int targetRank = 0 )
-   {
-
-
-      auto fieldID = python_coupling::blockDataIDFromString( *blocks, blockDataStr );
-      CellInterval boundingBox = python_coupling::globalPythonSliceToCellInterval( blocks, slice );
-
-      if ( blocks->begin() == blocks->end() ) {
-         // if no blocks are on this process the field::gather function can be called with any type
-         // however we have to call it, otherwise a deadlock occurs
-         gatherToObject< Field<real_t,1> > ( blocks, fieldID, boundingBox, targetRank );
-         return py::object();
-      }
-
-      IBlock * firstBlock =  & ( * blocks->begin() );
-      python_coupling::Dispatcher<Exporter_gatherToObject, FieldTypes... > dispatcher( firstBlock );
-      auto func = dispatcher( fieldID );
-      if ( !func )
+      typedef Field< typename FieldType::value_type, FieldType::F_SIZE > ResultField;
+      IBlock * firstBlock =  & ( * blocks_->begin() );
+      if( firstBlock->isDataClassOrSubclassOf<FieldType>(fieldId_) )
       {
-         PyErr_SetString( PyExc_RuntimeError, "This function cannot handle this type of block data.");
-         throw py::error_already_set();
-      }
-      else
-      {
-         return func( blocks, fieldID, boundingBox, targetRank) ;
+         auto result = make_shared< ResultField > ( 0,0,0 );
+         field::gather< FieldType, ResultField > ( *result, blocks_, fieldId_, boundingBox_, targetRank_, MPI_COMM_WORLD );
+
+         if ( MPIManager::instance()->worldRank() == targetRank_ )
+            resultField_ = py::cast(result);
+         else
+            resultField_ = py::object();
+
       }
    }
+   py::object getResultField()
+   {
+      return resultField_;
+   }
+
+ private:
+   py::object resultField_;
+   shared_ptr< StructuredBlockStorage > blocks_;
+   ConstBlockDataID fieldId_;
+   std::string vtkName_;
+   CellInterval boundingBox_;
+   int targetRank_ ;
+};
+
+
+template<typename... FieldTypes>
+static py::object gatherWrapper(const shared_ptr<StructuredBlockForest> & blocks, const std::string & name,
+                                const py::tuple & slice, int targetRank = 0 )
+{
+   BlockDataID fieldID = python_coupling::blockDataIDFromString( *blocks, name );
+   CellInterval boundingBox = python_coupling::globalPythonSliceToCellInterval( blocks, slice );
+
+   if ( blocks->begin() == blocks->end() ) {
+      // if no blocks are on this process the field::gather function can be called with any type
+      // however we have to call it, otherwise a deadlock occurs
+      auto result = make_shared< Field<real_t, 1> > ( 0,0,0 );
+      field::gather< Field<real_t, 1>, Field<real_t, 1> > ( *result, blocks, fieldID, boundingBox, targetRank, MPI_COMM_WORLD );
+      return py::object();
+   }
+
+   GatherExporter exporter(blocks, fieldID, boundingBox, targetRank);
+   python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
+   if ( ! exporter.getResultField() ) {
+      throw py::value_error("Failed to create writer");
+   }
+   else {
+      return exporter.getResultField();
+   }
+}
 
 } // namespace internal
 
 
 namespace py = pybind11;
+using namespace pybind11::literals;
 template<typename... FieldTypes >
 void exportGatherFunctions(py::module_ &m)
 {
-   // python_coupling::ModuleScope fieldModule( "field" );
+   py::module_ m2 = m.def_submodule("field", "Field Extension of the waLBerla python bindings");
 
-   m.def( "gather",  &internal::gatherWrapper<FieldTypes...>, py::arg("blocks"), py::arg("blockDataName"), py::arg("slice"), py::arg("targetRank") = 0 );
+   m2.def(
+      "gather",
+      [](const shared_ptr<StructuredBlockForest> & blocks, const std::string & name,
+         const py::tuple & slice, int targetRank = 0 ) {
+        return internal::gatherWrapper< FieldTypes... >(blocks, name, slice, targetRank);
+      },
+      "blocks"_a, "name"_a, "slice"_a, "targetRank"_a = uint_t(0));
+
+   // m.def( "gather",  &internal::gatherWrapper<FieldTypes...>, py::arg("blocks"), py::arg("blockDataName"), py::arg("slice"), py::arg("targetRank") = 0 );
 }
 
 

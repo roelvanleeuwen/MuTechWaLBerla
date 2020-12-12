@@ -53,9 +53,10 @@ using namespace pybind11::literals;
    //===================================================================================================================
 
    template<typename GpuField_T>
-   cudaPitchedPtr gpufield_ptr(const GpuField_T & gpuField)
+   uint64_t gpufield_ptr(const GpuField_T & gpuField)
    {
-      return gpuField.pitchedPtr();
+      return reinterpret_cast<uint64_t>(gpuField.pitchedPtr().ptr);
+      // return gpuField.pitchedPtr();
    }
 
    template<typename GpuField_T>
@@ -94,11 +95,11 @@ using namespace pybind11::literals;
          using field::communication::PackInfo;
          using communication::GPUPackInfo;
          std::string GpuFieldPackInfoName = "GpuFieldPackInfo_" + data_type_name;
-         py::class_< GPUPackInfo<GpuField_T>, shared_ptr< GPUPackInfo<GpuField_T> >>(m_, GpuFieldPackInfoName.c_str() );
+         py::class_< GPUPackInfo<GpuField_T>, shared_ptr< GPUPackInfo<GpuField_T> >, walberla::communication::UniformPackInfo>(m_, GpuFieldPackInfoName.c_str() );
 
          using field::communication::UniformMPIDatatypeInfo;
          std::string GpuFieldMPIDataTypeInfoName = "GpuFieldMPIDataTypeInfo_" + data_type_name;
-         py::class_< UniformMPIDatatypeInfo<GpuField_T>, shared_ptr< UniformMPIDatatypeInfo<GpuField_T> >>(m_, GpuFieldMPIDataTypeInfoName.c_str() );
+         py::class_< UniformMPIDatatypeInfo<GpuField_T>, shared_ptr< UniformMPIDatatypeInfo<GpuField_T> >, walberla::communication::UniformMPIDatatypeInfo>(m_, GpuFieldMPIDataTypeInfoName.c_str() );
 
       }
       const py::module_& m_;
@@ -114,24 +115,29 @@ using namespace pybind11::literals;
    class AddToStorageExporter
    {
    public:
-      AddToStorageExporter( const shared_ptr<StructuredBlockStorage> & blocks,
-                           const std::string & name, uint_t fs, uint_t gl, Layout layout,
-                           bool usePitchedMem )
-         : blocks_( blocks ), name_( name ), fs_( fs ),
-           gl_(gl),layout_( layout), usePitchedMem_(usePitchedMem), found_(false)
+      AddToStorageExporter( const shared_ptr<StructuredBlockForest> & blocks, const std::string & name,
+                            py::object &dtype, uint_t fs, uint_t gl, Layout layout,
+                            bool usePitchedMem )
+         : blocks_( blocks ), name_( name ), dtype_(dtype), fs_( fs ),
+           gl_(gl),layout_( layout), usePitchedMem_(usePitchedMem), found_(true)
       {}
 
       template< typename GpuField_T>
       void operator() ( python_coupling::NonCopyableWrap<GpuField_T> )
       {
          typedef typename GpuField_T::value_type T;
-         addGPUFieldToStorage<GPUField<T> >(blocks_, name_, fs_, layout_, gl_, usePitchedMem_);
+
+         if(python_coupling::isCppEqualToPythonType<T>(py::cast<std::string>(dtype_.attr("__name__"))))
+         {
+            addGPUFieldToStorage< GPUField< T > >(blocks_, name_, fs_, layout_, gl_, usePitchedMem_);
+         }
       }
 
       bool successful() const { return found_; }
    private:
-      shared_ptr< StructuredBlockStorage > blocks_;
+      shared_ptr< StructuredBlockForest > blocks_;
       std::string name_;
+      py::object dtype_;
       uint_t fs_;
       uint_t gl_;
       Layout layout_;
@@ -140,12 +146,12 @@ using namespace pybind11::literals;
    };
 
    template<typename... GpuFields>
-   void addToStorage( const shared_ptr<StructuredBlockStorage> & blocks, const std::string & name,
+   void addToStorage( const shared_ptr<StructuredBlockForest> & blocks, const std::string & name, py::object &dtype,
                       uint_t fs, uint_t gl, Layout layout, bool usePitchedMem )
    {
       namespace py = pybind11;
       auto result = make_shared<py::object>();
-      AddToStorageExporter exporter( blocks, name, fs, gl, layout, usePitchedMem );
+      AddToStorageExporter exporter( blocks, name, dtype, fs, gl, layout, usePitchedMem );
       python_coupling::for_each_noncopyable_type<GpuFields...>( std::ref(exporter) );
    }
 
@@ -156,34 +162,127 @@ using namespace pybind11::literals;
    //
    //===================================================================================================================
 
-//   template< typename GPUField_T >
-//   py::object createGPUPackInfoToObject( BlockDataID bdId, uint_t numberOfGhostLayers )
-//   {
-//      using cuda::communication::GPUPackInfo;
-//      if ( numberOfGhostLayers > 0  )
-//         return py::object( make_shared< GPUPackInfo<GPUField_T> >( bdId, numberOfGhostLayers ) );
-//      else
-//         return py::object( make_shared< GPUPackInfo<GPUField_T> >( bdId ) );
-//   }
-//
-//   FunctionExporterClass( createGPUPackInfoToObject, py::object( BlockDataID, uint_t  ) );
-//
-//   template< typename GpuFields>
-//   py::object createPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
-//                                         const std::string & blockDataName, uint_t numberOfGhostLayers )
-//   {
-//      using cuda::communication::GPUPackInfo;
-//
-//      auto bdId = python_coupling::blockDataIDFromString( *bs, blockDataName );
-//      if ( bs->begin() == bs->end() ) {
-//         // if no blocks are on this field an arbitrary PackInfo can be returned
-//         return createGPUPackInfoToObject< GPUField<real_t> > ( bdId, numberOfGhostLayers );
-//      }
-//
-//      IBlock * firstBlock =  & ( * bs->begin() );
-//      python_coupling::Dispatcher<Exporter_createGPUPackInfoToObject, GpuFields > dispatcher( firstBlock );
-//      return dispatcher( bdId )( bdId, numberOfGhostLayers ) ;
-//   }
+   class PackInfoExporter
+   {
+    public:
+      PackInfoExporter(const shared_ptr<StructuredBlockForest> & blocks, BlockDataID fieldId, uint_t numberOfGhostLayers)
+         : blocks_(blocks), fieldId_(fieldId), numberOfGhostLayers_( numberOfGhostLayers )
+      {}
+
+      template< typename GpuField_T>
+      void operator() ( python_coupling::NonCopyableWrap<GpuField_T> )
+      {
+         using cuda::communication::GPUPackInfo;
+
+         IBlock * firstBlock =  & ( * blocks_->begin() );
+         if( firstBlock->isDataClassOrSubclassOf<GpuField_T>(fieldId_) )
+         {
+            if ( numberOfGhostLayers_ > 0  )
+            {
+               resultPackInfo_ = py::cast(make_shared< GPUPackInfo< GpuField_T > >(fieldId_, numberOfGhostLayers_));
+            }
+            else
+            {
+               resultPackInfo_ = py::cast(make_shared< GPUPackInfo< GpuField_T > >(fieldId_));
+            }
+         }
+      }
+      py::object getResultPackInfo()
+      {
+         return resultPackInfo_;
+      }
+
+    private:
+      py::object resultPackInfo_;
+      shared_ptr< StructuredBlockStorage > blocks_;
+      BlockDataID fieldId_;
+      uint_t numberOfGhostLayers_;
+   };
+
+
+   template<typename... GpuField_T>
+   static py::object PackInfoWrapper(const shared_ptr<StructuredBlockForest> & blocks,
+                                     const std::string & name, uint_t numberOfGhostLayers )
+   {
+      using cuda::communication::GPUPackInfo;
+      BlockDataID fieldID = python_coupling::blockDataIDFromString( *blocks, name );
+
+      if ( blocks->begin() == blocks->end() ) {
+         // if no blocks are on this field an arbitrary PackInfo can be returned
+         return py::cast( make_shared< GPUPackInfo<GPUField<int8_t>> >( fieldID, numberOfGhostLayers ) );
+      }
+
+      PackInfoExporter exporter(blocks, fieldID, numberOfGhostLayers);
+      python_coupling::for_each_noncopyable_type< GpuField_T... >  ( std::ref(exporter) );
+      if ( ! exporter.getResultPackInfo() ) {
+         throw py::value_error("Failed to create GPU PackInfo");
+      }
+      else {
+         return exporter.getResultPackInfo();
+      }
+   }
+
+   //===================================================================================================================
+   //
+   //  createMPIDatatypeInfo
+   //
+   //===================================================================================================================
+
+   class UniformMPIDatatypeInfoExporter
+   {
+    public:
+      UniformMPIDatatypeInfoExporter(const shared_ptr<StructuredBlockForest> & blocks, BlockDataID fieldId, uint_t numberOfGhostLayers)
+         : blocks_(blocks), fieldId_(fieldId), numberOfGhostLayers_( numberOfGhostLayers )
+      {}
+
+      template< typename GpuField_T>
+      void operator() ( python_coupling::NonCopyableWrap<GpuField_T> )
+      {
+         using field::communication::UniformMPIDatatypeInfo;
+         IBlock * firstBlock =  & ( * blocks_->begin() );
+         if( firstBlock->isDataClassOrSubclassOf<GpuField_T>(fieldId_) )
+         {
+            if ( numberOfGhostLayers_ > 0  )
+               resultMPIDatatypeInfo_ =  py::cast( make_shared< UniformMPIDatatypeInfo<GpuField_T> >( fieldId_, numberOfGhostLayers_ ) );
+            else
+               resultMPIDatatypeInfo_ =  py::cast( make_shared< UniformMPIDatatypeInfo<GpuField_T> >( fieldId_ ) );
+
+         }
+      }
+      py::object getResultUniformMPIDatatype()
+      {
+         return resultMPIDatatypeInfo_;
+      }
+
+    private:
+      py::object resultMPIDatatypeInfo_;
+      shared_ptr< StructuredBlockStorage > blocks_;
+      BlockDataID fieldId_;
+      uint_t numberOfGhostLayers_;
+   };
+
+
+   template<typename... GpuField_T>
+   static py::object UniformMPIDatatypeInfoWrapper(const shared_ptr<StructuredBlockForest> & blocks,
+                                                   const std::string & name, uint_t numberOfGhostLayers )
+   {
+      using field::communication::UniformMPIDatatypeInfo;
+      BlockDataID fieldID = python_coupling::blockDataIDFromString( *blocks, name );
+
+      if ( blocks->begin() == blocks->end() ) {
+         // if no blocks are on this field an arbitrary PackInfo can be returned
+         return py::cast( make_shared< UniformMPIDatatypeInfo<GPUField<int8_t>> >( fieldID, numberOfGhostLayers ) );
+      }
+
+      UniformMPIDatatypeInfoExporter exporter(blocks, fieldID, numberOfGhostLayers);
+      python_coupling::for_each_noncopyable_type< GpuField_T... >  ( std::ref(exporter) );
+      if ( ! exporter.getResultUniformMPIDatatype() ) {
+         throw py::value_error("Failed to create GPU UniformMPIDatatype");
+      }
+      else {
+         return exporter.getResultUniformMPIDatatype();
+      }
+   }
 
    //===================================================================================================================
    //
@@ -191,32 +290,48 @@ using namespace pybind11::literals;
    //
    //===================================================================================================================
 
-struct copyFieldToGpu
+class copyFieldToGpuDispatchExporter
 {
-   copyFieldToGpu(py::module_& m) : m_(m) {}
-   template< typename Field_T>
-   void operator() ( python_coupling::NonCopyableWrap<Field_T> ) const
+ public:
+   copyFieldToGpuDispatchExporter( const shared_ptr<StructuredBlockForest> & blocks,
+                                   BlockDataID gpuFieldId, BlockDataID cpuFieldId, bool toGPU)
+      : blocks_( blocks ), gpuFieldId_( gpuFieldId ), cpuFieldId_(cpuFieldId), toGPU_( toGPU )
+   {}
+
+   template< typename CpuField_T>
+   void operator() ( python_coupling::NonCopyableWrap<CpuField_T> )
    {
-      typedef typename Field_T::value_type T;
+      typedef cuda::GPUField<typename CpuField_T::value_type> GpuField_T;
+      IBlock * firstBlock =  & ( * blocks_->begin() );
 
-      std::string data_type_name = field::internal::PythonFormatString<T>::get();
-      std::string class_name = "copyFieldToGpu_" + data_type_name + "_" + std::to_string(Field_T::F_SIZE);
-      m_.def(
-         class_name.c_str(),
-         [](const shared_ptr< StructuredBlockStorage > & blocks,
-            BlockDataID cpuFieldId, BlockDataID gpuFieldId, bool toGpu) {
-           typedef cuda::GPUField<typename Field_T::value_type> GpuField;
-           if(toGpu)
-              cuda::fieldCpy<GpuField, Field_T>(blocks, gpuFieldId, cpuFieldId);
-           else
-              cuda::fieldCpy<Field_T, GpuField>(blocks, cpuFieldId, gpuFieldId);
-         },
-         "blocks"_a, "cpuFieldId"_a, "gpuFieldId"_a, "toGpu"_a);
-
+      if(firstBlock->isDataClassOrSubclassOf< CpuField_T > ( cpuFieldId_ ) )
+      {
+         if(toGPU_)
+           cuda::fieldCpy<GpuField_T, CpuField_T>(blocks_, gpuFieldId_, cpuFieldId_);
+         else
+           cuda::fieldCpy<CpuField_T, GpuField_T>(blocks_, cpuFieldId_, gpuFieldId_);
+      }
    }
-   py::module_& m_;
+ private:
+   shared_ptr< StructuredBlockForest > blocks_;
+   BlockDataID gpuFieldId_;
+   BlockDataID cpuFieldId_;
+   bool toGPU_;
 };
 
+template<typename... CpuFields>
+void copyFieldToGPU(const shared_ptr< StructuredBlockForest > & blocks, const std::string & gpuFieldName,
+                    const std::string & cpuFieldName, bool toGPU )
+{
+   namespace py = pybind11;
+   auto result = make_shared<py::object>();
+
+   BlockDataID gpuFieldId = python_coupling::blockDataIDFromString( *blocks, gpuFieldName );
+   BlockDataID cpuFieldId = python_coupling::blockDataIDFromString( *blocks, cpuFieldName );
+
+   copyFieldToGpuDispatchExporter exporter( blocks, gpuFieldId, cpuFieldId, toGPU );
+   python_coupling::for_each_noncopyable_type<CpuFields...>( std::ref(exporter) );
+}
 } // namespace internal
 
 
@@ -225,25 +340,54 @@ using namespace pybind11::literals;
 template<typename... GpuFields>
 void exportModuleToPython(py::module_ &m)
 {
-   // python_coupling::ModuleScope fieldModule( "cuda" );
+   py::module_ m2 = m.def_submodule("cuda", "Cuda Extension of the waLBerla python bindings");
 
-   python_coupling::for_each_noncopyable_type<GpuFields...>( internal::GpuFieldExporter(m) );
+   python_coupling::for_each_noncopyable_type<GpuFields...>( internal::GpuFieldExporter(m2) );
 
-   m.def(
+   m2.def(
       "addGpuFieldToStorage",
-      [](const shared_ptr< StructuredBlockStorage > & blocks, const std::string & name, uint_t values_per_cell,
-         uint_t ghost_layers, Layout layout, bool usePitchedMemory) {
-        return internal::addToStorage<GpuFields...>(blocks, name, values_per_cell, ghost_layers, layout, usePitchedMemory);
+      [](const shared_ptr< StructuredBlockForest > & blocks, const std::string & name, py::object &dtype, uint_t fSize,
+         bool usePitchedMem, uint_t ghostLayers, Layout layout) {
+        return internal::addToStorage<GpuFields...>(blocks, name, dtype, fSize, ghostLayers, layout, usePitchedMem);
       },
-      "blocks"_a, "name"_a, "values_per_cell"_a = 1, "ghost_layers"_a = uint_t(1), "layout"_a = zyxf, "alignment"_a = 0);
+      "blocks"_a, "name"_a, "dtype"_a, "fSize"_a=1, "usePitchedMem"_a=false, "ghostLayers"_a=uint(1), "layout"_a=zyxf);
 
-   // m.def( "createPackInfo",       &internal::createPackInfo<GpuFields>,        ( arg("blocks"), arg("blockDataName"), arg("numberOfGhostLayers" ) =0 ) );
+   m2.def(
+      "createPackInfo",
+      [](const shared_ptr<StructuredBlockForest> & blocks,
+         const std::string & blockDataName, uint_t numberOfGhostLayers ) {
+         return internal::PackInfoWrapper< GpuFields... >(blocks, blockDataName, numberOfGhostLayers);
+      },
+      "blocks"_a, "blockDataName"_a, "numberOfGhostLayers"_a = uint_t(0));
+
+   m2.def(
+      "createMPIDatatypeInfo",
+      [](const shared_ptr<StructuredBlockForest> & blocks,
+         const std::string & blockDataName, uint_t numberOfGhostLayers ) {
+        return internal::UniformMPIDatatypeInfoWrapper< GpuFields... >(blocks, blockDataName, numberOfGhostLayers);
+      },
+      "blocks"_a, "blockDataName"_a, "numberOfGhostLayers"_a = uint_t(0));
+
 }
 
 template<typename... CpuFields >
 void exportCopyFunctionsToPython(py::module_ &m)
 {
-     python_coupling::for_each_noncopyable_type<CpuFields...>( internal::copyFieldToGpu(m) );
+     py::module_ m2 = m.def_submodule("cuda", "Cuda Extension of the waLBerla python bindings");
+
+   m2.def(
+      "copyFieldToGpu",
+      [](const shared_ptr< StructuredBlockForest > & blocks, const std::string & gpuFieldName, const std::string & cpuFieldName) {
+        return internal::copyFieldToGPU<CpuFields...>(blocks, gpuFieldName, cpuFieldName, true);
+      },
+      "blocks"_a, "gpuFieldName"_a, "cpuFieldName"_a);
+
+   m2.def(
+      "copyFieldToCpu",
+      [](const shared_ptr< StructuredBlockForest > & blocks, const std::string & gpuFieldName, const std::string & cpuFieldName) {
+        return internal::copyFieldToGPU<CpuFields...>(blocks, gpuFieldName, cpuFieldName, false);
+      },
+      "blocks"_a, "gpuFieldName"_a, "cpuFieldName"_a);
 }
 
 
