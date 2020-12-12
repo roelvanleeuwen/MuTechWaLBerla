@@ -415,11 +415,9 @@ py::object IBlock_getData( py::object iblockObject, const std::string & stringID
 
    auto manager = python_coupling::Manager::instance();
    py::object res =  manager->pythonObjectFromBlockData( *block, id );
-
+   
    if ( res.is(py::object()) )
       throw BlockDataNotConvertible();
-
-   // py::cast(block->getData<GlField_T>(id))
 
    return manager->pythonObjectFromBlockData( *block, id );
 }

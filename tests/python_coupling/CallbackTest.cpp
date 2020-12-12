@@ -28,7 +28,6 @@
 #include "blockforest/Initialization.h"
 #include "blockforest/python/Exports.h"
 #include "python_coupling/PythonCallback.h"
-#include "python_coupling/Shell.h"
 #include "python_coupling/DictWrapper.h"
 #include "python_coupling/Manager.h"
 
