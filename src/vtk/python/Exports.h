@@ -16,6 +16,7 @@
 //! \file Exports.h
 //! \ingroup vtk
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 

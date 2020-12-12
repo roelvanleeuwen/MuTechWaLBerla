@@ -16,6 +16,7 @@
 //! \file CommunicationExport.h
 //! \ingroup field
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 

@@ -13,9 +13,10 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file PythonExports.cpp
-//! \ingroup domain_decomposition
+//! \file Exports.cpp
+//! \ingroup blockforest
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 

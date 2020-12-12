@@ -16,6 +16,7 @@
 //! \file CommunicationExport.impl.h
 //! \ingroup blockforest
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 
