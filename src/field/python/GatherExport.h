@@ -24,7 +24,7 @@
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
    #include "python_coupling/PythonWrapper.h"
-#endif WALBERLA_BUILD_WITH_PYTHON
+#endif
 
 
 namespace walberla {
