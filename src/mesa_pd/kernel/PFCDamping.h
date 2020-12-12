@@ -13,8 +13,9 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ExplicitEuler.h
-//! \author Sebastian Eibl <sebastian.eibl@fau.de>
+//! \file PFCDamping.h
+//! \author Igor Ostanin <i.ostanin@skoltech.ru>
+//! \author Grigorii Drozdov, <drozd013@umn.edu>
 //
 //======================================================================================================================
 
@@ -34,86 +35,56 @@ namespace mesa_pd {
 namespace kernel {
 
 /**
- * Explicit Euler integration.
- * Uses the 0.5at^2 extension for position integration.
- * Boils down to using v_{t+0.5dt} for position integration.
- * This version exhibits increased stability compared to standard explicit euler.
- *
- * Wachs, A. Particle-scale computational approaches to model dry and saturated granular flows of non-Brownian, non-cohesive, and non-spherical rigid bodies. Acta Mech 230, 1919–1980 (2019). https://doi.org/10.1007/s00707-019-02389-9
+ * PFC style damping
  *
  * This kernel requires the following particle accessor interface
  * \code
- * const walberla::mesa_pd::Vec3& getPosition(const size_t p_idx) const;
- * void setPosition(const size_t p_idx, const walberla::mesa_pd::Vec3& v);
- *
  * const walberla::mesa_pd::Vec3& getLinearVelocity(const size_t p_idx) const;
  * void setLinearVelocity(const size_t p_idx, const walberla::mesa_pd::Vec3& v);
- *
- * const walberla::real_t& getInvMass(const size_t p_idx) const;
  *
  * const walberla::mesa_pd::Vec3& getForce(const size_t p_idx) const;
  * void setForce(const size_t p_idx, const walberla::mesa_pd::Vec3& v);
  *
  * const walberla::mesa_pd::data::particle_flags::FlagT& getFlags(const size_t p_idx) const;
  *
- * const walberla::mesa_pd::Rot3& getRotation(const size_t p_idx) const;
- * void setRotation(const size_t p_idx, const walberla::mesa_pd::Rot3& v);
- *
  * const walberla::mesa_pd::Vec3& getAngularVelocity(const size_t p_idx) const;
  * void setAngularVelocity(const size_t p_idx, const walberla::mesa_pd::Vec3& v);
- *
- * const walberla::mesa_pd::Mat3& getInvInertiaBF(const size_t p_idx) const;
  *
  * const walberla::mesa_pd::Vec3& getTorque(const size_t p_idx) const;
  * void setTorque(const size_t p_idx, const walberla::mesa_pd::Vec3& v);
  *
  * \endcode
  *
- * \pre  All forces and torques acting on the particles have to be set.
- * \post All forces and torques are reset to 0.
  * \ingroup mesa_pd_kernel
  */
-class ExplicitEuler
+class PFCDamping
 {
 public:
-   explicit ExplicitEuler(const real_t dt) : dt_(dt) {}
+   PFCDamping(const real_t alpha) : alpha_(alpha) {}
 
    template <typename Accessor>
-   void operator()(const size_t i, Accessor& ac) const;
+   void operator()(const size_t p_idx, Accessor& ac) const;
 private:
-   real_t dt_ = real_t(0.0);
+   real_t alpha_ = 0_r;
 };
 
 template <typename Accessor>
-inline void ExplicitEuler::operator()(const size_t idx,
-                                      Accessor& ac) const
+inline void PFCDamping::operator()(const size_t p_idx,
+                                   Accessor& ac) const
 {
    static_assert(std::is_base_of<data::IAccessor, Accessor>::value, "please provide a valid accessor");
 
-   if (!data::particle_flags::isSet( ac.getFlags(idx), data::particle_flags::FIXED))
+   Vec3 damp_F(0,0,0);
+   Vec3 damp_M(0,0,0);
+
+   for (size_t i = 0; i < 3; i++)
    {
-      ac.setPosition      (idx, 0.5_r * ac.getInvMass(idx) * ac.getForce(idx) * dt_ * dt_ +
-                                ac.getLinearVelocity(idx) * dt_ +
-                                ac.getPosition(idx));
-      ac.setLinearVelocity(idx, ac.getInvMass(idx) * ac.getForce(idx) * dt_ +
-                                ac.getLinearVelocity(idx));
-      const Vec3 wdot = math::transformMatrixRART(ac.getRotation(idx).getMatrix(),
-                                                  ac.getInvInertiaBF(idx)) * ac.getTorque(idx);
-
-      // Calculating the rotation angle
-      const Vec3 phi( 0.5_r * wdot * dt_ * dt_ +
-                      ac.getAngularVelocity(idx) * dt_ );
-
-      // Calculating the new orientation
-      auto rotation = ac.getRotation(idx);
-      rotation.rotate( phi );
-      ac.setRotation(idx, rotation);
-
-      ac.setAngularVelocity(idx, wdot * dt_ + ac.getAngularVelocity(idx));
+      damp_F[i] = - alpha_ * std::fabs( ac.getForce(p_idx)[i] ) * math::sign( ac.getLinearVelocity(p_idx)[i] );
+      damp_M[i] = - alpha_ * std::fabs( ac.getTorque(p_idx)[i] ) * math::sign( ac.getAngularVelocity(p_idx)[i] );
    }
 
-   ac.setForce (idx, Vec3(real_t(0), real_t(0), real_t(0)));
-   ac.setTorque(idx, Vec3(real_t(0), real_t(0), real_t(0)));
+   ac.setForce (p_idx, ac.getForce(p_idx)  + damp_F);
+   ac.setTorque(p_idx, ac.getTorque(p_idx) + damp_M);
 }
 
 } //namespace kernel
