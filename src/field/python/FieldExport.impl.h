@@ -394,8 +394,8 @@ class AddToStorageExporter
 {
  public:
    AddToStorageExporter(const shared_ptr< StructuredBlockForest >& blocks, const std::string& name, py::object& dtype, uint_t fs,
-                        uint_t gl, Layout layout, uint_t alignment)
-      : blocks_(blocks), name_(name), dtype_(dtype), fs_(fs), gl_(gl), layout_(layout), alignment_(alignment), found_(true)
+                        uint_t gl, Layout layout, real_t initValue, uint_t alignment)
+      : blocks_(blocks), name_(name), dtype_(dtype), fs_(fs), gl_(gl), layout_(layout), initValue_(initValue), alignment_(alignment), found_(true)
    {}
 
    template< typename FieldType >
@@ -411,7 +411,7 @@ class AddToStorageExporter
       if(python_coupling::isCppEqualToPythonType<T>(py::cast<std::string>(dtype_.attr("__name__"))))
       {
          typedef internal::GhostLayerFieldDataHandling< GhostLayerField< T, F_SIZE > > DataHandling;
-         auto dataHandling = walberla::make_shared< DataHandling >(blocks_, gl_, T(), layout_, alignment_);
+         auto dataHandling = walberla::make_shared< DataHandling >(blocks_, gl_, initValue_, layout_, alignment_);
          blocks_->addBlockData(dataHandling, name_);
       }
    }
@@ -425,18 +425,19 @@ class AddToStorageExporter
    uint_t fs_;
    uint_t gl_;
    Layout layout_;
+   real_t initValue_;
    uint_t alignment_;
    bool found_;
 };
 
 template< typename... FieldTypes >
 void addToStorage(const shared_ptr< StructuredBlockForest >& blocks, const std::string& name, py::object& dtype,
-                  uint_t fs, uint_t gl, Layout layout, uint_t alignment)
+                  uint_t fs, uint_t gl, Layout layout, real_t initValue, uint_t alignment)
 {
    using namespace py;
 
    auto result = make_shared< py::object >();
-   AddToStorageExporter exporter(blocks, name, dtype, fs, gl, layout, alignment);
+   AddToStorageExporter exporter(blocks, name, dtype, fs, gl, layout, initValue, alignment);
    python_coupling::for_each_noncopyable_type< FieldTypes... >(exporter);
 
    if (!exporter.successful())
@@ -600,10 +601,10 @@ void exportFields(py::module_& m)
    m2.def(
       "addToStorage",
       [](const shared_ptr< StructuredBlockForest > & blocks, const std::string & name, py::object &dtype, uint_t fSize,
-         Layout layout, uint_t ghostLayers, uint_t alignment) {
-         return internal::addToStorage< FieldTypes... >(blocks, name, dtype, fSize, ghostLayers, layout, alignment);
+         Layout layout, uint_t ghostLayers, real_t initValue, uint_t alignment) {
+         return internal::addToStorage< FieldTypes... >(blocks, name, dtype, fSize, ghostLayers, layout, initValue, alignment);
       },
-      "blocks"_a, "name"_a, "dtype"_a, "fSize"_a = 1, "layout"_a = zyxf, "ghostLayers"_a = uint_t(1), "alignment"_a = 0);
+      "blocks"_a, "name"_a, "dtype"_a, "fSize"_a = 1, "layout"_a = zyxf, "ghostLayers"_a = uint_t(1), "initValue"_a = 0.0, "alignment"_a = 0);
 
    m2.def( "createVTKWriter",
            [](const shared_ptr<StructuredBlockForest> & blocks, const std::string & name,

@@ -113,6 +113,14 @@ py::tuple cellInterval_size( CellInterval & ci ) {
    return py::make_tuple( ci.xSize(), ci.ySize(), ci.zSize() );
 }
 
+py::tuple cellInterval_min( CellInterval & ci ) {
+   return py::make_tuple( ci.xMin(), ci.yMin(), ci.zMin() );
+}
+
+py::tuple cellInterval_max( CellInterval & ci ) {
+   return py::make_tuple( ci.xMax(), ci.yMax(), ci.zMax() );
+}
+
 CellInterval cellInterval_getIntersection( CellInterval & ci1, CellInterval & ci2 )
 {
    CellInterval result ( ci1 );
@@ -144,9 +152,6 @@ CellInterval cellInterval_getExpanded2( CellInterval & ci1, cell_idx_t xExpand, 
 void exportCellInterval(py::module_ &m)
 {
    using namespace pybind11::literals;
-   const Cell & ( CellInterval::*p_getMin )( ) const = &CellInterval::min;
-   const Cell & ( CellInterval::*p_getMax )( ) const = &CellInterval::max;
-
    bool ( CellInterval::*p_contains1) ( const Cell         & ) const = &CellInterval::contains;
    bool ( CellInterval::*p_contains2) ( const CellInterval & ) const = &CellInterval::contains;
 
@@ -157,8 +162,8 @@ void exportCellInterval(py::module_ &m)
 
    py::class_<CellInterval>(m, "CellInterval")
       .def( py::init<cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t>())
-      .def_property( "min",  p_getMin, &cellInterval_setMin )
-      .def_property( "max", p_getMax, &cellInterval_setMax )
+      .def_property( "min",  &cellInterval_min, &cellInterval_setMin )
+      .def_property( "max", &cellInterval_max, &cellInterval_setMax )
       .def_property_readonly( "size", &cellInterval_size  )
       .def( "empty", &CellInterval::empty )
       .def( "positiveIndicesOnly", &CellInterval::positiveIndicesOnly )
