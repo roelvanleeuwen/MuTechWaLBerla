@@ -16,6 +16,7 @@
 //! \file MplHelpers.h
 //! \ingroup python_export
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 

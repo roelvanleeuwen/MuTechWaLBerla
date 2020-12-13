@@ -17,6 +17,7 @@
 //! \ingroup core
 //! \author Matthias Markl <matthias.markl@fau.de>
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 

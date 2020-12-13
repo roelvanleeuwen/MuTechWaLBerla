@@ -16,6 +16,7 @@
 //! \file Manager.cpp
 //! \ingroup python_coupling
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 
@@ -87,10 +88,12 @@ void Manager::triggerInitialization()
 
    try
    {
-      pybind11::scoped_interpreter guard{};
-      py::module::import("__main__");
-      // py::module::import("walberla_cpp");
+      // TODO: can this be done with only pybind11 ?
+      PyImport_AppendInittab( (char*)"walberla_cpp", PyInit_walberla_cpp );
 
+      pybind11::initialize_interpreter();
+      py::module::import("__main__");
+      py::module::import("walberla_cpp");
 
       // Setup python path
       addPath( std::string(WALBERLA_SOURCE_DIR) + "/python" );
@@ -104,7 +107,14 @@ void Manager::triggerInitialization()
       entriesForPythonPath_.clear();
 
    }
-   catch ( py::error_already_set & ) {
+   catch ( py::error_already_set & e ) {
+      if (e.matches(PyExc_ModuleNotFoundError)){
+         py::print("The module walberla_cpp could not be found");
+      }
+      else {
+         py::print("Unexpected Exception");
+         throw;
+      }
       WALBERLA_ABORT( "Error while initializing Python" );
    }
 }

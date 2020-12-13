@@ -16,6 +16,7 @@
 //! \file CreateConfigFromPythonScript.cpp
 //! \ingroup python
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 
@@ -26,15 +27,7 @@
 #include "core/config/Create.h"
 #include "core/logging/Logging.h"
 
-#include <exception>
-
 #ifdef WALBERLA_BUILD_WITH_PYTHON
-
-// #include "PythonCallback.h"
-#   include "PythonWrapper.h"
-// #include "DictWrapper.h"
-#include "Manager.h"
-
 #   include "python_coupling/helper/ConfigFromDict.h"
 
 #   include "PythonCallback.h"
@@ -123,33 +116,31 @@ config::Iterator createConfigIteratorFromPythonScript(const std::string& scriptF
                                                              const std::string& pythonFunctionName,
                                                              const std::vector< std::string >& argv)
 {
-   std::cout << scriptFile << std::endl;
-   importModuleOrFile( scriptFile, argv );
-   // size_t lastindex    = scriptFile.find_last_of('.');
-   // std::string rawname = scriptFile.substr(0, lastindex);
-   PythonCallback pythonCallback ( pythonFunctionName );
-   std::cout << "test" << std::endl;
+   importModuleOrFile(scriptFile, argv);
+   PythonCallback pythonCallback(pythonFunctionName);
    pythonCallback();
 
-   py::object returnValue = pythonCallback.data().dict()[ "returnValue" ];
-
-
-//   pybind11::module pythonConfigFile = pybind11::module::import(rawname.c_str());
-//   pybind11::dict fileDict           = pythonConfigFile.attr("__dict__");
-//
-//   // TODO: generalise
-//   pybind11::object function  = fileDict["scenarios"];
-//   py::list listOfConfigDicts = function.attr("_scenarios");
+   py::object returnValue = pythonCallback.data().dict()["returnValue"];
+   bool isDict            = py::isinstance< py::dict >(returnValue);
 
    shared_ptr< config::ConfigGenerator > generator;
-
-   try
+   if (isDict)
    {
-      generator = make_shared< PythonMultipleConfigGenerator >(returnValue);
-   } catch (py::error_already_set&)
+      auto config            = make_shared< Config >();
+      py::dict extractedDict = py::cast< py::dict >(returnValue);
+      configFromPythonDict(config->getWritableGlobalBlock(), extractedDict);
+      generator = make_shared< PythonSingleConfigGenerator >(config);
+   }
+   else
    {
-      std::string message = std::string("Error while running Python function ") + pythonFunctionName;
-      WALBERLA_ABORT_NO_DEBUG_INFO(message);
+      try
+      {
+         generator = make_shared< PythonMultipleConfigGenerator >(returnValue);
+      } catch (py::error_already_set&)
+      {
+         std::string message = std::string("Error while running Python function ") + pythonFunctionName;
+         WALBERLA_ABORT_NO_DEBUG_INFO(message);
+      }
    }
 
    return config::Iterator(generator);

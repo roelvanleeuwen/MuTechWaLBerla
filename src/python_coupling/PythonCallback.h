@@ -16,6 +16,7 @@
 //! \file PythonCallback.h
 //! \ingroup python_coupling
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 
@@ -33,7 +34,7 @@ namespace python_coupling {
 
 
    void importModuleOrFile( const std::string & moduleOrFile,
-                                   const std::vector< std::string > & argv = std::vector<std::string>() );
+                            const std::vector< std::string > & argv = std::vector<std::string>() );
 
    //*******************************************************************************************************************
    /*! Run a Python function from C++ code

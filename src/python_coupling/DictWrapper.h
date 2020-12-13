@@ -16,6 +16,7 @@
 //! \file DictWrapper.h
 //! \ingroup python_coupling
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //! \brief Wrapper to store and extract values from pybind11
 //
 //! \warning: if you include this header you also have to include Python.h as first header in your
@@ -25,8 +26,7 @@
 
 #pragma once
 
-// #include "PythonWrapper.h"
-#include <pybind11/pybind11.h>
+#include "PythonWrapper.h"
 #include "core/DataTypes.h"
 #include "core/Abort.h"
 
@@ -35,9 +35,6 @@
 
 namespace walberla {
 namespace python_coupling {
-   namespace py = pybind11;
-
-
    class DictWrapper
    {
    public:
@@ -64,10 +61,10 @@ namespace python_coupling {
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
    public:
-            py::dict & dict()        { return d_; }
-      const py::dict & dict() const  { return d_; }
+            pybind11::dict & dict()        { return d_; }
+      const pybind11::dict & dict() const  { return d_; }
    protected:
-            py::dict d_;
+            pybind11::dict d_;
 #endif
    };
 

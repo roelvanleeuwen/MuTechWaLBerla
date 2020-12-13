@@ -16,6 +16,7 @@
 //! \file BasicExports.cpp
 //! \ingroup python_coupling
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 
@@ -697,6 +698,9 @@ void exportBasicWalberlaDatastructures(py::module_ &m)
 
    exportLogging(m);
    exportStencilDirections(m);
+
+   // Add empty callbacks module
+   m.def_submodule("callbacks", "Empty callbacks module. Needed for the Szenario manager");
 
 }
 

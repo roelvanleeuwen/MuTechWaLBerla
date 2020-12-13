@@ -15,6 +15,7 @@
 //
 //! \file PythonModule.cpp
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 #include "blockforest/python/Exports.h"
@@ -22,8 +23,6 @@
 #include "field/python/Exports.h"
 #include "python_coupling/Manager.h"
 #include "python_coupling/helper/ModuleInit.h"
-#include "blockforest/communication/UniformBufferedScheme.h"
-#include "blockforest/SetupBlockForest.h"
 #include "stencil/all.h"
 #include "vtk/python/Exports.h"
 

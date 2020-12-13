@@ -2,9 +2,7 @@
 
 
 if ( WALBERLA_BUILD_WITH_PYTHON )
-    # pybind11_add_module(walberla_cpp PythonModule.cpp)
-
-    set(PYTHON_MODULE_DEPENDENCIES blockforest boundary domain_decomposition core field geometry lbm postprocessing python_coupling timeloop vtk cuda)
+    set(PYTHON_MODULE_DEPENDENCIES blockforest boundary domain_decomposition core field python_coupling timeloop vtk cuda)
 
     if( WALBERLA_CXX_COMPILER_IS_MSVC )
         set ( pythonModules ${PYTHON_MODULE_DEPENDENCIES})

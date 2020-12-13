@@ -16,6 +16,7 @@
 //! \file SliceToCellInterval.h
 //! \ingroup python_coupling
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 
@@ -113,6 +114,7 @@ inline CellInterval globalPythonSliceToCellInterval(const shared_ptr< Structured
  *       first inner cell is addressed
  */
 //*******************************************************************************************************************
+//TODO: Maybe this can be deleted. Was used in python bindings of boundary and lbm (Both is not exported anymore)
 template< typename Field_T >
 CellInterval localPythonSliceToCellInterval(const Field_T& field, py::tuple indexTuple)
 {
