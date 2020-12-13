@@ -15,10 +15,11 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
     add_library( walberla_cpp SHARED PythonModule.cpp )
 
     target_link_libraries( walberla_cpp ${WALBERLA_LINK_LIBRARIES_KEYWORD} ${pythonModules} ${SERVICE_LIBS} )
-    set_target_properties( walberla_cpp PROPERTIES PREFIX "")
-    if ( APPLE )
-        set_target_properties( walberla_cpp PROPERTIES SUFFIX ".so")
-    endif()
+
+    set_target_properties(
+            walberla_cpp PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}"
+            SUFFIX "${PYTHON_MODULE_EXTENSION}"
+    )
     set_target_properties( walberla_cpp PROPERTIES MACOSX_RPATH TRUE )
     set_target_properties( walberla_cpp PROPERTIES CXX_VISIBILITY_PRESET hidden)
 

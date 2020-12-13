@@ -33,8 +33,6 @@
 #include "python_coupling/basic_exports/BasicExports.h"
 #include <pybind11/embed.h>
 
-#include <cstdlib>
-
 
 PYBIND11_MODULE( walberla_cpp, m)
 {
@@ -88,10 +86,12 @@ void Manager::triggerInitialization()
 
    try
    {
-      // TODO: can this be done with only pybind11 ?
+      // The python module is used as embedded module here. There is a pybind11 macro for that called
+      // PYBIND11_EMBEDDED_MODULE. However it can not be used here since we want a shared lib for the python coupling.
+      // With the C-Call the so is embedded here.
       PyImport_AppendInittab( (char*)"walberla_cpp", PyInit_walberla_cpp );
 
-      pybind11::initialize_interpreter();
+      py::initialize_interpreter();
       py::module::import("__main__");
       py::module::import("walberla_cpp");
 

@@ -8,18 +8,19 @@ from setuptools import setup
 # The following variables are configure by CMake
 walberla_source_dir = "${walberla_SOURCE_DIR}"
 walberla_binary_dir = "${CMAKE_CURRENT_BINARY_DIR}"
+suffix = "${PYTHON_MODULE_EXTENSION}"
+prefix = "${PYTHON_MODULE_PREFIX}"
+walberla_module_file_name = prefix + "walberla_cpp" + suffix
 
 if platform.system() == 'Windows':
-    extension = ('dll', 'pyd')
     configuration = 'Release'
 else:
-    extension = ('so', 'so')
     configuration = ''
 
 
 def collectFiles():
-    src_shared_lib = join(walberla_binary_dir, configuration, 'walberla_cpp.' + extension[0])
-    dst_shared_lib = join(walberla_binary_dir, 'waLBerla', 'walberla_cpp.' + extension[1])
+    src_shared_lib = join(walberla_binary_dir, configuration, walberla_module_file_name)
+    dst_shared_lib = join(walberla_binary_dir, 'waLBerla', walberla_module_file_name)
     # copy everything inplace
 
     if not exists(src_shared_lib):
@@ -53,7 +54,7 @@ setup(name='waLBerla',
       author_email='markus.holzer@fau.de',
       url='http://www.walberla.net',
       packages=packages,
-      package_data={'': ['walberla_cpp.' + extension[1]]}
+      package_data={'': [walberla_module_file_name]}
       )
 
 if sys.argv[1] == 'build':
