@@ -38,12 +38,12 @@ namespace py = pybind11;
 
 template<typename T>
 void DictWrapper::exposePtr(const char* name, T * var ) {
-   this->d_[name] =  py::dict( var );
+   this->d_[name] = var;
 }
 
 template<typename T>
 void DictWrapper::exposePtr(const char* name, const shared_ptr<T> & var ) {
-   this->d_[name] =  py::dict( var.get() );
+   this->d_[name] = var.get();
 }
 
 template<typename T>

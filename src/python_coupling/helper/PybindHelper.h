@@ -34,17 +34,14 @@ namespace python_coupling {
 #pragma clang diagnostic ignored "-Wunused-function"
 #endif
 
-// fallback - check boost python registry
+// fallback - check for bool
 template<typename T>
 inline static bool isCppEqualToPythonType( std::string n )
 {
-   return false;
+   return ( n == "numpy.bool_" || n =="bool" );
 }
 
 // native data types
-template<> inline bool isCppEqualToPythonType<bool>  ( std::string n) {return ( n == "numpy.bool_" || n =="bool" );}
-
-
 template<> inline bool isCppEqualToPythonType<float> ( std::string n) {return ( n == "numpy.float32" || n =="float32" );}
 template<> inline bool isCppEqualToPythonType<double>( std::string n) {return ( n == "numpy.float64" || n == "numpy.float_" || n =="float64");}
 

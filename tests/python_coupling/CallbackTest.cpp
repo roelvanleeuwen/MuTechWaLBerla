@@ -13,12 +13,10 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file CallbackTest.h
-//! \author Martin Bauer <martin.bauer@fau.de>
-//
+//! \file CallbackTest.cpp
+//! \author Markus Holzer <markus.holzer@fau.de>
+//!
 //======================================================================================================================
-
-#include "python_coupling/PythonWrapper.h"
 
 #include "core/debug/TestSubsystem.h"
 #include "core/Environment.h"
@@ -26,7 +24,6 @@
 #include "field/Field.h"
 #include "field/python/Exports.h"
 #include "blockforest/Initialization.h"
-#include "blockforest/python/Exports.h"
 #include "python_coupling/PythonCallback.h"
 #include "python_coupling/DictWrapper.h"
 #include "python_coupling/Manager.h"

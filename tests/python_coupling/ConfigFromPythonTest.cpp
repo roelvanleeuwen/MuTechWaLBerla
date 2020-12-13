@@ -15,7 +15,7 @@
 //
 //! \file ConfigFromPythonTest.cpp
 //! \ingroup core
-//! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 
