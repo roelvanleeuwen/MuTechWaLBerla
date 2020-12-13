@@ -248,45 +248,6 @@ py::object copyAdaptorToField(const Field_T& f)
 //  Field export
 //
 //===================================================================================================================
-// ff.getFlagUID(flag).getIdentifier()
-//template< typename T >
-//void exportFlagField(const py::module_& m)
-//{
-//   py::class_< FlagField< T >, shared_ptr< FlagField< T > > >(m, "FlagField")
-//      .def("registerFlag",
-//           [](const std::string & flag_name){
-//              return FlagField< T >::registerFlag(FlagUID(flag_name));
-//           }, py::arg("flag_name"))
-//      .def("flag",
-//           [](const std::string& flag){
-//             return FlagField< T >::getFlag(flag);
-//           }, py::arg("flag"))
-//      .def("flagName",
-//           [](const std::string& flag){
-//             return FlagField< T >::getFlagUID(flag).getIdentifier();
-//           }, py::arg("flag"))
-//      .def("flags",
-//                    [](){
-//                      std::vector< FlagUID > flags;
-//                      FlagField< T >::getAllRegisteredFlags(flags);
-//                      py::list result;
-//
-//                      for (auto i = flags.begin(); i != flags.end(); ++i)
-//                         result.append(i->toString());
-//                      return result;
-//                    })
-//      .def("flagMap",
-//                    [](){
-//                      std::vector< FlagUID > flags;
-//                      FlagField< T >::getAllRegisteredFlags(flags);
-//                      py::dict result;
-//
-//                      for (auto i = flags.begin(); i != flags.end(); ++i)
-//                         result[i->toString().c_str()] = FlagField< T >::getFlag(*i);
-//                      return result;
-//                    });
-//}
-
 template< typename Field_T >
 py::array_t< typename Field_T::value_type > toNumpyArray(const Field_T& field)
 {

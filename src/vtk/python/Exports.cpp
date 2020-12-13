@@ -24,7 +24,6 @@
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
-#include <pybind11/pybind11.h>
 #include "blockforest/StructuredBlockForest.h"
 #include "vtk/VTKOutput.h"
 

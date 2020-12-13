@@ -32,6 +32,14 @@ namespace walberla {
 namespace vtk {
 namespace py = pybind11;
 
+   //*******************************************************************************************************************
+   /*! Exports the vtk functionality of waLBerla
+    *
+    * With vtk.makeOutput a instance of VTKOutput will be provided for python. I can be used together with
+    * field.createVTKWriter and field.createBinarizationVTKWriter to get the VTK output
+    */
+   //*******************************************************************************************************************
+
   void exportModuleToPython(py::module_ &m);
 
 } // namespace vtk

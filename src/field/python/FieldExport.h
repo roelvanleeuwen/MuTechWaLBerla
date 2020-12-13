@@ -34,7 +34,7 @@ namespace field {
    //*******************************************************************************************************************
    /*! Exports all Fields given in the Sequence
    *
-   * Put only Fields in the sequence! The corresponding GhostLayerFields and FlagFields are exported automatically
+   * Put only Fields in the sequence! The corresponding GhostLayerFields are exported automatically
    *
    * \warning Make sure that the same adaptor type is exported only once!
    */

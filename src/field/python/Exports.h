@@ -39,20 +39,17 @@ namespace field {
    //*******************************************************************************************************************
    /*! Exports the field types and corresponding function given in the type sequence to python
    *
-   * Automatically exports the Field, GhostLayerField and (if possible) the FlagField version,
-   * so it is enough to add the basic Field<> types to the sequence
-   * For fields that store and unsigned integer type and have an fSize of one, the FlagField is also exported
+   * Automatically exports the Field and GhostLayerField
    *
-   * For example, with the template arguments Field<real_t,1>, Field<uint16_t, 1>, and Field<Vector3<real_t>, 1 >,
+   * For example, with the template arguments Field<real_t,1> and Field<uint16_t, 1>,
    * this exports the following types:
    *     - Field<real_t,1>, GhostLayerField<real_t,1>
-   *     - Field<uint16_t,1>, GhostLayerField<uint16_t,1>, FlagField<uint16_t>
-   *     - Field< Vector3<real_t>, 1 > , GhostLayerField< Vector3<real_t>, 1 >
+   *     - Field<uint16_t,1>, GhostLayerField<uint16_t,1>
    *
    *  Additionally the following free functions are exported
-   *     - field.createField
-   *     - field.createFlagField
    *     - field.addToStorage
+   *     - field.createVTKWriter
+   *     - field.createBinarizationVTKWriter
    *     - field.createPackInfo
    *     - field.createMPIDatatypeInfo
    *

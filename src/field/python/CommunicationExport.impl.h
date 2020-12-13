@@ -235,9 +235,6 @@ void exportCommunicationClasses(py::module_& m)
         return internal::UniformMPIDatatypeInfoWrapper< FieldTypes... >(blocks, blockDataName, numberOfGhostLayers);
       },
       "blocks"_a, "blockDataName"_a, "numberOfGhostLayers"_a = uint_t(0));
-
-   //python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::UniformMPIDatatypeInfoExporter(m));
-   //python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::PackInfoExporter(m));
 }
 
 } // namespace field
