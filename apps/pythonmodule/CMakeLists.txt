@@ -2,7 +2,11 @@
 
 
 if ( WALBERLA_BUILD_WITH_PYTHON )
-    set(PYTHON_MODULE_DEPENDENCIES blockforest boundary domain_decomposition core field python_coupling timeloop vtk cuda)
+    if ( WALBERLA_BUILD_WITH_CUDA )
+        set(PYTHON_MODULE_DEPENDENCIES blockforest boundary domain_decomposition core field python_coupling timeloop vtk cuda)
+    else()
+        set(PYTHON_MODULE_DEPENDENCIES blockforest boundary domain_decomposition core field python_coupling timeloop vtk)
+    endif()
 
     if( WALBERLA_CXX_COMPILER_IS_MSVC )
         set ( pythonModules ${PYTHON_MODULE_DEPENDENCIES})
