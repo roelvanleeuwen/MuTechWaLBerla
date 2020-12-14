@@ -26,13 +26,12 @@
 #include "core/math/Vector2.h"
 #include "core/math/Vector3.h"
 
-#include "field/python/Exports.h"
-
 #include "python_coupling/DictWrapper.h"
 #include "python_coupling/Manager.h"
 #include "python_coupling/PythonCallback.h"
 #include "python_coupling/PythonWrapper.h"
-#include "python_coupling/basic_exports/BlockForestExport.h"
+#include "python_coupling/export/BlockForestExport.h"
+#include "python_coupling/export/FieldExports.h"
 
 #include "stencil/D2Q9.h"
 

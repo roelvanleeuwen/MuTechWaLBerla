@@ -24,6 +24,9 @@
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
+#   include "blockforest/StructuredBlockForest.h"
+#   include "python_coupling/helper/BlockStorageExportHelpers.h"
+
 #   include "field/communication/PackInfo.h"
 #   include "field/communication/StencilRestrictedPackInfo.h"
 #   include "field/communication/UniformMPIDatatypeInfo.h"
@@ -37,6 +40,8 @@
 #   include "stencil/D3Q7.h"
 
 #  include <typeinfo>
+
+#  include "pybind11/pybind11.h"
 
 namespace walberla
 {
@@ -213,6 +218,7 @@ void exportStencilRestrictedPackInfo(py::module_& m)
 } // namespace internal
 
 namespace py = pybind11;
+using namespace pybind11::literals;
 
 template< typename... FieldTypes >
 void exportCommunicationClasses(py::module_& m)

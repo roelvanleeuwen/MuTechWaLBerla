@@ -28,13 +28,13 @@
 #include "field/AddToStorage.h"
 #include "field/FlagField.h"
 #include "field/communication/PackInfo.h"
-#include "field/python/Exports.h"
 #include "field/vtk/VTKWriter.h"
 
 #include "geometry/InitBoundaryHandling.h"
 
 #include "python_coupling/CreateConfig.h"
 #include "python_coupling/PythonCallback.h"
+#include "python_coupling/export/FieldExports.h"
 
 #include "timeloop/SweepTimeloop.h"
 

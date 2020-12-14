@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file Exports.h
+//! \file FieldExports.h
 //! \ingroup field
 //! \author Martin Bauer <martin.bauer@fau.de>
 //! \author Markus Holzer <markus.holzer@fau.de>
@@ -27,9 +27,10 @@
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
-#include "python_coupling/PythonWrapper.h"
-#include "FieldExport.impl.h"
-#include "CommunicationExport.h"
+#   include "python_coupling/PythonWrapper.h"
+
+#   include "FieldCommunicationExport.h"
+#   include "FieldExport.impl.h"
 
 namespace walberla {
 namespace field {

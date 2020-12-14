@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file FieldExport.cpp
+//! \file FieldExport.impl.h
 //! \ingroup field
 //! \author Martin Bauer <martin.bauer@fau.de>
 //! \author Markus Holzer <markus.holzer@fau.de>
@@ -28,7 +28,6 @@
 #include "field/GhostLayerField.h"
 #include "field/communication/PackInfo.h"
 #include "field/communication/UniformMPIDatatypeInfo.h"
-#include "field/python/GatherExport.impl.h"
 #include "field/vtk/FlagFieldMapping.h"
 #include "field/vtk/VTKWriter.h"
 
@@ -39,6 +38,7 @@
 #include <iostream>
 #include <type_traits>
 
+#include "GatherExport.impl.h"
 #include "pybind11/numpy.h"
 
 namespace walberla
