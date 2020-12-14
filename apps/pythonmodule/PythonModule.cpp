@@ -19,7 +19,7 @@
 //
 //======================================================================================================================
 #include "field/GhostLayerField.h"
-#include "field/python/Exports.h"
+#include "field/python/FieldExports.h"
 
 #include "python_coupling/Manager.h"
 #include "python_coupling/basic_exports/BlockForestExport.h"

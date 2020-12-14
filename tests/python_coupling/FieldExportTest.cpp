@@ -26,7 +26,7 @@
 #include "core/math/Vector2.h"
 #include "core/math/Vector3.h"
 
-#include "field/python/Exports.h"
+#include "field/python/FieldExports.h"
 
 #include "python_coupling/DictWrapper.h"
 #include "python_coupling/Manager.h"

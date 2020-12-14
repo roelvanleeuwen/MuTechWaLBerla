@@ -28,7 +28,7 @@
 #include "field/AddToStorage.h"
 #include "field/FlagField.h"
 #include "field/communication/PackInfo.h"
-#include "field/python/Exports.h"
+#include "field/python/FieldExports.h"
 #include "field/vtk/VTKWriter.h"
 
 #include "geometry/InitBoundaryHandling.h"
