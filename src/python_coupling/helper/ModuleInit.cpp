@@ -21,6 +21,7 @@
 //======================================================================================================================
 
 #include "ModuleInit.h"
+#include "core/debug/CheckFunctions.h"
 #include "core/mpi/MPIManager.h"
 #include "core/Abort.h"
 

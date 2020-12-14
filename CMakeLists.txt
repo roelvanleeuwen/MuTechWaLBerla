@@ -616,13 +616,6 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
         message( FATAL_ERROR "Found old python library: ${PYTHONLIBS_VERSION_STRING} need at least ${waLBerla_REQUIRED_MIN_PYTHON_VERSION}" )
     endif()
 
-    option( WALBERLA_USE_PYTHON_DEBUG_LIBRARY "Make use of the python debug library" OFF )
-
-    if( WALBERLA_USE_PYTHON_DEBUG_LIBRARY )
-      # you have to make sure this matches the settings you compiled boost with!
-      add_definitions( "-DBOOST_DEBUG_PYTHON" )
-    endif()
-
     if( NOT (PYTHON_LIBRARY AND PYTHON_INCLUDE_DIR ) )
         message( FATAL_ERROR "Couldn't find any python library" )
     endif()
@@ -735,18 +728,6 @@ if ( Boost_FOUND )
    endif()
    add_definitions ( -DBOOST_ALL_NO_LIB ) # Disable Boost auto-linking (CMAKE does that for us...)
 
-   #fix for static lib usage: http://stackoverflow.com/questions/11812463/boost-python-link-errors-under-windows-msvc10
-   if( PYTHONLIBS_FOUND AND Boost_USE_STATIC_LIBS)
-      add_definitions( -DBOOST_PYTHON_STATIC_LIB )
-   endif()
-
-   #fix for strange link behaviour of boost to python: boost only links to 'pyhton*.lib' and not to the absolute path
-   if( WIN32 AND PYTHONLIBS_FOUND )
-      get_filename_component( PYTHON_LIBRARY_DIR ${PYTHON_INCLUDE_DIR} PATH )
-      link_directories( ${PYTHON_LIBRARY_DIR}/libs )
-      list( APPEND LINK_DIRS ${PYTHON_LIBRARY_DIR}/libs )
-   endif()
-
    set( WALBERLA_BUILD_WITH_BOOST TRUE CACHE INTERNAL "Build with Boost" )
 else( Boost_FOUND )
    if( (WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM OR WALBERLA_USE_STD_FILESYSTEM) AND (WALBERLA_USE_STD_EXPERIMENTAL_ANY OR WALBERLA_USE_STD_ANY) AND (WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL OR WALBERLA_USE_STD_OPTIONAL) AND NOT WALBERLA_BUILD_WITH_PYTHON)
@@ -760,31 +741,6 @@ else( Boost_FOUND )
       endif()
    endif()
 endif( Boost_FOUND )
-
-
-# Check if Python3 found and look for according boost python library
-if ( WALBERLA_BUILD_WITH_PYTHON AND NOT WALBERLA_CXX_COMPILER_IS_MSVC)
-    SET(_boost_MULTITHREADED "")
-    if (Boost_USE_MULTITHREADED OR Boost_USE_MULTITHREADED_LIBRARY)
-        SET(_boost_MULTITHREADED "-mt")
-    endif()
-    if( PYTHON_LIBRARY MATCHES "python3" )
-        string(REPLACE "." ";" VERSION_LIST ${PYTHONLIBS_VERSION_STRING})
-        list(GET VERSION_LIST 0 PY_VER_MAJOR)
-        list(GET VERSION_LIST 1 PY_VER_MINOR)
-        find_library( BOOST_PYTHON_LIBRARY NAMES
-                boost_python${PY_VER_MAJOR}${PY_VER_MINOR}${_boost_MULTITHREADED}
-                boost_python-py${PY_VER_MAJOR}${PY_VER_MINOR}${_boost_MULTITHREADED}
-                boost_python${PY_VER_MAJOR}${_boost_MULTITHREADED}
-                boost_python${_boost_MULTITHREADED}
-                PATHS ${Boost_LIBRARY_DIRS} NO_DEFAULT_PATH )
-    else()
-        find_library( BOOST_PYTHON_LIBRARY NAMES boost_python${_boost_MULTITHREADED}
-                      PATHS ${Boost_LIBRARY_DIRS} NO_DEFAULT_PATH )
-    endif()
-    message(STATUS "Using Boost Python Library ${BOOST_PYTHON_LIBRARY}" )
-    list ( APPEND SERVICE_LIBS ${BOOST_PYTHON_LIBRARY} )
-endif()
 
 
 ############################################################################################################################
