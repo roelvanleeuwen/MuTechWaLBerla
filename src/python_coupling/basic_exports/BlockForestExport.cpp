@@ -153,7 +153,7 @@ py::list StructuredBlockForest_blocksContainedWithinAABB(StructuredBlockForest& 
    return resultList;
 }
 
-py::object SbS_transformGlobalToLocal(StructuredBlockForest& s, IBlock& block, const py::object& global)
+py::object SbF_transformGlobalToLocal(StructuredBlockForest& s, IBlock& block, const py::object& global)
 {
    if (py::isinstance< CellInterval >(global))
    {
@@ -171,7 +171,7 @@ py::object SbS_transformGlobalToLocal(StructuredBlockForest& s, IBlock& block, c
    throw py::value_error("Only CellIntervals and cells can be transformed");
 }
 
-py::object SbS_transformLocalToGlobal(StructuredBlockForest& s, IBlock& block, const py::object& local)
+py::object SbF_transformLocalToGlobal(StructuredBlockForest& s, IBlock& block, const py::object& local)
 {
    if (py::isinstance< CellInterval >(local))
    {
@@ -188,14 +188,14 @@ py::object SbS_transformLocalToGlobal(StructuredBlockForest& s, IBlock& block, c
    throw py::value_error("Only CellIntervals and cells can be transformed");
 }
 
-void SbS_writeBlockData(StructuredBlockForest& s, const std::string& blockDataId, const std::string& file)
+void SbF_writeBlockData(StructuredBlockForest& s, const std::string& blockDataId, const std::string& file)
 {
    mpi::SendBuffer buffer;
    s.serializeBlockData(blockDataIDFromString(s, blockDataId), buffer);
    mpi::writeMPIIO(file, buffer);
 }
 
-void SbS_readBlockData(StructuredBlockForest& s, const std::string& blockDataId, const std::string& file)
+void SbF_readBlockData(StructuredBlockForest& s, const std::string& blockDataId, const std::string& file)
 {
    mpi::RecvBuffer buffer;
    mpi::readMPIIO(file, buffer);
@@ -205,53 +205,72 @@ void SbS_readBlockData(StructuredBlockForest& s, const std::string& blockDataId,
    { throw py::cast_error("Reading failed - file does not contain matching data for this type."); }
 }
 
-CellInterval SbS_getBlockCellBB(StructuredBlockForest& s, const IBlock* block) { return s.getBlockCellBB(*block); }
+CellInterval SbF_getBlockCellBB(StructuredBlockForest& s, const IBlock* block) { return s.getBlockCellBB(*block); }
 
-Vector3< real_t > SbS_mapToPeriodicDomain1(StructuredBlockForest& s, real_t x, real_t y, real_t z)
+std::array<real_t , 3> SbF_mapToPeriodicDomain1(StructuredBlockForest& s, real_t x, real_t y, real_t z)
 {
    Vector3< real_t > res(x, y, z);
    s.mapToPeriodicDomain(res);
-   return res;
+   return std::array< real_t, 3 >{ res[0], res[1], res[2] };
 }
-Vector3< real_t > SbS_mapToPeriodicDomain2(StructuredBlockForest& s, Vector3< real_t > in)
+
+std::array<real_t , 3> SbF_mapToPeriodicDomain2(StructuredBlockForest& s, const std::array<real_t, 3>& in)
 {
-   s.mapToPeriodicDomain(in);
-   return in;
+   Vector3< real_t > tmp(in[0], in[1], in[2]);
+   s.mapToPeriodicDomain(tmp);
+   return std::array< real_t, 3 >{ tmp[0], tmp[1], tmp[2] };
 }
-Cell SbS_mapToPeriodicDomain3(StructuredBlockForest& s, Cell in, uint_t level = 0)
+
+Cell SbF_mapToPeriodicDomain3(StructuredBlockForest& s, Cell in, uint_t level = 0)
 {
    s.mapToPeriodicDomain(in, level);
    return in;
 }
 
-py::object SbS_getBlock1(StructuredBlockForest& s, const real_t x, const real_t y, const real_t z)
+py::object SbF_getBlock1(StructuredBlockForest& s, const real_t x, const real_t y, const real_t z)
 {
    return py::cast(s.getBlock(x, y, z));
 }
 
-py::object SbS_getBlock2(StructuredBlockForest& s, const Vector3< real_t >& v) { return py::cast(s.getBlock(v)); }
+py::object SbF_getBlock2(StructuredBlockForest& s, const std::array<real_t, 3>& v)
+{
+   return py::cast(s.getBlock(Vector3<real_t>(v[0], v[1], v[2])));
 
-py::tuple SbS_periodic(StructuredBlockForest& s)
+}
+
+py::tuple SbF_periodic(StructuredBlockForest& s)
 {
    return py::make_tuple(s.isXPeriodic(), s.isYPeriodic(), s.isZPeriodic());
 }
 
-bool SbS_atDomainXMinBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainXMinBorder(*b); }
-bool SbS_atDomainXMaxBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainXMaxBorder(*b); }
-bool SbS_atDomainYMinBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainYMinBorder(*b); }
-bool SbS_atDomainYMaxBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainYMaxBorder(*b); }
-bool SbS_atDomainZMinBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainZMinBorder(*b); }
-bool SbS_atDomainZMaxBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainZMaxBorder(*b); }
+bool p_blockExists1(StructuredBlockForest& s, const std::array<real_t, 3>& v)
+{
+   return s.blockExists(Vector3<real_t>(v[0], v[1], v[2]));
+
+}
+
+bool p_blockExistsLocally1(StructuredBlockForest& s, const std::array<real_t, 3>& v)
+{
+   return s.blockExistsLocally(Vector3<real_t>(v[0], v[1], v[2]));
+
+}
+
+bool p_blockExistsRemotely1(StructuredBlockForest& s, const std::array<real_t, 3>& v)
+{
+   return s.blockExistsRemotely(Vector3<real_t>(v[0], v[1], v[2]));
+
+}
+
+bool SbF_atDomainXMinBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainXMinBorder(*b); }
+bool SbF_atDomainXMaxBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainXMaxBorder(*b); }
+bool SbF_atDomainYMinBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainYMinBorder(*b); }
+bool SbF_atDomainYMaxBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainYMaxBorder(*b); }
+bool SbF_atDomainZMinBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainZMinBorder(*b); }
+bool SbF_atDomainZMaxBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainZMaxBorder(*b); }
 
 void exportBlockForest(py::module_& m)
 {
    using namespace pybind11::literals;
-
-   bool (StructuredBlockForest::*p_blockExists1)(const Vector3< real_t >&) const = &StructuredBlockForest::blockExists;
-   bool (StructuredBlockForest::*p_blockExistsLocally1)(const Vector3< real_t >&) const =
-      &StructuredBlockForest::blockExistsLocally;
-   bool (StructuredBlockForest::*p_blockExistsRemotely1)(const Vector3< real_t >&) const =
-      &StructuredBlockForest::blockExistsRemotely;
 
    bool (StructuredBlockForest::*p_blockExists2)(const real_t, const real_t, const real_t) const =
       &StructuredBlockForest::blockExists;
@@ -263,40 +282,40 @@ void exportBlockForest(py::module_& m)
    py::class_< StructuredBlockForest, std::shared_ptr< StructuredBlockForest > >(m, "StructuredBlockForest")
       .def("getNumberOfLevels", &StructuredBlockForest::getNumberOfLevels)
       .def_property_readonly("getDomain", &StructuredBlockForest::getDomain)
-      .def("mapToPeriodicDomain", &SbS_mapToPeriodicDomain1)
-      .def("mapToPeriodicDomain", &SbS_mapToPeriodicDomain2)
-      .def("mapToPeriodicDomain", &SbS_mapToPeriodicDomain3)
+      .def("mapToPeriodicDomain", &SbF_mapToPeriodicDomain1)
+      .def("mapToPeriodicDomain", &SbF_mapToPeriodicDomain2)
+      .def("mapToPeriodicDomain", &SbF_mapToPeriodicDomain3)
       .def("__getitem__", &StructuredBlockForest_getItem, py::keep_alive< 1, 2 >())
       .def("__len__", &StructuredBlockForest::size)
-      .def("getBlock", SbS_getBlock1)
-      .def("getBlock", SbS_getBlock2)
+      .def("getBlock", SbF_getBlock1)
+      .def("getBlock", SbF_getBlock2)
       .def("containsGlobalBlockInformation", &StructuredBlockForest::containsGlobalBlockInformation)
       .def("blocksOverlappedByAABB", &StructuredBlockForest_blocksOverlappedByAABB)
       .def("blocksContainedWithinAABB", &StructuredBlockForest_blocksContainedWithinAABB)
-      .def("blockExists", p_blockExists1)
+      .def("blockExists", &p_blockExists1)
       .def("blockExists", p_blockExists2)
-      .def("blockExistsLocally", p_blockExistsLocally1)
+      .def("blockExistsLocally", &p_blockExistsLocally1)
       .def("blockExistsLocally", p_blockExistsLocally2)
-      .def("blockExistsRemotely", p_blockExistsRemotely1)
+      .def("blockExistsRemotely", &p_blockExistsRemotely1)
       .def("blockExistsRemotely", p_blockExistsRemotely2)
-      .def("atDomainXMinBorder", &SbS_atDomainXMinBorder)
-      .def("atDomainXMaxBorder", &SbS_atDomainXMaxBorder)
-      .def("atDomainYMinBorder", &SbS_atDomainYMinBorder)
-      .def("atDomainYMaxBorder", &SbS_atDomainYMaxBorder)
-      .def("atDomainZMinBorder", &SbS_atDomainZMinBorder)
-      .def("atDomainZMaxBorder", &SbS_atDomainZMaxBorder)
+      .def("atDomainXMinBorder", &SbF_atDomainXMinBorder)
+      .def("atDomainXMaxBorder", &SbF_atDomainXMaxBorder)
+      .def("atDomainYMinBorder", &SbF_atDomainYMinBorder)
+      .def("atDomainYMaxBorder", &SbF_atDomainYMaxBorder)
+      .def("atDomainZMinBorder", &SbF_atDomainZMinBorder)
+      .def("atDomainZMaxBorder", &SbF_atDomainZMaxBorder)
       .def("dx", &StructuredBlockForest::dx)
       .def("dy", &StructuredBlockForest::dy)
       .def("dz", &StructuredBlockForest::dz)
       .def("getDomainCellBB", &StructuredBlockForest::getDomainCellBB, "level"_a=0)
-      .def("getBlockCellBB", &SbS_getBlockCellBB)
-      .def("transformGlobalToLocal", &SbS_transformGlobalToLocal)
-      .def("transformLocalToGlobal", &SbS_transformLocalToGlobal)
-      .def("writeBlockData", &SbS_writeBlockData)
-      .def("readBlockData", &SbS_readBlockData)
+      .def("getBlockCellBB", &SbF_getBlockCellBB)
+      .def("transformGlobalToLocal", &SbF_transformGlobalToLocal)
+      .def("transformLocalToGlobal", &SbF_transformLocalToGlobal)
+      .def("writeBlockData", &SbF_writeBlockData)
+      .def("readBlockData", &SbF_readBlockData)
       .def("__iter__", &StructuredBlockForest_iter)
       .def_property_readonly("containsGlobalBlockInformation", &StructuredBlockForest::containsGlobalBlockInformation)
-      .def_property_readonly("periodic", &SbS_periodic);
+      .def_property_readonly("periodic", &SbF_periodic);
 
    py::class_< SetupBlock, shared_ptr< SetupBlock > >(m, "SetupBlock")
       .def("get_level", &SetupBlock::getLevel)

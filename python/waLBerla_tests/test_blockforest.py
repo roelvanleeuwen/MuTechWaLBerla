@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from waLBerla import field, createUniformBlockGrid
+from waLBerla import field, createUniformBlockGrid, AABB
 
 
 class BlockforestModuleTest(unittest.TestCase):
@@ -32,6 +32,24 @@ class BlockforestModuleTest(unittest.TestCase):
         # when previous blockstructure was already freed
         blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))  # noqa: F841
         self.assertEqual(npf[0, 0, 0], 42.0)
+
+    def testGeneralFunctionality(self):
+        blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))
+        self.assertEqual(blocks.getNumberOfLevels(), 1)
+
+        aabb = blocks.getDomain
+        aabb2 = AABB(1.0, 1.0, 1.0, 1.2, 1.2, 1.2)
+
+        self.assertEqual(aabb.min, (0.0, 0.0, 0.0))
+        self.assertEqual(aabb.max, (2.0, 2.0, 2.0))
+        self.assertEqual(aabb.size, (2.0, 2.0, 2.0))
+        self.assertEqual(aabb.empty, False)
+        self.assertEqual(aabb.volume, 8.0)
+        self.assertEqual(aabb.center, (1.0, 1.0, 1.0))
+        self.assertEqual(aabb.contains(aabb2), True)
+        self.assertEqual(aabb2.contains(aabb), False)
+        self.assertEqual(aabb2.contains((1.2, 1.2, 1.2)), False)
+        self.assertEqual(aabb2.contains((1.1, 1.1, 1.1)), True)
 
 
 if __name__ == '__main__':
