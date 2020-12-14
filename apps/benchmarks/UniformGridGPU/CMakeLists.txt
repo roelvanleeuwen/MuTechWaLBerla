@@ -1,6 +1,6 @@
 
 waLBerla_link_files_to_builddir( "*.prm" )
-#waLBerla_link_files_to_builddir( "simulation_setup" )
+waLBerla_link_files_to_builddir( "simulation_setup" )
 
 
 foreach (config srt trt mrt smagorinsky entropic smagorinsky_noopt entropic_kbc_n4

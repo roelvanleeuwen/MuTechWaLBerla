@@ -44,6 +44,7 @@ void configFromPythonDict( config::Config::Block & block, py::dict & pythonDict 
 {
    for (auto item : pythonDict)
    {
+      // py::print(item);
       if( py::isinstance<std::string>(item.first) ) {
          WALBERLA_LOG_WARNING( "Detected non-string key in waLBerla configuration" );
          continue;
@@ -67,9 +68,9 @@ void configFromPythonDict( config::Config::Block & block, py::dict & pythonDict 
          else if ( py::isinstance<py::list>(item.second) )
          {
             py::list childList = py::list(pythonDict[key.c_str()]);
-            for (auto element : childList) {
+            for(py::size_t i = 0; i < childList.size(); ++i){
                walberla::config::Config::Block & childBlock = block.createBlock( key );
-               py::dict d = pythonDict[element];
+               py::dict d = py::dict(childList[i]);
                configFromPythonDict( childBlock, d );
             }
          }

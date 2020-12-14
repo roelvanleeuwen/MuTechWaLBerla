@@ -513,7 +513,7 @@ inline shared_ptr<vtk::BlockCellDataWriterInterface> createVTKWriter(const share
    CreateVTKWriterExporter exporter(blocks, fieldID, vtkName);
    python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
    if ( ! exporter.getCreatedWriter() ) {
-      throw py::value_error("Failed to create writer");
+      throw py::value_error("Failed to create VTK writer");
    }
    else {
       return exporter.getCreatedWriter();
@@ -576,7 +576,7 @@ inline shared_ptr<vtk::BlockCellDataWriterInterface> createBinarizationVTKWriter
    CreateBinarizationVTKWriterExporter exporter(blocks, fieldID, vtkName, mask);
    python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
    if ( ! exporter.getCreatedWriter() ) {
-      throw py::value_error("Failed to create writer");
+      throw py::value_error("Failed to create binarization field writer");
    }
    else {
       return exporter.getCreatedWriter();

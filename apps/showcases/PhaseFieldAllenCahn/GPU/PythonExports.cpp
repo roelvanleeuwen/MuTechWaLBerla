@@ -29,13 +29,6 @@
 #include "field/communication/PackInfo.h"
 #include "field/python/Exports.h"
 
-#include "geometry/python/Exports.h"
-
-#include "postprocessing/python/Exports.h"
-
-#include "timeloop/python/Exports.h"
-
-
 namespace walberla {
     using flag_t = uint8_t;
     // clang-format off
@@ -50,16 +43,6 @@ namespace walberla {
 
         // Blockforest
         pythonManager->addExporterFunction(blockforest::exportModuleToPython<stencil::D2Q9, stencil::D3Q19, stencil::D3Q27>);
-
-        // Timeloop
-        pythonManager->addExporterFunction(timeloop::exportModuleToPython);
-
-        // Postprocessing
-        pythonManager->addExporterFunction( postprocessing::exportModuleToPython<GhostLayerField<real_t,1>, GhostLayerField<real_t,3>,
-                                                                                 FlagField<flag_t>> );
-
-        // Geometry
-        pythonManager->addExporterFunction( geometry::exportModuleToPython );
     }
    // clang-format on
 }

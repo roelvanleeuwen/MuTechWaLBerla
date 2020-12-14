@@ -59,7 +59,7 @@ class GatherExporter
          if ( MPIManager::instance()->worldRank() == targetRank_ )
             resultField_ = py::cast(result);
          else
-            resultField_ = py::object();
+            resultField_ = py::none();
 
       }
    }
@@ -90,13 +90,14 @@ static py::object gatherWrapper(const shared_ptr<StructuredBlockForest> & blocks
       // however we have to call it, otherwise a deadlock occurs
       auto result = make_shared< Field<real_t, 1> > ( 0,0,0 );
       field::gather< Field<real_t, 1>, Field<real_t, 1> > ( *result, blocks, fieldID, boundingBox, targetRank, MPI_COMM_WORLD );
-      return py::object();
+      return py::none();
    }
 
    GatherExporter exporter(blocks, fieldID, boundingBox, targetRank);
    python_coupling::for_each_noncopyable_type< FieldTypes... >  ( std::ref(exporter) );
+
    if ( ! exporter.getResultField() ) {
-      throw py::value_error("Failed to create writer");
+      throw py::value_error("Failed to gather Field");
    }
    else {
       return exporter.getResultField();
@@ -120,12 +121,7 @@ void exportGatherFunctions(py::module_ &m)
         return internal::gatherWrapper< FieldTypes... >(blocks, name, slice, targetRank);
       },
       "blocks"_a, "name"_a, "slice"_a, "targetRank"_a = uint_t(0));
-
-   // m.def( "gather",  &internal::gatherWrapper<FieldTypes...>, py::arg("blocks"), py::arg("blockDataName"), py::arg("slice"), py::arg("targetRank") = 0 );
 }
-
-
-
 
 } // namespace moduleName
 } // namespace walberla

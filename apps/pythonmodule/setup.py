@@ -43,7 +43,8 @@ packages = ['waLBerla',
             'waLBerla.tools.report',
             'waLBerla.tools.sqlitedb',
             'waLBerla.tools.lbm_unitconversion',
-            'waLBerla.tools.jobscripts']
+            'waLBerla.tools.jobscripts',
+            'waLBerla.tools.config']
 
 collectFiles()
 

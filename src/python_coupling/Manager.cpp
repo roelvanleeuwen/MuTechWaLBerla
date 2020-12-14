@@ -54,7 +54,7 @@ Manager::~Manager( ) //NOLINT
 {
    // To work reliably this would have to be called at the end of the
    // main function. At this position this leads to a segfault in some cases
-   // Py_Finalize();
+   // py::finalize_interpreter();
 }
 
 void Manager::addEntryToPythonPath( const std::string & path )

@@ -69,7 +69,7 @@ namespace python_coupling {
       }
       catch ( py::error_already_set &e) {
          throw py::value_error(e.what());
-         return py::object();
+         return py::none();
       }
    }
 
