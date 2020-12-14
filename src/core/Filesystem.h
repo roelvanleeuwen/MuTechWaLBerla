@@ -27,8 +27,6 @@
 #elif defined(WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM)
 #define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
 #include <experimental/filesystem>
-#else
-#include <boost/filesystem.hpp>
 #endif
 
 
@@ -40,8 +38,6 @@ namespace filesystem {
 using namespace std::filesystem;
 #elif defined(WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM)
 using namespace std::experimental::filesystem;
-#else
-using namespace boost::filesystem;
 #endif
 
 }

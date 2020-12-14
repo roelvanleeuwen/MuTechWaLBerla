@@ -27,8 +27,6 @@
 #elif defined(WALBERLA_USE_STD_EXPERIMENTAL_ANY)
 #undef _LIBCPP_WARN_ON_DEPRECATED_EXPERIMENTAL_HEADER
 #include <experimental/any>
-#else
-#include <boost/any.hpp>
 #endif
 
 
@@ -41,9 +39,6 @@ using std::any_cast;
 #elif defined(WALBERLA_USE_STD_EXPERIMENTAL_ANY)
 using std::experimental::any;
 using std::experimental::any_cast;
-#else
-using boost::any;
-using boost::any_cast;
 #endif
 
 }
