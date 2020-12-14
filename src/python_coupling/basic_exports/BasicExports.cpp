@@ -86,6 +86,7 @@ void checkForThreeSequence( const py::object & o, const char * message )
 void exportCell(py::module_ &m)
 {
    py::class_<Cell>(m, "Cell")
+         .def( py::init<cell_idx_t, cell_idx_t, cell_idx_t>())
          .def("__getitem__",
            [](const Cell & cell, py::object & idx){
               return py::make_tuple(cell.x(), cell.y(), cell.z()).attr("__getitem__")(idx);

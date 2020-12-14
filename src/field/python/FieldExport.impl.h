@@ -324,6 +324,8 @@ struct FieldExporter
          .def("clone", &Field_T::clone, py::return_value_policy::copy)
          .def("cloneUninitialized", &Field_T::cloneUninitialized, py::return_value_policy::copy)
          .def("swapDataPointers", &field_swapDataPointers< Field_T >)
+         .def("__getitem__",        &field_getCellXYZ      < Field_T > )
+         .def("__setitem__",        &field_setCellXYZ      < Field_T > )
          .def("__array__", &toNumpyArray< Field_T >);
 
       std::string class_nameGL =
@@ -360,28 +362,6 @@ struct FieldAllocatorExporter
          .def("decrementReferenceCount", &FieldAllocator< T >::decrementReferenceCount);
    }
    const py::module_& m_;
-};
-
-
-struct GhostLayerFieldAdaptorExporter
-{
-   GhostLayerFieldAdaptorExporter(const py::module_& m, const std::string& name) : m_(m), name_(name) {}
-
-   template< typename Adaptor >
-   void operator()(python_coupling::NonCopyableWrap< Adaptor >) const
-   {
-      using namespace py;
-
-      py::class_< Adaptor, shared_ptr< Adaptor > >(m_, name_.c_str())
-         .def_readonly("size", &field_size< Adaptor >)
-         .def_readonly("sizeWithGhostLayer", &field_sizeWithGhostLayer< Adaptor >)
-         .def_readonly("nrOfGhostLayers", &Adaptor::nrOfGhostLayers)
-         .def("__getitem__", &field_getCellXYZ< Adaptor >)
-         .def("copyToField", &copyAdaptorToField< Adaptor >);
-   }
-
-   const py::module_& m_;
-   std::string name_;
 };
 
 //===================================================================================================================
@@ -461,6 +441,79 @@ inline void addFlagFieldToStorage(const shared_ptr< StructuredBlockStorage >& bl
    {
       throw py::value_error("Allowed values for number of bits are: 8,16,32,64");
    }
+}
+
+//===================================================================================================================
+//
+//  createField
+//
+//===================================================================================================================
+
+class CreateFieldExporter
+{
+ public:
+   CreateFieldExporter( uint_t xs, uint_t ys, uint_t zs, uint_t fs, uint_t gl,
+                        Layout layout, const py::object & dtype, uint_t alignment,
+                        const shared_ptr<py::object> & resultPointer  )
+      : xs_( xs ), ys_(ys), zs_(zs), fs_(fs), gl_(gl),
+        layout_( layout),  dtype_( dtype ), alignment_(alignment), resultPointer_( resultPointer )
+   {}
+
+   template< typename FieldType>
+   void operator() ( python_coupling::NonCopyableWrap<FieldType> ) const
+   {
+      typedef typename FieldType::value_type T;
+      const uint_t F_SIZE = FieldType::F_SIZE;
+
+      if( F_SIZE != fs_ )
+         return;
+
+      if(python_coupling::isCppEqualToPythonType<T>(py::cast<std::string>(dtype_.attr("__name__"))))
+      {
+         T initVal = T(); //extract<T> ( initValue_ );
+         *resultPointer_ = py::cast( make_shared< GhostLayerField<T, F_SIZE> >( xs_,ys_,zs_, gl_, initVal, layout_,
+                                                                             getAllocator<T>(alignment_)));
+      }
+   }
+
+ private:
+   uint_t xs_;
+   uint_t ys_;
+   uint_t zs_;
+   uint_t fs_;
+   uint_t gl_;
+   Layout layout_;
+   py::object dtype_;
+   uint_t alignment_;
+   shared_ptr<py::object> resultPointer_;
+};
+
+template<typename... FieldTypes>
+py::object createPythonField( std::array< uint_t, 4 > size,
+                              py::object & dtype,
+                              uint_t ghostLayers,
+                              Layout layout,
+                              uint_t alignment)
+{
+   uint_t xSize = size[0];
+   uint_t ySize = size[1];
+   uint_t zSize = size[2];
+   uint_t fSize = size[3];
+
+   auto result = make_shared<py::none>();
+   CreateFieldExporter exporter( xSize,ySize, zSize, fSize, ghostLayers, layout, dtype, alignment, result );
+   python_coupling::for_each_noncopyable_type< FieldTypes... >  ( exporter );
+
+   return *result;
+
+//   if ( *result == object()  )
+//   {
+//      PyErr_SetString( PyExc_ValueError, "Cannot create field of this (type,f-size) combination");
+//      throw error_already_set();
+//   }
+//   else {
+//      return *result;
+//   }
 }
 
 //===================================================================================================================
@@ -597,6 +650,13 @@ void exportFields(py::module_& m)
 
    python_coupling::for_each_noncopyable_type< FieldTypes... >(internal::FieldExporter(m2));
    python_coupling::for_each_noncopyable_type< real_t, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t >(internal::FieldAllocatorExporter(m2));
+
+   m2.def(
+      "createField",
+      [](std::array< uint_t, 4 > size, py::object & dtype, uint_t ghostLayers, Layout layout, uint_t alignment) {
+        return internal::createPythonField< FieldTypes... >(size, dtype, ghostLayers, layout, alignment);
+      },
+      "size"_a, "dtype"_a, "ghostLayers"_a = uint_t(1), "layout"_a = zyxf, "alignment"_a = 0);
 
    m2.def(
       "addToStorage",

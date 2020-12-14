@@ -28,7 +28,7 @@ def scalar_field(blocks, name, slice_definition, f_coordinate=0, target_rank=0, 
     """
     f = walberla_cpp.field.gather(blocks, name, slice_definition, targetRank=target_rank)
     if f:
-        numpy_field = np.asarray(f)[:, :, :, f_coordinate].squeeze()
+        numpy_field = np.asarray(f).squeeze()
         numpy_field = np.swapaxes(numpy_field, 0, 1)
         imshow(numpy_field, origin='lower', **kwargs)
 
@@ -56,7 +56,7 @@ def scalar_field_animation(blocks, name, slice_definition, run_function, plot_se
     f = walberla_cpp.field.gather(blocks, name, slice_definition, targetRank=target_rank)
     im = None
     if f:
-        numpy_field = np.asarray(f)[:, :, :, f_coordinate].squeeze()
+        numpy_field = np.asarray(f).squeeze()
         numpy_field = np.swapaxes(numpy_field, 0, 1)
         im = imshow(numpy_field, origin='lower', **kwargs)
         plot_setup_function()
@@ -66,7 +66,10 @@ def scalar_field_animation(blocks, name, slice_definition, run_function, plot_se
         gathered_field = walberla_cpp.field.gather(blocks, name, slice_definition, targetRank=target_rank)
         if gathered_field:
             n_field = np.swapaxes(np.asarray(gathered_field), 0, 1)
-            n_field = n_field[:, :, :, f_coordinate].squeeze()
+            if n_field.shape == 4:
+                n_field = n_field[:, :, :, f_coordinate].squeeze()
+            else:
+                n_field = n_field.squeeze()
             im.set_array(n_field)
             plot_update_function()
             return im,

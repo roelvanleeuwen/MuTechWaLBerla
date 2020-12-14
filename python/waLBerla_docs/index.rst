@@ -44,8 +44,6 @@ API Documentation:
    modules/blockforest
    modules/core
    modules/field
-   modules/geometry
-   modules/lbm
    modules/plot
    modules/tools
    

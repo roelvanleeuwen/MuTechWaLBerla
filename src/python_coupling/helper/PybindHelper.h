@@ -43,7 +43,7 @@ inline static bool isCppEqualToPythonType( std::string n )
 
 // native data types
 template<> inline bool isCppEqualToPythonType<float> ( std::string n) {return ( n == "numpy.float32" || n =="float32" );}
-template<> inline bool isCppEqualToPythonType<double>( std::string n) {return ( n == "numpy.float64" || n == "numpy.float_" || n =="float64");}
+template<> inline bool isCppEqualToPythonType<double>( std::string n) {return ( n == "numpy.float64" || n == "numpy.float_" || n =="float64" || n=="float");}
 
 
 template<> inline bool isCppEqualToPythonType<uint8_t  > ( std::string n) {return ( n == "numpy.uint8" || n =="uint8"  );}
