@@ -29,7 +29,7 @@
 
 #   include <pybind11/pybind11.h>
 
-#   include "CommunicationExport.h"
+#   include "BlockForestCommunicationExport.h"
 
 namespace walberla {
 namespace blockforest {

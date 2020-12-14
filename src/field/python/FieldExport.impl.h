@@ -28,7 +28,7 @@
 #include "field/GhostLayerField.h"
 #include "field/communication/PackInfo.h"
 #include "field/communication/UniformMPIDatatypeInfo.h"
-#include "field/python/GatherExport.h"
+#include "field/python/GatherExport.impl.h"
 #include "field/vtk/FlagFieldMapping.h"
 #include "field/vtk/VTKWriter.h"
 
@@ -45,6 +45,32 @@ namespace walberla
 {
 namespace field
 {
+
+//*******************************************************************************************************************
+/*! Exports all Fields given in the Sequence
+*
+* Put only Fields in the sequence! The corresponding GhostLayerFields are exported automatically
+*
+* \warning Make sure that the same adaptor type is exported only once!
+*/
+//*******************************************************************************************************************
+template<typename... FieldTypes >
+void exportFields();
+
+
+
+//*******************************************************************************************************************
+/*! Exports all GhostLayerFieldAdaptors given in the Sequence
+*
+* \warning Make sure that the same adaptor type is exported only once!
+*/
+//*******************************************************************************************************************
+template<typename... AdaptorTypes>
+void exportGhostLayerFieldAdaptors();
+
+template<typename AdaptorType>
+void exportGhostLayerFieldAdaptor();
+
 namespace internal
 {
 namespace py = pybind11;

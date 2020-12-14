@@ -40,4 +40,4 @@ namespace blockforest {
 } // namespace walberla
 
 
-#include "CommunicationExport.impl.h"
+#include "BlockForestCommunicationExport.impl.h"

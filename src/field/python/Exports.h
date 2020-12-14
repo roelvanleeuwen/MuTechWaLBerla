@@ -28,8 +28,7 @@
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
 #include "python_coupling/PythonWrapper.h"
-#include "FieldExport.h"
-#include "GatherExport.h"
+#include "FieldExport.impl.h"
 #include "CommunicationExport.h"
 
 namespace walberla {
