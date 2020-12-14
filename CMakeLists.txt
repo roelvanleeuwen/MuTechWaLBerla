@@ -621,12 +621,9 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
         list ( APPEND SERVICE_LIBS -lutil )
     endif()
 
-    if ( DEFINED CMAKE_CXX_COMPILE_OPTIONS_PIC )
-        # a python module is a shared library - so everything has to be compiled to position independent code
-        # otherwise linking the static libs into the shared lib will result in errors
-        add_flag ( CMAKE_CXX_FLAGS ${CMAKE_CXX_COMPILE_OPTIONS_PIC} )
-        add_flag ( CMAKE_C_FLAGS ${CMAKE_C_COMPILE_OPTIONS_PIC} )
-    endif()
+    # a python module is a shared library - so everything has to be compiled to position independent code
+    # otherwise linking the static libs into the shared lib will result in errors
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 
     if(WALBERLA_BUILD_DOC)
