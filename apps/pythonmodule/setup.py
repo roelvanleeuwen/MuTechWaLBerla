@@ -12,6 +12,8 @@ suffix = "${PYTHON_MODULE_EXTENSION}"
 prefix = "${PYTHON_MODULE_PREFIX}"
 walberla_module_file_name = prefix + "walberla_cpp" + suffix
 
+version = "${WALBERLA_VERSION}"
+
 if platform.system() == 'Windows':
     configuration = 'Release'
 else:
@@ -50,7 +52,7 @@ collectFiles()
 
 
 setup(name='waLBerla',
-      version='1.0',
+      version=str(version),
       author='Markus Holzer',
       author_email='markus.holzer@fau.de',
       url='http://www.walberla.net',
