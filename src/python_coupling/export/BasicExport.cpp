@@ -69,23 +69,6 @@ namespace python_coupling {
 
 //======================================================================================================================
 //
-//  Helper Functions
-//
-//======================================================================================================================
-
-void checkForThreeSequence( const py::object & o, const char * message )
-{
-   // strange construct required because also the len function throws , if object has no len
-   try {
-      if ( py::len(o ) != 3 )  throw py::error_already_set();
-   }
-   catch( py::error_already_set & ) {
-      throw py::cast_error(message);
-   }
-}
-
-//======================================================================================================================
-//
 //  Cell
 //
 //======================================================================================================================
@@ -271,25 +254,14 @@ real_t p_sqMaxDistance2( AABB & domainBB, std::array< real_t , 3 > Point ) {
    return domainBB.sqMaxDistance(Vector3<real_t>(Point[0], Point[1], Point[2]));
 }
 
-void aabb_setMin( AABB & domainBB, const py::tuple& min )
+void aabb_setMin( AABB & domainBB, const std::array< real_t , 3 >& min )
 {
-   checkForThreeSequence(min, "Error assigning minimum of AABB - Sequence of length 3 required" );
-   real_t min0 = py::cast<real_t>( min[0] );
-   real_t min1 = py::cast<real_t>( min[1] );
-   real_t min2 = py::cast<real_t>( min[2] );
-
-   domainBB = AABB( domainBB.max(), AABB::vector_type ( min0, min1, min2 ) );
+   domainBB = AABB( domainBB.max(), AABB::vector_type ( min[0], min[1], min[2] ) );
 }
 
-void aabb_setMax( AABB & domainBB, const py::tuple& max )
+void aabb_setMax( AABB & domainBB, const std::array< real_t , 3 >& max )
 {
-   checkForThreeSequence( max, "Error assigning maximum of AABB - Sequence of length 3 required" );
-
-   real_t max0 = py::cast<real_t>( max[0] );
-   real_t max1 = py::cast<real_t>( max[1] );
-   real_t max2 = py::cast<real_t>( max[2] );
-
-   domainBB = AABB( domainBB.min(), AABB::vector_type ( max0, max1, max2 ) );
+   domainBB = AABB( domainBB.min(), AABB::vector_type ( max[0], max[1], max[2] ) );
 }
 
 
@@ -546,9 +518,24 @@ std::string IBlock_str( IBlock & b ) {
 
 void exportIBlock(py::module_ &m)
 {
-   // TODO: register the exceptions: Does not work as done below
-   // py::register_exception_translator( & NoSuchBlockData::translate );
-   // py::register_exception_translator( & BlockDataNotConvertible::translate );
+   static py::exception<NoSuchBlockData> ex(m, "NoSuchBlockData");
+   py::register_exception_translator([](std::exception_ptr p) {
+     try {
+        if (p) std::rethrow_exception(p);
+     } catch (const NoSuchBlockData &e) {
+        // Set NoSuchBlockData as the active python error
+        throw e.what();
+     }
+   });
+   static py::exception<BlockDataNotConvertible> ex2(m, "BlockDataNotConvertible");
+   py::register_exception_translator([](std::exception_ptr p) {
+     try {
+        if (p) std::rethrow_exception(p);
+     } catch (const BlockDataNotConvertible &e) {
+        // Set BlockDataNotConvertible as the active python error
+        throw e.what();
+     }
+   });
 
    py::class_<IBlock, std::unique_ptr<IBlock, py::nodelete>> (m, "Block")
          .def         ( "__getitem__",                   &IBlock_getData, py::keep_alive<1, 2>()   )
@@ -718,8 +705,6 @@ void exportStencilDirections(py::module_ &m)
 
 void exportBuildInfo(py::module_ &m)
 {
-//   ModuleScope build_info( "build_info");
-//   using py::scope;
    py::module_ m2 = m.def_submodule("build_info", "Get waLBerla Build Information");
    m2.attr("version")         = WALBERLA_GIT_SHA1;
    m2.attr("type" )           = WALBERLA_BUILD_TYPE;
