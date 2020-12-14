@@ -401,12 +401,10 @@ class AddToStorageExporter
  public:
    AddToStorageExporter(const shared_ptr< StructuredBlockForest >& blocks, const std::string& name, py::object& dtype, uint_t fs,
                         uint_t gl, Layout layout, real_t initValue, uint_t alignment)
-      : blocks_(blocks), name_(name), dtype_(dtype), fs_(fs), gl_(gl), layout_(layout), initValue_(initValue), alignment_(alignment), found_(true)
+      : blocks_(blocks), name_(name), dtype_(dtype), fs_(fs), gl_(gl), layout_(layout), initValue_(initValue), alignment_(alignment), found_(false)
    {}
 
    template< typename FieldType >
-   // TODO: Due to the NonCopyableWrap the operator needs to be set const thus found_ can not be changed to indicated
-   // if there was an error when adding the field. Why do we need the NonCopyableWrap at all?
    void operator()(python_coupling::NonCopyableWrap<FieldType>) const
    {
       using namespace py;
@@ -420,6 +418,7 @@ class AddToStorageExporter
          auto dataHandling = walberla::make_shared< DataHandling >(blocks_, gl_, initValue_, layout_, alignment_);
          blocks_->addBlockData(dataHandling, name_);
       }
+      found_ = true;
    }
 
    bool successful() const { return found_; }
@@ -433,7 +432,7 @@ class AddToStorageExporter
    Layout layout_;
    real_t initValue_;
    uint_t alignment_;
-   bool found_;
+   mutable bool found_;
 };
 
 template< typename... FieldTypes >
@@ -448,7 +447,7 @@ void addToStorage(const shared_ptr< StructuredBlockForest >& blocks, const std::
 
    if (!exporter.successful())
    {
-      throw py::value_error("Adding Field failed.");
+      throw py::value_error("Adding GhostLayerField failed. Maybe the data type and/or the fsize is not exported to python yet");
    }
 }
 
@@ -496,7 +495,7 @@ class CreateFieldExporter
 
       if(python_coupling::isCppEqualToPythonType<T>(py::cast<std::string>(dtype_.attr("__name__"))))
       {
-         T initVal = T(); //extract<T> ( initValue_ );
+         T initVal = T();
          *resultPointer_ = py::cast( make_shared< GhostLayerField<T, F_SIZE> >( xs_,ys_,zs_, gl_, initVal, layout_,
                                                                              getAllocator<T>(alignment_)));
       }
@@ -531,15 +530,6 @@ py::object createPythonField( std::array< uint_t, 4 > size,
    python_coupling::for_each_noncopyable_type< FieldTypes... >  ( exporter );
 
    return *result;
-
-//   if ( *result == object()  )
-//   {
-//      PyErr_SetString( PyExc_ValueError, "Cannot create field of this (type,f-size) combination");
-//      throw error_already_set();
-//   }
-//   else {
-//      return *result;
-//   }
 }
 
 //===================================================================================================================
