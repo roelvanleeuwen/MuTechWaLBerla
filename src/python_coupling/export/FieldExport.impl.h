@@ -40,6 +40,7 @@
 
 #include "GatherExport.impl.h"
 #include "pybind11/numpy.h"
+#include <pybind11/stl.h>
 
 namespace walberla
 {
@@ -156,48 +157,63 @@ class GhostLayerFieldDataHandling : public field::BlockDataHandling< GhostLayerF
 //
 //===================================================================================================================
 
-static inline Cell tupleToCell(py::tuple& tuple)
-{
-   return Cell(py::cast< cell_idx_t >(tuple[0]), py::cast< cell_idx_t >(tuple[1]), py::cast< cell_idx_t >(tuple[2]));
-}
-
 template< typename Field_T >
-void field_setCellXYZ(Field_T& field, py::tuple args, const typename Field_T::value_type& value)
+void field_setCellXYZ3(Field_T& field, std::array<cell_idx_t, 3 > args, const typename Field_T::value_type& value)
 {
    using namespace py;
 
-   if (len(args) < 3 || len(args) > 4)
-   {
-      throw py::value_error("3 or 4 indices required");
-   }
-
+   Cell cell(args[0], args[1], args[2]);
    cell_idx_t f = 0;
-   if (len(args) == 4) f = py::cast< cell_idx_t >(args[3]);
 
-   Cell cell = tupleToCell(args);
    if (!field.coordinatesValid(cell[0], cell[1], cell[2], f))
    {
-      throw py::value_error("Field indices out of bounds");
+      throw py::value_error("Field indices out of bounds.");
    }
    field(cell, f) = value;
 }
 
 template< typename Field_T >
-typename Field_T::value_type field_getCellXYZ(Field_T& field, py::tuple args)
+void field_setCellXYZ4(Field_T& field, std::array<cell_idx_t, 4 > args, const typename Field_T::value_type& value)
 {
    using namespace py;
-   if (len(args) < 3 || len(args) > 4)
-   {
-      throw py::value_error("3 or 4 indices required");
-   }
 
-   cell_idx_t f = 0;
-   if (len(args) == 4) f = py::cast< cell_idx_t >(args[3]);
+   Cell cell(args[0], args[1], args[2]);
+   cell_idx_t f = args[3];
 
-   Cell cell = tupleToCell(args);
    if (!field.coordinatesValid(cell[0], cell[1], cell[2], f))
    {
-      throw py::value_error("Field indices out of bounds");
+      throw py::value_error("Field indices out of bounds.");
+   }
+   field(cell, f) = value;
+}
+
+template< typename Field_T >
+typename Field_T::value_type field_getCellXYZ3(Field_T& field, std::array<cell_idx_t, 3 > args)
+{
+   using namespace py;
+
+   Cell cell(args[0], args[1], args[2]);
+   cell_idx_t f = 0;
+
+   if (!field.coordinatesValid(cell[0], cell[1], cell[2], f))
+   {
+      throw py::value_error("Field indices out of bounds.");
+   }
+
+   return field(cell, f);
+}
+
+template< typename Field_T >
+typename Field_T::value_type field_getCellXYZ4(Field_T& field, std::array<cell_idx_t, 4 > args)
+{
+   using namespace py;
+
+   Cell cell(args[0], args[1], args[2]);
+   cell_idx_t f = args[3];
+
+   if (!field.coordinatesValid(cell[0], cell[1], cell[2], f))
+   {
+      throw py::value_error("Field indices out of bounds.");
    }
 
    return field(cell, f);
@@ -350,8 +366,10 @@ struct FieldExporter
          .def("clone", &Field_T::clone, py::return_value_policy::copy)
          .def("cloneUninitialized", &Field_T::cloneUninitialized, py::return_value_policy::copy)
          .def("swapDataPointers", &field_swapDataPointers< Field_T >)
-         .def("__getitem__",        &field_getCellXYZ      < Field_T > )
-         .def("__setitem__",        &field_setCellXYZ      < Field_T > )
+         .def("__getitem__",        &field_getCellXYZ3      < Field_T > )
+         .def("__getitem__",        &field_getCellXYZ4      < Field_T > )
+         .def("__setitem__",        &field_setCellXYZ3      < Field_T > )
+         .def("__setitem__",        &field_setCellXYZ4      < Field_T > )
          .def("__array__", &toNumpyArray< Field_T >);
 
       std::string class_nameGL =
