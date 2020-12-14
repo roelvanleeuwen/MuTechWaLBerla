@@ -31,5 +31,6 @@ else ()
     waLBerla_add_executable(NAME benchmark_multiphase
             FILES benchmark_multiphase.cpp InitializerFunctions.cpp multiphase_codegen.py
             DEPENDS blockforest core field postprocessing lbm geometry timeloop gui BenchmarkPhaseFieldCodeGenCPU)
+    set_target_properties(benchmark_multiphase PROPERTIES CXX_VISIBILITY_PRESET hidden)
 endif (WALBERLA_BUILD_WITH_CUDA)
 
