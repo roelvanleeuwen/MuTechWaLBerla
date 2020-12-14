@@ -41,15 +41,11 @@ int main( int /*argc*/, char** /*argv*/ )
    walberla::variant<int, float> v, w;
    v = 12; // v contains int
    int i = walberla::get<int>( v );
-#ifdef WALBERLA_USE_STD_VARIANT
-   WALBERLA_CHECK( i == 12 ); // boost::variant cannot use == with variant and type
-#endif
+   WALBERLA_CHECK( i == 12 );
    WALBERLA_CHECK( 0 == 12 - i );
    w = walberla::get<int>( v );
    w = v;
-#ifdef WALBERLA_USE_STD_VARIANT
-   WALBERLA_CHECK( w == 12 ); // boost::variant cannot use == with variant and type
-#endif
+   WALBERLA_CHECK( w == 12 );
    WALBERLA_CHECK( 0 == 12 - i );
 
    //  walberla::get<double>(v); // error: no double in [int, float]
