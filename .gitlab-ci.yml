@@ -51,7 +51,7 @@ stages:
         -DWALBERLA_ENABLE_GUI=$WALBERLA_ENABLE_GUI
         -DWALBERLA_BUILD_WITH_CODEGEN=$WALBERLA_BUILD_WITH_CODEGEN
         -DWALBERLA_STL_BOUNDS_CHECKS=$WALBERLA_STL_BOUNDS_CHECKS
-      - cmake . -LAH
+      - cmake . -LA
       - make -j $NUM_BUILD_CORES -l $NUM_CORES
       - ctest -LE $CTEST_EXCLUDE_LABELS -C $CMAKE_BUILD_TYPE --output-on-failure -j $NUM_CORES
    tags:
@@ -87,6 +87,7 @@ intel_18_serial:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -116,6 +117,7 @@ intel_18_mpionly:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -143,6 +145,7 @@ intel_18_hybrid:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_ENABLE_GUI: "ON"
@@ -166,6 +169,7 @@ intel_18_serial_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -192,6 +196,7 @@ intel_18_mpionly_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -220,6 +225,7 @@ intel_18_hybrid_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -423,6 +429,7 @@ gcc_7_serial:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -451,6 +458,7 @@ gcc_7_mpionly:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -477,6 +485,7 @@ gcc_7_hybrid:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -498,6 +507,7 @@ gcc_7_serial_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -524,6 +534,7 @@ gcc_7_mpionly_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -551,6 +562,7 @@ gcc_7_hybrid_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1092,6 +1104,7 @@ clang_6.0_serial:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -1120,6 +1133,7 @@ clang_6.0_mpionly:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -1146,6 +1160,7 @@ clang_6.0_hybrid:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -1171,6 +1186,7 @@ clang_6.0_serial_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -1200,6 +1216,7 @@ clang_6.0_mpionly_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1227,6 +1244,7 @@ clang_6.0_hybrid_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
+      - pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -2003,7 +2021,7 @@ doc:
       - mkdir $CI_PROJECT_DIR/build
       - cd $CI_PROJECT_DIR/build
       - cmake ..
-      - cmake . -LAH
+      - cmake . -LA
       - make doc
    stage: merge_request
    when: manual
@@ -2033,7 +2051,7 @@ clang-tidy:
       - mkdir $CI_PROJECT_DIR/build
       - cd $CI_PROJECT_DIR/build
       - cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DWALBERLA_BUFFER_DEBUG=ON -DWALBERLA_BUILD_TESTS=ON -DWALBERLA_BUILD_BENCHMARKS=ON -DWALBERLA_BUILD_TUTORIALS=ON -DWALBERLA_BUILD_TOOLS=ON -DWALBERLA_BUILD_WITH_MPI=ON -DWALBERLA_BUILD_WITH_OPENMP=ON -DCMAKE_BUILD_TYPE=Debug -DWALBERLA_BUILD_WITH_METIS=ON -DWALBERLA_BUILD_WITH_PARMETIS=ON -DWALBERLA_BUILD_WITH_OPENMESH=ON -DWALBERLA_DOUBLE_ACCURACY=ON
-      - cmake . -LAH
+      - cmake . -LA
       - utilities/filterCompileCommands.py compile_commands.json
       - run-clang-tidy.py -quiet | tee clang-tidy-output.txt
    stage: merge_request
@@ -2075,7 +2093,7 @@ coverage:
       - cd build
       - if dpkg --compare-versions `ompi_info | head -2 | tail -1 | sed 's/[^0-9.]*\([0-9.]*\).*/\1/'` ge 1.10; then export MPIEXEC_PREFLAGS="--allow-run-as-root" ; fi
       - cmake .. -DWALBERLA_BUILD_TESTS=ON -DWALBERLA_BUILD_BENCHMARKS=ON -DWALBERLA_BUILD_TUTORIALS=ON -DWALBERLA_BUILD_WITH_MPI=ON -DWALBERLA_BUILD_WITH_OPENMP=OFF -DCMAKE_BUILD_TYPE=Debug -DMPIEXEC_PREFLAGS=$MPIEXEC_PREFLAGS -DWALBERLA_BUILD_WITH_CODEGEN=OFF -DWALBERLA_BUILD_WITH_GCOV=ON
-      - cmake . -LAH
+      - cmake . -LA
       - make -j $NUM_BUILD_CORES -l $NUM_CORES
       - ctest -LE longrun --output-on-failure -j $NUM_CORES --timeout 3000
       - cd ..
@@ -2112,7 +2130,7 @@ coverage:
       - cmake --version
       - mkdir build
       - cd build
-      - cmake -LAH -DWALBERLA_BUILD_TESTS=ON -DWALBERLA_BUILD_BENCHMARKS=ON -DWALBERLA_BUILD_TUTORIALS=ON -DWALBERLA_BUILD_WITH_MPI=$WALBERLA_BUILD_WITH_MPI -DWALBERLA_BUILD_WITH_OPENMP=$WALBERLA_BUILD_WITH_OPENMP -DWALBERLA_DOUBLE_ACCURACY=$WALBERLA_DOUBLE_ACCURACY -DWARNING_ERROR=ON -G "$CMAKE_GENERATOR" ..
+      - cmake -LA -DWALBERLA_BUILD_TESTS=ON -DWALBERLA_BUILD_BENCHMARKS=ON -DWALBERLA_BUILD_TUTORIALS=ON -DWALBERLA_BUILD_WITH_MPI=$WALBERLA_BUILD_WITH_MPI -DWALBERLA_BUILD_WITH_OPENMP=$WALBERLA_BUILD_WITH_OPENMP -DWALBERLA_DOUBLE_ACCURACY=$WALBERLA_DOUBLE_ACCURACY -DWARNING_ERROR=ON -G "$CMAKE_GENERATOR" ..
       - MSBuild.exe walberla.sln /property:Configuration=$BUILD_CONFIGURATION /verbosity:minimal /maxcpucount:4
       - ctest -LE $CTEST_EXCLUDE_LABELS -C $BUILD_CONFIGURATION --output-on-failure -j 4
    variables:
@@ -2344,7 +2362,7 @@ msvc-14.2_mpionly:
       - mkdir build
       - cd build
       - cmake .. -DWALBERLA_BUILD_TESTS=ON -DWALBERLA_BUILD_BENCHMARKS=ON -DWALBERLA_BUILD_TUTORIALS=ON -DWALBERLA_BUILD_TOOLS=ON -DWALBERLA_BUILD_WITH_MPI=$WALBERLA_BUILD_WITH_MPI -DWALBERLA_BUILD_WITH_PYTHON=$WALBERLA_BUILD_WITH_PYTHON -DWALBERLA_BUILD_WITH_OPENMP=$WALBERLA_BUILD_WITH_OPENMP -DWALBERLA_BUILD_WITH_CUDA=$WALBERLA_BUILD_WITH_CUDA -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWARNING_ERROR=ON
-      - cmake . -LAH
+      - cmake . -LA
       - make -j $NUM_BUILD_CORES -l $NUM_CORES
       - ctest -LE "$CTEST_EXCLUDE_LABELS|cuda" -C $CMAKE_BUILD_TYPE --output-on-failure -j $NUM_CORES
    tags:
@@ -2476,7 +2494,7 @@ conda-py36-linux:
       - mkdir $CI_PROJECT_DIR/build
       - cd $CI_PROJECT_DIR/build
       - cmake .. -DWALBERLA_BUFFER_DEBUG=OFF -DWALBERLA_BUILD_TESTS=OFF -DWALBERLA_BUILD_BENCHMARKS=ON -DWALBERLA_BUILD_TUTORIALS=OFF -DWALBERLA_BUILD_TOOLS=OFF -DWALBERLA_BUILD_WITH_MPI=ON -DWALBERLA_BUILD_WITH_CUDA=OFF -DWALBERLA_BUILD_WITH_PYTHON=OFF -DWALBERLA_BUILD_WITH_OPENMP=OFF -DCMAKE_BUILD_TYPE=RELEASE -DMPIEXEC_PREFLAGS=$MPIEXEC_PREFLAGS -DWALBERLA_DOUBLE_ACCURACY=ON -DWARNING_ERROR=ON -DWALBERLA_BUILD_WITH_METIS=OFF -DWALBERLA_BUILD_WITH_PARMETIS=OFF -DWALBERLA_OPTIMIZE_FOR_LOCALHOST=ON -DWALBERLA_BUILD_WITH_FASTMATH=ON -DWALBERLA_BUILD_WITH_LTO=ON
-      - cmake . -LAH
+      - cmake . -LA
       - cd apps/benchmarks/GranularGas
       - make -j 20
       - export PATH=$PATH:/usr/local/likwid/bin
@@ -2537,7 +2555,7 @@ benchmark_ClangBuildAnalyzer:
     - mkdir $CI_PROJECT_DIR/build
     - cd $CI_PROJECT_DIR/build
     - cmake .. -DWALBERLA_BUFFER_DEBUG=OFF -DWALBERLA_BUILD_TESTS=ON -DWALBERLA_BUILD_BENCHMARKS=ON -DWALBERLA_BUILD_TUTORIALS=ON -DWALBERLA_BUILD_TOOLS=OFF -DWALBERLA_BUILD_WITH_MPI=ON -DWALBERLA_BUILD_WITH_CUDA=OFF -DWALBERLA_BUILD_WITH_PYTHON=OFF -DWALBERLA_BUILD_WITH_OPENMP=OFF -DCMAKE_BUILD_TYPE=RELEASE -DMPIEXEC_PREFLAGS=$MPIEXEC_PREFLAGS -DWALBERLA_DOUBLE_ACCURACY=ON -DWARNING_ERROR=ON -DWALBERLA_BUILD_WITH_METIS=OFF -DWALBERLA_BUILD_WITH_PARMETIS=OFF -DWALBERLA_OPTIMIZE_FOR_LOCALHOST=ON -DWALBERLA_BUILD_WITH_FASTMATH=ON -DWALBERLA_BUILD_WITH_LTO=ON -DCMAKE_CXX_FLAGS=-ftime-trace -G Ninja
-    - cmake . -LAH
+    - cmake . -LA
     - ClangBuildAnalyzer --start .
     - ninja all
     - ClangBuildAnalyzer --stop . CBA
