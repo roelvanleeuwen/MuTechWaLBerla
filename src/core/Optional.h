@@ -21,14 +21,13 @@
 
 #pragma once
 
+#include "waLBerlaDefinitions.h"
 
 #if defined(WALBERLA_USE_STD_OPTIONAL)
 #include <optional>
 #elif defined(WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL)
 #undef _LIBCPP_WARN_ON_DEPRECATED_EXPERIMENTAL_HEADER
 #include <experimental/optional>
-#else
-#include <boost/optional.hpp>
 #endif
 
 
@@ -41,9 +40,6 @@ using std::nullopt;
 #elif defined(WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL)
 using std::experimental::optional;
 using std::experimental::nullopt;
-#else
-using boost::optional;
-const boost::none_t nullopt = boost::none;
 #endif
 
 }
