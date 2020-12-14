@@ -604,17 +604,10 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
        message(FATAL_ERROR "The submodules were not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
     endif()
 
-    add_subdirectory(extern/pybind11)
-    set ( waLBerla_REQUIRED_MIN_PYTHON_VERSION "2.7")
-
-    find_package( PythonInterp 3 QUIET) # search for Python3 first
-    find_package( PythonInterp QUIET) # fallback to any Python version
-
+    find_package( PythonInterp 3.5 QUIET REQUIRED)
     find_package( PythonLibs QUIET REQUIRED)
 
-    if( PYTHONLIBS_VERSION_STRING VERSION_LESS ${waLBerla_REQUIRED_MIN_PYTHON_VERSION} )
-        message( FATAL_ERROR "Found old python library: ${PYTHONLIBS_VERSION_STRING} need at least ${waLBerla_REQUIRED_MIN_PYTHON_VERSION}" )
-    endif()
+    add_subdirectory(extern/pybind11)
 
     if( NOT (PYTHON_LIBRARY AND PYTHON_INCLUDE_DIR ) )
         message( FATAL_ERROR "Couldn't find any python library" )
@@ -628,21 +621,11 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
         list ( APPEND SERVICE_LIBS -lutil )
     endif()
 
-    if ( WALBERLA_BUILD_WITH_PYTHON )
+    if ( DEFINED CMAKE_CXX_COMPILE_OPTIONS_PIC )
         # a python module is a shared library - so everything has to be compiled to position independent code
         # otherwise linking the static libs into the shared lib will result in errors
-        if( NOT WALBERLA_CXX_COMPILER_IS_MSVC )
-            add_flag ( CMAKE_CXX_FLAGS "-fPIC" )
-            add_flag ( CMAKE_C_FLAGS "-fPIC" )
-        endif()
-    endif()
-
-    if( MSVC10 )
-        include(CMakeDependentOption)
-        CMAKE_DEPENDENT_OPTION( PYTHON_FIXED_HYPOT_REDEFINITION "fixed _hypot redefinition by python" OFF "WALBERLA_BUILD_WITH_PYTHON" OFF )
-        if( NOT PYTHON_FIXED_HYPOT_REDEFINITION )
-            message( WARNING "Make sure you modified your pyconfig.h that _hypot is not redefined -> see: http://connect.microsoft.com/VisualStudio/feedback/details/633988/warning-in-math-h-line-162-re-nonstandard-extensions-used" )
-        endif()
+        add_flag ( CMAKE_CXX_FLAGS ${CMAKE_CXX_COMPILE_OPTIONS_PIC} )
+        add_flag ( CMAKE_C_FLAGS ${CMAKE_C_COMPILE_OPTIONS_PIC} )
     endif()
 
 
