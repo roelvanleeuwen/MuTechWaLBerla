@@ -87,7 +87,7 @@ intel_18_serial:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -117,7 +117,7 @@ intel_18_mpionly:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -145,7 +145,7 @@ intel_18_hybrid:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_ENABLE_GUI: "ON"
@@ -169,7 +169,7 @@ intel_18_serial_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -196,7 +196,7 @@ intel_18_mpionly_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -225,7 +225,7 @@ intel_18_hybrid_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -429,7 +429,7 @@ gcc_7_serial:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -458,7 +458,7 @@ gcc_7_mpionly:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -485,7 +485,7 @@ gcc_7_hybrid:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -507,7 +507,7 @@ gcc_7_serial_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -534,7 +534,7 @@ gcc_7_mpionly_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -562,7 +562,7 @@ gcc_7_hybrid_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1104,7 +1104,7 @@ clang_6.0_serial:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -1133,7 +1133,7 @@ clang_6.0_mpionly:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -1160,7 +1160,7 @@ clang_6.0_hybrid:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -1186,7 +1186,7 @@ clang_6.0_serial_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -1216,7 +1216,7 @@ clang_6.0_mpionly_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1244,7 +1244,7 @@ clang_6.0_hybrid_dbg:
       - python3 -m unittest discover pystencils_walberla/
       - python3 -m unittest discover lbmpy_walberla/
       - cd ..
-      - pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
