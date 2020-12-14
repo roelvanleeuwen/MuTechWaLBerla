@@ -24,11 +24,11 @@
 #include "core/debug/TestSubsystem.h"
 
 #include "field/Field.h"
-#include "field/python/FieldExports.h"
 
 #include "python_coupling/DictWrapper.h"
 #include "python_coupling/Manager.h"
 #include "python_coupling/PythonCallback.h"
+#include "python_coupling/export/FieldExports.h"
 
 using namespace walberla;
 

@@ -19,17 +19,17 @@
 //
 //======================================================================================================================
 #include "field/GhostLayerField.h"
-#include "field/python/FieldExports.h"
 
 #include "python_coupling/Manager.h"
-#include "python_coupling/basic_exports/BlockForestExport.h"
-#include "python_coupling/basic_exports/VTKExport.h"
+#include "python_coupling/export/BlockForestExport.h"
+#include "python_coupling/export/FieldExports.h"
+#include "python_coupling/export/VTKExport.h"
 #include "python_coupling/helper/ModuleInit.h"
 
 #include "stencil/all.h"
 
 #ifdef WALBERLA_BUILD_WITH_CUDA
- #include "cuda/python/Exports.h"
+ #include "python_coupling/export/CUDAExport.h"
 #endif
 
 

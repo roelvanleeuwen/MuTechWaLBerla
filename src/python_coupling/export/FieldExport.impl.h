@@ -28,7 +28,6 @@
 #include "field/GhostLayerField.h"
 #include "field/communication/PackInfo.h"
 #include "field/communication/UniformMPIDatatypeInfo.h"
-#include "field/python/GatherExport.impl.h"
 #include "field/vtk/FlagFieldMapping.h"
 #include "field/vtk/VTKWriter.h"
 
@@ -39,6 +38,7 @@
 #include <iostream>
 #include <type_traits>
 
+#include "GatherExport.impl.h"
 #include "pybind11/numpy.h"
 
 namespace walberla

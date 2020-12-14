@@ -23,10 +23,10 @@
 #   include "core/math/Constants.h"
 
 #   include "field/communication/PackInfo.h"
-#   include "field/python/FieldExports.h"
 
 #   include "python_coupling/Manager.h"
-#   include "python_coupling/basic_exports/BlockForestExport.h"
+#   include "python_coupling/export/BlockForestExport.h"
+#   include "python_coupling/export/FieldExports.h"
 
 namespace walberla {
     using flag_t = uint8_t;

@@ -30,7 +30,7 @@
 #   include "core/logging/Logging.h"
 #   include "core/waLBerlaBuildInfo.h"
 
-#   include "python_coupling/basic_exports/BasicExport.h"
+#   include "python_coupling/export/BasicExport.h"
 
 #   include <pybind11/embed.h>
 

@@ -13,8 +13,8 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file Export.h
-//! \ingroup cuda
+//! \file CommunicationExport.h
+//! \ingroup field
 //! \author Martin Bauer <martin.bauer@fau.de>
 //! \author Markus Holzer <markus.holzer@fau.de>
 //
@@ -26,20 +26,18 @@
 
 
 namespace walberla {
-namespace cuda {
+namespace field {
+namespace py = pybind11;
 
 
-   template<typename... GpuFields>
-   void exportModuleToPython(py::module_ &m);
-
-   template<typename... CpuFields>
-   void exportCopyFunctionsToPython(py::module_ &m);
+   template<typename... FieldTypes>
+   void exportCommunicationClasses(py::module_ &m);
 
 
-} // namespace cuda
+} // namespace field
 } // namespace walberla
 
-#include "Exports.impl.h"
 
+#include "FieldCommunicationExport.impl.h"
 
 #endif //WALBERLA_BUILD_WITH_PYTHON
