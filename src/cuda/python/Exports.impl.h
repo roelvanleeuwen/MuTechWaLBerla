@@ -31,7 +31,6 @@
 #include "cuda/GPUField.h"
 #include "field/communication/UniformMPIDatatypeInfo.h"
 #include "field/AddToStorage.h"
-#include "field/python/Export.h"
 #include "python_coupling/helper/MplHelpers.h"
 
 #include <type_traits>
