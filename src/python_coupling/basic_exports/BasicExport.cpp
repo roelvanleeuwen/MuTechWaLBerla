@@ -25,27 +25,32 @@
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
-#include "BasicExports.h"
-#include "MPIExport.h"
-#include "core/waLBerlaBuildInfo.h"
-#include "core/logging/Logging.h"
-#include "core/Abort.h"
-#include "core/cell/CellInterval.h"
-#include "core/math/AABB.h"
-#include "core/mpi/MPIIO.h"
-#include "core/timing/ReduceType.h"
-#include "core/timing/TimingPool.h"
-#include "core/timing/TimingTree.h"
-#include "communication/UniformPackInfo.h"
-#include "communication/UniformMPIDatatypeInfo.h"
-#include "domain_decomposition/StructuredBlockStorage.h"
-#include "python_coupling/Manager.h"
-#include "python_coupling/helper/BlockStorageExportHelpers.h"
-#include "stencil/Directions.h"
+#   include "communication/UniformMPIDatatypeInfo.h"
+#   include "communication/UniformPackInfo.h"
 
-#include "field/GhostLayerField.h"
+#   include "core/Abort.h"
+#   include "core/cell/CellInterval.h"
+#   include "core/logging/Logging.h"
+#   include "core/math/AABB.h"
+#   include "core/mpi/MPIIO.h"
+#   include "core/timing/ReduceType.h"
+#   include "core/timing/TimingPool.h"
+#   include "core/timing/TimingTree.h"
+#   include "core/waLBerlaBuildInfo.h"
 
-#include <functional>
+#   include "domain_decomposition/StructuredBlockStorage.h"
+
+#   include "field/GhostLayerField.h"
+
+#   include "python_coupling/Manager.h"
+#   include "python_coupling/helper/BlockStorageExportHelpers.h"
+
+#   include "stencil/Directions.h"
+
+#   include <functional>
+
+#   include "BasicExport.h"
+#   include "MPIExport.h"
 
 // specialize operator== since == is deprecated in pybind11
 template<>

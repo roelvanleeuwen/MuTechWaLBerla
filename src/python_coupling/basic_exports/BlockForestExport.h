@@ -27,9 +27,9 @@
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
-#include "blockforest/python/CommunicationExport.h"
-#include <pybind11/pybind11.h>
+#   include <pybind11/pybind11.h>
 
+#   include "CommunicationExport.h"
 
 namespace walberla {
 namespace blockforest {

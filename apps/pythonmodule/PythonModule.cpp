@@ -18,13 +18,15 @@
 //! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
-#include "blockforest/python/Exports.h"
 #include "field/GhostLayerField.h"
 #include "field/python/Exports.h"
+
 #include "python_coupling/Manager.h"
+#include "python_coupling/basic_exports/BlockForestExport.h"
+#include "python_coupling/basic_exports/VTKExport.h"
 #include "python_coupling/helper/ModuleInit.h"
+
 #include "stencil/all.h"
-#include "python_coupling/basic_exports/VTKExports.h"
 
 #ifdef WALBERLA_BUILD_WITH_CUDA
  #include "cuda/python/Exports.h"

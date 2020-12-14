@@ -26,5 +26,5 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
     configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/setup.py  ${CMAKE_CURRENT_BINARY_DIR}/setup.py )
 
     add_custom_target( pythonModule        ALL ${PYTHON_EXECUTABLE} setup.py build   DEPENDS walberla_cpp )
-    add_custom_target( pythonModuleInstall     ${PYTHON_EXECUTABLE} setup.py install DEPENDS walberla_cpp )
+    add_custom_target( pythonModuleInstall     ${PYTHON_EXECUTABLE} setup.py install --user DEPENDS walberla_cpp )
 endif()

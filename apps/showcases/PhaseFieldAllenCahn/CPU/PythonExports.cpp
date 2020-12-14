@@ -20,15 +20,13 @@
 #include "waLBerlaDefinitions.h"
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
-#include "python_coupling/Manager.h"
+#   include "core/math/Constants.h"
 
-#include "core/math/Constants.h"
+#   include "field/communication/PackInfo.h"
+#   include "field/python/Exports.h"
 
-#include "blockforest/python/Exports.h"
-
-#include "field/communication/PackInfo.h"
-#include "field/python/Exports.h"
-
+#   include "python_coupling/Manager.h"
+#   include "python_coupling/basic_exports/BlockForestExport.h"
 
 namespace walberla {
     using flag_t = uint8_t;

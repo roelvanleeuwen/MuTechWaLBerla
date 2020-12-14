@@ -29,7 +29,6 @@
 #   include "blockforest/SetupBlock.h"
 #   include "blockforest/SetupBlockForest.h"
 #   include "blockforest/StructuredBlockForest.h"
-#   include "blockforest/python/Exports.h"
 
 #   include "core/StringUtility.h"
 #   include "core/mpi/MPIIO.h"
@@ -37,9 +36,10 @@
 #   include "stencil/D3Q19.h"
 
 #   include <memory>
-
 #   include <pybind11/stl.h>
 #   include <sstream>
+
+#   include "BlockForestExport.h"
 
 namespace walberla
 {

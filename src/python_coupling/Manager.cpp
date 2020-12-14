@@ -27,12 +27,14 @@
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
 
-#include "core/waLBerlaBuildInfo.h"
-#include "Manager.h"
-#include "core/logging/Logging.h"
-#include "python_coupling/basic_exports/BasicExports.h"
-#include <pybind11/embed.h>
+#   include "core/logging/Logging.h"
+#   include "core/waLBerlaBuildInfo.h"
 
+#   include "python_coupling/basic_exports/BasicExport.h"
+
+#   include <pybind11/embed.h>
+
+#   include "Manager.h"
 
 PYBIND11_MODULE( walberla_cpp, m)
 {

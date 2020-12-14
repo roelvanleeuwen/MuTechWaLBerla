@@ -18,20 +18,22 @@
 //
 //======================================================================================================================
 
-#include "python_coupling/PythonWrapper.h"
+#include "blockforest/Initialization.h"
 
 #include "core/Environment.h"
 #include "core/debug/TestSubsystem.h"
+#include "core/math/Random.h"
 #include "core/math/Vector2.h"
 #include "core/math/Vector3.h"
-#include "core/math/Random.h"
 
-#include "blockforest/Initialization.h"
-#include "blockforest/python/Exports.h"
 #include "field/python/Exports.h"
+
+#include "python_coupling/DictWrapper.h"
 #include "python_coupling/Manager.h"
 #include "python_coupling/PythonCallback.h"
-#include "python_coupling/DictWrapper.h"
+#include "python_coupling/PythonWrapper.h"
+#include "python_coupling/basic_exports/BlockForestExport.h"
+
 #include "stencil/D2Q9.h"
 
 using namespace walberla;
