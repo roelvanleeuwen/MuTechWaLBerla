@@ -34,12 +34,6 @@
 #include "python_coupling/PythonWrapper.h"
 #include "python_coupling/helper/MplHelpers.h"
 
-#include <c++/8/iostream>
-#include <c++/8/type_traits>
-#include <pybind11/stl.h>
-
-#include "pybind11/numpy.h"
-
 namespace walberla {
 namespace cuda {
 

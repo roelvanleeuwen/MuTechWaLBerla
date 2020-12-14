@@ -20,4 +20,9 @@ if (WALBERLA_BUILD_WITH_PYTHON)
     waLBerla_execute_test( NAME FieldExportTest
                            COMMAND $<TARGET_FILE:FieldExportTest> ${CMAKE_CURRENT_SOURCE_DIR}/FieldExportTest.py )
     set_target_properties(FieldExportTest PROPERTIES CXX_VISIBILITY_PRESET hidden)
+
+    add_test( NAME PythonWalberlaTest
+          COMMAND python3 -m unittest discover waLBerla_tests/ WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python/)
+    SET_TESTS_PROPERTIES(PythonWalberlaTest
+          PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/apps/pythonmodule:$PYTHONPATH")
 endif()
