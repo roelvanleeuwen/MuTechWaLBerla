@@ -594,7 +594,7 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
     endif()
 
     execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import pybind11; print(pybind11._version.__version__)"
-                    OUTPUT_VARIABLE pybind11_VERSION RESULT_VARIABLE pybind11_VERSION_RESULT)
+                    OUTPUT_VARIABLE pybind11_VERSION ERROR_QUIET RESULT_VARIABLE pybind11_VERSION_RESULT)
     string(STRIP "${pybind11_VERSION}" pybind11_VERSION)
     if(pybind11_VERSION_RESULT EQUAL "0" AND pybind11_VERSION VERSION_GREATER_EQUAL "2.6.0")
         execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pybind11 --cmakedir
