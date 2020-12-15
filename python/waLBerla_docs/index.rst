@@ -14,10 +14,11 @@ within its `parallel data handling <https://pycodegen.pages.i10git.cs.fau.de/pys
 waLBerla`s Python bindings are built with `pybind11 <https://pybind11.readthedocs.io/en/stable/#>`_, a lightweight header-only package which is shipped as a submodule.
 Thus, there is no need to install any additional software.
 
+
 Installation:
 ------------------------
 
-To install waLberla as Python package in your path run the following command in your build folder
+To install waLberla as Python package in your path run the following command in your build folder ::
 
    make pythonModuleInstall
 
