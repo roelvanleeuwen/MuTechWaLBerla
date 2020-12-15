@@ -538,16 +538,16 @@ void exportIBlock(py::module_ &m)
    });
 
    py::class_<IBlock, std::unique_ptr<IBlock, py::nodelete>> (m, "Block")
-         .def         ( "__getitem__",                   &IBlock_getData, py::keep_alive<1, 2>()   )
+         .def                  ( "__getitem__",          &IBlock_getData, py::keep_alive<0, 1>()   )
          .def_property_readonly( "atDomainMinBorder",    &IBlock_atDomainMinBorder                 )
          .def_property_readonly( "atDomainMaxBorder",    &IBlock_atDomainMaxBorder                 )
          .def_property_readonly( "items",                &IBlock_blockDataList                     )
          .def_property_readonly( "id",                   &IBlock_getIntegerID                      )
-         .def         ( "__hash__",                      &IBlock_getIntegerID                      )
-         .def         ( "__eq__",                        &IBlock_equals                            )
-         .def         ( "__repr__",               &IBlock_str                               )
-         .def_property_readonly( "__iter__",             &IBlock_iter                              )
-         .def_property_readonly("aabb",            &IBlock::getAABB                          )
+         .def                  ( "__hash__",             &IBlock_getIntegerID                      )
+         .def                  ( "__eq__",               &IBlock_equals                            )
+         .def                  ( "__repr__",             &IBlock_str                               )
+         .def_property_readonly( "__iter__",             &IBlock_iter, py::keep_alive<0, 1>()      )
+         .def_property_readonly("aabb",                  &IBlock::getAABB                          )
          ;
 
 }
