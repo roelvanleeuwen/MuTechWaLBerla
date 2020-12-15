@@ -586,34 +586,50 @@ endif()
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_PYTHON )
 
-    find_package(Git QUIET)
-    if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-       # Update submodules as needed
-       if(WALBERLA_GIT_SUBMODULE_AUTO)
-          message(STATUS "Submodule update")
-          execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                RESULT_VARIABLE GIT_SUBMOD_RESULT)
-          if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-             message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-          endif()
-       endif()
-    endif()
-
-    if(NOT EXISTS "${PROJECT_SOURCE_DIR}/extern/pybind11/CMakeLists.txt")
-       message(FATAL_ERROR "The submodules were not downloaded! GIT_SUBMODULE was turned off or failed. Please update submodules and try again.")
-    endif()
-
-    find_package( PythonInterp 3.5 QUIET REQUIRED)
+    find_package( PythonInterp 3.6 QUIET REQUIRED)
     find_package( PythonLibs QUIET REQUIRED)
-
-    add_subdirectory(extern/pybind11)
-    # if pybind11 was installed into ${PYTHON_INCLUDE_DIR} (e.g. by pip), that will have a higher priority unless we reorder the search path
-    set_property( TARGET pybind11::pybind11
-                  PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/extern/pybind11/include" "${PYTHON_INCLUDE_DIR}")
 
     if( NOT (PYTHON_LIBRARY AND PYTHON_INCLUDE_DIR ) )
         message( FATAL_ERROR "Couldn't find any python library" )
+    endif()
+
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import pybind11; print(pybind11._version.__version__)"
+                    OUTPUT_VARIABLE pybind11_VERSION RESULT_VARIABLE pybind11_VERSION_RESULT)
+    string(STRIP "${pybind11_VERSION}" pybind11_VERSION)
+    if(pybind11_VERSION_RESULT EQUAL "0" AND pybind11_VERSION VERSION_GREATER_EQUAL "2.6.0")
+        execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pybind11 --cmakedir
+                        OUTPUT_VARIABLE PYBIND11_CMAKE_PATH)
+        string(STRIP "${PYBIND11_CMAKE_PATH}" PYBIND11_CMAKE_PATH)
+        find_package(pybind11 PATHS "${PYBIND11_CMAKE_PATH}" NO_DEFAULT_PATH REQUIRED)
+    else()
+        find_package(Git QUIET)
+        if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+           # Update submodules as needed
+           if(WALBERLA_GIT_SUBMODULE_AUTO)
+              message(STATUS "Submodule update")
+              execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    RESULT_VARIABLE GIT_SUBMOD_RESULT)
+              if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+                 message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+              endif()
+           endif()
+        endif()
+
+        if(NOT EXISTS "${PROJECT_SOURCE_DIR}/extern/pybind11/CMakeLists.txt")
+            if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
+                message(FATAL_ERROR "Please update git submodules or install pybind11 via pip.")
+            else()
+                message(FATAL_ERROR "Please install pybind11 via pip or download it to ${PROJECT_SOURCE_DIR}/extern/pybind11.")
+            endif()
+        endif()
+
+        add_subdirectory(extern/pybind11)
+
+        # if pybind11 was installed into ${PYTHON_INCLUDE_DIR} (e.g. by pip), that will have a higher priority than the Git submodule unless we reorder the search path
+        # introduced in 2.6.0 (https://github.com/pybind/pybind11/issues/2709), fixed in 2.6.2 (https://github.com/pybind/pybind11/pull/2716)
+        set_property( TARGET pybind11::pybind11
+                      PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/extern/pybind11/include" "${PYTHON_INCLUDE_DIR}")
     endif()
 
     if( NOT WALBERLA_CXX_COMPILER_IS_MSVC )
