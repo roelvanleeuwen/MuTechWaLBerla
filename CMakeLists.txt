@@ -613,10 +613,6 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
         message( FATAL_ERROR "Couldn't find any python library" )
     endif()
 
-    SET( WALBERLA_BUILD_WITH_PYTHON 1 )
-    include_directories( ${PYTHON_INCLUDE_DIR} )
-    list ( APPEND SERVICE_LIBS ${PYTHON_LIBRARY} )
-
     if( NOT WALBERLA_CXX_COMPILER_IS_MSVC )
         list ( APPEND SERVICE_LIBS -lutil )
     endif()
