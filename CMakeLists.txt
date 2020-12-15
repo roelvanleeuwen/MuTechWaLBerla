@@ -632,10 +632,6 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
                       PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/extern/pybind11/include" "${PYTHON_INCLUDE_DIR}")
     endif()
 
-    if( NOT WALBERLA_CXX_COMPILER_IS_MSVC )
-        list ( APPEND SERVICE_LIBS -lutil )
-    endif()
-
     # a python module is a shared library - so everything has to be compiled to position independent code
     # otherwise linking the static libs into the shared lib will result in errors
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
