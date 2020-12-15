@@ -608,6 +608,9 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
     find_package( PythonLibs QUIET REQUIRED)
 
     add_subdirectory(extern/pybind11)
+    # if pybind11 was installed into ${PYTHON_INCLUDE_DIR} (e.g. by pip), that will have a higher priority unless we reorder the search path
+    set_property( TARGET pybind11::pybind11
+                  PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/extern/pybind11/include" "${PYTHON_INCLUDE_DIR}")
 
     if( NOT (PYTHON_LIBRARY AND PYTHON_INCLUDE_DIR ) )
         message( FATAL_ERROR "Couldn't find any python library" )
