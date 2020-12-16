@@ -507,7 +507,7 @@ void exportIBlock(py::module_ &m)
         if (p) std::rethrow_exception(p);
      } catch (const NoSuchBlockData &e) {
         // Set NoSuchBlockData as the active python error
-        throw e.what();
+        throw std::out_of_range(e.what());
      }
    });
    static py::exception<BlockDataNotConvertible> ex2(m, "BlockDataNotConvertible");
@@ -516,7 +516,7 @@ void exportIBlock(py::module_ &m)
         if (p) std::rethrow_exception(p);
      } catch (const BlockDataNotConvertible &e) {
         // Set BlockDataNotConvertible as the active python error
-        throw e.what();
+        throw std::invalid_argument(e.what());
      }
    });
 
