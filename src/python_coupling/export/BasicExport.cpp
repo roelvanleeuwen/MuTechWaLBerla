@@ -44,6 +44,7 @@
 
 #   include "python_coupling/Manager.h"
 #   include "python_coupling/helper/BlockStorageExportHelpers.h"
+#   include "python_coupling/helper/OwningIterator.h"
 
 #   include "stencil/Directions.h"
 
@@ -460,17 +461,18 @@ py::object IBlock_getData( py::object iblockObject, const std::string & stringID
 }
 
 
-py::list IBlock_blockDataList( py::object iblockObject ) //NOLINT
+std::vector<py::object> IBlock_blockDataList( py::object iblockObject ) //NOLINT
 {
    IBlock * block = py::cast<IBlock*>( iblockObject );
 
    const std::vector<std::string> & stringIds = block->getBlockStorage().getBlockDataIdentifiers();
 
-   py::list resultList;
+   std::vector<py::object> resultList;
+   resultList.reserve(stringIds.size());
 
    for( auto it = stringIds.begin(); it != stringIds.end(); ++it ) {
       try {
-         resultList.append( py::make_tuple( *it, IBlock_getData( iblockObject, *it) ) );
+         resultList.push_back( py::make_tuple( *it, IBlock_getData( iblockObject, *it) ) );
       }
       catch( BlockDataNotConvertible & /*e*/ ) {
       }
@@ -479,10 +481,10 @@ py::list IBlock_blockDataList( py::object iblockObject ) //NOLINT
    return resultList;
 }
 
-py::object IBlock_iter(  py::object iblockObject )
+py::iterator IBlock_iter(  py::object iblockObject )
 {
-   py::list resultList = IBlock_blockDataList( iblockObject ); //NOLINT
-   return resultList.attr("__iter__");
+   std::vector<py::object> resultList = IBlock_blockDataList( iblockObject ); //NOLINT
+   return make_owning_iterator(resultList);
 }
 
 py::tuple IBlock_atDomainMinBorder( IBlock & block )
@@ -538,16 +540,16 @@ void exportIBlock(py::module_ &m)
    });
 
    py::class_<IBlock, std::unique_ptr<IBlock, py::nodelete>> (m, "Block")
-         .def                  ( "__getitem__",          &IBlock_getData, py::keep_alive<0, 1>()   )
-         .def_property_readonly( "atDomainMinBorder",    &IBlock_atDomainMinBorder                 )
-         .def_property_readonly( "atDomainMaxBorder",    &IBlock_atDomainMaxBorder                 )
-         .def_property_readonly( "items",                &IBlock_blockDataList                     )
-         .def_property_readonly( "id",                   &IBlock_getIntegerID                      )
-         .def                  ( "__hash__",             &IBlock_getIntegerID                      )
-         .def                  ( "__eq__",               &IBlock_equals                            )
-         .def                  ( "__repr__",             &IBlock_str                               )
-         .def_property_readonly( "__iter__",             &IBlock_iter, py::keep_alive<0, 1>()      )
-         .def_property_readonly("aabb",                  &IBlock::getAABB                          )
+         .def                  ( "__getitem__",          &IBlock_getData, py::keep_alive<0, 1>()      )
+         .def_property_readonly( "atDomainMinBorder",    &IBlock_atDomainMinBorder                    )
+         .def_property_readonly( "atDomainMaxBorder",    &IBlock_atDomainMaxBorder                    )
+         .def_property_readonly( "items",                &IBlock_blockDataList, py::keep_alive<0, 1>())
+         .def_property_readonly( "id",                   &IBlock_getIntegerID                         )
+         .def                  ( "__hash__",             &IBlock_getIntegerID                         )
+         .def                  ( "__eq__",               &IBlock_equals                               )
+         .def                  ( "__repr__",             &IBlock_str                                  )
+         .def                  ( "__iter__",             &IBlock_iter, py::keep_alive<0, 1>()         )
+         .def_property_readonly("aabb",                  &IBlock::getAABB                             )
          ;
 
 }

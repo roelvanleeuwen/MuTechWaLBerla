@@ -40,6 +40,7 @@
 #   include <sstream>
 
 #   include "BlockForestExport.h"
+#   include "python_coupling/helper/OwningIterator.h"
 
 namespace walberla
 {
@@ -97,27 +98,22 @@ BlockDataID blockDataIDFromString(StructuredBlockForest& bs, const std::string& 
    return blockDataIDFromString(bs.getBlockStorage(), stringID);
 }
 
-py::object StructuredBlockForest_iter(const shared_ptr< StructuredBlockForest >& bf) // NOLINT
+py::iterator StructuredBlockForest_iter(const shared_ptr< StructuredBlockForest >& bf) // NOLINT
 {
    // shared_ptr<StructuredBlockForest> s = py::cast< shared_ptr<StructuredBlockForest> > ( StructuredBlockForest );
 
    std::vector< const IBlock* > blocks;
    bf->getBlocks(blocks);
-   py::list resultList;
+   std::vector<py::object> resultList;
+   resultList.reserve(blocks.size());
 
    for (auto it = blocks.begin(); it != blocks.end(); ++it)
    {
       py::object theObject = py::cast(*it);
-      resultList.append(theObject);
+      resultList.push_back(theObject);
    }
 
-   return py::iter(resultList);
-}
-
-py::object* blockDataCreationHelper(IBlock* block, StructuredBlockForest* bs, py::object callable) // NOLINT
-{
-   py::object* res = new py::object(callable(block, bs));
-   return res;
+   return python_coupling::make_owning_iterator(resultList);
 }
 
 py::object StructuredBlockForest_getItem(const shared_ptr< StructuredBlockForest >& bf, uint_t i) // NOLINT
@@ -131,25 +127,25 @@ py::object StructuredBlockForest_getItem(const shared_ptr< StructuredBlockForest
    return theObject;
 }
 
-py::list StructuredBlockForest_blocksOverlappedByAABB(StructuredBlockForest& s, const AABB& aabb)
+std::vector<py::object> StructuredBlockForest_blocksOverlappedByAABB(StructuredBlockForest& s, const AABB& aabb)
 {
    std::vector< IBlock* > blocks;
    s.getBlocksOverlappedByAABB(blocks, aabb);
 
-   py::list resultList;
+   std::vector<py::object> resultList;
    for (auto it = blocks.begin(); it != blocks.end(); ++it)
-      resultList.append(py::cast(*it));
+      resultList.push_back(py::cast(*it));
    return resultList;
 }
 
-py::list StructuredBlockForest_blocksContainedWithinAABB(StructuredBlockForest& s, const AABB& aabb)
+std::vector<py::object> StructuredBlockForest_blocksContainedWithinAABB(StructuredBlockForest& s, const AABB& aabb)
 {
    std::vector< IBlock* > blocks;
    s.getBlocksContainedWithinAABB(blocks, aabb);
 
-   py::list resultList;
+   std::vector<py::object> resultList;
    for (auto it = blocks.begin(); it != blocks.end(); ++it)
-      resultList.append(py::cast(*it));
+      resultList.push_back(py::cast(*it));
    return resultList;
 }
 
@@ -287,11 +283,11 @@ void exportBlockForest(py::module_& m)
       .def("mapToPeriodicDomain", &SbF_mapToPeriodicDomain3)
       .def("__getitem__", &StructuredBlockForest_getItem, py::keep_alive< 0, 1 >())
       .def("__len__", &StructuredBlockForest::size)
-      .def("getBlock", SbF_getBlock1)
-      .def("getBlock", SbF_getBlock2)
+      .def("getBlock", SbF_getBlock1, py::keep_alive< 0, 1 >())
+      .def("getBlock", SbF_getBlock2, py::keep_alive< 0, 1 >())
       .def("containsGlobalBlockInformation", &StructuredBlockForest::containsGlobalBlockInformation)
-      .def("blocksOverlappedByAABB", &StructuredBlockForest_blocksOverlappedByAABB)
-      .def("blocksContainedWithinAABB", &StructuredBlockForest_blocksContainedWithinAABB)
+      .def("blocksOverlappedByAABB", &StructuredBlockForest_blocksOverlappedByAABB, py::keep_alive< 0, 1 >())
+      .def("blocksContainedWithinAABB", &StructuredBlockForest_blocksContainedWithinAABB, py::keep_alive< 0, 1 >())
       .def("blockExists", &p_blockExists1)
       .def("blockExists", p_blockExists2)
       .def("blockExistsLocally", &p_blockExistsLocally1)

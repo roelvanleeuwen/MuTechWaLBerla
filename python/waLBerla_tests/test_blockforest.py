@@ -33,6 +33,18 @@ class BlockforestModuleTest(unittest.TestCase):
         blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))  # noqa: F841
         self.assertEqual(npf[0, 0, 0], 42.0)
 
+    def testMemoryManagement3(self):
+        """Same as testMemoryManagement2, but with iterators"""
+        blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))
+        field.addToStorage(blocks, "TestField", np.float64)
+        for block in blocks:
+            for name, f in block:
+                npf = field.toArray(f)
+        npf[:, :, :] = 42.0
+        del blocks, block, name, f
+        blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))  # noqa: F841
+        self.assertEqual(npf[0, 0, 0], 42.0)
+
     def testGeneralFunctionality(self):
         blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))
         self.assertEqual(blocks.getNumberOfLevels(), 1)
