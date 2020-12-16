@@ -64,7 +64,7 @@ py::iterator make_owning_iterator(T obj) {
                throw py::stop_iteration();
             }
             return *s.it;
-         }, Policy);
+         }, py::keep_alive< 0, 1 >(), Policy);
    });
 
    return cast(state(obj));

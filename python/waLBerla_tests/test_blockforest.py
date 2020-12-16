@@ -38,8 +38,10 @@ class BlockforestModuleTest(unittest.TestCase):
         blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))
         field.addToStorage(blocks, "TestField", np.float64)
         for block in blocks:
-            for name, f in block:
-                npf = field.toArray(f)
+            for name in block.fieldNames:
+                if name == "TestField":
+                    f = block[name]
+                    npf = field.toArray(f)
         npf[:, :, :] = 42.0
         del blocks, block, name, f
         blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))  # noqa: F841
