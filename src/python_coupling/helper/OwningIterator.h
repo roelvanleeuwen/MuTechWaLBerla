@@ -1,5 +1,27 @@
+//======================================================================================================================
+//
+//  This file is part of waLBerla. waLBerla is free software: you can
+//  redistribute it and/or modify it under the terms of the GNU General Public
+//  License as published by the Free Software Foundation, either version 3 of
+//  the License, or (at your option) any later version.
+//
+//  waLBerla is distributed in the hope that it will be useful, but WITHOUT
+//  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+//  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+//  for more details.
+//
+//  You should have received a copy of the GNU General Public License along
+//  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
+//
+//! \file OwningIterator.h
+//! \ingroup python_coupling
+//! \author Michael Kuron <mkuron@icp.uni-stuttgart.de>
+//
+//======================================================================================================================
+
 #pragma once
 
+#include <mutex>
 #include <pybind11/pybind11.h>
 
 namespace walberla {
@@ -16,17 +38,20 @@ struct owning_iterator_state {
    T obj;
    typename T::iterator it;
    bool first_or_done;
+   static std::once_flag registered;
 };
+
+template <typename T, py::return_value_policy Policy>
+std::once_flag owning_iterator_state<T, Policy>::registered;
 
 } // namespace detail
 
 template <py::return_value_policy Policy = py::return_value_policy::reference_internal,
-          typename T,
-          typename... Extra>
-py::iterator make_owning_iterator(T obj, Extra &&... extra) {
+          typename T>
+py::iterator make_owning_iterator(T obj) {
    using state = detail::owning_iterator_state<T, Policy>;
 
-   if (!py::detail::get_type_info(typeid(state), false)) {
+   std::call_once(state::registered, []() {
       py::class_<state>(py::handle(), "owning_iterator", py::module_local())
          .def("__iter__", [](state &s) -> state& { return s; })
          .def("__next__", [](state &s) -> typename T::value_type {
@@ -39,8 +64,8 @@ py::iterator make_owning_iterator(T obj, Extra &&... extra) {
                throw py::stop_iteration();
             }
             return *s.it;
-         }, std::forward<Extra>(extra)..., Policy);
-   }
+         }, Policy);
+   });
 
    return cast(state(obj));
 }
