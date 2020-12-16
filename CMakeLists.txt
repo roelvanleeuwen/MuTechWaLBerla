@@ -472,42 +472,6 @@ else()
    endif()
 endif()
 
-try_compile( WALBERLA_USE_STD_ANY "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdAny.cpp"
-             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_ANY ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
-if( WALBERLA_USE_STD_ANY )
-   message( STATUS "Found std::any")
-else()
-   try_compile( WALBERLA_USE_STD_EXPERIMENTAL_ANY "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdAny.cpp"
-                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_ANY ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
-   if( WALBERLA_USE_STD_EXPERIMENTAL_ANY )
-      message( STATUS "Found std::experimental::any")
-   else()
-      message(FATAL_ERROR "Neither std::any nor std::experimental::any are available")
-   endif()
-endif()
-
-try_compile( WALBERLA_USE_STD_OPTIONAL "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdOptional.cpp"
-             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_OPTIONAL ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
-if( WALBERLA_USE_STD_OPTIONAL )
-   message( STATUS "Found std::optional")
-else()
-   try_compile( WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdOptional.cpp"
-                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
-   if( WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL )
-      message( STATUS "Found std::experimental::optional")
-   else()
-      message(FATAL_ERROR "Neither std::optional nor std::experimental::optional are available")
-   endif()
-endif()
-
-try_compile( WALBERLA_USE_STD_VARIANT "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdVariant.cpp"
-             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_VARIANT ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
-if( WALBERLA_USE_STD_VARIANT )
-   message( STATUS "Found std::variant")
-else()
-   message(FATAL_ERROR "std::variant is not are available")
-endif()
-
 
 
 ############################################################################################################################
