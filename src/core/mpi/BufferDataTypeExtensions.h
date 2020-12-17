@@ -28,7 +28,7 @@
 #include "core/Conversion.h"
 #include "core/DataTypes.h"
 #include "core/math/Uint.h"
-#if __cplusplus >= 201703L
+#if __cplusplus >= 201703L || defined(_MSC_VER)
 #include "core/Optional.h"
 #endif
 #include "core/RandomUUID.h"
@@ -566,7 +566,7 @@ template<typename T, typename K, typename C, typename A>
 struct BufferSizeTrait< std::multimap<K,T,C,A> > { static const bool constantSize = false;  };
 
 
-#if __cplusplus >= 201703L
+#if __cplusplus >= 201703L || defined(_MSC_VER)
 // ---------------------------------------------------------------------------------------------------------------------
 // ------------------------------------------- optional Support --------------------------------------------------------
 // ---------------------------------------------------------------------------------------------------------------------

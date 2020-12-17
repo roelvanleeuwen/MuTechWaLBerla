@@ -220,8 +220,10 @@ waLBerla_execute_test( NAME UNIQUEID PROCESSES 4)
 waLBerla_compile_test( FILES VersionTest.cpp )
 waLBerla_execute_test( NAME VersionTest )
 
-waLBerla_compile_test( FILES VariantTest )
-waLBerla_execute_test( NAME VariantTest )
+if ( WALBERLA_CXX_COMPILER_IS_INTEL AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "20.0" )
+  waLBerla_compile_test( FILES VariantTest )
+  waLBerla_execute_test( NAME VariantTest )
+endif()
 
 ##################
 # load_balancing #

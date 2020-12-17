@@ -50,7 +50,8 @@ int main( int /*argc*/, char** /*argv*/ )
    //  walberla::get<3>(v);      // error: valid index values are 0 and 1
 
    try {
-      walberla::get<float>( w ); // w contains int, not float: will throw
+      float f = walberla::get<float>( w ); // w contains int, not float: will throw
+      std::cout << f << std::endl;
    } catch ( const walberla::bad_variant_access& ) {}
 
    walberla::variant<std::string> x( "abc" ); // converting constructors work when unambiguous
@@ -64,7 +65,7 @@ int main( int /*argc*/, char** /*argv*/ )
    WALBERLA_CHECK( walberla::holds_alternative<std::string>( y ) ); //succeeds
 
    std::cout << "bye" << std::endl;
-   std::vector<var_t> vec {10, 15l, 1.5, "hello"};
+   std::vector<var_t> vec = {10, 15l, 1.5, "hello"};
 
    for ( auto& z : vec ) {
       // 1. void visitor, only called for side-effects (here, for I/O)
