@@ -20,9 +20,9 @@ def normalize_ghostlayer_info(field, with_ghost_layers):
         if gl is False:
             return 0
         if gl is True:
-            return field.nrOfGhostLayers()
-        if gl > field.nrOfGhostLayers():
-            raise ValueError("Field only has %d ghost layers (requested %d)" % (field.nrOfGhostLayers(), gl))
+            return field.nrOfGhostLayers
+        if gl > field.nrOfGhostLayers:
+            raise ValueError("Field only has %d ghost layers (requested %d)" % (field.nrOfGhostLayers, gl))
         return gl
 
     if hasattr(with_ghost_layers, "__len__") and len(with_ghost_layers) == 3:
@@ -46,7 +46,7 @@ def numpy_array_from_walberla_field(field, with_ghost_layers=False):
         return None
 
     if hasattr(field, 'nrOfGhostLayers'):
-        field_gl = field.nrOfGhostLayers()
+        field_gl = field.nrOfGhostLayers
     else:
         field_gl = 0
     ghost_layers = normalize_ghostlayer_info(field, with_ghost_layers)
@@ -55,7 +55,7 @@ def numpy_array_from_walberla_field(field, with_ghost_layers=False):
         return numpy.asarray(field)
     else:
         result = numpy.asarray(field)
-        cutoff = [abs(gl - field.nrOfGhostLayers()) for gl in ghost_layers]
+        cutoff = [abs(gl - field.nrOfGhostLayers) for gl in ghost_layers]
         if len(result.shape) == 4:
             view = result[cutoff[0]:-cutoff[0] if cutoff[0] > 0 else None,
                           cutoff[1]:-cutoff[1] if cutoff[1] > 0 else None,

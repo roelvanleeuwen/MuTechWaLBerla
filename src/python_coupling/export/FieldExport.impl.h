@@ -158,68 +158,6 @@ class GhostLayerFieldDataHandling : public field::BlockDataHandling< GhostLayerF
 //===================================================================================================================
 
 template< typename Field_T >
-void field_setCellXYZ3(Field_T& field, std::array<cell_idx_t, 3 > args, const typename Field_T::value_type& value)
-{
-   using namespace py;
-
-   Cell cell(args[0], args[1], args[2]);
-   cell_idx_t f = 0;
-
-   if (!field.coordinatesValid(cell[0], cell[1], cell[2], f))
-   {
-      throw py::value_error("Field indices out of bounds.");
-   }
-   field(cell, f) = value;
-}
-
-template< typename Field_T >
-void field_setCellXYZ4(Field_T& field, std::array<cell_idx_t, 4 > args, const typename Field_T::value_type& value)
-{
-   using namespace py;
-
-   Cell cell(args[0], args[1], args[2]);
-   cell_idx_t f = args[3];
-
-   if (!field.coordinatesValid(cell[0], cell[1], cell[2], f))
-   {
-      throw py::value_error("Field indices out of bounds.");
-   }
-   field(cell, f) = value;
-}
-
-template< typename Field_T >
-typename Field_T::value_type field_getCellXYZ3(Field_T& field, std::array<cell_idx_t, 3 > args)
-{
-   using namespace py;
-
-   Cell cell(args[0], args[1], args[2]);
-   cell_idx_t f = 0;
-
-   if (!field.coordinatesValid(cell[0], cell[1], cell[2], f))
-   {
-      throw py::value_error("Field indices out of bounds.");
-   }
-
-   return field(cell, f);
-}
-
-template< typename Field_T >
-typename Field_T::value_type field_getCellXYZ4(Field_T& field, std::array<cell_idx_t, 4 > args)
-{
-   using namespace py;
-
-   Cell cell(args[0], args[1], args[2]);
-   cell_idx_t f = args[3];
-
-   if (!field.coordinatesValid(cell[0], cell[1], cell[2], f))
-   {
-      throw py::value_error("Field indices out of bounds.");
-   }
-
-   return field(cell, f);
-}
-
-template< typename Field_T >
 py::object field_size(const Field_T& field)
 {
    return py::make_tuple(field.xSize(), field.ySize(), field.zSize(), field.fSize());
@@ -358,26 +296,29 @@ struct FieldExporter
       std::string class_name = "Field_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
 
       py::class_< Field_T, shared_ptr< Field_T > >(m_, class_name.c_str())
-         .def("layout", &field_layout< Field_T >)
-         .def("size", &field_size< Field_T >)
-         .def("allocSize", &field_allocSize< Field_T >)
-         .def("strides", &field_strides< Field_T >)
-         .def("offsets", &field_offsets< Field_T >)
+         .def_property_readonly("layout", &field_layout< Field_T >)
+         .def_property_readonly("size", &field_size< Field_T >)
+         .def_property_readonly("allocSize", &field_allocSize< Field_T >)
+         .def_property_readonly("strides", &field_strides< Field_T >)
+         .def_property_readonly("offsets", &field_offsets< Field_T >)
          .def("clone", &Field_T::clone, py::return_value_policy::copy)
          .def("cloneUninitialized", &Field_T::cloneUninitialized, py::return_value_policy::copy)
          .def("swapDataPointers", &field_swapDataPointers< Field_T >)
-         .def("__getitem__",        &field_getCellXYZ3      < Field_T > )
-         .def("__getitem__",        &field_getCellXYZ4      < Field_T > )
-         .def("__setitem__",        &field_setCellXYZ3      < Field_T > )
-         .def("__setitem__",        &field_setCellXYZ4      < Field_T > )
+         .def("__getitem__",        [](const Field_T& self, const py::object& index) {
+             return py::cast(self).attr("__array__")().attr("__getitem__")(index);
+         } )
+          .def("__setitem__",        [](const Field_T& self, const py::object& index,
+                                        const typename Field_T::value_type& value) {
+              py::cast(self).attr("__array__")().attr("__setitem__")(index, value);
+          } )
          .def("__array__", &toNumpyArray< Field_T >);
 
       std::string class_nameGL =
          "GhostLayerField_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
 
       py::class_< GlField_T, shared_ptr< GlField_T >, Field_T >(m_, class_nameGL.c_str())
-         .def("sizeWithGhostLayer", &GlField_T::xSizeWithGhostLayer)
-         .def("nrOfGhostLayers", &GlField_T::nrOfGhostLayers)
+         .def_property_readonly("sizeWithGhostLayer", &GlField_T::xSizeWithGhostLayer)
+         .def_property_readonly("nrOfGhostLayers", &GlField_T::nrOfGhostLayers)
          .def("__array__", &toNumpyArrayWithGhostLayers< GlField_T >);
 
       using field::communication::PackInfo;

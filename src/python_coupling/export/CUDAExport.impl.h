@@ -72,17 +72,17 @@ using namespace pybind11::literals;
 
          std::string class_name = "GpuField_" + data_type_name;
          py::class_<GpuField_T, shared_ptr<GpuField_T>>(m_, class_name.c_str() )
-            .def("layout",              &field::internal::field_layout            < GpuField_T > )
-            .def("size",                &field::internal::field_size              < GpuField_T > )
-            .def("sizeWithGhostLayers", &field::internal::field_sizeWithGhostLayer< GpuField_T > )
-            .def("allocSize",           &field::internal::field_allocSize         < GpuField_T > )
-            .def("strides",             &field::internal::field_strides           < GpuField_T > )
-            .def("offsets",             &field::internal::field_offsets           < GpuField_T > )
+            .def_property_readonly("layout",              &field::internal::field_layout            < GpuField_T > )
+            .def_property_readonly("size",                &field::internal::field_size              < GpuField_T > )
+            .def_property_readonly("sizeWithGhostLayers", &field::internal::field_sizeWithGhostLayer< GpuField_T > )
+            .def_property_readonly("allocSize",           &field::internal::field_allocSize         < GpuField_T > )
+            .def_property_readonly("strides",             &field::internal::field_strides           < GpuField_T > )
+            .def_property_readonly("offsets",             &field::internal::field_offsets           < GpuField_T > )
             .def("ptr",                 &gpufield_ptr                             < GpuField_T > )
             .def("dtypeStr",            &gpufield_dtypeStr                        < GpuField_T > )
-            .def("isPitchedMem",        &GpuField_T::isPitchedMem )
+            .def_property_readonly("isPitchedMem",        &GpuField_T::isPitchedMem )
             .def("swapDataPointers",    &field::internal::field_swapDataPointers  < GpuField_T > )
-            .def("nrOfGhostLayers",     &GpuField_T::nrOfGhostLayers )
+            .def_property_readonly("nrOfGhostLayers",     &GpuField_T::nrOfGhostLayers )
             .def("cloneUninitialized",  &GpuField_T::cloneUninitialized, py::return_value_policy::copy)
             ;
 
