@@ -38,12 +38,24 @@ class BlockforestModuleTest(unittest.TestCase):
         blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))
         field.addToStorage(blocks, "TestField", np.float64)
         for block in blocks:
-            for name, f in block:
-                npf = field.toArray(f)
+            for name in block.fieldNames:
+                if name == "TestField":
+                    f = block[name]
+                    npf = field.toArray(f)
         npf[:, :, :] = 42.0
         del blocks, block, name, f
         blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))  # noqa: F841
         self.assertEqual(npf[0, 0, 0], 42.0)
+
+    def testExceptions(self):
+        """Check that the right exceptions are thrown when nonexistent or non-convertible fields are accessed"""
+        blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))
+        with self.assertRaises(ValueError) as cm:
+            blocks[0]["cell bounding box"]
+        self.assertEqual(str(cm.exception), "This blockdata is not accessible from Python")
+        with self.assertRaises(IndexError) as cm:
+            blocks[0]["nonexistent"]
+        self.assertEqual(str(cm.exception), "No blockdata with the given name found")
 
     def testGeneralFunctionality(self):
         blocks = createUniformBlockGrid(blocks=(1, 1, 1), cellsPerBlock=(2, 2, 2))
