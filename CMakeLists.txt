@@ -475,6 +475,10 @@ else()
    endif()
 endif()
 
+if (WALBERLA_BUILD_WITH_CUDA AND CUDA_VERSION VERSION_LESS "11.0")
+   # CUDA < 11 does not support C++17. std::experimental::any works with C++14, unlike std::any.
+   set(WALBERLA_USE_STD_EXPERIMENTAL_ANY 1)
+endif()
 
 
 ############################################################################################################################
