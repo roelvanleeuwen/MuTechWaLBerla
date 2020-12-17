@@ -372,7 +372,6 @@ endif()
 
 if ( WALBERLA_CXX_COMPILER_IS_CLANG )
     add_flag ( CMAKE_CXX_FLAGS "-Wall -Wconversion -Wshadow -Wno-c++11-extensions -Qunused-arguments" )
-    add_flag ( CMAKE_CXX_FLAGS "-D'_LIBCPP_EXTERN_TEMPLATE(...)='")
 endif ( )
 
 if( WALBERLA_CXX_COMPILER_IS_GNU OR WALBERLA_CXX_COMPILER_IS_INTEL OR WALBERLA_CXX_COMPILER_IS_CLANG )
