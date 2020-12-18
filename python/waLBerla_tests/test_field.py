@@ -47,6 +47,16 @@ class FieldModuleTest(unittest.TestCase):
         view4 = field.toArray(f, with_ghost_layers=[2, False, True])
         self.assertEqual(view4[:, :, :, 0].shape, tuple([size[0] + 2 * 2, size[1] + 2 * 0, size[2] + 2 * gl]))
 
+    def test_gather(self):
+        blocks = createUniformBlockGrid(blocks=(10, 1, 1), cellsPerBlock=(2, 2, 2), periodic=(True, True, True),
+                                        oneBlockPerProcess=False)
+        wlb.field.addToStorage(blocks, "test", dtype=np.float64, fSize=1)
+        tp = tuple([slice(5, 15), slice(None, None), 0.5])
+        f = wlb.field.gather(blocks, "test", tp)
+
+        nparray = wlb.field.toArray(f)
+        self.assertEqual(nparray.shape, (11, 2, 1))
+
 
 if __name__ == '__main__':
     unittest.main()
