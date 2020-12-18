@@ -39,14 +39,14 @@ inline cell_idx_t normalizeIdx(py::object pyIndex, uint_t coordinateSize)
    cell_idx_t index;
 
    try{
-        auto test = py::cast<double>(pyIndex);
-       index = cell_idx_c( double ( test ) * double( coordinateSize) );
+       index = pyIndex.cast<cell_idx_t>();
    }
-   catch (py::error_already_set & ){
+   catch (std::exception &){
        try {
-           index = py::cast< cell_idx_t >(pyIndex);
+           auto test = pyIndex.cast<real_t>();
+           index = cell_idx_c( test * real_t( coordinateSize) );
        }
-       catch (py::error_already_set &) {
+       catch (std::exception &) {
            throw py::cast_error("Incompatible index data type");
        }
    }
