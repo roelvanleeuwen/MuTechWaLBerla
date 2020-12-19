@@ -257,6 +257,19 @@ bool p_blockExistsRemotely1(StructuredBlockForest& s, const std::array<real_t, 3
 
 }
 
+py::object * blockDataCreationHelper( IBlock * block,  py::object callable ) //NOLINT
+{
+    py::object * res = new py::object( callable( block ));
+    return res;
+}
+
+uint_t StructuredBlockForest_addBlockData( StructuredBlockForest & s, const std::string & name, py::object functionPtr ) //NOLINT
+{
+    BlockDataID res = s.addBlockData(name)
+            << BlockDataCreator<py::object>( std::bind( &blockDataCreationHelper, std::placeholders::_1, functionPtr ) );
+    return res;
+}
+
 bool SbF_atDomainXMinBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainXMinBorder(*b); }
 bool SbF_atDomainXMaxBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainXMaxBorder(*b); }
 bool SbF_atDomainYMinBorder(StructuredBlockForest& s, const IBlock* b) { return s.atDomainYMinBorder(*b); }
@@ -278,6 +291,7 @@ void exportBlockForest(py::module_& m)
    py::class_< StructuredBlockForest, std::shared_ptr< StructuredBlockForest > >(m, "StructuredBlockForest")
       .def("getNumberOfLevels", &StructuredBlockForest::getNumberOfLevels)
       .def_property_readonly("getDomain", &StructuredBlockForest::getDomain)
+      .def( "addBlockData", &StructuredBlockForest_addBlockData)
       .def("mapToPeriodicDomain", &SbF_mapToPeriodicDomain1)
       .def("mapToPeriodicDomain", &SbF_mapToPeriodicDomain2)
       .def("mapToPeriodicDomain", &SbF_mapToPeriodicDomain3)
