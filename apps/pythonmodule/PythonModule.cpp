@@ -48,11 +48,14 @@ using namespace walberla;
    Field<walberla::int64_t,1>,\
    Field<walberla::int64_t,2>,\
    Field<walberla::int64_t,3>,\
-   Field<walberla::uint8_t,1>
+   Field<walberla::uint8_t,1>,\
+   Field<walberla::uint16_t,1>,\
+   Field<walberla::uint32_t,1>
 
 #define GPU_FIELD_TYPES \
    GPUField<real_t>,\
    GPUField<int8_t>,\
+   GPUField<int32_t>,\
    GPUField<int64_t>,\
    GPUField<uint8_t>,\
    GPUField<uint64_t>
