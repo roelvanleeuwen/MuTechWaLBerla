@@ -573,10 +573,17 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
         message( FATAL_ERROR "Couldn't find any python library" )
     endif()
 
+    if(WALBERLA_CXX_COMPILER_IS_INTEL)
+        # Intel C++17 support introduced in 2.6.2 (https://github.com/pybind/pybind11/pull/2729)
+        set(PYBIND11_MINIMUM_VERSION "2.6.2")
+    else()
+        set(PYBIND11_MINIMUM_VERSION "2.6.0")
+    endif()
+
     execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import pybind11; print(pybind11._version.__version__)"
                     OUTPUT_VARIABLE pybind11_VERSION ERROR_QUIET RESULT_VARIABLE pybind11_VERSION_RESULT)
     string(STRIP "${pybind11_VERSION}" pybind11_VERSION)
-    if(pybind11_VERSION_RESULT EQUAL "0" AND pybind11_VERSION VERSION_GREATER_EQUAL "2.6.0")
+    if(pybind11_VERSION_RESULT EQUAL "0" AND pybind11_VERSION VERSION_GREATER_EQUAL "${PYBIND11_MINIMUM_VERSION}")
         execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pybind11 --cmakedir
                         OUTPUT_VARIABLE PYBIND11_CMAKE_PATH)
         string(STRIP "${PYBIND11_CMAKE_PATH}" PYBIND11_CMAKE_PATH)
@@ -606,10 +613,12 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
 
         add_subdirectory(extern/pybind11)
 
-        # if pybind11 was installed into ${PYTHON_INCLUDE_DIR} (e.g. by pip), that will have a higher priority than the Git submodule unless we reorder the search path
-        # introduced in 2.6.0 (https://github.com/pybind/pybind11/issues/2709), fixed in 2.6.2 (https://github.com/pybind/pybind11/pull/2716)
-        set_property( TARGET pybind11::pybind11
-                      PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/extern/pybind11/include" "${PYTHON_INCLUDE_DIR}")
+        if(pybind11_VERSION VERSION_LESS "2.6.2")
+            # if pybind11 was installed into ${PYTHON_INCLUDE_DIR} (e.g. by pip), that will have a higher priority than the Git submodule unless we reorder the search path
+            # introduced in 2.6.0 (https://github.com/pybind/pybind11/issues/2709), fixed in 2.6.2 (https://github.com/pybind/pybind11/pull/2716)
+            set_property( TARGET pybind11::pybind11
+                          PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/extern/pybind11/include" "${PYTHON_INCLUDE_DIR}")
+        endif()
     endif()
 
     # a python module is a shared library - so everything has to be compiled to position independent code
