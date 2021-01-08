@@ -53,35 +53,6 @@ auto pdfFieldAdder = [](IBlock* const block, StructuredBlockStorage * const stor
 
 int main(int argc, char** argv)
 {
-
-   class Init_element
-   {
-    public:
-
-      void operator()( walberla::lbm::ChannelFlowCodeGen_Outflow::IndexInfo &element, cell_idx_t x, cell_idx_t y, cell_idx_t z, field::GhostLayerField<double, 27> *pdfs)
-      {
-         element.pdf_3 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 3);
-         element.pdf_nd_3 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 3);
-         element.pdf_7 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 7);
-         element.pdf_nd_7 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 7);
-         element.pdf_9 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 9);
-         element.pdf_nd_9 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 9);
-         element.pdf_13 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 13);
-         element.pdf_nd_13 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 13);
-         element.pdf_17 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 17);
-         element.pdf_nd_17 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 17);
-         element.pdf_20 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 20);
-         element.pdf_nd_20 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 20);
-         element.pdf_22 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 22);
-         element.pdf_nd_22 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 22);
-         element.pdf_24 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 24);
-         element.pdf_nd_24 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 24);
-         element.pdf_26 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 26);
-         element.pdf_nd_26 = pdfs->get(x + cell_idx_c(0), y + cell_idx_c(0), z + cell_idx_c(0), 26);
-      }
-
-    private:
-   };
    walberla::Environment walberlaEnv(argc, argv);
 
    for( auto cfg = python_coupling::configBegin( argc, argv ); cfg != python_coupling::configEnd(); ++cfg )
@@ -126,10 +97,9 @@ int main(int argc, char** argv)
 
       auto boundariesConfig = config->getOneBlock("Boundaries");
 
-      lbm::ChannelFlowCodeGen_Outflow::Init_element test;
       lbm::ChannelFlowCodeGen_UBB ubb(blocks, pdfFieldID, u_max);
       lbm::ChannelFlowCodeGen_NoSlip noSlip(blocks, pdfFieldID);
-      lbm::ChannelFlowCodeGen_Outflow outflow(blocks, pdfFieldID, test);
+      lbm::ChannelFlowCodeGen_Outflow outflow(blocks, pdfFieldID);
 
       geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
       geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
