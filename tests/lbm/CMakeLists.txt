@@ -98,4 +98,13 @@ waLBerla_generate_target_from_python(NAME FieldLayoutAndVectorizationTestGenerat
                                                FieldLayoutAndVectorizationTest_ZYXF_NoVec_LatticeModel.cpp FieldLayoutAndVectorizationTest_ZYXF_NoVec_LatticeModel.h )
 waLBerla_compile_test( FILES codegen/FieldLayoutAndVectorizationTest.cpp DEPENDS FieldLayoutAndVectorizationTestGenerated)
 
+waLBerla_generate_target_from_python(NAME LbmPackInfoGenerationTestCodegen FILE codegen/LbmPackInfoGenerationTest.py
+                                     OUT_FILES AccessorBasedPackInfoEven.cpp AccessorBasedPackInfoEven.h
+                                               AccessorBasedPackInfoOdd.cpp AccessorBasedPackInfoOdd.h
+                                               FromKernelPackInfoPull.cpp FromKernelPackInfoPull.h
+                                               FromKernelPackInfoPush.cpp FromKernelPackInfoPush.h)
+
+waLBerla_link_files_to_builddir( "diff_packinfos.sh" )
+waLBerla_execute_test( NAME LbmPackInfoGenerationDiffTest COMMAND bash diff_packinfos.sh )
+
 endif()
