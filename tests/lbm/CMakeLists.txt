@@ -76,6 +76,21 @@ waLBerla_execute_test( NAME QCriterionTest )
 
 # Code Generation
 if( WALBERLA_BUILD_WITH_CODEGEN )
+add_subdirectory(codegen)
+
+waLBerla_generate_target_from_python(NAME ChannelFlowCodeGenGenerated
+    FILE codegen/ChannelFlowCodeGen.py
+    OUT_FILES ChannelFlowCodeGen_Sweep.cpp ChannelFlowCodeGen_Sweep.h
+    ChannelFlowCodeGen_MacroSetter.cpp ChannelFlowCodeGen_MacroSetter.h
+    ChannelFlowCodeGen_MacroGetter.cpp ChannelFlowCodeGen_MacroGetter.h
+    ChannelFlowCodeGen_UBB.cpp ChannelFlowCodeGen_UBB.h
+    ChannelFlowCodeGen_NoSlip.cpp ChannelFlowCodeGen_NoSlip.h
+    ChannelFlowCodeGen_Outflow.cpp ChannelFlowCodeGen_Outflow.h
+    ChannelFlowCodeGen_PackInfo.cpp ChannelFlowCodeGen_PackInfo.h
+    ChannelFlowCodeGen_InfoHeader.h)
+waLBerla_compile_test( FILES codegen/ChannelFlowCodeGen.cpp DEPENDS ChannelFlowCodeGenGenerated)
+set_target_properties( ChannelFlowCodeGen PROPERTIES CXX_VISIBILITY_PRESET hidden)
+
 
 waLBerla_generate_target_from_python(NAME LbCodeGenerationExampleGenerated
       FILE codegen/LbCodeGenerationExample.py

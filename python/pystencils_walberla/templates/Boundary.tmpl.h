@@ -17,7 +17,6 @@
 //! \\author pystencils
 //======================================================================================================================
 
-
 #include "core/DataTypes.h"
 
 {% if target is equalto 'cpu' -%}
@@ -64,7 +63,7 @@ public:
             NUM_TYPES = 3
         };
 
-        IndexVectors() : cpuVectors_(NUM_TYPES)  {}
+        IndexVectors() = default;
         bool operator==(IndexVectors & other) { return other.cpuVectors_ == cpuVectors_; }
 
         {% if target == 'gpu' -%}
@@ -72,14 +71,14 @@ public:
             for( auto & gpuVec: gpuVectors_)
                 cudaFree( gpuVec );
         }
-        {% endif %}
+        {% endif -%}
 
         CpuIndexVector & indexVector(Type t) { return cpuVectors_[t]; }
         {{StructName}} * pointerCpu(Type t)  { return &(cpuVectors_[t][0]); }
 
         {% if target == 'gpu' -%}
         {{StructName}} * pointerGpu(Type t)  { return gpuVectors_[t]; }
-        {% endif %}
+        {% endif -%}
 
         void syncGPU()
         {
@@ -100,12 +99,12 @@ public:
         }
 
     private:
-        std::vector<CpuIndexVector> cpuVectors_;
+        std::vector<CpuIndexVector> cpuVectors_{NUM_TYPES};
 
         {% if target == 'gpu' -%}
         using GpuIndexVector = {{StructName}} *;
         std::vector<GpuIndexVector> gpuVectors_;
-        {% endif %}
+        {%- endif %}
     };
 
 
@@ -140,8 +139,10 @@ public:
         auto & indexVectorInner = indexVectors->indexVector(IndexVectors::INNER);
         auto & indexVectorOuter = indexVectors->indexVector(IndexVectors::OUTER);
 
-
         auto * flagField = block->getData< FlagField_T > ( flagFieldID );
+        {% if outflow_boundary -%}
+        {{kernel|generate_block_data_to_field_extraction(['indexVector', 'indexVectorSize'])|indent(4)}}
+        {% endif -%}
 
         if( !(flagField->flagExists(boundaryFlagUID) && flagField->flagExists(domainFlagUID) ))
             return;
@@ -152,7 +153,6 @@ public:
         auto inner = flagField->xyzSize();
         inner.expand( cell_idx_t(-1) );
 
-
         indexVectorAll.clear();
         indexVectorInner.clear();
         indexVectorOuter.clear();
@@ -162,21 +162,7 @@ public:
             if( ! isFlagSet(it, domainFlag) )
                 continue;
 
-            {%- for dirIdx, dirVec, offset in stencil_info %}
-            if ( isFlagSet( it.neighbor({{offset}} {%if dim == 3%}, 0 {%endif %}), boundaryFlag ) )
-            {
-                {% if inner_or_boundary -%}
-                auto element = {{StructName}}(it.x(), it.y(), {%if dim == 3%} it.z(), {%endif %} {{dirIdx}} );
-                {% else -%}
-                auto element = {{StructName}}(it.x() + cell_idx_c({{dirVec[0]}}), it.y() + cell_idx_c({{dirVec[1]}}), {%if dim == 3%} it.z() + cell_idx_c({{dirVec[2]}}), {%endif %} {{inverse_directions[dirIdx]}} );
-                {% endif -%}
-                indexVectorAll.push_back( element );
-                if( inner.contains( it.x(), it.y(), it.z() ) )
-                    indexVectorInner.push_back( element );
-                else
-                    indexVectorOuter.push_back( element );
-            }
-            {% endfor %}
+            {{index_vector_initialisation|indent(12)}}
         }
 
         indexVectors->syncGPU();
