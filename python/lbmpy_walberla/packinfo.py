@@ -70,6 +70,13 @@ def generate_pack_infos_for_lbm_kernel(generation_context,
                 d = stencil.index(streaming_dir)
                 fa = write_accesses[d]
                 spec[(comm_dir,)].add(fa)
-
-        class_name = class_name_prefix + ('' if t == Timestep.BOTH else str(t))
+  
+        if t == Timestep.EVEN:
+            class_name_suffix = 'Even'
+        elif t == Timestep.ODD:
+            class_name_suffix = 'Odd'
+        else:
+            class_name_suffix = ''
+        
+        class_name = class_name_prefix + class_name_suffix
         generate_pack_info(generation_context, class_name, spec, **create_kernel_params)
