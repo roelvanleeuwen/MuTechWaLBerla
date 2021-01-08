@@ -14,7 +14,9 @@ Ehsan Fattahi
 Felix Winterhalter
 Florian Schornbaum
 Frederik Hennig
+Grigorii Drozdov
 Helen Schottenhamml
+Igor Ostanin
 Jan Götz
 Jan Hönig
 João Victor Tozatti Risso

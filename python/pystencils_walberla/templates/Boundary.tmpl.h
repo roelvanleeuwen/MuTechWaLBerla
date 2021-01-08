@@ -17,7 +17,6 @@
 //! \\author pystencils
 //======================================================================================================================
 
-
 #include "core/DataTypes.h"
 
 {% if target is equalto 'cpu' -%}
@@ -64,7 +63,7 @@ public:
             NUM_TYPES = 3
         };
 
-        IndexVectors() : cpuVectors_(NUM_TYPES)  {}
+        IndexVectors() = default;
         bool operator==(IndexVectors & other) { return other.cpuVectors_ == cpuVectors_; }
 
         {% if target == 'gpu' -%}
@@ -72,14 +71,14 @@ public:
             for( auto & gpuVec: gpuVectors_)
                 cudaFree( gpuVec );
         }
-        {% endif %}
+        {% endif -%}
 
         CpuIndexVector & indexVector(Type t) { return cpuVectors_[t]; }
         {{StructName}} * pointerCpu(Type t)  { return &(cpuVectors_[t][0]); }
 
         {% if target == 'gpu' -%}
         {{StructName}} * pointerGpu(Type t)  { return gpuVectors_[t]; }
-        {% endif %}
+        {% endif -%}
 
         void syncGPU()
         {
@@ -100,12 +99,12 @@ public:
         }
 
     private:
-        std::vector<CpuIndexVector> cpuVectors_;
+        std::vector<CpuIndexVector> cpuVectors_{NUM_TYPES};
 
         {% if target == 'gpu' -%}
         using GpuIndexVector = {{StructName}} *;
         std::vector<GpuIndexVector> gpuVectors_;
-        {% endif %}
+        {%- endif %}
     };
 
 

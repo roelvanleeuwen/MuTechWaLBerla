@@ -13,24 +13,22 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file Sanitizer.h
-//! \ingroup core
-//! \author Dominik Thoennes <dominik.thoennes@fau.de>
+//! \file
+//! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
 
 #pragma once
 
-#if defined(WALBERLA_CXX_COMPILER_IS_CLANG) || defined(WALBERLA_CXX_COMPILER_IS_GNU)
-# define ATTRIBUTE_NO_SANITIZE_ADDRESS __attribute__((no_sanitize_address))
-#else
-# define ATTRIBUTE_NO_SANITIZE_ADDRESS
-#endif
+#include "Constants.h"
 
-#if defined(WALBERLA_CXX_COMPILER_IS_GNU)
-# define ATTRIBUTE_NO_SANITIZE_UNDEFINED __attribute__((no_sanitize_undefined))
-#elif defined(WALBERLA_CXX_COMPILER_IS_CLANG)
-# define ATTRIBUTE_NO_SANITIZE_UNDEFINED __attribute__((no_sanitize("undefined")))
-#else
-# define ATTRIBUTE_NO_SANITIZE_UNDEFINED
-#endif
+namespace walberla
+{
+namespace math
+{
+///Converts a degrees angle to radians.
+constexpr real_t degToRad(real_t deg) {return deg * (pi / real_t(180));}
+///Converts a radians angle to degrees.
+constexpr real_t radToDeg(real_t rad) {return rad * (real_t(180) / pi);}
+} // namespace math
+} // namespace walberla

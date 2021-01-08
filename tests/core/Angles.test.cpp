@@ -13,41 +13,32 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file Uint.cpp
-//! \ingroup core
-//! \author Florian Schornbaum <florian.schornbaum@fau.de>
+//! \file 
+//! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
 
-#include "Uint.h"
+#include "core/DataTypes.h"
+#include "core/math/Angles.h"
+#include "core/debug/TestSubsystem.h"
 
+namespace walberla{
 
-namespace walberla {
-namespace math {
+int main( int /*argc*/, char** /*argv*/ )
+{
+   using namespace walberla::math;
 
-template<> uint_t uintMSBPosition< uint64_t >( uint64_t value ) { // for the documentation see the header file
+   debug::enterTestMode();
 
-   uint64_t i;
-   uint64_t j;
+   WALBERLA_CHECK_FLOAT_EQUAL( radToDeg(half_pi), 90_r );
+   WALBERLA_CHECK_FLOAT_EQUAL( half_pi, degToRad(90_r) );
 
-   i = value >> 32;
-   if( i != 0 ) {
-      j = value >> 48;
-      if( j != 0 ) {
-         i = value >> 56;
-         return ( i != 0 ) ? (56 + msbLookupTable[i]) : (48 + msbLookupTable[j]);
-      }
-      j = value >> 40;
-      return ( j != 0 ) ? (40 + msbLookupTable[j]) : (32 + msbLookupTable[i]);
-   }
-   j = value >> 16;
-   if( j != 0 ) {
-      i = value >> 24;
-      return ( i != 0 ) ? (24 + msbLookupTable[i]) : (16 + msbLookupTable[j]);
-   }
-   i = value >> 8;
-   return ( i != 0 ) ? (8 + msbLookupTable[i]) : msbLookupTable[value];
+   return EXIT_SUCCESS;
 }
 
-} // namespace math
-} // namespace walberla
+} //namespace walberla
+
+int main( int argc, char** argv )
+{
+   return walberla::main(argc, argv);
+}
