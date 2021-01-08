@@ -19,7 +19,7 @@ with CodeGeneration() as ctx:
     }
 
     #   Generate PackInfo specifically for streaming pattern
-    generate_pack_infos_for_lbm_kernel(ctx, 'AccessorBasedPackInfo', collision_rule, pdf_field,
+    generate_pack_infos_for_lbm_kernel(ctx, 'AccessorBasedPackInfo', stencil, pdf_field,
                                        streaming_pattern=streaming_pattern, target=target)
 
     #   Generate reference using the alternating pull/push approach
