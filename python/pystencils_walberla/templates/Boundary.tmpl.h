@@ -109,8 +109,8 @@ public:
 
 
     {{class_name}}( const shared_ptr<StructuredBlockForest> & blocks,
-                   {{kernel|generate_constructor_parameters(['indexVector', 'indexVectorSize'])}} )
-        : {{ kernel|generate_constructor_initializer_list(['indexVector', 'indexVectorSize']) }}
+                   {{kernel|generate_constructor_parameters(['indexVector', 'indexVectorSize'])}} {% if UBBCallback is defined %}, std::function<Vector3<real_t>(const Cell &, const shared_ptr<StructuredBlockForest>&, IBlock&)>& velocityCallback{%endif%})
+        : {% if UBBCallback is defined %} elementInitaliser(velocityCallback), {%endif%} {{ kernel|generate_constructor_initializer_list(['indexVector', 'indexVectorSize']) }}
     {
         auto createIdxVector = []( IBlock * const , StructuredBlockStorage * const ) { return new IndexVectors(); };
         indexVectorID = blocks->addStructuredBlockData< IndexVectors >( createIdxVector, "IndexField_{{class_name}}");
@@ -126,12 +126,12 @@ public:
                             FlagUID boundaryFlagUID, FlagUID domainFlagUID)
     {
         for( auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt )
-            fillFromFlagField<FlagField_T>( &*blockIt, flagFieldID, boundaryFlagUID, domainFlagUID );
+            fillFromFlagField<FlagField_T>({% if UBBCallback is defined %}blocks,{%endif%} &*blockIt, flagFieldID, boundaryFlagUID, domainFlagUID );
     }
 
 
     template<typename FlagField_T>
-    void fillFromFlagField( IBlock * block, ConstBlockDataID flagFieldID,
+    void fillFromFlagField({% if UBBCallback is defined %}const shared_ptr<StructuredBlockForest> &blocks,{%endif%} IBlock * block, ConstBlockDataID flagFieldID,
                             FlagUID boundaryFlagUID, FlagUID domainFlagUID )
     {
         auto * indexVectors = block->getData< IndexVectors > ( indexVectorID );
@@ -140,7 +140,7 @@ public:
         auto & indexVectorOuter = indexVectors->indexVector(IndexVectors::OUTER);
 
         auto * flagField = block->getData< FlagField_T > ( flagFieldID );
-        {% if outflow_boundary -%}
+        {% if outflow_boundary is defined and outflow_boundary -%}
         {{kernel|generate_block_data_to_field_extraction(['indexVector', 'indexVectorSize'])|indent(4)}}
         {% endif -%}
 
@@ -161,8 +161,31 @@ public:
         {
             if( ! isFlagSet(it, domainFlag) )
                 continue;
-
-            {{index_vector_initialisation|indent(12)}}
+            {% if index_vector_initialisation is defined -%}
+                {{index_vector_initialisation|indent(12)}}
+            {%- else -%}
+            {%- for dirIdx, dirVec, offset in stencil_info %}
+            if ( isFlagSet( it.neighbor({{offset}} {%if dim == 3%}, 0 {%endif %}), boundaryFlag ) )
+            {
+                {% if inner_or_boundary -%}
+                auto element = {{StructName}}(it.x(), it.y(), {%if dim == 3%} it.z(), {%endif %} {{dirIdx}} );
+                {% else -%}
+                auto element = {{StructName}}(it.x() + cell_idx_c({{dirVec[0]}}), it.y() + cell_idx_c({{dirVec[1]}}), {%if dim == 3%} it.z() + cell_idx_c({{dirVec[2]}}), {%endif %} {{inverse_directions[dirIdx]}} );
+                {% endif -%}
+                {% if UBBCallback is defined -%}
+                Vector3<real_t> InitialisatonAdditionalData = elementInitaliser(Cell(it.x(), it.y(), it.z()), blocks, *block);
+                element.vel_0 = InitialisatonAdditionalData[0];
+                element.vel_1 = InitialisatonAdditionalData[1];
+                element.vel_2 = InitialisatonAdditionalData[2];
+                {%- endif%}
+                indexVectorAll.push_back( element );
+                if( inner.contains( it.x(), it.y(), it.z() ) )
+                    indexVectorInner.push_back( element );
+                else
+                    indexVectorOuter.push_back( element );
+            }
+            {% endfor %}
+            {%- endif %}
         }
 
         indexVectors->syncGPU();
@@ -172,6 +195,7 @@ private:
     void run( IBlock * block, IndexVectors::Type type{% if target == 'gpu'%}, cudaStream_t stream = 0 {%endif%});
 
     BlockDataID indexVectorID;
+    {% if UBBCallback is defined %}std::function<Vector3<real_t>(const Cell &, const shared_ptr<StructuredBlockForest>&, IBlock&)> elementInitaliser; {%endif%}
 public:
     {{kernel|generate_members(('indexVector', 'indexVectorSize'))|indent(4)}}
 };

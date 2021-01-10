@@ -50,9 +50,26 @@ auto pdfFieldAdder = [](IBlock* const block, StructuredBlockStorage * const stor
                         make_shared<field::AllocateAligned<real_t, 64>>());
 };
 
+auto init_element = [](const Cell &pos, const shared_ptr<StructuredBlockForest> &SbF, IBlock& block)
+{
+  Cell globalCell;
+  CellInterval domain = SbF->getDomainCellBB();
+  real_t h_y = domain.yMax() - domain.yMin();
+  real_t h_z = domain.zMax() - domain.zMin();
+  SbF->transformBlockLocalToGlobalCell(globalCell, block, pos);
+
+  real_t y1 = globalCell[1] - (h_y / 2.0 + 0.5);
+  real_t z1 = globalCell[2] - (h_z / 2.0 + 0.5);
+
+  real_t u = (0.05 * 16)/(h_y*h_y*h_z*h_z) * (h_y/2.0 - y1)*(h_y/2 + y1)*(h_z/2 - z1)*(h_z/2 + z1);
+
+  Vector3<real_t> result(u, 0.0, 0.0);
+  return result;
+};
 
 int main(int argc, char** argv)
 {
+
    walberla::Environment walberlaEnv(argc, argv);
 
    for( auto cfg = python_coupling::configBegin( argc, argv ); cfg != python_coupling::configEnd(); ++cfg )
@@ -69,7 +86,7 @@ int main(int argc, char** argv)
 
       const uint_t timesteps           = parameters.getParameter< uint_t >("timesteps", uint_c(10));
       const real_t omega               = parameters.getParameter< real_t >("omega", real_t(1.9));
-      const real_t u_max               = parameters.getParameter< real_t >("u_max", real_t(0.05));
+      // const real_t u_max               = parameters.getParameter< real_t >("u_max", real_t(0.05));
       const real_t reynolds_number     = parameters.getParameter< real_t >("reynolds_number", real_t(1000));
 
       const double remainingTimeLoggerFrequency =
@@ -97,7 +114,10 @@ int main(int argc, char** argv)
 
       auto boundariesConfig = config->getOneBlock("Boundaries");
 
-      lbm::ChannelFlowCodeGen_UBB ubb(blocks, pdfFieldID, u_max);
+      std::function<Vector3<real_t>(const Cell &, const shared_ptr<StructuredBlockForest>&, IBlock&)>
+         init = init_element;
+
+      lbm::ChannelFlowCodeGen_UBB ubb(blocks, pdfFieldID, init);
       lbm::ChannelFlowCodeGen_NoSlip noSlip(blocks, pdfFieldID);
       lbm::ChannelFlowCodeGen_Outflow outflow(blocks, pdfFieldID);
 
