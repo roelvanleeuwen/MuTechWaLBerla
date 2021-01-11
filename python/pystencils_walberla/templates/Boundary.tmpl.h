@@ -107,19 +107,46 @@ public:
         {%- endif %}
     };
 
+    {% if multi_sweep %}
+    {% for sweep_class_name, sweep_kernel_info in sweep_classes.items() %}
+    class {{sweep_class_name}}
+    {
+        public:
+            {{sweep_class_name}} ( {{sweep_kernel_info|generate_constructor_parameters(['indexVectorSize'])}} )
+                : {{ sweep_kernel_info|generate_constructor_initializer_list(['indexVectorSize']) }} {};
+
+            void operator() ( IBlock * block {% if target == 'gpu'%}, cudaStream_t stream = 0 {%endif%});
+            void inner( IBlock * block {% if target == 'gpu'%}, cudaStream_t stream = 0 {%endif%});
+            void outer( IBlock * block {% if target == 'gpu'%}, cudaStream_t stream = 0 {%endif%});
+        
+        private:
+            void run( IBlock * block, IndexVectors::Type type{% if target == 'gpu'%}, cudaStream_t stream = 0 {%endif%});
+
+            {{sweep_kernel_info|generate_members(['indexVectorSize'])|indent(12)}}
+    };
+
+    {{sweep_class_name}} get{{sweep_class_name}} ()
+    {
+        return {{sweep_class_name}} ( {{sweep_kernel_info|generate_constructor_call_arguments(['indexVectorSize'])|indent(12)}} );
+    }
+    {% endfor %}
+    {% endif %}
 
     {{class_name}}( const shared_ptr<StructuredBlockForest> & blocks,
-                   {{kernel|generate_constructor_parameters(['indexVector', 'indexVectorSize'])}} )
-        : {{ kernel|generate_constructor_initializer_list(['indexVector', 'indexVectorSize']) }}
+                   {{dummy_kernel_info|generate_constructor_parameters(['indexVector', 'indexVectorSize'])}} )
+        : {{ dummy_kernel_info|generate_constructor_initializer_list(['indexVector', 'indexVectorSize']) }}
     {
         auto createIdxVector = []( IBlock * const , StructuredBlockStorage * const ) { return new IndexVectors(); };
         indexVectorID = blocks->addStructuredBlockData< IndexVectors >( createIdxVector, "IndexField_{{class_name}}");
     };
 
+    {% if not multi_sweep %}
+
     void operator() ( IBlock * block {% if target == 'gpu'%}, cudaStream_t stream = 0 {%endif%});
     void inner( IBlock * block {% if target == 'gpu'%}, cudaStream_t stream = 0 {%endif%});
     void outer( IBlock * block {% if target == 'gpu'%}, cudaStream_t stream = 0 {%endif%});
 
+    {% endif %}
 
     template<typename FlagField_T>
     void fillFromFlagField( const shared_ptr<StructuredBlockForest> & blocks, ConstBlockDataID flagFieldID,
@@ -141,7 +168,7 @@ public:
 
         auto * flagField = block->getData< FlagField_T > ( flagFieldID );
         {% if outflow_boundary -%}
-        {{kernel|generate_block_data_to_field_extraction(['indexVector', 'indexVectorSize'])|indent(4)}}
+        {{dummy_kernel_info|generate_block_data_to_field_extraction(['indexVector', 'indexVectorSize'])|indent(4)}}
         {% endif -%}
 
         if( !(flagField->flagExists(boundaryFlagUID) && flagField->flagExists(domainFlagUID) ))
@@ -169,11 +196,13 @@ public:
     }
 
 private:
+    {% if not multi_sweep %}
     void run( IBlock * block, IndexVectors::Type type{% if target == 'gpu'%}, cudaStream_t stream = 0 {%endif%});
+    {% endif %}
 
     BlockDataID indexVectorID;
 public:
-    {{kernel|generate_members(('indexVector', 'indexVectorSize'))|indent(4)}}
+    {{dummy_kernel_info|generate_members(('indexVector', 'indexVectorSize'))|indent(4)}}
 };
 
 
