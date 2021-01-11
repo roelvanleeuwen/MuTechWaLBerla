@@ -41,6 +41,8 @@ typedef pystencils::ChannelFlowCodeGen_PackInfo PackInfo_T;
 typedef walberla::uint8_t flag_t;
 typedef FlagField< flag_t > FlagField_T;
 
+using namespace std::placeholders;
+
 auto pdfFieldAdder = [](IBlock* const block, StructuredBlockStorage * const storage) {
   return new PdfField_T(storage->getNumberOfXCells(*block),
                         storage->getNumberOfYCells(*block),
@@ -50,7 +52,7 @@ auto pdfFieldAdder = [](IBlock* const block, StructuredBlockStorage * const stor
                         make_shared<field::AllocateAligned<real_t, 64>>());
 };
 
-auto init_element = [](const Cell &pos, const shared_ptr<StructuredBlockForest> &SbF, IBlock& block)
+auto VelocityCallback = [](const Cell &pos, const shared_ptr<StructuredBlockForest> &SbF, IBlock& block, real_t inflow_velocity)
 {
   Cell globalCell;
   CellInterval domain = SbF->getDomainCellBB();
@@ -61,7 +63,7 @@ auto init_element = [](const Cell &pos, const shared_ptr<StructuredBlockForest> 
   real_t y1 = globalCell[1] - (h_y / 2.0 + 0.5);
   real_t z1 = globalCell[2] - (h_z / 2.0 + 0.5);
 
-  real_t u = (0.05 * 16)/(h_y*h_y*h_z*h_z) * (h_y/2.0 - y1)*(h_y/2 + y1)*(h_z/2 - z1)*(h_z/2 + z1);
+  real_t u = (inflow_velocity * 16)/(h_y*h_y*h_z*h_z) * (h_y/2.0 - y1)*(h_y/2 + y1)*(h_z/2 - z1)*(h_z/2 + z1);
 
   Vector3<real_t> result(u, 0.0, 0.0);
   return result;
@@ -86,7 +88,7 @@ int main(int argc, char** argv)
 
       const uint_t timesteps           = parameters.getParameter< uint_t >("timesteps", uint_c(10));
       const real_t omega               = parameters.getParameter< real_t >("omega", real_t(1.9));
-      // const real_t u_max               = parameters.getParameter< real_t >("u_max", real_t(0.05));
+      const real_t u_max               = parameters.getParameter< real_t >("u_max", real_t(0.05));
       const real_t reynolds_number     = parameters.getParameter< real_t >("reynolds_number", real_t(1000));
 
       const double remainingTimeLoggerFrequency =
@@ -115,9 +117,9 @@ int main(int argc, char** argv)
       auto boundariesConfig = config->getOneBlock("Boundaries");
 
       std::function<Vector3<real_t>(const Cell &, const shared_ptr<StructuredBlockForest>&, IBlock&)>
-         init = init_element;
+         velocity_initialisation = std::bind(VelocityCallback, _1, _2, _3, u_max) ;
 
-      lbm::ChannelFlowCodeGen_UBB ubb(blocks, pdfFieldID, init);
+      lbm::ChannelFlowCodeGen_UBB ubb(blocks, pdfFieldID, velocity_initialisation);
       lbm::ChannelFlowCodeGen_NoSlip noSlip(blocks, pdfFieldID);
       lbm::ChannelFlowCodeGen_Outflow outflow(blocks, pdfFieldID);
 

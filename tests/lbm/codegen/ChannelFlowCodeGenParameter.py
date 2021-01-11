@@ -12,7 +12,7 @@ class Scenario:
         self.periodic = (0, 0, 0)
 
         self.diameter_sphere = 30
-        self.u_max = 0.005
+        self.u_max = 0.05
         self.reynolds_number = 10000
 
         kinematic_vicosity = (self.diameter_sphere * self.u_max) / self.reynolds_number

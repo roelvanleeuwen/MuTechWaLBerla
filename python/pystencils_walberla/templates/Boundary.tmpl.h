@@ -140,7 +140,7 @@ public:
         auto & indexVectorOuter = indexVectors->indexVector(IndexVectors::OUTER);
 
         auto * flagField = block->getData< FlagField_T > ( flagFieldID );
-        {% if outflow_boundary is defined and outflow_boundary -%}
+        {% if OutflowBoundary is defined and OutflowBoundary -%}
         {{kernel|generate_block_data_to_field_extraction(['indexVector', 'indexVectorSize'])|indent(4)}}
         {% endif -%}
 
@@ -161,9 +161,6 @@ public:
         {
             if( ! isFlagSet(it, domainFlag) )
                 continue;
-            {% if index_vector_initialisation is defined -%}
-                {{index_vector_initialisation|indent(12)}}
-            {%- else -%}
             {%- for dirIdx, dirVec, offset in stencil_info %}
             if ( isFlagSet( it.neighbor({{offset}} {%if dim == 3%}, 0 {%endif %}), boundaryFlag ) )
             {
@@ -176,7 +173,10 @@ public:
                 Vector3<real_t> InitialisatonAdditionalData = elementInitaliser(Cell(it.x(), it.y(), it.z()), blocks, *block);
                 element.vel_0 = InitialisatonAdditionalData[0];
                 element.vel_1 = InitialisatonAdditionalData[1];
-                element.vel_2 = InitialisatonAdditionalData[2];
+                {%if dim == 3%}element.vel_2 = InitialisatonAdditionalData[2];{%endif %}
+                {%- endif%}
+                {% if OutflowBoundary is defined and OutflowBoundary -%}
+                {{InitStructOutflowBoundary|indent(16)}}
                 {%- endif%}
                 indexVectorAll.push_back( element );
                 if( inner.contains( it.x(), it.y(), it.z() ) )
@@ -185,9 +185,7 @@ public:
                     indexVectorOuter.push_back( element );
             }
             {% endfor %}
-            {%- endif %}
         }
-
         indexVectors->syncGPU();
     }
 

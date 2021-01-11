@@ -16,6 +16,7 @@ def generate_boundary(generation_context,
                       field_name,
                       neighbor_stencil,
                       index_shape,
+                      stencil_info=None,
                       field_type=FieldType.GENERIC,
                       kernel_creation_function=None,
                       target='cpu',
@@ -58,7 +59,8 @@ def generate_boundary(generation_context,
     else:
         stencil = neighbor_stencil
 
-    stencil_info = [(i, d, ", ".join([str(e) for e in d])) for i, d in enumerate(stencil)]
+    if stencil_info is None:
+        stencil_info = [(i, d, ", ".join([str(e) for e in d])) for i, d in enumerate(stencil)]
     inv_dirs = []
     for direction in stencil:
         inverse_dir = tuple([-i for i in direction])
