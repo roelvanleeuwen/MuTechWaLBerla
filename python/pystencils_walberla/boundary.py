@@ -8,6 +8,7 @@ from pystencils.boundaries.createindexlist import (
 from pystencils.data_types import TypedSymbol, create_type
 from pystencils_walberla.codegen import KernelInfo, default_create_kernel_parameters
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
+from pystencils_walberla.additional_data_handler import AdditionalDataHandler
 
 
 def generate_boundary(generation_context,
@@ -21,7 +22,7 @@ def generate_boundary(generation_context,
                       kernel_creation_function=None,
                       target='cpu',
                       namespace='pystencils',
-                      additonal_context_items={},
+                      additonal_data_handler=None,
                       **create_kernel_params):
     struct_name = "IndexInfo"
     boundary_object.name = class_name
@@ -66,6 +67,9 @@ def generate_boundary(generation_context,
         inverse_dir = tuple([-i for i in direction])
         inv_dirs.append(stencil.index(inverse_dir))
 
+    if additonal_data_handler is None:
+        additonal_data_handler = AdditionalDataHandler()
+
     context = {
         'class_name': boundary_object.name,
         'StructName': struct_name,
@@ -77,9 +81,8 @@ def generate_boundary(generation_context,
         'target': target,
         'namespace': namespace,
         'inner_or_boundary': boundary_object.inner_or_boundary,
+        'additional_data_handler': additonal_data_handler
     }
-
-    context.update(additonal_context_items)
 
     env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)
     add_pystencils_filters_to_jinja_env(env)

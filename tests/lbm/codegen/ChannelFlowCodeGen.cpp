@@ -139,10 +139,11 @@ int main(int argc, char** argv)
 
       pystencils::ChannelFlowCodeGen_Sweep LBSweep(pdfFieldID, omega);
       // add LBM sweep and communication to time loop
-      timeloop.add() << BeforeFunction(communication, "communication") << Sweep(noSlip, "noSlip boundary");
+      timeloop.add() << Sweep(noSlip, "noSlip boundary");
       timeloop.add() << Sweep(outflow, "outflow boundary");
       timeloop.add() << Sweep(ubb, "ubb boundary");
-      timeloop.add() << Sweep(LBSweep, "LB update rule");
+      timeloop.add() << BeforeFunction(communication, "communication")
+                     << Sweep(LBSweep, "LB update rule");
 
       // LBM stability check
       timeloop.addFuncAfterTimeStep(makeSharedFunctor(field::makeStabilityChecker< PdfField_T, FlagField_T >(
