@@ -1,7 +1,6 @@
-from typing import OrderedDict
 import pystencils_walberla.boundary
 from lbmpy.boundaries.boundaryhandling import create_lattice_boltzmann_boundary_kernel
-from lbmpy.advanced_streaming import Timestep, get_timesteps, is_inplace
+from lbmpy.advanced_streaming import Timestep, is_inplace
 from lbmpy.boundaries import ExtrapolationOutflow, UBB
 from lbmpy_walberla.additional_data_handler import UBBAdditionalDataHandler, OutflowAdditionalDataHandler
 
@@ -25,7 +24,7 @@ def generate_boundary(generation_context,
                                                                       **kwargs),
                 'OddSweep': create_lattice_boltzmann_boundary_kernel(*pargs,
                                                                      streaming_pattern=streaming_pattern,
-                                                                     prev_timestep=Timestep.EVEN,
+                                                                     prev_timestep=Timestep.ODD,
                                                                      **kwargs)
             }
         else:

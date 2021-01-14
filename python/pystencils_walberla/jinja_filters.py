@@ -401,6 +401,7 @@ def generate_destructor(kernel_info, class_name):
             contents += delete_loop.format(original_field_name=field_name[:-len('_tmp')])
         return temporary_constructor.format(contents=contents, class_name=class_name)
 
+
 @jinja2.contextfilter
 def nested_class_method_definition_prefix(ctx, nested_class_name):
     outer_class = ctx['class_name']

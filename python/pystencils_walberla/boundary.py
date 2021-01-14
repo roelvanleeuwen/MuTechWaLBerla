@@ -68,7 +68,7 @@ def generate_boundary(generation_context,
         kernel.function_name = "boundary_" + boundary_object.name
         kernel.assumed_inner_stride_one = False
         kernel_info = KernelInfo(kernel)
-        sweep_to_kernel_info_dict = { '' : kernel_info }
+        sweep_to_kernel_info_dict = {'': kernel_info}
         dummy_kernel_info = kernel_info
 
     # waLBerla is a 3D framework. Therefore, a zero for the z index has to be added if we work in 2D
@@ -94,7 +94,7 @@ def generate_boundary(generation_context,
         'class_name': boundary_object.name,
         'sweep_classes': sweep_to_kernel_info_dict,
         'multi_sweep': multi_sweep,
-        'dummy_kernel_info' : dummy_kernel_info,
+        'dummy_kernel_info': dummy_kernel_info,
         'StructName': struct_name,
         'StructDeclaration': struct_from_numpy_dtype(struct_name, index_struct_dtype),
         'stencil_info': stencil_info,
