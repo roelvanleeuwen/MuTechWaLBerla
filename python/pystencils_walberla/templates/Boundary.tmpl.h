@@ -133,8 +133,8 @@ public:
     {% endif %}
 
     {{class_name}}( const shared_ptr<StructuredBlockForest> & blocks,
-                   {{dummy_kernel_info|generate_constructor_parameters(['indexVector', 'indexVectorSize'])}} )
-        : {{ dummy_kernel_info|generate_constructor_initializer_list(['indexVector', 'indexVectorSize']) }}
+                   {{dummy_kernel_info|generate_constructor_parameters(['indexVector', 'indexVectorSize'])}}{{additional_data_handler.constructor_arguments}})
+        :{{additional_data_handler.initialiser_list}} {{ dummy_kernel_info|generate_constructor_initializer_list(['indexVector', 'indexVectorSize']) }}
     {
         auto createIdxVector = []( IBlock * const , StructuredBlockStorage * const ) { return new IndexVectors(); };
         indexVectorID = blocks->addStructuredBlockData< IndexVectors >( createIdxVector, "IndexField_{{class_name}}");
@@ -153,12 +153,12 @@ public:
                             FlagUID boundaryFlagUID, FlagUID domainFlagUID)
     {
         for( auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt )
-            fillFromFlagField<FlagField_T>( &*blockIt, flagFieldID, boundaryFlagUID, domainFlagUID );
+            fillFromFlagField<FlagField_T>({{additional_data_handler.additional_arguments_for_fill_function}}&*blockIt, flagFieldID, boundaryFlagUID, domainFlagUID );
     }
 
 
     template<typename FlagField_T>
-    void fillFromFlagField( IBlock * block, ConstBlockDataID flagFieldID,
+    void fillFromFlagField({{additional_data_handler.additional_parameters_for_fill_function}}IBlock * block, ConstBlockDataID flagFieldID,
                             FlagUID boundaryFlagUID, FlagUID domainFlagUID )
     {
         auto * indexVectors = block->getData< IndexVectors > ( indexVectorID );
@@ -167,9 +167,7 @@ public:
         auto & indexVectorOuter = indexVectors->indexVector(IndexVectors::OUTER);
 
         auto * flagField = block->getData< FlagField_T > ( flagFieldID );
-        {% if outflow_boundary -%}
-        {{dummy_kernel_info|generate_block_data_to_field_extraction(['indexVector', 'indexVectorSize'])|indent(4)}}
-        {% endif -%}
+        {{additional_data_handler.additional_field_data|indent(4)}}
 
         if( !(flagField->flagExists(boundaryFlagUID) && flagField->flagExists(domainFlagUID) ))
             return;
@@ -188,10 +186,23 @@ public:
         {
             if( ! isFlagSet(it, domainFlag) )
                 continue;
-
-            {{index_vector_initialisation|indent(12)}}
+            {%- for dirIdx, dirVec, offset in stencil_info %}
+            if ( isFlagSet( it.neighbor({{offset}} {%if dim == 3%}, 0 {%endif %}), boundaryFlag ) )
+            {
+                {% if inner_or_boundary -%}
+                auto element = {{StructName}}(it.x(), it.y(), {%if dim == 3%} it.z(), {%endif %} {{dirIdx}} );
+                {% else -%}
+                auto element = {{StructName}}(it.x() + cell_idx_c({{dirVec[0]}}), it.y() + cell_idx_c({{dirVec[1]}}), {%if dim == 3%} it.z() + cell_idx_c({{dirVec[2]}}), {%endif %} {{inverse_directions[dirIdx]}} );
+                {% endif -%}
+                {{additional_data_handler.data_initialisation|indent(16)}}
+                indexVectorAll.push_back( element );
+                if( inner.contains( it.x(), it.y(), it.z() ) )
+                    indexVectorInner.push_back( element );
+                else
+                    indexVectorOuter.push_back( element );
+            }
+            {% endfor %}
         }
-
         indexVectors->syncGPU();
     }
 
@@ -201,6 +212,7 @@ private:
     {% endif %}
 
     BlockDataID indexVectorID;
+    {{additional_data_handler.additional_member_variable|indent(4)}}
 public:
     {{dummy_kernel_info|generate_members(('indexVector', 'indexVectorSize'))|indent(4)}}
 };

@@ -57,7 +57,7 @@ with CodeGeneration() as ctx:
     generate_sweep(ctx, 'ChannelFlowCodeGen_MacroGetter', getter_assignments, target=target)
 
     # boundaries
-    generate_boundary(ctx, 'ChannelFlowCodeGen_UBB', UBB([u_max, 0, 0]), method, target=target)
+    generate_boundary(ctx, 'ChannelFlowCodeGen_UBB', UBB(lambda *args: None, dim=dim), method, target=target)
     generate_boundary(ctx, 'ChannelFlowCodeGen_NoSlip', NoSlip(), method, target=target)
     outflow = ExtrapolationOutflow(stencil[4], method)
     generate_boundary(ctx, 'ChannelFlowCodeGen_Outflow', outflow, method, target=target)

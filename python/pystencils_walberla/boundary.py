@@ -1,8 +1,6 @@
 from typing import OrderedDict
 import numpy as np
 from jinja2 import Environment, PackageLoader, StrictUndefined
-from lbmpy.advanced_streaming import AccessPdfValues, numeric_offsets, numeric_index
-from lbmpy.boundaries import ExtrapolationOutflow
 from pystencils import Field, FieldType
 from pystencils.boundaries.boundaryhandling import create_boundary_kernel
 from pystencils.boundaries.createindexlist import (
@@ -11,19 +9,7 @@ from pystencils.boundaries.createindexlist import (
 from pystencils.data_types import TypedSymbol, create_type
 from pystencils_walberla.codegen import KernelInfo, default_create_kernel_parameters
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
-
-index_vector_init_template = """
-if ( isFlagSet( it.neighbor({offset}), boundaryFlag ))
-{{
-    {init_element}
-    {init_additional_data}
-    indexVectorAll.push_back( element );
-    if( inner.contains( it.x(), it.y(), it.z() ))
-        indexVectorInner.push_back( element );
-    else
-        indexVectorOuter.push_back( element );
-}}
-"""
+from pystencils_walberla.additional_data_handler import AdditionalDataHandler
 
 
 def generate_boundary(generation_context,
@@ -32,10 +18,12 @@ def generate_boundary(generation_context,
                       field_name,
                       neighbor_stencil,
                       index_shape,
+                      stencil_info=None,
                       field_type=FieldType.GENERIC,
                       kernel_creation_function=None,
                       target='cpu',
                       namespace='pystencils',
+                      additonal_data_handler=None,
                       **create_kernel_params):
     struct_name = "IndexInfo"
     boundary_object.name = class_name
@@ -92,14 +80,15 @@ def generate_boundary(generation_context,
     else:
         stencil = neighbor_stencil
 
-    stencil_info = [(i, d, ", ".join([str(e) for e in d])) for i, d in enumerate(stencil)]
+    if stencil_info is None:
+        stencil_info = [(i, d, ", ".join([str(e) for e in d])) for i, d in enumerate(stencil)]
     inv_dirs = []
     for direction in stencil:
         inverse_dir = tuple([-i for i in direction])
         inv_dirs.append(stencil.index(inverse_dir))
 
-    index_vector_initialisation = generate_index_vector_initialisation(stencil_info, dim, boundary_object,
-                                                                       struct_name, inv_dirs)
+    if additonal_data_handler is None:
+        additonal_data_handler = AdditionalDataHandler()
 
     context = {
         'class_name': boundary_object.name,
@@ -113,8 +102,8 @@ def generate_boundary(generation_context,
         'dim': dim,
         'target': target,
         'namespace': namespace,
-        'index_vector_initialisation': index_vector_initialisation,
-        'outflow_boundary': isinstance(boundary_object, ExtrapolationOutflow)
+        'inner_or_boundary': boundary_object.inner_or_boundary,
+        'additional_data_handler': additonal_data_handler
     }
 
     env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)
@@ -124,8 +113,8 @@ def generate_boundary(generation_context,
     source = env.get_template('Boundary.tmpl.cpp').render(**context)
 
     source_extension = "cpp" if target == "cpu" else "cu"
-    generation_context.write_file("{}.h".format(class_name), header)
-    generation_context.write_file("{}.{}".format(class_name, source_extension), source)
+    generation_context.write_file(f"{class_name}.h", header)
+    generation_context.write_file(f"{class_name}.{source_extension}", source)
 
 
 def generate_staggered_boundary(generation_context, class_name, boundary_object,
@@ -166,71 +155,4 @@ def struct_from_numpy_dtype(struct_name, numpy_dtype):
     result += "    bool operator==(const %s & o) const {\n        return %s;\n    }\n" % \
               (struct_name, " && ".join(equality_compare))
     result += "};\n"
-    return result
-
-
-def generate_index_vector_initialisation(stencil_info, dim, boundary_object, struct_name, inverse_directions):
-    """Generates code to initialise an index vector for boundary treatment. In case of the Outflow boundary
-       the Index vector needs additional data to store PDF values of a previous timestep.
-    Args:
-        stencil_info:       containing direction index, direction vector and an offset as string
-        dim:                number of dimesions for the simulation
-        boundary_object:    lbmpy boundary object
-        struct_name:        name of the struct which forms the elements of the index vector
-        inverse_directions: inverse of the direction vector of the stencil
-    """
-    code_lines = []
-    inner_or_boundary = boundary_object.inner_or_boundary
-
-    normal_direction = None
-    pdf_acc = None
-    if isinstance(boundary_object, ExtrapolationOutflow):
-        normal_direction = boundary_object.normal_direction
-        pdf_acc = AccessPdfValues(boundary_object.stencil, streaming_pattern=boundary_object.streaming_pattern,
-                                  timestep=boundary_object.zeroth_timestep, streaming_dir='out')
-
-    for dirIdx, dirVec, offset in stencil_info:
-        init_list = []
-        offset_for_dimension = offset + ", 0" if dim == 3 else offset
-
-        if inner_or_boundary:
-            init_element = f"auto element = {struct_name}( it.x(), it.y(), " \
-                           + (f"it.z(), " if dim == 3 else "") + f"{dirIdx} );"
-        else:
-            init_element = f"auto element = {struct_name}( it.x() + cell_idx_c({dirVec[0]}), " \
-                           f"it.y() + cell_idx_c({dirVec[1]}), " \
-                           + (f"it.z() + cell_idx_c({dirVec[2]}), " if dim == 3 else "") \
-                           + f"{inverse_directions[dirIdx]} );"
-
-        if normal_direction and normal_direction == dirVec:
-            for key, value in get_init_dict(boundary_object.stencil, normal_direction, pdf_acc).items():
-                init_list.append(f"element.{key} = pdfs->get({value});")
-
-            code_lines.append(index_vector_init_template.format(offset=offset_for_dimension,
-                                                                init_element=init_element,
-                                                                init_additional_data="\n    ".join(init_list)))
-        elif normal_direction and normal_direction != dirVec:
-            continue
-
-        else:
-            code_lines.append(index_vector_init_template.format(offset=offset_for_dimension,
-                                                                init_element=init_element,
-                                                                init_additional_data="\n    ".join(init_list)))
-
-    return "\n".join(code_lines)
-
-
-def get_init_dict(stencil, normal_direction, pdf_accessor):
-    result = {}
-    position = ["it.x()", "it.y()", "it.z()"]
-    for j, stencil_dir in enumerate(stencil):
-        pos = []
-        if all(n == 0 or n == -s for s, n in zip(stencil_dir, normal_direction)):
-            offsets = numeric_offsets(pdf_accessor.accs[j])
-            for p, o in zip(position, offsets):
-                pos.append(p + " + cell_idx_c(" + str(o) + ")")
-            pos.append(str(numeric_index(pdf_accessor.accs[j])[0]))
-            result[f'pdf_{j}'] = ', '.join(pos)
-            result[f'pdf_nd_{j}'] = ', '.join(pos)
-
     return result

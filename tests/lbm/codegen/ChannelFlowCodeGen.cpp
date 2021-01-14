@@ -41,6 +41,8 @@ typedef pystencils::ChannelFlowCodeGen_PackInfo PackInfo_T;
 typedef walberla::uint8_t flag_t;
 typedef FlagField< flag_t > FlagField_T;
 
+using namespace std::placeholders;
+
 auto pdfFieldAdder = [](IBlock* const block, StructuredBlockStorage * const storage) {
   return new PdfField_T(storage->getNumberOfXCells(*block),
                         storage->getNumberOfYCells(*block),
@@ -50,9 +52,26 @@ auto pdfFieldAdder = [](IBlock* const block, StructuredBlockStorage * const stor
                         make_shared<field::AllocateAligned<real_t, 64>>());
 };
 
+auto VelocityCallback = [](const Cell &pos, const shared_ptr<StructuredBlockForest> &SbF, IBlock& block, real_t inflow_velocity)
+{
+  Cell globalCell;
+  CellInterval domain = SbF->getDomainCellBB();
+  real_t h_y = domain.yMax() - domain.yMin();
+  real_t h_z = domain.zMax() - domain.zMin();
+  SbF->transformBlockLocalToGlobalCell(globalCell, block, pos);
+
+  real_t y1 = globalCell[1] - (h_y / 2.0 + 0.5);
+  real_t z1 = globalCell[2] - (h_z / 2.0 + 0.5);
+
+  real_t u = (inflow_velocity * 16)/(h_y*h_y*h_z*h_z) * (h_y/2.0 - y1)*(h_y/2 + y1)*(h_z/2 - z1)*(h_z/2 + z1);
+
+  Vector3<real_t> result(u, 0.0, 0.0);
+  return result;
+};
 
 int main(int argc, char** argv)
 {
+
    walberla::Environment walberlaEnv(argc, argv);
 
    for( auto cfg = python_coupling::configBegin( argc, argv ); cfg != python_coupling::configEnd(); ++cfg )
@@ -97,7 +116,10 @@ int main(int argc, char** argv)
 
       auto boundariesConfig = config->getOneBlock("Boundaries");
 
-      lbm::ChannelFlowCodeGen_UBB ubb(blocks, pdfFieldID, u_max);
+      std::function<Vector3<real_t>(const Cell &, const shared_ptr<StructuredBlockForest>&, IBlock&)>
+         velocity_initialisation = std::bind(VelocityCallback, _1, _2, _3, u_max) ;
+
+      lbm::ChannelFlowCodeGen_UBB ubb(blocks, pdfFieldID, velocity_initialisation);
       lbm::ChannelFlowCodeGen_NoSlip noSlip(blocks, pdfFieldID);
       lbm::ChannelFlowCodeGen_Outflow outflow(blocks, pdfFieldID);
 
@@ -117,10 +139,11 @@ int main(int argc, char** argv)
 
       pystencils::ChannelFlowCodeGen_Sweep LBSweep(pdfFieldID, omega);
       // add LBM sweep and communication to time loop
-      timeloop.add() << BeforeFunction(communication, "communication") << Sweep(noSlip, "noSlip boundary");
+      timeloop.add() << Sweep(noSlip, "noSlip boundary");
       timeloop.add() << Sweep(outflow, "outflow boundary");
       timeloop.add() << Sweep(ubb, "ubb boundary");
-      timeloop.add() << Sweep(LBSweep, "LB update rule");
+      timeloop.add() << BeforeFunction(communication, "communication")
+                     << Sweep(LBSweep, "LB update rule");
 
       // LBM stability check
       timeloop.addFuncAfterTimeStep(makeSharedFunctor(field::makeStabilityChecker< PdfField_T, FlagField_T >(
