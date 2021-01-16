@@ -71,9 +71,6 @@ auto VelocityCallback = [](const Cell &pos, const shared_ptr<StructuredBlockFore
   return result;
 };
 
-static walberla::SUID communication_for_outflow() { return walberla::SUID("communicationForOutflow"); }
-static walberla::Set< walberla::SUID > normal_communication() { return walberla::SUID("normalCommunication"); }
-
 int main(int argc, char** argv)
 {
 
@@ -135,19 +132,6 @@ int main(int argc, char** argv)
       noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldId, FlagUID("NoSlip"), fluidFlagUID);
       outflow.fillFromFlagField< FlagField_T >(blocks, flagFieldId, FlagUID("Outflow"), fluidFlagUID);
 
-      for( auto &block : *blocks )
-      {
-         if (block.getAABB().min()[0] > 20)
-         {
-            uid::GlobalState::instance()->configure(communication_for_outflow());
-            block.setState(communication_for_outflow());
-         }
-         else{
-            uid::GlobalState::instance()->configure(normal_communication());
-            block.setState(normal_communication());
-         }
-      }
-
       // create time loop
       SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
@@ -166,7 +150,7 @@ int main(int argc, char** argv)
       timeloop.add() << Sweep(outflow, "outflow boundary");
       timeloop.add() << Sweep(ubb, "ubb boundary");
       timeloop.add() << BeforeFunction(communication, "communication")
-                     << BeforeFunction(communication_outflow, "communication at the outflow")
+                     << BeforeFunction(communication_outflow, "communication")
                      << Sweep(LBSweep, "LB update rule");
 
       // LBM stability check
