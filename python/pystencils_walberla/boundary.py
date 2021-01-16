@@ -1,3 +1,4 @@
+from typing import OrderedDict
 import numpy as np
 from jinja2 import Environment, PackageLoader, StrictUndefined
 from pystencils import Field, FieldType
@@ -47,9 +48,28 @@ def generate_boundary(generation_context,
     if not kernel_creation_function:
         kernel_creation_function = create_boundary_kernel
 
-    kernel = kernel_creation_function(field, index_field, neighbor_stencil, boundary_object, **create_kernel_params)
-    kernel.function_name = "boundary_" + boundary_object.name
-    kernel.assumed_inner_stride_one = False
+    kernels = kernel_creation_function(field, index_field, neighbor_stencil, boundary_object, **create_kernel_params)
+    if isinstance(kernels, dict):
+        sweep_to_kernel_info_dict = OrderedDict()
+        dummy_kernel_info = None
+        for sweep_class, sweep_kernel in kernels.items():
+            sweep_kernel.function_name = "boundary_" + boundary_object.name + '_' + sweep_class
+            sweep_kernel.assumed_inner_stride_one = False
+            kernel_info = KernelInfo(sweep_kernel)
+            sweep_to_kernel_info_dict[sweep_class] = kernel_info
+            if dummy_kernel_info is None:
+                dummy_kernel_info = kernel_info
+            # elif not dummy_kernel_info.has_same_interface(kernel_info):
+            #     raise ValueError("Multiple boundary sweeps must have the same kernel interface!")
+        multi_sweep = True
+    else:
+        multi_sweep = False
+        kernel = kernels
+        kernel.function_name = "boundary_" + boundary_object.name
+        kernel.assumed_inner_stride_one = False
+        kernel_info = KernelInfo(kernel)
+        sweep_to_kernel_info_dict = {'': kernel_info}
+        dummy_kernel_info = kernel_info
 
     # waLBerla is a 3D framework. Therefore, a zero for the z index has to be added if we work in 2D
     if dim == 2:
@@ -72,9 +92,11 @@ def generate_boundary(generation_context,
 
     context = {
         'class_name': boundary_object.name,
+        'sweep_classes': sweep_to_kernel_info_dict,
+        'multi_sweep': multi_sweep,
+        'dummy_kernel_info': dummy_kernel_info,
         'StructName': struct_name,
         'StructDeclaration': struct_from_numpy_dtype(struct_name, index_struct_dtype),
-        'kernel': KernelInfo(kernel),
         'stencil_info': stencil_info,
         'inverse_directions': inv_dirs,
         'dim': dim,

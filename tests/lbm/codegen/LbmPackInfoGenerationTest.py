@@ -2,7 +2,7 @@ from lbmpy.creationfunctions import create_lb_collision_rule, create_lb_update_r
 from lbmpy.advanced_streaming import Timestep
 from lbmpy.stencils import get_stencil
 from pystencils_walberla import CodeGeneration, generate_pack_info_from_kernel
-from lbmpy_walberla.packinfo import generate_pack_infos_for_lbm_kernel
+from lbmpy_walberla.packinfo import generate_lb_pack_info
 from pystencils.field import Field
 
 with CodeGeneration() as ctx:
@@ -19,7 +19,7 @@ with CodeGeneration() as ctx:
     }
 
     #   Generate PackInfo specifically for streaming pattern
-    generate_pack_infos_for_lbm_kernel(ctx, 'AccessorBasedPackInfo', stencil, pdf_field,
+    generate_lb_pack_info(ctx, 'AccessorBasedPackInfo', stencil, pdf_field,
                                        streaming_pattern=streaming_pattern, target=target)
 
     #   Generate reference using the alternating pull/push approach

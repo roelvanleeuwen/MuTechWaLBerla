@@ -4,11 +4,12 @@ from lbmpy.relaxationrates import relaxation_rate_from_lattice_viscosity
 
 class Scenario:
     def __init__(self):
-        self.timesteps = 21
-        self.vtkWriteFrequency = 10
+        self.timesteps = 610
+        self.vtkWriteFrequency = 151
 
         self.cells = (128, 32, 32)
         self.blocks = (2, 2, 2)
+        # self.blocks = (1, 1, 1)
         self.periodic = (0, 0, 0)
 
         self.diameter_sphere = 30
@@ -44,7 +45,7 @@ class Scenario:
                     {'direction': 'N', 'walldistance': -1, 'flag': 'NoSlip'},
                     {'direction': 'S', 'walldistance': -1, 'flag': 'NoSlip'},
                     {'direction': 'W', 'walldistance': -1, 'flag': 'UBB'},
-                    {'direction': 'E', 'walldistance': -1, 'flag': 'Outflow'},
+                    {'direction': 'E', 'walldistance': 0, 'flag': 'Outflow'},
                     {'direction': 'T', 'walldistance': -1, 'flag': 'NoSlip'},
                     {'direction': 'B', 'walldistance': -1, 'flag': 'NoSlip'},
                 ],

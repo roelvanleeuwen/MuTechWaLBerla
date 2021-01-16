@@ -29,17 +29,19 @@
 
 // CodeGen includes
 #include "ChannelFlowCodeGen_InfoHeader.h"
-#include "ChannelFlowCodeGen_MacroGetter.h"
+// #include "ChannelFlowCodeGen_MacroGetter.h"
 #include "ChannelFlowCodeGen_MacroSetter.h"
 #include "ChannelFlowCodeGen_NoSlip.h"
 #include "ChannelFlowCodeGen_Outflow.h"
-#include "ChannelFlowCodeGen_PackInfo.h"
-#include "ChannelFlowCodeGen_PackInfo_Outflow.h"
-#include "ChannelFlowCodeGen_Sweep.h"
+#include "ChannelFlowCodeGen_PackInfoEven.h"
+#include "ChannelFlowCodeGen_PackInfoOdd.h"
+#include "ChannelFlowCodeGen_EvenSweep.h"
+#include "ChannelFlowCodeGen_OddSweep.h"
 #include "ChannelFlowCodeGen_UBB.h"
 
-typedef pystencils::ChannelFlowCodeGen_PackInfo PackInfo_T;
-typedef pystencils::ChannelFlowCodeGen_PackInfo_Outflow PackInfo_Outflow_T;
+typedef lbm::ChannelFlowCodeGen_PackInfoEven PackInfoEven_T;
+typedef lbm::ChannelFlowCodeGen_PackInfoOdd PackInfoOdd_T;
+
 typedef walberla::uint8_t flag_t;
 typedef FlagField< flag_t > FlagField_T;
 
@@ -69,6 +71,57 @@ auto VelocityCallback = [](const Cell &pos, const shared_ptr<StructuredBlockFore
 
   Vector3<real_t> result(u, 0.0, 0.0);
   return result;
+};
+
+class TimestepModulusTracker{
+private:
+   uint_t modulus_;
+public:
+   TimestepModulusTracker(uint_t initialTimestep) : modulus_(initialTimestep & 1) {};
+
+   void setTimestep(uint_t timestep) { modulus_ = timestep & 1; }
+
+   std::function<void()> advancementFunction() {
+      return [this] () {
+         this->modulus_ = (this->modulus_ + 1) & 1;
+      };
+   }
+
+   uint_t modulus() const { return modulus_; }
+   bool evenStep() const { return static_cast<bool>(modulus_ ^ 1); }
+   bool oddStep() const { return static_cast<bool>(modulus_ & 1); }
+};
+
+class AlternatingSweep{
+public:
+   typedef std::function< void (IBlock *) > SweepFunction;
+
+   AlternatingSweep(SweepFunction evenSweep, SweepFunction oddSweep, std::shared_ptr<TimestepModulusTracker> tracker)
+      : tracker_(tracker), sweeps_{ evenSweep, oddSweep } {};
+
+   void operator() (IBlock * block) {
+      sweeps_[tracker_->modulus()](block);
+   }
+
+private:
+   std::shared_ptr<TimestepModulusTracker> tracker_;
+   std::vector< SweepFunction > sweeps_;
+};
+
+class AlternatingBeforeFunction{
+public:
+   typedef std::function< void () > BeforeFunction;
+
+   AlternatingBeforeFunction(BeforeFunction evenFunc, BeforeFunction oddFunc, std::shared_ptr<TimestepModulusTracker> &tracker)
+      : tracker_(tracker), funcs_{ evenFunc, oddFunc } {};
+
+   void operator() () {
+      funcs_[tracker_->modulus()]();
+   }
+
+private:
+   std::shared_ptr<TimestepModulusTracker> tracker_;
+   std::vector< BeforeFunction > funcs_;
 };
 
 int main(int argc, char** argv)
@@ -108,10 +161,12 @@ int main(int argc, char** argv)
       for (auto& block : *blocks)
          setterSweep(&block);
 
-      // setter sweep only initializes interior of domain - for push schemes to work a first communication is required here
-      blockforest::communication::UniformBufferedScheme< Stencil_T > initialComm(blocks);
-      initialComm.addPackInfo(make_shared< field::communication::PackInfo< PdfField_T > >(pdfFieldID));
-      initialComm();
+      // Create communication
+      blockforest::communication::UniformBufferedScheme< Stencil_T > evenComm(blocks);
+      evenComm.addPackInfo(make_shared< PackInfoEven_T >(pdfFieldID));
+
+      blockforest::communication::UniformBufferedScheme< Stencil_T > oddComm(blocks);
+      oddComm.addPackInfo(make_shared< PackInfoOdd_T >(pdfFieldID));
 
       // create and initialize boundary handling
       const FlagUID fluidFlagUID("Fluid");
@@ -135,22 +190,24 @@ int main(int argc, char** argv)
       // create time loop
       SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
-      // create communication for PdfField
-      blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
-      communication.addPackInfo(make_shared< PackInfo_T >(pdfFieldID));
+      pystencils::ChannelFlowCodeGen_EvenSweep LBEvenSweep(densityFieldID, pdfFieldID, velFieldID, omega);
+      pystencils::ChannelFlowCodeGen_OddSweep LBOddSweep(densityFieldID, pdfFieldID, velFieldID, omega);
 
-      // create communication for PdfField at the outflow
-      blockforest::communication::UniformBufferedScheme< Stencil_T > communication_outflow(blocks);
-      communication_outflow.addPackInfo(make_shared< PackInfo_Outflow_T >(pdfFieldID));
+      // All the sweeps
+      auto tracker = make_shared<TimestepModulusTracker>(0);
 
-      pystencils::ChannelFlowCodeGen_Sweep LBSweep(pdfFieldID, omega);
+      AlternatingSweep LBSweep(LBEvenSweep, LBOddSweep, tracker);
+      AlternatingSweep noSlipSweep(noSlip.getEvenSweep(), noSlip.getOddSweep(), tracker);
+      AlternatingSweep outflowSweep(outflow.getEvenSweep(), outflow.getOddSweep(), tracker);
+      AlternatingSweep ubbSweep(ubb.getEvenSweep(), ubb.getOddSweep(), tracker);
+      AlternatingBeforeFunction communication(evenComm, oddComm, tracker);
 
       // add LBM sweep and communication to time loop
-      timeloop.add() << Sweep(noSlip, "noSlip boundary");
-      timeloop.add() << Sweep(outflow, "outflow boundary");
-      timeloop.add() << Sweep(ubb, "ubb boundary");
+      timeloop.add() << Sweep(noSlipSweep, "noSlip boundary");
+      timeloop.add() << Sweep(outflowSweep, "outflow boundary");
+      timeloop.add() << Sweep(ubbSweep, "ubb boundary");
       timeloop.add() << BeforeFunction(communication, "communication")
-                     << BeforeFunction(communication_outflow, "communication")
+                     << BeforeFunction(tracker->advancementFunction(), "Timestep Advancement")
                      << Sweep(LBSweep, "LB update rule");
 
       // LBM stability check
@@ -164,7 +221,7 @@ int main(int argc, char** argv)
          "remaining time logger");
 
       // add VTK output to time loop
-      pystencils::ChannelFlowCodeGen_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID);
+      // pystencils::ChannelFlowCodeGen_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID);
       // VTK
       uint_t vtkWriteFrequency = parameters.getParameter< uint_t >("vtkWriteFrequency", 0);
       if (vtkWriteFrequency > 0)
@@ -177,10 +234,10 @@ int main(int argc, char** argv)
          vtkOutput->addCellDataWriter(velWriter);
          vtkOutput->addCellDataWriter(densityWriter);
 
-         vtkOutput->addBeforeFunction([&]() {
-            for (auto& block : *blocks)
-               getterSweep(&block);
-         });
+         // vtkOutput->addBeforeFunction([&]() {
+         //    for (auto& block : *blocks)
+         //       getterSweep(&block);
+         // });
          timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       }
 

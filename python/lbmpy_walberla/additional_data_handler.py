@@ -75,7 +75,7 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
     @property
     def additional_field_data(self):
         return f"auto {self._field_name} = block->getData< field::GhostLayerField<double, "\
-                f"{len(self._stencil)}> >({self._field_name}ID); "
+            f"{len(self._stencil)}> >({self._field_name}ID); "
 
     @property
     def data_initialisation(self):

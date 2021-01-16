@@ -345,6 +345,12 @@ class KernelInfo:
         self.varying_parameters = tuple(varying_parameters)
         self.parameters = ast.get_parameters()  # cache parameters here
 
+    def has_same_interface(self, other):
+        return self.temporary_fields == other.temporary_fields \
+            and self.field_swaps == other.field_swaps \
+            and self.varying_parameters == other.varying_parameters \
+            and self.parameters == other.parameters
+
 
 def get_vectorize_instruction_set(generation_context):
     if generation_context.optimize_for_localhost:
