@@ -23,6 +23,7 @@
 #include "field/all.h"
 #include "geometry/all.h"
 #include "timeloop/all.h"
+#include "lbm/vtk/QCriterion.h"
 
 #include "python_coupling/CreateConfig.h"
 #include "python_coupling/PythonCallback.h"
@@ -123,6 +124,26 @@ private:
    std::shared_ptr<TimestepModulusTracker> tracker_;
    std::vector< BeforeFunction > funcs_;
 };
+
+class Filter {
+ public:
+   explicit Filter(Vector3<uint_t> numberOfCells) : numberOfCells_(numberOfCells) {}
+
+   void operator()( const IBlock & /*block*/ ){
+
+   }
+
+   bool operator()( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z ) const {
+      return x >= -1 && x <= cell_idx_t(numberOfCells_[0]) &&
+             y >= -1 && y <= cell_idx_t(numberOfCells_[1]) &&
+             z >= -1 && z <= cell_idx_t(numberOfCells_[2]);
+   }
+
+ private:
+   Vector3<uint_t> numberOfCells_;
+};
+
+using FluidFilter_T = Filter;
 
 int main(int argc, char** argv)
 {
@@ -231,8 +252,13 @@ int main(int argc, char** argv)
          auto velWriter     = make_shared< field::VTKWriter< VelocityField_T > >(velFieldID, "velocity");
          auto densityWriter = make_shared< field::VTKWriter< ScalarField_T > >(densityFieldID, "density");
 
+         FluidFilter_T filter(cellsPerBlock);
+
+         auto QCriterionWriter = make_shared<lbm::QCriterionVTKWriter<VelocityField_T, FluidFilter_T>>(blocks, filter, velFieldID, "QCriterionWriter");
+
          vtkOutput->addCellDataWriter(velWriter);
          vtkOutput->addCellDataWriter(densityWriter);
+         vtkOutput->addCellDataWriter(QCriterionWriter);
 
          // vtkOutput->addBeforeFunction([&]() {
          //    for (auto& block : *blocks)
