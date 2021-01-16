@@ -87,6 +87,7 @@ waLBerla_generate_target_from_python(NAME ChannelFlowCodeGenGenerated
     ChannelFlowCodeGen_NoSlip.cpp ChannelFlowCodeGen_NoSlip.h
     ChannelFlowCodeGen_Outflow.cpp ChannelFlowCodeGen_Outflow.h
     ChannelFlowCodeGen_PackInfo.cpp ChannelFlowCodeGen_PackInfo.h
+    ChannelFlowCodeGen_PackInfo_Outflow.cpp ChannelFlowCodeGen_PackInfo_Outflow.h
     ChannelFlowCodeGen_InfoHeader.h)
 waLBerla_compile_test( FILES codegen/ChannelFlowCodeGen.cpp DEPENDS ChannelFlowCodeGenGenerated)
 set_target_properties( ChannelFlowCodeGen PROPERTIES CXX_VISIBILITY_PRESET hidden)

@@ -34,10 +34,12 @@
 #include "ChannelFlowCodeGen_NoSlip.h"
 #include "ChannelFlowCodeGen_Outflow.h"
 #include "ChannelFlowCodeGen_PackInfo.h"
+#include "ChannelFlowCodeGen_PackInfo_Outflow.h"
 #include "ChannelFlowCodeGen_Sweep.h"
 #include "ChannelFlowCodeGen_UBB.h"
 
 typedef pystencils::ChannelFlowCodeGen_PackInfo PackInfo_T;
+typedef pystencils::ChannelFlowCodeGen_PackInfo_Outflow PackInfo_Outflow_T;
 typedef walberla::uint8_t flag_t;
 typedef FlagField< flag_t > FlagField_T;
 
@@ -68,6 +70,9 @@ auto VelocityCallback = [](const Cell &pos, const shared_ptr<StructuredBlockFore
   Vector3<real_t> result(u, 0.0, 0.0);
   return result;
 };
+
+static walberla::SUID communication_for_outflow() { return walberla::SUID("communicationForOutflow"); }
+static walberla::Set< walberla::SUID > normal_communication() { return walberla::SUID("normalCommunication"); }
 
 int main(int argc, char** argv)
 {
@@ -130,6 +135,19 @@ int main(int argc, char** argv)
       noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldId, FlagUID("NoSlip"), fluidFlagUID);
       outflow.fillFromFlagField< FlagField_T >(blocks, flagFieldId, FlagUID("Outflow"), fluidFlagUID);
 
+      for( auto &block : *blocks )
+      {
+         if (block.getAABB().min()[0] > 20)
+         {
+            uid::GlobalState::instance()->configure(communication_for_outflow());
+            block.setState(communication_for_outflow());
+         }
+         else{
+            uid::GlobalState::instance()->configure(normal_communication());
+            block.setState(normal_communication());
+         }
+      }
+
       // create time loop
       SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
@@ -137,12 +155,18 @@ int main(int argc, char** argv)
       blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
       communication.addPackInfo(make_shared< PackInfo_T >(pdfFieldID));
 
+      // create communication for PdfField at the outflow
+      blockforest::communication::UniformBufferedScheme< Stencil_T > communication_outflow(blocks);
+      communication_outflow.addPackInfo(make_shared< PackInfo_Outflow_T >(pdfFieldID));
+
       pystencils::ChannelFlowCodeGen_Sweep LBSweep(pdfFieldID, omega);
+
       // add LBM sweep and communication to time loop
       timeloop.add() << Sweep(noSlip, "noSlip boundary");
       timeloop.add() << Sweep(outflow, "outflow boundary");
       timeloop.add() << Sweep(ubb, "ubb boundary");
       timeloop.add() << BeforeFunction(communication, "communication")
+                     << BeforeFunction(communication_outflow, "communication at the outflow")
                      << Sweep(LBSweep, "LB update rule");
 
       // LBM stability check

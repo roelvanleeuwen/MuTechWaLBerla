@@ -48,6 +48,13 @@ using VelocityField_T = GhostLayerField<real_t, {dim}>;
 using ScalarField_T = GhostLayerField<real_t, 1>;
     """
 
+stencil = method.stencil
+
+shift = {}
+for i, stencil_dir in enumerate(stencil):
+    if all(n == 0 or n == -s for s, n in zip(stencil_dir, stencil[4])):
+        shift[pdfs.center(i)] = pdfs[stencil[4]](i)
+
 with CodeGeneration() as ctx:
     target = 'cpu'
 
@@ -64,6 +71,8 @@ with CodeGeneration() as ctx:
 
     # communication
     generate_pack_info_from_kernel(ctx, 'ChannelFlowCodeGen_PackInfo', update_rule, target=target)
+    generate_pack_info_from_kernel(ctx, 'ChannelFlowCodeGen_PackInfo_Outflow', update_rule,
+                                   shifting_dict=shift, target=target)
 
     # Info header containing correct template definitions for stencil and field
     ctx.write_file("ChannelFlowCodeGen_InfoHeader.h", info_header)
