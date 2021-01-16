@@ -5,9 +5,10 @@ from pystencils_walberla.additional_data_handler import AdditionalDataHandler
 
 
 class UBBAdditionalDataHandler(AdditionalDataHandler):
-    def __init__(self, boundary_object):
+    def __init__(self, stencil, dim, boundary_object):
         assert isinstance(boundary_object, UBB)
         self._boundary_object = boundary_object
+        super(UBBAdditionalDataHandler, self).__init__(stencil=stencil, dim=dim)
 
     @property
     def constructor_arguments(self):
@@ -27,15 +28,11 @@ class UBBAdditionalDataHandler(AdditionalDataHandler):
         return " const shared_ptr<StructuredBlockForest> &blocks, "
 
     @property
-    def additional_field_data(self):
-        return ""
-
-    @property
     def data_initialisation(self):
         init_list = ["Vector3<real_t> InitialisatonAdditionalData = elementInitaliser(Cell(it.x(), it.y(), it.z()), "
                      "blocks, *block);", "element.vel_0 = InitialisatonAdditionalData[0];",
                      "element.vel_1 = InitialisatonAdditionalData[1];"]
-        if self._boundary_object.dim == 3:
+        if self._dim == 3:
             init_list.append("element.vel_2 = InitialisatonAdditionalData[2];")
 
         return "\n".join(init_list)
@@ -47,30 +44,14 @@ class UBBAdditionalDataHandler(AdditionalDataHandler):
 
 
 class OutflowAdditionalDataHandler(AdditionalDataHandler):
-    def __init__(self, boundary_object, field_name):
+    def __init__(self, stencil, dim, boundary_object, field_name):
         assert isinstance(boundary_object, ExtrapolationOutflow)
         self._boundary_object = boundary_object
         self._stencil = boundary_object.stencil
         self._lb_method = boundary_object.lb_method
         self._normal_direction = boundary_object.normal_direction
-        self._dim = boundary_object.dim
         self._field_name = field_name
-
-    @property
-    def constructor_arguments(self):
-        return ""
-
-    @property
-    def initialiser_list(self):
-        return ""
-
-    @property
-    def additional_arguments_for_fill_function(self):
-        return ""
-
-    @property
-    def additional_parameters_for_fill_function(self):
-        return ""
+        super(OutflowAdditionalDataHandler, self).__init__(stencil=stencil, dim=dim)
 
     @property
     def additional_field_data(self):
@@ -83,11 +64,6 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
                                   streaming_pattern=self._boundary_object.streaming_pattern,
                                   timestep=self._boundary_object.zeroth_timestep,
                                   streaming_dir='out')
-        stencil_info = []
-        for i, d in enumerate(self._stencil):
-            if d == self._normal_direction:
-                direction = d if self._dim == 3 else d + (0,)
-                stencil_info.append((i, direction, ", ".join([str(e) for e in direction])))
 
         init_list = []
         for key, value in self.get_init_dict(pdf_acc).items():
@@ -96,8 +72,13 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
         return "\n".join(init_list)
 
     @property
-    def additional_member_variable(self):
-        return ""
+    def stencil_info(self):
+        stencil_info = []
+        for i, d in enumerate(self._stencil):
+            if d == self._normal_direction:
+                direction = d if self._dim == 3 else d + (0,)
+                stencil_info.append((i, direction, ", ".join([str(e) for e in direction])))
+        return stencil_info
 
     def get_init_dict(self, pdf_accessor):
         """The Extrapolation Outflow boundary needs additional data. This function provides a list of all values

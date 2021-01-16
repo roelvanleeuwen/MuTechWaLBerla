@@ -80,16 +80,16 @@ with CodeGeneration() as ctx:
 
     # boundaries
     generate_boundary(ctx, 'ChannelFlowCodeGen_UBB', UBB(lambda *args: None, dim=dim), method,
-                      target=target, streaming_pattern=streaming_pattern, always_generate_seperate_sweeps=True)
+                      target=target, streaming_pattern=streaming_pattern, always_generate_separate_classes=True)
     generate_boundary(ctx, 'ChannelFlowCodeGen_NoSlip', NoSlip(), method, target=target,
-                      streaming_pattern=streaming_pattern, always_generate_seperate_sweeps=True)
+                      streaming_pattern=streaming_pattern, always_generate_separate_classes=True)
     outflow = ExtrapolationOutflow(stencil[4], method)
     generate_boundary(ctx, 'ChannelFlowCodeGen_Outflow', outflow, method, target=target,
-                      streaming_pattern=streaming_pattern, always_generate_seperate_sweeps=True)
+                      streaming_pattern=streaming_pattern, always_generate_separate_classes=True)
 
     # communication
     generate_lb_pack_info(ctx, 'ChannelFlowCodeGen_PackInfo', stencil, pdfs,
-                          streaming_pattern=streaming_pattern, always_generate_seperate_classes=True)
+                          streaming_pattern=streaming_pattern, always_generate_separate_classes=True)
 
     # Info header containing correct template definitions for stencil and field
     ctx.write_file("ChannelFlowCodeGen_InfoHeader.h", info_header)

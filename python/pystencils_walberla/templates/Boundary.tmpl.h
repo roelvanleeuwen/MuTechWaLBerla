@@ -186,13 +186,13 @@ public:
         {
             if( ! isFlagSet(it, domainFlag) )
                 continue;
-            {%- for dirIdx, dirVec, offset in stencil_info %}
+            {%- for dirIdx, dirVec, offset in additional_data_handler.stencil_info %}
             if ( isFlagSet( it.neighbor({{offset}} {%if dim == 3%}, 0 {%endif %}), boundaryFlag ) )
             {
                 {% if inner_or_boundary -%}
                 auto element = {{StructName}}(it.x(), it.y(), {%if dim == 3%} it.z(), {%endif %} {{dirIdx}} );
                 {% else -%}
-                auto element = {{StructName}}(it.x() + cell_idx_c({{dirVec[0]}}), it.y() + cell_idx_c({{dirVec[1]}}), {%if dim == 3%} it.z() + cell_idx_c({{dirVec[2]}}), {%endif %} {{inverse_directions[dirIdx]}} );
+                auto element = {{StructName}}(it.x() + cell_idx_c({{dirVec[0]}}), it.y() + cell_idx_c({{dirVec[1]}}), {%if dim == 3%} it.z() + cell_idx_c({{dirVec[2]}}), {%endif %} {{additional_data_handler.inverse_directions[dirIdx]}} );
                 {% endif -%}
                 {{additional_data_handler.data_initialisation|indent(16)}}
                 indexVectorAll.push_back( element );

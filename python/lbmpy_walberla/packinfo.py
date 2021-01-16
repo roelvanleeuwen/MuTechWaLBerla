@@ -12,7 +12,7 @@ def generate_lb_pack_info(generation_context,
                           pdf_field,
                           streaming_pattern='pull',
                           lb_collision_rule=None,
-                          always_generate_seperate_classes=False,
+                          always_generate_separate_classes=False,
                           **create_kernel_params):
     """Generates waLBerla MPI PackInfos for an LBM kernel, based on a given method
     and streaming pattern. For in-place streaming patterns, two PackInfos are generated;
@@ -20,26 +20,24 @@ def generate_lb_pack_info(generation_context,
 
     Args:
         generation_context: see documentation of `generate_sweep`
-        class_name_prefix: Prefix of the desired class name which will be addended with
+        class_name_prefix: Prefix of the desired class name which will be extended with
                            'Even' or 'Odd' for in-place kernels
         stencil: The tuple of directions specifying the employed LB stencil.
+        pdf_field: pdf field for which the pack info is created
         streaming_pattern: The employed streaming pattern.
-        include_non_pdf_fields: Whether to scan for and include non-local accesses to fields
-                                apart from the PDF field in the PackInfo. If set to True, the
-                                lb_collision_rule parameter also needs to be specified.
         lb_collision_rule: Optional. The collision rule defining the lattice boltzmann kernel, as returned
                            by `create_lb_collision_rule`. If specified, it will be scanned for non-local
                            accesses to other fields other than the PDF fields (as might be required for
                            computing gradients in coupled simulations), whose communication will then
                            be included in the PackInfo.
-        always_generate_seperate_classes: If True, generate a pair of Even/Odd PackInfos even for a two-
+        always_generate_separate_classes: If True, generate a pair of Even/Odd PackInfos even for a two-
                                           fields kernel (i.e. the pull/push patterns). Otherwise, for two-fields
                                           kernels, only one PackInfo class will be generated without a
                                           suffix to its name.
         **create_kernel_params: remaining keyword arguments are passed to `pystencils.create_kernel`
     """
     timesteps = [Timestep.EVEN, Timestep.ODD] \
-        if always_generate_seperate_classes \
+        if always_generate_separate_classes \
         else get_timesteps(streaming_pattern)
 
     common_spec = defaultdict(set)

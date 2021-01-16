@@ -18,7 +18,6 @@ def generate_boundary(generation_context,
                       field_name,
                       neighbor_stencil,
                       index_shape,
-                      stencil_info=None,
                       field_type=FieldType.GENERIC,
                       kernel_creation_function=None,
                       target='cpu',
@@ -71,24 +70,8 @@ def generate_boundary(generation_context,
         sweep_to_kernel_info_dict = {'': kernel_info}
         dummy_kernel_info = kernel_info
 
-    # waLBerla is a 3D framework. Therefore, a zero for the z index has to be added if we work in 2D
-    if dim == 2:
-        stencil = ()
-        for d in neighbor_stencil:
-            d = d + (0,)
-            stencil = stencil + (d,)
-    else:
-        stencil = neighbor_stencil
-
-    if stencil_info is None:
-        stencil_info = [(i, d, ", ".join([str(e) for e in d])) for i, d in enumerate(stencil)]
-    inv_dirs = []
-    for direction in stencil:
-        inverse_dir = tuple([-i for i in direction])
-        inv_dirs.append(stencil.index(inverse_dir))
-
     if additonal_data_handler is None:
-        additonal_data_handler = AdditionalDataHandler()
+        additonal_data_handler = AdditionalDataHandler(stencil=neighbor_stencil, dim=dim)
 
     context = {
         'class_name': boundary_object.name,
@@ -97,8 +80,6 @@ def generate_boundary(generation_context,
         'dummy_kernel_info': dummy_kernel_info,
         'StructName': struct_name,
         'StructDeclaration': struct_from_numpy_dtype(struct_name, index_struct_dtype),
-        'stencil_info': stencil_info,
-        'inverse_directions': inv_dirs,
         'dim': dim,
         'target': target,
         'namespace': namespace,

@@ -1,8 +1,20 @@
+from pystencils.stencil import inverse_direction
+
+
 class AdditionalDataHandler:
     """Base class that defines how to handle boundary conditions holding additional data."""
 
-    def __init__(self, dim=3):
+    def __init__(self, stencil, dim=3):
         self._dim = dim
+
+        # waLBerla is a 3D framework. Therefore, a zero for the z index has to be added if we work in 2D
+        if dim == 2:
+            self._walberla_stencil = ()
+            for d in stencil:
+                d = d + (0,)
+                self._walberla_stencil = self._walberla_stencil + (d,)
+        else:
+            self._walberla_stencil = stencil
 
     @property
     def constructor_arguments(self):
@@ -31,3 +43,14 @@ class AdditionalDataHandler:
     @property
     def additional_member_variable(self):
         return ""
+
+    @property
+    def stencil_info(self):
+        return [(i, d, ", ".join([str(e) for e in d])) for i, d in enumerate(self._walberla_stencil)]
+
+    @property
+    def inverse_directions(self):
+        inv_dirs = []
+        for direction in self._walberla_stencil:
+            inv_dirs.append(self._walberla_stencil.index(inverse_direction(direction)))
+        return inv_dirs
