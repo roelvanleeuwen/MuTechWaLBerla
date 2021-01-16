@@ -40,12 +40,29 @@ struct QCriterion {
 
       if(filter(x,y,z) && filter(x+one,y,z) && filter(x-one,y,z) && filter(x,y+one,z)
          && filter(x,y-one,z) && filter(x,y,z+one) && filter(x,y,z-one)) {
-         const Vector3<real_t> xa = velocityField.get(x+one,y,z);
-         const Vector3<real_t> xb = velocityField.get(x-one,y,z);
-         const Vector3<real_t> ya = velocityField.get(x,y+one,z);
-         const Vector3<real_t> yb = velocityField.get(x,y-one,z);
-         const Vector3<real_t> za = velocityField.get(x,y,z+one);
-         const Vector3<real_t> zb = velocityField.get(x,y,z-one);
+         Vector3<real_t> xa;
+         Vector3<real_t> xb;
+         Vector3<real_t> ya;
+         Vector3<real_t> yb;
+         Vector3<real_t> za;
+         Vector3<real_t> zb;
+         if constexpr (std::is_same_v<VelocityField_T, GhostLayerField<real_t, 3>>) {
+            xa = Vector3<real_t>(velocityField.get(x+one,y,z,0), velocityField.get(x+one,y,z,1), velocityField.get(x+one,y,z,2));
+            xb = Vector3<real_t>(velocityField.get(x-one,y,z,0), velocityField.get(x-one,y,z,1), velocityField.get(x-one,y,z,2));
+            ya = Vector3<real_t>(velocityField.get(x,y+one,z,0), velocityField.get(x,y+one,z,1), velocityField.get(x,y+one,z,2));
+            yb = Vector3<real_t>(velocityField.get(x,y-one,z,0), velocityField.get(x,y-one,z,1), velocityField.get(x,y-one,z,2));
+            za = Vector3<real_t>(velocityField.get(x,y,z+one,0), velocityField.get(x,y,z+one,1), velocityField.get(x,y,z+one,2));
+            zb = Vector3<real_t>(velocityField.get(x,y,z-one,0), velocityField.get(x,y,z-one,1), velocityField.get(x,y,z-one,2));
+         }
+         else
+         {
+            xa = velocityField.get(x+one,y,z);
+            xb = velocityField.get(x-one,y,z);
+            ya = velocityField.get(x,y+one,z);
+            yb = velocityField.get(x,y-one,z);
+            za = velocityField.get(x,y,z+one);
+            zb = velocityField.get(x,y,z-one);
+         }
 
          return calculate(xa, xb, ya, yb, za, zb, dx, dy, dz);
       }
