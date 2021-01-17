@@ -7,8 +7,8 @@ class Scenario:
         self.timesteps = 601
         self.vtkWriteFrequency = 150
 
-        self.cells = (128, 32, 32)
-        self.blocks = (2, 2, 2)
+        self.cells = (256, 64, 64)
+        self.blocks = (1, 1, 1)
         # self.blocks = (1, 1, 1)
         self.periodic = (0, 0, 0)
 

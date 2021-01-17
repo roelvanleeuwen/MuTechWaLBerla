@@ -70,7 +70,10 @@ for i, stencil_dir in enumerate(stencil):
         shift[pdfs.center(i)] = pdfs[stencil[4]](i)
 
 with CodeGeneration() as ctx:
-    target = 'cpu'
+    if ctx.cuda:
+        target = 'gpu'
+    else:
+        target = 'cpu'
 
     # sweeps
     generate_sweep(ctx, 'ChannelFlowCodeGen_EvenSweep', update_rule_even, target=target)
@@ -89,7 +92,7 @@ with CodeGeneration() as ctx:
 
     # communication
     generate_lb_pack_info(ctx, 'ChannelFlowCodeGen_PackInfo', stencil, pdfs,
-                          streaming_pattern=streaming_pattern, always_generate_separate_classes=True)
+                          streaming_pattern=streaming_pattern, always_generate_separate_classes=True, target=target)
 
     # Info header containing correct template definitions for stencil and field
     ctx.write_file("ChannelFlowCodeGen_InfoHeader.h", info_header)
