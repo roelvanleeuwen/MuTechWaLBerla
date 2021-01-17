@@ -192,7 +192,7 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_CUDA)
       BlockDataID pdfFieldIDGPU = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "PDFs on GPU", true);
       BlockDataID velFieldIDGPU = cuda::addGPUFieldToStorage< VelocityField_T >(blocks, velFieldID, "velocity on GPU", true);
-      BlockDataID densityFieldIDGPU = cuda::addGPUFieldToStorage< VelocityField_T >(blocks, densityFieldID, "density on GPU", true);
+      BlockDataID densityFieldIDGPU = cuda::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldID, "density on GPU", true);
 #endif
 
       BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
@@ -202,7 +202,6 @@ int main(int argc, char** argv)
       pystencils::ChannelFlowCodeGen_MacroSetter setterSweep(pdfFieldIDGPU, velFieldIDGPU);
       for (auto& block : *blocks)
          setterSweep(&block);
-      cuda::fieldCpy< PdfField_T, GPUField >(blocks, pdfFieldID, pdfFieldIDGPU);
 #else
       pystencils::ChannelFlowCodeGen_MacroSetter setterSweep(pdfFieldID, velFieldID);
       for (auto& block : *blocks)
@@ -234,9 +233,15 @@ int main(int argc, char** argv)
       std::function<Vector3<real_t>(const Cell &, const shared_ptr<StructuredBlockForest>&, IBlock&)>
          velocity_initialisation = std::bind(VelocityCallback, _1, _2, _3, u_max) ;
 
+#if defined(WALBERLA_BUILD_WITH_CUDA)
+      lbm::ChannelFlowCodeGen_UBB ubb(blocks, pdfFieldIDGPU, velocity_initialisation);
+      lbm::ChannelFlowCodeGen_NoSlip noSlip(blocks, pdfFieldIDGPU);
+      lbm::ChannelFlowCodeGen_Outflow outflow(blocks, pdfFieldIDGPU);
+#else
       lbm::ChannelFlowCodeGen_UBB ubb(blocks, pdfFieldID, velocity_initialisation);
       lbm::ChannelFlowCodeGen_NoSlip noSlip(blocks, pdfFieldID);
       lbm::ChannelFlowCodeGen_Outflow outflow(blocks, pdfFieldID);
+#endif
 
       geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
       geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
@@ -293,8 +298,10 @@ int main(int argc, char** argv)
                                                          "simulation_step", false, true, true, false, 0);
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
-         cuda::fieldCpy< VelocityField_T, GPUField >(blocks, velFieldID, velFieldIDGPU);
-         cuda::fieldCpy< ScalarField_T, GPUField >(blocks, densityFieldID, densityFieldIDGPU);
+         vtkOutput->addBeforeFunction( [&]() {
+           cuda::fieldCpy<VelocityField_T, GPUField>( blocks, velFieldID, velFieldIDGPU );
+           cuda::fieldCpy<ScalarField_T , GPUField>( blocks, densityFieldID, densityFieldIDGPU );
+         });
 #endif
          auto velWriter     = make_shared< field::VTKWriter< VelocityField_T > >(velFieldID, "velocity");
          auto densityWriter = make_shared< field::VTKWriter< ScalarField_T > >(densityFieldID, "density");

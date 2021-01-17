@@ -44,19 +44,35 @@ class UBBAdditionalDataHandler(AdditionalDataHandler):
 
 
 class OutflowAdditionalDataHandler(AdditionalDataHandler):
-    def __init__(self, stencil, dim, boundary_object, field_name):
+    def __init__(self, stencil, dim, boundary_object, field_name, build_for_gpu=False):
         assert isinstance(boundary_object, ExtrapolationOutflow)
         self._boundary_object = boundary_object
         self._stencil = boundary_object.stencil
         self._lb_method = boundary_object.lb_method
         self._normal_direction = boundary_object.normal_direction
         self._field_name = field_name
+        self._build_for_gpu = build_for_gpu
         super(OutflowAdditionalDataHandler, self).__init__(stencil=stencil, dim=dim)
 
     @property
     def additional_field_data(self):
-        return f"auto {self._field_name} = block->getData< field::GhostLayerField<double, "\
-            f"{len(self._stencil)}> >({self._field_name}ID); "
+        suffix = "CPU" if self._build_for_gpu else ""
+        if self._build_for_gpu:
+            gpu_field = f"{self._field_name}GPU"
+            cpu_field = f"{self._field_name}"
+            xs = f"{gpu_field}->xSize()"
+            ys = f"{gpu_field}->ySize()"
+            zs = f"{gpu_field}->zSize()"
+            gl = f"{gpu_field}->nrOfGhostLayers()"
+            layout = f"{gpu_field}->layout()"
+            result = [f"auto {gpu_field} = block->getData< cuda::GPUField< real_t > >({self._field_name}ID);",
+                      f"    auto {cpu_field} = new GhostLayerField<real_t ,{len(self._stencil)}>"
+                      f"( {xs}, {ys}, {zs}, {gl}, {layout} );",
+                      f"    cuda::fieldCpy( *{cpu_field}, *{gpu_field} );"]
+            return "\n".join(result)
+        else:
+            return f"auto {self._field_name} = block->getData< field::GhostLayerField<double, " \
+                   f"{len(self._stencil)}> >({self._field_name}ID{suffix}); "
 
     @property
     def data_initialisation(self):

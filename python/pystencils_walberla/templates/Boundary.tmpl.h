@@ -23,6 +23,7 @@
 #include "field/GhostLayerField.h"
 {%- elif target is equalto 'gpu' -%}
 #include "cuda/GPUField.h"
+#include "cuda/FieldCopy.h"
 {%- endif %}
 #include "domain_decomposition/BlockDataID.h"
 #include "domain_decomposition/IBlock.h"

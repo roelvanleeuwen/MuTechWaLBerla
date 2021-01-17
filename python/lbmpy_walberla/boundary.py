@@ -37,7 +37,8 @@ def generate_boundary(generation_context,
     dim = len(neighbor_stencil[0])
     additional_data_handler = None
     if isinstance(boundary_object, ExtrapolationOutflow):
-        additional_data_handler = OutflowAdditionalDataHandler(neighbor_stencil, dim, boundary_object, field_name)
+        additional_data_handler = OutflowAdditionalDataHandler(neighbor_stencil, dim, boundary_object,
+                                                               field_name, generation_context.cuda)
 
     elif isinstance(boundary_object, UBB) and boundary_object.velocity_is_callable:
         additional_data_handler = UBBAdditionalDataHandler(neighbor_stencil, dim, boundary_object)
