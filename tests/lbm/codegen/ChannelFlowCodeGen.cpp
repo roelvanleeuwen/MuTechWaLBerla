@@ -163,6 +163,9 @@ int main(int argc, char** argv)
 {
 
    walberla::Environment walberlaEnv(argc, argv);
+#if defined(WALBERLA_BUILD_WITH_CUDA)
+   cuda::selectDeviceBasedOnMpiRank();
+#endif
 
    for( auto cfg = python_coupling::configBegin( argc, argv ); cfg != python_coupling::configEnd(); ++cfg )
    {
