@@ -3,7 +3,8 @@ from pystencils.field import fields
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter, macroscopic_values_getter
 from lbmpy.stencils import get_stencil
 from lbmpy.creationfunctions import create_lb_collision_rule, create_lb_method, create_lb_update_rule
-from lbmpy.boundaries import NoSlip, UBB, ExtrapolationOutflow
+from lbmpy.boundaries import NoSlip, UBB, ExtrapolationOutflow, FixedDensity
+from lbmpy_walberla.additional_data_handler import UBBAdditionalDataHandler, OutflowAdditionalDataHandler
 from pystencils_walberla import CodeGeneration, generate_sweep
 from lbmpy_walberla import RefinementScaling, generate_boundary, generate_lb_pack_info
 
@@ -82,13 +83,21 @@ with CodeGeneration() as ctx:
     # generate_sweep(ctx, 'ChannelFlowCodeGen_MacroGetter', getter_assignments, target=target)
 
     # boundaries
-    generate_boundary(ctx, 'ChannelFlowCodeGen_UBB', UBB(lambda *args: None, dim=dim), method,
-                      target=target, streaming_pattern=streaming_pattern, always_generate_separate_classes=True)
+    ubb = UBB(lambda *args: None, dim=dim)
+    ubb_data_handler = UBBAdditionalDataHandler(stencil, dim, ubb)
+    outflow = ExtrapolationOutflow(stencil[4], method)
+    outflow_data_handler = OutflowAdditionalDataHandler(stencil, dim, outflow, target=target)
+
+    generate_boundary(ctx, 'ChannelFlowCodeGen_UBB', ubb, method,
+                      target=target, streaming_pattern=streaming_pattern, always_generate_separate_classes=True,
+                      additional_data_handler=ubb_data_handler)
+
     generate_boundary(ctx, 'ChannelFlowCodeGen_NoSlip', NoSlip(), method, target=target,
                       streaming_pattern=streaming_pattern, always_generate_separate_classes=True)
-    outflow = ExtrapolationOutflow(stencil[4], method)
+
     generate_boundary(ctx, 'ChannelFlowCodeGen_Outflow', outflow, method, target=target,
-                      streaming_pattern=streaming_pattern, always_generate_separate_classes=True)
+                      streaming_pattern=streaming_pattern, always_generate_separate_classes=True,
+                      additional_data_handler=outflow_data_handler)
 
     # communication
     generate_lb_pack_info(ctx, 'ChannelFlowCodeGen_PackInfo', stencil, pdfs,

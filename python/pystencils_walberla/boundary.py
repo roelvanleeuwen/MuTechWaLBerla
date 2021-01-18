@@ -22,8 +22,12 @@ def generate_boundary(generation_context,
                       kernel_creation_function=None,
                       target='cpu',
                       namespace='pystencils',
-                      additonal_data_handler=None,
+                      additional_data_handler=None,
                       **create_kernel_params):
+
+    if boundary_object.additional_data and additional_data_handler is None:
+        raise ValueError("Boundary object has additional data but you have not provided an AdditionalDataHandler.")
+
     struct_name = "IndexInfo"
     boundary_object.name = class_name
     dim = len(neighbor_stencil[0])
@@ -70,8 +74,8 @@ def generate_boundary(generation_context,
         sweep_to_kernel_info_dict = {'': kernel_info}
         dummy_kernel_info = kernel_info
 
-    if additonal_data_handler is None:
-        additonal_data_handler = AdditionalDataHandler(stencil=neighbor_stencil, dim=dim)
+    if additional_data_handler is None:
+        additional_data_handler = AdditionalDataHandler(stencil=neighbor_stencil, dim=dim)
 
     context = {
         'class_name': boundary_object.name,
@@ -84,7 +88,7 @@ def generate_boundary(generation_context,
         'target': target,
         'namespace': namespace,
         'inner_or_boundary': boundary_object.inner_or_boundary,
-        'additional_data_handler': additonal_data_handler
+        'additional_data_handler': additional_data_handler
     }
 
     env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)

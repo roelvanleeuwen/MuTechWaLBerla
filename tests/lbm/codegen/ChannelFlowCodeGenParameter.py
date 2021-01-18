@@ -4,21 +4,20 @@ from lbmpy.relaxationrates import relaxation_rate_from_lattice_viscosity
 
 class Scenario:
     def __init__(self):
-        self.timesteps = 50001
-        self.vtkWriteFrequency = 25000
+        self.timesteps = 1
+        self.vtkWriteFrequency = 1500
 
         self.cells = (384, 128, 128)
         self.blocks = (1, 1, 1)
-        # self.blocks = (1, 1, 1)
         self.periodic = (0, 0, 0)
 
         self.diameter_sphere = 60
         self.u_max = 0.05
         self.reynolds_number = 1000000
 
-        kinematic_vicosity = (self.diameter_sphere * self.u_max) / self.reynolds_number
+        kinematic_viscosity = (self.diameter_sphere * self.u_max) / self.reynolds_number
 
-        self.omega = relaxation_rate_from_lattice_viscosity(kinematic_vicosity)
+        self.omega = relaxation_rate_from_lattice_viscosity(kinematic_viscosity)
 
         self.total_cells = (self.cells[0] * self.blocks[0],
                             self.cells[1] * self.blocks[1],
@@ -38,14 +37,15 @@ class Scenario:
                 'vtkWriteFrequency': self.vtkWriteFrequency,
                 'omega': self.omega,
                 'u_max': self.u_max,
-                'reynolds_number': self.reynolds_number
+                'reynolds_number': self.reynolds_number,
+                'diameter_sphere': self.diameter_sphere
             },
             'Boundaries': {
                 'Border': [
                     {'direction': 'N', 'walldistance': -1, 'flag': 'NoSlip'},
                     {'direction': 'S', 'walldistance': -1, 'flag': 'NoSlip'},
                     {'direction': 'W', 'walldistance': -1, 'flag': 'UBB'},
-                    {'direction': 'E', 'walldistance': 0, 'flag': 'Outflow'},
+                    {'direction': 'E', 'walldistance':  0, 'flag': 'Outflow'},
                     {'direction': 'T', 'walldistance': -1, 'flag': 'NoSlip'},
                     {'direction': 'B', 'walldistance': -1, 'flag': 'NoSlip'},
                 ],

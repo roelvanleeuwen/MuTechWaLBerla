@@ -18,15 +18,21 @@
 //
 //======================================================================================================================
 #include "blockforest/all.h"
+
 #include "core/all.h"
+
 #include "domain_decomposition/all.h"
+
 #include "field/all.h"
+
 #include "geometry/all.h"
-#include "timeloop/all.h"
+
 #include "lbm/vtk/QCriterion.h"
 
 #include "python_coupling/CreateConfig.h"
 #include "python_coupling/PythonCallback.h"
+
+#include "timeloop/all.h"
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
 #   include "cuda/AddGPUFieldToStorage.h"
@@ -41,13 +47,13 @@
 // CodeGen includes
 #include "ChannelFlowCodeGen_InfoHeader.h"
 // #include "ChannelFlowCodeGen_MacroGetter.h"
+#include "ChannelFlowCodeGen_EvenSweep.h"
 #include "ChannelFlowCodeGen_MacroSetter.h"
 #include "ChannelFlowCodeGen_NoSlip.h"
+#include "ChannelFlowCodeGen_OddSweep.h"
 #include "ChannelFlowCodeGen_Outflow.h"
 #include "ChannelFlowCodeGen_PackInfoEven.h"
 #include "ChannelFlowCodeGen_PackInfoOdd.h"
-#include "ChannelFlowCodeGen_EvenSweep.h"
-#include "ChannelFlowCodeGen_OddSweep.h"
 #include "ChannelFlowCodeGen_UBB.h"
 
 typedef lbm::ChannelFlowCodeGen_PackInfoEven PackInfoEven_T;
@@ -62,140 +68,140 @@ typedef cuda::GPUField< real_t > GPUField;
 
 using namespace std::placeholders;
 
-auto pdfFieldAdder = [](IBlock* const block, StructuredBlockStorage * const storage) {
-  return new PdfField_T(storage->getNumberOfXCells(*block),
-                        storage->getNumberOfYCells(*block),
-                        storage->getNumberOfZCells(*block),
-                        uint_t(1),
-                        field::fzyx,
-                        make_shared<field::AllocateAligned<real_t, 64>>());
+auto pdfFieldAdder = [](IBlock* const block, StructuredBlockStorage* const storage) {
+   return new PdfField_T(storage->getNumberOfXCells(*block), storage->getNumberOfYCells(*block),
+                         storage->getNumberOfZCells(*block), uint_t(1), field::fzyx,
+                         make_shared< field::AllocateAligned< real_t, 64 > >());
 };
 
-auto VelocityCallback = [](const Cell &pos, const shared_ptr<StructuredBlockForest> &SbF, IBlock& block, real_t inflow_velocity)
+auto VelocityCallback = [](const Cell& pos, const shared_ptr< StructuredBlockForest >& SbF, IBlock& block,
+                           real_t inflow_velocity) {
+   Cell globalCell;
+   CellInterval domain = SbF->getDomainCellBB();
+   real_t h_y          = domain.yMax() - domain.yMin();
+   real_t h_z          = domain.zMax() - domain.zMin();
+   SbF->transformBlockLocalToGlobalCell(globalCell, block, pos);
+
+   real_t y1 = globalCell[1] - (h_y / 2.0 + 0.5);
+   real_t z1 = globalCell[2] - (h_z / 2.0 + 0.5);
+
+   real_t u = (inflow_velocity * 16) / (h_y * h_y * h_z * h_z) * (h_y / 2.0 - y1) * (h_y / 2 + y1) * (h_z / 2 - z1) *
+              (h_z / 2 + z1);
+
+   Vector3< real_t > result(u, 0.0, 0.0);
+   return result;
+};
+
+class TimestepModulusTracker
 {
-  Cell globalCell;
-  CellInterval domain = SbF->getDomainCellBB();
-  real_t h_y = domain.yMax() - domain.yMin();
-  real_t h_z = domain.zMax() - domain.zMin();
-  SbF->transformBlockLocalToGlobalCell(globalCell, block, pos);
-
-  real_t y1 = globalCell[1] - (h_y / 2.0 + 0.5);
-  real_t z1 = globalCell[2] - (h_z / 2.0 + 0.5);
-
-  real_t u = (inflow_velocity * 16)/(h_y*h_y*h_z*h_z) * (h_y/2.0 - y1)*(h_y/2 + y1)*(h_z/2 - z1)*(h_z/2 + z1);
-
-  Vector3<real_t> result(u, 0.0, 0.0);
-  return result;
-};
-
-class TimestepModulusTracker{
-private:
+ private:
    uint_t modulus_;
-public:
-   TimestepModulusTracker(uint_t initialTimestep) : modulus_(initialTimestep & 1) {};
+
+ public:
+   TimestepModulusTracker(uint_t initialTimestep) : modulus_(initialTimestep & 1){};
 
    void setTimestep(uint_t timestep) { modulus_ = timestep & 1; }
 
-   std::function<void()> advancementFunction() {
-      return [this] () {
-         this->modulus_ = (this->modulus_ + 1) & 1;
-      };
+   std::function< void() > advancementFunction()
+   {
+      return [this]() { this->modulus_ = (this->modulus_ + 1) & 1; };
    }
 
    uint_t modulus() const { return modulus_; }
-   bool evenStep() const { return static_cast<bool>(modulus_ ^ 1); }
-   bool oddStep() const { return static_cast<bool>(modulus_ & 1); }
+   bool evenStep() const { return static_cast< bool >(modulus_ ^ 1); }
+   bool oddStep() const { return static_cast< bool >(modulus_ & 1); }
 };
 
-class AlternatingSweep{
-public:
-   typedef std::function< void (IBlock *) > SweepFunction;
+class AlternatingSweep
+{
+ public:
+   typedef std::function< void(IBlock*) > SweepFunction;
 
-   AlternatingSweep(SweepFunction evenSweep, SweepFunction oddSweep, std::shared_ptr<TimestepModulusTracker> tracker)
+   AlternatingSweep(SweepFunction evenSweep, SweepFunction oddSweep, std::shared_ptr< TimestepModulusTracker > tracker)
       : tracker_(tracker), sweeps_{ evenSweep, oddSweep } {};
 
-   void operator() (IBlock * block) {
-      sweeps_[tracker_->modulus()](block);
-   }
+   void operator()(IBlock* block) { sweeps_[tracker_->modulus()](block); }
 
-private:
-   std::shared_ptr<TimestepModulusTracker> tracker_;
+ private:
+   std::shared_ptr< TimestepModulusTracker > tracker_;
    std::vector< SweepFunction > sweeps_;
 };
 
-class AlternatingBeforeFunction{
-public:
-   typedef std::function< void () > BeforeFunction;
+class AlternatingBeforeFunction
+{
+ public:
+   typedef std::function< void() > BeforeFunction;
 
-   AlternatingBeforeFunction(BeforeFunction evenFunc, BeforeFunction oddFunc, std::shared_ptr<TimestepModulusTracker> &tracker)
+   AlternatingBeforeFunction(BeforeFunction evenFunc, BeforeFunction oddFunc,
+                             std::shared_ptr< TimestepModulusTracker >& tracker)
       : tracker_(tracker), funcs_{ evenFunc, oddFunc } {};
 
-   void operator() () {
-      funcs_[tracker_->modulus()]();
-   }
+   void operator()() { funcs_[tracker_->modulus()](); }
 
-private:
-   std::shared_ptr<TimestepModulusTracker> tracker_;
+ private:
+   std::shared_ptr< TimestepModulusTracker > tracker_;
    std::vector< BeforeFunction > funcs_;
 };
 
-class Filter {
+class Filter
+{
  public:
-   explicit Filter(Vector3<uint_t> numberOfCells) : numberOfCells_(numberOfCells) {}
+   explicit Filter(Vector3< uint_t > numberOfCells) : numberOfCells_(numberOfCells) {}
 
-   void operator()( const IBlock & /*block*/ ){
+   void operator()(const IBlock& /*block*/) {}
 
-   }
-
-   bool operator()( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z ) const {
-      return x >= -1 && x <= cell_idx_t(numberOfCells_[0]) &&
-             y >= -1 && y <= cell_idx_t(numberOfCells_[1]) &&
+   bool operator()(const cell_idx_t x, const cell_idx_t y, const cell_idx_t z) const
+   {
+      return x >= -1 && x <= cell_idx_t(numberOfCells_[0]) && y >= -1 && y <= cell_idx_t(numberOfCells_[1]) &&
              z >= -1 && z <= cell_idx_t(numberOfCells_[2]);
    }
 
  private:
-   Vector3<uint_t> numberOfCells_;
+   Vector3< uint_t > numberOfCells_;
 };
 
 using FluidFilter_T = Filter;
 
 int main(int argc, char** argv)
 {
-
    walberla::Environment walberlaEnv(argc, argv);
 #if defined(WALBERLA_BUILD_WITH_CUDA)
    cuda::selectDeviceBasedOnMpiRank();
 #endif
 
-   for( auto cfg = python_coupling::configBegin( argc, argv ); cfg != python_coupling::configEnd(); ++cfg )
+   for (auto cfg = python_coupling::configBegin(argc, argv); cfg != python_coupling::configEnd(); ++cfg)
    {
       WALBERLA_MPI_WORLD_BARRIER();
 
       auto config = *cfg;
-      logging::configureLogging( config );
+      logging::configureLogging(config);
       auto blocks = blockforest::createUniformBlockGridFromConfig(config);
 
       // read parameters
-      Vector3< uint_t > cellsPerBlock = config->getBlock("DomainSetup").getParameter< Vector3< uint_t > >("cellsPerBlock");
+      Vector3< uint_t > cellsPerBlock =
+         config->getBlock("DomainSetup").getParameter< Vector3< uint_t > >("cellsPerBlock");
       auto parameters = config->getOneBlock("Parameters");
 
-      const uint_t timesteps           = parameters.getParameter< uint_t >("timesteps", uint_c(10));
-      const real_t omega               = parameters.getParameter< real_t >("omega", real_t(1.9));
-      const real_t u_max               = parameters.getParameter< real_t >("u_max", real_t(0.05));
-      const real_t reynolds_number     = parameters.getParameter< real_t >("reynolds_number", real_t(1000));
+      const uint_t timesteps       = parameters.getParameter< uint_t >("timesteps", uint_c(10));
+      const real_t omega           = parameters.getParameter< real_t >("omega", real_t(1.9));
+      const real_t u_max           = parameters.getParameter< real_t >("u_max", real_t(0.05));
+      const real_t reynolds_number = parameters.getParameter< real_t >("reynolds_number", real_t(1000));
+      const uint_t diameter_sphere = parameters.getParameter< uint_t >("diameter_sphere", uint_t(5));
 
       const double remainingTimeLoggerFrequency =
          parameters.getParameter< double >("remainingTimeLoggerFrequency", 3.0); // in seconds
 
       // create fields
-      BlockDataID pdfFieldID     = blocks->addStructuredBlockData<PdfField_T>(pdfFieldAdder, "PDFs");
+      BlockDataID pdfFieldID     = blocks->addStructuredBlockData< PdfField_T >(pdfFieldAdder, "PDFs");
       BlockDataID velFieldID     = field::addToStorage< VelocityField_T >(blocks, "velocity", real_t(0), field::fzyx);
       BlockDataID densityFieldID = field::addToStorage< ScalarField_T >(blocks, "density", real_t(0), field::fzyx);
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
       BlockDataID pdfFieldIDGPU = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "PDFs on GPU", true);
-      BlockDataID velFieldIDGPU = cuda::addGPUFieldToStorage< VelocityField_T >(blocks, velFieldID, "velocity on GPU", true);
-      BlockDataID densityFieldIDGPU = cuda::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldID, "density on GPU", true);
+      BlockDataID velFieldIDGPU =
+         cuda::addGPUFieldToStorage< VelocityField_T >(blocks, velFieldID, "velocity on GPU", true);
+      BlockDataID densityFieldIDGPU =
+         cuda::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldID, "density on GPU", true);
 #endif
 
       BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
@@ -210,7 +216,7 @@ int main(int argc, char** argv)
       for (auto& block : *blocks)
          setterSweep(&block);
 #endif
-      // Create communication
+         // Create communication
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
       cuda::communication::UniformGPUScheme< Stencil_T > comEven(blocks, 0);
@@ -233,13 +239,13 @@ int main(int argc, char** argv)
 
       auto boundariesConfig = config->getOneBlock("Boundaries");
 
-      std::function<Vector3<real_t>(const Cell &, const shared_ptr<StructuredBlockForest>&, IBlock&)>
-         velocity_initialisation = std::bind(VelocityCallback, _1, _2, _3, u_max) ;
+      std::function< Vector3< real_t >(const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) >
+         velocity_initialisation = std::bind(VelocityCallback, _1, _2, _3, u_max);
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
       lbm::ChannelFlowCodeGen_UBB ubb(blocks, pdfFieldIDGPU, velocity_initialisation);
       lbm::ChannelFlowCodeGen_NoSlip noSlip(blocks, pdfFieldIDGPU);
-      lbm::ChannelFlowCodeGen_Outflow outflow(blocks, pdfFieldIDGPU);
+      lbm::ChannelFlowCodeGen_Outflow outflow(blocks, pdfFieldIDGPU, pdfFieldID);
 #else
       lbm::ChannelFlowCodeGen_UBB ubb(blocks, pdfFieldID, velocity_initialisation);
       lbm::ChannelFlowCodeGen_NoSlip noSlip(blocks, pdfFieldID);
@@ -265,7 +271,7 @@ int main(int argc, char** argv)
 #endif
 
       // All the sweeps
-      auto tracker = make_shared<TimestepModulusTracker>(0);
+      auto tracker = make_shared< TimestepModulusTracker >(0);
 
       AlternatingSweep LBSweep(LBEvenSweep, LBOddSweep, tracker);
       AlternatingSweep noSlipSweep(noSlip.getEvenSweep(), noSlip.getOddSweep(), tracker);
@@ -297,25 +303,26 @@ int main(int argc, char** argv)
       uint_t vtkWriteFrequency = parameters.getParameter< uint_t >("vtkWriteFrequency", 0);
       if (vtkWriteFrequency > 0)
       {
-         auto vtkOutput     = vtk::createVTKOutput_BlockData(*blocks, "vtk", vtkWriteFrequency, 0, false, "vtk_out",
+         auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "vtk", vtkWriteFrequency, 0, false, "vtk_out",
                                                          "simulation_step", false, true, true, false, 0);
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
-         vtkOutput->addBeforeFunction( [&]() {
-           cuda::fieldCpy<VelocityField_T, GPUField>( blocks, velFieldID, velFieldIDGPU );
-           cuda::fieldCpy<ScalarField_T , GPUField>( blocks, densityFieldID, densityFieldIDGPU );
+         vtkOutput->addBeforeFunction([&]() {
+            cuda::fieldCpy< VelocityField_T, GPUField >(blocks, velFieldID, velFieldIDGPU);
+            cuda::fieldCpy< ScalarField_T, GPUField >(blocks, densityFieldID, densityFieldIDGPU);
          });
 #endif
          auto velWriter     = make_shared< field::VTKWriter< VelocityField_T > >(velFieldID, "velocity");
          auto densityWriter = make_shared< field::VTKWriter< ScalarField_T > >(densityFieldID, "density");
 
-         FluidFilter_T filter(cellsPerBlock);
+         // FluidFilter_T filter(cellsPerBlock);
 
-         auto QCriterionWriter = make_shared<lbm::QCriterionVTKWriter<VelocityField_T, FluidFilter_T>>(blocks, filter, velFieldID, "QCriterionWriter");
+         // auto QCriterionWriter = make_shared<lbm::QCriterionVTKWriter<VelocityField_T, FluidFilter_T>>(blocks,
+         // filter, velFieldID, "QCriterionWriter");
 
          vtkOutput->addCellDataWriter(velWriter);
          vtkOutput->addCellDataWriter(densityWriter);
-         vtkOutput->addCellDataWriter(QCriterionWriter);
+         // vtkOutput->addCellDataWriter(QCriterionWriter);
 
          // vtkOutput->addBeforeFunction([&]() {
          //    for (auto& block : *blocks)
@@ -325,8 +332,15 @@ int main(int argc, char** argv)
       }
 
       WcTimer simTimer;
-      WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps and a reynolds number of "
-                                                            << reynolds_number)
+
+      WALBERLA_LOG_INFO_ON_ROOT(
+         "Simulating flow around sphere:"
+         "\n timesteps:               " << timesteps <<
+         "\n reynolds number:         " << reynolds_number <<
+         "\n relaxation rate:         " << omega <<
+         "\n maximum inflow velocity: " << u_max <<
+         "\n diameter_sphere:         " << diameter_sphere)
+
       simTimer.start();
       timeloop.run();
       simTimer.end();
