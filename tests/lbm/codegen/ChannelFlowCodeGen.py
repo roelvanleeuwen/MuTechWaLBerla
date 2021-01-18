@@ -1,15 +1,14 @@
 from lbmpy.advanced_streaming.utility import get_timesteps, Timestep
 from pystencils.field import fields
-from lbmpy.macroscopic_value_kernels import macroscopic_values_setter, macroscopic_values_getter
+from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
 from lbmpy.stencils import get_stencil
 from lbmpy.creationfunctions import create_lb_collision_rule, create_lb_method, create_lb_update_rule
-from lbmpy.boundaries import NoSlip, UBB, ExtrapolationOutflow, FixedDensity
+from lbmpy.boundaries import NoSlip, UBB, ExtrapolationOutflow
 from lbmpy_walberla.additional_data_handler import UBBAdditionalDataHandler, OutflowAdditionalDataHandler
 from pystencils_walberla import CodeGeneration, generate_sweep
 from lbmpy_walberla import RefinementScaling, generate_boundary, generate_lb_pack_info
 
 import sympy as sp
-
 
 stencil = get_stencil("D3Q27")
 q = len(stencil)
@@ -31,7 +30,6 @@ options = {'method': 'cumulant',
            'relaxation_rate': omega,
            'galilean_correction': True,
            'field_name': 'pdfs',
-           #    'temporary_field_name': 'pdfs_tmp',
            'streaming_pattern': streaming_pattern,
            'output': output,
            'optimization': {'symbolic_field': pdfs,
@@ -45,8 +43,6 @@ setter_assignments = macroscopic_values_setter(method, velocity=velocity_field.c
                                                pdfs=pdfs, density=1,
                                                streaming_pattern=streaming_pattern,
                                                previous_timestep=timesteps[0])
-# getter_assignments = macroscopic_values_getter(method, velocity=velocity_field.center_vector,
-#                                                pdfs=pdfs.center_vector, density=density_field)
 
 # opt = {'instruction_set': 'sse', 'assume_aligned': True, 'nontemporal': False, 'assume_inner_stride_one': True}
 
@@ -80,7 +76,6 @@ with CodeGeneration() as ctx:
     generate_sweep(ctx, 'ChannelFlowCodeGen_EvenSweep', update_rule_even, target=target)
     generate_sweep(ctx, 'ChannelFlowCodeGen_OddSweep', update_rule_odd, target=target)
     generate_sweep(ctx, 'ChannelFlowCodeGen_MacroSetter', setter_assignments, target=target)
-    # generate_sweep(ctx, 'ChannelFlowCodeGen_MacroGetter', getter_assignments, target=target)
 
     # boundaries
     ubb = UBB(lambda *args: None, dim=dim)

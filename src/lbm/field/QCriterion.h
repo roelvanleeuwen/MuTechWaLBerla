@@ -28,53 +28,40 @@
 // You should never use these functions directly, always refer to the member functions
 // of PdfField or the free functions that can be found in MacroscopicValueCalculation.h
 
-namespace walberla {
-namespace lbm {
-
-struct QCriterion {
+namespace walberla
+{
+namespace lbm
+{
+struct QCriterion
+{
    template< typename VelocityField_T, typename Filter_T >
-   static inline real_t get(const VelocityField_T & velocityField, const Filter_T & filter,
-           const cell_idx_t x, const cell_idx_t y, const cell_idx_t z,
-           real_t dx = real_t(1), real_t dy = real_t(1), real_t dz = real_t(1)) {
+   static inline real_t get(const VelocityField_T& velocityField, const Filter_T& filter, const cell_idx_t x,
+                            const cell_idx_t y, const cell_idx_t z, real_t dx = real_t(1), real_t dy = real_t(1),
+                            real_t dz = real_t(1))
+   {
       const auto one = cell_idx_t(1);
 
-      if(filter(x,y,z) && filter(x+one,y,z) && filter(x-one,y,z) && filter(x,y+one,z)
-         && filter(x,y-one,z) && filter(x,y,z+one) && filter(x,y,z-one)) {
-         Vector3<real_t> xa;
-         Vector3<real_t> xb;
-         Vector3<real_t> ya;
-         Vector3<real_t> yb;
-         Vector3<real_t> za;
-         Vector3<real_t> zb;
-         if constexpr (std::is_same_v<VelocityField_T, GhostLayerField<real_t, 3>>) {
-            xa = Vector3<real_t>(velocityField.get(x+one,y,z,0), velocityField.get(x+one,y,z,1), velocityField.get(x+one,y,z,2));
-            xb = Vector3<real_t>(velocityField.get(x-one,y,z,0), velocityField.get(x-one,y,z,1), velocityField.get(x-one,y,z,2));
-            ya = Vector3<real_t>(velocityField.get(x,y+one,z,0), velocityField.get(x,y+one,z,1), velocityField.get(x,y+one,z,2));
-            yb = Vector3<real_t>(velocityField.get(x,y-one,z,0), velocityField.get(x,y-one,z,1), velocityField.get(x,y-one,z,2));
-            za = Vector3<real_t>(velocityField.get(x,y,z+one,0), velocityField.get(x,y,z+one,1), velocityField.get(x,y,z+one,2));
-            zb = Vector3<real_t>(velocityField.get(x,y,z-one,0), velocityField.get(x,y,z-one,1), velocityField.get(x,y,z-one,2));
-         }
-         else
-         {
-            xa = velocityField.get(x+one,y,z);
-            xb = velocityField.get(x-one,y,z);
-            ya = velocityField.get(x,y+one,z);
-            yb = velocityField.get(x,y-one,z);
-            za = velocityField.get(x,y,z+one);
-            zb = velocityField.get(x,y,z-one);
-         }
+      auto f(velocityField.flattenedShallowCopy());
+
+      if (filter(x, y, z) && filter(x + one, y, z) && filter(x - one, y, z) && filter(x, y + one, z) &&
+          filter(x, y - one, z) && filter(x, y, z + one) && filter(x, y, z - one))
+      {
+         Vector3< real_t > xa(f->get(x + one, y, z, 0), f->get(x + one, y, z, 1), f->get(x + one, y, z, 2));
+         Vector3< real_t > xb(f->get(x - one, y, z, 0), f->get(x - one, y, z, 1), f->get(x - one, y, z, 2));
+         Vector3< real_t > ya(f->get(x, y + one, z, 0), f->get(x, y + one, z, 1), f->get(x, y + one, z, 2));
+         Vector3< real_t > yb(f->get(x, y - one, z, 0), f->get(x, y - one, z, 1), f->get(x, y - one, z, 2));
+         Vector3< real_t > za(f->get(x, y, z + one, 0), f->get(x, y, z + one, 1), f->get(x, y, z + one, 2));
+         Vector3< real_t > zb(f->get(x, y, z - one, 0), f->get(x, y, z - one, 1), f->get(x, y, z - one, 2));
 
          return calculate(xa, xb, ya, yb, za, zb, dx, dy, dz);
       }
-
       return real_t(0);
    }
 
-   static inline real_t calculate(const Vector3<real_t> xa, const Vector3<real_t> xb,
-           const Vector3<real_t> ya, const Vector3<real_t> yb,
-           const Vector3<real_t> za, const Vector3<real_t> zb,
-           const real_t dx, const real_t dy, const real_t dz) {
-
+   static inline real_t calculate(const Vector3< real_t > xa, const Vector3< real_t > xb, const Vector3< real_t > ya,
+                                  const Vector3< real_t > yb, const Vector3< real_t > za, const Vector3< real_t > zb,
+                                  const real_t dx, const real_t dy, const real_t dz)
+   {
       const auto halfInvDx = real_t(0.5) / dx;
       const auto halfInvDy = real_t(0.5) / dy;
       const auto halfInvDz = real_t(0.5) / dz;
@@ -92,18 +79,17 @@ struct QCriterion {
       const real_t duzdz = (za[2] - zb[2]) * halfInvDz;
 
       // Q = 1/2 * (||W||² - ||S||²)
-      real_t sNormSq = duxdx*duxdx + duydy*duydy + duzdz*duzdz +
-              real_t(0.5)*(duxdy+duydx)*(duxdy+duydx) + real_t(0.5)*(duydz+duzdy)*(duydz+duzdy) +
-              real_t(0.5)*(duxdz+duzdx)*(duxdz+duzdx);
+      real_t sNormSq = duxdx * duxdx + duydy * duydy + duzdz * duzdz + real_t(0.5) * (duxdy + duydx) * (duxdy + duydx) +
+                       real_t(0.5) * (duydz + duzdy) * (duydz + duzdy) +
+                       real_t(0.5) * (duxdz + duzdx) * (duxdz + duzdx);
 
-      real_t omegaNormSq = real_t(0.5)*(duxdz-duzdx)*(duxdz-duzdx) +
-              real_t(0.5)*(duxdy-duydx)*(duxdy-duydx) +
-              real_t(0.5)*(duydz-duzdy)*(duydz-duzdy);
+      real_t omegaNormSq = real_t(0.5) * (duxdz - duzdx) * (duxdz - duzdx) +
+                           real_t(0.5) * (duxdy - duydx) * (duxdy - duydx) +
+                           real_t(0.5) * (duydz - duzdy) * (duydz - duzdy);
 
       return real_t(0.5) * (omegaNormSq - sNormSq);
    }
 };
-
 
 } // namespace lbm
 } // namespace walberla

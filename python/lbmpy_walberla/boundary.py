@@ -18,17 +18,14 @@ def generate_boundary(generation_context,
         if is_inplace(streaming_pattern) or always_generate_separate_classes:
             return {
                 'EvenSweep': create_lattice_boltzmann_boundary_kernel(*pargs,
-                                                                      streaming_pattern=streaming_pattern,
                                                                       prev_timestep=Timestep.EVEN,
                                                                       **kwargs),
                 'OddSweep': create_lattice_boltzmann_boundary_kernel(*pargs,
-                                                                     streaming_pattern=streaming_pattern,
                                                                      prev_timestep=Timestep.ODD,
                                                                      **kwargs)
             }
         else:
             return create_lattice_boltzmann_boundary_kernel(*pargs,
-                                                            streaming_pattern=streaming_pattern,
                                                             prev_timestep=Timestep.BOTH,
                                                             **kwargs)
 

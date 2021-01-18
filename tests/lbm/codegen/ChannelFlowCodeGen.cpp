@@ -46,7 +46,6 @@
 
 // CodeGen includes
 #include "ChannelFlowCodeGen_InfoHeader.h"
-// #include "ChannelFlowCodeGen_MacroGetter.h"
 #include "ChannelFlowCodeGen_EvenSweep.h"
 #include "ChannelFlowCodeGen_MacroSetter.h"
 #include "ChannelFlowCodeGen_NoSlip.h"
@@ -298,8 +297,6 @@ int main(int argc, char** argv)
          "remaining time logger");
 
       // add VTK output to time loop
-      // pystencils::ChannelFlowCodeGen_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID);
-      // VTK
       uint_t vtkWriteFrequency = parameters.getParameter< uint_t >("vtkWriteFrequency", 0);
       if (vtkWriteFrequency > 0)
       {
@@ -314,20 +311,15 @@ int main(int argc, char** argv)
 #endif
          auto velWriter     = make_shared< field::VTKWriter< VelocityField_T > >(velFieldID, "velocity");
          auto densityWriter = make_shared< field::VTKWriter< ScalarField_T > >(densityFieldID, "density");
+         FluidFilter_T filter(cellsPerBlock);
 
-         // FluidFilter_T filter(cellsPerBlock);
-
-         // auto QCriterionWriter = make_shared<lbm::QCriterionVTKWriter<VelocityField_T, FluidFilter_T>>(blocks,
-         // filter, velFieldID, "QCriterionWriter");
+         auto QCriterionWriter = make_shared<lbm::QCriterionVTKWriter<VelocityField_T, FluidFilter_T>>(blocks,
+         filter, velFieldID, "Q-Criterion");
 
          vtkOutput->addCellDataWriter(velWriter);
          vtkOutput->addCellDataWriter(densityWriter);
-         // vtkOutput->addCellDataWriter(QCriterionWriter);
+         vtkOutput->addCellDataWriter(QCriterionWriter);
 
-         // vtkOutput->addBeforeFunction([&]() {
-         //    for (auto& block : *blocks)
-         //       getterSweep(&block);
-         // });
          timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       }
 
