@@ -279,11 +279,11 @@ int main(int argc, char** argv)
       AlternatingBeforeFunction communication(evenComm, oddComm, tracker);
 
       // add LBM sweep and communication to time loop
-      timeloop.add() << Sweep(noSlipSweep, "noSlip boundary");
+      timeloop.add() << BeforeFunction(communication, "communication")
+                     << Sweep(noSlipSweep, "noSlip boundary");
       timeloop.add() << Sweep(outflowSweep, "outflow boundary");
       timeloop.add() << Sweep(ubbSweep, "ubb boundary");
-      timeloop.add() << BeforeFunction(communication, "communication")
-                     << BeforeFunction(tracker->advancementFunction(), "Timestep Advancement")
+      timeloop.add() << BeforeFunction(tracker->advancementFunction(), "Timestep Advancement")
                      << Sweep(LBSweep, "LB update rule");
 
       // LBM stability check

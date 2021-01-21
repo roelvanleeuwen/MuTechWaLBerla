@@ -71,8 +71,9 @@ with CodeGeneration() as ctx:
     generate_sweep(ctx, 'ChannelFlowCodeGen_EvenSweep', update_rule_even, target=target)
     generate_sweep(ctx, 'ChannelFlowCodeGen_OddSweep', update_rule_odd, target=target)
     # For a correct working outflow also the PDFs in the ghost layers need to be initialised.
-    generate_sweep(ctx, 'ChannelFlowCodeGen_MacroSetter', setter_assignments,
-                   ghost_layers_to_include=1, target=target, ghost_layers=0)
+    # generate_sweep(ctx, 'ChannelFlowCodeGen_MacroSetter', setter_assignments,
+    #                ghost_layers_to_include=1, target=target, ghost_layers=0)
+    generate_sweep(ctx, 'ChannelFlowCodeGen_MacroSetter', setter_assignments, target=target)
 
     # boundaries
     ubb = UBB(lambda *args: None, dim=dim)

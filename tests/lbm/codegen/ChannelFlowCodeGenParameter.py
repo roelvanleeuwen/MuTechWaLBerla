@@ -45,7 +45,7 @@ class Scenario:
                     {'direction': 'N', 'walldistance': -1, 'flag': 'NoSlip'},
                     {'direction': 'S', 'walldistance': -1, 'flag': 'NoSlip'},
                     {'direction': 'W', 'walldistance': -1, 'flag': 'UBB'},
-                    {'direction': 'E', 'walldistance': 0, 'flag': 'Outflow'},
+                    {'direction': 'E', 'walldistance': -1, 'flag': 'Outflow'},
                     {'direction': 'T', 'walldistance': -1, 'flag': 'NoSlip'},
                     {'direction': 'B', 'walldistance': -1, 'flag': 'NoSlip'},
                 ],

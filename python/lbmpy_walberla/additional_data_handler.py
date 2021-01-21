@@ -29,7 +29,7 @@ class UBBAdditionalDataHandler(AdditionalDataHandler):
     def additional_parameters_for_fill_function(self):
         return " const shared_ptr<StructuredBlockForest> &blocks, "
 
-    def data_initialisation(self, **_):
+    def data_initialisation(self, direction):
         init_list = ["Vector3<real_t> InitialisatonAdditionalData = elementInitaliser(Cell(it.x(), it.y(), it.z()), "
                      "blocks, *block);", "element.vel_0 = InitialisatonAdditionalData[0];",
                      "element.vel_1 = InitialisatonAdditionalData[1];"]
