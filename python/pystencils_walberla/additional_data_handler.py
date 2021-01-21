@@ -36,8 +36,7 @@ class AdditionalDataHandler:
     def additional_field_data(self):
         return ""
 
-    @property
-    def data_initialisation(self):
+    def data_initialisation(self, direction_index):
         return ""
 
     @property

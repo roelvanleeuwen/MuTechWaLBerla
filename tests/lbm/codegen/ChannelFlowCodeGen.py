@@ -61,11 +61,6 @@ using ScalarField_T = GhostLayerField<real_t, 1>;
 
 stencil = method.stencil
 
-shift = {}
-for i, stencil_dir in enumerate(stencil):
-    if all(n == 0 or n == -s for s, n in zip(stencil_dir, stencil[4])):
-        shift[pdfs.center(i)] = pdfs[stencil[4]](i)
-
 with CodeGeneration() as ctx:
     if ctx.cuda:
         target = 'gpu'

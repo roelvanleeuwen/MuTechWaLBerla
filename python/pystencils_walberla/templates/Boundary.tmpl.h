@@ -195,7 +195,7 @@ public:
                 {% else -%}
                 auto element = {{StructName}}(it.x() + cell_idx_c({{dirVec[0]}}), it.y() + cell_idx_c({{dirVec[1]}}), {%if dim == 3%} it.z() + cell_idx_c({{dirVec[2]}}), {%endif %} {{additional_data_handler.inverse_directions[dirIdx]}} );
                 {% endif -%}
-                {{additional_data_handler.data_initialisation|indent(16)}}
+                {{additional_data_handler.data_initialisation(dirIdx)|indent(16)}}
                 indexVectorAll.push_back( element );
                 if( inner.contains( it.x(), it.y(), it.z() ) )
                     indexVectorInner.push_back( element );

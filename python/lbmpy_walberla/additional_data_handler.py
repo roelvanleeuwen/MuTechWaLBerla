@@ -1,8 +1,9 @@
+from pystencils.stencil import inverse_direction
+
 from lbmpy.advanced_streaming import AccessPdfValues, numeric_offsets, numeric_index
 from lbmpy.boundaries import ExtrapolationOutflow, UBB
 
 from pystencils_walberla.additional_data_handler import AdditionalDataHandler
-
 
 class UBBAdditionalDataHandler(AdditionalDataHandler):
     def __init__(self, stencil, dim, boundary_object):
@@ -27,8 +28,7 @@ class UBBAdditionalDataHandler(AdditionalDataHandler):
     def additional_parameters_for_fill_function(self):
         return " const shared_ptr<StructuredBlockForest> &blocks, "
 
-    @property
-    def data_initialisation(self):
+    def data_initialisation(self, direction_index):
         init_list = ["Vector3<real_t> InitialisatonAdditionalData = elementInitaliser(Cell(it.x(), it.y(), it.z()), "
                      "blocks, *block);", "element.vel_0 = InitialisatonAdditionalData[0];",
                      "element.vel_1 = InitialisatonAdditionalData[1];"]
@@ -54,6 +54,9 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
         self._target = target
         super(OutflowAdditionalDataHandler, self).__init__(stencil=stencil, dim=dim)
 
+        assert sum([a != 0 for a in self._normal_direction]) == 1,\
+            "The outflow boundary is only implemented for straight walls at the moment."
+
     @property
     def constructor_arguments(self):
         return f", BlockDataID {self._field_name}CPUID_" if self._target == 'gpu' else ""
@@ -68,15 +71,14 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
         return f"auto {self._field_name} = block->getData< field::GhostLayerField<double, " \
                f"{len(self._stencil)}> >({self._field_name}{identifier}ID); "
 
-    @property
-    def data_initialisation(self):
+    def data_initialisation(self, direction_index):
         pdf_acc = AccessPdfValues(self._boundary_object.stencil,
                                   streaming_pattern=self._boundary_object.streaming_pattern,
                                   timestep=self._boundary_object.zeroth_timestep,
                                   streaming_dir='out')
 
         init_list = []
-        for key, value in self.get_init_dict(pdf_acc).items():
+        for key, value in self.get_init_dict(pdf_acc, direction_index).items():
             init_list.append(f"element.{key} = {self._field_name}->get({value});")
 
         return "\n".join(init_list)
@@ -89,24 +91,32 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
     def stencil_info(self):
         stencil_info = []
         for i, d in enumerate(self._stencil):
-            if d == self._normal_direction:
+            if any([a != 0 and b != 0 and a == b for a, b in zip(self._normal_direction, d)]):
                 direction = d if self._dim == 3 else d + (0,)
                 stencil_info.append((i, direction, ", ".join([str(e) for e in direction])))
         return stencil_info
 
-    def get_init_dict(self, pdf_accessor):
+    def get_init_dict(self, pdf_accessor, direction_index):
         """The Extrapolation Outflow boundary needs additional data. This function provides a list of all values
         which have to be initialised"""
-        result = {}
         position = ["it.x()", "it.y()", "it.z()"]
-        for j, stencil_dir in enumerate(self._stencil):
-            pos = []
-            if all(n == 0 or n == -s for s, n in zip(stencil_dir, self._normal_direction)):
-                offsets = numeric_offsets(pdf_accessor.accs[j])
-                for p, o in zip(position, offsets):
-                    pos.append(p + " + cell_idx_c(" + str(o) + ")")
-                pos.append(str(numeric_index(pdf_accessor.accs[j])[0]))
-                result[f'pdf_{j}'] = ', '.join(pos)
-                result[f'pdf_nd_{j}'] = ', '.join(pos)
+        direction = self._stencil[direction_index]
+        inv_dir = self._stencil.index(inverse_direction(direction))
+
+        tangential_offset = tuple(offset - normal for offset, normal in zip(direction, self._normal_direction))
+
+        result = {}
+        pos = []
+        offsets = numeric_offsets(pdf_accessor.accs[inv_dir])
+        for p, o, t in zip(position, offsets, tangential_offset):
+            pos.append(p + " + cell_idx_c(" + str(o + t) + ")")
+        pos.append(str(numeric_index(pdf_accessor.accs[inv_dir])[0]))
+        result[f'pdf'] = ', '.join(pos)
+
+        pos = []
+        for p, o, t in zip(position, offsets, direction):
+            pos.append(p + " + cell_idx_c(" + str(o + t) + ")")
+        pos.append(str(numeric_index(pdf_accessor.accs[inv_dir])[0]))
+        result[f'pdf_nd'] = ', '.join(pos)
 
         return result

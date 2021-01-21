@@ -124,7 +124,6 @@ def generate_pack_info_for_field(generation_context, class_name: str, field: Fie
 
 
 def generate_pack_info_from_kernel(generation_context, class_name: str, assignments: Sequence[Assignment],
-                                   shifting_dict=None,
                                    kind='pull', **create_kernel_params):
     """Generates a waLBerla GPU PackInfo from a (pull) kernel.
 
@@ -133,16 +132,10 @@ def generate_pack_info_from_kernel(generation_context, class_name: str, assignme
         class_name: name of the generated class
         assignments: list of assignments from the compute kernel - generates PackInfo for "pull" part only
                      i.e. the kernel is expected to only write to the center
-        shifting_dict: dictionary which contains field access which should be considered instead of field access which
-                       are taken from the update rule. This is useful if for example a boundary condition is applied
-                       which moves certain values and then the moved values should be considered instead of the original
-                       ones.
         kind: can either be pull or push
         **create_kernel_params: remaining keyword arguments are passed to `pystencils.create_kernel`
     """
     assert kind in ('push', 'pull')
-    if shifting_dict is None:
-        shifting_dict = dict()
     reads = set()
     writes = set()
 
@@ -162,20 +155,14 @@ def generate_pack_info_from_kernel(generation_context, class_name: str, assignme
                 continue
             comm_direction = inverse_direction(fa.offsets)
             for comm_dir in comm_directions(comm_direction):
-                if fa.field.center(*fa.index) in shifting_dict:
-                    spec[(comm_dir,)].add(shifting_dict[fa.field.center(*fa.index)])
-                else:
-                    spec[(comm_dir,)].add(fa.field.center(*fa.index))
+                spec[(comm_dir,)].add(fa.field.center(*fa.index))
     elif kind == 'push':
         for fa in writes:
             assert all(abs(e) <= 1 for e in fa.offsets)
             if all(offset == 0 for offset in fa.offsets):
                 continue
             for comm_dir in comm_directions(fa.offsets):
-                if fa in shifting_dict:
-                    spec[(comm_dir,)].add(shifting_dict[fa])
-                else:
-                    spec[(comm_dir,)].add(fa)
+                spec[(comm_dir,)].add(fa)
     else:
         raise ValueError("Invalid 'kind' parameter")
     return generate_pack_info(generation_context, class_name, spec, **create_kernel_params)
