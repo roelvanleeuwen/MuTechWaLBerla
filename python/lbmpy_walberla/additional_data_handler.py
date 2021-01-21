@@ -5,6 +5,7 @@ from lbmpy.boundaries import ExtrapolationOutflow, UBB
 
 from pystencils_walberla.additional_data_handler import AdditionalDataHandler
 
+
 class UBBAdditionalDataHandler(AdditionalDataHandler):
     def __init__(self, stencil, dim, boundary_object):
         assert isinstance(boundary_object, UBB)
@@ -28,7 +29,7 @@ class UBBAdditionalDataHandler(AdditionalDataHandler):
     def additional_parameters_for_fill_function(self):
         return " const shared_ptr<StructuredBlockForest> &blocks, "
 
-    def data_initialisation(self, direction_index):
+    def data_initialisation(self, **_):
         init_list = ["Vector3<real_t> InitialisatonAdditionalData = elementInitaliser(Cell(it.x(), it.y(), it.z()), "
                      "blocks, *block);", "element.vel_0 = InitialisatonAdditionalData[0];",
                      "element.vel_1 = InitialisatonAdditionalData[1];"]
