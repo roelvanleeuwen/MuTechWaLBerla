@@ -210,6 +210,7 @@ int main(int argc, char** argv)
       pystencils::ChannelFlowCodeGen_MacroSetter setterSweep(pdfFieldIDGPU, velFieldIDGPU);
       for (auto& block : *blocks)
          setterSweep(&block);
+      cuda::fieldCpy< PdfField_T , GPUField >(blocks, pdfFieldID, pdfFieldIDGPU);
 #else
       pystencils::ChannelFlowCodeGen_MacroSetter setterSweep(pdfFieldID, velFieldID);
       for (auto& block : *blocks)

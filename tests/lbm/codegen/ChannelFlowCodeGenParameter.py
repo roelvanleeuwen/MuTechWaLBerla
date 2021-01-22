@@ -7,8 +7,8 @@ class Scenario:
         self.timesteps = 1501
         self.vtkWriteFrequency = 1500
 
-        self.cells = (64, 32, 32)
-        self.blocks = (2, 2, 2)
+        self.cells = (384, 128, 128)
+        self.blocks = (1, 1, 1)
         self.periodic = (0, 0, 0)
 
         self.diameter_sphere = min(self.cells) // 2

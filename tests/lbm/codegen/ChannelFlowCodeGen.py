@@ -3,7 +3,7 @@ from pystencils.field import fields
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
 from lbmpy.stencils import get_stencil
 from lbmpy.creationfunctions import create_lb_collision_rule, create_lb_method, create_lb_update_rule
-from lbmpy.boundaries import NoSlip, UBB, ExtrapolationOutflow
+from lbmpy.boundaries import NoSlip, UBB, ExtrapolationOutflow, SimpleExtrapolationOutflow
 from lbmpy_walberla.additional_data_handler import UBBAdditionalDataHandler, OutflowAdditionalDataHandler
 from pystencils_walberla import CodeGeneration, generate_sweep
 from lbmpy_walberla import RefinementScaling, generate_boundary, generate_lb_pack_info
@@ -70,15 +70,12 @@ with CodeGeneration() as ctx:
     # sweeps
     generate_sweep(ctx, 'ChannelFlowCodeGen_EvenSweep', update_rule_even, target=target)
     generate_sweep(ctx, 'ChannelFlowCodeGen_OddSweep', update_rule_odd, target=target)
-    # For a correct working outflow also the PDFs in the ghost layers need to be initialised.
-    # generate_sweep(ctx, 'ChannelFlowCodeGen_MacroSetter', setter_assignments,
-    #                ghost_layers_to_include=1, target=target, ghost_layers=0)
     generate_sweep(ctx, 'ChannelFlowCodeGen_MacroSetter', setter_assignments, target=target)
 
     # boundaries
     ubb = UBB(lambda *args: None, dim=dim)
     ubb_data_handler = UBBAdditionalDataHandler(stencil, dim, ubb)
-    outflow = ExtrapolationOutflow(stencil[4], method)
+    outflow = ExtrapolationOutflow(stencil[4], method, streaming_pattern=streaming_pattern)
     outflow_data_handler = OutflowAdditionalDataHandler(stencil, dim, outflow, target=target)
 
     generate_boundary(ctx, 'ChannelFlowCodeGen_UBB', ubb, method,

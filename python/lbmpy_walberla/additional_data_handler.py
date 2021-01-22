@@ -115,7 +115,7 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
         result[f'pdf'] = ', '.join(pos)
 
         pos = []
-        for p, o, t in zip(position, offsets, direction):
+        for p, o, t in zip(position, offsets, tangential_offset):
             pos.append(p + " + cell_idx_c(" + str(o + t) + ")")
         pos.append(str(numeric_index(pdf_accessor.accs[inv_dir])[0]))
         result[f'pdf_nd'] = ', '.join(pos)
