@@ -1045,6 +1045,7 @@ if ( WALBERLA_BUILD_WITH_CUDA )
 
       #CUDA_FOUND is need for our cmake mechanism
       set ( CUDA_FOUND TRUE )
+      set(CMAKE_CUDA_STANDARD_REQUIRED OFF)
     else()
       set ( WALBERLA_BUILD_WITH_CUDA FALSE )
     endif ( )
@@ -1112,7 +1113,14 @@ endif()
 ##
 ############################################################################################################################
 if ( WALBERLA_BUILD_WITH_LTO  )
-    set( CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE )
+    cmake_policy( SET CMP0069 NEW )
+    include( CheckIPOSupported )
+    check_ipo_supported( RESULT LTO_SUPPORTED LANGUAGES CXX )
+    if( LTO_SUPPORTED )
+       set( CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE )
+    else()
+       message( WARNING "Link-time optimization is not supported with this compiler" )
+    endif()
 endif ( )
 
 ############################################################################################################################
