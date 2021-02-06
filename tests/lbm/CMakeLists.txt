@@ -78,40 +78,17 @@ waLBerla_execute_test( NAME QCriterionTest )
 if( WALBERLA_BUILD_WITH_CODEGEN )
 add_subdirectory(codegen)
 
-if( WALBERLA_BUILD_WITH_CUDA )
-
-    waLBerla_generate_target_from_python(NAME ChannelFlowCodeGenGenerated
-        FILE codegen/ChannelFlowCodeGen.py
-        OUT_FILES ChannelFlowCodeGen_EvenSweep.cu ChannelFlowCodeGen_EvenSweep.h
-        ChannelFlowCodeGen_OddSweep.cu ChannelFlowCodeGen_OddSweep.h
-        ChannelFlowCodeGen_MacroSetter.cu ChannelFlowCodeGen_MacroSetter.h
-        ChannelFlowCodeGen_UBB.cu ChannelFlowCodeGen_UBB.h
-        ChannelFlowCodeGen_NoSlip.cu ChannelFlowCodeGen_NoSlip.h
-        ChannelFlowCodeGen_Outflow.cu ChannelFlowCodeGen_Outflow.h
-        ChannelFlowCodeGen_PackInfoEven.cu ChannelFlowCodeGen_PackInfoEven.h
-        ChannelFlowCodeGen_PackInfoOdd.cu ChannelFlowCodeGen_PackInfoOdd.h
-        ChannelFlowCodeGen_InfoHeader.h)
-    waLBerla_compile_test( FILES codegen/ChannelFlowCodeGen.cpp DEPENDS ChannelFlowCodeGenGenerated)
-    set_target_properties( ChannelFlowCodeGen PROPERTIES CXX_VISIBILITY_PRESET hidden)
-
-else ()
-
-    waLBerla_generate_target_from_python(NAME ChannelFlowCodeGenGenerated
-            FILE codegen/ChannelFlowCodeGen.py
-            OUT_FILES ChannelFlowCodeGen_EvenSweep.cpp ChannelFlowCodeGen_EvenSweep.h
-            ChannelFlowCodeGen_OddSweep.cpp ChannelFlowCodeGen_OddSweep.h
-            ChannelFlowCodeGen_MacroSetter.cpp ChannelFlowCodeGen_MacroSetter.h
-            ChannelFlowCodeGen_UBB.cpp ChannelFlowCodeGen_UBB.h
-            ChannelFlowCodeGen_NoSlip.cpp ChannelFlowCodeGen_NoSlip.h
-            ChannelFlowCodeGen_Outflow.cpp ChannelFlowCodeGen_Outflow.h
-            ChannelFlowCodeGen_PackInfoEven.cpp ChannelFlowCodeGen_PackInfoEven.h
-            ChannelFlowCodeGen_PackInfoOdd.cpp ChannelFlowCodeGen_PackInfoOdd.h
-            ChannelFlowCodeGen_InfoHeader.h)
-    waLBerla_compile_test( FILES codegen/ChannelFlowCodeGen.cpp DEPENDS ChannelFlowCodeGenGenerated)
-    set_target_properties( ChannelFlowCodeGen PROPERTIES CXX_VISIBILITY_PRESET hidden)
-
-
-endif (WALBERLA_BUILD_WITH_CUDA)
+waLBerla_generate_target_from_python(NAME GeneratedOutflowBCGenerated
+        FILE codegen/GeneratedOutflowBC.py
+        OUT_FILES GeneratedOutflowBC_Sweep.cpp GeneratedOutflowBC_Sweep.h
+        GeneratedOutflowBC_MacroSetter.cpp GeneratedOutflowBC_MacroSetter.h
+        GeneratedOutflowBC_Dynamic_UBB.cpp GeneratedOutflowBC_Dynamic_UBB.h
+        GeneratedOutflowBC_Static_UBB.cpp GeneratedOutflowBC_Static_UBB.h
+        GeneratedOutflowBC_NoSlip.cpp GeneratedOutflowBC_NoSlip.h
+        GeneratedOutflowBC_Outflow.cpp GeneratedOutflowBC_Outflow.h
+        GeneratedOutflowBC_PackInfo.cpp GeneratedOutflowBC_PackInfo.h
+        GeneratedOutflowBC_InfoHeader.h)
+waLBerla_compile_test( FILES codegen/GeneratedOutflowBC.cpp DEPENDS GeneratedOutflowBCGenerated)
 
 
 waLBerla_generate_target_from_python(NAME LbCodeGenerationExampleGenerated
