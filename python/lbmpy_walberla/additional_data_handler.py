@@ -7,10 +7,10 @@ from pystencils_walberla.additional_data_handler import AdditionalDataHandler
 
 
 class UBBAdditionalDataHandler(AdditionalDataHandler):
-    def __init__(self, stencil, dim, boundary_object):
+    def __init__(self, stencil, boundary_object):
         assert isinstance(boundary_object, UBB)
         self._boundary_object = boundary_object
-        super(UBBAdditionalDataHandler, self).__init__(stencil=stencil, dim=dim)
+        super(UBBAdditionalDataHandler, self).__init__(stencil=stencil)
 
     @property
     def constructor_arguments(self):
@@ -45,7 +45,7 @@ class UBBAdditionalDataHandler(AdditionalDataHandler):
 
 
 class OutflowAdditionalDataHandler(AdditionalDataHandler):
-    def __init__(self, stencil, dim, boundary_object, target='cpu', field_name='pdfs'):
+    def __init__(self, stencil, boundary_object, target='cpu', field_name='pdfs'):
         assert isinstance(boundary_object, ExtrapolationOutflow)
         self._boundary_object = boundary_object
         self._stencil = boundary_object.stencil
@@ -53,7 +53,7 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
         self._normal_direction = boundary_object.normal_direction
         self._field_name = field_name
         self._target = target
-        super(OutflowAdditionalDataHandler, self).__init__(stencil=stencil, dim=dim)
+        super(OutflowAdditionalDataHandler, self).__init__(stencil=stencil)
 
         assert sum([a != 0 for a in self._normal_direction]) == 1,\
             "The outflow boundary is only implemented for straight walls at the moment."
@@ -110,13 +110,17 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
         pos = []
         offsets = numeric_offsets(pdf_accessor.accs[inv_dir])
         for p, o, t in zip(position, offsets, tangential_offset):
-            pos.append(p + " + cell_idx_c(" + str(o + t) + ")")
+            pos.append(p + f" + cell_idx_c({str(o + t)})")
+        if self._dim == 2:
+            pos.append("0")
         pos.append(str(numeric_index(pdf_accessor.accs[inv_dir])[0]))
         result[f'pdf'] = ', '.join(pos)
 
         pos = []
         for p, o, t in zip(position, offsets, tangential_offset):
-            pos.append(p + " + cell_idx_c(" + str(o + t) + ")")
+            pos.append(p + f" + cell_idx_c({str(o + t)})")
+        if self._dim == 2:
+            pos.append("0")
         pos.append(str(numeric_index(pdf_accessor.accs[inv_dir])[0]))
         result[f'pdf_nd'] = ', '.join(pos)
 

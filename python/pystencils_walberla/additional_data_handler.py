@@ -4,11 +4,11 @@ from pystencils.stencil import inverse_direction
 class AdditionalDataHandler:
     """Base class that defines how to handle boundary conditions holding additional data."""
 
-    def __init__(self, stencil, dim=3):
-        self._dim = dim
+    def __init__(self, stencil):
+        self._dim = len(stencil[0])
 
         # waLBerla is a 3D framework. Therefore, a zero for the z index has to be added if we work in 2D
-        if dim == 2:
+        if self._dim == 2:
             self._walberla_stencil = ()
             for d in stencil:
                 d = d + (0,)

@@ -15,25 +15,25 @@
 //
 //! \file GeneratedOutflowBC.cpp
 //! \author Markus Holzer <markus.holzer@fau.de>
+//! \brief Shear flow with dynamic UBB on the left (W) with linear flow profile from zero to u_max (flow in x-direction)
+//!        along the y-direction. The upper wall (N) is a static UBB which applies u_max in x-direction.
+//!        On the right (E) an outflow boundary is used and the lower wall (S) is a No-Slip wall.
+//!        It is tested if the shear flow is correctly propagated through the entire domain after n timesteps.
 //
 //======================================================================================================================
+#include "blockforest/Initialization.h"
+#include "blockforest/communication/UniformBufferedScheme.h"
 
-#include "blockforest/all.h"
+#include "core/Environment.h"
+#include "core/timing/RemainingTimeLogger.h"
 
-#include "core/all.h"
+#include "field/AddToStorage.h"
+#include "field/vtk/VTKWriter.h"
 
-#include "domain_decomposition/all.h"
+#include "geometry/InitBoundaryHandling.h"
+#include "timeloop/SweepTimeloop.h"
 
-#include "field/all.h"
-
-#include "geometry/all.h"
-
-#include "gui/all.h"
-
-#include "lbm/vtk/VTKOutput.h"
-
-#include "timeloop/all.h"
-
+// Generated Files
 #include "GeneratedOutflowBC_Dynamic_UBB.h"
 #include "GeneratedOutflowBC_InfoHeader.h"
 #include "GeneratedOutflowBC_MacroSetter.h"
@@ -44,7 +44,6 @@
 #include "GeneratedOutflowBC_Sweep.h"
 
 using namespace walberla;
-using namespace std::placeholders;
 
 using PackInfo_T  = lbm::GeneratedOutflowBC_PackInfo;
 using flag_t      = walberla::uint8_t;
@@ -56,18 +55,40 @@ auto pdfFieldAdder = [](IBlock* const block, StructuredBlockStorage* const stora
                          make_shared< field::AllocateAligned< real_t, 64 > >());
 };
 
-auto VelocityCallback = [](const Cell& pos, const shared_ptr< StructuredBlockForest >& SbF, IBlock& block,
-                           real_t inflow_velocity) {
+////////////////////////////////////////////
+// Linear Velocity Profile for left wall //
+//////////////////////////////////////////
+
+class ShearProfile
+{
+ public:
+
+   ShearProfile( real_t inflow_velocity ) :
+      inflow_velocity_( inflow_velocity ) {}
+
+   Vector3< real_t > operator()( const Cell& pos, const shared_ptr< StructuredBlockForest >& SbF, IBlock& block ) const;
+
+ private:
+
+   const real_t inflow_velocity_;
+}; // class ShearProfile
+
+Vector3< real_t > ShearProfile::operator()( const Cell& pos, const shared_ptr< StructuredBlockForest >& SbF, IBlock& block ) const
+{
    Cell globalCell;
    CellInterval domain = SbF->getDomainCellBB();
    real_t h_y          = domain.yMax() - domain.yMin();
    SbF->transformBlockLocalToGlobalCell(globalCell, block, pos);
 
-   real_t u = inflow_velocity * (globalCell[1] / h_y);
+   real_t u = inflow_velocity_ * (globalCell[1] / h_y);
 
    Vector3< real_t > result(u, 0.0, 0.0);
    return result;
-};
+}
+
+//////////
+// MAIN //
+//////////
 
 int main(int argc, char** argv)
 {
@@ -101,8 +122,9 @@ int main(int argc, char** argv)
 
    auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
 
+   ShearProfile VelocityCallback = ShearProfile(u_max);
    std::function< Vector3< real_t >(const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) >
-      velocity_initialisation = std::bind(VelocityCallback, _1, _2, _3, u_max);
+      velocity_initialisation = VelocityCallback;
 
    lbm::GeneratedOutflowBC_Dynamic_UBB ubb_dynamic(blocks, pdfFieldID, velocity_initialisation);
    lbm::GeneratedOutflowBC_Static_UBB ubb_static(blocks, pdfFieldID, u_max);
@@ -150,11 +172,23 @@ int main(int argc, char** argv)
       vtkOutput->addCellDataWriter(velWriter);
       vtkOutput->addCellDataWriter(densityWriter);
 
-      timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
    }
-
    timeloop.run();
-   WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
+
+   CellInterval domain = blocks->getDomainCellBB();
+   real_t h_y          = domain.yMax() - domain.yMin();
+   for (auto& block : *blocks)
+   {
+      auto velField = block.getData<VelocityField_T>(velFieldID);
+      WALBERLA_FOR_ALL_CELLS_XYZ
+      (
+         velField,
+   Cell globalCell;
+         blocks->transformBlockLocalToGlobalCell(globalCell, block, Cell(x, y, z));
+         WALBERLA_CHECK_FLOAT_EQUAL_EPSILON(velField->get(x, y, z, 0), u_max * (globalCell[1] / h_y), 0.01)
+      )
+   }
 
    return EXIT_SUCCESS;
 }

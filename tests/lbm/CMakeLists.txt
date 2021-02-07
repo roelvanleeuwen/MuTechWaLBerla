@@ -89,6 +89,7 @@ waLBerla_generate_target_from_python(NAME GeneratedOutflowBCGenerated
         GeneratedOutflowBC_PackInfo.cpp GeneratedOutflowBC_PackInfo.h
         GeneratedOutflowBC_InfoHeader.h)
 waLBerla_compile_test( FILES codegen/GeneratedOutflowBC.cpp DEPENDS GeneratedOutflowBCGenerated)
+waLBerla_execute_test( NAME GeneratedOutflowBC COMMAND $<TARGET_FILE:GeneratedOutflowBC> ${CMAKE_CURRENT_SOURCE_DIR}/codegen/GeneratedOutflowBC.prm  )
 
 
 waLBerla_generate_target_from_python(NAME LbCodeGenerationExampleGenerated

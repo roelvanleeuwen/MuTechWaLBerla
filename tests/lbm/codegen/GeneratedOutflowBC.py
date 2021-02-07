@@ -9,7 +9,7 @@ from lbmpy_walberla import RefinementScaling, generate_boundary, generate_lb_pac
 
 import sympy as sp
 
-stencil = get_stencil("D3Q27")
+stencil = get_stencil("D2Q9")
 q = len(stencil)
 dim = len(stencil[0])
 
@@ -26,7 +26,7 @@ output = {
 options = {'method': 'cumulant',
            'stencil': stencil,
            'relaxation_rate': omega,
-           'galilean_correction': True,
+           'galilean_correction': len(stencil) == 27,
            'field_name': 'pdfs',
            'output': output,
            'optimization': {'symbolic_field': pdfs,
@@ -61,18 +61,24 @@ with CodeGeneration() as ctx:
     generate_sweep(ctx, 'GeneratedOutflowBC_MacroSetter', setter_assignments)
 
     # boundaries
-    ubb = UBB(lambda *args: None, dim=dim)
-    ubb_data_handler = UBBAdditionalDataHandler(stencil, dim, ubb)
+    ubb_dynamic = UBB(lambda *args: None, dim=dim)
+    ubb_data_handler = UBBAdditionalDataHandler(stencil, ubb_dynamic)
+
+    if dim == 2:
+        ubb_static = UBB([sp.Symbol("u_max"), 0])
+    else:
+        ubb_static = UBB([sp.Symbol("u_max"), 0, 0])
+
     outflow = ExtrapolationOutflow(stencil[4], method)
-    outflow_data_handler = OutflowAdditionalDataHandler(stencil, dim, outflow)
+    outflow_data_handler = OutflowAdditionalDataHandler(stencil, outflow)
 
     # Dynamic UBB which is used to produce a specific velocity profile at the inflow.
     # Note that the additional data handler is needed for that kind of boundary.
-    generate_boundary(ctx, 'GeneratedOutflowBC_Dynamic_UBB', ubb, method,
+    generate_boundary(ctx, 'GeneratedOutflowBC_Dynamic_UBB', ubb_dynamic, method,
                       additional_data_handler=ubb_data_handler)
 
     # Static UBB which is used to apply a certain velocity u_max at the upper wall in x-direction
-    generate_boundary(ctx, 'GeneratedOutflowBC_Static_UBB', UBB([sp.Symbol("u_max"), 0, 0]), method)
+    generate_boundary(ctx, 'GeneratedOutflowBC_Static_UBB', ubb_static, method)
 
     generate_boundary(ctx, 'GeneratedOutflowBC_NoSlip', NoSlip(), method)
 
