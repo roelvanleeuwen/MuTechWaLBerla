@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import numpy as np
 from jinja2 import Environment, PackageLoader, StrictUndefined
 from pystencils import Field, FieldType
@@ -52,7 +53,7 @@ def generate_boundary(generation_context,
 
     kernels = kernel_creation_function(field, index_field, neighbor_stencil, boundary_object, **create_kernel_params)
     if isinstance(kernels, dict):
-        sweep_to_kernel_info_dict = dict()
+        sweep_to_kernel_info_dict = OrderedDict()
         dummy_kernel_info = None
         for sweep_class, sweep_kernel in kernels.items():
             sweep_kernel.function_name = "boundary_" + boundary_object.name + '_' + sweep_class
