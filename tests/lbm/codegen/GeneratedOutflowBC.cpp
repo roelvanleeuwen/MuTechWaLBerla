@@ -122,9 +122,9 @@ int main(int argc, char** argv)
 
    auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
 
-   ShearProfile VelocityCallback = ShearProfile(u_max);
+   ShearProfile velocityCallback{u_max};
    std::function< Vector3< real_t >(const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) >
-      velocity_initialisation = VelocityCallback;
+      velocity_initialisation = velocityCallback;
 
    lbm::GeneratedOutflowBC_Dynamic_UBB ubb_dynamic(blocks, pdfFieldID, velocity_initialisation);
    lbm::GeneratedOutflowBC_Static_UBB ubb_static(blocks, pdfFieldID, u_max);
