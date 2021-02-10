@@ -95,11 +95,11 @@ private:
 
 public:
    //**Constructors*****************************************************************************************************
-   explicit inline Matrix3() = default;
-   explicit inline Matrix3( Type init );
-   explicit inline Matrix3( const Vector3<Type>& a, const Vector3<Type>& b, const Vector3<Type>& c );
-   explicit inline Matrix3( Type xx, Type xy, Type xz, Type yx, Type yy, Type yz, Type zx, Type zy, Type zz );
-   explicit inline Matrix3( const Type* init );
+   explicit inline constexpr Matrix3() = default;
+   explicit inline constexpr Matrix3( Type init );
+   explicit inline constexpr Matrix3( const Vector3<Type>& a, const Vector3<Type>& b, const Vector3<Type>& c );
+   explicit inline constexpr Matrix3( Type xx, Type xy, Type xz, Type yx, Type yy, Type yz, Type zx, Type zy, Type zz );
+   explicit inline constexpr Matrix3( const Type* init );
 
    template< typename Axis, typename Angle >
    explicit Matrix3( Vector3<Axis> axis, Angle angle );
@@ -274,7 +274,7 @@ static_assert( std::is_trivially_copyable<Matrix3<real_t>>::value, "Matrix3<real
 // \param init Initial value for all matrix elements.
 */
 template< typename Type >
-inline Matrix3<Type>::Matrix3( Type init )
+inline constexpr Matrix3<Type>::Matrix3( Type init )
 {
    v_[0] = v_[1] = v_[2] = v_[3] = v_[4] = v_[5] = v_[6] = v_[7] = v_[8] = init;
 }
@@ -289,7 +289,7 @@ inline Matrix3<Type>::Matrix3( Type init )
 // \param c The third column of the matrix.
 //**********************************************************************************************************************
 template< typename Type >
-inline Matrix3<Type>::Matrix3( const Vector3<Type>& a, const Vector3<Type>& b, const Vector3<Type>& c )
+inline constexpr Matrix3<Type>::Matrix3( const Vector3<Type>& a, const Vector3<Type>& b, const Vector3<Type>& c )
 {
    v_[0] = a[0]; v_[1] = b[0]; v_[2] = c[0];
    v_[3] = a[1]; v_[4] = b[1]; v_[5] = c[1];
@@ -313,9 +313,9 @@ inline Matrix3<Type>::Matrix3( const Vector3<Type>& a, const Vector3<Type>& b, c
 // \param zz The initial value for the zz-component.
 */
 template< typename Type >
-inline Matrix3<Type>::Matrix3( Type xx, Type xy, Type xz,
-                               Type yx, Type yy, Type yz,
-                               Type zx, Type zy, Type zz )
+inline constexpr Matrix3<Type>::Matrix3( Type xx, Type xy, Type xz,
+                                         Type yx, Type yy, Type yz,
+                                         Type zx, Type zy, Type zz )
 {
    v_[0] = xx; v_[1] = xy; v_[2] = xz;
    v_[3] = yx; v_[4] = yy; v_[5] = yz;
@@ -333,7 +333,7 @@ inline Matrix3<Type>::Matrix3( Type xx, Type xy, Type xz,
 // The array is assumed to have at least nine valid elements.
 */
 template< typename Type >
-inline Matrix3<Type>::Matrix3( const Type* init )
+inline constexpr Matrix3<Type>::Matrix3( const Type* init )
 {
    v_[0] = init[0];
    v_[1] = init[1];
@@ -525,17 +525,15 @@ inline bool Matrix3<Type>::operator==( const Matrix3<Other>& rhs ) const
 {
    // In order to compare the vector and the scalar value, the data values of the lower-order
    // data type are converted to the higher-order data type.
-   if( !equal( v_[0], rhs.v_[0] ) ||
-       !equal( v_[1], rhs.v_[1] ) ||
-       !equal( v_[2], rhs.v_[2] ) ||
-       !equal( v_[3], rhs.v_[3] ) ||
-       !equal( v_[4], rhs.v_[4] ) ||
-       !equal( v_[5], rhs.v_[5] ) ||
-       !equal( v_[6], rhs.v_[6] ) ||
-       !equal( v_[7], rhs.v_[7] ) ||
-       !equal( v_[8], rhs.v_[8] ) )
-      return false;
-   else return true;
+   return equal( v_[0], rhs.v_[0] ) &&
+          equal( v_[1], rhs.v_[1] ) &&
+          equal( v_[2], rhs.v_[2] ) &&
+          equal( v_[3], rhs.v_[3] ) &&
+          equal( v_[4], rhs.v_[4] ) &&
+          equal( v_[5], rhs.v_[5] ) &&
+          equal( v_[6], rhs.v_[6] ) &&
+          equal( v_[7], rhs.v_[7] ) &&
+          equal( v_[8], rhs.v_[8] );
 }
 //**********************************************************************************************************************
 
@@ -553,17 +551,7 @@ inline bool Matrix3<Type>::operator!=( const Matrix3<Other>& rhs ) const
 {
    // In order to compare the vector and the scalar value, the data values of the lower-order
    // data type are converted to the higher-order data type.
-   if( !equal( v_[0], rhs.v_[0] ) ||
-       !equal( v_[1], rhs.v_[1] ) ||
-       !equal( v_[2], rhs.v_[2] ) ||
-       !equal( v_[3], rhs.v_[3] ) ||
-       !equal( v_[4], rhs.v_[4] ) ||
-       !equal( v_[5], rhs.v_[5] ) ||
-       !equal( v_[6], rhs.v_[6] ) ||
-       !equal( v_[7], rhs.v_[7] ) ||
-       !equal( v_[8], rhs.v_[8] ) )
-      return true;
-   else return false;
+   return !(*this == rhs);
 }
 //**********************************************************************************************************************
 
@@ -1129,9 +1117,7 @@ inline const Matrix3<HIGH> Matrix3<Type>::diagRotate( const Matrix3<Other>& m ) 
 template< typename Type >
 inline bool Matrix3<Type>::isSingular() const
 {
-   if( equal( getDeterminant(), Type(0) ) )
-      return true;
-   else return false;
+   return equal( getDeterminant(), Type(0) );
 }
 //**********************************************************************************************************************
 
@@ -1145,9 +1131,7 @@ inline bool Matrix3<Type>::isSingular() const
 template< typename Type >
 inline bool Matrix3<Type>::isSymmetric() const
 {
-   if( !equal( v_[1], v_[3] ) || !equal( v_[2], v_[6] ) || !equal( v_[5], v_[7] ) )
-      return false;
-   else return true;
+   return equal( v_[1], v_[3] ) && equal( v_[2], v_[6] ) && equal( v_[5], v_[7] );
 }
 //**********************************************************************************************************************
 
@@ -1160,7 +1144,7 @@ inline bool Matrix3<Type>::isSymmetric() const
 template< typename Type >
 inline bool Matrix3<Type>::isZero() const
 {
-   if( equal( v_[0], Type(0) ) &&
+   return equal( v_[0], Type(0) ) &&
        equal( v_[1], Type(0) ) &&
        equal( v_[2], Type(0) ) &&
        equal( v_[3], Type(0) ) &&
@@ -1168,9 +1152,7 @@ inline bool Matrix3<Type>::isZero() const
        equal( v_[5], Type(0) ) &&
        equal( v_[6], Type(0) ) &&
        equal( v_[7], Type(0) ) &&
-       equal( v_[8], Type(0) ) )
-      return true;
-   else return false;
+       equal( v_[8], Type(0) );
 }
 //**********************************************************************************************************************
 
@@ -1595,11 +1577,9 @@ std::ostream& operator<<( std::ostream& os, const Matrix3<Type>& m )
 template< typename Type >
 inline bool isnan( const Matrix3<Type>& m )
 {
-   if( math::isnan( m[0] ) || math::isnan( m[1] ) || math::isnan( m[2] ) ||
+   return math::isnan( m[0] ) || math::isnan( m[1] ) || math::isnan( m[2] ) ||
        math::isnan( m[3] ) || math::isnan( m[4] ) || math::isnan( m[5] ) ||
-       math::isnan( m[6] ) || math::isnan( m[7] ) || math::isnan( m[8] ) )
-      return true;
-   else return false;
+       math::isnan( m[6] ) || math::isnan( m[7] ) || math::isnan( m[8] );
 }
 //**********************************************************************************************************************
 
@@ -1658,11 +1638,9 @@ inline const Matrix3<Type> fabs( const Matrix3<Type>& m )
 template< typename Type >
 inline bool isinf( const Matrix3<Type>& m )
 {
-   if( math::isinf( m[0] ) || math::isinf( m[1] ) || math::isinf( m[2] ) ||
+   return math::isinf( m[0] ) || math::isinf( m[1] ) || math::isinf( m[2] ) ||
        math::isinf( m[3] ) || math::isinf( m[4] ) || math::isinf( m[5] ) ||
-       math::isinf( m[6] ) || math::isinf( m[7] ) || math::isinf( m[8] ) )
-      return true;
-   else return false;
+       math::isinf( m[6] ) || math::isinf( m[7] ) || math::isinf( m[8] );
 }
 //**********************************************************************************************************************
 

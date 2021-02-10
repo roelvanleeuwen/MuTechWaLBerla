@@ -101,15 +101,15 @@ public:
    //*******************************************************************************************************************
 
    //**Constructors*****************************************************************************************************
-                              explicit inline Vector3() = default;
-                              explicit inline Vector3( Type init );
-   template< typename Other > explicit inline Vector3( Other init );
-                              explicit inline Vector3( Type x, Type y, Type z );
-                              explicit inline Vector3( const Type* init );
-                                       inline Vector3( const Vector3& v ) = default;
+                              explicit inline constexpr Vector3() = default;
+                              explicit inline constexpr Vector3( Type init );
+   template< typename Other > explicit inline constexpr Vector3( Other init );
+                              explicit inline constexpr Vector3( Type x, Type y, Type z );
+                              explicit inline constexpr Vector3( const Type* init );
+                                       inline constexpr Vector3( const Vector3& v ) = default;
 
    template< typename Other >
-   inline Vector3( const Vector3<Other>& v );
+   inline constexpr Vector3( const Vector3<Other>& v );
    //*******************************************************************************************************************
 
    //**Destructor*******************************************************************************************************
@@ -208,7 +208,7 @@ Vector3<T> & normalize( Vector3<T> & v );
 // \param init Initial value for all vector elements.
 */
 template< typename Type >
-inline Vector3<Type>::Vector3( Type init )
+inline constexpr Vector3<Type>::Vector3( Type init )
 {
    v_[0] = v_[1] = v_[2] = init;
 }
@@ -223,7 +223,7 @@ inline Vector3<Type>::Vector3( Type init )
 */
 template< typename Type >
 template< typename Other >
-inline Vector3<Type>::Vector3( Other init )
+inline constexpr Vector3<Type>::Vector3( Other init )
 {
    static_assert( std::is_arithmetic<Other>::value, "Vector3 only accepts arithmetic data types in Vector3( Other init )");
 
@@ -241,7 +241,7 @@ inline Vector3<Type>::Vector3( Other init )
 // \param z The initial value for the z-component.
 */
 template< typename Type >
-inline Vector3<Type>::Vector3( Type x, Type y, Type z )
+inline constexpr Vector3<Type>::Vector3( Type x, Type y, Type z )
 {
    v_[0] = x;
    v_[1] = y;
@@ -259,7 +259,7 @@ inline Vector3<Type>::Vector3( Type x, Type y, Type z )
 // The array is assumed to have at least three valid elements.
 */
 template< typename Type >
-inline Vector3<Type>::Vector3( const Type* init )
+inline constexpr Vector3<Type>::Vector3( const Type* init )
 {
    v_[0] = init[0];
    v_[1] = init[1];
@@ -276,7 +276,7 @@ inline Vector3<Type>::Vector3( const Type* init )
 */
 template< typename Type >
 template< typename Other >
-inline Vector3<Type>::Vector3( const Vector3<Other>& v )
+inline constexpr Vector3<Type>::Vector3( const Vector3<Other>& v )
 {
    v_[0] = numeric_cast<Type>( v.v_[0] );
    v_[1] = numeric_cast<Type>( v.v_[1] );
@@ -333,9 +333,7 @@ inline bool Vector3<Type>::operator==( Other rhs ) const
 {
    // In order to compare the vector and the scalar value, the data values of the lower-order
    // data type are converted to the higher-order data type within the equal function.
-   if( !equal( v_[0], rhs ) || !equal( v_[1], rhs ) || !equal( v_[2], rhs ) )
-      return false;
-   else return true;
+   return equal( v_[0], rhs ) && equal( v_[1], rhs ) && equal( v_[2], rhs );
 }
 //**********************************************************************************************************************
 
@@ -353,9 +351,7 @@ inline bool Vector3<Type>::operator==( const Vector3<Other>& rhs ) const
 {
    // In order to compare the two vectors, the data values of the lower-order data
    // type are converted to the higher-order data type within the equal function.
-   if( !equal( v_[0], rhs.v_[0] ) || !equal( v_[1], rhs.v_[1] ) || !equal( v_[2], rhs.v_[2] ) )
-      return false;
-   else return true;
+   return equal( v_[0], rhs.v_[0] ) && equal( v_[1], rhs.v_[1] ) && equal( v_[2], rhs.v_[2] );
 }
 //**********************************************************************************************************************
 
@@ -376,9 +372,7 @@ inline bool Vector3<Type>::operator!=( Other rhs ) const
 {
    // In order to compare the vector and the scalar value, the data values of the lower-order
    // data type are converted to the higher-order data type within the equal function.
-   if( !equal( v_[0], rhs ) || !equal( v_[1], rhs ) || !equal( v_[2], rhs ) )
-      return true;
-   else return false;
+   return !(*this == rhs);
 }
 //**********************************************************************************************************************
 
@@ -396,9 +390,7 @@ inline bool Vector3<Type>::operator!=( const Vector3<Other>& rhs ) const
 {
    // In order to compare the two vectors, the data values of the lower-order data
    // type are converted to the higher-order data type within the equal function.
-   if( !equal( v_[0], rhs.v_[0] ) || !equal( v_[1], rhs.v_[1] ) || !equal( v_[2], rhs.v_[2] ) )
-      return true;
-   else return false;
+   return !(*this == rhs);
 }
 //**********************************************************************************************************************
 
