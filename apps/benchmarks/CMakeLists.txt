@@ -19,8 +19,9 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
    add_subdirectory( FieldCommunication )
 
    if ( WALBERLA_BUILD_WITH_CODEGEN )
-      add_subdirectory( UniformGridGenerated )
+      add_subdirectory( FlowAroundSphereCodeGen )
       add_subdirectory( PhaseFieldAllenCahn )
+      add_subdirectory( UniformGridGenerated )
    endif()
 
    if ( WALBERLA_BUILD_WITH_CODEGEN AND WALBERLA_BUILD_WITH_CUDA )
