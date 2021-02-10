@@ -1,4 +1,4 @@
-from typing import OrderedDict
+from collections import OrderedDict
 import numpy as np
 from jinja2 import Environment, PackageLoader, StrictUndefined
 from pystencils import Field, FieldType
@@ -75,7 +75,7 @@ def generate_boundary(generation_context,
         dummy_kernel_info = kernel_info
 
     if additional_data_handler is None:
-        additional_data_handler = AdditionalDataHandler(stencil=neighbor_stencil, dim=dim)
+        additional_data_handler = AdditionalDataHandler(stencil=neighbor_stencil)
 
     context = {
         'class_name': boundary_object.name,

@@ -13,6 +13,7 @@ def generate_lb_pack_info(generation_context,
                           streaming_pattern='pull',
                           lb_collision_rule=None,
                           always_generate_separate_classes=False,
+                          namespace='lbm',
                           **create_kernel_params):
     """Generates waLBerla MPI PackInfos for an LBM kernel, based on a given method
     and streaming pattern. For in-place streaming patterns, two PackInfos are generated;
@@ -34,6 +35,7 @@ def generate_lb_pack_info(generation_context,
                                           fields kernel (i.e. the pull/push patterns). Otherwise, for two-fields
                                           kernels, only one PackInfo class will be generated without a
                                           suffix to its name.
+        namespace: inner namespace of the generated class
         **create_kernel_params: remaining keyword arguments are passed to `pystencils.create_kernel`
     """
     timesteps = [Timestep.EVEN, Timestep.ODD] \
@@ -77,4 +79,4 @@ def generate_lb_pack_info(generation_context,
             class_name_suffix = ''
 
         class_name = class_name_prefix + class_name_suffix
-        generate_pack_info(generation_context, class_name, spec, namespace='lbm', **create_kernel_params)
+        generate_pack_info(generation_context, class_name, spec, namespace=namespace, **create_kernel_params)
