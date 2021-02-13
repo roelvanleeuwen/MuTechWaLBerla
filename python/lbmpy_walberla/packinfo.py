@@ -1,4 +1,5 @@
 from collections import defaultdict
+from lbmpy.stencils import get_stencil
 from lbmpy.advanced_streaming.utility import Timestep, get_accessor, get_timesteps
 from lbmpy.advanced_streaming.communication import _extend_dir
 from pystencils.stencil import inverse_direction
@@ -59,17 +60,20 @@ def generate_lb_pack_info(generation_context,
             for comm_dir in comm_directions(comm_direction):
                 common_spec[(comm_dir,)].add(fa.field.center(*fa.index))
 
+    full_stencil = get_stencil('D3Q27') if len(stencil[0]) == 3 else get_stencil('D2Q9')
+
     for t in timesteps:
         spec = common_spec.copy()
         write_accesses = get_accessor(streaming_pattern, t).write(pdf_field, stencil)
-        for comm_dir in stencil:
+        for comm_dir in full_stencil:
             if all(d == 0 for d in comm_dir):
                 continue
 
-            for streaming_dir in set(_extend_dir(comm_dir)) & set(stencil):
-                d = stencil.index(streaming_dir)
-                fa = write_accesses[d]
-                spec[(comm_dir,)].add(fa)
+            for streaming_dir in set(_extend_dir(comm_dir)) & set(full_stencil):
+                if streaming_dir in stencil:
+                    d = stencil.index(streaming_dir)
+                    fa = write_accesses[d]
+                    spec[(comm_dir,)].add(fa)
 
         if t == Timestep.EVEN:
             class_name_suffix = 'Even'
@@ -79,4 +83,6 @@ def generate_lb_pack_info(generation_context,
             class_name_suffix = ''
 
         class_name = class_name_prefix + class_name_suffix
+        for key in spec:
+            print("dir: ", key, "val: ", spec[key])
         generate_pack_info(generation_context, class_name, spec, namespace=namespace, **create_kernel_params)
