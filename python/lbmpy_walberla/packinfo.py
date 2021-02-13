@@ -83,6 +83,4 @@ def generate_lb_pack_info(generation_context,
             class_name_suffix = ''
 
         class_name = class_name_prefix + class_name_suffix
-        for key in spec:
-            print("dir: ", key, "val: ", spec[key])
         generate_pack_info(generation_context, class_name, spec, namespace=namespace, **create_kernel_params)
