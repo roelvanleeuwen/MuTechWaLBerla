@@ -6,8 +6,8 @@ from lbmpy.boundaries import NoSlip
 from lbmpy.creationfunctions import create_lb_method, create_lb_update_rule
 from lbmpy.stencils import get_stencil
 
-from pystencils_walberla import CodeGeneration, generate_sweep, generate_pack_info_from_kernel
-from lbmpy_walberla import generate_boundary
+from pystencils_walberla import CodeGeneration, generate_sweep, generate_pack_info_from_kernel, generate_pack_info_for_field
+from lbmpy_walberla import generate_boundary, generate_lb_pack_info
 
 from lbmpy.phasefield_allen_cahn.kernel_equations import initializer_kernel_phase_field_lb,\
     initializer_kernel_hydro_lb, interface_tracking_force, hydrodynamic_force, get_collision_assignments_hydro
@@ -17,8 +17,8 @@ from lbmpy.phasefield_allen_cahn.force_model import MultiphaseForceModel
 import numpy as np
 import sympy as sp
 
-stencil_phase = get_stencil("D3Q19")
-stencil_hydro = get_stencil("D3Q27")
+stencil_phase = get_stencil("D3Q15")
+stencil_hydro = get_stencil("D3Q15")
 q_phase = len(stencil_phase)
 q_hydro = len(stencil_hydro)
 
@@ -56,6 +56,7 @@ kappa = 1.5 * surface_tension * W
 u = fields(f"vel_field({dimensions}): [{dimensions}D]", layout='fzyx')
 # phase-field
 C = fields(f"phase_field: [{dimensions}D]", layout='fzyx')
+C_tmp = fields(f"phase_field_tmp: [{dimensions}D]", layout='fzyx')
 
 flag = fields(f"flag_field: uint8[{dimensions}D]", layout='fzyx')
 # phase-field distribution functions
@@ -123,7 +124,9 @@ phase_field_LB_step = create_lb_update_rule(lb_method=method_phase,
                                                           "symbolic_temporary_field": h_tmp},
                                             kernel_type='stream_pull_collide')
 
-phase_field_LB_step.set_main_assignments_from_dict({**phase_field_LB_step.main_assignments_dict, **{C.center: sum_h}})
+phase_field_LB_step.set_main_assignments_from_dict({**phase_field_LB_step.main_assignments_dict,
+                                                    **{C_tmp.center: sum_h}})
+
 phase_field_LB_step = AssignmentCollection(main_assignments=phase_field_LB_step.main_assignments,
                                            subexpressions=phase_field_LB_step.subexpressions)
 phase_field_LB_step = sympy_cse(phase_field_LB_step)
@@ -136,15 +139,10 @@ hydro_LB_step = get_collision_assignments_hydro(lb_method=method_hydro,
                                                 sub_iterations=2,
                                                 symbolic_fields={"symbolic_field": g,
                                                                  "symbolic_temporary_field": g_tmp},
-                                                kernel_type='collide_only')
+                                                kernel_type='collide_stream_push')
 
 hydro_LB_step.set_sub_expressions_from_dict({**{relaxation_rate: relaxation_rate_cutoff},
                                              **hydro_LB_step.subexpressions_dict})
-
-stream_hydro = create_lb_update_rule(stencil=stencil_hydro,
-                                     optimization={"symbolic_field": g,
-                                                   "symbolic_temporary_field": g_tmp},
-                                     kernel_type='stream_pull_only')
 
 ###################
 # GENERATE SWEEPS #
@@ -168,35 +166,30 @@ with CodeGeneration() as ctx:
     generate_sweep(ctx, 'initialize_velocity_based_distributions', g_updates, target='gpu')
 
     generate_sweep(ctx, 'phase_field_LB_step', phase_field_LB_step,
-                   field_swaps=[(h, h_tmp)],
+                   field_swaps=[(h, h_tmp), (C, C_tmp)],
                    inner_outer_split=True,
                    target='gpu',
                    gpu_indexing_params=sweep_params,
                    varying_parameters=vp)
-    generate_boundary(ctx, 'phase_field_LB_NoSlip', NoSlip(), method_phase, target='gpu')
+    generate_boundary(ctx, 'phase_field_LB_NoSlip', NoSlip(), method_phase, target='gpu', streaming_pattern='pull')
 
     generate_sweep(ctx, 'hydro_LB_step', hydro_LB_step,
-                   inner_outer_split=True,
-                   target='gpu',
-                   gpu_indexing_params=sweep_params,
-                   varying_parameters=vp)
-    generate_boundary(ctx, 'hydro_LB_NoSlip', NoSlip(), method_hydro, target='gpu')
-
-    generate_sweep(ctx, 'stream_hydro', stream_hydro,
                    field_swaps=[(g, g_tmp)],
                    inner_outer_split=True,
                    target='gpu',
                    gpu_indexing_params=sweep_params,
                    varying_parameters=vp)
+    generate_boundary(ctx, 'hydro_LB_NoSlip', NoSlip(), method_hydro, target='gpu', streaming_pattern='push')
 
     # communication
 
-    generate_pack_info_from_kernel(ctx, 'PackInfo_phase_field_distributions',
-                                   phase_field_LB_step.main_assignments, target='gpu')
-    generate_pack_info_from_kernel(ctx, 'PackInfo_phase_field',
-                                   hydro_LB_step.all_assignments, target='gpu', kind='pull')
-    generate_pack_info_from_kernel(ctx, 'PackInfo_velocity_based_distributions',
-                                   stream_hydro.all_assignments, target='gpu', kind='pull')
+    generate_lb_pack_info(ctx, 'PackInfo_phase_field_distributions', stencil_phase, h,
+                          streaming_pattern='pull', target='gpu')
+
+    generate_lb_pack_info(ctx, 'PackInfo_velocity_based_distributions', stencil_hydro, g,
+                          streaming_pattern='push', target='gpu')
+
+    generate_pack_info_for_field(ctx, 'PackInfo_phase_field', C, target='gpu')
 
     ctx.write_file("GenDefines.h", info_header)
 

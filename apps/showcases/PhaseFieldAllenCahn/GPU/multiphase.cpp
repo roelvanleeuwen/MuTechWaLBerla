@@ -180,28 +180,25 @@ int main(int argc, char** argv)
          surface_tension, relaxation_time_liquid, relaxation_time_gas, gpuBlockSize[0], gpuBlockSize[1],
          Cell(overlappingWidth[0], overlappingWidth[1], overlappingWidth[2]));
 
-      pystencils::stream_hydro stream_hydro(lb_velocity_field_gpu, gpuBlockSize[0], gpuBlockSize[1],
-                                            Cell(overlappingWidth[0], overlappingWidth[1], overlappingWidth[2]));
-
       ////////////////////////
       // ADD COMMUNICATION //
       //////////////////////
 
-      auto Comm_velocity_based_distributions =
-         make_shared< cuda::communication::UniformGPUScheme< Stencil_hydro_T > >(blocks, 0);
-      auto generatedPackInfo_velocity_based_distributions =
-         make_shared< pystencils::PackInfo_velocity_based_distributions >(lb_velocity_field_gpu);
-      Comm_velocity_based_distributions->addPackInfo(generatedPackInfo_velocity_based_distributions);
+       auto Comm_velocity_based_distributions =
+               make_shared< cuda::communication::UniformGPUScheme< Stencil_hydro_T > >(blocks, 0);
+       auto generatedPackInfo_velocity_based_distributions =
+               make_shared< lbm::PackInfo_velocity_based_distributions >(lb_velocity_field_gpu);
+       Comm_velocity_based_distributions->addPackInfo(generatedPackInfo_velocity_based_distributions);
 
-      auto Comm_phase_field = make_shared< cuda::communication::UniformGPUScheme< Stencil_hydro_T > >(blocks, 0);
-      auto generatedPackInfo_phase_field = make_shared< pystencils::PackInfo_phase_field >(phase_field_gpu);
-      Comm_phase_field->addPackInfo(generatedPackInfo_phase_field);
+       auto Comm_phase_field = make_shared< cuda::communication::UniformGPUScheme< Stencil_hydro_T > >(blocks, 0);
+       auto generatedPackInfo_phase_field = make_shared< pystencils::PackInfo_phase_field >(phase_field_gpu);
+       Comm_phase_field->addPackInfo(generatedPackInfo_phase_field);
 
-      auto Comm_phase_field_distributions =
-         make_shared< cuda::communication::UniformGPUScheme< Stencil_hydro_T > >(blocks, 0);
-      auto generatedPackInfo_phase_field_distributions =
-         make_shared< pystencils::PackInfo_phase_field_distributions >(lb_phase_field_gpu);
-      Comm_phase_field_distributions->addPackInfo(generatedPackInfo_phase_field_distributions);
+       auto Comm_phase_field_distributions =
+               make_shared< cuda::communication::UniformGPUScheme< Stencil_hydro_T > >(blocks, 0);
+       auto generatedPackInfo_phase_field_distributions =
+               make_shared< lbm::PackInfo_phase_field_distributions >(lb_phase_field_gpu);
+       Comm_phase_field_distributions->addPackInfo(generatedPackInfo_phase_field_distributions);
 
       ////////////////////////
       // BOUNDARY HANDLING //
@@ -241,18 +238,17 @@ int main(int argc, char** argv)
       auto normalTimeStep = [&]() {
          for (auto& block : *blocks)
          {
-            Comm_phase_field_distributions->communicate(nullptr);
-            phase_field_LB_NoSlip(&block);
+             Comm_phase_field_distributions->communicate(nullptr);
+             phase_field_LB_NoSlip(&block);
 
-            phase_field_LB_step(&block);
-            contact_angle(&block);
-            Comm_phase_field->communicate(nullptr);
+             phase_field_LB_step(&block);
+             contact_angle(&block);
+             Comm_phase_field->communicate(nullptr);
 
-            hydro_LB_step(&block);
+             hydro_LB_step(&block);
 
-            Comm_velocity_based_distributions->communicate(nullptr);
-            hydro_LB_NoSlip(&block);
-            stream_hydro(&block);
+             Comm_velocity_based_distributions->communicate(nullptr);
+             hydro_LB_NoSlip(&block);
          }
       };
       auto simpleOverlapTimeStep = [&]() {
@@ -278,13 +274,6 @@ int main(int argc, char** argv)
 
          for (auto& block : *blocks)
             hydro_LB_NoSlip(&block);
-
-         Comm_velocity_based_distributions->startCommunication(defaultStream);
-         for (auto& block : *blocks)
-            stream_hydro.inner(&block, defaultStream);
-         Comm_velocity_based_distributions->wait(defaultStream);
-         for (auto& block : *blocks)
-            stream_hydro.outer(&block, defaultStream);
       };
       std::function< void() > timeStep;
       if (timeStepStrategy == "overlap")

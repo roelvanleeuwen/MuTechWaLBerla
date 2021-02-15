@@ -9,11 +9,11 @@ from lbmpy.phasefield_allen_cahn.parameter_calculation import calculate_paramete
 class Scenario:
     def __init__(self):
         # output frequencies
-        self.vtkWriteFrequency = 1000
+        self.vtkWriteFrequency = 100
         self.dbWriteFrequency = 200
 
         # simulation parameters
-        self.timesteps = 27001
+        self.timesteps = 101
 
         self.cells = (64, 256, 64)
         self.blocks = (1, 1, 1)
