@@ -69,11 +69,10 @@ def generate_lb_pack_info(generation_context,
             if all(d == 0 for d in comm_dir):
                 continue
 
-            for streaming_dir in set(_extend_dir(comm_dir)) & set(full_stencil):
-                if streaming_dir in stencil:
-                    d = stencil.index(streaming_dir)
-                    fa = write_accesses[d]
-                    spec[(comm_dir,)].add(fa)
+            for streaming_dir in set(_extend_dir(comm_dir)) & set(stencil):
+                d = stencil.index(streaming_dir)
+                fa = write_accesses[d]
+                spec[(comm_dir,)].add(fa)
 
         if t == Timestep.EVEN:
             class_name_suffix = 'Even'
