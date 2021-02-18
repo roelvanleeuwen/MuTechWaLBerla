@@ -985,7 +985,8 @@ int main( int argc, char **argv )
          velocityAtProbePos = getVelocityAtPosition<VelocityInterpolator_T >(blocks, velocityInterpolatorID, movingProbePosition);
       }
 
-      uint_t countSolidCells(0), countFluidSolidLinks(0);
+      uint_t countSolidCells = 0;
+      uint_t countFluidSolidLinks = 0;
       if(logMapping) evaluateMapping<BoundaryHandling_T>(blocks, boundaryHandlingID, countSolidCells, countFluidSolidLinks);
 
       logger.writeToFile(i*uint_c(dtSim), density1, density2, averageDensity, countSolidCells, countFluidSolidLinks, velocityAtProbePos);
