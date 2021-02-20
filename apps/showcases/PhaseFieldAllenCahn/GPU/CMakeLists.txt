@@ -10,6 +10,7 @@ waLBerla_generate_target_from_python(NAME PhaseFieldCodeGenGPU
         phase_field_LB_NoSlip.cu phase_field_LB_NoSlip.h
         hydro_LB_step.cu hydro_LB_step.h
         hydro_LB_NoSlip.cu hydro_LB_NoSlip.h
+        stream_hydro.cu stream_hydro.h
         PackInfo_phase_field_distributions.cu PackInfo_phase_field_distributions.h
         PackInfo_phase_field.cu PackInfo_phase_field.h
         PackInfo_velocity_based_distributions.cu PackInfo_velocity_based_distributions.h
