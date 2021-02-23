@@ -20,8 +20,7 @@ with CodeGeneration() as ctx:
 
     clear_cache()
 
-    cpu_vectorize_info = {'instruction_set': 'avx'}
-    #cpu_vectorize_info = {'instruction_set': get_vectorize_instruction_set(ctx)}
+    cpu_vectorize_info = {'instruction_set': get_vectorize_instruction_set(ctx)}
 
     if generatedMethod == "TRTlike":
         omegaVisc = sp.Symbol("omega_visc")
