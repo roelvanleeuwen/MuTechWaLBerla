@@ -84,7 +84,6 @@
 #include "mesa_pd/mpi/notifications/HydrodynamicForceTorqueNotification.h"
 #include "mesa_pd/vtk/ParticleVtkOutput.h"
 
-
 #include "timeloop/SweepTimeloop.h"
 
 #include "vtk/all.h"

@@ -27,7 +27,6 @@
 
 #include "core/DataTypes.h"
 #include "core/Environment.h"
-#include "core/SharedFunctor.h"
 #include "core/debug/Debug.h"
 #include "core/debug/TestSubsystem.h"
 #include "core/math/all.h"
@@ -47,9 +46,7 @@
 #include "lbm/field/PdfField.h"
 #include "lbm/field/VelocityFieldWriter.h"
 #include "lbm/lattice_model/D3Q19.h"
-#include "lbm/refinement/all.h"
 #include "lbm/sweeps/CellwiseSweep.h"
-#include "lbm/sweeps/SweepWrappers.h"
 
 #include "lbm_mesapd_coupling/amr/BlockInfo.h"
 #include "lbm_mesapd_coupling/amr/InfoCollection.h"
@@ -58,10 +55,8 @@
 #include "lbm_mesapd_coupling/amr/weight_assignment/MetisAssignmentFunctor.h"
 #include "lbm_mesapd_coupling/mapping/ParticleMapping.h"
 #include "lbm_mesapd_coupling/momentum_exchange_method/MovingParticleMapping.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/boundary/SimpleBB.h"
 #include "lbm_mesapd_coupling/momentum_exchange_method/boundary/CurvedLinear.h"
 #include "lbm_mesapd_coupling/momentum_exchange_method/reconstruction/Reconstructor.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/reconstruction/ExtrapolationDirectionFinder.h"
 #include "lbm_mesapd_coupling/momentum_exchange_method/reconstruction/PdfReconstructionManager.h"
 #include "lbm_mesapd_coupling/utility/AddForceOnParticlesKernel.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
@@ -70,7 +65,6 @@
 #include "lbm_mesapd_coupling/utility/AddHydrodynamicInteractionKernel.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
 #include "lbm_mesapd_coupling/utility/LubricationCorrectionKernel.h"
-#include "lbm_mesapd_coupling/utility/OmegaBulkAdaption.h"
 #include "lbm_mesapd_coupling/utility/InitializeHydrodynamicForceTorqueForAveragingKernel.h"
 #include "lbm_mesapd_coupling/utility/InspectionProbe.h"
 
@@ -87,7 +81,6 @@
 #include "mesa_pd/kernel/DoubleCast.h"
 #include "mesa_pd/kernel/ExplicitEuler.h"
 #include "mesa_pd/kernel/LinearSpringDashpot.h"
-#include "mesa_pd/kernel/NonLinearSpringDashpot.h"
 #include "mesa_pd/kernel/ParticleSelector.h"
 #include "mesa_pd/kernel/VelocityVerlet.h"
 #include "mesa_pd/mpi/ClearNextNeighborSync.h"
@@ -662,11 +655,6 @@ int main( int argc, char **argv )
       if( std::strcmp( argv[i], "--diffusionMaxIterations" )   == 0 ) { diffusionMaxIterations = uint_c(std::atof(argv[++i])); continue; }
       WALBERLA_ABORT("Unrecognized command line argument found: " << argv[i]);
    }
-
-   //if( funcTest )
-   //{
-   //   walberla::logging::Logging::instance()->setLogLevel(logging::Logging::LogLevel::PROGRESS);
-   //}
 
    if( fileIO )
    {
