@@ -216,17 +216,17 @@ void evaluateRPDQuantities( const shared_ptr< mesa_pd::data::ParticleStorage > &
 
 void evaluateTimers(WcTimingPool & timingPool,
                     const std::vector<std::vector<std::string> > & timerKeys,
-                    std::vector<real_t> & timings )
+                    std::vector<double> & timings )
 {
 
    for (auto & timingsIt : timings)
    {
-      timingsIt = real_t(0);
+      timingsIt = 0.0;
    }
 
    timingPool.unifyRegisteredTimersAcrossProcesses();
 
-   auto scalingFactor = real_t(1000); // milliseconds
+   double scalingFactor = 1000.0; // milliseconds
 
    for (auto i = uint_t(0); i < timerKeys.size(); ++i )
    {
@@ -235,7 +235,7 @@ void evaluateTimers(WcTimingPool & timingPool,
       {
          if(timingPool.timerExists(timerName))
          {
-            timings[i] += real_c(timingPool[timerName].total()) * scalingFactor;
+            timings[i] += timingPool[timerName].total() * scalingFactor;
          }
       }
 
@@ -768,7 +768,7 @@ int main( int argc, char **argv )
    uint_t numGhostParticles = uint_t(0);
    uint_t numContacts = uint_t(0);
 
-   std::vector<real_t> timings(timerKeys.size());
+   std::vector<double> timings(timerKeys.size());
 
    // every rank writes its own file -> numProcesses number of samples!
    int myRank = MPIManager::instance()->rank();
@@ -913,13 +913,13 @@ int main( int argc, char **argv )
 
          if(!noFileOutput)
          {
-            real_t totalTime = std::accumulate(timings.begin(), timings.end(), real_t(0) );
+            auto totalTime = std::accumulate(timings.begin(), timings.end(), 0.0 );
 
             file << timeloop.getCurrentTimeStep() << " " << real_c(timeloop.getCurrentTimeStep()) / Tref << " "
                  << numCells << " " << numFluidCells << " " << numNBCells << " "
                  << numLocalParticles << " " << numGhostParticles << " "
                  << real_c(numContacts) / real_c(numRPDSubCycles) << " " << numRPDSubCycles;
-            for (real_t timing : timings) {
+            for (auto timing : timings) {
                file << " " << timing;
             }
             file << " " << totalTime << "\n";

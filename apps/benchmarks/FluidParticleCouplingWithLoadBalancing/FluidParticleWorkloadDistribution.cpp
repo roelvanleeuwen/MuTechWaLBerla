@@ -367,22 +367,21 @@ uint_t evaluateEdgeCut(BlockForest & forest)
 
 
 void evaluateTotalSimulationTimePassed(WcTimingPool & timeloopTimingPool, std::string simulationString, std::string loadbalancingString,
-      real_t & totalSimTime, real_t & totalLBTime)
+                                       double & totalSimTime, double & totalLBTime)
 {
    shared_ptr< WcTimingPool> reduced = timeloopTimingPool.getReduced(timing::REDUCE_TOTAL, 0);
 
-   auto totalTime = real_t(0);
+   double totalTime = 0.0;
    WALBERLA_ROOT_SECTION(){
-      totalTime = real_c((*reduced)[simulationString].total());
+      totalTime = (*reduced)[simulationString].total();
    }
    totalSimTime = totalTime;
 
-   auto lbTime = real_t(0);
+   double lbTime = 0.0;
    WALBERLA_ROOT_SECTION(){
-      lbTime = real_c((*reduced)[loadbalancingString].total());
+      lbTime = (*reduced)[loadbalancingString].total();
    }
    totalLBTime = lbTime;
-
 }
 
 void createPlane( const shared_ptr<mesa_pd::data::ParticleStorage> & ps, const shared_ptr<mesa_pd::data::ShapeStorage> & ss,
@@ -1387,8 +1386,8 @@ int main( int argc, char **argv )
 
    std::vector<real_t> timings(timerKeys.size());
 
-   auto oldmTotSim = real_t(0);
-   auto oldmLB = real_t(0);
+   double oldmTotSim = 0.0;
+   double oldmLB = 0.0;
 
    auto measurementFileCounter = uint_t(0);
    auto predictionFileCounter = uint_t(0);
@@ -1416,9 +1415,8 @@ int main( int argc, char **argv )
 
          // write process local timing measurements to files (per process, per load balancing step)
          {
-            real_t mTotSim = simulationTiming[simulationStep].total();
-
-            real_t mLB = simulationTiming[loadBalancingStep].total();
+            auto mTotSim = simulationTiming[simulationStep].total();
+            auto mLB = simulationTiming[loadBalancingStep].total();
 
             evaluateTimers(timeloopTiming, timerKeys, timings);
 
@@ -1447,10 +1445,10 @@ int main( int argc, char **argv )
 
          // evaluate general simulation infos (on root)
          {
-            real_t totalTimeToCurrentTimestep;
-            real_t totalLBTimeToCurrentTimestep;
+            double totalTimeToCurrentTimestep(0.0);
+            double totalLBTimeToCurrentTimestep(0.0);
             evaluateTotalSimulationTimePassed(simulationTiming, simulationStep, loadBalancingStep,
-                  totalTimeToCurrentTimestep, totalLBTimeToCurrentTimestep);
+                                              totalTimeToCurrentTimestep, totalLBTimeToCurrentTimestep);
             math::DistributedSample numberOfBlocks;
 
             auto & forest = blocks->getBlockForest();
