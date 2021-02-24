@@ -366,7 +366,7 @@ uint_t evaluateEdgeCut(BlockForest & forest)
 }
 
 
-void evaluateTotalSimulationTimePassed(WcTimingPool & timeloopTimingPool, std::string simulationString, std::string loadbalancingString,
+void evaluateTotalSimulationTimePassed(WcTimingPool & timeloopTimingPool, const std::string & simulationString, const std::string & loadbalancingString,
                                        double & totalSimTime, double & totalLBTime)
 {
    shared_ptr< WcTimingPool> reduced = timeloopTimingPool.getReduced(timing::REDUCE_TOTAL, 0);
