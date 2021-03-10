@@ -333,7 +333,7 @@ namespace internal
 
 template< typename GhostLayerField_T >
 inline GhostLayerField_T * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t gl,
-                                     const typename GhostLayerField_T::value_type & v, Layout l )
+                                     const typename GhostLayerField_T::value_type & v, Layout l)
 {
    return new GhostLayerField_T(x,y,z,gl,v,l);
 }
@@ -401,19 +401,22 @@ public:
    using Value_T = typename GhostLayerField_T::value_type;
 
    DefaultBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks,
-                             const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = internal::defaultSize ) :
-      blocks_( blocks ), nrOfGhostLayers_( uint_t(1) ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize )
+                             const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
+                             const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >()) :
+      blocks_( blocks ), nrOfGhostLayers_( uint_t(1) ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize ), alloc_(alloc)
    {}
 
    DefaultBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks, const uint_t nrOfGhostLayers,
-                             const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = internal::defaultSize ) :
-      blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize )
+                             const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
+                             const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >()) :
+      blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize ), alloc_(alloc)
    {}
 
    DefaultBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks, const uint_t nrOfGhostLayers,
                              const Value_T & initValue, const Layout layout = zyxf,
-                             const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = internal::defaultSize ) :
-      blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_( initValue ), layout_( layout ), calculateSize_( calculateSize )
+                             const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
+                             const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >()) :
+      blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_( initValue ), layout_( layout ), calculateSize_( calculateSize ), alloc_(alloc)
    {
       static_assert( !std::is_same< GhostLayerField_T, FlagField< Value_T > >::value,
                      "When using class FlagField, only constructors without the explicit specification of an initial value and the field layout are available!" );
@@ -427,7 +430,7 @@ protected:
       WALBERLA_CHECK_NOT_NULLPTR( blocks, "Trying to access 'DefaultBlockDataHandling' for a block storage object that doesn't exist anymore" );
       const Vector3< uint_t > size = calculateSize_( blocks, block );
       return internal::allocate< GhostLayerField_T >( size[0], size[1], size[2],
-                                                      nrOfGhostLayers_, initValue_, layout_ );
+                                                      nrOfGhostLayers_, initValue_, layout_, alloc_ );
    }
 
    GhostLayerField_T * reallocate( IBlock * const block ) override
@@ -436,7 +439,7 @@ protected:
       WALBERLA_CHECK_NOT_NULLPTR( blocks, "Trying to access 'DefaultBlockDataHandling' for a block storage object that doesn't exist anymore" );
       const Vector3< uint_t > size = calculateSize_( blocks, block );
       return internal::allocate< GhostLayerField_T >( size[0], size[1], size[2],
-                                                      nrOfGhostLayers_, layout_ );
+                                                      nrOfGhostLayers_, layout_, alloc_ );
    }
 
 private:
@@ -447,6 +450,7 @@ private:
    Value_T initValue_;
    Layout  layout_;
    const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize_;
+   const shared_ptr< field::FieldAllocator<real_t> > & alloc_;
 
 }; // class DefaultBlockDataHandling
 
@@ -464,19 +468,22 @@ public:
    using InitializationFunction_T = std::function<void (GhostLayerField_T *, IBlock *const)>;
 
    AlwaysInitializeBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks,
-                                      const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = internal::defaultSize ) :
-      blocks_( blocks ), nrOfGhostLayers_( uint_t(1) ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize )
+                                      const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
+                                      const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >()) :
+      blocks_( blocks ), nrOfGhostLayers_( uint_t(1) ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize ), alloc_(alloc)
    {}
 
    AlwaysInitializeBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks, const uint_t nrOfGhostLayers,
-                                      const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = internal::defaultSize ) :
-      blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize )
+                                      const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
+                                      const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >()) :
+      blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize ), alloc_(alloc)
    {}
 
    AlwaysInitializeBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks, const uint_t nrOfGhostLayers,
                                       const Value_T & initValue, const Layout layout,
-                                      const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = internal::defaultSize ) :
-      blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_( initValue ), layout_( layout ), calculateSize_( calculateSize )
+                                      const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
+                                      const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >()) :
+      blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_( initValue ), layout_( layout ), calculateSize_( calculateSize ), alloc_(alloc)
    {
       static_assert( ! std::is_same< GhostLayerField_T, FlagField< Value_T > >::value,
                      "When using class FlagField, only constructors without the explicit specification of an initial value and the field layout are available!" );
@@ -490,7 +497,7 @@ public:
       WALBERLA_CHECK_NOT_NULLPTR( blocks, "Trying to access 'AlwaysInitializeBlockDataHandling' for a block storage object that doesn't exist anymore" );
       Vector3<uint_t> size = calculateSize_( blocks, block );
       GhostLayerField_T * field = internal::allocate< GhostLayerField_T >( size[0], size[1], size[2],
-                                                                           nrOfGhostLayers_, initValue_, layout_ );
+                                                                           nrOfGhostLayers_, initValue_, layout_, alloc_ );
       if( initFunction_ )
          initFunction_( field, block );
 
@@ -505,6 +512,7 @@ private:
    Value_T initValue_;
    Layout  layout_;
    const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize_;
+   const shared_ptr< field::FieldAllocator<real_t> > & alloc_;
 
    InitializationFunction_T initFunction_;
 

@@ -106,9 +106,10 @@ struct AddToStorage
                            const typename GhostLayerField_T::value_type & initValue, const Layout layout, const uint_t nrOfGhostLayers,
                            const bool /*alwaysInitialize*/, const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction,
                            const Set<SUID> & requiredSelectors, const Set<SUID> & incompatibleSelectors,
-                           const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = defaultSize )
+                           const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = defaultSize,
+                           const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >())
    {
-      auto dataHandling = walberla::make_shared< field::AlwaysInitializeBlockDataHandling< GhostLayerField_T > >( blocks, nrOfGhostLayers, initValue, layout, calculateSize );
+      auto dataHandling = walberla::make_shared< field::AlwaysInitializeBlockDataHandling< GhostLayerField_T > >( blocks, nrOfGhostLayers, initValue, layout, calculateSize, alloc );
       dataHandling->addInitializationFunction( initFunction );
       return blocks->addBlockData( dataHandling, identifier, requiredSelectors, incompatibleSelectors );
    }
@@ -123,16 +124,17 @@ struct AddToStorage< GhostLayerField_T, BlockStorage_T,
                            const typename GhostLayerField_T::value_type & initValue, const Layout layout, const uint_t nrOfGhostLayers,
                            const bool alwaysInitialize, const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction,
                            const Set<SUID> & requiredSelectors, const Set<SUID> & incompatibleSelectors,
-                           const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = defaultSize )
+                           const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = defaultSize,
+                           const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >())
    {
       if( alwaysInitialize )
       {
-         auto dataHandling = walberla::make_shared< field::AlwaysInitializeBlockDataHandling< GhostLayerField_T > >( blocks, nrOfGhostLayers, initValue, layout, calculateSize );
+         auto dataHandling = walberla::make_shared< field::AlwaysInitializeBlockDataHandling< GhostLayerField_T > >( blocks, nrOfGhostLayers, initValue, layout, calculateSize, alloc );
          dataHandling->addInitializationFunction( initFunction );
          return blocks->addBlockData( dataHandling, identifier, requiredSelectors, incompatibleSelectors );
       }
 
-      auto dataHandling = walberla::make_shared< field::DefaultBlockDataHandling< GhostLayerField_T > >( blocks, nrOfGhostLayers, initValue, layout, calculateSize );
+      auto dataHandling = walberla::make_shared< field::DefaultBlockDataHandling< GhostLayerField_T > >( blocks, nrOfGhostLayers, initValue, layout, calculateSize, alloc );
       dataHandling->addInitializationFunction( initFunction );
       return blocks->addBlockData( dataHandling, identifier, requiredSelectors, incompatibleSelectors );
    }
@@ -179,7 +181,7 @@ BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
 template< typename GhostLayerField_T, typename BlockStorage_T >
 BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                           const std::string & identifier,
-                          const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize,
+                          const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize,
                           const typename GhostLayerField_T::value_type & initValue = typename GhostLayerField_T::value_type(),
                           const Layout layout = zyxf,
                           const uint_t nrOfGhostLayers = uint_t(1),
@@ -192,6 +194,25 @@ BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
    return internal::AddToStorage< GhostLayerField_T, BlockStorage_T >::add( blocks, identifier, initValue, layout, nrOfGhostLayers,
                                                                             alwaysInitialize, initFunction, requiredSelectors,
                                                                             incompatibleSelectors, calculateSize );
+}
+
+template< typename GhostLayerField_T, typename BlockStorage_T >
+BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
+                          const std::string & identifier,
+                          const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize,
+                          const typename GhostLayerField_T::value_type & initValue = typename GhostLayerField_T::value_type(),
+                          const Layout layout = zyxf,
+                          const uint_t nrOfGhostLayers = uint_t(1),
+                          const bool alwaysInitialize = false,
+                          const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction =
+                          std::function< void ( GhostLayerField_T * field, IBlock * const block ) >(),
+                          const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
+                          const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet(),
+                          const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >())
+{
+   return internal::AddToStorage< GhostLayerField_T, BlockStorage_T >::add( blocks, identifier, initValue, layout, nrOfGhostLayers,
+                                                                            alwaysInitialize, initFunction, requiredSelectors,
+                                                                            incompatibleSelectors, calculateSize, alloc );
 }
 
 

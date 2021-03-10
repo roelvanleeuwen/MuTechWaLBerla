@@ -55,17 +55,25 @@ int main(int argc, char** argv)
    for (auto& block : *blocks)
    {
       auto pdfField_32 = block.getData< PdfField_T >(pdfFieldId_32);
-      void* p_32       = pdfField_32->dataAt(0, 0, 0, 0);
-      WALBERLA_CHECK_EQUAL((size_t) p_32 % 32, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_32->dataAt(0, 0, 0, 0) % 32, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_32->dataAt(0, 0, 0, 1) % 32, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_32->dataAt(0, 0, 1, 0) % 32, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_32->dataAt(0, 1, 0, 0) % 32, 0)
 
       auto pdfField_64 = block.getData< PdfField_T >(pdfFieldId_64);
-      void* p_64       = pdfField_64->dataAt(0, 0, 0, 0);
-      WALBERLA_CHECK_EQUAL((size_t) p_64 % 64, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_64->dataAt(0, 0, 0, 0) % 64, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_64->dataAt(0, 0, 0, 1) % 64, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_64->dataAt(0, 0, 1, 0) % 64, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_64->dataAt(0, 1, 0, 0) % 64, 0)
 
       auto pdfField_128 = block.getData< PdfField_T >(pdfFieldId_128);
-      void* p_128       = pdfField_128->dataAt(0, 0, 0, 0);
-      WALBERLA_CHECK_EQUAL((size_t) p_128 % 128, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_128->dataAt(0, 0, 0, 0) % 128, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_128->dataAt(0, 0, 0, 1) % 128, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_128->dataAt(0, 0, 1, 0) % 128, 0)
+      WALBERLA_CHECK_EQUAL((size_t) pdfField_128->dataAt(0, 1, 0, 0) % 128, 0)
    }
+
+   return EXIT_SUCCESS;
 }
 } // namespace walberla
 
