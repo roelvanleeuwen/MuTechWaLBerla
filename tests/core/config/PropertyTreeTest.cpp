@@ -25,9 +25,9 @@
 #include "core/debug/TestSubsystem.h"
 #include "core/mpi/MPIManager.h"
 
-#include <boost/property_tree/info_parser.hpp>
+// #include <boost/property_tree/info_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp>
+// #include <boost/property_tree/xml_parser.hpp>
 
 
 void write_property_tree( std::ostringstream & ss, const boost::property_tree::iptree & ptree, const std::string & path)
@@ -58,10 +58,13 @@ int main( int argc, char** argv )
 
 	std::ostringstream ss;
 
-	//write_xml( ss, propertyTree );
-	//write_info( ss, propertyTree );
+	// write_xml( ss, propertyTree );
+	// write_info( ss, propertyTree );
 
 	write_property_tree(ss, propertyTree, "");
+   WALBERLA_CHECK_FLOAT_EQUAL(propertyTree.get_child("Block1").get_child("ExampleFloat").get_value<double>(), 1.8)
+   WALBERLA_CHECK(propertyTree.get_child("Block1").get_child("ExampleInteger").get_value<int>(), 10)
+   WALBERLA_CHECK(propertyTree.get_child("Block2").get_child("ExampleBool").get_value<bool>(), true)
 
 	std::cout << ss.str() << std::endl;
 

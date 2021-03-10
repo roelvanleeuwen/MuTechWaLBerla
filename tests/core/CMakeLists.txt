@@ -23,7 +23,7 @@ waLBerla_execute_test( NAME ConfigTest COMMAND $<TARGET_FILE:ConfigTest> ${CMAKE
 
 if( WALBERLA_BUILD_WITH_BOOST )
    waLBerla_compile_test( FILES config/PropertyTreeTest.cpp)
-   #waLBerla_execute_test(NAME PropertyTreeTest COMMAND $<TARGET_FILE:PropertyTreeTest> )
+   waLBerla_execute_test(NAME PropertyTreeTest COMMAND $<TARGET_FILE:PropertyTreeTest> ${CMAKE_CURRENT_SOURCE_DIR}/config/PropertyTreeTest.dat )
 endif( WALBERLA_BUILD_WITH_BOOST )
 
 
