@@ -43,14 +43,28 @@ int main(int argc, char** argv)
 
    LatticeModel_T latticeModel = LatticeModel_T(omega);
 
-   shared_ptr< field::FieldAllocator< real_t > > alloc = make_shared< field::AllocateAligned< real_t, 32 > >();
+   shared_ptr< field::FieldAllocator< real_t > > alloc_32 = make_shared< field::AllocateAligned< real_t, 32 > >();
+   BlockDataID pdfFieldId_32 = lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, field::fzyx, alloc_32);
 
-   BlockDataID pdfFieldId = lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, field::fzyx, alloc);
+   shared_ptr< field::FieldAllocator< real_t > > alloc_64 = make_shared< field::AllocateAligned< real_t, 64 > >();
+   BlockDataID pdfFieldId_64 = lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, field::fzyx, alloc_64);
+
+   shared_ptr< field::FieldAllocator< real_t > > alloc_128 = make_shared< field::AllocateAligned< real_t, 128 > >();
+   BlockDataID pdfFieldId_128 = lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, field::fzyx, alloc_128);
 
    for (auto& block : *blocks)
    {
-      auto pdfField = block.getData< PdfField_T >(pdfFieldId);
-      std::cout << ((size_t) pdfField) % 32 << std::endl;
+      auto pdfField_32 = block.getData< PdfField_T >(pdfFieldId_32);
+      void* p_32       = pdfField_32->dataAt(0, 0, 0, 0);
+      WALBERLA_CHECK_EQUAL((size_t) p_32 % 32, 0)
+
+      auto pdfField_64 = block.getData< PdfField_T >(pdfFieldId_64);
+      void* p_64       = pdfField_64->dataAt(0, 0, 0, 0);
+      WALBERLA_CHECK_EQUAL((size_t) p_64 % 64, 0)
+
+      auto pdfField_128 = block.getData< PdfField_T >(pdfFieldId_128);
+      void* p_128       = pdfField_128->dataAt(0, 0, 0, 0);
+      WALBERLA_CHECK_EQUAL((size_t) p_128 % 128, 0)
    }
 }
 } // namespace walberla
