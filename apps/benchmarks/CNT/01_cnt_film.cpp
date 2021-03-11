@@ -178,9 +178,9 @@ int main(int argc, char **argv)
    {
       Statistics stats;
 
-      loopTP["AssocToBlock"].start();
-      ps->forEachParticle(false, kernel::SelectLocal(), ac, assoc, ac);
-      loopTP["AssocToBlock"].end();
+//      loopTP["AssocToBlock"].start();
+//      ps->forEachParticle(false, kernel::SelectLocal(), ac, assoc, ac);
+//      loopTP["AssocToBlock"].end();
 
       loopTP["VV pre"].start();
       ps->forEachParticle(false,
@@ -258,7 +258,7 @@ int main(int argc, char **argv)
       loopTP["ReduceForce"].end();
 
       loopTP["PFDDamping"].start();
-      ps->forEachParticle(false, kernel::SelectAll(), ac, assoc, ac);
+      ps->forEachParticle(false, kernel::SelectAll(), ac, pfcDamping, ac);
       loopTP["PFDDamping"].end();
 
       loopTP["VV post"].start();
