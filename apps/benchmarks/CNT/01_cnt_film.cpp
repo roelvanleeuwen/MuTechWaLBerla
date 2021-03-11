@@ -204,6 +204,10 @@ int main(int argc, char **argv)
                                  ac,
                                  [&](size_t p_idx1, size_t p_idx2)
                                  {
+                                    //ensure ordering
+                                    if (ac.getUid(p_idx1) > ac.getUid(p_idx2))
+                                       std::swap(ac.getUidRef(p_idx1), ac.getUidRef(p_idx1));
+                                    
                                     ++contactsChecked;
                                     auto dist = ac.getPosition(p_idx1) - ac.getPosition(p_idx2);
                                     auto dist2 = math::dot(dist, dist);
@@ -245,12 +249,6 @@ int main(int argc, char **argv)
                                        }
                                     }
                                  });
-      walberla::mpi::reduceInplace(contactsChecked , walberla::mpi::SUM);
-      walberla::mpi::reduceInplace(contactsDetected, walberla::mpi::SUM);
-      walberla::mpi::reduceInplace(contactsTreated , walberla::mpi::SUM);
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(contactsChecked);
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(contactsDetected);
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(contactsTreated);
       loopTP["interaction"].end();
 
       loopTP["ReduceForce"].start();
