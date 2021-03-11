@@ -219,7 +219,7 @@ int main(int argc, char **argv)
                                           constexpr bool period_Y = false;
                                           constexpr int max_segsX = 0;
                                           constexpr int max_segsY = 0;
-                                          auto sameCluster = ac.getSegmentID(p_idx2) == ac.getSegmentID(p_idx1);
+                                          auto sameCluster = ac.getClusterID(p_idx2) == ac.getClusterID(p_idx1);
                                           auto segmentDistance = std::abs(ac.getSegmentID(p_idx2) - ac.getSegmentID(p_idx1));
                                           if ((sameCluster) && ((segmentDistance == 1) ||
                                                                 ((period_X) && (segmentDistance == max_segsX - 1)) ||
