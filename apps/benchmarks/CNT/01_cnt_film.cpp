@@ -236,6 +236,10 @@ int main(int argc, char **argv)
                                              stats.shearEnergy += vBondContact.getLastShearEnergy();
                                              stats.tensileEnergy += vBondContact.getLastTensileEnergy();
                                              stats.twistingEnergy += vBondContact.getLastTwistingEnergy();
+                                             stats.stretchEnergy += vBondContact.getLastBendingEnergy() +
+                                                   vBondContact.getLastShearEnergy() +
+                                                   vBondContact.getLastTensileEnergy() +
+                                                   vBondContact.getLastTwistingEnergy();
                                           }
                                           else if ((sameCluster) && (segmentDistance < 20))
                                           {
@@ -244,6 +248,7 @@ int main(int argc, char **argv)
                                           {
                                              anisotropicVdwContact(p_idx1, p_idx2, ac);
                                              stats.vdwEnergy += anisotropicVdwContact.getLastEnergy();
+                                             stats.numAlignedPairs += anisotropicVdwContact.isParallel() ? 1 : 0;
                                           }
                                           viscous_damping(p_idx1, p_idx2, ac);
                                        }
