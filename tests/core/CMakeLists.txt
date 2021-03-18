@@ -81,9 +81,11 @@ waLBerla_execute_test( NAME Matrix3Test )
 waLBerla_compile_test( FILES math/GenericAABBTest.cpp DEPENDS stencil domain_decomposition )
 waLBerla_execute_test( NAME GenericAABBTest )
 
+if( WALBERLA_BUILD_WITH_BOOST )
 waLBerla_compile_test( FILES math/PhysicalCheckTest.cpp DEPENDS stencil )
 waLBerla_execute_test( NAME PhysicalCheckTest
                        COMMAND $<TARGET_FILE:PhysicalCheckTest>  ${CMAKE_CURRENT_SOURCE_DIR}/math/PhysicalCheckTestInput.prm )
+endif( WALBERLA_BUILD_WITH_BOOST )
 
 
 waLBerla_compile_test( FILES math/FastInvSqrtTest.cpp )
