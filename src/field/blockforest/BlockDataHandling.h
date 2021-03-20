@@ -364,29 +364,34 @@ inline FlagField<uint64_t> * allocate( const uint_t x, const uint_t y, const uin
 }
 
 template< typename GhostLayerField_T >
-inline GhostLayerField_T * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t gl, Layout l)
+inline GhostLayerField_T * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t gl, Layout l,
+                                     const shared_ptr< field::FieldAllocator<typename GhostLayerField_T::value_type> > & alloc)
 {
-   return new GhostLayerField_T(x,y,z,gl,l);
+   return new GhostLayerField_T(x,y,z,gl,l,alloc);
 }
 template<>
-inline FlagField<uint8_t> * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t gl, Layout)
+inline FlagField<uint8_t> * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t gl, Layout,
+                                      const shared_ptr< field::FieldAllocator<uint8_t> > & alloc)
 {
-   return new FlagField<uint8_t>(x,y,z,gl);
+   return new FlagField<uint8_t>(x,y,z,gl,alloc);
 }
 template<>
-inline FlagField<uint16_t> * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t gl, Layout)
+inline FlagField<uint16_t> * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t gl, Layout,
+                                       const shared_ptr< field::FieldAllocator<uint16_t> > & alloc)
 {
-   return new FlagField<uint16_t>(x,y,z,gl);
+   return new FlagField<uint16_t>(x,y,z,gl,alloc);
 }
 template<>
-inline FlagField<uint32_t> * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t gl, Layout)
+inline FlagField<uint32_t> * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t gl, Layout,
+                                       const shared_ptr< field::FieldAllocator<uint32_t> > & alloc)
 {
-   return new FlagField<uint32_t>(x,y,z,gl);
+   return new FlagField<uint32_t>(x,y,z,gl,alloc);
 }
 template<>
-inline FlagField<uint64_t> * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t gl, Layout)
+inline FlagField<uint64_t> * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t gl, Layout,
+                                       const shared_ptr< field::FieldAllocator<uint64_t> > & alloc)
 {
-   return new FlagField<uint64_t>(x,y,z,gl);
+   return new FlagField<uint64_t>(x,y,z,gl,alloc);
 }
 
 inline Vector3< uint_t > defaultSize( const shared_ptr< StructuredBlockStorage > & blocks, IBlock * const block )
