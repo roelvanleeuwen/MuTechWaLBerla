@@ -95,7 +95,7 @@ inline size_t ContactAccessor::find(const id_t& uid)
  *
  * Provides get, set and getRef.
  */
-class SingleContactAccessor : public IAccessor
+class SingleContactAccessor : public IContactAccessor
 {
 public:
    virtual ~SingleContactAccessor() = default;
