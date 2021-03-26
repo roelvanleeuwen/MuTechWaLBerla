@@ -1,4 +1,4 @@
-# import warnings
+import warnings
 
 import numpy as np
 import sympy as sp
@@ -6,7 +6,7 @@ from jinja2 import Environment, PackageLoader, StrictUndefined, Template
 from sympy.tensor import IndexedBase
 
 import pystencils as ps
-# from lbmpy.creationfunctions import create_lb_update_rule, update_with_default_parameters
+from lbmpy.creationfunctions import create_lb_update_rule, update_with_default_parameters
 from lbmpy.fieldaccess import CollideOnlyInplaceAccessor, StreamPullTwoFieldsAccessor
 from lbmpy.relaxationrates import relaxation_rate_scaling
 from lbmpy.stencils import get_stencil
@@ -39,6 +39,7 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
     pdfs_sym = sp.symbols("f_:%d" % (len(lb_method.stencil),))
     vel_arr_symbols = [IndexedBase(sp.Symbol('u'), shape=(1,))[i] for i in range(len(vel_symbols))]
     momentum_density_symbols = [sp.Symbol("md_%d" % (i,)) for i in range(len(vel_symbols))]
+    second_momentum_symbols = [sp.Symbol("p_%d" % (i)) for i in range(len(vel_symbols)**2)]
 
     equilibrium = lb_method.get_equilibrium()
     equilibrium = equilibrium.new_with_substitutions({a: b for a, b in zip(vel_symbols, vel_arr_symbols)})
@@ -52,7 +53,7 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
     macroscopic_velocity_shift = None
     if force_model:
         if hasattr(force_model, 'macroscopic_velocity_shift'):
-            macroscopic_velocity_shift = [expression_to_code(e, "lm.", ["rho"], dtype=dtype)
+            macroscopic_velocity_shift = [expression_to_code(e, "lm.", ["rho"],dtype=dtype)
                                           for e in force_model.macroscopic_velocity_shift(rho_sym)]
 
     cqc = lb_method.conserved_quantity_computation
@@ -62,13 +63,13 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
                                                                    variables_without_prefix=['rho_in', 'u'])
     momentum_density_getter = cqc.output_equations_from_pdfs(pdfs_sym, {'density': rho_sym,
                                                                         'momentum_density': momentum_density_symbols})
+    second_momentum_getter = cqc.output_equations_from_pdfs(pdfs_sym, {'moment2': second_momentum_symbols})
     constant_suffix = "f" if is_float else ""
 
     required_headers = get_headers(stream_collide_ast)
 
     if refinement_scaling:
-        refinement_scaling_info = [(e0, e1, expression_to_code(e2, '', dtype=dtype)) for e0, e1, e2 in
-                                   refinement_scaling.scaling_info]
+        refinement_scaling_info = [ (e0,e1,expression_to_code(e2, '', dtype=dtype)) for e0,e1,e2 in refinement_scaling.scaling_info ]
         # append '_' to entries since they are used as members
         for i in range(len(refinement_scaling_info)):
             updated_entry = (refinement_scaling_info[i][0],
@@ -88,7 +89,7 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
         'Q': len(lb_method.stencil),
         'compressible': lb_method.conserved_quantity_computation.compressible,
         'weights': ",".join(str(w.evalf()) + constant_suffix for w in lb_method.weights),
-        'inverse_weights': ",".join(str((1 / w).evalf()) + constant_suffix for w in lb_method.weights),
+        'inverse_weights': ",".join(str((1/w).evalf()) + constant_suffix for w in lb_method.weights),
 
         'equilibrium_from_direction': stencil_switch_statement(lb_method.stencil, equilibrium),
         'symmetric_equilibrium_from_direction': stencil_switch_statement(lb_method.stencil, symmetric_equilibrium),
@@ -100,6 +101,8 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
                                              variables_without_prefix=[e.name for e in pdfs_sym], dtype=dtype),
         'momentum_density_getter': equations_to_code(momentum_density_getter, variables_without_prefix=pdfs_sym,
                                                      dtype=dtype),
+        'second_momentum_getter': equations_to_code(second_momentum_getter, variables_without_prefix=pdfs_sym,
+                                                     dtype=dtype),
         'density_velocity_setter_macroscopic_values': density_velocity_setter_macroscopic_values,
 
         'refinement_scaling_info': refinement_scaling_info,
@@ -110,9 +113,7 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
         'target': 'cpu',
         'namespace': 'lbm',
         'headers': required_headers,
-        'need_block_offsets': [
-            'block_offset_{}'.format(i) in [param.symbol.name for param in stream_collide_ast.get_parameters()] for i in
-            range(3)],
+        'need_block_offsets': ['block_offset_{}'.format(i) in [param.symbol.name for param in stream_collide_ast.get_parameters()] for i in range(3)],
     }
 
     env = Environment(loader=PackageLoader('lbmpy_walberla'), undefined=StrictUndefined)
@@ -127,6 +128,7 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
 
 def generate_lattice_model(generation_context, class_name, collision_rule, field_layout='zyxf', refinement_scaling=None,
                            **create_kernel_params):
+
     # usually a numpy layout is chosen by default i.e. xyzf - which is bad for waLBerla where at least the spatial
     # coordinates should be ordered in reverse direction i.e. zyx
     is_float = not generation_context.double_accuracy
@@ -146,8 +148,7 @@ def generate_lattice_model(generation_context, class_name, collision_rule, field
         create_kernel_params['cpu_vectorize_info']['assume_inner_stride_one'] = False
 
     src_field = ps.Field.create_generic('pdfs', dim, dtype, index_dimensions=1, layout=field_layout, index_shape=(q,))
-    dst_field = ps.Field.create_generic('pdfs_tmp', dim, dtype, index_dimensions=1, layout=field_layout,
-                                        index_shape=(q,))
+    dst_field = ps.Field.create_generic('pdfs_tmp', dim, dtype, index_dimensions=1, layout=field_layout, index_shape=(q,))
 
     stream_collide_update_rule = create_lbm_kernel(collision_rule, src_field, dst_field, StreamPullTwoFieldsAccessor())
     stream_collide_ast = create_kernel(stream_collide_update_rule, **create_kernel_params)
@@ -159,8 +160,7 @@ def generate_lattice_model(generation_context, class_name, collision_rule, field
     collide_ast.function_name = 'kernel_collide'
     collide_ast.assumed_inner_stride_one = create_kernel_params['cpu_vectorize_info']['assume_inner_stride_one']
 
-    stream_update_rule = create_stream_pull_only_kernel(lb_method.stencil, None, 'pdfs', 'pdfs_tmp', field_layout,
-                                                        dtype)
+    stream_update_rule = create_stream_pull_only_kernel(lb_method.stencil, None, 'pdfs', 'pdfs_tmp', field_layout, dtype)
     stream_ast = create_kernel(stream_update_rule, **create_kernel_params)
     stream_ast.function_name = 'kernel_stream'
     stream_ast.assumed_inner_stride_one = create_kernel_params['cpu_vectorize_info']['assume_inner_stride_one']
@@ -260,7 +260,7 @@ def field_and_symbol_substitute(expr, variable_prefix="lm.", variables_without_p
     return expr.subs(substitutions)
 
 
-def expression_to_code(expr, variable_prefix="lm.", variables_without_prefix=[], dtype="double"):
+def expression_to_code(expr, variable_prefix="lm.", variables_without_prefix=[],dtype="double"):
     """
     Takes a sympy expression and creates a C code string from it. Replaces field accesses by
     walberla field accesses i.e. field_W^1 -> field->get(-1, 0, 0, 1)
@@ -270,8 +270,7 @@ def expression_to_code(expr, variable_prefix="lm.", variables_without_prefix=[],
     :param variables_without_prefix: this variables are not prefixed
     :return: code string
     """
-    return cpp_printer.doprint(
-        type_expr(field_and_symbol_substitute(expr, variable_prefix, variables_without_prefix), dtype=dtype))
+    return cpp_printer.doprint(type_expr(field_and_symbol_substitute(expr, variable_prefix, variables_without_prefix),dtype=dtype))
 
 
 def type_expr(eq, dtype):
@@ -287,6 +286,7 @@ def type_expr(eq, dtype):
 
 
 def equations_to_code(equations, variable_prefix="lm.", variables_without_prefix=[], dtype="double"):
+
     if isinstance(equations, AssignmentCollection):
         equations = equations.all_assignments
 
@@ -295,11 +295,9 @@ def equations_to_code(equations, variable_prefix="lm.", variables_without_prefix
     result = []
     left_hand_side_names = [e.lhs.name for e in equations]
     for eq in equations:
-        assignment = SympyAssignment(type_expr(eq.lhs, dtype=dtype),
+        assignment = SympyAssignment(type_expr(eq.lhs,dtype=dtype),
                                      type_expr(field_and_symbol_substitute(eq.rhs, variable_prefix,
-                                                                           variables_without_prefix
-                                                                           + left_hand_side_names),
-                                               dtype=dtype))
+                                                                 variables_without_prefix + left_hand_side_names),dtype=dtype))
         result.append(c_backend(assignment))
     return "\n".join(result)
 
