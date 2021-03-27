@@ -35,10 +35,6 @@ public:
          : ParticleAccessor(ps)
    {}
 
-   walberla::real_t const & getInteractionRadius(const size_t /*p_idx*/) const {return kernel::cnt::outer_radius;}
-   walberla::real_t& getInteractionRadiusRef(const size_t /*p_idx*/) {WALBERLA_ABORT("not available");}
-   void setInteractionRadius(const size_t /*p_idx*/, walberla::real_t const & /*v*/) {WALBERLA_ABORT("not available");}
-
    constexpr auto getMass(const size_t /*p_idx*/) const {return kernel::cnt::mass_T;}
    walberla::real_t& getMassRef(const size_t /*p_idx*/) {WALBERLA_ABORT("not available");}
    void setMass(const size_t /*p_idx*/, walberla::real_t const & /*v*/) {WALBERLA_ABORT("not available");}

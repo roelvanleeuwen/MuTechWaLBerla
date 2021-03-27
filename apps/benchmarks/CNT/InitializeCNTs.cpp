@@ -26,6 +26,7 @@
 #include "core/math/Constants.h"
 #include "core/math/Random.h"
 #include "core/mpi/MPIManager.h"
+#include "mesa_pd/kernel/cnt/Parameters.h"
 
 #include <cmath>
 
@@ -78,6 +79,7 @@ int64_t generateCNTs(const FilmSpecimen& spec,
             data::Particle &&sp = *ps->create();
             sp.setPosition(pos);
             sp.setOwner(myRank);
+            sp.setInteractionRadius(kernel::cnt::outer_radius);
             sp.setSegmentID(segment);
             sp.setClusterID(tube);
             sp.getRotationRef().rotate( Vec3(0_r, 1_r, 0_r), -0.5_r * math::pi + theta);
@@ -150,6 +152,8 @@ int64_t loadCNTs(const std::string& filename,
 
          data::Particle &&sp = *ps->create();
          sp.setPosition(pos);
+         sp.setOwner(rank);
+         sp.setInteractionRadius(kernel::cnt::outer_radius);
          sp.setSegmentID(sID);
          sp.setClusterID(cID);
          sp.getRotationRef().rotate( Vec3(0_r, 1_r, 0_r), -0.5_r * math::pi + real_c(theta));
