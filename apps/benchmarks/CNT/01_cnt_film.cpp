@@ -118,7 +118,7 @@ int main(int argc, char **argv)
    globalTP["generate CNT"].start();
    auto ps = std::make_shared<data::ParticleStorage>(10);
    auto ac = SphericalSegmentAccessor(ps);
-   auto lc = data::SparseLinkedCells(localDomain.getExtended(kernel::cnt::outer_radius), kernel::cnt::outer_radius );
+   auto lc = data::SparseLinkedCells(localDomain.getExtended(4_r * kernel::cnt::outer_radius), 4_r * kernel::cnt::outer_radius );
 
    int64_t numParticles = 0;
    if (filmSpecimen.initialConfigurationFile.empty())
