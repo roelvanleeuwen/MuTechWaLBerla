@@ -191,24 +191,6 @@ BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                           const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction =
                           std::function< void ( GhostLayerField_T * field, IBlock * const block ) >(),
                           const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
-                          const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
-{
-   return internal::AddToStorage< GhostLayerField_T, BlockStorage_T >::add( blocks, identifier, initValue, layout, nrOfGhostLayers,
-                                                                            alwaysInitialize, initFunction, requiredSelectors,
-                                                                            incompatibleSelectors, calculateSize );
-}
-
-template< typename GhostLayerField_T, typename BlockStorage_T >
-BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
-                          const std::string & identifier,
-                          const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize,
-                          const typename GhostLayerField_T::value_type & initValue = typename GhostLayerField_T::value_type(),
-                          const Layout layout = zyxf,
-                          const uint_t nrOfGhostLayers = uint_t(1),
-                          const bool alwaysInitialize = false,
-                          const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction =
-                          std::function< void ( GhostLayerField_T * field, IBlock * const block ) >(),
-                          const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
                           const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet(),
                           const shared_ptr< field::FieldAllocator<typename GhostLayerField_T::value_type> > & alloc = shared_ptr< field::FieldAllocator<typename GhostLayerField_T::value_type> >())
 {
@@ -216,7 +198,6 @@ BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                                                                             alwaysInitialize, initFunction, requiredSelectors,
                                                                             incompatibleSelectors, calculateSize, alloc );
 }
-
 
 
 template< typename GhostLayerField_T, typename BlockStorage_T >
