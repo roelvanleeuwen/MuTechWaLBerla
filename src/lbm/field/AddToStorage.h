@@ -159,15 +159,25 @@ template< typename LatticeModel_T, typename BlockStorage_T >
 BlockDataID addPdfFieldToStorage( const shared_ptr< BlockStorage_T > & blocks, const std::string & identifier,
                                   const LatticeModel_T & latticeModel,
                                   const field::Layout & layout = field::zyxf,
-                                  const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >(),
                                   const Set<SUID> & requiredSelectors     = Set<SUID>::emptySet(),
-                                  const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
+                                  const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet(),
+                                  const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >())
 {
    return blocks->addBlockData( make_shared< internal::PdfFieldHandling< LatticeModel_T > >(
                                    blocks, latticeModel, true, Vector3<real_t>(0), real_t(1), uint_t(1), layout, alloc ),
                                 identifier, requiredSelectors, incompatibleSelectors );
 }
 
+template< typename LatticeModel_T, typename BlockStorage_T >
+BlockDataID addPdfFieldToStorage( const shared_ptr< BlockStorage_T > & blocks, const std::string & identifier,
+                                  const LatticeModel_T & latticeModel,
+                                  const field::Layout & layout = field::zyxf,
+                                  const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >())
+{
+   return blocks->addBlockData( make_shared< internal::PdfFieldHandling< LatticeModel_T > >(
+                                   blocks, latticeModel, true, Vector3<real_t>(0), real_t(1), uint_t(1), layout, alloc ),
+                                identifier, Set<SUID>::emptySet(), Set<SUID>::emptySet() );
+}
 
 
 template< typename LatticeModel_T, typename BlockStorage_T >
@@ -175,9 +185,9 @@ BlockDataID addPdfFieldToStorage( const shared_ptr< BlockStorage_T > & blocks, c
                                   const LatticeModel_T & latticeModel,
                                   const uint_t ghostLayers,
                                   const field::Layout & layout = field::zyxf,
-                                  const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >(),
                                   const Set<SUID> & requiredSelectors     = Set<SUID>::emptySet(),
-                                  const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
+                                  const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet(),
+                                  const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >())
 {
    return blocks->addBlockData( make_shared< internal::PdfFieldHandling< LatticeModel_T > >(
                                    blocks, latticeModel, true, Vector3<real_t>(0), real_t(1), ghostLayers, layout, alloc ),
@@ -191,9 +201,9 @@ BlockDataID addPdfFieldToStorage( const shared_ptr< BlockStorage_T > & blocks, c
                                   const LatticeModel_T & latticeModel,
                                   const Vector3< real_t > & initialVelocity, const real_t initialDensity,
                                   const field::Layout & layout = field::zyxf,
-                                  const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >(),
                                   const Set<SUID> & requiredSelectors     = Set<SUID>::emptySet(),
-                                  const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
+                                  const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet(),
+                                  const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >())
 {
    return blocks->addBlockData( make_shared< internal::PdfFieldHandling< LatticeModel_T > >(
                                    blocks, latticeModel, true, initialVelocity, initialDensity, uint_t(1), layout, alloc ),
@@ -208,9 +218,9 @@ BlockDataID addPdfFieldToStorage( const shared_ptr< BlockStorage_T > & blocks, c
                                   const Vector3< real_t > & initialVelocity, const real_t initialDensity,
                                   const uint_t ghostLayers,
                                   const field::Layout & layout = field::zyxf,
-                                  const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >(),
                                   const Set<SUID> & requiredSelectors     = Set<SUID>::emptySet(),
-                                  const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
+                                  const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet(),
+                                  const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >())
 {
    return blocks->addBlockData( make_shared< internal::PdfFieldHandling< LatticeModel_T > >(
                                    blocks, latticeModel, true, initialVelocity, initialDensity, ghostLayers, layout, alloc ),
