@@ -146,7 +146,6 @@ int main(int argc, char **argv)
                                                              filmSpecimen.useMPIIO);
 
    WALBERLA_LOG_INFO_ON_ROOT("setting up interaction models");
-   kernel::AssocToBlock                  assoc(forest);
    kernel::InsertParticleIntoSparseLinkedCells ipilc;
    kernel::cnt::AnisotropicVDWContact anisotropicVdwContact;
    kernel::cnt::VBondContact vBondContact;
@@ -160,7 +159,6 @@ int main(int argc, char **argv)
    mpi::SyncNextNeighbors                SNN;
 
    WALBERLA_LOG_INFO_ON_ROOT("warmup");
-   ps->forEachParticle(false, kernel::SelectLocal(), ac, assoc, ac);
    SNN(*ps, *domain);
    sorting::LinearizedCompareFunctor linear(lc.domain_, Vector3<uint_t>(lc.numCellsPerDim_[0]));
    ps->sort(linear);
@@ -178,10 +176,6 @@ int main(int argc, char **argv)
    {
       Statistics stats;
 
-//      loopTP["AssocToBlock"].start();
-//      ps->forEachParticle(false, kernel::SelectLocal(), ac, assoc, ac);
-//      loopTP["AssocToBlock"].end();
-
       loopTP["VV pre"].start();
       ps->forEachParticle(false,
                           kernel::SelectAll(),
@@ -189,6 +183,10 @@ int main(int argc, char **argv)
                           vv_pre,
                           ac);
       loopTP["VV pre"].end();
+
+      loopTP["SNN"].start();
+      SNN(*ps, *domain);
+      loopTP["SNN"].end();
 
       loopTP["GenerateSparseLinkedCells"].start();
       lc.clear();
@@ -271,10 +269,6 @@ int main(int argc, char **argv)
                           vv_post,
                           ac);
       loopTP["VV post"].end();
-
-      loopTP["SNN"].start();
-      SNN(*ps, *domain);
-      loopTP["SNN"].end();
 
       if ((i + 1) % filmSpecimen.saveVTKEveryNthStep == 0)
       {
