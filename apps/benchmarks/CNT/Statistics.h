@@ -39,7 +39,7 @@ struct Statistics
    real_t shearEnergy     = 0_r;
    real_t bendingEnergy   = 0_r;
    real_t twistingEnergy  = 0_r;
-   real_t numAlignedPairs = 0_r;
+   int64_t numAlignedPairs = 0;
 };
 
 void saveStatistics(const std::string& filename,
