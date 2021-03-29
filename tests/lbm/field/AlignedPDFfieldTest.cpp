@@ -44,13 +44,13 @@ int main(int argc, char** argv)
    LatticeModel_T latticeModel = LatticeModel_T(omega);
 
    shared_ptr< field::FieldAllocator< real_t > > alloc_32 = make_shared< field::AllocateAligned< real_t, 32 > >();
-   BlockDataID pdfFieldId_32 = lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, field::fzyx, alloc_32);
+   BlockDataID pdfFieldId_32 = lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, field::fzyx, Set<SUID>::emptySet(), Set<SUID>::emptySet(), alloc_32);
 
    shared_ptr< field::FieldAllocator< real_t > > alloc_64 = make_shared< field::AllocateAligned< real_t, 64 > >();
-   BlockDataID pdfFieldId_64 = lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, field::fzyx, alloc_64);
+   BlockDataID pdfFieldId_64 = lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, field::fzyx, Set<SUID>::emptySet(), Set<SUID>::emptySet(), alloc_64);
 
    shared_ptr< field::FieldAllocator< real_t > > alloc_128 = make_shared< field::AllocateAligned< real_t, 128 > >();
-   BlockDataID pdfFieldId_128 = lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, field::fzyx, alloc_128);
+   BlockDataID pdfFieldId_128 = lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, field::fzyx, Set<SUID>::emptySet(), Set<SUID>::emptySet(), alloc_128);
 
    for (auto& block : *blocks)
    {
