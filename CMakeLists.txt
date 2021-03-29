@@ -1050,6 +1050,10 @@ if ( WALBERLA_BUILD_WITH_CUDA )
           list ( APPEND SERVICE_LIBS ${NVTX_LIBRARY} )
       endif()
 
+      if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+          set(CMAKE_CUDA_ARCHITECTURES OFF)
+      endif()
+
       #CUDA_FOUND is need for our cmake mechanism
       set ( CUDA_FOUND TRUE )
     else()
