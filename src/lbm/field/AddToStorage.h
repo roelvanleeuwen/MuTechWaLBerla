@@ -45,7 +45,7 @@ public:
 
    PdfFieldHandling( const weak_ptr< StructuredBlockStorage > & blocks, const LatticeModel_T & latticeModel,
                      const bool _initialize, const Vector3<real_t> & initialVelocity, const real_t initialDensity,
-                     const uint_t nrOfGhostLayers, const field::Layout & layout, const shared_ptr< field::FieldAllocator<real_t> > & alloc ) :
+                     const uint_t nrOfGhostLayers, const field::Layout & layout, const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >() ) :
       blocks_( blocks ), latticeModel_( latticeModel ),
       initialize_( _initialize ), initialVelocity_( initialVelocity ), initialDensity_( initialDensity ),
       nrOfGhostLayers_( nrOfGhostLayers ), layout_( layout ), alloc_( alloc ){}
