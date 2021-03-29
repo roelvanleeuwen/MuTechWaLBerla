@@ -412,20 +412,20 @@ public:
 
    DefaultBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks,
                              const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
-                             const shared_ptr< field::FieldAllocator<Value_T> > & alloc = nullptr) :
+                             const shared_ptr< field::FieldAllocator<Value_T> > alloc = nullptr) :
       blocks_( blocks ), nrOfGhostLayers_( uint_t(1) ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize ), alloc_(alloc)
    {}
 
    DefaultBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks, const uint_t nrOfGhostLayers,
                              const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
-                             const shared_ptr< field::FieldAllocator<Value_T> > & alloc = nullptr) :
+                             const shared_ptr< field::FieldAllocator<Value_T> > alloc = nullptr) :
       blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize ), alloc_(alloc)
    {}
 
    DefaultBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks, const uint_t nrOfGhostLayers,
                              const Value_T & initValue, const Layout layout = zyxf,
                              const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
-                             const shared_ptr< field::FieldAllocator<Value_T> > & alloc = nullptr) :
+                             const shared_ptr< field::FieldAllocator<Value_T> > alloc = nullptr) :
       blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_( initValue ), layout_( layout ), calculateSize_( calculateSize ), alloc_(alloc)
    {
       static_assert( !std::is_same< GhostLayerField_T, FlagField< Value_T > >::value,
@@ -440,7 +440,7 @@ protected:
       WALBERLA_CHECK_NOT_NULLPTR( blocks, "Trying to access 'DefaultBlockDataHandling' for a block storage object that doesn't exist anymore" );
       const Vector3< uint_t > size = calculateSize_( blocks, block );
       return internal::allocate< GhostLayerField_T >( size[0], size[1], size[2],
-                                                      nrOfGhostLayers_, initValue_, layout_, nullptr );
+                                                      nrOfGhostLayers_, initValue_, layout_, alloc_ );
    }
 
    GhostLayerField_T * reallocate( IBlock * const block ) override
@@ -449,7 +449,7 @@ protected:
       WALBERLA_CHECK_NOT_NULLPTR( blocks, "Trying to access 'DefaultBlockDataHandling' for a block storage object that doesn't exist anymore" )
       const Vector3< uint_t > size = calculateSize_( blocks, block );
       return internal::allocate< GhostLayerField_T >( size[0], size[1], size[2],
-                                                      nrOfGhostLayers_, layout_, nullptr );
+                                                      nrOfGhostLayers_, layout_, alloc_ );
    }
 
 private:
@@ -460,7 +460,7 @@ private:
    Value_T initValue_;
    Layout  layout_;
    const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize_;
-   const shared_ptr< field::FieldAllocator<Value_T> > & alloc_;
+   const shared_ptr< field::FieldAllocator<Value_T> > alloc_;
 
 }; // class DefaultBlockDataHandling
 
@@ -479,20 +479,20 @@ public:
 
    AlwaysInitializeBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks,
                                       const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
-                                      const shared_ptr< field::FieldAllocator<Value_T> > & alloc = nullptr) :
+                                      const shared_ptr< field::FieldAllocator<Value_T> > alloc = nullptr) :
       blocks_( blocks ), nrOfGhostLayers_( uint_t(1) ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize ), alloc_(alloc)
    {}
 
    AlwaysInitializeBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks, const uint_t nrOfGhostLayers,
                                       const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
-                                      const shared_ptr< field::FieldAllocator<Value_T> > & alloc = nullptr) :
+                                      const shared_ptr< field::FieldAllocator<Value_T> > alloc = nullptr) :
       blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_(), layout_( zyxf ), calculateSize_( calculateSize ), alloc_(alloc)
    {}
 
    AlwaysInitializeBlockDataHandling( const weak_ptr< StructuredBlockStorage > & blocks, const uint_t nrOfGhostLayers,
                                       const Value_T & initValue, const Layout layout,
                                       const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >& calculateSize = internal::defaultSize,
-                                      const shared_ptr< field::FieldAllocator<Value_T> > & alloc = nullptr) :
+                                      const shared_ptr< field::FieldAllocator<Value_T> > alloc = nullptr) :
       blocks_( blocks ), nrOfGhostLayers_( nrOfGhostLayers ), initValue_( initValue ), layout_( layout ), calculateSize_( calculateSize ), alloc_(alloc)
    {
       static_assert( ! std::is_same< GhostLayerField_T, FlagField< Value_T > >::value,
@@ -522,7 +522,7 @@ private:
    Value_T initValue_;
    Layout  layout_;
    const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize_;
-   const shared_ptr< field::FieldAllocator<Value_T> > & alloc_;
+   const shared_ptr< field::FieldAllocator<Value_T> > alloc_;
 
    InitializationFunction_T initFunction_;
 
