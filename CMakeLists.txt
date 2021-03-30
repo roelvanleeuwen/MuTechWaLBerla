@@ -1037,6 +1037,12 @@ if ( WALBERLA_BUILD_WITH_CUDA )
     include(CheckLanguage)
     check_language(CUDA)
     if( CMAKE_CUDA_COMPILER )
+
+      if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+          set(CMAKE_CUDA_ARCHITECTURES OFF)
+          message(WARNING "CMAKE_CUDA_ARCHITECTURES was not set. It is automatically set to: ${CMAKE_CUDA_ARCHITECTURES}")
+      endif()
+
       enable_language(CUDA)
 
       #include directories and cudart lib is needed for cpp files that use cuda headers/libs
