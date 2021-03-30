@@ -1037,8 +1037,8 @@ if ( WALBERLA_BUILD_WITH_CUDA )
     include(CheckLanguage)
     check_language(CUDA)
     if( CMAKE_CUDA_COMPILER )
-        
-        if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+
+        if(${CMAKE_VERSION} VERSION_GREATER "3.18.0" AND NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
             set(CMAKE_CUDA_ARCHITECTURES OFF)
             message(WARNING "CMAKE_CUDA_ARCHITECTURES was not set. It is automatically set to: ${CMAKE_CUDA_ARCHITECTURES}")
         endif()
