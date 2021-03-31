@@ -1038,18 +1038,18 @@ if ( WALBERLA_BUILD_WITH_CUDA )
 
         enable_language(CUDA)
 
-      #include directories and cudart lib is needed for cpp files that use cuda headers/libs
-      include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-      find_library(CUDART_LIBRARY cudart ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
-      list ( APPEND SERVICE_LIBS ${CUDART_LIBRARY} )
+        #include directories and cudart lib is needed for cpp files that use cuda headers/libs
+        include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+        find_library(CUDART_LIBRARY cudart ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+        list ( APPEND SERVICE_LIBS ${CUDART_LIBRARY} )
 
-      find_library( NVTX_LIBRARY nvToolsExt ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES} )
-      list ( APPEND SERVICE_LIBS ${NVTX_LIBRARY} )
-
-      #CUDA_FOUND is need for our cmake mechanism
-      set ( CUDA_FOUND TRUE )
+        find_library( NVTX_LIBRARY nvToolsExt ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES} )
+        list ( APPEND SERVICE_LIBS ${NVTX_LIBRARY} )
+        
+        #CUDA_FOUND is need for our cmake mechanism
+        set ( CUDA_FOUND TRUE )
     else()
-      set ( WALBERLA_BUILD_WITH_CUDA FALSE )
+        set ( WALBERLA_BUILD_WITH_CUDA FALSE )
     endif ( )
 endif ( )
 
