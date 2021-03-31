@@ -123,4 +123,5 @@ waLBerla_generate_target_from_python(NAME LbmPackInfoGenerationTestCodegen FILE 
 
 waLBerla_link_files_to_builddir( "diff_packinfos.sh" )
 waLBerla_execute_test( NAME LbmPackInfoGenerationDiffTest COMMAND bash diff_packinfos.sh )
+
 endif()
