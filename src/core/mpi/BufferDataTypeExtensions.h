@@ -28,7 +28,9 @@
 #include "core/Conversion.h"
 #include "core/DataTypes.h"
 #include "core/math/Uint.h"
+#if __cplusplus >= 201703L || defined(_MSC_VER)
 #include "core/Optional.h"
+#endif
 #include "core/RandomUUID.h"
 
 #include <array>
@@ -141,13 +143,6 @@ void sendContainer( GenericSendBuffer<T,G> & buf, const Cont & container )
 }
 
 
-#ifdef WALBERLA_CXX_COMPILER_IS_GNU
-#if __GNUC__ == 4 && __GNUC_MINOR__ == 9 || __GNUC__ == 6
-#pragma GCC push_options
-#pragma GCC optimize(2)
-#endif
-#endif
-
 template< typename T,    // Element type of RecvBuffer
           typename Cont> // Container
 void recvContainer( GenericRecvBuffer<T> & buf, Cont & container )
@@ -159,12 +154,6 @@ void recvContainer( GenericRecvBuffer<T> & buf, Cont & container )
    for( typename Cont::iterator it = container.begin(); it != container.end(); ++it )
       buf >> *it;
 }
-
-#ifdef WALBERLA_CXX_COMPILER_IS_GNU
-#if __GNUC__ == 4 && __GNUC_MINOR__ == 9 || __GNUC__ == 6
-#pragma GCC pop_options
-#endif
-#endif
 
 
 
@@ -277,7 +266,7 @@ template< typename T,    // Element type of SendBuffer
 GenericSendBuffer<T,G>& packBoolVectorWithoutSize(GenericSendBuffer<T,G> & buf, const std::vector<bool> & bools )
 {
    // Use an unsigned type at least as large as the SendBuffer base type as container for the bools
-   typedef typename math::leastUnsignedInteger< std::numeric_limits<T>::digits >::type ContainerType;
+   using ContainerType = typename math::leastUnsignedInteger<std::numeric_limits<T>::digits>::type;
    static const size_t NUM_BITS = std::numeric_limits<ContainerType>::digits;
 
    auto it = bools.begin();
@@ -298,7 +287,7 @@ template< typename T >    // Element type  of RecvBuffer
 GenericRecvBuffer<T>& unpackBoolVectorWithoutSize(GenericRecvBuffer<T> & buf, std::vector<bool> & bools, size_t size )
 {
    // Use an unsigned type at least as large as the RecvBuffer base type as container for the bools
-   typedef typename math::leastUnsignedInteger<std::numeric_limits<T>::digits>::type ContainerType;
+   using ContainerType = typename math::leastUnsignedInteger<std::numeric_limits<T>::digits>::type;
    static const size_t NUM_BITS = std::numeric_limits<ContainerType>::digits;
 
    bools.resize(size);
@@ -564,6 +553,7 @@ template<typename T, typename K, typename C, typename A>
 struct BufferSizeTrait< std::multimap<K,T,C,A> > { static const bool constantSize = false;  };
 
 
+#if __cplusplus >= 201703L || defined(_MSC_VER)
 // ---------------------------------------------------------------------------------------------------------------------
 // ------------------------------------------- optional Support --------------------------------------------------------
 // ---------------------------------------------------------------------------------------------------------------------
@@ -614,6 +604,7 @@ GenericRecvBuffer<T>& operator>>( GenericRecvBuffer<T> & buf, walberla::optional
 
    return buf;
 }
+#endif
 
 // ---------------------------------------------------------------------------------------------------------------------
 // --------------------------------------- RandomUUID Support ----------------------------------------------------------

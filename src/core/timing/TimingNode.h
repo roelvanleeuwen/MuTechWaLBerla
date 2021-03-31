@@ -76,14 +76,14 @@ struct TimingNode
 
 template< typename TP >  // Timing policy
 TimingNode<TP>::TimingNode()
-   : last_(NULL)
+   : last_(nullptr)
 {
 
 }
 
 template< typename TP >  // Timing policy
 TimingNode<TP>::TimingNode(const TimingNode<TP>& tn)
-   : last_(NULL)
+   : last_(nullptr)
    , timer_(tn.timer_)
    , tree_(tn.tree_)
 {
@@ -301,11 +301,11 @@ void reduceInplace( TimingNode<TP>& tn, ReduceType rt = REDUCE_TOTAL, int target
 
    if( targetRank >= 0 )
    {
-      void * minTarget = targetRank == rank ? &minRed.front() : NULL;
-      void * maxTarget = targetRank == rank ? &maxRed.front() : NULL;
-      void * sumTarget = targetRank == rank ? &sumRed.front() : NULL;
-      void * sumSqTarget = targetRank == rank ? &sumSqRed.front() : NULL;
-      void * countTarget = targetRank == rank ? &countRed.front() : NULL;
+      void * minTarget = targetRank == rank ? &minRed.front() : nullptr;
+      void * maxTarget = targetRank == rank ? &maxRed.front() : nullptr;
+      void * sumTarget = targetRank == rank ? &sumRed.front() : nullptr;
+      void * sumSqTarget = targetRank == rank ? &sumSqRed.front() : nullptr;
+      void * countTarget = targetRank == rank ? &countRed.front() : nullptr;
 
       MPI_Reduce( &min.front(), minTarget,
                   int_c(min.size()), MPITrait<double>::type(), MPI_MIN, targetRank,MPI_COMM_WORLD );
@@ -493,7 +493,7 @@ void addRemainderNodes(timing::TimingNode<TP> &tn) {
 } /// namespace internal
 }
 
-typedef timing::TimingNode<timing::WcPolicy>  WcTimingNode;
-typedef timing::TimingNode<timing::CpuPolicy> CpuTimingNode;
+using WcTimingNode = timing::TimingNode<timing::WcPolicy>;
+using CpuTimingNode = timing::TimingNode<timing::CpuPolicy>;
 
 }

@@ -82,7 +82,7 @@ namespace initializer {
          Z_AXIS=2,
          INVALID_AXIS=3
       };*/
-      typedef uint_t Axis;
+      using Axis = uint_t;
       static const uint_t X_AXIS;
       static const uint_t Y_AXIS;
       static const uint_t Z_AXIS;
@@ -93,7 +93,7 @@ namespace initializer {
                   field::FlagUID pressureFlag1, field::FlagUID pressureFlag2 );
 
 
-      virtual void init( BlockStorage & , const Config::BlockHandle & blockHandle )    {  init( blockHandle );   }
+      void init( BlockStorage & , const Config::BlockHandle & blockHandle ) override    {  init( blockHandle );   }
 
       void init( const Config::BlockHandle & blockHandle );
       void init( Scenario scenario, BoundaryType boundaryType, real_t pressureDiff, Axis flowAxis, Axis parabolaAxis = INVALID_AXIS );

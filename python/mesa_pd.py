@@ -63,6 +63,10 @@ if __name__ == '__main__':
     ps.add_property("oldHydrodynamicTorque", "walberla::mesa_pd::Vec3", defValue="real_t(0)",
                     syncMode="ON_OWNERSHIP_CHANGE")
 
+    # properties for VBond model
+    ps.add_property("clusterID", "int64_t", defValue="-1", syncMode="ON_GHOST_CREATION")
+    ps.add_property("segmentID", "int64_t", defValue="-1", syncMode="ON_GHOST_CREATION")
+
     ch = mpd.add(data.ContactHistory())
     ch.add_property("tangentialSpringDisplacement", "walberla::mesa_pd::Vec3", defValue="real_t(0)")
     ch.add_property("isSticking", "bool", defValue="false")
@@ -103,6 +107,8 @@ if __name__ == '__main__':
     mpd.add(kernel.InsertParticleIntoSparseLinkedCells())
     mpd.add(kernel.LinearSpringDashpot())
     mpd.add(kernel.NonLinearSpringDashpot())
+    mpd.add(kernel.PFCDamping())
+    mpd.add(kernel.SemiImplicitEuler())
     mpd.add(kernel.SingleCast(ps))
     mpd.add(kernel.SpringDashpot())
     mpd.add(kernel.SpringDashpotSpring())

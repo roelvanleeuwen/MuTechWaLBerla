@@ -71,8 +71,8 @@ class LatticeModelBase
 {
 public:
 
-   typedef CollisionModel_T CollisionModel;
-   typedef ForceModel_T     ForceModel;
+   using CollisionModel = CollisionModel_T;
+   using ForceModel = ForceModel_T;
 
    static const bool compressible = Compressible;
    static const int  equilibriumAccuracyOrder = EquilibriumAccuracyOrder;
@@ -82,7 +82,7 @@ public:
    LatticeModelBase( const CollisionModel_T & cm, const ForceModel_T & fm ) :
       collisionModel_( cm ), forceModel_( fm ) {}
 
-   virtual ~LatticeModelBase() {}
+   virtual ~LatticeModelBase() = default;
 
    virtual void pack( mpi::SendBuffer & buffer ) const
    {

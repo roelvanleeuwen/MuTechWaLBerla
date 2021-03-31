@@ -13,12 +13,12 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file   GenerateLinkedCells.cpp
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
 
-#include <mesa_pd/kernel/ExplicitEuler.h>
+#include <mesa_pd/kernel/SemiImplicitEuler.h>
 #include <mesa_pd/kernel/ForceLJ.h>
 #include <mesa_pd/kernel/InsertParticleIntoLinkedCells.h>
 #include <mesa_pd/kernel/ParticleSelector.h>
@@ -72,7 +72,7 @@ int main( int argc, char ** argv )
    //init kernels
    kernel::InsertParticleIntoLinkedCells ipilc;
    kernel::ForceLJ lj(1);
-   kernel::ExplicitEuler integrator( real_t(0.01) );
+   kernel::SemiImplicitEuler integrator( real_t(0.01) );
 
    //timeloop
    for (auto timestep = 0; timestep < 100; ++timestep)

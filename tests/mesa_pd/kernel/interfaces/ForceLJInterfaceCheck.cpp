@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ForceLJInterfaceCheck.cpp
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -37,7 +37,7 @@ namespace mesa_pd {
 class Accessor : public data::IAccessor
 {
 public:
-   virtual ~Accessor() = default;
+   ~Accessor() override = default;
    const walberla::mesa_pd::Vec3& getPosition(const size_t /*p_idx*/) const {return position_;}
    
    walberla::mesa_pd::Vec3& getForceRef(const size_t /*p_idx*/) {return force_;}

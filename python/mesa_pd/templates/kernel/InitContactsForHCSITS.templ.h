@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file InitContactsForHCSITS.h
+//! \file
 //! \author Tobias Leemann <tobias.leemann@fau.de>
 //
 //======================================================================================================================
@@ -159,9 +159,9 @@ inline void InitContactsForHCSITS::operator()(size_t c, CAccessor &ca, PAccessor
 
    Mat3 diag = -(
            math::skewSymCrossProduct(ca.getR1(c),
-                                     math::skewSymCrossProduct(pa.getInvInertia(bId1), ca.getR1(c)))
+                                     math::skewSymCrossProduct(pa.getInvInertiaBF(bId1), ca.getR1(c)))
            + math::skewSymCrossProduct(ca.getR2(c),
-                                       math::skewSymCrossProduct(pa.getInvInertia(bId2), ca.getR2(c))));
+                                       math::skewSymCrossProduct(pa.getInvInertiaBF(bId2), ca.getR2(c))));
    diag[0] += pa.getInvMass(bId1) + pa.getInvMass(bId2);
    diag[4] += pa.getInvMass(bId1) + pa.getInvMass(bId2);
    diag[8] += pa.getInvMass(bId1) + pa.getInvMass(bId2);

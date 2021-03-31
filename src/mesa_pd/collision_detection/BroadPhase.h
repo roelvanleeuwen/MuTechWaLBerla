@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file BroadPhase.h
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -38,8 +38,7 @@ bool isInInteractionDistance(const size_t idx1, const size_t idx2, Accessor& ac)
    if (isSet(ac.getFlags(idx2), INFINITE)) return true;
    auto separationDist = ac.getInteractionRadius(idx1) + ac.getInteractionRadius(idx2);
    auto realDist2 = (ac.getPosition(idx1) - ac.getPosition(idx2)).sqrLength();
-   if (realDist2 < separationDist*separationDist) return true;
-   return false;
+   return realDist2 < separationDist*separationDist;
 }
 
 } //namespace collision_detection

@@ -122,8 +122,9 @@ hydro_LB_step = get_collision_assignments_hydro(lb_method=method_hydro,
                                                 density=density,
                                                 velocity_input=u,
                                                 force=force_g,
-                                                optimization={"symbolic_field": g,
-                                                              "symbolic_temporary_field": g_tmp},
+                                                sub_iterations=1,
+                                                symbolic_fields={"symbolic_field": g,
+                                                                 "symbolic_temporary_field": g_tmp},
                                                 kernel_type='collide_stream_push')
 
 # streaming of the hydrodynamic distribution
@@ -136,7 +137,7 @@ stream_hydro = create_lb_update_rule(stencil=stencil_hydro,
 # GENERATE SWEEPS #
 ###################
 
-cpu_vec = {'instruction_set': 'sse', 'assume_inner_stride_one': True, 'nontemporal': True}
+cpu_vec = {'assume_inner_stride_one': True, 'nontemporal': True}
 
 vp = [('int32_t', 'cudaBlockSize0'),
       ('int32_t', 'cudaBlockSize1')]
@@ -152,7 +153,7 @@ info_header = f"""
 """
 
 with CodeGeneration() as ctx:
-    if ctx.cuda is False:
+    if not ctx.cuda:
         if not ctx.optimize_for_localhost:
             cpu_vec = {'instruction_set': None}
 

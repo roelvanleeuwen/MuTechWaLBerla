@@ -44,7 +44,7 @@ namespace geometry   {
    class GrayScaleImage
    {
    public:
-      typedef unsigned char pixel_t;
+      using pixel_t = unsigned char;
 
       GrayScaleImage( uint_t _width, uint_t _height );
       GrayScaleImage( const std::string & pngFilename );
@@ -70,7 +70,7 @@ namespace geometry   {
       static pixel_t pixelValueFromString( const std::string & str );
 
    protected:
-      GrayScaleImage() {}
+      GrayScaleImage() = default;
 
       uint_t size_[2];                   //< 0=width,  1=height
       std::vector<unsigned char> image_; //< raw pixels

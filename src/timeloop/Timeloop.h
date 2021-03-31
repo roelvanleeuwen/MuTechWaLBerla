@@ -36,7 +36,7 @@
 namespace walberla {
 namespace timeloop {
 
-typedef std::function<void ()> VoidFctNoArguments;
+using VoidFctNoArguments = std::function<void ()>;
 
 
 //*******************************************************************************************************************
@@ -58,7 +58,7 @@ private:
    {
    public:
       LoggingStamp( const Timeloop & timeloop ) : timeloop_( timeloop ) {}
-      std::string stamp()
+      std::string stamp() override
       {
          std::ostringstream oss;
          int indention;
@@ -74,7 +74,7 @@ private:
              << std::setfill(' ') << std::right << timeloop_.curTimeStep_;
          return std::string("[") + oss.str() + std::string("]");
       }
-      uint_t maxStampWidth()
+      uint_t maxStampWidth() override
       {
          if( timeloop_.nrOfTimeSteps_ > 0 )
             return uint_c( std::ceil( std::log10( real_c( timeloop_.nrOfTimeSteps_ ) ) ) ) + uint_c(2);
@@ -111,7 +111,7 @@ public:
    //@{
    Timeloop( uint_t nrOfTimeSteps );
 
-   virtual ~Timeloop() {}
+   ~Timeloop() override = default;
    //@}
    //****************************************************************************************************************
 
@@ -119,19 +119,19 @@ public:
    //** Execution Control *******************************************************************************************
    /*! \name Execution Control*/
    //@{
-   virtual void run()                  { run(true); }
+   void run() override                  { run(true); }
    void run( const bool logTimeStep );
    void run( WcTimingPool & timing, const bool logTimeStep = true );
 
-   virtual void singleStep() { singleStep(true); }
+   void singleStep() override { singleStep(true); }
    void singleStep( const bool logTimeStep );
    void singleStep( WcTimingPool & timing, const bool logTimeStep = true );
 
-   void stop();
-   void synchronizedStop( bool stop );
+   void stop() override;
+   void synchronizedStop( bool stop ) override;
 
     void setCurrentTimeStepToZero()     { curTimeStep_ = 0;  }
-    void setCurrentTimeStep( uint_t ts) { curTimeStep_ = ts; }
+    void setCurrentTimeStep( uint_t ts) override { curTimeStep_ = ts; }
 
     //@}
    //****************************************************************************************************************
@@ -140,7 +140,7 @@ public:
    //** Registration Functions **************************************************************************************
    /*! \name Registration Functions */
    //@{
-   typedef size_t FctHandle;
+   using FctHandle = size_t;
 
 
     FctHandle addFuncBeforeTimeStep(const VoidFctNoArguments & f,
@@ -173,8 +173,8 @@ public:
    //** Timestep ****************************************************************************************************
    /*! \name Timestep */
    //@{
-   uint_t getCurrentTimeStep() const   { return curTimeStep_;   }
-   uint_t getNrOfTimeSteps()   const   { return nrOfTimeSteps_; }
+   uint_t getCurrentTimeStep() const override   { return curTimeStep_;   }
+   uint_t getNrOfTimeSteps()   const override   { return nrOfTimeSteps_; }
 
    //@}
    //****************************************************************************************************************
@@ -198,7 +198,7 @@ protected:
    uint_t curTimeStep_;   ///< current time step
    uint_t nrOfTimeSteps_; ///< total number of time steps
 
-   typedef selectable::SetSelectableObject<VoidFctNoArguments, SUID> SelectableFunc;
+   using SelectableFunc = selectable::SetSelectableObject<VoidFctNoArguments, SUID>;
    std::vector<SelectableFunc> beforeFunctions_;
    std::vector<SelectableFunc> afterFunctions_;
 

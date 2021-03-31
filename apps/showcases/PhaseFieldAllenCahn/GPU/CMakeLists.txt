@@ -16,9 +16,8 @@ waLBerla_generate_target_from_python(NAME PhaseFieldCodeGenGPU
         PackInfo_velocity_based_distributions.cu PackInfo_velocity_based_distributions.h
         GenDefines.h)
 
-waLBerla_add_executable(NAME multiphase
+waLBerla_add_executable(NAME multiphaseGPU
         FILES multiphase.cpp PythonExports.cpp InitializerFunctions.cpp CalculateNormals.cpp contact.cu multiphase_codegen.py
         DEPENDS blockforest core cuda field postprocessing lbm geometry timeloop gui PhaseFieldCodeGenGPU)
 
-
-
+set_target_properties(multiphaseGPU PROPERTIES CXX_VISIBILITY_PRESET hidden)

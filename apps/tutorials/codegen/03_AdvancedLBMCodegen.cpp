@@ -26,7 +26,6 @@
 #   include "cuda/AddGPUFieldToStorage.h"
 #   include "cuda/DeviceSelectMPI.h"
 #   include "cuda/HostFieldAllocator.h"
-#   include "cuda/NVTX.h"
 #   include "cuda/ParallelStreams.h"
 #   include "cuda/communication/GPUPackInfo.h"
 #   include "cuda/communication/UniformGPUScheme.h"
@@ -73,7 +72,7 @@ typedef FlagField< flag_t > FlagField_T;
 typedef lbm::CumulantMRTNoSlip NoSlip_T;
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
-typedef cuda::GPUField< double > GPUField;
+typedef cuda::GPUField< real_t > GPUField;
 #endif
 
 //////////////////////////////////////////

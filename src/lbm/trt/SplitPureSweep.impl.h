@@ -21,8 +21,6 @@
 
 
 
-#ifndef __IBMCPP__
-
 #pragma once
 
 #include "lbm/lattice_model/LatticeModelBase.h"
@@ -73,8 +71,8 @@ public:
    static_assert( (std::is_same< typename LatticeModel_T::ForceModel::tag, force_model::None_tag >::value),        "Only works without additional forces!" );
    static_assert( LatticeModel_T::equilibriumAccuracyOrder == 2, "Only works for lattice models that require the equilibrium distribution to be order 2 accurate!" );
 
-   typedef typename SweepBase<LatticeModel_T>::PdfField_T  PdfField_T;
-   typedef typename LatticeModel_T::Stencil                Stencil;
+   using PdfField_T = typename SweepBase<LatticeModel_T>::PdfField_T;
+   using Stencil = typename LatticeModel_T::Stencil;
 
    // block has NO dst pdf field
    SplitPureSweep( const BlockDataID & pdfField ) :
@@ -98,8 +96,8 @@ void SplitPureSweep< LatticeModel_T, typename std::enable_if< std::is_same< type
                                                                 >::type
    >::operator()( IBlock * const block )                                       
 {
-   PdfField_T * src( NULL );
-   PdfField_T * dst( NULL );
+   PdfField_T * src( nullptr );
+   PdfField_T * dst( nullptr );
 
    this->getFields( block, src, dst );
 
@@ -480,8 +478,8 @@ void SplitPureSweep< LatticeModel_T, typename std::enable_if< std::is_same< type
                                                               >::type
    >::stream( IBlock * const block, const uint_t numberOfGhostLayersToInclude )
 {
-   PdfField_T * src( NULL );
-   PdfField_T * dst( NULL );
+   PdfField_T * src( nullptr );
+   PdfField_T * dst( nullptr );
 
    this->getFields( block, src, dst );
 
@@ -866,8 +864,8 @@ public:
    static_assert( (std::is_same< typename LatticeModel_T::ForceModel::tag, force_model::None_tag >::value),        "Only works without additional forces!" );
    static_assert( LatticeModel_T::equilibriumAccuracyOrder == 2, "Only works for lattice models that require the equilibrium distribution to be order 2 accurate!" );
 
-   typedef typename SweepBase<LatticeModel_T>::PdfField_T  PdfField_T;
-   typedef typename LatticeModel_T::Stencil                Stencil;
+   using PdfField_T = typename SweepBase<LatticeModel_T>::PdfField_T;
+   using Stencil = typename LatticeModel_T::Stencil;
 
    // block has NO dst pdf field
    SplitPureSweep( const BlockDataID & pdfField ) :
@@ -891,8 +889,8 @@ void SplitPureSweep< LatticeModel_T, typename std::enable_if< std::is_same< type
                                                               >::type
    >::operator()( IBlock * const block )
 {
-   PdfField_T * src( NULL );
-   PdfField_T * dst( NULL );
+   PdfField_T * src( nullptr );
+   PdfField_T * dst( nullptr );
 
    this->getFields( block, src, dst );
 
@@ -1292,8 +1290,8 @@ void SplitPureSweep< LatticeModel_T, typename std::enable_if< std::is_same< type
                                                               >::type
    >::stream( IBlock * const block, const uint_t numberOfGhostLayersToInclude )
 {
-   PdfField_T * src( NULL );
-   PdfField_T * dst( NULL );
+   PdfField_T * src( nullptr );
+   PdfField_T * dst( nullptr );
 
    this->getFields( block, src, dst );
 
@@ -1677,10 +1675,3 @@ void SplitPureSweep< LatticeModel_T, typename std::enable_if< std::is_same< type
 
 } // namespace lbm
 } // namespace walberla
-
-
-#else // #ifdef __IBMCPP__
-
-#include "lbm/trt/bluegeneq/SplitPureSweep.impl.h"
-
-#endif

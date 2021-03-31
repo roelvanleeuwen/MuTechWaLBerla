@@ -138,7 +138,7 @@ class StabilityChecker
 {
 private:
 
-   typedef std::map< const IBlock *, std::map< Cell, std::set< cell_idx_t > > > BlockCellsMap;
+   using BlockCellsMap = std::map<const IBlock *, std::map<Cell, std::set<cell_idx_t>>>;
 
    ////////////////////////////////
    //  VTK Output Helper Classes //
@@ -184,9 +184,9 @@ private:
 
    protected:
 
-      void configure() {}
+      void configure() override {}
 
-      uint8_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f )
+      uint8_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
       {
          WALBERLA_ASSERT( map_.find( this->block_ ) != map_.end() );
          WALBERLA_ASSERT( map_[ this->block_ ].find( Cell(x,y,z) ) != map_[ this->block_ ].end() );
@@ -205,8 +205,8 @@ private:
    public:
       LocalCoordVTKWriter( const std::string & id ) : vtk::BlockCellDataWriter< cell_idx_t, 3 >( id ) {}
    protected:
-      void configure() {}
-      cell_idx_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f )
+      void configure() override {}
+      cell_idx_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
       {
          return ( f == cell_idx_t(0) ) ? x : ( ( f == cell_idx_t(1) ) ? y : z );
       }
@@ -218,8 +218,8 @@ private:
    public:
       GlobalCoordVTKWriter( const std::string & id ) : vtk::BlockCellDataWriter< cell_idx_t, 3 >( id ) {}
    protected:
-      void configure() {}
-      cell_idx_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f )
+      void configure() override {}
+      cell_idx_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
       {
          Cell cell(x,y,z);
          this->blockStorage_->transformBlockLocalToGlobalCell( cell, *(this->block_) );
@@ -510,7 +510,7 @@ shared_ptr< StabilityChecker< Field_T > > makeStabilityChecker( const weak_ptr< 
                                                                 const Set<SUID> & requiredSelectors     = Set<SUID>::emptySet(),
                                                                 const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
-   typedef StabilityChecker< Field_T > SC_T;
+   using SC_T = StabilityChecker<Field_T>;
    return shared_ptr< SC_T >( new SC_T( blocks, fieldId, checkFrequency, outputToStream, outputVTK, requiredSelectors, incompatibleSelectors ) );
 }
 
@@ -523,7 +523,7 @@ makeStabilityChecker( const weak_ptr< StructuredBlockStorage > & blocks,
                       const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
                       const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
-   typedef StabilityChecker< Field_T, FlagFieldEvaluationFilter<FlagField_T> > SC_T;
+   using SC_T = StabilityChecker<Field_T, FlagFieldEvaluationFilter<FlagField_T>>;
    return shared_ptr< SC_T >( new SC_T( blocks, fieldId, FlagFieldEvaluationFilter<FlagField_T>( flagFieldId, cellsToEvaluate ),
                                         checkFrequency, outputToStream, outputVTK, requiredSelectors, incompatibleSelectors ) );
 }
@@ -536,7 +536,7 @@ makeStabilityChecker( const weak_ptr< StructuredBlockStorage > & blocks, const C
                       const Set<SUID> & requiredSelectors     = Set<SUID>::emptySet(),
                       const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
-   typedef StabilityChecker< Field_T, Filter_T > SC_T;
+   using SC_T = StabilityChecker<Field_T, Filter_T>;
    return shared_ptr< SC_T >( new SC_T( blocks, fieldId, filter, checkFrequency, outputToStream, outputVTK, requiredSelectors, incompatibleSelectors ) );
 }
 
@@ -618,7 +618,7 @@ shared_ptr< StabilityChecker< Field_T > > makeStabilityChecker( const Config_T &
                                                                 const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
    WALBERLA_FIELD_MAKE_STABILITY_CHECKER_CONFIG_PARSER( config )
-   typedef StabilityChecker< Field_T > SC_T;
+   using SC_T = StabilityChecker<Field_T>;
    auto checker = shared_ptr< SC_T >( new SC_T( blocks, fieldId, defaultCheckFrequency, defaultOutputToStream, defaultOutputVTK, requiredSelectors, incompatibleSelectors ) );
    WALBERLA_FIELD_MAKE_STABILITY_CHECKER_SET_AND_RETURN()
 }
@@ -633,7 +633,7 @@ makeStabilityChecker( const Config_T & config,
                       const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
    WALBERLA_FIELD_MAKE_STABILITY_CHECKER_CONFIG_PARSER( config )
-   typedef StabilityChecker< Field_T, FlagFieldEvaluationFilter<FlagField_T> > SC_T;
+   using SC_T = StabilityChecker<Field_T, FlagFieldEvaluationFilter<FlagField_T>>;
    auto checker = shared_ptr< SC_T >( new SC_T( blocks, fieldId, FlagFieldEvaluationFilter<FlagField_T>( flagFieldId, cellsToEvaluate ),
                                                 defaultCheckFrequency, defaultOutputToStream, defaultOutputVTK, requiredSelectors, incompatibleSelectors ) );
    WALBERLA_FIELD_MAKE_STABILITY_CHECKER_SET_AND_RETURN()
@@ -648,7 +648,7 @@ makeStabilityChecker( const Config_T & config,
                       const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
    WALBERLA_FIELD_MAKE_STABILITY_CHECKER_CONFIG_PARSER( config )
-   typedef StabilityChecker< Field_T, Filter_T > SC_T;
+   using SC_T = StabilityChecker<Field_T, Filter_T>;
    auto checker = shared_ptr< SC_T >( new SC_T( blocks, fieldId, filter, defaultCheckFrequency, defaultOutputToStream, defaultOutputVTK,
                                                 requiredSelectors, incompatibleSelectors ) );
    WALBERLA_FIELD_MAKE_STABILITY_CHECKER_SET_AND_RETURN()

@@ -5,7 +5,7 @@
 ## Contents:
 ##   - definition of build options
 ##   - compiler variables ( c++ standard, warnings etc. )
-##   - Finding of service libraries. Required: boost, Optional: MPI, PE, METIS
+##   - Finding of service libraries. Required: none, Optional: Boost, MPI, FFTW3, METIS, OpenMesh, Python
 ##     the include paths are set, and the libraries are added to variable SERVICE_LIBS
 ##   - Subdirectory cmake lists are called
 ##       -> src/   this folder contains all modules, each module (that contains c or cpp files) is linked to a
@@ -75,8 +75,6 @@ option ( WALBERLA_BUILD_WITH_GCOV           "Enables gcov"                      
 option ( WALBERLA_BUILD_WITH_LTO            "Enable link time optimizations"                     )
 option ( WALBERLA_BUILD_WITH_OPENMP         "Enable OpenMP support"                              )
 option ( WALBERLA_BUILD_WITH_PYTHON         "Support for embedding Python"                       )
-option ( WALBERLA_BUILD_WITH_PYTHON_MODULE  "Build waLBerla python module"                       )
-option ( WALBERLA_BUILD_WITH_PYTHON_LBM     "Include LBM module into python module"          OFF )
 option ( WALBERLA_BUILD_WITH_CODEGEN        "Enable pystencils code generation"              OFF )
 
 
@@ -100,6 +98,8 @@ option ( WALBERLA_OPTIMIZE_FOR_LOCALHOST    "Enable compiler optimizations spcif
 
 option ( WALBERLA_LOG_SKIPPED               "Log skipped cmake targets"                      ON  )
 
+option ( WALBERLA_GIT_SUBMODULE_AUTO        "Check submodules during cmake run"               ON )
+
 # Installation Directory
 set ( CMAKE_INSTALL_PREFIX /usr/local/waLBerla CACHE STRING "The default installation directory."   )
 
@@ -108,6 +108,7 @@ if ( NOT CMAKE_BUILD_TYPE )
     set ( CMAKE_BUILD_TYPE Release CACHE STRING "Build Types: Debug Release DebugOptimized RelWithDebInfo MinSizeRel."  FORCE )
 endif()
 SET_PROPERTY( CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release DebugOptimized RelWithDebInfo MinSizeRel )
+set( CMAKE_TRY_COMPILE_CONFIGURATION ${CMAKE_BUILD_TYPE} )
 
 # Debugging options                                      )
 option ( WALBERLA_STL_BOUNDS_CHECKS  "Use debug capabilites of libstd++: iterator and bounds checks" )
@@ -136,7 +137,7 @@ endif()
 
 ############################################################################################################################
 
-set( CMAKE_CXX_STANDARD 14 )
+set( CMAKE_CXX_STANDARD 17 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 set( CMAKE_CXX_EXTENSIONS OFF )
 
@@ -170,9 +171,15 @@ if( CMAKE_CXX_COMPILER MATCHES "icpc" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "icpc" 
        SET(CMAKE_LINKER "${XILD}")
     ENDIF(XILD)
     MARK_AS_ADVANCED(XILD)
-    if( CMAKE_VERSION VERSION_LESS 3.6.0 )
-      set( CMAKE_CXX14_STANDARD_COMPILE_OPTION "-std=c++14" )
+
+    if( CMAKE_VERSION VERSION_LESS 3.11.0 )
+      set( CMAKE_CXX17_STANDARD_COMPILE_OPTION "-std=c++17" )
+      set( CMAKE_TRY_COMPILE_PLATFORM_VARIABLES CMAKE_CXX17_STANDARD_COMPILE_OPTION )
       add_flag ( CMAKE_CXX_FLAGS ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
+    endif()
+    if( CMAKE_CXX_COMPILER_VERSION VERSION_LESS "19.0.5" )
+      # std::filesystem uses ABI tags, which don't work 19.0.2 but do in 19.0.5
+      add_flag ( CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0" )
     endif()
 else()
     option ( WALBERLA_CXX_COMPILER_IS_INTEL "Use Intel compiler" OFF  )
@@ -219,15 +226,20 @@ else()
 endif()
 mark_as_advanced ( WALBERLA_CXX_COMPILER_IS_CLANG )
 
+# Check for Cray compiler
 if( CMAKE_CXX_COMPILER_ID MATCHES Cray )
     option ( WALBERLA_CXX_COMPILER_IS_CRAY "Use Cray compiler" ON   )
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.4)
-        message( FATAL_ERROR "Insufficient Cray Compiler Environment version" )
-    endif()
 else()
     option ( WALBERLA_CXX_COMPILER_IS_CRAY "Use Cray compiler" OFF  )
 endif()
 mark_as_advanced ( WALBERLA_CXX_COMPILER_IS_CRAY )
+
+if( CMAKE_CXX_COMPILER MATCHES "pgc\\+\\+" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "pgc\\+\\+" )
+    option ( WALBERLA_CXX_COMPILER_IS_PGI "Use PGI compiler" ON  )
+else()
+    option ( WALBERLA_CXX_COMPILER_IS_PGI "Use PGI compiler" OFF  )
+endif()
+mark_as_advanced ( WALBERLA_CXX_COMPILER_IS_PGI )
 
 # Check for MPI wrapper
 get_filename_component( CXX_COMPILER_WITHOUT_PATH ${CMAKE_CXX_COMPILER} NAME )
@@ -285,7 +297,8 @@ endif()
 
 # C++ language features for NEC compiler
 if( WALBERLA_CXX_COMPILER_IS_NEC )
-   set( CMAKE_CXX14_STANDARD_COMPILE_OPTION "-Kcpp14" )
+   set( CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION "-Kcpp${CMAKE_CXX_STANDARD}" )
+   set( CMAKE_TRY_COMPILE_PLATFORM_VARIABLES CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION )
    add_flag ( CMAKE_CXX_FLAGS "${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} -Krtti -Kexceptions -size_t64 -Kgcc" )
    add_flag ( CMAKE_CXX_FLAGS "-D__BIG_ENDIAN -D__BYTE_ORDER=__BIG_ENDIAN" )
    add_flag ( CMAKE_CXX_FLAGS "-Tnoauto,used" )
@@ -314,8 +327,6 @@ endif()
 if( WALBERLA_CXX_COMPILER_IS_IBM )
    add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1586-267" )  # 1586-267 (I) Inlining of specified subprogram failed due to the presence of a C++ exception handler
    add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1586-266" )  # 1586-266 (I) Inlining of specified subprogram failed due to the presence of a global label
-   add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1540-0724" ) # 1540-0724 (W) The non-type template argument "2147483648" of type "T" has wrapped [coming from boost/integer_traits.hpp]
-   add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1540-0095" ) # 1540-0095 (W) The friend function declaration ... [coming from boost/mpl/map/aux_/map0.hpp]
    add_flag ( CMAKE_CXX_FLAGS "-qsuppress=1500-030" )  # 1500-030: (I) INFORMATION: [...] Additional optimization may be attained by recompiling and specifying MAXMEM option with a value greater than 8192.
    add_flag ( CMAKE_C_FLAGS "-qsuppress=1500-030" )    # 1500-030: (I) INFORMATION: [...] Additional optimization may be attained by recompiling and specifying MAXMEM option with a value greater than 8192.
 endif()
@@ -326,6 +337,21 @@ if( WALBERLA_CXX_COMPILER_IS_CRAY )
    add_flag ( CMAKE_CXX_FLAGS "-h nomessage=1" )      # CC-1    The source file does not end with a new-line character.
    add_flag ( CMAKE_C_FLAGS   "-DSQLITE_HAVE_ISNAN" ) # SQLite will not work correctly with the -ffast-math option of GCC.
    add_flag ( CMAKE_CXX_FLAGS "-DSQLITE_HAVE_ISNAN" ) # SQLite will not work correctly with the -ffast-math option of GCC.
+endif()
+
+# Silences compiler and linker warnings and information with the PGI compiler
+if( WALBERLA_CXX_COMPILER_IS_PGI )
+   add_flag ( CMAKE_CXX_FLAGS "--display_error_number" )
+   add_flag ( CMAKE_C_FLAGS "--display_error_number" )
+   if( CMAKE_VERSION VERSION_LESS "3.19" )
+      #  https://github.com/Kitware/CMake/commit/52eee1938919deb59cc2b51d44f365f0d9a418e5
+      set( CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION "--c++${CMAKE_CXX_STANDARD}" )
+   endif()
+   add_flag ( CMAKE_CXX_FLAGS "--diag_suppress=1" )   # last line of file ends without a newline
+   add_flag ( CMAKE_CXX_FLAGS "--diag_suppress=111" ) # statement is unreachable
+   add_flag ( CMAKE_C_FLAGS "--diag_suppress=111" )   # statement is unreachable
+   add_flag ( CMAKE_C_FLAGS "--diag_suppress=550" )   # variable [...] was set but never used
+   add_flag ( CMAKE_C_FLAGS "--diag_suppress=191" )   # type qualifier is meaningless on cast type
 endif()
 
 # architecture optimization
@@ -367,12 +393,12 @@ endif()
 
 if ( WALBERLA_CXX_COMPILER_IS_CLANG )
     add_flag ( CMAKE_CXX_FLAGS "-Wall -Wconversion -Wshadow -Wno-c++11-extensions -Qunused-arguments" )
-    add_flag ( CMAKE_CXX_FLAGS "-D'_LIBCPP_EXTERN_TEMPLATE(...)='")
 endif ( )
 
 if( WALBERLA_CXX_COMPILER_IS_GNU OR WALBERLA_CXX_COMPILER_IS_INTEL OR WALBERLA_CXX_COMPILER_IS_CLANG )
     if ( WALBERLA_STL_BOUNDS_CHECKS )
         add_definitions ( "-D_GLIBCXX_DEBUG" )
+        add_definitions ( "-D_LIBCPP_DEBUG=1" )
     endif()
 endif()
 
@@ -433,25 +459,24 @@ endif()
 
 ############################################################################################################################
 ##
-##  Find optional C++ libraries
+##  Find newer C++ libraries, which may only be available in std::experimental on some compilers
 ##
 ############################################################################################################################
 
 try_compile( WALBERLA_USE_STD_FILESYSTEM "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdFilesystem.cpp"
-             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_FILESYSTEM ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
+             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_FILESYSTEM )
 if( WALBERLA_USE_STD_FILESYSTEM )
    message( STATUS "Found std::filesystem")
 else()
    try_compile( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdFilesystem.cpp"
-                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
+                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
    if( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
       message( STATUS "Found std::experimental::filesystem")
    endif()
    if( NOT WALBERLA_CXX_COMPILER_IS_MSVC AND NOT WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
       unset( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM CACHE )
       try_compile( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdFilesystem.cpp"
-                   COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION}
-                   LINK_LIBRARIES stdc++fs )
+                   COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM LINK_LIBRARIES stdc++fs )
       if( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
          message( STATUS "Found std::experimental::filesystem in libstdc++fs")
       list ( APPEND SERVICE_LIBS -lstdc++fs )
@@ -460,45 +485,22 @@ else()
    if( NOT WALBERLA_CXX_COMPILER_IS_MSVC AND NOT WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
       unset( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM CACHE )
       try_compile( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdFilesystem.cpp"
-                   COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION}
-                   LINK_LIBRARIES c++experimental )
+                   COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM LINK_LIBRARIES c++experimental )
       if( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
          message( STATUS "Found std::experimental::filesystem in libc++experimental")
          list ( APPEND SERVICE_LIBS -lc++experimental )
       endif()
    endif()
-endif()
-
-try_compile( WALBERLA_USE_STD_ANY "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdAny.cpp"
-             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_ANY ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
-if( WALBERLA_USE_STD_ANY )
-   message( STATUS "Found std::any")
-else()
-   try_compile( WALBERLA_USE_STD_EXPERIMENTAL_ANY "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdAny.cpp"
-                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_ANY ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
-   if( WALBERLA_USE_STD_EXPERIMENTAL_ANY )
-      message( STATUS "Found std::experimental::any")
+   if( NOT WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM AND NOT WALBERLA_USE_STD_FILESYSTEM)
+       message(FATAL_ERROR "Neither std::filesystem nor std::experimental::filesystem are available")
    endif()
 endif()
 
-try_compile( WALBERLA_USE_STD_OPTIONAL "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdOptional.cpp"
-             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_OPTIONAL ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
-if( WALBERLA_USE_STD_OPTIONAL )
-   message( STATUS "Found std::optional")
-else()
-   try_compile( WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdOptional.cpp"
-                COMPILE_DEFINITIONS -DWALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
-   if( WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL )
-      message( STATUS "Found std::experimental::optional")
-   endif()
+if (WALBERLA_BUILD_WITH_CUDA AND (CUDA_VERSION VERSION_LESS "11.0" OR CMAKE_VERSION VERSION_LESS 3.18.0))
+   # CUDA < 11 does not support C++17. std::experimental::any works with C++14, unlike std::any.
+   set(CMAKE_CUDA_STANDARD 14)
+   set(WALBERLA_USE_STD_EXPERIMENTAL_ANY 1)
 endif()
-
-try_compile( WALBERLA_USE_STD_VARIANT "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdVariant.cpp"
-             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_VARIANT ${CMAKE_CXX${CMAKE_CXX_STANDARD}_STANDARD_COMPILE_OPTION} )
-if( WALBERLA_USE_STD_VARIANT )
-   message( STATUS "Found std::variant")
-endif()
-
 
 
 ############################################################################################################################
@@ -556,14 +558,23 @@ endif ( )
 ##
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_CODEGEN )
-    find_package( PythonInterp 3 QUIET REQUIRED)
-    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from pystencils.include import get_pystencils_include_path; print(get_pystencils_include_path())"
-                    RESULT_VARIABLE PYTHON_RET_CODE
-                    OUTPUT_VARIABLE PYSTENCILS_INCLUDE_PATH)
-    if(NOT PYTHON_RET_CODE EQUAL 0)
-        message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated and pystencils_walberla package not found")
+   find_package( PythonInterp 3 QUIET REQUIRED)
+   execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import lbmpy"
+         RESULT_VARIABLE LBMPY_FOUND )
+    if(NOT LBMPY_FOUND EQUAL 0)
+       message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated but pystencils or lbmpy package not found.
+                            Please install lbmpy e.g.: 'pip3 install lbmpy'")
     endif()
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from pystencils.include import get_pystencils_include_path; print(get_pystencils_include_path())"
+                    OUTPUT_VARIABLE PYSTENCILS_INCLUDE_PATH)
     include_directories( ${PYSTENCILS_INCLUDE_PATH} )
+
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import jinja2"
+          RESULT_VARIABLE JINJA2_FOUND )
+    if(NOT JINJA2_FOUND EQUAL 0)
+       message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated and jinja2 package not found.
+       Please install jinja2 e.g.: 'pip3 install jinja2'")
+    endif()
 endif()
 ############################################################################################################################
 
@@ -577,52 +588,64 @@ endif()
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_PYTHON )
 
-    set ( waLBerla_REQUIRED_MIN_PYTHON_VERSION "2.7")
-
-    find_package( PythonInterp 3 QUIET) # search for Python3 first
-    find_package( PythonInterp QUIET) # fallback to any Python version
-
+    find_package( PythonInterp 3.6 QUIET REQUIRED)
     find_package( PythonLibs QUIET REQUIRED)
-
-    if( PYTHONLIBS_VERSION_STRING VERSION_LESS ${waLBerla_REQUIRED_MIN_PYTHON_VERSION} )
-        message( FATAL_ERROR "Found old python library: ${PYTHONLIBS_VERSION_STRING} need at least ${waLBerla_REQUIRED_MIN_PYTHON_VERSION}" )
-    endif()
-
-    option( WALBERLA_USE_PYTHON_DEBUG_LIBRARY "Make use of the python debug library" OFF )
-
-    if( WALBERLA_USE_PYTHON_DEBUG_LIBRARY )
-      # you have to make sure this matches the settings you compiled boost with!
-      add_definitions( "-DBOOST_DEBUG_PYTHON" )
-    endif()
 
     if( NOT (PYTHON_LIBRARY AND PYTHON_INCLUDE_DIR ) )
         message( FATAL_ERROR "Couldn't find any python library" )
     endif()
 
-    SET( WALBERLA_BUILD_WITH_PYTHON 1 )
-    include_directories( ${PYTHON_INCLUDE_DIR} )
-    list ( APPEND SERVICE_LIBS ${PYTHON_LIBRARY} )
-
-    if( NOT WALBERLA_CXX_COMPILER_IS_MSVC )
-        list ( APPEND SERVICE_LIBS -lutil )
+    if(WALBERLA_CXX_COMPILER_IS_INTEL)
+        # Intel C++17 support introduced in 2.6.2 (https://github.com/pybind/pybind11/pull/2729)
+        set(PYBIND11_MINIMUM_VERSION "2.6.2")
+    else()
+        set(PYBIND11_MINIMUM_VERSION "2.6.0")
     endif()
 
-    if ( WALBERLA_BUILD_WITH_PYTHON_MODULE )
-        # a python module is a shared library - so everything has to be compiled to position independent code
-        # otherwise linking the static libs into the shared lib will result in errors
-        if( NOT WALBERLA_CXX_COMPILER_IS_MSVC )
-            add_flag ( CMAKE_CXX_FLAGS "-fPIC" )
-            add_flag ( CMAKE_C_FLAGS "-fPIC" )
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import pybind11; print(pybind11._version.__version__)"
+                    OUTPUT_VARIABLE pybind11_VERSION ERROR_QUIET RESULT_VARIABLE pybind11_VERSION_RESULT)
+    string(STRIP "${pybind11_VERSION}" pybind11_VERSION)
+    if(pybind11_VERSION_RESULT EQUAL "0" AND pybind11_VERSION VERSION_GREATER_EQUAL "${PYBIND11_MINIMUM_VERSION}")
+        execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pybind11 --cmakedir
+                        OUTPUT_VARIABLE PYBIND11_CMAKE_PATH)
+        string(STRIP "${PYBIND11_CMAKE_PATH}" PYBIND11_CMAKE_PATH)
+        find_package(pybind11 PATHS "${PYBIND11_CMAKE_PATH}" NO_DEFAULT_PATH REQUIRED)
+    else()
+        find_package(Git QUIET)
+        if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+           # Update submodules as needed
+           if(WALBERLA_GIT_SUBMODULE_AUTO)
+              message(STATUS "Submodule update")
+              execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                    RESULT_VARIABLE GIT_SUBMOD_RESULT)
+              if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+                 message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+              endif()
+           endif()
+        endif()
+
+        if(NOT EXISTS "${PROJECT_SOURCE_DIR}/extern/pybind11/CMakeLists.txt")
+            if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
+                message(FATAL_ERROR "Please update git submodules or install pybind11 via pip.")
+            else()
+                message(FATAL_ERROR "Please install pybind11 via pip or download it to ${PROJECT_SOURCE_DIR}/extern/pybind11.")
+            endif()
+        endif()
+
+        add_subdirectory(extern/pybind11)
+
+        if(pybind11_VERSION VERSION_LESS "2.6.2")
+            # if pybind11 was installed into ${PYTHON_INCLUDE_DIR} (e.g. by pip), that will have a higher priority than the Git submodule unless we reorder the search path
+            # introduced in 2.6.0 (https://github.com/pybind/pybind11/issues/2709), fixed in 2.6.2 (https://github.com/pybind/pybind11/pull/2716)
+            set_property( TARGET pybind11::pybind11
+                          PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/extern/pybind11/include" "${PYTHON_INCLUDE_DIR}")
         endif()
     endif()
 
-    if( MSVC10 )
-        include(CMakeDependentOption)
-        CMAKE_DEPENDENT_OPTION( PYTHON_FIXED_HYPOT_REDEFINITION "fixed _hypot redefinition by python" OFF "WALBERLA_BUILD_WITH_PYTHON" OFF )
-        if( NOT PYTHON_FIXED_HYPOT_REDEFINITION )
-            message( WARNING "Make sure you modified your pyconfig.h that _hypot is not redefined -> see: http://connect.microsoft.com/VisualStudio/feedback/details/633988/warning-in-math-h-line-162-re-nonstandard-extensions-used" )
-        endif()
-    endif()
+    # a python module is a shared library - so everything has to be compiled to position independent code
+    # otherwise linking the static libs into the shared lib will result in errors
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 
     if(WALBERLA_BUILD_DOC)
@@ -640,35 +663,14 @@ endif()
 ## BOOST Libraries
 ##
 #############################################################################################################################
-set ( waLBerla_REQUIRED_MIN_BOOST_VERSION "1.48")
 set ( Boost_NO_BOOST_CMAKE ON)
-
-if ( NOT WALBERLA_USE_STD_FILESYSTEM AND NOT WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
-  list ( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS filesystem system )
-else()
-  list ( APPEND waLBerla_OPTIONAL_BOOST_COMPONENTS system )
-endif()
-
-if ( WALBERLA_BUILD_WITH_PYTHON )
-  if( WALBERLA_CXX_COMPILER_IS_MSVC )
-    get_filename_component(PYTHON_REQUIRED_LIB ${PYTHON_LIBRARY} NAME_WE)
-    list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS ${PYTHON_REQUIRED_LIB} )
-  elseif( WALBERLA_USE_STD_FILESYSTEM OR WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM )
-    list( APPEND waLBerla_REQUIRED_BOOST_COMPONENTS system )
-    list( REMOVE_ITEM waLBerla_OPTIONAL_BOOST_COMPONENTS system )
-  endif()
-endif()
 
 # This variable is necessary, if the CMAKE version used is not aware of a more recent boost version (keep this up to date!)
 set ( Boost_ADDITIONAL_VERSIONS
       "1.45" "1.45.0" "1.46" "1.46.0" "1.46.1" "1.47" "1.47.0" "1.48" "1.48.0" "1.49" "1.49.0"
       "1.50" "1.50.0" "1.51" "1.51.0" "1.52" "1.52.0" "1.53" "1.53.0" "1.54" "1.54.0" "1.55" "1.55.0"
       "1.56" "1.56.0" "1.57" "1.57.0" "1.58" "1.58.0" "1.59" "1.59.0" "1.60" "1.60.0" "1.61" "1.61.0" "1.62" "1.62.0" "1.63" "1.63.0"
-      "1.64.0" "1.65.0" "1.65.1" "1.66.0" "1.67.0" "1.68.0" "1.69.0" "1.70.0" "1.71.0" "1.72.0" "1.73.0")
-
-set ( Boost_USE_STATIC_LIBS    OFF CACHE BOOL "Use boost static libraries" )
-set ( Boost_USE_MULTITHREADED  OFF CACHE BOOL "Use boost multithreaded libraries" )
-set ( Boost_USE_STATIC_RUNTIME OFF CACHE BOOL "Use boost libraries statically linked to runtime libs" )
+      "1.64.0" "1.65.0" "1.65.1" "1.66.0" "1.67.0" "1.68.0" "1.69.0" "1.70.0" "1.71.0" "1.72.0" "1.73.0" "1.74.0")
 
 # if you defined BOOST_ROOT or BOOST_BASE in your environment use it here to find boost too
 if ( NOT BOOST_ROOT )
@@ -681,28 +683,7 @@ if ( NOT BOOST_ROOT )
    endforeach ( )
 endif ( )
 
-find_package ( Boost ${waLBerla_REQUIRED_MIN_BOOST_VERSION} COMPONENTS ${waLBerla_REQUIRED_BOOST_COMPONENTS} OPTIONAL_COMPONENTS ${waLBerla_OPTIONAL_BOOST_COMPONENTS} QUIET )
-
-if( NOT Boost_FOUND )
-   message ( WARNING
-      "The specified configuration of the BOOST libraries was not found on your system! Now trying some other configuration..." )
-   foreach ( Boost_USE_STATIC_LIBS ON OFF )
-      foreach ( Boost_USE_MULTITHREADED ON OFF )
-         find_package ( Boost ${waLBerla_REQUIRED_MIN_BOOST_VERSION} COMPONENTS ${waLBerla_REQUIRED_BOOST_COMPONENTS} OPTIONAL_COMPONENTS ${waLBerla_OPTIONAL_BOOST_COMPONENTS} QUIET )
-         if ( Boost_FOUND )
-            set ( Boost_USE_STATIC_LIBS   ${Boost_USE_STATIC_LIBS}   CACHE BOOL "Use boost static libraries"        FORCE )
-            set ( Boost_USE_MULTITHREADED ${Boost_USE_MULTITHREADED} CACHE BOOL "Use boost multithreaded libraries" FORCE )
-            set ( Boost_USE_MULTITHREADED_LIBRARY ${Boost_USE_MULTITHREADED} )
-            message ( STATUS "Working configuration of the BOOST libraries was found :o)!" )
-            message ( STATUS "Boost_USE_STATIC_LIBS and Boost_USE_MULTITHREADED was adapted accordingly." )
-            BREAK ( )
-         endif ( Boost_FOUND )
-      endforeach ( Boost_USE_MULTITHREADED )
-      if ( Boost_FOUND )
-         BREAK ( )
-      endif ( Boost_FOUND )
-   endforeach ( Boost_USE_STATIC_LIBS )
-endif ( NOT Boost_FOUND )
+find_package ( Boost )
 
 if ( Boost_FOUND )
    if(CMAKE_GENERATOR STREQUAL "Xcode")
@@ -711,62 +692,12 @@ if ( Boost_FOUND )
    else()
       include_directories ( SYSTEM ${Boost_INCLUDE_DIRS} )
    endif()
-   if( waLBerla_REQUIRED_BOOST_COMPONENTS )
-      link_directories ( ${Boost_LIBRARY_DIRS} )
-      list ( APPEND SERVICE_LIBS ${Boost_LIBRARIES} )
-   endif()
    add_definitions ( -DBOOST_ALL_NO_LIB ) # Disable Boost auto-linking (CMAKE does that for us...)
-
-   #fix for static lib usage: http://stackoverflow.com/questions/11812463/boost-python-link-errors-under-windows-msvc10
-   if( PYTHONLIBS_FOUND AND Boost_USE_STATIC_LIBS)
-      add_definitions( -DBOOST_PYTHON_STATIC_LIB )
-   endif()
-
-   #fix for strange link behaviour of boost to python: boost only links to 'pyhton*.lib' and not to the absolute path
-   if( WIN32 AND PYTHONLIBS_FOUND )
-      get_filename_component( PYTHON_LIBRARY_DIR ${PYTHON_INCLUDE_DIR} PATH )
-      link_directories( ${PYTHON_LIBRARY_DIR}/libs )
-      list( APPEND LINK_DIRS ${PYTHON_LIBRARY_DIR}/libs )
-   endif()
 
    set( WALBERLA_BUILD_WITH_BOOST TRUE CACHE INTERNAL "Build with Boost" )
 else( Boost_FOUND )
-   if( (WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM OR WALBERLA_USE_STD_FILESYSTEM) AND (WALBERLA_USE_STD_EXPERIMENTAL_ANY OR WALBERLA_USE_STD_ANY) AND (WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL OR WALBERLA_USE_STD_OPTIONAL) AND NOT WALBERLA_BUILD_WITH_PYTHON)
-      # we don't really need Boost
-      set( WALBERLA_BUILD_WITH_BOOST FALSE CACHE INTERNAL "Build with Boost" )
-   else()
-      # Search again, this time with the REQUIRED option. This will give a CMAKE error and a detailed error message for the user
-      find_package ( Boost ${waLBerla_REQUIRED_MIN_BOOST_VERSION} REQUIRED ${waLBerla_REQUIRED_BOOST_COMPONENTS} OPTIONAL_COMPONENTS ${waLBerla_OPTIONAL_BOOST_COMPONENTS} )
-      if( (WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM OR WALBERLA_USE_STD_FILESYSTEM) AND (WALBERLA_USE_STD_EXPERIMENTAL_ANY OR WALBERLA_USE_STD_ANY) AND (WALBERLA_USE_STD_EXPERIMENTAL_OPTIONAL OR WALBERLA_USE_STD_OPTIONAL) )
-         message(WARNING "If you set WALBERLA_BUILD_WITH_PYTHON=OFF, you can build without the Boost library.")
-      endif()
-   endif()
+   set( WALBERLA_BUILD_WITH_BOOST FALSE CACHE INTERNAL "Build with Boost" )
 endif( Boost_FOUND )
-
-
-# Check if Python3 found and look for according boost python library
-if ( WALBERLA_BUILD_WITH_PYTHON AND NOT WALBERLA_CXX_COMPILER_IS_MSVC)
-    SET(_boost_MULTITHREADED "")
-    if (Boost_USE_MULTITHREADED OR Boost_USE_MULTITHREADED_LIBRARY)
-        SET(_boost_MULTITHREADED "-mt")
-    endif()
-    if( PYTHON_LIBRARY MATCHES "python3" )
-        string(REPLACE "." ";" VERSION_LIST ${PYTHONLIBS_VERSION_STRING})
-        list(GET VERSION_LIST 0 PY_VER_MAJOR)
-        list(GET VERSION_LIST 1 PY_VER_MINOR)
-        find_library( BOOST_PYTHON_LIBRARY NAMES
-                boost_python${PY_VER_MAJOR}${PY_VER_MINOR}${_boost_MULTITHREADED}
-                boost_python-py${PY_VER_MAJOR}${PY_VER_MINOR}${_boost_MULTITHREADED}
-                boost_python${PY_VER_MAJOR}${_boost_MULTITHREADED}
-                boost_python${_boost_MULTITHREADED}
-                PATHS ${Boost_LIBRARY_DIRS} NO_DEFAULT_PATH )
-    else()
-        find_library( BOOST_PYTHON_LIBRARY NAMES boost_python${_boost_MULTITHREADED}
-                      PATHS ${Boost_LIBRARY_DIRS} NO_DEFAULT_PATH )
-    endif()
-    message(STATUS "Using Boost Python Library ${BOOST_PYTHON_LIBRARY}" )
-    list ( APPEND SERVICE_LIBS ${BOOST_PYTHON_LIBRARY} )
-endif()
 
 
 ############################################################################################################################
@@ -781,8 +712,14 @@ endif()
 ##
 ############################################################################################################################
 
-if ( NOT WIN32 )
-   add_flag( CMAKE_CXX_FLAGS "-pthread" )
+set( THREADS_PREFER_PTHREAD_FLAG TRUE )
+find_package(Threads)
+if ( Threads_FOUND )
+   if( CMAKE_USE_PTHREADS_INIT )
+      add_flag( CMAKE_CXX_FLAGS "-pthread" )
+   else()
+      add_flag( CMAKE_CXX_FLAGS "${CMAKE_THREAD_LIBS_INIT}" )
+   endif()
 endif()
 
 
@@ -898,10 +835,6 @@ if ( WALBERLA_ENABLE_GUI )
 
     INCLUDE( ${QT_USE_FILE} )
     list ( APPEND SERVICE_LIBS ${OPENGL_LIBRARIES} ${QT_LIBRARIES} )
-
-    # Workaround for Qt4 moc and newer boost versions - moc cannot parse BOOST_JOIN
-    # so additional defines are passed to the moc compiler that prevent the problematic header to be parsed
-    set( QT_MOC_EXECUTABLE ${QT_MOC_EXECUTABLE} -DBOOST_NO_TEMPLATE_PARTIAL_SPECIALIZATION -DBOOST_TT_HAS_OPERATOR_HPP_INCLUDED )
 
 endif(WALBERLA_ENABLE_GUI)
 
@@ -1070,22 +1003,25 @@ endif()
 option ( WALBERLA_THREAD_SAFE_LOGGING "Enables/Disables thread-safe logging" ON )
 
 if ( WALBERLA_BUILD_WITH_OPENMP )
-    if ( WALBERLA_CXX_COMPILER_IS_INTEL AND "${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "16.0.3" )
-       add_flag ( CMAKE_C_FLAGS   "-openmp" )
-       add_flag ( CMAKE_CXX_FLAGS "-openmp" )
-    elseif ( WALBERLA_CXX_COMPILER_IS_NEC )
-       add_flag ( CMAKE_C_FLAGS   "-Popenmp" )
-       add_flag ( CMAKE_CXX_FLAGS "-Popenmp" )
+    find_package( OpenMP )
+    if (OpenMP_FOUND)
+        add_flag ( CMAKE_C_FLAGS   "${OpenMP_C_FLAGS}" )
+        add_flag ( CMAKE_CXX_FLAGS "${OpenMP_CXX_FLAGS}" )
+        list ( APPEND SERVICE_LIBS ${OpenMP_CXX_LIBRARIES} )
     else()
-       find_package( OpenMP )
-       add_flag ( CMAKE_C_FLAGS   "${OpenMP_C_FLAGS}" )
-       add_flag ( CMAKE_CXX_FLAGS "${OpenMP_CXX_FLAGS}" )
-       list ( APPEND SERVICE_LIBS ${OpenMP_CXX_LIBRARIES} )
+        #workarounds
+        if ( WALBERLA_CXX_COMPILER_IS_NEC )
+            message( STATUS "Enabling OpenMP workaround for NEC")
+            add_flag ( CMAKE_C_FLAGS   "-Popenmp" )
+            add_flag ( CMAKE_CXX_FLAGS "-Popenmp" )
+        else()
+            message(FATAL_ERROR "Could NOT enable OpenMP")
+        endif()
     endif()
 else()
     if ( WALBERLA_CXX_COMPILER_IS_CRAY )
-       add_flag ( CMAKE_C_FLAGS   "-h noomp" )
-       add_flag ( CMAKE_CXX_FLAGS "-h noomp" )
+        add_flag ( CMAKE_C_FLAGS   "-h noomp" )
+        add_flag ( CMAKE_CXX_FLAGS "-h noomp" )
     endif()
 endif()
 ############################################################################################################################
@@ -1108,12 +1044,8 @@ if ( WALBERLA_BUILD_WITH_CUDA )
       find_library(CUDART_LIBRARY cudart ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
       list ( APPEND SERVICE_LIBS ${CUDART_LIBRARY} )
 
-      #TODO: check if this is really needed? is it possible that nvtx is missing?
       find_library( NVTX_LIBRARY nvToolsExt ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES} )
-      if( NVTX_LIBRARY )
-          set( WALBERLA_CUDA_NVTX_AVAILABLE 1)
-          list ( APPEND SERVICE_LIBS ${NVTX_LIBRARY} )
-      endif()
+      list ( APPEND SERVICE_LIBS ${NVTX_LIBRARY} )
 
       #CUDA_FOUND is need for our cmake mechanism
       set ( CUDA_FOUND TRUE )
@@ -1184,31 +1116,14 @@ endif()
 ##
 ############################################################################################################################
 if ( WALBERLA_BUILD_WITH_LTO  )
-
-   if( WALBERLA_CXX_COMPILER_IS_INTEL )
-      add_flag( CMAKE_CXX_FLAGS_RELEASE "-ip -ipo3" )
-      add_flag( CMAKE_C_FLAGS_RELEASE   "-ip -ipo3" )
-   endif()
-
-   if ( CMAKE_COMPILER_IS_GNUCXX )
-      add_flag ( CMAKE_C_FLAGS_RELEASE     "-flto=3" )
-      add_flag ( CMAKE_CXX_FLAGS_RELEASE   "-flto=3" )
-      add_flag ( CMAKE_EXE_LINKER_FLAGS    "-fuse-linker-plugin" )
-   endif ( )
-
-   if( WALBERLA_CXX_COMPILER_IS_MSVC )
-      add_flag ( CMAKE_CXX_FLAGS_RELEASE           "/GL"   )
-      add_flag ( CMAKE_EXE_LINKER_FLAGS_RELEASE    "/LTCG" )
-      add_flag ( CMAKE_SHARED_LINKER_FLAGS_RELEASE "/LTCG" )
-      add_flag ( CMAKE_MODULE_LINKER_FLAGS_RELEASE "/LTCG" )
-   endif ( )
-
-   if( WALBERLA_CXX_COMPILER_IS_IBM )
-      add_flag ( CMAKE_C_FLAGS_RELEASE     "-qipa" )
-      add_flag ( CMAKE_CXX_FLAGS_RELEASE   "-qipa" )
-      add_flag ( CMAKE_EXE_LINKER_FLAGS    "-qipa" )
-   endif( )
-
+    cmake_policy( SET CMP0069 NEW )
+    include( CheckIPOSupported )
+    check_ipo_supported( RESULT LTO_SUPPORTED LANGUAGES CXX )
+    if( LTO_SUPPORTED )
+       set( CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE )
+    else()
+       message( WARNING "Link-time optimization is not supported with this compiler" )
+    endif()
 endif ( )
 
 ############################################################################################################################

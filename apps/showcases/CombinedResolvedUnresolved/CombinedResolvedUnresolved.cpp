@@ -81,13 +81,13 @@ using walberla::uint_t;
 
 // PDF field, flag field & body field
 
-typedef GhostLayerField< pe::BodyID, 1 > BodyField_T;
-typedef GhostLayerField< Matrix3< real_t >, 1 > TensorField_T;
-typedef GhostLayerField< Vector3< real_t >, 1 > Vec3Field_T;
-typedef GhostLayerField< real_t, 1 > ScalarField_T;
+using BodyField_T = GhostLayerField<pe::BodyID, 1>;
+using TensorField_T = GhostLayerField<Matrix3<real_t>, 1>;
+using Vec3Field_T = GhostLayerField<Vector3<real_t>, 1>;
+using ScalarField_T = GhostLayerField<real_t, 1>;
 using ForceModel_T = lbm::force_model::GuoField< Vec3Field_T >;
 
-typedef lbm::D3Q19< lbm::collision_model::SRTField< ScalarField_T >, false, ForceModel_T > LatticeModel_T;
+using LatticeModel_T = lbm::D3Q19<lbm::collision_model::SRTField<ScalarField_T>, false, ForceModel_T>;
 using Stencil_T  = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField< LatticeModel_T >;
 
@@ -97,13 +97,13 @@ using FlagField_T = FlagField< flag_t >;
 const uint_t FieldGhostLayers = 1;
 
 // boundary handling
-typedef lbm::NoSlip< LatticeModel_T, flag_t > NoSlip_T;
+using NoSlip_T = lbm::NoSlip<LatticeModel_T, flag_t>;
 
-typedef pe_coupling::CurvedLinear< LatticeModel_T, FlagField_T > MO_T;
+using MO_T = pe_coupling::CurvedLinear<LatticeModel_T, FlagField_T>;
 
-typedef BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T, MO_T > BoundaryHandling_T;
+using BoundaryHandling_T = BoundaryHandling<FlagField_T, Stencil_T, NoSlip_T, MO_T>;
 
-typedef std::tuple< pe::Sphere, pe::Plane > BodyTypeTuple;
+using BodyTypeTuple = std::tuple<pe::Sphere, pe::Plane>;
 
 ///////////
 // FLAGS //
@@ -265,10 +265,7 @@ bool selectDPMBodies(pe::BodyID bodyID)
 {
    pe::SphereID sphere = static_cast< pe::SphereID >(bodyID);
    real_t radius       = sphere->getRadius();
-   if (radius <= real_t(0.5))
-      return true;
-   else
-      return false;
+   return radius <= real_t(0.5);
 }
 
 bool selectMEMBodies(pe::BodyID bodyID) { return !selectDPMBodies(bodyID); }
@@ -546,7 +543,7 @@ int main(int argc, char** argv)
    // create pe bodies
 
    // bounding planes (global)
-   const auto planeMaterial = pe::createMaterial("planeMaterial", 1000.0, 0.8, 0.1, 0.05, 0.2, 80, 100, 10, 11);
+   const auto planeMaterial = pe::createMaterial("planeMaterial", 1000_r, 0.8_r, 0.1_r, 0.05_r, 0.2_r, 80_r, 100_r, 10_r, 11_r);
    pe::createPlane(*globalBodyStorage, 0, Vector3< real_t >(1, 0, 0), Vector3< real_t >(0, 0, 0), planeMaterial);
    pe::createPlane(*globalBodyStorage, 0, Vector3< real_t >(-1, 0, 0), Vector3< real_t >(real_c(domainSize[0]), 0, 0),
                    planeMaterial);
@@ -567,8 +564,8 @@ int main(int argc, char** argv)
    // add DPM spheres
    const auto peMaterial_DPM = createSphereMaterial("peMaterial_DPM", diameter_DPM, densityRatio_DPM);
    createSphereLattice(*blocks, *globalBodyStorage, bodyStorageID,
-                       AABB(real_t(0), real_t(0), real_t(1.0 * real_t(domainSize[2]) / 8.0), real_t(domainSize[0]),
-                            real_t(domainSize[1]), real_t(2.0 * real_t(domainSize[2]) / 8.0)),
+                       AABB(real_t(0), real_t(0), real_t(1.0 * real_t(domainSize[2]) / 8.0_r), real_t(domainSize[0]),
+                            real_t(domainSize[1]), real_t(2.0 * real_t(domainSize[2]) / 8.0_r)),
                        diameter_DPM, real_t(0.15), peMaterial_DPM, real_t(0));
 
    syncCall();
@@ -801,9 +798,7 @@ int main(int argc, char** argv)
    {
       if (dist == Distribution::DNearestNeighbor)
       {
-         typedef pe_coupling::discrete_particle_methods::InteractionForceEvaluator<
-            FlagField_T, field::NearestNeighborFieldInterpolator, field::NearestNeighborDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::InteractionForceEvaluator<FlagField_T, field::NearestNeighborFieldInterpolator, field::NearestNeighborDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr = make_shared< IFE_T >(
             blocks, dragForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, velocityFieldID, svfFieldID,
             pressureGradientFieldID, dragCorrelationFunction, viscosity, selectDPMBodies);
@@ -811,9 +806,7 @@ int main(int argc, char** argv)
       }
       else if (dist == Distribution::DKernel)
       {
-         typedef pe_coupling::discrete_particle_methods::InteractionForceEvaluator<
-            FlagField_T, field::NearestNeighborFieldInterpolator, field::KernelDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::InteractionForceEvaluator<FlagField_T, field::NearestNeighborFieldInterpolator, field::KernelDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr = make_shared< IFE_T >(
             blocks, dragForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, velocityFieldID, svfFieldID,
             pressureGradientFieldID, dragCorrelationFunction, viscosity, selectDPMBodies);
@@ -824,9 +817,7 @@ int main(int argc, char** argv)
    {
       if (dist == Distribution::DNearestNeighbor)
       {
-         typedef pe_coupling::discrete_particle_methods::InteractionForceEvaluator<
-            FlagField_T, field::KernelFieldInterpolator, field::NearestNeighborDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::InteractionForceEvaluator<FlagField_T, field::KernelFieldInterpolator, field::NearestNeighborDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr = make_shared< IFE_T >(
             blocks, dragForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, velocityFieldID, svfFieldID,
             pressureGradientFieldID, dragCorrelationFunction, viscosity, selectDPMBodies);
@@ -834,9 +825,7 @@ int main(int argc, char** argv)
       }
       else if (dist == Distribution::DKernel)
       {
-         typedef pe_coupling::discrete_particle_methods::InteractionForceEvaluator<
-            FlagField_T, field::KernelFieldInterpolator, field::KernelDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::InteractionForceEvaluator<FlagField_T, field::KernelFieldInterpolator, field::KernelDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr = make_shared< IFE_T >(
             blocks, dragForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, velocityFieldID, svfFieldID,
             pressureGradientFieldID, dragCorrelationFunction, viscosity, selectDPMBodies);
@@ -850,9 +839,7 @@ int main(int argc, char** argv)
    {
       if (dist == Distribution::DNearestNeighbor)
       {
-         typedef pe_coupling::discrete_particle_methods::LiftForceEvaluator<
-            FlagField_T, field::NearestNeighborFieldInterpolator, field::NearestNeighborDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::LiftForceEvaluator<FlagField_T, field::NearestNeighborFieldInterpolator, field::NearestNeighborDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr =
             make_shared< IFE_T >(blocks, liftForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, velocityFieldID,
                                  velocityCurlFieldID, liftCorrelationFunction, viscosity, selectDPMBodies);
@@ -860,9 +847,7 @@ int main(int argc, char** argv)
       }
       else if (dist == Distribution::DKernel)
       {
-         typedef pe_coupling::discrete_particle_methods::LiftForceEvaluator<
-            FlagField_T, field::NearestNeighborFieldInterpolator, field::KernelDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::LiftForceEvaluator<FlagField_T, field::NearestNeighborFieldInterpolator, field::KernelDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr =
             make_shared< IFE_T >(blocks, liftForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, velocityFieldID,
                                  velocityCurlFieldID, liftCorrelationFunction, viscosity, selectDPMBodies);
@@ -873,9 +858,7 @@ int main(int argc, char** argv)
    {
       if (dist == Distribution::DNearestNeighbor)
       {
-         typedef pe_coupling::discrete_particle_methods::LiftForceEvaluator<
-            FlagField_T, field::KernelFieldInterpolator, field::NearestNeighborDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::LiftForceEvaluator<FlagField_T, field::KernelFieldInterpolator, field::NearestNeighborDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr =
             make_shared< IFE_T >(blocks, liftForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, velocityFieldID,
                                  velocityCurlFieldID, liftCorrelationFunction, viscosity, selectDPMBodies);
@@ -883,9 +866,7 @@ int main(int argc, char** argv)
       }
       else if (dist == Distribution::DKernel)
       {
-         typedef pe_coupling::discrete_particle_methods::LiftForceEvaluator<
-            FlagField_T, field::KernelFieldInterpolator, field::KernelDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::LiftForceEvaluator<FlagField_T, field::KernelFieldInterpolator, field::KernelDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr =
             make_shared< IFE_T >(blocks, liftForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, velocityFieldID,
                                  velocityCurlFieldID, liftCorrelationFunction, viscosity, selectDPMBodies);
@@ -899,9 +880,7 @@ int main(int argc, char** argv)
    {
       if (dist == Distribution::DNearestNeighbor)
       {
-         typedef pe_coupling::discrete_particle_methods::AddedMassForceEvaluator<
-            FlagField_T, field::NearestNeighborFieldInterpolator, field::NearestNeighborDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::AddedMassForceEvaluator<FlagField_T, field::NearestNeighborFieldInterpolator, field::NearestNeighborDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr = make_shared< IFE_T >(
             blocks, amForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, timeDerivativeVelocityFieldID,
             addedMassCorrelationFunction, bodyVelocityTimeDerivativeEvaluator, selectDPMBodies);
@@ -909,9 +888,7 @@ int main(int argc, char** argv)
       }
       else if (dist == Distribution::DKernel)
       {
-         typedef pe_coupling::discrete_particle_methods::AddedMassForceEvaluator<
-            FlagField_T, field::NearestNeighborFieldInterpolator, field::KernelDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::AddedMassForceEvaluator<FlagField_T, field::NearestNeighborFieldInterpolator, field::KernelDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr = make_shared< IFE_T >(
             blocks, amForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, timeDerivativeVelocityFieldID,
             addedMassCorrelationFunction, bodyVelocityTimeDerivativeEvaluator, selectDPMBodies);
@@ -922,9 +899,7 @@ int main(int argc, char** argv)
    {
       if (dist == Distribution::DNearestNeighbor)
       {
-         typedef pe_coupling::discrete_particle_methods::AddedMassForceEvaluator<
-            FlagField_T, field::KernelFieldInterpolator, field::NearestNeighborDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::AddedMassForceEvaluator<FlagField_T, field::KernelFieldInterpolator, field::NearestNeighborDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr = make_shared< IFE_T >(
             blocks, amForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, timeDerivativeVelocityFieldID,
             addedMassCorrelationFunction, bodyVelocityTimeDerivativeEvaluator, selectDPMBodies);
@@ -932,9 +907,7 @@ int main(int argc, char** argv)
       }
       else if (dist == Distribution::DKernel)
       {
-         typedef pe_coupling::discrete_particle_methods::AddedMassForceEvaluator<
-            FlagField_T, field::KernelFieldInterpolator, field::KernelDistributor >
-            IFE_T;
+         using IFE_T = pe_coupling::discrete_particle_methods::AddedMassForceEvaluator<FlagField_T, field::KernelFieldInterpolator, field::KernelDistributor>;
          shared_ptr< IFE_T > forceEvaluatorPtr = make_shared< IFE_T >(
             blocks, amForceFieldID, bodyStorageID, flagFieldID, Fluid_Flag, timeDerivativeVelocityFieldID,
             addedMassCorrelationFunction, bodyVelocityTimeDerivativeEvaluator, selectDPMBodies);
@@ -1219,9 +1192,7 @@ int main(int argc, char** argv)
 
       // sweep for restoring PDFs in cells previously occupied by pe bodies
       pe_coupling::SphereNormalExtrapolationDirectionFinder extrapolationFinder(blocks, bodyFieldID);
-      typedef pe_coupling::ExtrapolationReconstructor< LatticeModel_T, BoundaryHandling_T,
-                                                       pe_coupling::SphereNormalExtrapolationDirectionFinder >
-         Reconstructor_T;
+      using Reconstructor_T = pe_coupling::ExtrapolationReconstructor<LatticeModel_T, BoundaryHandling_T, pe_coupling::SphereNormalExtrapolationDirectionFinder>;
       Reconstructor_T reconstructor(blocks, boundaryHandlingID, bodyFieldID, extrapolationFinder, true);
 
       timeloop.add() << Sweep(pe_coupling::PDFReconstruction< LatticeModel_T, BoundaryHandling_T, Reconstructor_T >(

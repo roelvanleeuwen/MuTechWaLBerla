@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file   ExplicitEuler.cpp
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -66,8 +66,10 @@ int main( int argc, char ** argv )
    accessor.setAngularVelocity( 0, angVel);
    accessor.setForce(           0, force);
    accessor.setTorque(          0, torque);
-   accessor.setInvMass(         0, real_t(1.23456));
-   accessor.setInvInertiaBF(    0, Mat3(real_t(1.23456), real_t(0), real_t(0), real_t(0), real_t(1.23456), real_t(0), real_t(0), real_t(0), real_t(1.23456)));
+   accessor.setInvMass(         0, 1.23456_r);
+   accessor.setInvInertiaBF(    0, Mat3(1.23456_r, 0_r, 0_r,
+                                        0_r, 1.23456_r, 0_r,
+                                        0_r, 0_r, 1.23456_r ));
 
    //init kernels
    const real_t dt = real_t(1);
@@ -83,12 +85,16 @@ int main( int argc, char ** argv )
    WALBERLA_CHECK_FLOAT_EQUAL(accessor.getTorque(0), Vec3(0));
 
    //check velocity
-   WALBERLA_CHECK_FLOAT_EQUAL(accessor.getLinearVelocity(0), force * accessor.getInvMass(0) * dt + linVel);
+   WALBERLA_CHECK_FLOAT_EQUAL(accessor.getLinearVelocity(0), force * accessor.getInvMass(0) * dt +
+                                                             linVel);
    WALBERLA_CHECK_FLOAT_EQUAL(accessor.getAngularVelocity(0), wdot * dt + angVel);
 
    //check position
-   WALBERLA_CHECK_FLOAT_EQUAL(accessor.getPosition(0), linVel * dt + force * accessor.getInvMass(0) * dt * dt);
-   WALBERLA_CHECK_FLOAT_EQUAL(accessor.getRotation(0).getQuaternion(), Quat( (wdot * dt + angVel).getNormalized(), (wdot * dt + angVel).length() * dt ));
+   WALBERLA_CHECK_FLOAT_EQUAL(accessor.getPosition(0), linVel * dt +
+                                                       0.5_r * force * accessor.getInvMass(0) * dt * dt);
+   WALBERLA_CHECK_FLOAT_EQUAL(accessor.getRotation(0).getQuaternion(),
+                              Quat( (wdot * dt + angVel).getNormalized(),
+                                    (0.5_r * wdot * dt + angVel).length() * dt ));
 
    accessor.setPosition(        0, Vec3(0,0,0));
    accessor.setRotation(        0, Rot3(Quat()));
@@ -96,8 +102,10 @@ int main( int argc, char ** argv )
    accessor.setAngularVelocity( 0, angVel);
    accessor.setForce(           0, force);
    accessor.setTorque(          0, torque);
-   accessor.setInvMass(         0, real_t(1.23456));
-   accessor.setInvInertiaBF(    0, Mat3(real_t(1.23456), real_t(0), real_t(0), real_t(0), real_t(1.23456), real_t(0), real_t(0), real_t(0), real_t(1.23456)));
+   accessor.setInvMass(         0, 1.23456_r);
+   accessor.setInvInertiaBF(    0, Mat3(1.23456_r, 0_r, 0_r,
+                                           0_r, 1.23456_r, 0_r,
+                                           0_r, 0_r, 1.23456_r ));
    data::particle_flags::set( accessor.getFlagsRef(0), data::particle_flags::FIXED );
 
    integrator(0, accessor);

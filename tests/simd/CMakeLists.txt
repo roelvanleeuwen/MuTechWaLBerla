@@ -8,12 +8,8 @@
 
 # builds the test
 
-if ( CMAKE_COMPILER_IS_GNUCXX )
-   if( CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.7.0" )
-      set( MarchNativeString "" )
-   else()
-      set( MarchNativeString "-march=native" )
-   endif()
+if ( WALBERLA_CXX_COMPILER_IS_GNU OR (WALBERLA_CXX_COMPILER_IS_CLANG AND (NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR NOT CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64")) )
+  set( MarchNativeString "-march=native" )
 endif()
 
 waLBerla_compile_test( NAME   AVX2_AVX_Equivalence FILES SIMD_Equivalence.cpp  )
@@ -38,9 +34,3 @@ waLBerla_execute_test( NAME   SSE4_SSE2_Equivalence )
 waLBerla_compile_test( NAME   AVX_Scalar_Equivalence FILES SIMD_Equivalence.cpp  )
 set_property         ( TARGET AVX_Scalar_Equivalence PROPERTY COMPILE_FLAGS "${MarchNativeString} -DIS0_AVX -DIS1_SCALAR" )
 waLBerla_execute_test( NAME   AVX_Scalar_Equivalence )
-
-
-waLBerla_compile_test( NAME   QPX_Scalar_Equivalence FILE SIMD_Equivalence.cpp  )
-set_property         ( TARGET QPX_Scalar_Equivalence PROPERTY COMPILE_FLAGS "-DIS0_QPX -DIS1_SCALAR" )
-waLBerla_execute_test( NAME   QPX_Scalar_Equivalence )
-

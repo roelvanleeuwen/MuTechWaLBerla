@@ -85,9 +85,9 @@ template< typename T >
 class Set {
 
 public:
-   typedef typename std::set<T>::value_type     value_type;
-   typedef typename std::set<T>::const_iterator const_iterator;
-   typedef typename std::set<T>::iterator       iterator;
+   using value_type = typename std::set<T>::value_type;
+   using const_iterator = typename std::set<T>::const_iterator;
+   using iterator = typename std::set<T>::iterator;
 
    friend inline Set<T> operator&( const Set& a, const Set& b ) { return setIntersection(a,b); } ///< intersection
    friend inline Set<T> operator+( const Set& a, const Set& b ) { return setUnion       (a,b); } ///< union
@@ -96,12 +96,12 @@ public:
    friend inline bool operator==( const Set& a, const Set& b ) { return  setIsEqual(a,b); } ///< compares the content of two sets
    friend inline bool operator!=( const Set& a, const Set& b ) { return !setIsEqual(a,b); } ///< compares the content of two sets
 
-   inline Set() {}
+   inline Set() = default;
    inline Set( const T& element ) { set_.insert( element ); }
 
-   inline virtual ~Set() {}
+   inline virtual ~Set() = default;
 
-   static const Set<T>& emptySet() { static Set set; return set; }
+   static const Set<T> emptySet() { return {}; }
 
    inline std::pair<iterator,bool> insert( const T& element )                    { return set_.insert( element ); }
    inline iterator                 insert( iterator position, const T& element ) { return set_.insert( position, element ); }

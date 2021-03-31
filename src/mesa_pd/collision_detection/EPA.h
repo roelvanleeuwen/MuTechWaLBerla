@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file EPA.h
+//! \file
 //! \author Tobias Scharpff
 //! \author Tobias Leemann
 //
@@ -48,9 +48,9 @@ private :
    class EPA_Triangle;
    class EPA_TriangleComp;
 
-   typedef std::vector<EPA_Triangle>  EPA_EntryBuffer;
-   typedef std::vector<EPA_Triangle*> EPA_EntryHeap;
-   typedef std::vector<EPA_Edge>      EPA_EdgeBuffer;
+   using EPA_EntryBuffer = std::vector<EPA_Triangle>;
+   using EPA_EntryHeap = std::vector<EPA_Triangle *>;
+   using EPA_EdgeBuffer = std::vector<EPA_Edge>;
    //**********************************************************************************************
 
 public:

@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file VelocityVerlet.h
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -40,6 +40,8 @@ namespace kernel {
  * called before the force calculation and postFroceUpdate afterwards. The
  * integration is only complete when both functions are called. The integration
  * is symplectic.
+ *
+ * Wachs, A. Particle-scale computational approaches to model dry and saturated granular flows of non-Brownian, non-cohesive, and non-spherical rigid bodies. Acta Mech 230, 1919–1980 (2019). https://doi.org/10.1007/s00707-019-02389-9
  *
  * This kernel requires the following particle accessor interface
  * \code
