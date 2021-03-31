@@ -496,13 +496,6 @@ else()
    endif()
 endif()
 
-if (WALBERLA_BUILD_WITH_CUDA AND (CUDA_VERSION VERSION_LESS "11.0" OR CMAKE_VERSION VERSION_LESS 3.18.0))
-   # CUDA < 11 does not support C++17. std::experimental::any works with C++14, unlike std::any.
-   set(CMAKE_CUDA_STANDARD 14)
-   set(WALBERLA_USE_STD_EXPERIMENTAL_ANY 1)
-endif()
-
-
 ############################################################################################################################
 ##
 ##  Visual Studio Setup
@@ -1063,6 +1056,12 @@ endif ( )
 # old nvcc compilers and newer stdlibc++ are incompatible. This needs to be checked!
 if (WALBERLA_STL_BOUNDS_CHECKS AND WALBERLA_BUILD_WITH_CODEGEN AND WALBERLA_BUILD_WITH_CUDA AND CMAKE_CUDA_COMPILER_VERSION VERSION_LESS "11.0" AND WALBERLA_CXX_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9.0")
     message(FATAL_ERROR "WALBERLA_STL_BOUNDS_CHECKS is not compatible with your CUDA compiler")
+endif()
+
+if (WALBERLA_BUILD_WITH_CUDA AND (CMAKE_CUDA_COMPILER_VERSION VERSION_LESS "11.0" OR CMAKE_VERSION VERSION_LESS 3.18.0))
+    # CUDA < 11 does not support C++17. std::experimental::any works with C++14, unlike std::any.
+    set(CMAKE_CUDA_STANDARD 14)
+    set(WALBERLA_USE_STD_EXPERIMENTAL_ANY 1)
 endif()
 ############################################################################################################################
 
