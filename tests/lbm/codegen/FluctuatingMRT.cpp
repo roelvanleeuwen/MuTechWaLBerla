@@ -120,7 +120,7 @@ int main( int argc, char ** argv )
    {
       auto v   = block->getData< lbm::Adaptor< LatticeModel_T >::VelocityVector >(velocityAdaptorId);
       auto rho = block->getData< lbm::Adaptor< LatticeModel_T >::Density >(densityAdaptorId);
-      WALBERLA_FOR_ALL_CELLS_XYZ(v, {
+      WALBERLA_FOR_ALL_CELLS_XYZ_OMP(v, omp critical, {
          momentum += rho->get(x, y, z) * v->get(x, y, z);
          count++;
       });
