@@ -24,7 +24,6 @@ params = {'stencil': stencil,
           'method': 'cumulant',
           'relaxation_rate': omega,
           'equilibrium_order': 2,
-          'cumulant': True,
           'maxwellian_moments': True,
           'compressible': True,
           }
