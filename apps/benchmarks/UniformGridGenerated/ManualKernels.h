@@ -37,7 +37,7 @@ public:
                     }
 
                     // collide
-                    const real_t vel_sqr = u.sqrLength() * 1.5;
+                    const real_t vel_sqr = u.sqrLength() * real_t(1.5);
                     for( auto d = LM::Stencil::begin(); d != LM::Stencil::end(); ++d )
                     {
                         const real_t pdf = src->get(x - d.cx(), y - d.cy(), z - d.cz(), d.toIdx());
@@ -166,7 +166,7 @@ public:
             dst->get(x,y,z,Stencil::idx[TN]) = omega_trm_ * dd_tmp_TN + omega_w2_ * ( vel_trm_TN_BS + velYpZ );
             dst->get(x,y,z,Stencil::idx[BS]) = omega_trm_ * dd_tmp_BS + omega_w2_ * ( vel_trm_TN_BS - velYpZ );
 
-        });
+        })
         src->swapDataPointers(*dst);
     }
 
