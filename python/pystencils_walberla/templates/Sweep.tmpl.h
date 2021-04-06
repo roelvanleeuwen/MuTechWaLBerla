@@ -61,32 +61,36 @@ public:
 
     {{ kernel| generate_destructor(class_name) |indent(4) }}
 
-    void operator() ( IBlock * block{%if target is equalto 'gpu'%} , cudaStream_t stream = nullptr{% endif %} );
+    void operator() ( IBlock * block{{kernel|generate_selection_argument_list(prepend=', ')}}{%if target is equalto 'gpu'%} , cudaStream_t stream = nullptr{% endif %} );
     void runOnCellInterval(const shared_ptr<StructuredBlockStorage> & blocks,
                            const CellInterval & globalCellInterval, cell_idx_t ghostLayers, IBlock * block
-                           {%if target is equalto 'gpu'%} , cudaStream_t stream = nullptr{% endif %});
+                           {{kernel|generate_selection_argument_list(prepend=', ')}} {%if target is equalto 'gpu'%} , cudaStream_t stream = nullptr{% endif %});
 
 
 
-    static std::function<void (IBlock*)> getSweep(const shared_ptr<{{class_name}}> & kernel) {
-        return [kernel](IBlock * b) { (*kernel)(b); };
+    static std::function<void (IBlock*)> getSweep(const shared_ptr<{{class_name}}> & kernel{{kernel|generate_selection_argument_list(prepend=', ')}}) {
+        return [kernel{{kernel|generate_selection_call_arguments(prepend=', ')}}]
+               (IBlock * b) { 
+            (*kernel)(b{{kernel|generate_selection_call_arguments(prepend=', ')}}); 
+        };
     }
 
     static std::function<void (IBlock*{%if target is equalto 'gpu'%} , cudaStream_t {% endif %})>
             getSweepOnCellInterval(const shared_ptr<{{class_name}}> & kernel,
                                    const shared_ptr<StructuredBlockStorage> & blocks,
-                                   const CellInterval & globalCellInterval,
-                                   cell_idx_t ghostLayers=1 )
+                                   const CellInterval & globalCellInterval
+                                   {{kernel|generate_selection_argument_list(prepend=', ')}}, cell_idx_t ghostLayers=1)
     {
-        return [kernel, blocks, globalCellInterval, ghostLayers] (IBlock * b{%if target is equalto 'gpu'%} , cudaStream_t stream = nullptr{% endif %}) {
-            kernel->runOnCellInterval(blocks, globalCellInterval, ghostLayers, b{%if target is equalto 'gpu'%}, stream {% endif %});
+        return [kernel, blocks, globalCellInterval, ghostLayers{{kernel|generate_selection_call_arguments(prepend=', ')}}] 
+               (IBlock * b{%if target is equalto 'gpu'%} , cudaStream_t stream = nullptr{% endif %}) {
+            kernel->runOnCellInterval(blocks, globalCellInterval, ghostLayers, b {{kernel|generate_selection_call_arguments(prepend=', ')}}{%if target is equalto 'gpu'%}, stream {% endif %});
         };
     }
 
 {% if inner_outer_split %}
 
-    void inner( IBlock * block{%if target is equalto 'gpu'%} , cudaStream_t stream = nullptr{% endif %} );
-    void outer( IBlock * block{%if target is equalto 'gpu'%} , cudaStream_t stream = nullptr{% endif %} );
+    void inner( IBlock * block {{kernel|generate_selection_argument_list(prepend=', ')}} {%if target is equalto 'gpu'%} , cudaStream_t stream = nullptr{% endif %} );
+    void outer( IBlock * block {{kernel|generate_selection_argument_list(prepend=', ')}} {%if target is equalto 'gpu'%} , cudaStream_t stream = nullptr{% endif %} );
 
     void setOuterPriority(int priority ) {
        {%if target is equalto 'gpu'%}

@@ -2,12 +2,9 @@ import jinja2
 import sympy as sp
 # import re
 
-from pystencils import TypedSymbol
 from pystencils.backends.cbackend import generate_c
-from pystencils.backends.cuda_backend import CudaSympyPrinter
 from pystencils.data_types import get_base_type
 from pystencils.field import FieldType
-from pystencils.kernelparameters import SHAPE_DTYPE
 from pystencils.sympyextensions import prod
 
 temporary_fieldMemberTemplate = """
@@ -96,7 +93,7 @@ def generate_declarations(kernel_family, target='cpu'):
     declarations = []
     for ast in kernel_family.all_asts:
         code = generate_c(ast, signature_only=True, dialect='cuda' if target == 'gpu' else 'c') + ";"
-        code = "namespace internal_%s {\n%s\n}" % (ast.function_name, code,)
+        code = "namespace internal_%s {\n%s\n}\n" % (ast.function_name, code,)
         declarations.append(code)
     return "\n".join(declarations)
 
@@ -105,7 +102,7 @@ def generate_definitions(kernel_family, target='cpu'):
     definitions = []
     for ast in kernel_family.all_asts:
         code = generate_c(ast, dialect='cuda' if target == 'gpu' else 'c')
-        code = "namespace internal_%s {\nstatic %s\n}" % (ast.function_name, code)
+        code = "namespace internal_%s {\nstatic %s\n}\n" % (ast.function_name, code)
         definitions.append(code)
     return "\n".join(definitions)
 
@@ -218,7 +215,6 @@ def generate_call(ctx, kernel_info, ghost_layers_to_include=0, cell_interval=Non
     """
     assert isinstance(ghost_layers_to_include, str) or ghost_layers_to_include >= 0
     ast_params = kernel_info.parameters
-    is_cpu = ctx['target'] == 'cpu'
 
     ghost_layers_to_include = sp.sympify(ghost_layers_to_include)
     if kernel_info.ghost_layers is None:
@@ -287,32 +283,9 @@ def generate_call(ctx, kernel_info, ghost_layers_to_include=0, cell_interval=Non
             if kernel_info.assumed_inner_stride_one and field.index_dimensions > 0:
                 kernel_call_lines.append("WALBERLA_ASSERT_EQUAL(%s->layout(), field::fzyx);" % (field.name,))
 
-    call_parameters = ", ".join([p.symbol.name for p in ast_params])
+    kernel_call_lines.append(kernel_info.kernel_selection_tree.get_code(stream=stream,
+                                                                        spatial_shape_symbols=spatial_shape_symbols))
 
-    kernel_call_lines += kernel_info.kernel_selection_tree.get_code(stream=stream,
-                                                                    spatial_shape_symbols=spatial_shape_symbols)
-    
-    # if not is_cpu:
-    #     if not spatial_shape_symbols:
-    #         spatial_shape_symbols = [p.symbol for p in ast_params if p.is_field_shape]
-    #         spatial_shape_symbols.sort(key=lambda e: e.coordinate)
-    #     else:
-    #         spatial_shape_symbols = [TypedSymbol(s, SHAPE_DTYPE) for s in spatial_shape_symbols]
-
-    #     assert spatial_shape_symbols, "No shape parameters in kernel function arguments.\n"\
-    #         "Please be only use kernels for generic field sizes!"
-
-    #     indexing_dict = ast.indexing.call_parameters(spatial_shape_symbols)
-    #     sp_printer_c = CudaSympyPrinter()
-    #     kernel_call_lines += [
-    #         "dim3 _block(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e) for e in indexing_dict['block']),
-    #         "dim3 _grid(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e) for e in indexing_dict['grid']),
-    #         "internal_%s::%s<<<_grid, _block, 0, %s>>>(%s);" % (ast.function_name, ast.function_name,
-    #                                                             stream, call_parameters),
-    #     ]
-    # else:
-    #     kernel_call_lines.append("internal_%s::%s(%s);" % (ast.function_name, ast.function_name, call_parameters))
-    
     return "\n".join(kernel_call_lines)
 
 
@@ -431,6 +404,20 @@ def nested_class_method_definition_prefix(ctx, nested_class_name):
         return outer_class + '::' + nested_class_name
 
 
+def generate_selection_argument_list(kernel_family, prepend=''):
+    symbols = kernel_family.kernel_selection_parameters
+    parameter_list = []
+    for s in symbols:
+        parameter_list.append(f"{s.dtype} {s.name}")
+    return prepend + ", ".join(parameter_list)
+
+
+def generate_selection_call_arguments(kernel_family, prepend=''):
+    symbols = kernel_family.kernel_selection_parameters
+    parameter_list = [s.name for s in symbols]
+    return prepend + ", ".join(parameter_list)
+
+
 def add_pystencils_filters_to_jinja_env(jinja_env):
     jinja_env.filters['generate_definition'] = generate_definition
     jinja_env.filters['generate_declaration'] = generate_declaration
@@ -446,3 +433,5 @@ def add_pystencils_filters_to_jinja_env(jinja_env):
     jinja_env.filters['generate_refs_for_kernel_parameters'] = generate_refs_for_kernel_parameters
     jinja_env.filters['generate_destructor'] = generate_destructor
     jinja_env.filters['nested_class_method_definition_prefix'] = nested_class_method_definition_prefix
+    jinja_env.filters['generate_selection_argument_list'] = generate_selection_argument_list
+    jinja_env.filters['generate_selection_call_arguments'] = generate_selection_call_arguments

@@ -1,9 +1,11 @@
 from functools import reduce
 from jinja2.filters import do_indent
 from pystencils import TypedSymbol
+from pystencils.backends.cbackend import get_headers
 from pystencils.backends.cuda_backend import CudaSympyPrinter
+from pystencils.kernelparameters import SHAPE_DTYPE
 
-# ---------------------------------- Selection Tree --------------------------------------------------------------------------
+# ---------------------------------- Selection Tree --------------------------------------------------------------------
 
 
 class AbstractKernelSelectionNode:
@@ -12,7 +14,7 @@ class AbstractKernelSelectionNode:
         self.branch_false = branch_false
 
     @property
-    def symbols(self):
+    def selection_parameters(self):
         return self.branch_true.symbols + self.branch_false.symbols
 
     @property
@@ -74,8 +76,10 @@ class KernelCallNode(AbstractKernelSelectionNode):
             indexing_dict = ast.indexing.call_parameters(spatial_shape_symbols)
             sp_printer_c = CudaSympyPrinter()
             kernel_call_lines = [
-                "dim3 _block(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e) for e in indexing_dict['block']),
-                "dim3 _grid(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e) for e in indexing_dict['grid']),
+                "dim3 _block(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e)
+                                                                  for e in indexing_dict['block']),
+                "dim3 _grid(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e)
+                                                                 for e in indexing_dict['grid']),
                 "internal_%s::%s<<<_grid, _block, 0, %s>>>(%s);" % (ast.function_name, ast.function_name,
                                                                     stream, call_parameters),
             ]
@@ -90,24 +94,28 @@ class BooleanParameterSelectionNode(AbstractKernelSelectionNode):
                  parameter_name: str,
                  branch_true: AbstractKernelSelectionNode,
                  branch_false: AbstractKernelSelectionNode):
-        self.symbol = TypedSymbol(parameter_name, bool)
+        self.parameter_symbol = TypedSymbol(parameter_name, bool)
         super(BooleanParameterSelectionNode, self).__init__(branch_true, branch_false)
 
     @property
-    def symbols(self):
-        return [self.symbol]
+    def selection_parameters(self):
+        return [self.parameter_symbol]
 
     @property
     def condition_text(self):
-        return self.symbol.name
+        return self.parameter_symbol.name
 
 
-# ---------------------------------- Kernel Info --------------------------------------------------------------------------
+# ---------------------------------- Kernel Info -----------------------------------------------------------------------
 
 
 class KernelFamily:
-    def __init__(self, kernel_selection_tree: AbstractKernelSelectionNode, temporary_fields=(), field_swaps=(), varying_parameters=(), assumed_inner_stride_one=False):
+    def __init__(self, kernel_selection_tree: AbstractKernelSelectionNode,
+                 class_name: str,
+                 temporary_fields=(), field_swaps=(), varying_parameters=(),
+                 assumed_inner_stride_one=False):
         self.kernel_selection_tree = kernel_selection_tree
+        self.kernel_selection_parameters = kernel_selection_tree.selection_parameters
         self.temporary_fields = tuple(temporary_fields)
         self.field_swaps = tuple(field_swaps)
         self.varying_parameters = tuple(varying_parameters)
@@ -117,20 +125,39 @@ class KernelFamily:
         all_param_lists = [k.parameters for k in all_kernel_calls]
         self.all_asts = [k.ast for k in all_kernel_calls]
 
+        #   Check function names for uniqueness and reformat them
+        #   using the class name
+        function_names = [ast.function_name.lower() for ast in self.all_asts]
+        unique_names = set(function_names)
+        if len(unique_names) < len(function_names):
+            raise ValueError('Function names of kernel family members must be unique!')
+
+        prefix = class_name.lower()
+        for ast in self.all_asts:
+            ast.function_name = prefix + '_' + ast.function_name
+
         all_fields = [k.ast.fields_accessed for k in all_kernel_calls]
 
         #   Collect function parameters and accessed fields
         self.parameters = merge_lists_of_symbols(all_param_lists)
         self.fields_accessed = reduce(lambda x, y: x | y, all_fields)
 
-        #   Collect Ghost Layers
-        self.ghost_layers = all_asts[0].ghost_layers
-        
-        for ast in all_asts:
+        #   Collect Ghost Layers and target
+        self.ghost_layers = self.all_asts[0].ghost_layers
+        self.target = self.all_asts[0].target
+
+        for ast in self.all_asts:
             if ast.ghost_layers != self.ghost_layers:
                 raise ValueError(
                     f'Inconsistency in kernel family: Member ghost_layers was different in {ast}!')
 
+            if ast.target != self.target:
+                raise ValueError(
+                    f'Inconsistency in kernel family: Member target was different in {ast}!')
+
+    def get_headers(self):
+        all_headers = [get_headers(ast) for ast in self.all_asts]
+        return reduce(merge_sorted_lists, all_headers)
 
 # ---------------------------------- Helpers --------------------------------------------------------------------------
 

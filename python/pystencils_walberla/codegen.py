@@ -12,7 +12,7 @@ from pystencils.backends.cbackend import get_headers
 from pystencils.backends.simd_instruction_sets import get_supported_instruction_sets
 from pystencils.stencil import inverse_direction, offset_to_direction_string
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
-from pystencils_walberla.kernel_selection import KernelFamily
+from pystencils_walberla.kernel_selection import KernelCallNode, KernelFamily
 
 __all__ = ['generate_sweep', 'generate_pack_info', 'generate_pack_info_for_field', 'generate_pack_info_from_kernel',
            'generate_mpidtype_info_from_kernel', 'default_create_kernel_parameters', 'KernelInfo',
@@ -51,47 +51,69 @@ def generate_sweep(generation_context, class_name, assignments,
     """
     create_kernel_params = default_create_kernel_parameters(generation_context, create_kernel_params)
 
-    if not generation_context.cuda and create_kernel_params['target'] == 'gpu':
+    target = create_kernel_params['target']
+    if not generation_context.cuda and target == 'gpu':
         return
 
     if isinstance(assignments, KernelFunction):
         ast = assignments
-        create_kernel_params['target'] = ast.target
+        target = ast.target
     elif not staggered:
         ast = create_kernel(assignments, **create_kernel_params)
     else:
         ast = create_staggered_kernel(assignments, **create_kernel_params)
-    ast.assumed_inner_stride_one = create_kernel_params['cpu_vectorize_info']['assume_inner_stride_one']
 
+    ast.function_name = class_name.lower()
+
+    selection_tree = KernelCallNode(ast)
+    assumed_inner_stride_one = create_kernel_params['cpu_vectorize_info']['assume_inner_stride_one']
+    generate_selective_sweep(generation_context, class_name, selection_tree, target=target, namespace=namespace,
+                             field_swaps=field_swaps, staggered=staggered, varying_parameters=varying_parameters,
+                             inner_outer_split=inner_outer_split, ghost_layers_to_include=ghost_layers_to_include,
+                             assumed_inner_stride_one=assumed_inner_stride_one)
+
+
+def generate_selective_sweep(generation_context, class_name, selection_tree, target=None,
+                             namespace='pystencils', field_swaps=(), staggered=False, varying_parameters=(),
+                             inner_outer_split=False, ghost_layers_to_include=0, assumed_inner_stride_one=False):
     def to_name(f):
         return f.name if isinstance(f, Field) else f
 
     field_swaps = tuple((to_name(e[0]), to_name(e[1])) for e in field_swaps)
     temporary_fields = tuple(e[1] for e in field_swaps)
 
-    ast.function_name = class_name.lower()
+    kernel_family = KernelFamily(selection_tree, class_name,
+                                 temporary_fields, field_swaps, varying_parameters,
+                                 assumed_inner_stride_one=assumed_inner_stride_one)
+
+    if target is None:
+        target = kernel_family.target
+    elif target != kernel_family.target:
+        raise ValueError('Mismatch between target parameter and AST targets.')
+
+    if not generation_context.cuda and target == 'gpu':
+        return
+
+    representative_field = {p.field_name for p in kernel_family.parameters if p.is_field_parameter}
+    representative_field = sorted(representative_field)[0]
 
     env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)
     add_pystencils_filters_to_jinja_env(env)
 
-    main_kernel_info = KernelInfo(ast, temporary_fields, field_swaps, varying_parameters)
-    representative_field = {p.field_name for p in main_kernel_info.parameters if p.is_field_parameter}
-    representative_field = sorted(representative_field)[0]
-
     jinja_context = {
-        'kernel': main_kernel_info,
+        'kernel': kernel_family,
         'namespace': namespace,
         'class_name': class_name,
-        'target': create_kernel_params.get("target", "cpu"),
+        'target': target,
         'field': representative_field,
-        'headers': get_headers(ast),
+        'headers': kernel_family.get_headers(),
         'ghost_layers_to_include': ghost_layers_to_include,
         'inner_outer_split': inner_outer_split
     }
     header = env.get_template("Sweep.tmpl.h").render(**jinja_context)
     source = env.get_template("Sweep.tmpl.cpp").render(**jinja_context)
 
-    source_extension = "cpp" if create_kernel_params.get("target", "cpu") == "cpu" else "cu"
+    source_extension = "cpp" if target == "cpu" else "cu"
     generation_context.write_file("{}.h".format(class_name), header)
     generation_context.write_file("{}.{}".format(class_name, source_extension), source)
 
