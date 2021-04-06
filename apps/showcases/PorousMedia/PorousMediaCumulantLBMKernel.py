@@ -23,7 +23,7 @@ optimizations = {'cse_global': True,
 params = {'stencil': stencil,
           'method': 'cumulant',
           'relaxation_rate': omega,
-          'equilibrium_order': 2, # default value: 4; value of 2 was used for simulations in a journal publication
+          'equilibrium_order': 4,
           'maxwellian_moments': True,
           'compressible': True,
           }
