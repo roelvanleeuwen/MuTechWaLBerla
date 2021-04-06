@@ -1,0 +1,97 @@
+import numpy as np
+from pystencils_walberla.codegen import generate_selective_sweep, get_vectorize_instruction_set
+from pystencils_walberla.kernel_selection import AbstractKernelSelectionNode, KernelCallNode
+from pystencils import TypedSymbol
+from lbmpy.creationfunctions import create_lb_ast
+from lbmpy.advanced_streaming import Timestep
+
+
+class EvenIntegerCondition(AbstractKernelSelectionNode):
+    def __init__(self,
+                 parameter_name: str,
+                 branch_true: AbstractKernelSelectionNode,
+                 branch_false: AbstractKernelSelectionNode,
+                 parameter_dtype=int):
+        self.parameter_symbol = TypedSymbol(parameter_name, parameter_dtype)
+        super(EvenIntegerCondition, self).__init__(branch_true, branch_false)
+
+    @property
+    def selection_parameters(self):
+        return [self.parameter_symbol]
+
+    @property
+    def condition_text(self):
+        return f"(({self.parameter_symbol.name} & 1) ^ 1)"
+
+
+class OddIntegerCondition(AbstractKernelSelectionNode):
+    def __init__(self,
+                 parameter_name: str,
+                 branch_true: AbstractKernelSelectionNode,
+                 branch_false: AbstractKernelSelectionNode,
+                 parameter_dtype=int):
+        self.parameter_symbol = TypedSymbol(parameter_name, parameter_dtype)
+        super(OddIntegerCondition, self).__init__(branch_true, branch_false)
+
+    @property
+    def selection_parameters(self):
+        return [self.parameter_symbol]
+
+    @property
+    def condition_text(self):
+        return f"({self.parameter_symbol.name} & 1)"
+
+
+def generate_alternating_lbm_sweep(generation_context, class_name, collision_rule, streaming_pattern,
+                                   namespace='lbmpy', field_swaps=(), varying_parameters=(),
+                                   inner_outer_split=False, ghost_layers_to_include=0, optimization={},
+                                   **create_ast_params):
+    optimization = default_lbm_optimization_parameters(generation_context, optimization)
+
+    target = optimization['target']
+    if not generation_context.cuda and target == 'gpu':
+        return
+
+    ast_even = create_lb_ast(collision_rule=collision_rule, streaming_pattern=streaming_pattern,
+                             timestep=Timestep.EVEN, optimization=optimization, **create_ast_params)
+    ast_even.function_name = 'even'
+    ast_odd = create_lb_ast(collision_rule=collision_rule, streaming_pattern=streaming_pattern,
+                            timestep=Timestep.ODD, optimization=optimization, **create_ast_params)
+    ast_odd.function_name = 'odd'
+
+    kernel_even = KernelCallNode(ast_even)
+    kernel_odd = KernelCallNode(ast_odd)
+    tree = EvenIntegerCondition('timestep', kernel_even, kernel_odd, np.uint8)
+    assumed_inner_stride_one = optimization['vectorization']['assume_inner_stride_one']
+
+    generate_selective_sweep(generation_context, class_name, tree, target=target, namespace=namespace,
+                             field_swaps=field_swaps, varying_parameters=varying_parameters,
+                             inner_outer_split=inner_outer_split, ghost_layers_to_include=ghost_layers_to_include,
+                             assumed_inner_stride_one=assumed_inner_stride_one)
+
+
+# ---------------------------------- Internal --------------------------------------------------------------------------
+
+
+def default_lbm_optimization_parameters(generation_context, params):
+
+    params['target'] = params.get('target', 'cpu')
+    params['double_precision'] = params.get('double_precision', generation_context.double_accuracy)
+    params['openmp'] = params.get('cpu_openmp', generation_context.openmp)
+    params['vectorization'] = params.get('vectorization', {})
+
+    if isinstance(params['vectorization'], bool):
+        do_vectorization = params['vectorization']
+        params['vectorization'] = dict()
+    else:
+        do_vectorization = True
+
+    vec = params['vectorization']
+    if isinstance(vec, dict):
+        default_vec_is = get_vectorize_instruction_set(generation_context) if do_vectorization else None
+
+        vec['instruction_set'] = vec.get('instruction_set', default_vec_is)
+        vec['assume_inner_stride_one'] = vec.get('assume_inner_stride_one', True)
+        vec['assume_aligned'] = vec.get('assume_aligned', False)
+        vec['nontemporal'] = vec.get('nontemporal', False)
+    return params

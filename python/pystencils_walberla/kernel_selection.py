@@ -89,13 +89,13 @@ class KernelCallNode(AbstractKernelSelectionNode):
             return f"internal_{ast.function_name}::{ast.function_name}({call_parameters});"
 
 
-class BooleanParameterSelectionNode(AbstractKernelSelectionNode):
+class SimpleBooleanCondition(AbstractKernelSelectionNode):
     def __init__(self,
                  parameter_name: str,
                  branch_true: AbstractKernelSelectionNode,
                  branch_false: AbstractKernelSelectionNode):
         self.parameter_symbol = TypedSymbol(parameter_name, bool)
-        super(BooleanParameterSelectionNode, self).__init__(branch_true, branch_false)
+        super(SimpleBooleanCondition, self).__init__(branch_true, branch_false)
 
     @property
     def selection_parameters(self):
