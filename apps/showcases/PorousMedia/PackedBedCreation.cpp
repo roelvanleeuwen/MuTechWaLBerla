@@ -23,7 +23,15 @@
 // rigid body dynamics. It must be given a parameter file as command-line argument, such as "PackedBedCreation.prm". The
 // resulting porous medium is periodic in two directions and the location of the spherical particles are written to a
 // file in which the particle positions are denoted relative to the particles' diameter.
+// In the simulation, the spherical particles fall into a "box" due to a gravitational acceleration. The box is periodic
+// in the side-directions (x- and y-directions) but bound by a solid plane at the bottom (in z-direction). The spheres
+// are initially generated on top of the domain in a structured order with slight random disturbances. Once the
+// particles have settled (according to their velocity), all particles with center point closer than three particle
+// diameters to the bottom plane are removed. This is intended to reduce the influence of the bottom plane on the
+// geometry creation of the packed bed. Finally, the packed bed is shifted upwards such that it is placed in the center
+// of the domain.
 //======================================================================================================================
+
 
 #include "blockforest/all.h"
 
@@ -105,19 +113,6 @@ struct Setup
 //////////
 // MAIN //
 //////////
-
-//**********************************************************************************************************************
-/*!
- * Rigid body dynamics simulation of spherical particles that are falling down into a "box". The box is periodic in the
- * side-directions (x- and y-directions) but bound by a solid plane at the bottom (in z-direction).
- * The spheres are initially generated on top of the domain in a structured order with slight random disturbances.
- * Due to a gravitational force, the particles fall into the semi-periodic box. Once the particles have settled
- * (according to their velocity), all particles with center point closer than 3 particle diameters to the bottom plane
- * are removed. This is intended to reduce the influence of the bottom plane on the geometry creation of the packed bed.
- * The packed bed is then shifted downwards until the lowest particle touches the bottom plane.
- * Finally, the packed bed is shifted upwards 5 particle diameters such that it is in the center of the domain.
- */
-//**********************************************************************************************************************
 
 int main(int argc, char** argv)
 {
