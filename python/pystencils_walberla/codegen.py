@@ -12,7 +12,7 @@ from pystencils.backends.cbackend import get_headers
 from pystencils.backends.simd_instruction_sets import get_supported_instruction_sets
 from pystencils.stencil import inverse_direction, offset_to_direction_string
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
-from pystencils_walberla.kernel_selection import KernelInfo, KernelFamily
+from pystencils_walberla.kernel_selection import KernelFamily
 
 __all__ = ['generate_sweep', 'generate_pack_info', 'generate_pack_info_for_field', 'generate_pack_info_from_kernel',
            'generate_mpidtype_info_from_kernel', 'default_create_kernel_parameters', 'KernelInfo',
@@ -316,6 +316,27 @@ def generate_mpidtype_info_from_kernel(generation_context, class_name: str,
 
 
 # ---------------------------------- Internal --------------------------------------------------------------------------
+
+
+class KernelInfo:
+    def __init__(self, ast, temporary_fields=(), field_swaps=(), varying_parameters=()):
+        self.ast = ast
+        self.temporary_fields = tuple(temporary_fields)
+        self.field_swaps = tuple(field_swaps)
+        self.varying_parameters = tuple(varying_parameters)
+        self.parameters = ast.get_parameters()  # cache parameters here
+
+    @property
+    def fields_accessed(self):
+        return self.ast.fields_accessed
+
+    @property
+    def ghost_layers(self):
+        return self.ast.ghost_layers
+
+    @property
+    def assumed_inner_stride_one(self):
+        return self.ast.assumed_inner_stride_one
 
 
 def get_vectorize_instruction_set(generation_context):

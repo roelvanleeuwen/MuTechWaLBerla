@@ -1,6 +1,7 @@
 from functools import reduce
 from jinja2.filters import do_indent
 from pystencils import TypedSymbol
+from pystencils.backends.cuda_backend import CudaSympyPrinter
 
 # ---------------------------------- Selection Tree --------------------------------------------------------------------------
 
@@ -22,9 +23,9 @@ class AbstractKernelSelectionNode:
     def all_kernel_calls(self):
         return self.branch_true.all_kernel_calls + self.branch_false.all_kernel_calls
 
-    def get_code(self):
-        true_branch_code = self.branch_true.get_code()
-        false_branch_code = self.branch_false.get_code()
+    def get_code(self, **kwargs):
+        true_branch_code = self.branch_true.get_code(**kwargs)
+        false_branch_code = self.branch_false.get_code(**kwargs)
 
         true_branch_code = do_indent(true_branch_code, width=4, indentfirst=True)
         false_branch_code = do_indent(false_branch_code, width=4, indentfirst=True)
@@ -38,11 +39,9 @@ class AbstractKernelSelectionNode:
 
 
 class KernelCallNode(AbstractKernelSelectionNode):
-    def __init__(self, ast, target='cpu', stream='0'):
-        self.target = target
+    def __init__(self, ast):
         self.ast = ast
         self.parameters = ast.get_parameters()  # cache parameters here
-        self.stream = stream
         super(KernelCallNode, self).__init__(None, None)
 
     @property
@@ -53,14 +52,35 @@ class KernelCallNode(AbstractKernelSelectionNode):
     def all_kernel_calls(self):
         return [self]
 
-    def get_code(self):
+    def get_code(self, **kwargs):
         ast = self.ast
         ast_params = self.parameters
-        is_cpu = self.target == 'cpu'
+        is_cpu = self.ast.target == 'cpu'
         call_parameters = ", ".join([p.symbol.name for p in ast_params])
 
         if not is_cpu:
-            return f"internal_{ast.function_name}::{ast.function_name}<<<_grid, _block, 0, {self.stream}>>>({call_parameters});"
+            stream = kwargs.get('stream', '0')
+            spatial_shape_symbols = kwargs.get('spatial_shape_symbols', ())
+
+            if not spatial_shape_symbols:
+                spatial_shape_symbols = [p.symbol for p in ast_params if p.is_field_shape]
+                spatial_shape_symbols.sort(key=lambda e: e.coordinate)
+            else:
+                spatial_shape_symbols = [TypedSymbol(s, SHAPE_DTYPE) for s in spatial_shape_symbols]
+
+            assert spatial_shape_symbols, "No shape parameters in kernel function arguments.\n"\
+                "Please be only use kernels for generic field sizes!"
+
+            indexing_dict = ast.indexing.call_parameters(spatial_shape_symbols)
+            sp_printer_c = CudaSympyPrinter()
+            kernel_call_lines = [
+                "dim3 _block(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e) for e in indexing_dict['block']),
+                "dim3 _grid(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e) for e in indexing_dict['grid']),
+                "internal_%s::%s<<<_grid, _block, 0, %s>>>(%s);" % (ast.function_name, ast.function_name,
+                                                                    stream, call_parameters),
+            ]
+
+            return "\n".join(kernel_call_lines)
         else:
             return f"internal_{ast.function_name}::{ast.function_name}({call_parameters});"
 
@@ -85,26 +105,31 @@ class BooleanParameterSelectionNode(AbstractKernelSelectionNode):
 # ---------------------------------- Kernel Info --------------------------------------------------------------------------
 
 
-class KernelInfo:
-    def __init__(self, ast, temporary_fields=(), field_swaps=(), varying_parameters=()):
-        self.ast = ast
-        self.temporary_fields = tuple(temporary_fields)
-        self.field_swaps = tuple(field_swaps)
-        self.varying_parameters = tuple(varying_parameters)
-        self.parameters = ast.get_parameters()  # cache parameters here
-
-
 class KernelFamily:
-    def __init__(self, kernel_selection_tree: AbstractKernelSelectionNode, temporary_fields=(), field_swaps=(), varying_parameters=()):
+    def __init__(self, kernel_selection_tree: AbstractKernelSelectionNode, temporary_fields=(), field_swaps=(), varying_parameters=(), assumed_inner_stride_one=False):
         self.kernel_selection_tree = kernel_selection_tree
         self.temporary_fields = tuple(temporary_fields)
         self.field_swaps = tuple(field_swaps)
         self.varying_parameters = tuple(varying_parameters)
+        self.assumed_inner_stride_one = assumed_inner_stride_one
+
         all_kernel_calls = self.kernel_selection_tree.all_kernel_calls
         all_param_lists = [k.parameters for k in all_kernel_calls]
-        def merger(lx, ly): return merge_sorted_lists(
-            lx, ly, sort_key=lambda x: x.symbol.name, identity_check_key=lambda x: x.symbol)
-        self.parameters = reduce(merger, all_param_lists)
+        self.all_asts = [k.ast for k in all_kernel_calls]
+
+        all_fields = [k.ast.fields_accessed for k in all_kernel_calls]
+
+        #   Collect function parameters and accessed fields
+        self.parameters = merge_lists_of_symbols(all_param_lists)
+        self.fields_accessed = reduce(lambda x, y: x | y, all_fields)
+
+        #   Collect Ghost Layers
+        self.ghost_layers = all_asts[0].ghost_layers
+        
+        for ast in all_asts:
+            if ast.ghost_layers != self.ghost_layers:
+                raise ValueError(
+                    f'Inconsistency in kernel family: Member ghost_layers was different in {ast}!')
 
 
 # ---------------------------------- Helpers --------------------------------------------------------------------------
@@ -135,3 +160,9 @@ def merge_sorted_lists(lx, ly, sort_key=lambda x: x, identity_check_key=None):
         else:
             return [y] + recursive_merge(lx, ly, ix, iy + 1)
     return recursive_merge(lx, ly, 0, 0)
+
+
+def merge_lists_of_symbols(lists):
+    def merger(lx, ly):
+        return merge_sorted_lists(lx, ly, sort_key=lambda x: x.symbol.name, identity_check_key=lambda x: x.symbol)
+    return reduce(merger, lists)

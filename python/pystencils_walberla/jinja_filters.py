@@ -92,6 +92,24 @@ def generate_definition(kernel_info, target='cpu'):
     return result
 
 
+def generate_declarations(kernel_family, target='cpu'):
+    declarations = []
+    for ast in kernel_family.all_asts:
+        code = generate_c(ast, signature_only=True, dialect='cuda' if target == 'gpu' else 'c') + ";"
+        code = "namespace internal_%s {\n%s\n}" % (ast.function_name, code,)
+        declarations.append(code)
+    return "\n".join(declarations)
+
+
+def generate_definitions(kernel_family, target='cpu'):
+    definitions = []
+    for ast in kernel_family.all_asts:
+        code = generate_c(ast, dialect='cuda' if target == 'gpu' else 'c')
+        code = "namespace internal_%s {\nstatic %s\n}" % (ast.function_name, code)
+        definitions.append(code)
+    return "\n".join(definitions)
+
+
 def field_extraction_code(field, is_temporary, declaration_only=False,
                           no_declaration=False, is_gpu=False, update_member=False):
     """Returns code string for getting a field pointer.
@@ -199,16 +217,15 @@ def generate_call(ctx, kernel_info, ghost_layers_to_include=0, cell_interval=Non
                                may be necessary.
     """
     assert isinstance(ghost_layers_to_include, str) or ghost_layers_to_include >= 0
-    ast = kernel_info.ast
     ast_params = kernel_info.parameters
     is_cpu = ctx['target'] == 'cpu'
 
     ghost_layers_to_include = sp.sympify(ghost_layers_to_include)
-    if ast.ghost_layers is None:
+    if kernel_info.ghost_layers is None:
         required_ghost_layers = 0
     else:
         # ghost layer info is ((x_gl_front, x_gl_end), (y_gl_front, y_gl_end).. )
-        required_ghost_layers = max(max(ast.ghost_layers))
+        required_ghost_layers = max(max(kernel_info.ghost_layers))
 
     kernel_call_lines = []
 
@@ -252,7 +269,7 @@ def generate_call(ctx, kernel_info, ghost_layers_to_include=0, cell_interval=Non
                 coordinates = tuple(coordinates)
                 kernel_call_lines.append("%s %s = %s->dataAt(%s, %s, %s, %s);" %
                                          ((param.symbol.dtype, param.symbol.name, param.field_name) + coordinates))
-                if ast.assumed_inner_stride_one and field.index_dimensions > 0:
+                if kernel_info.assumed_inner_stride_one and field.index_dimensions > 0:
                     kernel_call_lines.append("WALBERLA_ASSERT_EQUAL(%s->layout(), field::fzyx);" % (param.field_name,))
         elif param.is_field_stride:
             casted_stride = get_field_stride(param)
@@ -267,31 +284,35 @@ def generate_call(ctx, kernel_info, ghost_layers_to_include=0, cell_interval=Non
             max_value = "%s->%sSizeWithGhostLayer()" % (field.name, ('x', 'y', 'z')[coord])
             kernel_call_lines.append("WALBERLA_ASSERT_GREATER_EQUAL(%s, %s);" % (max_value, shape))
             kernel_call_lines.append("const %s %s = %s;" % (type_str, param.symbol.name, shape))
-            if ast.assumed_inner_stride_one and field.index_dimensions > 0:
+            if kernel_info.assumed_inner_stride_one and field.index_dimensions > 0:
                 kernel_call_lines.append("WALBERLA_ASSERT_EQUAL(%s->layout(), field::fzyx);" % (field.name,))
 
     call_parameters = ", ".join([p.symbol.name for p in ast_params])
 
-    if not is_cpu:
-        if not spatial_shape_symbols:
-            spatial_shape_symbols = [p.symbol for p in ast_params if p.is_field_shape]
-            spatial_shape_symbols.sort(key=lambda e: e.coordinate)
-        else:
-            spatial_shape_symbols = [TypedSymbol(s, SHAPE_DTYPE) for s in spatial_shape_symbols]
+    kernel_call_lines += kernel_info.kernel_selection_tree.get_code(stream=stream,
+                                                                    spatial_shape_symbols=spatial_shape_symbols)
+    
+    # if not is_cpu:
+    #     if not spatial_shape_symbols:
+    #         spatial_shape_symbols = [p.symbol for p in ast_params if p.is_field_shape]
+    #         spatial_shape_symbols.sort(key=lambda e: e.coordinate)
+    #     else:
+    #         spatial_shape_symbols = [TypedSymbol(s, SHAPE_DTYPE) for s in spatial_shape_symbols]
 
-        assert spatial_shape_symbols, "No shape parameters in kernel function arguments.\n"\
-            "Please be only use kernels for generic field sizes!"
+    #     assert spatial_shape_symbols, "No shape parameters in kernel function arguments.\n"\
+    #         "Please be only use kernels for generic field sizes!"
 
-        indexing_dict = ast.indexing.call_parameters(spatial_shape_symbols)
-        sp_printer_c = CudaSympyPrinter()
-        kernel_call_lines += [
-            "dim3 _block(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e) for e in indexing_dict['block']),
-            "dim3 _grid(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e) for e in indexing_dict['grid']),
-            "internal_%s::%s<<<_grid, _block, 0, %s>>>(%s);" % (ast.function_name, ast.function_name,
-                                                                stream, call_parameters),
-        ]
-    else:
-        kernel_call_lines.append("internal_%s::%s(%s);" % (ast.function_name, ast.function_name, call_parameters))
+    #     indexing_dict = ast.indexing.call_parameters(spatial_shape_symbols)
+    #     sp_printer_c = CudaSympyPrinter()
+    #     kernel_call_lines += [
+    #         "dim3 _block(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e) for e in indexing_dict['block']),
+    #         "dim3 _grid(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e) for e in indexing_dict['grid']),
+    #         "internal_%s::%s<<<_grid, _block, 0, %s>>>(%s);" % (ast.function_name, ast.function_name,
+    #                                                             stream, call_parameters),
+    #     ]
+    # else:
+    #     kernel_call_lines.append("internal_%s::%s(%s);" % (ast.function_name, ast.function_name, call_parameters))
+    
     return "\n".join(kernel_call_lines)
 
 
@@ -360,8 +381,7 @@ def generate_constructor_call_arguments(kernel_info, parameters_to_ignore=None):
 
 @jinja2.contextfilter
 def generate_members(ctx, kernel_info, parameters_to_ignore=(), only_fields=False):
-    ast = kernel_info.ast
-    fields = {f.name: f for f in ast.fields_accessed}
+    fields = {f.name: f for f in kernel_info.fields_accessed}
 
     params_to_skip = tuple(parameters_to_ignore) + tuple(kernel_info.temporary_fields)
     params_to_skip += tuple(e[1] for e in kernel_info.varying_parameters)
@@ -414,6 +434,8 @@ def nested_class_method_definition_prefix(ctx, nested_class_name):
 def add_pystencils_filters_to_jinja_env(jinja_env):
     jinja_env.filters['generate_definition'] = generate_definition
     jinja_env.filters['generate_declaration'] = generate_declaration
+    jinja_env.filters['generate_definitions'] = generate_definitions
+    jinja_env.filters['generate_declarations'] = generate_declarations
     jinja_env.filters['generate_members'] = generate_members
     jinja_env.filters['generate_constructor_parameters'] = generate_constructor_parameters
     jinja_env.filters['generate_constructor_initializer_list'] = generate_constructor_initializer_list
