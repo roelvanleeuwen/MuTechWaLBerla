@@ -38,7 +38,7 @@ OutputParameters
    fieldStoreInterval 100;  // time step interval for storing the PdfField and AvgField
 
    vtkFluidField true;           // write the whole fluid field (velocity and density) to vtk output
-   vtkFluidFieldInterval 50;     // 0: write only initial and final fluid field
+   vtkFluidFieldInterval 50;     // time step interval for writing the whole fluid field to vtk output
    vtkFieldResolution 4;         // scale the fluid field vtk output with 1/<vtkFieldResolution>
 
    vtkAvgFieldInterval 50;       // write the averaged quantities in the whole to vtk output

@@ -1474,7 +1474,7 @@ int main(int argc, char** argv)
    // vtk flag field output
    if (setup.vtkFlagField)
    {
-      auto flagFieldVTK = vtk::createVTKOutput_BlockData(blocks, "flag_field", setup.vtkFluidFieldInterval, uint_c(0));
+      auto flagFieldVTK = vtk::createVTKOutput_BlockData(blocks, "flag_field", uint_c(1), uint_c(0));
 
       flagFieldVTK->setSamplingResolution(setup.vtkFieldResolution);
       flagFieldVTK->addCellDataWriter(make_shared< field::VTKWriter< FlagField_T > >(flagFieldID, "FlagField"));
