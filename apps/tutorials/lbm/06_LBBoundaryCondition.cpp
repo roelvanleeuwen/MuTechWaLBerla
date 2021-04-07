@@ -302,7 +302,7 @@ BoundaryHandling_T* MyBoundaryHandling::operator()(IBlock* const block,
       for (auto cellIt = east.begin(); cellIt != east.end(); ++cellIt)
       {
          Cell globalCell = *cellIt + offset;
-         real_t y        = globalCell[1];
+         const real_t y = real_c(globalCell[1]);
 
          real_t local_density =
             setup_.outflowPressure * (real_t(1.0) + real_t(0.01) * std::sin(real_t(2.0 * 3.1415926538) * y / H));
