@@ -145,7 +145,7 @@ typedef BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T, FreeSlip_T, SimpleUB
 class MyBoundaryHandling
 {
  public:
-   MyBoundaryHandling(const BlockDataID& flagFieldID, const BlockDataID& pdfFieldID, const Setup setup,
+   MyBoundaryHandling(const BlockDataID& flagFieldID, const BlockDataID& pdfFieldID, const Setup & setup,
                       const std::shared_ptr< lbm::TimeTracker >& timeTracker)
       : flagFieldID_(flagFieldID), pdfFieldID_(pdfFieldID), setup_(setup), timeTracker_(timeTracker)
    {}
