@@ -249,7 +249,7 @@ BoundaryHandling_T* MyBoundaryHandling::operator()(IBlock* const block,
       for (auto cellIt = west.begin(); cellIt != west.end(); ++cellIt)
       {
          Cell globalCell = *cellIt + offset;
-         real_t y        = globalCell[1];
+         const real_t y = real_c(globalCell[1]);
 
          Vector3< real_t > ubbVel(0);
          ubbVel[0] = -real_t(4) * y * (y - H) / (H * H) * setup_.inflowVelocity[0];
@@ -305,7 +305,7 @@ BoundaryHandling_T* MyBoundaryHandling::operator()(IBlock* const block,
          real_t y        = globalCell[1];
 
          real_t local_density =
-            setup_.outflowPressure * (real_t(1.0) + real_t(0.01) * sin(real_t(2.0 * 3.1415926538) * y / H));
+            setup_.outflowPressure * (real_t(1.0) + real_t(0.01) * std::sin(real_t(2.0 * 3.1415926538) * y / H));
 
          handling->forceBoundary(PressureFlagUID, cellIt->x(), cellIt->y(), cellIt->z(),
                                  Pressure_T::LatticeDensity(local_density));
