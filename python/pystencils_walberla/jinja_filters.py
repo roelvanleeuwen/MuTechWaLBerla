@@ -1,9 +1,10 @@
+from typing import Sequence
 import jinja2
 import sympy as sp
 # import re
 
 from pystencils.backends.cbackend import generate_c
-from pystencils.data_types import get_base_type
+from pystencils.data_types import TypedSymbol, get_base_type
 from pystencils.field import FieldType
 from pystencils.sympyextensions import prod
 
@@ -404,18 +405,20 @@ def nested_class_method_definition_prefix(ctx, nested_class_name):
         return outer_class + '::' + nested_class_name
 
 
-def generate_selection_argument_list(kernel_family, prepend=''):
-    symbols = kernel_family.kernel_selection_parameters
+def generate_func_params(args : Sequence[TypedSymbol], prepend=''):
     parameter_list = []
-    for s in symbols:
+    for s in args:
         parameter_list.append(f"{s.dtype} {s.name}")
     return prepend + ", ".join(parameter_list)
 
 
-def generate_selection_call_arguments(kernel_family, prepend=''):
-    symbols = kernel_family.kernel_selection_parameters
-    parameter_list = [s.name for s in symbols]
+def generate_call_args(args: Sequence[TypedSymbol], prepend=''):
+    parameter_list = [s.name for s in args]
     return prepend + ", ".join(parameter_list)
+
+
+def generate_list_of_expressions(expressions, prepend=''):
+    return prepend + ", ".join(expressions)
 
 
 def add_pystencils_filters_to_jinja_env(jinja_env):
@@ -433,5 +436,6 @@ def add_pystencils_filters_to_jinja_env(jinja_env):
     jinja_env.filters['generate_refs_for_kernel_parameters'] = generate_refs_for_kernel_parameters
     jinja_env.filters['generate_destructor'] = generate_destructor
     jinja_env.filters['nested_class_method_definition_prefix'] = nested_class_method_definition_prefix
-    jinja_env.filters['generate_selection_argument_list'] = generate_selection_argument_list
-    jinja_env.filters['generate_selection_call_arguments'] = generate_selection_call_arguments
+    jinja_env.filters['func_param_list'] = generate_func_params
+    jinja_env.filters['call_arg_list'] = generate_call_args
+    jinja_env.filters['list_of_expressions'] = generate_list_of_expressions

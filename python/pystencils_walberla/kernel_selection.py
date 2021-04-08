@@ -1,4 +1,8 @@
+from multiprocessing import Value
+from typing import Dict, OrderedDict, Sequence, Set
+from collections import namedtuple
 from functools import reduce
+from typing import Sequence
 from jinja2.filters import do_indent
 from pystencils import TypedSymbol
 from pystencils.backends.cbackend import get_headers
@@ -71,7 +75,7 @@ class KernelCallNode(AbstractKernelSelectionNode):
                 spatial_shape_symbols = [TypedSymbol(s, SHAPE_DTYPE) for s in spatial_shape_symbols]
 
             assert spatial_shape_symbols, "No shape parameters in kernel function arguments.\n"\
-                "Please be only use kernels for generic field sizes!"
+                "Please only use kernels for generic field sizes!"
 
             indexing_dict = ast.indexing.call_parameters(spatial_shape_symbols)
             sp_printer_c = CudaSympyPrinter()
@@ -158,6 +162,66 @@ class KernelFamily:
     def get_headers(self):
         all_headers = [get_headers(ast) for ast in self.all_asts]
         return reduce(merge_sorted_lists, all_headers)
+
+
+# --------------------------- High-Level Sweep Interface Specification ------------------------------------------------
+
+
+class AbstractInterfaceArgumentMapping:
+    def __init__(self, high_level_args: Sequence[TypedSymbol], low_level_arg: TypedSymbol):
+        self.high_level_args = high_level_args
+        self.low_level_arg = low_level_arg
+
+    @property
+    def mapping_code(self):
+        raise NotImplementedError()
+
+
+class IdentityMapping(AbstractInterfaceArgumentMapping):
+
+    def __init__(self, low_level_arg: TypedSymbol):
+        self.high_level_args = (low_level_arg,)
+        self.low_level_arg = low_level_arg
+
+    @property
+    def mapping_code(self):
+        return self.low_level_arg.name
+
+
+def _create_interface_mapping_dict(low_level_args: Sequence[TypedSymbol],
+                                     mappings: Sequence[AbstractInterfaceArgumentMapping]):
+    mapping_dict = OrderedDict()
+    for m in mappings:
+        larg = m.low_level_arg
+        if larg not in low_level_args:
+            raise ValueError(f'Low-level argument {larg} did not exist.')
+        if larg.name in mapping_dict:
+            raise ValueError(f'More than one mapping was given for low-level argument {larg}')
+        mapping_dict[larg.name] = m
+
+    for arg in low_level_args:
+        mapping_dict.setdefault(arg.name, IdentityMapping(arg))
+
+    return mapping_dict
+
+
+class HighLevelInterfaceSpec:
+    def __init__(self, low_level_args: Sequence[TypedSymbol],
+                 mappings: Sequence[AbstractInterfaceArgumentMapping]):
+        self.low_level_args = low_level_args
+        mapping_dict = _create_interface_mapping_dict(low_level_args, mappings)
+        self.mappings = mapping_dict.values()
+        high_level_args = OrderedDict()
+        self.mapping_codes = []
+        for larg in low_level_args:
+            m = mapping_dict[larg.name]
+            self.mapping_codes.append(m.mapping_code)
+            for harg in m.high_level_args:
+                if high_level_args.setdefault(harg.name, harg) != harg:
+                    raise ValueError(f'High-Level Argument {harg} was given multiple times with different types.')
+
+        self.high_level_args = list(high_level_args.values())
+
 
 # ---------------------------------- Helpers --------------------------------------------------------------------------
 

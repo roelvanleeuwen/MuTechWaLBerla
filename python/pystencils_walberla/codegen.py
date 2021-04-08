@@ -12,7 +12,7 @@ from pystencils.backends.cbackend import get_headers
 from pystencils.backends.simd_instruction_sets import get_supported_instruction_sets
 from pystencils.stencil import inverse_direction, offset_to_direction_string
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
-from pystencils_walberla.kernel_selection import KernelCallNode, KernelFamily
+from pystencils_walberla.kernel_selection import KernelCallNode, KernelFamily, HighLevelInterfaceSpec
 
 __all__ = ['generate_sweep', 'generate_pack_info', 'generate_pack_info_for_field', 'generate_pack_info_from_kernel',
            'generate_mpidtype_info_from_kernel', 'default_create_kernel_parameters', 'KernelInfo',
@@ -108,7 +108,9 @@ def generate_selective_sweep(generation_context, class_name, selection_tree, tar
         'field': representative_field,
         'headers': kernel_family.get_headers(),
         'ghost_layers_to_include': ghost_layers_to_include,
-        'inner_outer_split': inner_outer_split
+        'inner_outer_split': inner_outer_split,
+        'sweep_interface_spec' : HighLevelInterfaceSpec(kernel_family.kernel_selection_parameters, []),
+        'generate_functor': True
     }
     header = env.get_template("Sweep.tmpl.h").render(**jinja_context)
     source = env.get_template("Sweep.tmpl.cpp").render(**jinja_context)

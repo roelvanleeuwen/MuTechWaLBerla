@@ -55,7 +55,9 @@ namespace {{namespace}} {
 
 {{kernel|generate_definitions(target)}}
 
-void {{class_name}}::operator()( IBlock * block{{kernel|generate_selection_argument_list(prepend=', ')}}{%if target is equalto 'gpu'%}, cudaStream_t stream{% endif %} )
+void {{class_name}}::run(IBlock * block
+                         {{- kernel.kernel_selection_parameters|func_param_list(prepend=', ') -}}
+                         {%- if target is equalto 'gpu'%}, cudaStream_t stream{% endif -%} )
 {
     {{kernel|generate_block_data_to_field_extraction|indent(4)}}
     {{kernel|generate_refs_for_kernel_parameters(prefix='this->', ignore_fields=True)|indent(4) }}
@@ -64,10 +66,12 @@ void {{class_name}}::operator()( IBlock * block{{kernel|generate_selection_argum
 }
 
 
-void {{class_name}}::runOnCellInterval( const shared_ptr<StructuredBlockStorage> & blocks,
-                                        const CellInterval & globalCellInterval,
-                                        cell_idx_t ghostLayers,
-                                        IBlock * block{{kernel|generate_selection_argument_list(prepend=', ')}}{%if target is equalto 'gpu'%}, cudaStream_t stream{% endif %} )
+void {{class_name}}::runOnCellInterval(const shared_ptr<StructuredBlockStorage> & blocks,
+                                       const CellInterval & globalCellInterval,
+                                       cell_idx_t ghostLayers,
+                                       IBlock * block
+                                       {{- kernel.kernel_selection_parameters|func_param_list(prepend=', ') -}}
+                                       {%- if target is equalto 'gpu'%}, cudaStream_t stream{% endif -%} )
 {
     CellInterval ci = globalCellInterval;
     CellInterval blockBB = blocks->getBlockCellBB( *block);
@@ -84,7 +88,9 @@ void {{class_name}}::runOnCellInterval( const shared_ptr<StructuredBlockStorage>
 }
 
 {%if inner_outer_split%}
-void {{class_name}}::inner( IBlock * block{{kernel|generate_selection_argument_list(prepend=', ')}}{%if target is equalto 'gpu'%}, cudaStream_t stream{% endif %} )
+void {{class_name}}::inner(IBlock * block
+                           {{- kernel.kernel_selection_parameters|func_param_list(prepend=', ') -}}
+                           {%- if target is equalto 'gpu'%}, cudaStream_t stream{% endif -%} )
 {
     {{kernel|generate_block_data_to_field_extraction|indent(4)}}
 
@@ -96,7 +102,9 @@ void {{class_name}}::inner( IBlock * block{{kernel|generate_selection_argument_l
 }
 
 
-void {{class_name}}::outer( IBlock * block{{kernel|generate_selection_argument_list(prepend=', ')}}{%if target is equalto 'gpu'%}, cudaStream_t stream {% endif %} )
+void {{class_name}}::outer(IBlock * block
+                           {{- kernel.kernel_selection_parameters|func_param_list(prepend=', ') -}}
+                           {%- if target is equalto 'gpu'%}, cudaStream_t stream{% endif -%} )
 {
     {{kernel|generate_block_data_to_field_extraction|indent(4)}}
 
