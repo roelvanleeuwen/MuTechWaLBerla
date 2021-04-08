@@ -4,7 +4,7 @@ from pystencils_walberla.kernel_selection import (
     AbstractInterfaceArgumentMapping, AbstractKernelSelectionNode, KernelCallNode)
 from pystencils import TypedSymbol
 from lbmpy.creationfunctions import create_lb_ast
-from lbmpy.advanced_streaming import Timestep
+from lbmpy.advanced_streaming import Timestep, is_inplace
 
 
 class EvenIntegerCondition(AbstractKernelSelectionNode):
@@ -72,14 +72,17 @@ def generate_alternating_lbm_sweep(generation_context, class_name, collision_rul
     ast_even = create_lb_ast(collision_rule=collision_rule, streaming_pattern=streaming_pattern,
                              timestep=Timestep.EVEN, optimization=optimization, **create_ast_params)
     ast_even.function_name = 'even'
-    ast_odd = create_lb_ast(collision_rule=collision_rule, streaming_pattern=streaming_pattern,
-                            timestep=Timestep.ODD, optimization=optimization, **create_ast_params)
-    ast_odd.function_name = 'odd'
-
     kernel_even = KernelCallNode(ast_even)
-    kernel_odd = KernelCallNode(ast_odd)
-    tree = EvenIntegerCondition('timestep', kernel_even, kernel_odd, np.uint8)
 
+    if is_inplace(streaming_pattern):
+        ast_odd = create_lb_ast(collision_rule=collision_rule, streaming_pattern=streaming_pattern,
+                                timestep=Timestep.ODD, optimization=optimization, **create_ast_params)
+        ast_odd.function_name = 'odd'
+        kernel_odd = KernelCallNode(ast_odd)
+    else:
+        kernel_odd = kernel_even
+
+    tree = EvenIntegerCondition('timestep', kernel_even, kernel_odd, np.uint8)
     interface_mappings = [TimestepTrackerMapping(tree.parameter_symbol)]
 
     assumed_inner_stride_one = optimization['vectorization']['assume_inner_stride_one']

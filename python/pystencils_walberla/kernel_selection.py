@@ -125,7 +125,11 @@ class KernelFamily:
 
         all_kernel_calls = self.kernel_selection_tree.all_kernel_calls
         all_param_lists = [k.parameters for k in all_kernel_calls]
-        self.all_asts = [k.ast for k in all_kernel_calls]
+        asts_list = [k.ast for k in all_kernel_calls]
+        representative_ast = asts_list[0]
+
+        #   Eliminate duplicates
+        self.all_asts = set(asts_list)
 
         #   Check function names for uniqueness and reformat them
         #   using the class name
@@ -145,8 +149,8 @@ class KernelFamily:
         self.fields_accessed = reduce(lambda x, y: x | y, all_fields)
 
         #   Collect Ghost Layers and target
-        self.ghost_layers = self.all_asts[0].ghost_layers
-        self.target = self.all_asts[0].target
+        self.ghost_layers = representative_ast.ghost_layers
+        self.target = representative_ast.target
 
         for ast in self.all_asts:
             if ast.ghost_layers != self.ghost_layers:
