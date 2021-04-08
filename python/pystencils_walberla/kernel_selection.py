@@ -1,8 +1,6 @@
-from multiprocessing import Value
-from typing import Dict, OrderedDict, Sequence, Set
-from collections import namedtuple
-from functools import reduce
 from typing import Sequence
+from collections import OrderedDict
+from functools import reduce
 from jinja2.filters import do_indent
 from pystencils import TypedSymbol
 from pystencils.backends.cbackend import get_headers
@@ -176,6 +174,10 @@ class AbstractInterfaceArgumentMapping:
     def mapping_code(self):
         raise NotImplementedError()
 
+    @property
+    def headers(self):
+        return set()
+
 
 class IdentityMapping(AbstractInterfaceArgumentMapping):
 
@@ -189,7 +191,7 @@ class IdentityMapping(AbstractInterfaceArgumentMapping):
 
 
 def _create_interface_mapping_dict(low_level_args: Sequence[TypedSymbol],
-                                     mappings: Sequence[AbstractInterfaceArgumentMapping]):
+                                   mappings: Sequence[AbstractInterfaceArgumentMapping]):
     mapping_dict = OrderedDict()
     for m in mappings:
         larg = m.low_level_arg
@@ -213,9 +215,11 @@ class HighLevelInterfaceSpec:
         self.mappings = mapping_dict.values()
         high_level_args = OrderedDict()
         self.mapping_codes = []
+        self.headers = set()
         for larg in low_level_args:
             m = mapping_dict[larg.name]
             self.mapping_codes.append(m.mapping_code)
+            self.headers |= m.headers
             for harg in m.high_level_args:
                 if high_level_args.setdefault(harg.name, harg) != harg:
                     raise ValueError(f'High-Level Argument {harg} was given multiple times with different types.')

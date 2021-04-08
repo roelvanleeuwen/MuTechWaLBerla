@@ -405,7 +405,7 @@ def nested_class_method_definition_prefix(ctx, nested_class_name):
         return outer_class + '::' + nested_class_name
 
 
-def generate_func_params(args : Sequence[TypedSymbol], prepend=''):
+def generate_func_params(args: Sequence[TypedSymbol], prepend=''):
     parameter_list = []
     for s in args:
         parameter_list.append(f"{s.dtype} {s.name}")

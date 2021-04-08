@@ -1,6 +1,7 @@
 import numpy as np
 from pystencils_walberla.codegen import generate_selective_sweep, get_vectorize_instruction_set
-from pystencils_walberla.kernel_selection import AbstractKernelSelectionNode, KernelCallNode
+from pystencils_walberla.kernel_selection import (
+    AbstractInterfaceArgumentMapping, AbstractKernelSelectionNode, KernelCallNode)
 from pystencils import TypedSymbol
 from lbmpy.creationfunctions import create_lb_ast
 from lbmpy.advanced_streaming import Timestep
@@ -42,6 +43,22 @@ class OddIntegerCondition(AbstractKernelSelectionNode):
         return f"({self.parameter_symbol.name} & 1)"
 
 
+class TimestepTrackerMapping(AbstractInterfaceArgumentMapping):
+
+    def __init__(self, low_level_arg: TypedSymbol, tracker_identifier='tracker'):
+        self.tracker_symbol = TypedSymbol(tracker_identifier, 'std::shared_ptr<lbm::TimestepTracker> &')
+        self.high_level_args = (self.tracker_symbol,)
+        self.low_level_arg = low_level_arg
+
+    @property
+    def mapping_code(self):
+        return f"{self.tracker_symbol.name}->getCounter()"
+
+    @property
+    def headers(self):
+        return {'"lbm/inplace_streaming/TimestepTracker.h"'}
+
+
 def generate_alternating_lbm_sweep(generation_context, class_name, collision_rule, streaming_pattern,
                                    namespace='lbmpy', field_swaps=(), varying_parameters=(),
                                    inner_outer_split=False, ghost_layers_to_include=0, optimization={},
@@ -62,9 +79,14 @@ def generate_alternating_lbm_sweep(generation_context, class_name, collision_rul
     kernel_even = KernelCallNode(ast_even)
     kernel_odd = KernelCallNode(ast_odd)
     tree = EvenIntegerCondition('timestep', kernel_even, kernel_odd, np.uint8)
+
+    interface_mappings = [TimestepTrackerMapping(tree.parameter_symbol)]
+
     assumed_inner_stride_one = optimization['vectorization']['assume_inner_stride_one']
 
-    generate_selective_sweep(generation_context, class_name, tree, target=target, namespace=namespace,
+    generate_selective_sweep(generation_context, class_name, tree,
+                             interface_mappings=interface_mappings,
+                             target=target, namespace=namespace,
                              field_swaps=field_swaps, varying_parameters=varying_parameters,
                              inner_outer_split=inner_outer_split, ghost_layers_to_include=ghost_layers_to_include,
                              assumed_inner_stride_one=assumed_inner_stride_one)

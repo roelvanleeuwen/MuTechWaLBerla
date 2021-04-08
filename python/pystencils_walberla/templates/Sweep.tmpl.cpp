@@ -23,7 +23,8 @@
 #include "core/DataTypes.h"
 #include "core/Macros.h"
 #include "{{class_name}}.h"
-{% for header in headers %}
+
+{% for header in kernel.get_headers() %}
 #include {{header}}
 {% endfor %}
 

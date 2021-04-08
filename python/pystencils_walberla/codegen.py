@@ -68,13 +68,13 @@ def generate_sweep(generation_context, class_name, assignments,
     selection_tree = KernelCallNode(ast)
     assumed_inner_stride_one = create_kernel_params['cpu_vectorize_info']['assume_inner_stride_one']
     generate_selective_sweep(generation_context, class_name, selection_tree, target=target, namespace=namespace,
-                             field_swaps=field_swaps, staggered=staggered, varying_parameters=varying_parameters,
+                             field_swaps=field_swaps, varying_parameters=varying_parameters,
                              inner_outer_split=inner_outer_split, ghost_layers_to_include=ghost_layers_to_include,
                              assumed_inner_stride_one=assumed_inner_stride_one)
 
 
-def generate_selective_sweep(generation_context, class_name, selection_tree, target=None,
-                             namespace='pystencils', field_swaps=(), staggered=False, varying_parameters=(),
+def generate_selective_sweep(generation_context, class_name, selection_tree, interface_mappings=[], target=None,
+                             namespace='pystencils', field_swaps=(), varying_parameters=(),
                              inner_outer_split=False, ghost_layers_to_include=0, assumed_inner_stride_one=False):
     def to_name(f):
         return f.name if isinstance(f, Field) else f
@@ -100,16 +100,17 @@ def generate_selective_sweep(generation_context, class_name, selection_tree, tar
     env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)
     add_pystencils_filters_to_jinja_env(env)
 
+    interface_spec = HighLevelInterfaceSpec(kernel_family.kernel_selection_parameters, interface_mappings)
+
     jinja_context = {
         'kernel': kernel_family,
         'namespace': namespace,
         'class_name': class_name,
         'target': target,
         'field': representative_field,
-        'headers': kernel_family.get_headers(),
         'ghost_layers_to_include': ghost_layers_to_include,
         'inner_outer_split': inner_outer_split,
-        'sweep_interface_spec' : HighLevelInterfaceSpec(kernel_family.kernel_selection_parameters, []),
+        'interface_spec': interface_spec,
         'generate_functor': True
     }
     header = env.get_template("Sweep.tmpl.h").render(**jinja_context)
