@@ -406,6 +406,8 @@ def nested_class_method_definition_prefix(ctx, nested_class_name):
 
 
 def generate_func_params(args: Sequence[TypedSymbol], prepend=''):
+    if len(args) == 0:
+        return ''
     parameter_list = []
     for s in args:
         parameter_list.append(f"{s.dtype} {s.name}")
@@ -413,11 +415,15 @@ def generate_func_params(args: Sequence[TypedSymbol], prepend=''):
 
 
 def generate_call_args(args: Sequence[TypedSymbol], prepend=''):
+    if len(args) == 0:
+        return ''
     parameter_list = [s.name for s in args]
     return prepend + ", ".join(parameter_list)
 
 
 def generate_list_of_expressions(expressions, prepend=''):
+    if len(expressions) == 0:
+        return ''
     return prepend + ", ".join(expressions)
 
 
