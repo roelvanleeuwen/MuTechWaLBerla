@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Sequence, Set
 from collections import OrderedDict
 from functools import reduce
 from jinja2.filters import do_indent
@@ -11,28 +11,43 @@ from pystencils.kernelparameters import SHAPE_DTYPE
 
 
 class AbstractKernelSelectionNode:
+
+    def collect_kernel_calls(self):
+        raise NotImplementedError()
+
+    @property
+    def selection_parameters(self) -> Set[TypedSymbol]:
+        raise NotImplementedError()
+
+    def collect_selection_parameters(self) -> Set[TypedSymbol]:
+        return self.selection_parameters
+
+    def get_selection_parameter_list(self) -> Sequence[TypedSymbol]:
+        all_params = self.collect_selection_parameters()
+        all_names = set(p.name for p in all_params)
+        if len(all_names) < len(all_params):
+            raise ValueError('There existed selection parameters of same name, but different type.')
+        return sorted(all_params)
+
+    def get_code(self, **kwargs) -> str:
+        raise NotImplementedError()
+
+
+class AbstractConditionNode(AbstractKernelSelectionNode):
     def __init__(self, branch_true, branch_false):
         self.branch_true = branch_true
         self.branch_false = branch_false
 
     @property
-    def selection_parameters(self):
-        return self.branch_true.symbols | self.branch_false.symbols
+    def condition_text(self) -> str:
+        raise NotImplementedError()
 
-    @property
-    def condition_text(self):
-        raise NotImplementedError('condition_text must be provided by subclass.')
+    def collect_kernel_calls(self):
+        return self.branch_true.collect_kernel_calls() | self.branch_false.collect_kernel_calls()
 
-    @property
-    def all_kernel_calls(self):
-        return self.branch_true.all_kernel_calls + self.branch_false.all_kernel_calls
-
-    def get_selection_parameter_list(self):
-        all_params = self.selection_parameters
-        all_names = set(p.name for p in all_params)
-        if len(all_names) < len(all_params):
-            raise ValueError('There existed selection parameters of same name, but different type.')
-        return sorted(all_params)
+    def collect_selection_parameters(self) -> Set[TypedSymbol]:
+        return self.selection_parameters.union(self.branch_true.collect_selection_parameters(),
+                                               self.branch_false.collect_selection_parameters())
 
     def get_code(self, **kwargs):
         true_branch_code = self.branch_true.get_code(**kwargs)
@@ -53,19 +68,13 @@ class KernelCallNode(AbstractKernelSelectionNode):
     def __init__(self, ast):
         self.ast = ast
         self.parameters = ast.get_parameters()  # cache parameters here
-        super(KernelCallNode, self).__init__(None, None)
 
     @property
-    def selection_parameters(self):
+    def selection_parameters(self) -> Set[TypedSymbol]:
         return set()
 
-    @property
-    def condition_text(self):
-        raise Exception('There is no condition on a leaf node.')
-
-    @property
-    def all_kernel_calls(self):
-        return [self]
+    def collect_kernel_calls(self):
+        return {self}
 
     def get_code(self, **kwargs):
         ast = self.ast
@@ -102,7 +111,7 @@ class KernelCallNode(AbstractKernelSelectionNode):
             return f"internal_{ast.function_name}::{ast.function_name}({call_parameters});"
 
 
-class SimpleBooleanCondition(AbstractKernelSelectionNode):
+class SimpleBooleanCondition(AbstractConditionNode):
     def __init__(self,
                  parameter_name: str,
                  branch_true: AbstractKernelSelectionNode,
@@ -111,15 +120,15 @@ class SimpleBooleanCondition(AbstractKernelSelectionNode):
         super(SimpleBooleanCondition, self).__init__(branch_true, branch_false)
 
     @property
-    def selection_parameters(self):
-        return { self.parameter_symbol }
+    def selection_parameters(self) -> Set[TypedSymbol]:
+        return {self.parameter_symbol}
 
     @property
-    def condition_text(self):
+    def condition_text(self) -> str:
         return self.parameter_symbol.name
 
 
-# ---------------------------------- Kernel Info -----------------------------------------------------------------------
+# ---------------------------------- Kernel Family ---------------------------------------------------------------------
 
 
 class KernelFamily:
@@ -134,7 +143,7 @@ class KernelFamily:
         self.varying_parameters = tuple(varying_parameters)
         self.assumed_inner_stride_one = assumed_inner_stride_one
 
-        all_kernel_calls = self.kernel_selection_tree.all_kernel_calls
+        all_kernel_calls = self.kernel_selection_tree.collect_kernel_calls()
         all_param_lists = [k.parameters for k in all_kernel_calls]
         asts_list = [k.ast for k in all_kernel_calls]
         representative_ast = asts_list[0]

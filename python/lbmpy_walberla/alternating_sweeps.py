@@ -1,42 +1,38 @@
 import numpy as np
 from pystencils_walberla.codegen import generate_selective_sweep, get_vectorize_instruction_set
 from pystencils_walberla.kernel_selection import (
-    AbstractInterfaceArgumentMapping, AbstractKernelSelectionNode, KernelCallNode)
+    AbstractInterfaceArgumentMapping, AbstractConditionNode, KernelCallNode)
 from pystencils import TypedSymbol
 from lbmpy.creationfunctions import create_lb_ast
 from lbmpy.advanced_streaming import Timestep, is_inplace
 
 
-class EvenIntegerCondition(AbstractKernelSelectionNode):
-    def __init__(self,
-                 parameter_name: str,
-                 branch_true: AbstractKernelSelectionNode,
-                 branch_false: AbstractKernelSelectionNode,
+class EvenIntegerCondition(AbstractConditionNode):
+    def __init__(self, parameter_name: str,
+                 branch_true, branch_false,
                  parameter_dtype=int):
         self.parameter_symbol = TypedSymbol(parameter_name, parameter_dtype)
         super(EvenIntegerCondition, self).__init__(branch_true, branch_false)
 
     @property
     def selection_parameters(self):
-        return { self.parameter_symbol }
+        return {self.parameter_symbol}
 
     @property
     def condition_text(self):
         return f"(({self.parameter_symbol.name} & 1) ^ 1)"
 
 
-class OddIntegerCondition(AbstractKernelSelectionNode):
-    def __init__(self,
-                 parameter_name: str,
-                 branch_true: AbstractKernelSelectionNode,
-                 branch_false: AbstractKernelSelectionNode,
+class OddIntegerCondition(AbstractConditionNode):
+    def __init__(self, parameter_name: str,
+                 branch_true, branch_false,
                  parameter_dtype=int):
         self.parameter_symbol = TypedSymbol(parameter_name, parameter_dtype)
         super(OddIntegerCondition, self).__init__(branch_true, branch_false)
 
     @property
     def selection_parameters(self):
-        return { self.parameter_symbol }
+        return {self.parameter_symbol}
 
     @property
     def condition_text(self):
