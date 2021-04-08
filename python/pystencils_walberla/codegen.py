@@ -13,6 +13,9 @@ from pystencils.backends.simd_instruction_sets import get_supported_instruction_
 from pystencils.stencil import inverse_direction, offset_to_direction_string
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
 from pystencils_walberla.kernel_selection import KernelCallNode, KernelFamily, HighLevelInterfaceSpec
+from pystencils.backends.cuda_backend import CudaSympyPrinter
+from pystencils.kernelparameters import SHAPE_DTYPE
+from pystencils.data_types import TypedSymbol
 
 __all__ = ['generate_sweep', 'generate_pack_info', 'generate_pack_info_for_field', 'generate_pack_info_from_kernel',
            'generate_mpidtype_info_from_kernel', 'default_create_kernel_parameters', 'KernelInfo',
@@ -362,6 +365,40 @@ class KernelInfo:
     @property
     def assumed_inner_stride_one(self):
         return self.ast.assumed_inner_stride_one
+
+    def generate_kernel_invocation_code(self, **kwargs):
+        ast = self.ast
+        ast_params = self.parameters
+        is_cpu = self.ast.target == 'cpu'
+        call_parameters = ", ".join([p.symbol.name for p in ast_params])
+
+        if not is_cpu:
+            stream = kwargs.get('stream', '0')
+            spatial_shape_symbols = kwargs.get('spatial_shape_symbols', ())
+
+            if not spatial_shape_symbols:
+                spatial_shape_symbols = [p.symbol for p in ast_params if p.is_field_shape]
+                spatial_shape_symbols.sort(key=lambda e: e.coordinate)
+            else:
+                spatial_shape_symbols = [TypedSymbol(s, SHAPE_DTYPE) for s in spatial_shape_symbols]
+
+            assert spatial_shape_symbols, "No shape parameters in kernel function arguments.\n"\
+                "Please only use kernels for generic field sizes!"
+
+            indexing_dict = ast.indexing.call_parameters(spatial_shape_symbols)
+            sp_printer_c = CudaSympyPrinter()
+            kernel_call_lines = [
+                "dim3 _block(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e)
+                                                                  for e in indexing_dict['block']),
+                "dim3 _grid(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e)
+                                                                 for e in indexing_dict['grid']),
+                "internal_%s::%s<<<_grid, _block, 0, %s>>>(%s);" % (ast.function_name, ast.function_name,
+                                                                    stream, call_parameters),
+            ]
+
+            return "\n".join(kernel_call_lines)
+        else:
+            return f"internal_{ast.function_name}::{ast.function_name}({call_parameters});"
 
 
 def get_vectorize_instruction_set(generation_context):

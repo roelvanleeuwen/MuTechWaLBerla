@@ -194,7 +194,7 @@ def generate_refs_for_kernel_parameters(kernel_info, prefix, parameters_to_ignor
 
 
 @jinja2.contextfilter
-def generate_call(ctx, kernel_info, ghost_layers_to_include=0, cell_interval=None, stream='0',
+def generate_call(ctx, kernel, ghost_layers_to_include=0, cell_interval=None, stream='0',
                   spatial_shape_symbols=()):
     """Generates the function call to a pystencils kernel
 
@@ -215,14 +215,14 @@ def generate_call(ctx, kernel_info, ghost_layers_to_include=0, cell_interval=Non
                                may be necessary.
     """
     assert isinstance(ghost_layers_to_include, str) or ghost_layers_to_include >= 0
-    ast_params = kernel_info.parameters
+    ast_params = kernel.parameters
 
     ghost_layers_to_include = sp.sympify(ghost_layers_to_include)
-    if kernel_info.ghost_layers is None:
+    if kernel.ghost_layers is None:
         required_ghost_layers = 0
     else:
         # ghost layer info is ((x_gl_front, x_gl_end), (y_gl_front, y_gl_end).. )
-        required_ghost_layers = max(max(kernel_info.ghost_layers))
+        required_ghost_layers = max(max(kernel.ghost_layers))
 
     kernel_call_lines = []
 
@@ -266,7 +266,7 @@ def generate_call(ctx, kernel_info, ghost_layers_to_include=0, cell_interval=Non
                 coordinates = tuple(coordinates)
                 kernel_call_lines.append("%s %s = %s->dataAt(%s, %s, %s, %s);" %
                                          ((param.symbol.dtype, param.symbol.name, param.field_name) + coordinates))
-                if kernel_info.assumed_inner_stride_one and field.index_dimensions > 0:
+                if kernel.assumed_inner_stride_one and field.index_dimensions > 0:
                     kernel_call_lines.append("WALBERLA_ASSERT_EQUAL(%s->layout(), field::fzyx);" % (param.field_name,))
         elif param.is_field_stride:
             casted_stride = get_field_stride(param)
@@ -281,11 +281,11 @@ def generate_call(ctx, kernel_info, ghost_layers_to_include=0, cell_interval=Non
             max_value = "%s->%sSizeWithGhostLayer()" % (field.name, ('x', 'y', 'z')[coord])
             kernel_call_lines.append("WALBERLA_ASSERT_GREATER_EQUAL(%s, %s);" % (max_value, shape))
             kernel_call_lines.append("const %s %s = %s;" % (type_str, param.symbol.name, shape))
-            if kernel_info.assumed_inner_stride_one and field.index_dimensions > 0:
+            if kernel.assumed_inner_stride_one and field.index_dimensions > 0:
                 kernel_call_lines.append("WALBERLA_ASSERT_EQUAL(%s->layout(), field::fzyx);" % (field.name,))
 
-    kernel_call_lines.append(kernel_info.kernel_selection_tree.get_code(stream=stream,
-                                                                        spatial_shape_symbols=spatial_shape_symbols))
+    kernel_call_lines.append(kernel.generate_kernel_invocation_code(stream=stream,
+                                                                    spatial_shape_symbols=spatial_shape_symbols))
 
     return "\n".join(kernel_call_lines)
 

@@ -18,7 +18,7 @@ class EvenIntegerCondition(AbstractKernelSelectionNode):
 
     @property
     def selection_parameters(self):
-        return [self.parameter_symbol]
+        return { self.parameter_symbol }
 
     @property
     def condition_text(self):
@@ -36,7 +36,7 @@ class OddIntegerCondition(AbstractKernelSelectionNode):
 
     @property
     def selection_parameters(self):
-        return [self.parameter_symbol]
+        return { self.parameter_symbol }
 
     @property
     def condition_text(self):

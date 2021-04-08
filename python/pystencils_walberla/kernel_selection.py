@@ -17,7 +17,7 @@ class AbstractKernelSelectionNode:
 
     @property
     def selection_parameters(self):
-        return self.branch_true.symbols + self.branch_false.symbols
+        return self.branch_true.symbols | self.branch_false.symbols
 
     @property
     def condition_text(self):
@@ -26,6 +26,13 @@ class AbstractKernelSelectionNode:
     @property
     def all_kernel_calls(self):
         return self.branch_true.all_kernel_calls + self.branch_false.all_kernel_calls
+
+    def get_selection_parameter_list(self):
+        all_params = self.selection_parameters
+        all_names = set(p.name for p in all_params)
+        if len(all_names) < len(all_params):
+            raise ValueError('There existed selection parameters of same name, but different type.')
+        return sorted(all_params)
 
     def get_code(self, **kwargs):
         true_branch_code = self.branch_true.get_code(**kwargs)
@@ -47,6 +54,10 @@ class KernelCallNode(AbstractKernelSelectionNode):
         self.ast = ast
         self.parameters = ast.get_parameters()  # cache parameters here
         super(KernelCallNode, self).__init__(None, None)
+
+    @property
+    def selection_parameters(self):
+        return set()
 
     @property
     def condition_text(self):
@@ -101,7 +112,7 @@ class SimpleBooleanCondition(AbstractKernelSelectionNode):
 
     @property
     def selection_parameters(self):
-        return [self.parameter_symbol]
+        return { self.parameter_symbol }
 
     @property
     def condition_text(self):
@@ -117,7 +128,7 @@ class KernelFamily:
                  temporary_fields=(), field_swaps=(), varying_parameters=(),
                  assumed_inner_stride_one=False):
         self.kernel_selection_tree = kernel_selection_tree
-        self.kernel_selection_parameters = kernel_selection_tree.selection_parameters
+        self.kernel_selection_parameters = kernel_selection_tree.get_selection_parameter_list()
         self.temporary_fields = tuple(temporary_fields)
         self.field_swaps = tuple(field_swaps)
         self.varying_parameters = tuple(varying_parameters)
@@ -164,6 +175,9 @@ class KernelFamily:
     def get_headers(self):
         all_headers = [get_headers(ast) for ast in self.all_asts]
         return reduce(merge_sorted_lists, all_headers)
+
+    def generate_kernel_invocation_code(self, **kwargs):
+        return self.kernel_selection_tree.get_code(**kwargs)
 
 
 # --------------------------- High-Level Sweep Interface Specification ------------------------------------------------
