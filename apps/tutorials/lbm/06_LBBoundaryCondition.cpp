@@ -124,21 +124,22 @@ class VelocityFunctor
 
 //! [boundaryTypedefs]
 /// boundary handling
-typedef lbm::NoSlip< LatticeModel_T, flag_t > NoSlip_T;
-typedef lbm::FreeSlip< LatticeModel_T, FlagField_T > FreeSlip_T;
+using NoSlip_T    = lbm::NoSlip< LatticeModel_T, flag_t >;
+using FreeSlip_T  = lbm::FreeSlip< LatticeModel_T, FlagField_T >;
 
-typedef lbm::SimpleUBB< LatticeModel_T, flag_t > SimpleUBB_T;
-typedef lbm::UBB< LatticeModel_T, flag_t > UBB_T;
-typedef lbm::DynamicUBB< LatticeModel_T, flag_t, VelocityFunctor > DynamicUBB_T;
-typedef lbm::ParserUBB< LatticeModel_T, flag_t > ParserUBB_T;
+using SimpleUBB_T    = lbm::SimpleUBB< LatticeModel_T, flag_t >;
+using UBB_T          = lbm::UBB< LatticeModel_T, flag_t >;
+using DynamicUBB_T   = lbm::DynamicUBB< LatticeModel_T, flag_t, VelocityFunctor >;
+using ParserUBB_T    = lbm::ParserUBB< LatticeModel_T, flag_t >;
 
-typedef lbm::SimplePressure< LatticeModel_T, flag_t > SimplePressure_T;
-typedef lbm::Pressure< LatticeModel_T, flag_t > Pressure_T;
-typedef lbm::Outlet< LatticeModel_T, FlagField_T > Outlet_T;
-typedef lbm::SimplePAB< LatticeModel_T, FlagField_T > SimplePAB_T;
+using SimplePressure_T  = lbm::SimplePressure< LatticeModel_T, flag_t >;
+using Pressure_T        = lbm::Pressure< LatticeModel_T, flag_t >;
+using Outlet_T          = lbm::Outlet< LatticeModel_T, FlagField_T >;
+using SimplePAB_T       = lbm::SimplePAB< LatticeModel_T, FlagField_T >;
 
-typedef BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T, FreeSlip_T, SimpleUBB_T, UBB_T, DynamicUBB_T, ParserUBB_T,
-                          SimplePressure_T, Pressure_T, Outlet_T, SimplePAB_T > BoundaryHandling_T;
+using BoundaryHandling_T = BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T, FreeSlip_T,
+                                             SimpleUBB_T, UBB_T, DynamicUBB_T, ParserUBB_T,
+                                             SimplePressure_T, Pressure_T, Outlet_T, SimplePAB_T >;
 //! [boundaryTypedefs]
 
 //! [myBoundaryHandlingDeclaration]
