@@ -30,9 +30,9 @@ public:
                     for( auto d = LM::Stencil::begin(); d != LM::Stencil::end(); ++d )
                     {
                         const real_t pdf = src->get(x - d.cx(), y - d.cy(), z - d.cz(), d.toIdx());
-                        u[0] += pdf * d.cx();
-                        u[1] += pdf * d.cy();
-                        u[2] += pdf * d.cz();
+                        u[0] += pdf * real_c(d.cx());
+                        u[1] += pdf * real_c(d.cy());
+                        u[2] += pdf * real_c(d.cz());
                         rho += pdf;
                     }
 
@@ -41,9 +41,9 @@ public:
                     for( auto d = LM::Stencil::begin(); d != LM::Stencil::end(); ++d )
                     {
                         const real_t pdf = src->get(x - d.cx(), y - d.cy(), z - d.cz(), d.toIdx());
-                        const real_t vel = d.cx()*u[0] + d.cy()*u[1] + d.cz()*u[2];
-                        dst->get(x, y, z, d.toIdx()) = ( 1.0 - omega_ ) * pdf +
-                                                       omega_   * LM::w[ d.toIdx() ] * ( rho - vel_sqr + 3.0*vel + 4.5*vel*vel );
+                        const real_t vel = real_c(d.cx())*u[0] + real_c(d.cy())*u[1] + real_c(d.cz())*u[2];
+                        dst->get(x, y, z, d.toIdx()) = ( real_t(1.0) - omega_ ) * pdf +
+                                                       omega_ * LM::w[ d.toIdx() ] * ( rho - vel_sqr + real_t(3.0)*vel + real_t(4.5)*vel*vel );
                     }
                 });
         src->swapDataPointers(*dst);

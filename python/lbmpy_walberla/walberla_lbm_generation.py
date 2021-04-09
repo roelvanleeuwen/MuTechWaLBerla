@@ -52,7 +52,9 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
     macroscopic_velocity_shift = None
     if force_model:
         if hasattr(force_model, 'macroscopic_velocity_shift'):
-            macroscopic_velocity_shift = [expression_to_code(e, "lm.", ['rho'], dtype=dtype_string)
+            macroscopic_velocity_shift = [expression_to_code(e.subs(sp.Rational(1, 2), cast_func(sp.Rational(1, 2),
+                                                                                                 dtype_string)),
+                                                             "lm.", ['rho'], dtype=dtype_string)
                                           for e in force_model.macroscopic_velocity_shift(rho_sym)]
 
     cqc = lb_method.conserved_quantity_computation

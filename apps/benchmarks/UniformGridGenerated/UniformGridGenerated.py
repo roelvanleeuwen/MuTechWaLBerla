@@ -108,9 +108,11 @@ with CodeGeneration() as ctx:
     if d3q27:
         options['stencil'] = 'D3Q27'
 
+    dtype_string = 'float64' if ctx.double_accuracy else 'float32'
+
     stencil_str = options['stencil']
     q = int(stencil_str[stencil_str.find('Q') + 1:])
-    pdfs, velocity_field = ps.fields("pdfs({q}), velocity(3) : double[3D]".format(q=q), layout='fzyx')
+    pdfs, velocity_field = ps.fields(f'pdfs({q}), velocity(3) : {dtype_string}[3D]', layout='fzyx')
 
     update_rule_two_field = create_lb_update_rule(optimization={'symbolic_field': pdfs,
                                                                 'split': opts['two_field_split'],

@@ -20,13 +20,15 @@ with CodeGeneration() as ctx:
 
     clear_cache()
 
+    dtype_string = 'float64' if ctx.double_accuracy else 'float32'
+
     cpu_vectorize_info = {'instruction_set': get_vectorize_instruction_set(ctx)}
 
-    if generatedMethod == "TRTlike":
-        omegaVisc = sp.Symbol("omega_visc")
-        omegaBulk = ps.fields("omega_bulk: [3D]", layout='fzyx')
-        omegaMagic = sp.Symbol("omega_magic")
-        stencil = get_stencil("D3Q19", 'walberla')
+    if generatedMethod == 'TRTlike':
+        omegaVisc = sp.Symbol('omega_visc')
+        omegaBulk = ps.fields(f'omega_bulk: {dtype_string}[3D]', layout='fzyx')
+        omegaMagic = sp.Symbol('omega_magic')
+        stencil = get_stencil('D3Q19', 'walberla')
 
         x, y, z = MOMENT_SYMBOLS
         one = sp.Rational(1, 1)
@@ -55,10 +57,10 @@ with CodeGeneration() as ctx:
  
     if generatedMethod == "D3Q27TRTlike":
 
-        omegaVisc = sp.Symbol("omega_visc")
-        omegaBulk = ps.fields("omega_bulk: [3D]", layout='fzyx')
-        omegaMagic = sp.Symbol("omega_magic")
-        stencil = get_stencil("D3Q27", 'walberla')
+        omegaVisc = sp.Symbol('omega_visc')
+        omegaBulk = ps.fields(f'omega_bulk: {dtype_string}[3D]', layout='fzyx')
+        omegaMagic = sp.Symbol('omega_magic')
+        stencil = get_stencil('D3Q27', 'walberla')
 
         relaxation_rates=[omegaVisc, omegaBulk.center_vector, omegaMagic, omegaVisc, omegaMagic, omegaVisc]
 
