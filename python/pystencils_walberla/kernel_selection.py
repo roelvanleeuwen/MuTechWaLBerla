@@ -27,7 +27,7 @@ class AbstractKernelSelectionNode:
         all_names = set(p.name for p in all_params)
         if len(all_names) < len(all_params):
             raise ValueError('There existed selection parameters of same name, but different type.')
-        return sorted(all_params)
+        return sorted(all_params, key=lambda x: x.name)
 
     def get_code(self, **kwargs) -> str:
         raise NotImplementedError()

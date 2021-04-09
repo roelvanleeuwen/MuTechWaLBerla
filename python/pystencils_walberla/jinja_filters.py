@@ -1,4 +1,3 @@
-from typing import Sequence
 import jinja2
 import sympy as sp
 # import re
@@ -405,26 +404,51 @@ def nested_class_method_definition_prefix(ctx, nested_class_name):
         return outer_class + '::' + nested_class_name
 
 
-def generate_func_params(args: Sequence[TypedSymbol], prepend=''):
-    if len(args) == 0:
-        return ''
-    parameter_list = []
-    for s in args:
-        parameter_list.append(f"{s.dtype} {s.name}")
-    return prepend + ", ".join(parameter_list)
-
-
-def generate_call_args(args: Sequence[TypedSymbol], prepend=''):
-    if len(args) == 0:
-        return ''
-    parameter_list = [s.name for s in args]
-    return prepend + ", ".join(parameter_list)
-
-
 def generate_list_of_expressions(expressions, prepend=''):
     if len(expressions) == 0:
         return ''
     return prepend + ", ".join(expressions)
+
+
+def type_identifier_list(nested_arg_list):
+    """
+    Filters a nested list of strings and TypedSymbols and returns a comma-separated string.
+    Strings are passed through as they are, but TypedSymbols are formatted as C-style
+    'type identifier' strings, e.g. 'uint32_t ghost_layers'.
+    """
+    result = []
+
+    def recursive_flatten(list):
+        for s in list:
+            if isinstance(s, str):
+                result.append(s)
+            elif isinstance(s, TypedSymbol):
+                result.append(f"{s.dtype} {s.name}")
+            else:
+                recursive_flatten(s)
+
+    recursive_flatten(nested_arg_list)
+    return ", ".join(result)
+
+
+def identifier_list(nested_arg_list):
+    """
+    Filters a nested list of strings and TypedSymbols and returns a comma-separated string.
+    Strings are passed through as they are, but TypedSymbols are replaced by their name.
+    """
+    result = []
+
+    def recursive_flatten(list):
+        for s in list:
+            if isinstance(s, str):
+                result.append(s)
+            elif isinstance(s, TypedSymbol):
+                result.append(s.name)
+            else:
+                recursive_flatten(s)
+
+    recursive_flatten(nested_arg_list)
+    return ", ".join(result)
 
 
 def add_pystencils_filters_to_jinja_env(jinja_env):
@@ -442,6 +466,6 @@ def add_pystencils_filters_to_jinja_env(jinja_env):
     jinja_env.filters['generate_refs_for_kernel_parameters'] = generate_refs_for_kernel_parameters
     jinja_env.filters['generate_destructor'] = generate_destructor
     jinja_env.filters['nested_class_method_definition_prefix'] = nested_class_method_definition_prefix
-    jinja_env.filters['func_param_list'] = generate_func_params
-    jinja_env.filters['call_arg_list'] = generate_call_args
+    jinja_env.filters['type_identifier_list'] = type_identifier_list
+    jinja_env.filters['identifier_list'] = identifier_list
     jinja_env.filters['list_of_expressions'] = generate_list_of_expressions
