@@ -6,9 +6,9 @@ from pystencils_walberla import CodeGeneration, generate_pack_info_from_kernel, 
 from lbmpy.macroscopic_value_kernels import macroscopic_values_getter, macroscopic_values_setter
 from lbmpy.fieldaccess import AAEvenTimeStepAccessor, AAOddTimeStepAccessor
 
-omega = sp.symbols("omega")
-omega_free = sp.Symbol("omega_free")
-omega_fill = sp.symbols("omega_:10")
+omega = sp.symbols('omega')
+omega_free = sp.Symbol('omega_free')
+omega_fill = sp.symbols('omega_:10')
 
 options_dict = {
     'srt': {
@@ -95,9 +95,9 @@ with CodeGeneration() as ctx:
     config_name = ctx.config
     noopt = False
     d3q27 = False
-    if config_name.endswith("_d3q27"):
+    if config_name.endswith('_d3q27'):
         d3q27 = True
-        config_name = config_name[:-len("_d3q27")]
+        config_name = config_name[:-len('_d3q27')]
 
     if config_name == '':
         config_name = 'trt'
@@ -131,10 +131,10 @@ with CodeGeneration() as ctx:
             ((0, 0, 1), UBB([0.05, 0, 0])),
             ((0, 0, -1), NoSlip()),
         ))
-        cr_even = create_lb_collision_rule(stencil="D3Q19", compressible=False,
+        cr_even = create_lb_collision_rule(stencil='D3Q19', compressible=False,
                                            optimization={'cse_global': opts['aa_even_cse_global'],
                                                          'cse_pdfs': opts['aa_even_cse_pdfs']})
-        cr_odd = create_lb_collision_rule(stencil="D3Q19", compressible=False,
+        cr_odd = create_lb_collision_rule(stencil='D3Q19', compressible=False,
                                           optimization={'cse_global': opts['aa_odd_cse_global'],
                                                         'cse_pdfs': opts['aa_odd_cse_pdfs']})
         update_rule_aa_even = update_rule_with_push_boundaries(cr_even, pdfs, boundaries,
@@ -198,4 +198,4 @@ with CodeGeneration() as ctx:
         'configName': ctx.config,
         'optimizationDict': str(opts),
     }
-    ctx.write_file("GenDefines.h", info_header.format(**infoHeaderParams))
+    ctx.write_file('GenDefines.h', info_header.format(**infoHeaderParams))
