@@ -173,7 +173,7 @@ void TimingTree<TP>::stop(const std::string& name)
    {
       current_->timer_.end();
       current_ = current_->last_;
-//      WALBERLA_LOG_DEVEL("Timer stoped: " << name);
+//      WALBERLA_LOG_DEVEL("Timer stopped: " << name);
    }
 }
 

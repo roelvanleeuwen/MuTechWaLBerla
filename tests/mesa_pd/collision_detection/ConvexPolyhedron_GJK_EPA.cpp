@@ -50,7 +50,7 @@ bool gjkEPAcollideHybrid(Support &geom1, Support &geom2, Vec3& normal, Vec3& con
    GJK gjk;
    if(gjk.doGJKmargin(geom1, geom2, margin)){
       //2. If collision is possible perform EPA.
-      //std::cerr << "Peforming EPA.";
+      //std::cerr << "Performing EPA.";
       EPA epa;
       epa.useSphereOptimization( true );
       return epa.doEPAmargin(geom1, geom2, gjk, normal, contactPoint, penetrationDepth, margin);

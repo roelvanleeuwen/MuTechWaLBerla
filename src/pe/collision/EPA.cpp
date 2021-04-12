@@ -130,7 +130,7 @@ inline bool EPA::EPA_Triangle::link( size_t edge0, EPA_Triangle* tria, size_t ed
  */
 inline void EPA::EPA_Triangle::silhouette( const Vec3& w, EPA_EdgeBuffer& edgeBuffer )
 {
-   //std::cerr << "Starting Silhoutette search on Triangle {" << indices_[0] << "," << indices_[1] << "," << indices_[2] << "}" << std::endl;
+   //std::cerr << "Starting Silhouette search on Triangle {" << indices_[0] << "," << indices_[1] << "," << indices_[2] << "}" << std::endl;
    edgeBuffer.clear();
    obsolete_ = true;
 

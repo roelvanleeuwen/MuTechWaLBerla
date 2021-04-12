@@ -73,7 +73,7 @@ Union<BodyTypes...>* createUnion(   BodyStorage& globalStorage, BlockStorage& bl
                                      bool global = false, bool communicating = true, bool infiniteMass = false )
 {
    if (Union<BodyTypes...>::getStaticTypeID() == std::numeric_limits<id_t>::max())
-      throw std::runtime_error("Union TypeID not initalized!");
+      throw std::runtime_error("Union TypeID not initialized!");
 
    Union<BodyTypes...>* bd = nullptr;
 
@@ -130,7 +130,7 @@ BoxID createBox( Union<BodyTypes...>* un,
                  bool global = false, bool communicating = true, bool infiniteMass = false )
 {
    if (Box::getStaticTypeID() == std::numeric_limits<id_t>::max())
-      throw std::runtime_error("Box TypeID not initalized!");
+      throw std::runtime_error("Box TypeID not initialized!");
 
    // union not on this process/block -> terminate creation
    if (un == nullptr)
@@ -196,7 +196,7 @@ CapsuleID createCapsule( Union<BodyTypes...>* un,
                          bool global = false, bool communicating = true, bool infiniteMass = false )
 {
    if (Capsule::getStaticTypeID() == std::numeric_limits<id_t>::max())
-      throw std::runtime_error("Capsule TypeID not initalized!");
+      throw std::runtime_error("Capsule TypeID not initialized!");
 
    // union not on this process/block -> terminate creation
    if (un == nullptr)
@@ -257,7 +257,7 @@ SphereID createSphere( Union<BodyTypes...>* un,
                        bool global = false, bool communicating = true, bool infiniteMass = false )
 {
    if (Sphere::getStaticTypeID() == std::numeric_limits<id_t>::max())
-      throw std::runtime_error("Sphere TypeID not initalized!");
+      throw std::runtime_error("Sphere TypeID not initialized!");
 
    // union not on this process/block -> terminate creation
    if (un == nullptr)

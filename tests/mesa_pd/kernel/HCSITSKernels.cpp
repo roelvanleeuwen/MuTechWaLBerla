@@ -360,10 +360,10 @@ void SphereSeperationTest(kernel::HCSITSRelaxationStep::RelaxationModel model){
       WALBERLA_LOG_INFO(p2->getLinearVelocity());
       solveCount ++;
       if(solveCount==maxIter){
-         WALBERLA_CHECK(false, "Seperation did not occur after " << maxIter << " Iterations performed.");
+         WALBERLA_CHECK(false, "Separation did not occur after " << maxIter << " Iterations performed.");
       }
    }
-   WALBERLA_LOG_INFO("Seperation achieved after " << solveCount << " iterations.");
+   WALBERLA_LOG_INFO("Separation achieved after " << solveCount << " iterations.");
 }
 
 /**
