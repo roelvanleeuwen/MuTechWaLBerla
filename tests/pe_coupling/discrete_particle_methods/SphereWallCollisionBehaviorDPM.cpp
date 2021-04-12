@@ -467,14 +467,17 @@ void emptyFunction(){}
  *
  * A glass sphere of radius D is settling under gravity towards the bottom plane.
  * The domain size is [32 x 32 x 512] * D, to ensure that the terminal settling velocity is reached before it hits the wall.
- *     _______________
- *    |               |
- *    |       o       | |
- *    |       |       | | gravity (z-direction)
- *    |       |       | v
- *    |       |       |
- *    |       |       |
- *    |_______|_______|
+   \verbatim
+       _______________
+      |               |
+      |       o       | |
+      |       |       | | gravity (z-direction)
+      |       |       | v
+      |       |       |
+      |       |       |
+      |_______|_______|
+
+   \endverbatim
  *
  * The sphere properties are: dry coeff of restitution = 0.97, coeff of friction = 0.1
  * Depending on the Stokes number ( St = ( rho_s / rho_f ) * Re / 9 ), the actual coefficient of resitution changes

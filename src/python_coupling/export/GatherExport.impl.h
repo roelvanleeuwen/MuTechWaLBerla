@@ -35,7 +35,7 @@ namespace field {
 * With field.gather a corresponding field will the gathered to the specified process. This field can be viewed as a
 * numpy array with field.toArrayOn all other porcesses an empty pybind11::object will be returned.
 *
-* \hint For large scale simulations it is also possible to provide a slice to keep the gathered data low!
+* \note For large scale simulations it is also possible to provide a slice to keep the gathered data low!
 */
 //*******************************************************************************************************************
 namespace py = pybind11;

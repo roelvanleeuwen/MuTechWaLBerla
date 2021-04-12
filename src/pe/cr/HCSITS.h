@@ -331,7 +331,7 @@ inline real_t HardContactSemiImplicitTimesteppingSolvers::getSpeedLimitFactor() 
  * \param f The overrelaxation parameter.
  * \return void
  *
- * The overrelaxation parameter \omega is only used when the relaxation model is one of
+ * The overrelaxation parameter \a omega is only used when the relaxation model is one of
  * - ApproximateInelasticCoulombContactByOrthogonalProjections
  * - InelasticCoulombContactByOrthogonalProjections
  *
