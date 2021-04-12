@@ -103,7 +103,7 @@ void ConvexPolyhedron::init( const Vec3& gpos,  const Quat& q,
       setMassAndInertiaToInfinity();
    } else
    {
-      // sets inverse mass and interatio tensor
+      // sets inverse mass and inertia tensor
       setMassAndInertia( getVolume() * Material::getDensity( getMaterial() ), mesh::computeInertiaTensor( mesh_ ) );
    }
    setCommunicating( communicating );

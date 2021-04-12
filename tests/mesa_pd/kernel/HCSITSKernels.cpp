@@ -260,8 +260,8 @@ void normalReactionTest(kernel::HCSITSRelaxationStep::RelaxationModel model)
 
 
 /**Check hard contact constraints on two overlapping, colliding spheres
- * Works only for the solvers that really archieve seperation after a single
- * timestep. Use SphereSeperationTest to check for seperation after multiple
+ * Works only for the solvers that really achieve separation after a single
+ * timestep. Use SphereSeperationTest to check for separation after multiple
  * timesteps.
  * @param model The collision model to use.
  * */
