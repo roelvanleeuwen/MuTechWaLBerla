@@ -11,6 +11,7 @@ def generate_boundary(generation_context,
                       streaming_pattern='pull',
                       always_generate_separate_classes=False,
                       additional_data_handler=None,
+                      namespace='lbm',
                       **create_kernel_params):
     def boundary_creation_function(field, index_field, stencil, boundary_functor, target='cpu', openmp=True, **kwargs):
         pargs = (field, index_field, lb_method, boundary_functor)
@@ -39,6 +40,6 @@ def generate_boundary(generation_context,
                                                    neighbor_stencil=lb_method.stencil,
                                                    index_shape=[len(lb_method.stencil)],
                                                    kernel_creation_function=boundary_creation_function,
-                                                   namespace='lbm',
+                                                   namespace=namespace,
                                                    additional_data_handler=additional_data_handler,
                                                    **create_kernel_params)
