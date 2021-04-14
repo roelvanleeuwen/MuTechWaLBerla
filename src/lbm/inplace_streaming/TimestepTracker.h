@@ -18,6 +18,8 @@
 //! \\author Frederik Hennig
 //======================================================================================================================
 
+#pragma once
+
 #include "core/DataTypes.h"
 
 namespace walberla{
@@ -30,7 +32,7 @@ private:
 
 public:
     TimestepTracker() : counter_(0) {}
-    
+
     void operator() () {
         counter_ = (counter_ + 1) & 1;
     }

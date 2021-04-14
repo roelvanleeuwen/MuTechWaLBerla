@@ -34,6 +34,10 @@
 #include <set>
 #include <vector>
 
+{% for header in interface_spec.headers %}
+#include {{header}}
+{% endfor %}
+
 #ifdef __GNUC__
 #define RESTRICT __restrict__
 #elif _MSC_VER
@@ -217,7 +221,11 @@ public:
     }
 
 private:
-    void run_impl( IBlock * block, IndexVectors::Type type{% if target == 'gpu'%}, cudaStream_t stream = 0 {%endif%});
+    void run_impl(
+        {{- ["IBlock * block", "IndexVectors::Type type",
+             kernel.kernel_selection_parameters, ["cudaStream_t stream = nullptr"] if target == 'gpu' else []]
+            | type_identifier_list -}}
+   );
 
     BlockDataID indexVectorID;
     {{additional_data_handler.additional_member_variable|indent(4)}}
