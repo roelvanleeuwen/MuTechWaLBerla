@@ -142,7 +142,7 @@ int main(int argc, char** argv)
       {
          for (uint_t i = 0; i < pullVelocityField->fSize(); i++)
          {
-            WALBERLA_ASSERT_FLOAT_EQUAL(pullVelocityField->get(c, i), inplaceVelocityField->get(c, i));
+            WALBERLA_CHECK_FLOAT_EQUAL(pullVelocityField->get(c, i), inplaceVelocityField->get(c, i));
          }
       }
    }
