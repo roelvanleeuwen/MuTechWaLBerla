@@ -3,7 +3,7 @@ from lbmpy.boundaries.boundaryhandling import create_lattice_boltzmann_boundary_
 from lbmpy.advanced_streaming import Timestep, is_inplace
 
 from pystencils_walberla.kernel_selection import KernelCallNode
-from lbmpy_walberla.alternating_sweeps import EvenIntegerCondition, TimestepTrackerMapping
+from lbmpy_walberla.alternating_sweeps import EvenIntegerCondition, OddIntegerCondition, TimestepTrackerMapping
 
 from pystencils.data_types import TypedSymbol
 
@@ -17,11 +17,10 @@ def generate_boundary(generation_context,
                       field_name='pdfs',
                       streaming_pattern='pull',
                       prev_timestep=Timestep.BOTH,
-                      always_generate_separate_classes=False,
                       additional_data_handler=None,
                       namespace='lbm',
                       **create_kernel_params):
-    def boundary_creation_function(field, index_field, stencil, boundary_functor, target='cpu', openmp=True, **kwargs):
+    def boundary_creation_function(field, index_field, stencil, boundary_functor, target='cpu', **kwargs):
         return create_lattice_boltzmann_boundary_kernel(field, index_field, lb_method, boundary_functor,
                                                         streaming_pattern=streaming_pattern,
                                                         prev_timestep=prev_timestep,
@@ -46,6 +45,7 @@ def generate_alternating_lbm_boundary(generation_context,
                                       lb_method,
                                       field_name='pdfs',
                                       streaming_pattern='pull',
+                                      after_collision=True,
                                       additional_data_handler=None,
                                       namespace='lbm',
                                       **create_kernel_params):
@@ -53,7 +53,7 @@ def generate_alternating_lbm_boundary(generation_context,
     timestep_param_dtype = np.uint8
     timestep_param = TypedSymbol(timestep_param_name, timestep_param_dtype)
 
-    def boundary_creation_function(field, index_field, stencil, boundary_functor, target='cpu', openmp=True, **kwargs):
+    def boundary_creation_function(field, index_field, stencil, boundary_functor, target='cpu', **kwargs):
         pargs = (field, index_field, lb_method, boundary_functor)
         kwargs = {'target': target, **kwargs}
         ast_even = create_lattice_boltzmann_boundary_kernel(*pargs,
@@ -73,7 +73,10 @@ def generate_alternating_lbm_boundary(generation_context,
         else:
             kernel_odd = kernel_even
 
-        return EvenIntegerCondition(timestep_param_name, kernel_even, kernel_odd, timestep_param_dtype)
+        if after_collision:
+            return EvenIntegerCondition(timestep_param_name, kernel_even, kernel_odd, timestep_param_dtype)
+        else:
+            return OddIntegerCondition(timestep_param_name, kernel_even, kernel_odd, timestep_param_dtype)
 
     interface_mappings = [TimestepTrackerMapping(timestep_param)]
 

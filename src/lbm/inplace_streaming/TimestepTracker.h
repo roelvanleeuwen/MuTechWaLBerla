@@ -22,24 +22,29 @@
 
 #include "core/DataTypes.h"
 
-namespace walberla{
-namespace lbm{
+namespace walberla
+{
+namespace lbm
+{
+class TimestepTracker
+{
+ private:
+   uint8_t counter_;
 
-class TimestepTracker{
+ public:
+   TimestepTracker() : counter_(0) {}
+   TimestepTracker(uint8_t zeroth_timestep) : counter_(zeroth_timestep & 1) {}
 
-private:
-    uint8_t counter_;
+   void advance() { counter_ = (counter_ + 1) & 1; }
 
-public:
-    TimestepTracker() : counter_(0) {}
+   std::function< void() > getAdvancementFunction()
+   {
+      return [this]() { this->advance(); };
+   }
 
-    void operator() () {
-        counter_ = (counter_ + 1) & 1;
-    }
+   uint8_t getCounter() const { return counter_; }
 
-    uint8_t getCounter() const { return counter_; }
-
-};  // class TimestepTracker
+}; // class TimestepTracker
 
 } // namespace lbm
 } // namespace walberla
