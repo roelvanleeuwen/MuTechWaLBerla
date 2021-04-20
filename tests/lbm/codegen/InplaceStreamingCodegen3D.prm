@@ -1,7 +1,7 @@
 
 Parameters
 {
-   timesteps   50;
+   timesteps   70;
    vtkWriteFrequency 0;
 }
 
@@ -19,9 +19,9 @@ Boundaries
             flag UBB; }
 
    Border { direction E;
-         walldistance -1;
-         flag NoSlip;
-         ghostLayersToInitialize 1; }
+            walldistance -1;
+            flag Outflow;
+            ghostLayersToInitialize 0; }
 
    Border { direction N;
          walldistance -1;

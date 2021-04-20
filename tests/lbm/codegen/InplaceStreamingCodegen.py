@@ -1,9 +1,10 @@
 from lbmpy_walberla import generate_alternating_lbm_sweep, generate_boundary, generate_alternating_lbm_boundary
+from lbmpy_walberla.additional_data_handler import OutflowAdditionalDataHandler
 from pystencils_walberla import CodeGeneration, generate_sweep
 
 from lbmpy.creationfunctions import create_lb_collision_rule, create_lb_ast
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
-from lbmpy.boundaries import NoSlip, UBB
+from lbmpy.boundaries import NoSlip, UBB, ExtrapolationOutflow
 from lbmpy.advanced_streaming import Timestep
 
 from pystencils import Field
@@ -20,20 +21,22 @@ two_fields_pattern = 'pull'
 namespace = 'lbmpy'
 
 info_header = f"""
-#include "field/GhostLayerField.h"
-#include "stencil/D{dim}Q{q}.h"
+# include "field/GhostLayerField.h"
+# include "stencil/D{dim}Q{q}.h"
 
 using namespace walberla;
 
-#include "PullSweep.h"
-#include "PullNoSlip.h"
-#include "PullUBB.h"
-#include "PullInit.h"
+# include "PullSweep.h"
+# include "PullNoSlip.h"
+# include "PullUBB.h"
+# include "PullOutflow.h"
+# include "PullInit.h"
 
-#include "InPlaceSweep.h"
-#include "InPlaceNoSlip.h"
-#include "InPlaceUBB.h"
-#include "InPlaceInit.h"
+# include "InPlaceSweep.h"
+# include "InPlaceNoSlip.h"
+# include "InPlaceUBB.h"
+# include "InPlaceOutflow.h"
+# include "InPlaceInit.h"
 
 using Stencil_T = walberla::stencil::D{dim}Q{q};
 using PdfField_T = GhostLayerField<real_t, {q}>;
@@ -66,6 +69,11 @@ lb_method = collision_rule.method
 noslip = NoSlip()
 ubb = UBB((0.05,) + (0,) * (dim - 1))
 
+outflow_normal = (1,) + (0,) * (dim - 1)
+outflow_pull = ExtrapolationOutflow(outflow_normal, lb_method, streaming_pattern=two_fields_pattern)
+
+outflow_inplace = ExtrapolationOutflow(outflow_normal, lb_method, streaming_pattern=inplace_pattern)
+
 init_velocity = (0, ) * dim
 
 init_kernel_pull = macroscopic_values_setter(lb_method, 1, init_velocity, f_field, streaming_pattern=two_fields_pattern)
@@ -75,12 +83,16 @@ init_kernel_inplace = macroscopic_values_setter(
 
 with CodeGeneration() as ctx:
     #   Pull-Pattern classes
-    ast_pull = create_lb_ast(collision_rule=collision_rule, streaming_pattern=two_fields_pattern, optimization=optimization)
+    ast_pull = create_lb_ast(collision_rule=collision_rule,
+                             streaming_pattern=two_fields_pattern, optimization=optimization)
     generate_sweep(ctx, 'PullSweep', ast_pull, field_swaps=[(f_field, f_field_tmp)], namespace=namespace)
 
     generate_boundary(ctx, 'PullNoSlip', noslip, lb_method,
                       streaming_pattern=two_fields_pattern, target=target, namespace=namespace)
-    generate_boundary(ctx, 'PullUBB', ubb, lb_method, streaming_pattern=two_fields_pattern, target=target, namespace=namespace)
+    generate_boundary(ctx, 'PullUBB', ubb, lb_method, streaming_pattern=two_fields_pattern,
+                      target=target, namespace=namespace)
+    generate_boundary(ctx, 'PullOutflow', outflow_pull, lb_method,
+                      streaming_pattern=two_fields_pattern, target=target, namespace=namespace)
 
     generate_sweep(ctx, 'PullInit', init_kernel_pull, target=target, namespace=namespace)
 
@@ -91,6 +103,8 @@ with CodeGeneration() as ctx:
     generate_alternating_lbm_boundary(ctx, 'InPlaceNoSlip', noslip, lb_method, streaming_pattern=inplace_pattern,
                                       after_collision=True, target=target, namespace=namespace)
     generate_alternating_lbm_boundary(ctx, 'InPlaceUBB', ubb, lb_method, streaming_pattern=inplace_pattern,
+                                      after_collision=True, target=target, namespace=namespace)
+    generate_alternating_lbm_boundary(ctx, 'InPlaceOutflow', outflow_inplace, lb_method, streaming_pattern=inplace_pattern,
                                       after_collision=True, target=target, namespace=namespace)
 
     generate_sweep(ctx, 'InPlaceInit', init_kernel_inplace, target=target, namespace=namespace)

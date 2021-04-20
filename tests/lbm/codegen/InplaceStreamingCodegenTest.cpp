@@ -64,6 +64,7 @@ int main(int argc, char** argv)
    const FlagUID fluidFlagUID("Fluid");
    const FlagUID noslipFlagUID("NoSlip");
    const FlagUID ubbFlagUID("UBB");
+   const FlagUID outflowFlagUID("Outflow");
 
    auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
 
@@ -76,11 +77,17 @@ int main(int argc, char** argv)
    PullUBB pullUBB(blocks, pullPdfFieldID);
    pullUBB.fillFromFlagField< FlagField_T >(blocks, boundaryFlagFieldID, ubbFlagUID, fluidFlagUID);
 
+   PullOutflow pullOutflow(blocks, pullPdfFieldID);
+   pullOutflow.fillFromFlagField< FlagField_T >(blocks, boundaryFlagFieldID, outflowFlagUID, fluidFlagUID);
+
    InPlaceNoSlip inplaceNoSlip(blocks, inplacePdfFieldID);
    inplaceNoSlip.fillFromFlagField< FlagField_T >(blocks, boundaryFlagFieldID, noslipFlagUID, fluidFlagUID);
 
    InPlaceUBB inplaceUBB(blocks, inplacePdfFieldID);
    inplaceUBB.fillFromFlagField< FlagField_T >(blocks, boundaryFlagFieldID, ubbFlagUID, fluidFlagUID);
+
+   InPlaceOutflow inplaceOutflow(blocks, inplacePdfFieldID);
+   inplaceOutflow.fillFromFlagField< FlagField_T >(blocks, boundaryFlagFieldID, outflowFlagUID, fluidFlagUID);
 
    // Init fields
 
@@ -105,6 +112,7 @@ int main(int argc, char** argv)
    SweepTimeloop pullTimeloop(blocks, timesteps);
    pullTimeloop.add() << Sweep(pullUBB);
    pullTimeloop.add() << Sweep(pullNoSlip);
+   pullTimeloop.add() << Sweep(pullOutflow);
    pullTimeloop.add() << Sweep(pullLbmSweep);
 
    if (vtkWriteFrequency > 0)
@@ -119,7 +127,8 @@ int main(int argc, char** argv)
 
    SweepTimeloop inplaceTimeloop(blocks, timesteps);
    inplaceTimeloop.add() << Sweep(inplaceUBB.getSweep(tracker));
-   inplaceTimeloop.add() << Sweep(inplaceNoSlip.getSweep(tracker)) << AfterFunction(tracker->getAdvancementFunction());
+   inplaceTimeloop.add() << Sweep(inplaceNoSlip.getSweep(tracker));
+   inplaceTimeloop.add() << Sweep(inplaceOutflow.getSweep(tracker)) << AfterFunction(tracker->getAdvancementFunction());
    inplaceTimeloop.add() << Sweep(inplaceLbmSweep.getSweep(tracker));
 
    if (vtkWriteFrequency > 0)

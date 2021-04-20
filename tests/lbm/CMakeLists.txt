@@ -129,10 +129,12 @@ waLBerla_generate_target_from_python( NAME InplaceStreamingCodegen
       OUT_FILES PullSweep.h PullSweep.cpp
                 PullNoSlip.h PullNoSlip.cpp
                 PullUBB.h PullUBB.cpp
+                PullOutflow.h PullOutflow.cpp
                 PullInit.h PullInit.cpp
                 InPlaceSweep.h InPlaceSweep.cpp
                 InPlaceNoSlip.h InPlaceNoSlip.cpp
                 InPlaceUBB.h InPlaceUBB.cpp
+                InPlaceOutflow.h InPlaceOutflow.cpp
                 InPlaceInit.h InPlaceInit.cpp
                 InplaceStreamingCodegen.h)
 

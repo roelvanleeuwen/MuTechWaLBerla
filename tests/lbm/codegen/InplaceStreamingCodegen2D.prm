@@ -20,8 +20,8 @@ Boundaries
             ghostLayersToInitialize 0; }
 	Border { direction E;
             walldistance -1;
-            flag NoSlip;
-            ghostLayersToInitialize 1; }
+            flag Outflow;
+            ghostLayersToInitialize 0; }
    Border { direction N;
             walldistance -1;
             flag NoSlip;
