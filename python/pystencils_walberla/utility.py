@@ -1,0 +1,66 @@
+from os import path
+from pystencils.data_types import get_base_type
+from pystencils_walberla.cmake_integration import CodeGenerationContext
+
+HEADER_EXTENSIONS = {'.h', '.hpp'}
+
+
+def generate_info_header(ctx: CodeGenerationContext,
+                         filename: str,
+                         stencil_typedefs=dict(),
+                         field_typedefs=dict(),
+                         additional_headers=set(),
+                         headers_to_ignore=set(),
+                         additional_typedefs=dict()):
+    headers_in_ctx = set(_filter_headers(ctx.files_written))
+
+    stencil_headers, stencil_typedefs = _stencil_inclusion_code(stencil_typedefs)
+    field_headers, field_typedefs = _field_inclusion_code(field_typedefs)
+
+    headers_to_include = stencil_headers | field_headers | headers_in_ctx | additional_headers
+    headers_to_include = sorted(headers_to_include - headers_to_ignore)
+    headers_to_include = [f'#include "{header}"' for header in headers_to_include]
+
+    typedefs = {**stencil_typedefs, **field_typedefs, **additional_typedefs}
+    typedefs = [f"using {alias} = {typename};" for alias, typename in typedefs.items()]
+
+    lines = '\n'.join(headers_to_include + [''] + typedefs) + '\n'
+    ctx.write_file(filename, lines)
+
+
+#   ------------------------------------- INTERNAL -------------------------------------------------------------
+
+
+def _filter_headers(filepaths):
+    for p in filepaths:
+        if path.splitext(p)[1] in HEADER_EXTENSIONS:
+            yield path.split(p)[1]
+
+
+def _stencil_inclusion_code(stencil_typedefs):
+    headers = set()
+    typedefs = dict()
+    for typename, stencil in stencil_typedefs.items():
+        if isinstance(stencil, tuple):
+            dim = len(stencil[0])
+            q = len(stencil)
+            stencil = f"D{dim}Q{q}"
+        elif not isinstance(stencil, str):
+            raise ValueError(f'Invalid stencil: Do not know what to make of {stencil}')
+
+        headers.add(f"stencil/{stencil}.h")
+        typedefs[typename] = f"walberla::stencil::{stencil}"
+
+    return headers, typedefs
+
+
+def _field_inclusion_code(field_typedefs):
+    headers = set()
+    typedefs = dict()
+    for typename, field in field_typedefs.items():
+        f_size = field.values_per_cell()
+        dtype = get_base_type(field.dtype)
+        headers.add("field/GhostLayerField.h")
+        typedefs[typename] = f"walberla::field::GhostLayerField<{dtype}, {f_size}>"
+
+    return headers, typedefs

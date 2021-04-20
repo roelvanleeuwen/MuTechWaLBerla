@@ -1,6 +1,6 @@
 from lbmpy_walberla import generate_alternating_lbm_sweep, generate_boundary, generate_alternating_lbm_boundary
 from lbmpy_walberla.additional_data_handler import OutflowAdditionalDataHandler
-from pystencils_walberla import CodeGeneration, generate_sweep
+from pystencils_walberla import CodeGeneration, generate_sweep, generate_info_header
 
 from lbmpy.creationfunctions import create_lb_collision_rule, create_lb_ast
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
@@ -19,29 +19,6 @@ target = 'cpu'
 inplace_pattern = 'aa'
 two_fields_pattern = 'pull'
 namespace = 'lbmpy'
-
-info_header = f"""
-# include "field/GhostLayerField.h"
-# include "stencil/D{dim}Q{q}.h"
-
-using namespace walberla;
-
-# include "PullSweep.h"
-# include "PullNoSlip.h"
-# include "PullUBB.h"
-# include "PullOutflow.h"
-# include "PullInit.h"
-
-# include "InPlaceSweep.h"
-# include "InPlaceNoSlip.h"
-# include "InPlaceUBB.h"
-# include "InPlaceOutflow.h"
-# include "InPlaceInit.h"
-
-using Stencil_T = walberla::stencil::D{dim}Q{q};
-using PdfField_T = GhostLayerField<real_t, {q}>;
-using VelocityField_T = GhostLayerField<real_t, {dim}>;
-"""
 
 f_field = Field.create_generic('f', dim, index_shape=(q,), layout='fzyx')
 f_field_tmp = Field.create_generic('f_tmp', dim, index_shape=(q,), layout='fzyx')
@@ -80,6 +57,8 @@ init_kernel_pull = macroscopic_values_setter(lb_method, 1, init_velocity, f_fiel
 init_kernel_inplace = macroscopic_values_setter(
     lb_method, 1, init_velocity, f_field, streaming_pattern=inplace_pattern, previous_timestep=Timestep.ODD)
 
+stencil_typedefs = {'Stencil_T': stencil}
+field_typedefs = {'PdfField_T': f_field, 'VelocityField_T': u_field}
 
 with CodeGeneration() as ctx:
     #   Pull-Pattern classes
@@ -109,4 +88,5 @@ with CodeGeneration() as ctx:
 
     generate_sweep(ctx, 'InPlaceInit', init_kernel_inplace, target=target, namespace=namespace)
 
-    ctx.write_file("InplaceStreamingCodegen.h", info_header)
+    generate_info_header(ctx, "InplaceStreamingCodegen.h",
+                         stencil_typedefs=stencil_typedefs, field_typedefs=field_typedefs)

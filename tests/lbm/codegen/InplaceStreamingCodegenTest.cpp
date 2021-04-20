@@ -34,7 +34,7 @@
 
 #include <string>
 
-using namespace lbmpy;
+using namespace walberla::lbmpy;
 
 namespace walberla
 {
