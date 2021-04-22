@@ -254,6 +254,13 @@ def generate_call(ctx, kernel_info, ghost_layers_to_include=0, cell_interval=Non
                                          ((param.symbol.dtype, param.symbol.name, param.field_name) + coordinates))
                 if ast.assumed_inner_stride_one and field.index_dimensions > 0:
                     kernel_call_lines.append("WALBERLA_ASSERT_EQUAL(%s->layout(), field::fzyx);" % (param.field_name,))
+                if ast.instruction_set and ast.assumed_inner_stride_one:
+                    if ast.nontemporal and ast.openmp and 'cachelineZero' in ast.instruction_set:
+                        kernel_call_lines.append("WALBERLA_ASSERT_EQUAL((uintptr_t) %s->dataAt(0, 0, 0, 0) %% %s, 0);"
+                                                 % (field.name, ast.instruction_set['cachelineSize']))
+                    else:
+                        kernel_call_lines.append("WALBERLA_ASSERT_EQUAL((uintptr_t) %s->dataAt(0, 0, 0, 0) %% %s, 0);"
+                                                 % (field.name, ast.instruction_set['bytes']))
         elif param.is_field_stride:
             casted_stride = get_field_stride(param)
             type_str = param.symbol.dtype.base_name
@@ -269,6 +276,13 @@ def generate_call(ctx, kernel_info, ghost_layers_to_include=0, cell_interval=Non
             kernel_call_lines.append("const %s %s = %s;" % (type_str, param.symbol.name, shape))
             if ast.assumed_inner_stride_one and field.index_dimensions > 0:
                 kernel_call_lines.append("WALBERLA_ASSERT_EQUAL(%s->layout(), field::fzyx);" % (field.name,))
+            if ast.instruction_set and ast.assumed_inner_stride_one:
+                if ast.nontemporal and ast.openmp and 'cachelineZero' in ast.instruction_set:
+                    kernel_call_lines.append("WALBERLA_ASSERT_EQUAL((uintptr_t) %s->dataAt(0, 0, 0, 0) %% %s, 0);"
+                                             % (field.name, ast.instruction_set['cachelineSize']))
+                else:
+                    kernel_call_lines.append("WALBERLA_ASSERT_EQUAL((uintptr_t) %s->dataAt(0, 0, 0, 0) %% %s, 0);"
+                                             % (field.name, ast.instruction_set['bytes']))
 
     call_parameters = ", ".join([p.symbol.name for p in ast_params])
 
