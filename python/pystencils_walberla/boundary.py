@@ -25,7 +25,7 @@ def generate_boundary(generation_context,
                       target='cpu',
                       namespace='pystencils',
                       additional_data_handler=None,
-                      interface_mappings=[],
+                      interface_mappings=(),
                       generate_functor=True,
                       **create_kernel_params):
 

@@ -76,7 +76,7 @@ def generate_sweep(generation_context, class_name, assignments,
                              assumed_inner_stride_one=assumed_inner_stride_one)
 
 
-def generate_selective_sweep(generation_context, class_name, selection_tree, interface_mappings=[], target=None,
+def generate_selective_sweep(generation_context, class_name, selection_tree, interface_mappings=(), target=None,
                              namespace='pystencils', field_swaps=(), varying_parameters=(),
                              inner_outer_split=False, ghost_layers_to_include=0, assumed_inner_stride_one=False):
     def to_name(f):

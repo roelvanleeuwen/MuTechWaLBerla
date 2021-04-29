@@ -46,8 +46,8 @@ int main(int argc, char** argv)
    Environment walberlaEnv(argc, argv);
    auto blocks = blockforest::createUniformBlockGridFromConfig(walberlaEnv.config());
 
-   auto params         = walberlaEnv.config()->getBlock("Parameters");
-   uint_t timesteps    = params.getParameter< uint_t >("timesteps");
+   auto params              = walberlaEnv.config()->getBlock("Parameters");
+   uint_t timesteps         = params.getParameter< uint_t >("timesteps");
    uint_t vtkWriteFrequency = params.getParameter< uint_t >("vtkWriteFrequency");
 
    BlockDataID pullPdfFieldID    = field::addToStorage< PdfField_T >(blocks, "f_pull", real_c(0.0), field::fzyx);

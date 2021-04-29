@@ -7,11 +7,18 @@ HEADER_EXTENSIONS = {'.h', '.hpp'}
 
 def generate_info_header(ctx: CodeGenerationContext,
                          filename: str,
-                         stencil_typedefs=dict(),
-                         field_typedefs=dict(),
-                         additional_headers=set(),
-                         headers_to_ignore=set(),
-                         additional_typedefs=dict()):
+                         stencil_typedefs: dict = None,
+                         field_typedefs: dict = None,
+                         additional_headers: set = None,
+                         headers_to_ignore: set = None,
+                         additional_typedefs: dict = None):
+    stencil_typedefs = stencil_typedefs if stencil_typedefs is not None else dict()
+    field_typedefs = field_typedefs if field_typedefs is not None else dict()
+    additional_typedefs = additional_typedefs if additional_typedefs is not None else dict()
+
+    additional_headers = additional_headers if additional_headers is not None else set()
+    headers_to_ignore = headers_to_ignore if headers_to_ignore is not None else set()
+
     headers_in_ctx = set(_filter_headers(ctx.files_written))
 
     stencil_headers, stencil_typedefs = _stencil_inclusion_code(stencil_typedefs)

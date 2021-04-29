@@ -1,6 +1,6 @@
 waLBerla_link_files_to_builddir( "*.py" )
 
-if (WALBERLA_BUILD_WITH_CUDA)
+if (WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN)
     waLBerla_generate_target_from_python(NAME FlowAroundSphereGenerated
             FILE FlowAroundSphereCodeGen.py
             OUT_FILES FlowAroundSphereCodeGen_EvenSweep.cu FlowAroundSphereCodeGen_EvenSweep.h

@@ -57,7 +57,7 @@ class TimestepTrackerMapping(AbstractInterfaceArgumentMapping):
 
 def generate_alternating_lbm_sweep(generation_context, class_name, collision_rule, streaming_pattern,
                                    namespace='lbm', field_swaps=(), varying_parameters=(),
-                                   inner_outer_split=False, ghost_layers_to_include=0, optimization={},
+                                   inner_outer_split=False, ghost_layers_to_include=0, optimization=None,
                                    **create_ast_params):
     optimization = default_lbm_optimization_parameters(generation_context, optimization)
 
@@ -95,6 +95,8 @@ def generate_alternating_lbm_sweep(generation_context, class_name, collision_rul
 
 
 def default_lbm_optimization_parameters(generation_context, params):
+    if params is None:
+        params = dict()
 
     params['target'] = params.get('target', 'cpu')
     params['double_precision'] = params.get('double_precision', generation_context.double_accuracy)

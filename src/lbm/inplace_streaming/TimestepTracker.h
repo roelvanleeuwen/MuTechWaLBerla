@@ -15,7 +15,7 @@
 //
 //! \\file TimestepTracker.h
 //! \\ingroup lbm
-//! \\author Frederik Hennig
+//! \\author Frederik Hennig <frederik.hennig@fau.de>
 //======================================================================================================================
 
 #pragma once
