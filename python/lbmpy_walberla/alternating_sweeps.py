@@ -59,6 +59,26 @@ def generate_alternating_lbm_sweep(generation_context, class_name, collision_rul
                                    namespace='lbm', field_swaps=(), varying_parameters=(),
                                    inner_outer_split=False, ghost_layers_to_include=0, optimization=None,
                                    **create_ast_params):
+    """Generates an Alternating lattice Boltzmann sweep class. This is in particular meant for
+    in-place streaming patterns, but can of course also be used with two-fields patterns (why make it
+    simple if you can make it complicated?). From a collision rule, two kernel implementations are
+    generated; one for even, and one for odd timesteps. At run time, the correct one is selected
+    according to a time step counter. This counter can be managed by the `walberla::lbm::TimestepTracker`
+    class.
+
+    Args:
+        generation_context: See documentation of `pystencils_walberla.generate_sweep`
+        class_name: Name of the generated class
+        collision_rule: LbCollisionRule as returned by `lbmpy.create_lb_collision_rule`.
+        streaming_pattern: Name of the streaming pattern; see `lbmpy.advanced_streaming`
+        namespace: see documentation of `generate_sweep`
+        field_swaps: see documentation of `generate_sweep`
+        varying_parameters: see documentation of `generate_sweep`
+        inner_outer_split: see documentation of `generate_sweep`
+        ghost_layers_to_include: see documentation of `generate_sweep`
+        optimization: dictionary containing optimization parameters, c.f. `lbmpy.creationfunctions`
+        create_ast_params: Further parameters passed to `create_lb_ast`
+    """
     optimization = default_lbm_optimization_parameters(generation_context, optimization)
 
     target = optimization['target']

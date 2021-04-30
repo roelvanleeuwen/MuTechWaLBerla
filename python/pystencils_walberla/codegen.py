@@ -79,6 +79,23 @@ def generate_sweep(generation_context, class_name, assignments,
 def generate_selective_sweep(generation_context, class_name, selection_tree, interface_mappings=(), target=None,
                              namespace='pystencils', field_swaps=(), varying_parameters=(),
                              inner_outer_split=False, ghost_layers_to_include=0, assumed_inner_stride_one=False):
+    """Generates a selective sweep from a kernel selection tree. A kernel selection tree consolidates multiple
+    pystencils ASTs in a tree-like structure. See also module `pystencils_walberla.kernel_selection`.
+
+    Args:
+        generation_context: see documentation of `generate_sweep`
+        class_name: name of the generated sweep class
+        selection_tree: Instance of `AbstractKernelSelectionNode`, root of the selection tree
+        interface_mappings: sequence of `AbstractInterfaceArgumentMapping` instances for selection arguments of
+                            the selection tree
+        target: `None`, `'cpu'` or `'gpu'`; inferred from kernels if `None` is given.
+        namespace: see documentation of `generate_sweep`
+        field_swaps: see documentation of `generate_sweep`
+        varying_parameters: see documentation of `generate_sweep`
+        inner_outer_split: see documentation of `generate_sweep`
+        ghost_layers_to_include: see documentation of `generate_sweep`
+        assumed_inner_stride_one: Whether or not the stride of the innermost loop can be assumed to be one.
+    """
     def to_name(f):
         return f.name if isinstance(f, Field) else f
 

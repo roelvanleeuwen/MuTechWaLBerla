@@ -7,6 +7,61 @@ from pystencils.backends.cbackend import get_headers
 from pystencils.backends.cuda_backend import CudaSympyPrinter
 from pystencils.kernelparameters import SHAPE_DTYPE
 
+
+"""
+
+This module contains several classes and methods supporting the code generation of sweeps
+containing multiple kernels.
+
+A sweep class may be backed by multiple kernel implementations with (nearly) the same interface.
+Those might be slightly altered versions of a single kernel, and the one to be executed may
+be selected at run time according to certain criteria. An example are the even/odd alternating
+kernels required for lattice Boltzmann inplace streaming. Executing multiple kernels in sequence
+within a single sweep could also be a use case, which is however not yet implemented.
+
+## The Kernel Selection Tree
+
+The selection of the correct kernel is modelled by a tree structure, spanned by instances of
+subclasses of `AbstractKernelSelectionNode`. The code generator traverses this tree and generates
+code for invoking kernels according to its structure and nodes.
+Currently, two types of nodes exist:
+
+- Condition Nodes: Subclasses of `AbstractConditionNode` manifest as if/else statements
+    in the generated code. They model decision points and have two subtrees; one for the
+    `true` case, and one for `false`. A basic implementation is `SimpleBooleanCondition`,
+    which simply branches according to a boolean value. Each condition node requires a number
+    of selection parameters. The total of selection parameters of the entire tree are collected
+    during code generation, and must all be passed to the generated C++ functions.
+- Kernel Call Nodes: Currently, `KernelCallNode` corresponds to the invocation of a single
+    kernel. `KernelCallNode` acts as a wrapper for a single pystencils AST. When encountered
+    in the tree during code generation, the function call for this AST is inserted.
+
+
+## The Kernel Family
+
+The `KernelFamily` class is a wrapper around a kernel selection tree. It was developed as a
+generalization of the `KernelInfo` class. Its purpose is the collection and management of
+information about the tree and its kernels which is required for code generation.
+It also checks the tree's ASTs for consistency; for example by making sure that any fields
+and symbols required by multiple ASTs have the same type, dimensions, et cetera.
+
+
+## High-Level Interface
+
+Due to the tree's selection arguments, which must be passed to the methods wrapping the
+kernel calls, the generated class can not by itself be used as a sweep functor to be passed
+to the waLBerla timeloop. Instead, for all sweep types, a `get[...]Sweep` member function is
+generated. It takes any required selection arguments, and returns a lambda function which
+can be passed directly to the timeloop.
+
+Using the interface mapping system, the 'low-level' selection arguments of the kernel tree
+can be hidden behind higher-level arguments. Such argument mappings are modelled by the
+subclasses of `AbstractInterfaceArgumentMapping`. During code generation, they are organized
+in an instance of `HighLevelInterfaceSpec`, which is used to generate the high-level interface.
+
+
+"""
+
 # ---------------------------------- Selection Tree --------------------------------------------------------------------
 
 

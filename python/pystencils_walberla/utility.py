@@ -12,6 +12,20 @@ def generate_info_header(ctx: CodeGenerationContext,
                          additional_headers: set = None,
                          headers_to_ignore: set = None,
                          additional_typedefs: dict = None):
+    """Generates an info header, consolidating required information about the generated code.
+    The info header #includes all generated header files, and is thus the only header the
+    application needs to #include. It can also contain aliases for waLBerla stencil types and
+    instances of the GhostLayerField template.
+
+    Args:
+        ctx: Code Generation Context
+        filename: Name of the generated info header file
+        stencil_typedefs: dict mapping type names to stencil names or tuples
+        field_typedefs: dict mapping type names to pystencils `Field` instances
+        additional_headers: additional header files to be included
+        headers_to_ignore: headers which should not be included
+        additional_typedefs: dict mapping aliases to types.
+    """
     stencil_typedefs = stencil_typedefs if stencil_typedefs is not None else dict()
     field_typedefs = field_typedefs if field_typedefs is not None else dict()
     additional_typedefs = additional_typedefs if additional_typedefs is not None else dict()
