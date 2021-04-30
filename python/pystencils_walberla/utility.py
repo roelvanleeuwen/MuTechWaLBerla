@@ -33,7 +33,7 @@ def generate_info_header(ctx: CodeGenerationContext,
 
     lines = '\n'.join(headers_to_include + [''] + typedefs) + '\n'
 
-    if path.splitext(filename) not in HEADER_EXTENSIONS:
+    if path.splitext(filename)[1] not in HEADER_EXTENSIONS:
         filename += '.h'
 
     ctx.write_file(filename, lines)
