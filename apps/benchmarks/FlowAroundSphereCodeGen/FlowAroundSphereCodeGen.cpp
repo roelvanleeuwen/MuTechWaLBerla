@@ -28,6 +28,7 @@
 
 #include "geometry/all.h"
 
+#include "lbm/inplace_streaming/TimestepTracker.h"
 #include "lbm/vtk/QCriterion.h"
 
 #include "python_coupling/CreateConfig.h"
@@ -47,15 +48,9 @@
 
 // CodeGen includes
 #include "FlowAroundSphereCodeGen_InfoHeader.h"
-#include "FlowAroundSphereCodeGen_EvenSweep.h"
-#include "FlowAroundSphereCodeGen_MacroSetter.h"
-#include "FlowAroundSphereCodeGen_NoSlip.h"
-#include "FlowAroundSphereCodeGen_OddSweep.h"
-#include "FlowAroundSphereCodeGen_Outflow.h"
-#include "FlowAroundSphereCodeGen_PackInfoEven.h"
-#include "FlowAroundSphereCodeGen_PackInfoOdd.h"
-#include "FlowAroundSphereCodeGen_UBB.h"
 
+namespace walberla
+{
 typedef lbm::FlowAroundSphereCodeGen_PackInfoEven PackInfoEven_T;
 typedef lbm::FlowAroundSphereCodeGen_PackInfoOdd PackInfoOdd_T;
 
@@ -92,54 +87,19 @@ auto VelocityCallback = [](const Cell& pos, const shared_ptr< StructuredBlockFor
    return result;
 };
 
-class TimestepModulusTracker
-{
- private:
-   uint_t modulus_;
-
- public:
-   TimestepModulusTracker(uint_t initialTimestep) : modulus_(initialTimestep & 1){};
-
-   void setTimestep(uint_t timestep) { modulus_ = timestep & 1; }
-
-   std::function< void() > advancementFunction()
-   {
-      return [this]() { this->modulus_ = (this->modulus_ + 1) & 1; };
-   }
-
-   uint_t modulus() const { return modulus_; }
-   bool evenStep() const { return static_cast< bool >(modulus_ ^ 1); }
-   bool oddStep() const { return static_cast< bool >(modulus_ & 1); }
-};
-
-class AlternatingSweep
-{
- public:
-   typedef std::function< void(IBlock*) > SweepFunction;
-
-   AlternatingSweep(SweepFunction evenSweep, SweepFunction oddSweep, std::shared_ptr< TimestepModulusTracker > tracker)
-      : tracker_(tracker), sweeps_{ evenSweep, oddSweep } {};
-
-   void operator()(IBlock* block) { sweeps_[tracker_->modulus()](block); }
-
- private:
-   std::shared_ptr< TimestepModulusTracker > tracker_;
-   std::vector< SweepFunction > sweeps_;
-};
-
 class AlternatingBeforeFunction
 {
  public:
    typedef std::function< void() > BeforeFunction;
 
    AlternatingBeforeFunction(BeforeFunction evenFunc, BeforeFunction oddFunc,
-                             std::shared_ptr< TimestepModulusTracker >& tracker)
+                             std::shared_ptr< lbm::TimestepTracker >& tracker)
       : tracker_(tracker), funcs_{ evenFunc, oddFunc } {};
 
-   void operator()() { funcs_[tracker_->modulus()](); }
+   void operator()() { funcs_[tracker_->getCounter()](); }
 
  private:
-   std::shared_ptr< TimestepModulusTracker > tracker_;
+   std::shared_ptr< lbm::TimestepTracker > tracker_;
    std::vector< BeforeFunction > funcs_;
 };
 
@@ -211,15 +171,18 @@ int main(int argc, char** argv)
       pystencils::FlowAroundSphereCodeGen_MacroSetter setterSweep(pdfFieldIDGPU, velFieldIDGPU);
       for (auto& block : *blocks)
          setterSweep(&block);
-      cuda::fieldCpy< PdfField_T , GPUField >(blocks, pdfFieldID, pdfFieldIDGPU);
+      cuda::fieldCpy< PdfField_T, GPUField >(blocks, pdfFieldID, pdfFieldIDGPU);
 #else
       pystencils::FlowAroundSphereCodeGen_MacroSetter setterSweep(pdfFieldID, velFieldID);
       for (auto& block : *blocks)
          setterSweep(&block);
 #endif
-         // Create communication
+      // Create communication
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
+      // This way of using alternating pack infos is temporary and will soon be replaced
+      // by something more straight-forward
+
       cuda::communication::UniformGPUScheme< Stencil_T > comEven(blocks, false);
       comEven.addPackInfo(make_shared< PackInfoEven_T >(pdfFieldIDGPU));
       auto evenComm = std::function< void() >([&]() { comEven.communicate(nullptr); });
@@ -247,10 +210,14 @@ int main(int argc, char** argv)
       lbm::FlowAroundSphereCodeGen_UBB ubb(blocks, pdfFieldIDGPU, velocity_initialisation);
       lbm::FlowAroundSphereCodeGen_NoSlip noSlip(blocks, pdfFieldIDGPU);
       lbm::FlowAroundSphereCodeGen_Outflow outflow(blocks, pdfFieldIDGPU, pdfFieldID);
+
+      lbm::FlowAroundSphereCodeGen_LbSweep lbSweep(densityFieldIDGPU, pdfFieldIDGPU, velFieldIDGPU, omega);
 #else
       lbm::FlowAroundSphereCodeGen_UBB ubb(blocks, pdfFieldID, velocity_initialisation);
       lbm::FlowAroundSphereCodeGen_NoSlip noSlip(blocks, pdfFieldID);
       lbm::FlowAroundSphereCodeGen_Outflow outflow(blocks, pdfFieldID);
+
+      lbm::FlowAroundSphereCodeGen_LbSweep lbSweep(densityFieldID, pdfFieldID, velFieldID, omega);
 #endif
 
       geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
@@ -263,30 +230,18 @@ int main(int argc, char** argv)
       // create time loop
       SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-      pystencils::FlowAroundSphereCodeGen_EvenSweep LBEvenSweep(densityFieldIDGPU, pdfFieldIDGPU, velFieldIDGPU, omega);
-      pystencils::FlowAroundSphereCodeGen_OddSweep LBOddSweep(densityFieldIDGPU, pdfFieldIDGPU, velFieldIDGPU, omega);
-#else
-      pystencils::FlowAroundSphereCodeGen_EvenSweep LBEvenSweep(densityFieldID, pdfFieldID, velFieldID, omega);
-      pystencils::FlowAroundSphereCodeGen_OddSweep LBOddSweep(densityFieldID, pdfFieldID, velFieldID, omega);
-#endif
+      // Timestep Tracking and Sweeps
+      auto tracker = make_shared< lbm::TimestepTracker >(0);
 
-      // All the sweeps
-      auto tracker = make_shared< TimestepModulusTracker >(0);
-
-      AlternatingSweep LBSweep(LBEvenSweep, LBOddSweep, tracker);
-      AlternatingSweep noSlipSweep(noSlip.getEvenSweep(), noSlip.getOddSweep(), tracker);
-      AlternatingSweep outflowSweep(outflow.getEvenSweep(), outflow.getOddSweep(), tracker);
-      AlternatingSweep ubbSweep(ubb.getEvenSweep(), ubb.getOddSweep(), tracker);
       AlternatingBeforeFunction communication(evenComm, oddComm, tracker);
 
       // add LBM sweep and communication to time loop
       timeloop.add() << BeforeFunction(communication, "communication")
-                     << Sweep(noSlipSweep, "noSlip boundary");
-      timeloop.add() << Sweep(outflowSweep, "outflow boundary");
-      timeloop.add() << Sweep(ubbSweep, "ubb boundary");
-      timeloop.add() << BeforeFunction(tracker->advancementFunction(), "Timestep Advancement")
-                     << Sweep(LBSweep, "LB update rule");
+                     << Sweep(noSlip.getSweep(tracker), "noSlip boundary");
+      timeloop.add() << Sweep(outflow.getSweep(tracker), "outflow boundary");
+      timeloop.add() << Sweep(ubb.getSweep(tracker), "ubb boundary");
+      timeloop.add() << BeforeFunction(tracker->getAdvancementFunction(), "Timestep Advancement")
+                     << Sweep(lbSweep.getSweep(tracker), "LB update rule");
 
       // LBM stability check
       timeloop.addFuncAfterTimeStep(makeSharedFunctor(field::makeStabilityChecker< PdfField_T, FlagField_T >(
@@ -315,8 +270,8 @@ int main(int argc, char** argv)
          auto densityWriter = make_shared< field::VTKWriter< ScalarField_T > >(densityFieldID, "density");
          FluidFilter_T filter(cellsPerBlock);
 
-         auto QCriterionWriter = make_shared<lbm::QCriterionVTKWriter<VelocityField_T, FluidFilter_T>>(blocks,
-         filter, velFieldID, "Q-Criterion");
+         auto QCriterionWriter = make_shared< lbm::QCriterionVTKWriter< VelocityField_T, FluidFilter_T > >(
+            blocks, filter, velFieldID, "Q-Criterion");
 
          vtkOutput->addCellDataWriter(velWriter);
          vtkOutput->addCellDataWriter(densityWriter);
@@ -327,13 +282,11 @@ int main(int argc, char** argv)
 
       WcTimer simTimer;
 
-      WALBERLA_LOG_INFO_ON_ROOT(
-         "Simulating flow around sphere:"
-         "\n timesteps:               " << timesteps <<
-         "\n reynolds number:         " << reynolds_number <<
-         "\n relaxation rate:         " << omega <<
-         "\n maximum inflow velocity: " << u_max <<
-         "\n diameter_sphere:         " << diameter_sphere)
+      WALBERLA_LOG_INFO_ON_ROOT("Simulating flow around sphere:"
+                                "\n timesteps:               "
+                                << timesteps << "\n reynolds number:         " << reynolds_number
+                                << "\n relaxation rate:         " << omega << "\n maximum inflow velocity: " << u_max
+                                << "\n diameter_sphere:         " << diameter_sphere)
 
       simTimer.start();
       timeloop.run();
@@ -348,3 +301,7 @@ int main(int argc, char** argv)
 
    return EXIT_SUCCESS;
 }
+
+} // namespace walberla
+
+int main(int argc, char** argv) { walberla::main(argc, argv); }

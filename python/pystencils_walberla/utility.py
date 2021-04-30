@@ -32,6 +32,10 @@ def generate_info_header(ctx: CodeGenerationContext,
     typedefs = [f"using {alias} = {typename};" for alias, typename in typedefs.items()]
 
     lines = '\n'.join(headers_to_include + [''] + typedefs) + '\n'
+
+    if path.splitext(filename) not in HEADER_EXTENSIONS:
+        filename += '.h'
+
     ctx.write_file(filename, lines)
 
 

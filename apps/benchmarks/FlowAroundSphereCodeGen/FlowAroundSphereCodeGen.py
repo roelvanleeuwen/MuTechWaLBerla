@@ -1,12 +1,16 @@
-from lbmpy.advanced_streaming.utility import get_timesteps, Timestep
 from pystencils.field import fields
+
+from lbmpy.advanced_streaming.utility import get_timesteps, Timestep
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
 from lbmpy.stencils import get_stencil
 from lbmpy.creationfunctions import create_lb_collision_rule, create_lb_method, create_lb_update_rule
 from lbmpy.boundaries import NoSlip, UBB, ExtrapolationOutflow
+
+from pystencils_walberla import CodeGeneration, generate_sweep, generate_info_header
+
 from lbmpy_walberla.additional_data_handler import UBBAdditionalDataHandler, OutflowAdditionalDataHandler
-from pystencils_walberla import CodeGeneration, generate_sweep
-from lbmpy_walberla import RefinementScaling, generate_boundary, generate_lb_pack_info
+from lbmpy_walberla import generate_boundary, generate_lb_pack_info
+from lbmpy_walberla import generate_alternating_lbm_sweep, generate_alternating_lbm_boundary
 
 import sympy as sp
 
@@ -25,41 +29,34 @@ output = {
     'velocity': velocity_field
 }
 
-options = {'method': 'cumulant',
-           'stencil': stencil,
-           'relaxation_rate': omega,
-           'galilean_correction': True,
-           'field_name': 'pdfs',
-           'streaming_pattern': streaming_pattern,
-           'output': output,
-           'optimization': {'symbolic_field': pdfs,
-                            'cse_global': False,
-                            'cse_pdfs': False}}
+opt = {'symbolic_field': pdfs,
+       'cse_global': False,
+       'cse_pdfs': False}
 
-method = create_lb_method(**options)
+method_params = {'method': 'cumulant',
+                 'stencil': stencil,
+                 'relaxation_rate': omega,
+                 'galilean_correction': True,
+                 'field_name': 'pdfs',
+                 'streaming_pattern': streaming_pattern,
+                 'output': output,
+                 'optimization': opt}
+
+collision_rule = create_lb_collision_rule(**method_params)
+lb_method = collision_rule.method
 
 # getter & setter
-setter_assignments = macroscopic_values_setter(method, velocity=velocity_field.center_vector,
+setter_assignments = macroscopic_values_setter(lb_method, velocity=velocity_field.center_vector,
                                                pdfs=pdfs, density=1,
                                                streaming_pattern=streaming_pattern,
                                                previous_timestep=timesteps[0])
 
 # opt = {'instruction_set': 'sse', 'assume_aligned': True, 'nontemporal': False, 'assume_inner_stride_one': True}
 
-collision_rule = create_lb_collision_rule(lb_method=method, **options)
-update_rule_even = create_lb_update_rule(collision_rule=collision_rule, timestep=Timestep.EVEN, **options)
-update_rule_odd = create_lb_update_rule(collision_rule=collision_rule, timestep=Timestep.ODD, **options)
-
-info_header = f"""
-using namespace walberla;
-#include "stencil/D{dim}Q{q}.h"
-using Stencil_T = walberla::stencil::D{dim}Q{q};
-using PdfField_T = GhostLayerField<real_t, {q}>;
-using VelocityField_T = GhostLayerField<real_t, {dim}>;
-using ScalarField_T = GhostLayerField<real_t, 1>;
-    """
-
-stencil = method.stencil
+stencil_typedefs = {'Stencil_T': stencil}
+field_typedefs = {'PdfField_T': pdfs,
+                  'VelocityField_T': velocity_field,
+                  'ScalarField_T': density_field}
 
 with CodeGeneration() as ctx:
     if ctx.cuda:
@@ -67,31 +64,34 @@ with CodeGeneration() as ctx:
     else:
         target = 'cpu'
 
+    opt['target'] = target
+
     # sweeps
-    generate_sweep(ctx, 'FlowAroundSphereCodeGen_EvenSweep', update_rule_even, target=target)
-    generate_sweep(ctx, 'FlowAroundSphereCodeGen_OddSweep', update_rule_odd, target=target)
+    generate_alternating_lbm_sweep(ctx, 'FlowAroundSphereCodeGen_LbSweep',
+                                   collision_rule, streaming_pattern, optimization=opt)
     generate_sweep(ctx, 'FlowAroundSphereCodeGen_MacroSetter', setter_assignments, target=target)
 
     # boundaries
     ubb = UBB(lambda *args: None, dim=dim)
     ubb_data_handler = UBBAdditionalDataHandler(stencil, ubb)
-    outflow = ExtrapolationOutflow(stencil[4], method, streaming_pattern=streaming_pattern)
+    outflow = ExtrapolationOutflow(stencil[4], lb_method, streaming_pattern=streaming_pattern)
     outflow_data_handler = OutflowAdditionalDataHandler(stencil, outflow, target=target)
 
-    generate_boundary(ctx, 'FlowAroundSphereCodeGen_UBB', ubb, method,
-                      target=target, streaming_pattern=streaming_pattern, always_generate_separate_classes=True,
-                      additional_data_handler=ubb_data_handler)
+    generate_alternating_lbm_boundary(ctx, 'FlowAroundSphereCodeGen_UBB', ubb, lb_method,
+                                      target=target, streaming_pattern=streaming_pattern,
+                                      additional_data_handler=ubb_data_handler)
 
-    generate_boundary(ctx, 'FlowAroundSphereCodeGen_NoSlip', NoSlip(), method, target=target,
-                      streaming_pattern=streaming_pattern, always_generate_separate_classes=True)
+    generate_alternating_lbm_boundary(ctx, 'FlowAroundSphereCodeGen_NoSlip', NoSlip(), lb_method,
+                                      target=target, streaming_pattern=streaming_pattern)
 
-    generate_boundary(ctx, 'FlowAroundSphereCodeGen_Outflow', outflow, method, target=target,
-                      streaming_pattern=streaming_pattern, always_generate_separate_classes=True,
-                      additional_data_handler=outflow_data_handler)
+    generate_alternating_lbm_boundary(ctx, 'FlowAroundSphereCodeGen_Outflow', outflow, lb_method,
+                                      target=target, streaming_pattern=streaming_pattern,
+                                      additional_data_handler=outflow_data_handler)
 
     # communication
     generate_lb_pack_info(ctx, 'FlowAroundSphereCodeGen_PackInfo', stencil, pdfs,
                           streaming_pattern=streaming_pattern, always_generate_separate_classes=True, target=target)
 
     # Info header containing correct template definitions for stencil and field
-    ctx.write_file("FlowAroundSphereCodeGen_InfoHeader.h", info_header)
+    generate_info_header(ctx, 'FlowAroundSphereCodeGen_InfoHeader',
+                         stencil_typedefs=stencil_typedefs, field_typedefs=field_typedefs)

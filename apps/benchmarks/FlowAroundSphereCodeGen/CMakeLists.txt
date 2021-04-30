@@ -1,10 +1,9 @@
 waLBerla_link_files_to_builddir( "*.py" )
 
-if (WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN)
+if (WALBERLA_BUILD_WITH_CUDA)
     waLBerla_generate_target_from_python(NAME FlowAroundSphereGenerated
             FILE FlowAroundSphereCodeGen.py
-            OUT_FILES FlowAroundSphereCodeGen_EvenSweep.cu FlowAroundSphereCodeGen_EvenSweep.h
-            FlowAroundSphereCodeGen_OddSweep.cu FlowAroundSphereCodeGen_OddSweep.h
+            OUT_FILES FlowAroundSphereCodeGen_LbSweep.cu FlowAroundSphereCodeGen_LbSweep.h
             FlowAroundSphereCodeGen_MacroSetter.cu FlowAroundSphereCodeGen_MacroSetter.h
             FlowAroundSphereCodeGen_UBB.cu FlowAroundSphereCodeGen_UBB.h
             FlowAroundSphereCodeGen_NoSlip.cu FlowAroundSphereCodeGen_NoSlip.h
@@ -18,8 +17,7 @@ if (WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN)
 else ()
     waLBerla_generate_target_from_python(NAME FlowAroundSphereGenerated
             FILE FlowAroundSphereCodeGen.py
-            OUT_FILES FlowAroundSphereCodeGen_EvenSweep.cpp FlowAroundSphereCodeGen_EvenSweep.h
-            FlowAroundSphereCodeGen_OddSweep.cpp FlowAroundSphereCodeGen_OddSweep.h
+            OUT_FILES FlowAroundSphereCodeGen_LbSweep.cpp FlowAroundSphereCodeGen_LbSweep.h
             FlowAroundSphereCodeGen_MacroSetter.cpp FlowAroundSphereCodeGen_MacroSetter.h
             FlowAroundSphereCodeGen_UBB.cpp FlowAroundSphereCodeGen_UBB.h
             FlowAroundSphereCodeGen_NoSlip.cpp FlowAroundSphereCodeGen_NoSlip.h

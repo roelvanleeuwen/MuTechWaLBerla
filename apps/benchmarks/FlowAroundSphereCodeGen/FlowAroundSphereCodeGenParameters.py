@@ -4,15 +4,15 @@ from lbmpy.relaxationrates import relaxation_rate_from_lattice_viscosity
 
 class Scenario:
     def __init__(self):
-        self.timesteps = 1501
-        self.vtkWriteFrequency = 1500
+        self.timesteps = 101
+        self.vtkWriteFrequency = 2000
 
         self.cells = (384, 128, 128)
         self.blocks = (1, 1, 1)
         self.periodic = (0, 0, 0)
 
         self.diameter_sphere = min(self.cells) // 2
-        self.u_max = 0.05
+        self.u_max = 0.1
         self.reynolds_number = 1000000
 
         kinematic_viscosity = (self.diameter_sphere * self.u_max) / self.reynolds_number
