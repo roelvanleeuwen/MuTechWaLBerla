@@ -73,7 +73,7 @@ def generate_sweep(generation_context, class_name, assignments,
                              field_swaps=field_swaps, varying_parameters=varying_parameters,
                              inner_outer_split=inner_outer_split, ghost_layers_to_include=ghost_layers_to_include,
                              cpu_vectorize_info=create_kernel_params['cpu_vectorize_info'],
-                             cpu_openmp = create_kernel_params['cpu_openmp'])
+                             cpu_openmp=create_kernel_params['cpu_openmp'])
 
 
 def generate_selective_sweep(generation_context, class_name, selection_tree, interface_mappings=(), target=None,
@@ -133,8 +133,8 @@ def generate_selective_sweep(generation_context, class_name, selection_tree, int
         'inner_outer_split': inner_outer_split,
         'interface_spec': interface_spec,
         'generate_functor': True,
-        'cpu_vectorize_info' : cpu_vectorize_info,
-        'cpu_openmp' : cpu_openmp
+        'cpu_vectorize_info': cpu_vectorize_info,
+        'cpu_openmp': cpu_openmp
     }
     header = env.get_template("Sweep.tmpl.h").render(**jinja_context)
     source = env.get_template("Sweep.tmpl.cpp").render(**jinja_context)

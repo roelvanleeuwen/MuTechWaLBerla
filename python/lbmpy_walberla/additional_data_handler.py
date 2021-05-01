@@ -127,7 +127,7 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
         if self._dim == 2:
             pos.append("0")
         pos.append(str(numeric_index(pdf_accessor.accs[inv_dir])[0]))
-        result[f'pdf'] = ', '.join(pos)
+        result['pdf'] = ', '.join(pos)
 
         pos = []
         for p, o, t in zip(position, offsets, tangential_offset):
@@ -135,6 +135,6 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
         if self._dim == 2:
             pos.append("0")
         pos.append(str(numeric_index(pdf_accessor.accs[inv_dir])[0]))
-        result[f'pdf_nd'] = ', '.join(pos)
+        result['pdf_nd'] = ', '.join(pos)
 
         return result
