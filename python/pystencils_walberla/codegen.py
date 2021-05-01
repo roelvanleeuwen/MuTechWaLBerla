@@ -69,16 +69,17 @@ def generate_sweep(generation_context, class_name, assignments,
     ast.function_name = class_name.lower()
 
     selection_tree = KernelCallNode(ast)
-    assumed_inner_stride_one = create_kernel_params['cpu_vectorize_info']['assume_inner_stride_one']
     generate_selective_sweep(generation_context, class_name, selection_tree, target=target, namespace=namespace,
                              field_swaps=field_swaps, varying_parameters=varying_parameters,
                              inner_outer_split=inner_outer_split, ghost_layers_to_include=ghost_layers_to_include,
-                             assumed_inner_stride_one=assumed_inner_stride_one)
+                             cpu_vectorize_info=create_kernel_params['cpu_vectorize_info'],
+                             cpu_openmp = create_kernel_params['cpu_openmp'])
 
 
 def generate_selective_sweep(generation_context, class_name, selection_tree, interface_mappings=(), target=None,
                              namespace='pystencils', field_swaps=(), varying_parameters=(),
-                             inner_outer_split=False, ghost_layers_to_include=0, assumed_inner_stride_one=False):
+                             inner_outer_split=False, ghost_layers_to_include=0,
+                             cpu_vectorize_info=None, cpu_openmp=False):
     """Generates a selective sweep from a kernel selection tree. A kernel selection tree consolidates multiple
     pystencils ASTs in a tree-like structure. See also module `pystencils_walberla.kernel_selection`.
 
@@ -94,7 +95,8 @@ def generate_selective_sweep(generation_context, class_name, selection_tree, int
         varying_parameters: see documentation of `generate_sweep`
         inner_outer_split: see documentation of `generate_sweep`
         ghost_layers_to_include: see documentation of `generate_sweep`
-        assumed_inner_stride_one: Whether or not the stride of the innermost loop can be assumed to be one.
+        cpu_vectorize_info: Dictionary containing information about CPU vectorization applied to the kernels
+        cpu_openmp: Whether or not CPU kernels use OpenMP parallelization
     """
     def to_name(f):
         return f.name if isinstance(f, Field) else f
@@ -103,12 +105,11 @@ def generate_selective_sweep(generation_context, class_name, selection_tree, int
     temporary_fields = tuple(e[1] for e in field_swaps)
 
     kernel_family = KernelFamily(selection_tree, class_name,
-                                 temporary_fields, field_swaps, varying_parameters,
-                                 assumed_inner_stride_one=assumed_inner_stride_one)
+                                 temporary_fields, field_swaps, varying_parameters)
 
     if target is None:
-        target = kernel_family.target
-    elif target != kernel_family.target:
+        target = kernel_family.get_ast_attr('target')
+    elif target != kernel_family.get_ast_attr('target'):
         raise ValueError('Mismatch between target parameter and AST targets.')
 
     if not generation_context.cuda and target == 'gpu':
@@ -131,7 +132,9 @@ def generate_selective_sweep(generation_context, class_name, selection_tree, int
         'ghost_layers_to_include': ghost_layers_to_include,
         'inner_outer_split': inner_outer_split,
         'interface_spec': interface_spec,
-        'generate_functor': True
+        'generate_functor': True,
+        'cpu_vectorize_info' : cpu_vectorize_info,
+        'cpu_openmp' : cpu_openmp
     }
     header = env.get_template("Sweep.tmpl.h").render(**jinja_context)
     source = env.get_template("Sweep.tmpl.cpp").render(**jinja_context)
@@ -375,13 +378,10 @@ class KernelInfo:
     def fields_accessed(self):
         return self.ast.fields_accessed
 
-    @property
-    def ghost_layers(self):
-        return self.ast.ghost_layers
-
-    @property
-    def assumed_inner_stride_one(self):
-        return self.ast.assumed_inner_stride_one
+    def get_ast_attr(self, name):
+        """Returns the value of an attribute of the AST managed by this KernelInfo.
+        For compatibility with KernelFamily."""
+        return self.ast.__getattribute__(name)
 
     def generate_kernel_invocation_code(self, **kwargs):
         ast = self.ast

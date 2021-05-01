@@ -34,7 +34,7 @@ set ( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${walberla_SOURCE_DIR}/cmake )
 
 include ( waLBerlaFunctions )
 
-set_version( 5 0 )
+set_version( 6 0 )
 
 include( CMakeParseArguments )
 
@@ -357,11 +357,22 @@ endif()
 # architecture optimization
 if( WALBERLA_OPTIMIZE_FOR_LOCALHOST )
    if( WALBERLA_CXX_COMPILER_IS_GNU OR WALBERLA_CXX_COMPILER_IS_INTEL OR WALBERLA_CXX_COMPILER_IS_CLANG )
-      add_flag ( CMAKE_CXX_FLAGS "-march=native" )
-      add_flag ( CMAKE_C_FLAGS   "-march=native" )
+      if( CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64" )
+        # no -march=native available on this compiler, but there is currently only one such processor
+      else()
+        add_flag ( CMAKE_CXX_FLAGS "-march=native" )
+        add_flag ( CMAKE_C_FLAGS   "-march=native" )
+      endif()
+      
       if( WALBERLA_CXX_COMPILER_IS_INTEL )
         add_flag ( CMAKE_CXX_FLAGS "-xhost" )
         add_flag ( CMAKE_C_FLAGS   "-xhost" )
+      endif()
+
+      if( EXISTS "/proc/sys/abi/sve_default_vector_length" )
+        file( READ "/proc/sys/abi/sve_default_vector_length" SVE_LENGTH )
+        add_flag ( CMAKE_CXX_FLAGS "-msve-vector-bits=${SVE_LENGTH}" )
+        add_flag ( CMAKE_C_FLAGS   "-msve-vector-bits=${SVE_LENGTH}" )
       endif()
    endif()
 endif()
@@ -1045,7 +1056,7 @@ if ( WALBERLA_BUILD_WITH_CUDA )
 
         find_library( NVTX_LIBRARY nvToolsExt ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES} )
         list ( APPEND SERVICE_LIBS ${NVTX_LIBRARY} )
-        
+
         #CUDA_FOUND is need for our cmake mechanism
         set ( CUDA_FOUND TRUE )
     else()
