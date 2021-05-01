@@ -189,19 +189,17 @@ class SimpleBooleanCondition(AbstractConditionNode):
 class KernelFamily:
     def __init__(self, kernel_selection_tree: AbstractKernelSelectionNode,
                  class_name: str,
-                 temporary_fields=(), field_swaps=(), varying_parameters=(),
-                 assumed_inner_stride_one=False):
+                 temporary_fields=(), field_swaps=(), varying_parameters=()):
         self.kernel_selection_tree = kernel_selection_tree
         self.kernel_selection_parameters = kernel_selection_tree.get_selection_parameter_list()
         self.temporary_fields = tuple(temporary_fields)
         self.field_swaps = tuple(field_swaps)
         self.varying_parameters = tuple(varying_parameters)
-        self.assumed_inner_stride_one = assumed_inner_stride_one
 
         all_kernel_calls = self.kernel_selection_tree.collect_kernel_calls()
         all_param_lists = [k.parameters for k in all_kernel_calls]
         asts_list = [k.ast for k in all_kernel_calls]
-        representative_ast = asts_list[0]
+        self.representative_ast = asts_list[0]
 
         #   Eliminate duplicates
         self.all_asts = set(asts_list)
@@ -223,18 +221,18 @@ class KernelFamily:
         self.parameters = merge_lists_of_symbols(all_param_lists)
         self.fields_accessed = reduce(lambda x, y: x | y, all_fields)
 
-        #   Collect Ghost Layers and target
-        self.ghost_layers = representative_ast.ghost_layers
-        self.target = representative_ast.target
+        self._ast_attrs = dict()
 
-        for ast in self.all_asts:
-            if ast.ghost_layers != self.ghost_layers:
-                raise ValueError(
-                    f'Inconsistency in kernel family: Member ghost_layers was different in {ast}!')
-
-            if ast.target != self.target:
-                raise ValueError(
-                    f'Inconsistency in kernel family: Member target was different in {ast}!')
+    def get_ast_attr(self, name):
+        """Returns the value of an attribute of the ASTs managed by this KernelFamily only
+        if it is the same in all ASTs."""
+        if name not in self._ast_attrs:
+            attr = self.representative_ast.__getattribute__(name)
+            for ast in self.all_asts:
+                if ast.__getattribute__(name) != attr:
+                    raise ValueError(f'Inconsistency in kernel family: Attribute {name} was different in {ast}!')
+            self._ast_attrs[name] = attr
+        return self._ast_attrs[name]
 
     def get_headers(self):
         all_headers = [get_headers(ast) for ast in self.all_asts]

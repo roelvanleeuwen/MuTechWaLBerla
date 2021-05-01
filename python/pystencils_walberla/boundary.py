@@ -65,7 +65,7 @@ def generate_boundary(generation_context,
     else:
         raise ValueError(f"kernel_creation_function returned wrong type: {kernel.__class__}")
 
-    kernel_family = KernelFamily(selection_tree, class_name, assumed_inner_stride_one=False)
+    kernel_family = KernelFamily(selection_tree, class_name)
     interface_spec = HighLevelInterfaceSpec(kernel_family.kernel_selection_parameters, interface_mappings)
 
     if additional_data_handler is None:

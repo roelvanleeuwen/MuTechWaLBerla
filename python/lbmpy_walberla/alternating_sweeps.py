@@ -101,14 +101,15 @@ def generate_alternating_lbm_sweep(generation_context, class_name, collision_rul
     tree = EvenIntegerCondition('timestep', kernel_even, kernel_odd, np.uint8)
     interface_mappings = [TimestepTrackerMapping(tree.parameter_symbol)]
 
-    assumed_inner_stride_one = optimization['vectorization']['assume_inner_stride_one']
+    vec_info = optimization['vectorization']
+    openmp = optimization['openmp']
 
     generate_selective_sweep(generation_context, class_name, tree,
                              interface_mappings=interface_mappings,
                              target=target, namespace=namespace,
                              field_swaps=field_swaps, varying_parameters=varying_parameters,
                              inner_outer_split=inner_outer_split, ghost_layers_to_include=ghost_layers_to_include,
-                             assumed_inner_stride_one=assumed_inner_stride_one)
+                             cpu_vectorize_info=vec_info, cpu_openmp=openmp)
 
 
 # ---------------------------------- Internal --------------------------------------------------------------------------
