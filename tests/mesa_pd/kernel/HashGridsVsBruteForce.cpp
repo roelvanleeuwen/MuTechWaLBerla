@@ -242,7 +242,7 @@ int main( int argc, char ** argv )
       WALBERLA_CHECK_EQUAL(csBF[csBF_idx[i]].getIdx2(), csHG3[csHG3_idx[i]].getIdx2());
    }
 
-   WALBERLA_LOG_DEVEL_ON_ROOT("Insertion after clear checked");
+   WALBERLA_LOG_DEVEL_ON_ROOT("Insertion after clear all checked");
 
    return EXIT_SUCCESS;
 }

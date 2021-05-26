@@ -80,7 +80,6 @@ public:
    static const size_t cellVectorSize;
    static const size_t occupiedCellsVectorSize;
    static const size_t minimalGridDensity;
-   static const size_t gridActivationThreshold;
    static const real_t hierarchyFactor;
    //**********************************************************************************************
 
@@ -904,25 +903,6 @@ const size_t HashGrids::occupiedCellsVectorSize = 256;
  */
 const size_t HashGrids::minimalGridDensity = 8;
 //*************************************************************************************************
-
-
-//*************************************************************************************************
-/*!\brief Activation threshold for the hierarchical hash grids coarse collision detection algorithm.
- *
- * If the simulation only consists of a very small number of particles, simply checking each particle
- * against each other particle proves to be faster than involving the far more complex mechanisms
- * of the hierarchical hash grids. In other words, despite its quadratic complexity, as long as
- * there are only a couple of particles present in the simulation, the naive approach of conducting
- * pairwise checks for all existing particles will always result in the best runtime performance. As
- * a consequence, a threshold is introduced, and as long as the number of particles is less-or-equal
- * than specified by this threshold value, no hierarchy of hash grids is constructed and thus no
- * detection algorithm based on grids is applied.
- *
- * Possible settings: any integral value greater-or-equal to 0.
- */
-const size_t HashGrids::gridActivationThreshold = 32;
-//*************************************************************************************************
-
 
 //*************************************************************************************************
 /*!\brief The constant factor by which the cell size of any two successive grids differs.
