@@ -9,6 +9,7 @@ from .SparseLinkedCells import SparseLinkedCells
 
 __all__ = ['ContactHistory',
            'ContactStorage',
+           'HashGrids',
            'LinkedCells',
            'ParticleStorage',
            'ShapeStorage',

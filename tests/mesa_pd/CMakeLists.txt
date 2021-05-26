@@ -135,6 +135,9 @@ waLBerla_execute_test( NAME   MESA_PD_Kernel_GenerateAnalyticContacts PROCESSES 
 waLBerla_compile_test( NAME   MESA_PD_Kernel_GenerateLinkedCells FILES kernel/GenerateLinkedCells.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_GenerateLinkedCells )
 
+waLBerla_compile_test( NAME   MESA_PD_Kernel_HashGridsVsBruteForce FILES kernel/HashGridsVsBruteForce.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_Kernel_HashGridsVsBruteForce PROCESSES 27 )
+
 waLBerla_compile_test( NAME   MESA_PD_Kernel_HCSITSKernels FILES kernel/HCSITSKernels.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_HCSITSKernels )
 

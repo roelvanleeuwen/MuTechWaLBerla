@@ -107,6 +107,7 @@ int main( int argc, char ** argv )
    std::vector<collision_detection::AnalyticContactDetection> csBF(100);
    std::vector<collision_detection::AnalyticContactDetection> csHG1(100);
    std::vector<collision_detection::AnalyticContactDetection> csHG2(100);
+   std::vector<collision_detection::AnalyticContactDetection> csHG3(100);
 
    ParticleAccessorWithShape accessor(ps, ss);
 
@@ -114,8 +115,6 @@ int main( int argc, char ** argv )
    const real_t radius  = real_t(0.5);
    auto smallSphere = ss->create<data::Sphere>( radius );
    ss->shapes[smallSphere]->updateMassAndInertia(real_t(2707));
-
-   WALBERLA_LOG_INFO(blk.getAABB());
 
    for (int i = 0; i < 1000; ++i)
    {
@@ -133,7 +132,6 @@ int main( int argc, char ** argv )
 
    SNN(*ps, domain);
 
-   /*
    ps->forEachParticlePairHalf(false,
                                kernel::SelectAll(),
                                accessor,
@@ -148,7 +146,8 @@ int main( int argc, char ** argv )
    },
    accessor );
 
-   // insert into hash grids
+   // insert into hash grids initially
+
    ps->forEachParticle(true, kernel::SelectAll(), accessor, hg, accessor);
    hg.forEachParticlePairHalf(false,
                               kernel::SelectAll(),
@@ -180,6 +179,7 @@ int main( int argc, char ** argv )
       WALBERLA_CHECK_EQUAL(csBF[csBF_idx[i]].getIdx2(), csHG1[csHG1_idx[i]].getIdx2());
    }
 
+   WALBERLA_LOG_DEVEL_ON_ROOT("Initial insertion checked");
 
    // redo to check clear
    hg.clear();
@@ -210,7 +210,40 @@ int main( int argc, char ** argv )
       WALBERLA_CHECK_EQUAL(csBF[csBF_idx[i]].getIdx2(), csHG2[csHG2_idx[i]].getIdx2());
    }
 
-   */
+   WALBERLA_LOG_DEVEL_ON_ROOT("Insertion after clear checked");
+
+   // redo to check clearAll
+   hg.clearAll();
+   ps->forEachParticle(true, kernel::SelectAll(), accessor, hg, accessor);
+   hg.forEachParticlePairHalf(false,
+                              kernel::SelectAll(),
+                              accessor,
+                              [&csHG3](const size_t idx1, const size_t idx2, auto& ac)
+                              {
+                                 collision_detection::AnalyticContactDetection         acd;
+                                 kernel::DoubleCast               double_cast;
+                                 if (double_cast(idx1, idx2, ac, acd, ac ))
+                                 {
+                                    csHG3.push_back(acd);
+                                 }
+                              },
+                              accessor );
+
+   WALBERLA_CHECK_EQUAL(csBF.size(), csHG3.size());
+
+   std::vector<size_t> csHG3_idx(csHG3.size());
+   csHG3_idx = std::vector<size_t>(csHG3.size());
+   std::iota(csHG3_idx.begin(), csHG3_idx.end(), 0);
+   std::sort(csHG3_idx.begin(), csHG3_idx.end(), comp(csHG3));
+
+   for (size_t i = 0; i < csBF.size(); ++i)
+   {
+      WALBERLA_CHECK_EQUAL(csBF[csBF_idx[i]].getIdx1(), csHG3[csHG3_idx[i]].getIdx1());
+      WALBERLA_CHECK_EQUAL(csBF[csBF_idx[i]].getIdx2(), csHG3[csHG3_idx[i]].getIdx2());
+   }
+
+   WALBERLA_LOG_DEVEL_ON_ROOT("Insertion after clear checked");
+
    return EXIT_SUCCESS;
 }
 
