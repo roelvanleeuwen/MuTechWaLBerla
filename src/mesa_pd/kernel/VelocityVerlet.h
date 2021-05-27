@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file VelocityVerlet.h
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -36,7 +36,7 @@ namespace kernel {
 /**
  * Velocity verlet integration for all particles.
  *
- * Velocit verlet integration is a two part kernel. preForceUpdate has to be
+ * Velocity verlet integration is a two part kernel. preForceUpdate has to be
  * called before the force calculation and postFroceUpdate afterwards. The
  * integration is only complete when both functions are called. The integration
  * is symplectic.

@@ -54,10 +54,8 @@ void SweepTimeloop::doTimeStep(const Set<SUID> &selectors)
          }
 
          Sweep * selectedSweep = s.sweep.getUnique( selectors + bi->getState() );
-         if( !selectedSweep )
-            WALBERLA_ABORT("Selecting Sweep " << sweepIt->first << ": " <<
-                           "Ambiguous, or no sweep selected. Check your selector " <<
-                            selectors + bi->getState() << std::endl << s.sweep);
+         if (!selectedSweep)
+            continue;
 
          WALBERLA_LOG_PROGRESS_SECTION()
          {
@@ -88,7 +86,7 @@ void SweepTimeloop::doTimeStep(const Set<SUID> &selectors, WcTimingPool &timing)
       for( auto sweepIt = sweeps_.begin(); sweepIt != sweeps_.end(); ++sweepIt )
       {
          SweepAdder & s = * ( sweepIt->second );
-         // loop over all possibilites in selectable object
+         // loop over all possibilities in selectable object
          for( auto it = s.sweep.begin(); it != s.sweep.end(); ++it )
             timing.registerTimer( it.identifier() );
       }
@@ -111,9 +109,7 @@ void SweepTimeloop::doTimeStep(const Set<SUID> &selectors, WcTimingPool &timing)
          Sweep * selectedSweep = s.sweep.getUnique( selectors + bi->getState(), sweepName );
 
          if( !selectedSweep )
-            WALBERLA_ABORT("Selecting Sweep " << sweepIt->first << ": " <<
-                           "Ambiguous, or no sweep selected. Check your selector " <<
-                            selectors + bi->getState() << std::endl << s.sweep);
+            continue;
 
          WALBERLA_LOG_PROGRESS("Running sweep \"" << sweepName << "\" on block " << bi->getId() );
 

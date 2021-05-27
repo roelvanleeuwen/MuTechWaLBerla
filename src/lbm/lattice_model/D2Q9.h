@@ -39,11 +39,11 @@ public:
 
    static_assert( ( ! std::is_same< CollisionModel_T, collision_model::D3Q19MRT >::value), "D3Q19MRT only works with D3Q19!" );
 
-   typedef typename LatticeModelBase< CollisionModel_T, Compressible, ForceModel_T, EquilibriumAccuracyOrder >::CollisionModel  CollisionModel;
-   typedef typename LatticeModelBase< CollisionModel_T, Compressible, ForceModel_T, EquilibriumAccuracyOrder >::ForceModel      ForceModel;
+   using CollisionModel = typename LatticeModelBase<CollisionModel_T, Compressible, ForceModel_T, EquilibriumAccuracyOrder>::CollisionModel;
+   using ForceModel = typename LatticeModelBase<CollisionModel_T, Compressible, ForceModel_T, EquilibriumAccuracyOrder>::ForceModel;
 
-   typedef stencil::D2Q9 Stencil;
-   typedef stencil::D2Q9 CommunicationStencil;
+   using Stencil = stencil::D2Q9;
+   using CommunicationStencil = stencil::D2Q9;
 
    static const char * NAME;
 
@@ -63,11 +63,11 @@ public:
       static_assert( (std::is_same< ForceModel_T, force_model::None >::value), "This constructor is only available if the force model is equal to force_model::None!" );
    }
 
-   virtual ~D2Q9() {}
+   ~D2Q9() override = default;
 
 protected:
 
-   virtual void config( IBlock & /*block*/, StructuredBlockStorage & /*sbs*/ ) {}
+   void config( IBlock & /*block*/, StructuredBlockStorage & /*sbs*/ ) override {}
 };
 
 template< typename CM, bool C, typename FM, int EAO > const char*  D2Q9<CM,C,FM,EAO>::NAME = "D2Q9";

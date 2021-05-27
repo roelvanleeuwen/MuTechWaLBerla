@@ -16,6 +16,7 @@
 //! \file PythonCallback.h
 //! \ingroup python_coupling
 //! \author Martin Bauer <martin.bauer@fau.de>
+//! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
 
@@ -62,7 +63,9 @@ namespace python_coupling {
    *
    *  This example calls the python function "walberla_cpp.callbacks.atEndOfTimestep", which can be either
    *  set directly or using a decorator:
+   *  \code
    *     @waLBerla.callback( "atEndOfTimestep" )
+   *  \endcode
    *
    *
    *
@@ -79,8 +82,8 @@ namespace python_coupling {
       PythonCallback();
       PythonCallback( const std::string & functionName );
       PythonCallback( const std::string & moduleOrFile,
-                      const std::string & functionName,
-                      const std::vector<std::string> & argv = std::vector<std::string>() );
+                             const std::string & functionName,
+                             const std::vector<std::string> & argv = std::vector<std::string>() );
 
             DictWrapper & data()       { return *exposedVars_; }
       const DictWrapper & data() const { return *exposedVars_; }

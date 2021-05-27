@@ -58,7 +58,7 @@ namespace gather {
  *   this potentially very expensive operation is done only once in the setup phases
  * - a MPI communicator is created for all processes participating in the gather operation (i.e. that packed
  *   something ), and the amount of data that each process sends is sent to the gathering process
- * - subsequent calls of communciate() use that communicator for an MPI_Gatherv operation
+ * - subsequent calls of communicate() use that communicator for an MPI_Gatherv operation
  *
  */
 class MPIGatherScheme
@@ -102,7 +102,7 @@ class MPIGatherScheme
 
 
    private:
-      typedef std::vector<shared_ptr<GatherPackInfo> > PackInfoVector;
+      using PackInfoVector = std::vector<shared_ptr<GatherPackInfo>>;
 
       domain_decomposition::BlockStorage  & blocks_;
       PackInfoVector                        packInfos_;               ///< all registered PackInfos

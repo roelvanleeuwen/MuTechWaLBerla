@@ -48,10 +48,10 @@ namespace lbm {
 template< typename LatticeModel_T, typename flag_t >
 class VelocityBoundary : public Boundary<flag_t>
 {
-   typedef PdfField< LatticeModel_T >        PDFField;
-   typedef typename LatticeModel_T::Stencil  Stencil;
+   using PDFField = PdfField<LatticeModel_T>;
+   using Stencil = typename LatticeModel_T::Stencil;
 
-   typedef GhostLayerField< shared_ptr< std::vector<real_t> >, 1 >  VelField;
+   using VelField = GhostLayerField<shared_ptr<std::vector<real_t>>, 1>;
 
 public:
 
@@ -232,7 +232,7 @@ inline void VelocityBoundary< LatticeModel_T, flag_t >::treatDirection( const ce
    WALBERLA_ASSERT_EQUAL( mask & this->mask_, this->mask_ ); // only true if "this->mask_" only contains one single flag, which is the case for the
                                                              // current implementation of this boundary condition (VelocityBoundary)
 
-   WALBERLA_ASSERT( vel_->get( nx, ny, nz ).get() != NULL );
+   WALBERLA_ASSERT( vel_->get( nx, ny, nz ).get() != nullptr );
    WALBERLA_ASSERT_LESS( Stencil::invDirIdx(dir), vel_->get( nx, ny, nz )->size() );
 
    pdfField_->get( nx, ny, nz, Stencil::invDirIdx(dir) ) = (*(vel_->get( nx, ny, nz )))[ Stencil::invDirIdx(dir) ];

@@ -66,7 +66,7 @@ using std::tuple_size;
 
 
 class BHUIDGenerator : public uid::IndexGenerator< BHUIDGenerator, uint_t >{};
-typedef UID< BHUIDGenerator > BoundaryHandlingUID;
+using BoundaryHandlingUID = UID<BHUIDGenerator>;
 
 
 
@@ -78,9 +78,9 @@ public:
    template< typename F, typename... T >
    friend class BoundaryHandlingCollection;
 
-   typedef FlagField_T                               FlagField;
-   typedef typename FlagField_T::flag_t              flag_t;
-   typedef typename FlagField_T::const_base_iterator ConstFlagFieldBaseIterator;
+   using FlagField = FlagField_T;
+   using flag_t = typename FlagField_T::flag_t;
+   using ConstFlagFieldBaseIterator = typename FlagField_T::const_base_iterator;
 
    enum Mode { OPTIMIZED_SPARSE_TRAVERSAL, ENTIRE_FIELD_TRAVERSAL };
 
@@ -414,7 +414,7 @@ private:
 
    template< typename Boundary_T, typename BoundariesTuple, int N = std::tuple_size<BoundariesTuple>::value - 1 >
    inline const typename std::enable_if<(N!=0), Boundary_T>::type & getBoundaryCondition( const BoundaryUID & uid, const BoundariesTuple & boundaryConditions,
-                                                   typename std::enable_if< std::is_same< Boundary_T, typename std::tuple_element<N, BoundariesTuple>::type >::value >::type* /*dummy*/ = 0 ) const
+                                                   typename std::enable_if< std::is_same< Boundary_T, typename std::tuple_element<N, BoundariesTuple>::type >::value >::type* /*dummy*/ = nullptr ) const
    {
       if( uid == std::get<N>( boundaryConditions ).getUID() )
          return std::get<N>( boundaryConditions );
@@ -424,7 +424,7 @@ private:
 
    template< typename Boundary_T, typename BoundariesTuple, int N = std::tuple_size<BoundariesTuple>::value - 1 >
    inline const typename std::enable_if<(N==0), Boundary_T>::type & getBoundaryCondition( const BoundaryUID & uid, const BoundariesTuple & boundaryConditions,
-                                                   typename std::enable_if< std::is_same< Boundary_T, typename std::tuple_element<N, BoundariesTuple>::type >::value >::type* /*dummy*/ = 0 ) const
+                                                   typename std::enable_if< std::is_same< Boundary_T, typename std::tuple_element<N, BoundariesTuple>::type >::value >::type* /*dummy*/ = nullptr ) const
    {
       if( uid == std::get<N>( boundaryConditions ).getUID() )
          return std::get<N>( boundaryConditions );
@@ -439,8 +439,8 @@ private:
    template< typename Boundary_T, typename BoundariesTuple, int N = std::tuple_size<BoundariesTuple>::value - 1 >
    inline const typename std::enable_if<(N!=0), Boundary_T>::type & getBoundaryCondition( const BoundaryUID & uid, const BoundariesTuple & boundaryConditions,
                                                    typename std::enable_if< std::is_same< typename std::is_same< Boundary_T, typename std::tuple_element<N, BoundariesTuple>::type >::type,
-                                                                                              std::false_type >::value >::type* /*dummy*/ = 0,
-                                                   typename std::enable_if< (N>0) >::type* /*dummy*/ = 0 ) const
+                                                                                              std::false_type >::value >::type* /*dummy*/ = nullptr,
+                                                   typename std::enable_if< (N>0) >::type* /*dummy*/ = nullptr ) const
    {
       return getBoundaryCondition< Boundary_T, BoundariesTuple, N-1 >( uid, boundaryConditions );
    }
@@ -490,7 +490,7 @@ private:
    template< typename Boundary_T, typename BoundariesTuple, int N = std::tuple_size<BoundariesTuple>::value - 1 >
    inline const typename std::enable_if<(N==0), Boundary_T>::type & getBoundaryCondition_TypeExists( const BoundaryUID & uid, const BoundariesTuple & /*boundaryConditions*/,
                                                               typename std::enable_if< std::is_same< typename std::is_same< Boundary_T, typename std::tuple_element<0, BoundariesTuple>::type >::type,
-                                                                                                         std::false_type >::value >::type* /*dummy*/ = 0 ) const
+                                                                                                         std::false_type >::value >::type* /*dummy*/ = nullptr ) const
    {
       WALBERLA_ABORT( "The requested boundary condition " << uid.getIdentifier() << " is not part of this boundary handling." );
 
@@ -664,7 +664,7 @@ private:
    std::vector< std::vector< std::vector< std::pair< Cell, stencil::Direction > > > > cellDirectionPairs_; // 1st vector: numberOfGhostLayersToInclude
                                                                                                            // 2nd vector: boundary condition index
                                                                                                            // 3rd vector: vector of cell<->direction pairs
-   typedef std::tuple<Boundaries...> Tuple;
+   using Tuple = std::tuple<Boundaries...>;
    Tuple boundaryConditions_;
    bool  threadSafeBCs_;
 
@@ -2230,7 +2230,7 @@ inline void BoundaryHandling< FlagField_T, Stencil, Boundaries... >::operator()(
 
    WALBERLA_ASSERT( checkConsistency( localCells ) );
 
-   #ifdef _OPENMP
+   #if defined(_OPENMP) && !(defined(_MSC_VER) && _MSC_VER < 1925)
    const int zMin = int_c( localCells.zMin() );
    const int zMax = int_c( localCells.zMax() );
    #pragma omp parallel for schedule(static) if(threadSafeBCs_)

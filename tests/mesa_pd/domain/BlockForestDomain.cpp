@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file   BlockForestDomain.cpp
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -66,8 +66,8 @@ void main( int argc, char ** argv )
    WALBERLA_CHECK(domain.isContainedInProcessSubdomain(0, Vec3(2,2,2)));
    WALBERLA_CHECK(domain.isContainedInProcessSubdomain(1, Vec3(7,7,7)));
 
-   WALBERLA_CHECK_EQUAL(domain.isContainedInProcessSubdomain(Vec3(2,2,2), real_t(1)), rank == 0 ? true : false);
-   WALBERLA_CHECK_EQUAL(domain.isContainedInProcessSubdomain(Vec3(7,7,7), real_t(1)), rank == 0 ? false : true);
+   WALBERLA_CHECK_EQUAL(domain.isContainedInProcessSubdomain(Vec3(2,2,2), real_t(1)), rank == 0);
+   WALBERLA_CHECK_EQUAL(domain.isContainedInProcessSubdomain(Vec3(7,7,7), real_t(1)), rank != 0);
 
    WALBERLA_CHECK_EQUAL(domain.isContainedInProcessSubdomain(Vec3(real_t(4.5),2,2), real_t(1)), rank == 0 ? false : false);
    WALBERLA_CHECK_EQUAL(domain.isContainedInProcessSubdomain(Vec3(real_t(5.5),7,7), real_t(1)), rank == 0 ? false : false);

@@ -15,7 +15,7 @@
 //
 //! \file Ellipsoid.h
 //! \author Klaus Iglberger
-//! \author Sebastian Eibl <sebastian.eibl@fau.de
+//! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //! \author Tobias Leemann <tobias.leemann@fau.de>
 //
 //======================================================================================================================
@@ -77,7 +77,7 @@ public:
    //**Destructor**********************************************************************************
    /*!\name Destructor */
    //@{
-   virtual ~Ellipsoid();
+   ~Ellipsoid() override;
    //@}
    //**********************************************************************************************
    //**********************************************************************************************
@@ -87,7 +87,7 @@ public:
    /*!\name Get functions */
    //@{
    inline const Vec3& getSemiAxes() const;
-   virtual inline real_t getVolume()         const;
+   inline real_t getVolume()         const override;
    //@}
    //**********************************************************************************************
 
@@ -99,14 +99,14 @@ public:
    //**Output functions****************************************************************************
    /*!\name Output functions */
    //@{
-   virtual void print( std::ostream& os, const char* tab ) const;
+   void print( std::ostream& os, const char* tab ) const override;
    //@}
    //**********************************************************************************************
 
    //**Utility functions***************************************************************************
    /*!\name Utility functions */
    //@{
-   inline virtual Vec3 support( const Vec3& d ) const;
+   inline Vec3 support( const Vec3& d ) const override;
    //@}
    //**********************************************************************************************
 
@@ -124,15 +124,15 @@ protected:
    //**Utility functions***************************************************************************
    /*!\name Utility functions */
    //@{
-   virtual bool containsRelPointImpl ( real_t px, real_t py, real_t pz ) const;
-   virtual bool isSurfaceRelPointImpl( real_t px, real_t py, real_t pz ) const;
+   bool containsRelPointImpl ( real_t px, real_t py, real_t pz ) const override;
+   bool isSurfaceRelPointImpl( real_t px, real_t py, real_t pz ) const override;
    //@}
    //**********************************************************************************************
 
    //**Utility functions***************************************************************************
    /*!\name Utility functions */
    //@{
-   inline virtual void calcBoundingBox();  // Calculation of the axis-aligned bounding box
+   inline void calcBoundingBox() override;  // Calculation of the axis-aligned bounding box
    //@}
    //**********************************************************************************************
 
@@ -297,7 +297,7 @@ inline Mat3 Ellipsoid::calcInertia( const real_t mass, const Vec3& semiAxes )
 /*!\brief Estimates the point which is farthest in direction \a d.
  *
  * \param d The normalized search direction in world-frame coordinates.
- * \return The support point in world-frame coordinates in direction a\ d.
+ * \return The support point in world-frame coordinates in direction \a d.
  */
 inline Vec3 Ellipsoid::support( const Vec3& d ) const
 {

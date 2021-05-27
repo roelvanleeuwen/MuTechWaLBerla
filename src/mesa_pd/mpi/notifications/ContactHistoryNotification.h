@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ContactHistoryNotification.h
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -41,7 +41,7 @@ namespace walberla {
 namespace mesa_pd {
 
 /**
- * Trasmits the contact history
+ * Transmits the contact history
  */
 class ContactHistoryNotification
 {

@@ -33,7 +33,7 @@ namespace pe_coupling {
 /*!\brief Evaluates the macroscopic velocity for a given cell when using the PSM method.
  *
  * returns the cell local macroscopic velocity for the PSM method
- * cell local velocity = (1-\sum_s B_s) * u + \sum_s B_s * v_s
+ * cell local velocity = \f$ (1-\sum_s B_s) * u + \sum_s B_s * v_s \f$
  * u = fluid velocity
  * v_s = velocity of object s at cell center
  *
@@ -92,9 +92,9 @@ template < typename LatticeModel_T, int Weighting_T >
 void initializeDomainForPSM( StructuredBlockStorage & blockStorage,
                              const BlockDataID & pdfFieldID, const BlockDataID & bodyAndVolumeFractionFieldID )
 {
-   typedef lbm::PdfField< LatticeModel_T >                              PdfField_T;
-   typedef std::pair< pe::BodyID, real_t >                              BodyAndVolumeFraction_T;
-   typedef GhostLayerField< std::vector< BodyAndVolumeFraction_T >, 1 > BodyAndVolumeFractionField_T;
+   using PdfField_T = lbm::PdfField<LatticeModel_T>;
+   using BodyAndVolumeFraction_T = std::pair<pe::BodyID, real_t>;
+   using BodyAndVolumeFractionField_T = GhostLayerField<std::vector<BodyAndVolumeFraction_T>, 1>;
 
    // iterate all blocks with an iterator 'block'
    for( auto blockIt = blockStorage.begin(); blockIt != blockStorage.end(); ++blockIt )

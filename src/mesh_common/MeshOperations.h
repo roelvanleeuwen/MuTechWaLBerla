@@ -50,6 +50,9 @@ template< typename MeshType >
 void scale( MeshType & mesh, const Vector3< typename MeshType::Scalar > & scaleFactors );
 
 template< typename MeshType >
+void rotate( MeshType& mesh, Vector3<typename  MeshType::Scalar > axis, typename MeshType::Scalar angle, Vector3< typename MeshType::scalar> axis_foot);
+
+template< typename MeshType >
 typename MeshType::Scalar computeVolume( const MeshType & mesh );
 
 template< typename MeshType >
@@ -181,6 +184,21 @@ void scale( MeshType & mesh, const Vector3< typename MeshType::Scalar > & scaleF
       p[2] *= scaleFactors[2];
    }
 }
+
+template< typename MeshType >
+void rotate( MeshType& mesh, Vector3<typename  MeshType::Scalar > axis, typename MeshType::Scalar angle, Vector3< typename MeshType::Scalar> axis_foot)
+{
+    Matrix3< typename MeshType::Scalar > mat(axis, angle);
+
+    for( auto v_it = mesh.vertices_begin(); v_it != mesh.vertices_end(); ++v_it)
+    {
+        auto &p = mesh.point(*v_it);
+        p -= mesh::toOpenMesh(axis_foot);
+        p = mat*p;
+        p += mesh::toOpenMesh(axis_foot);
+    }
+}
+
 
 
 template< typename MeshType >
@@ -477,7 +495,7 @@ walberla::optional< bool > isIntersecting( const DistanceObject & distanceObject
       if( sqSignedDistance < sqInRadius )
          return true; // clearly the box must intersect the mesh
 
-      // The point closest to the box center is located in the spherical shell between the box's insphere and ciricumsphere
+      // The point closest to the box center is located in the spherical shell between the box's insphere and circumsphere
       const Scalar error = circumRadius - inRadius;
 
       if( error < maxErrorScalar )
@@ -548,7 +566,7 @@ walberla::optional< bool > fullyCoversAABB( const DistanceObject & distanceObjec
       if( sqSignedDistance > -sqInRadius )
          return false; // clearly the box must partially be outside of the mesh
 
-      // The point closest to the box center is located in the spherical shell between the box's insphere and ciricumsphere
+      // The point closest to the box center is located in the spherical shell between the box's insphere and circumsphere
       const Scalar error = circumRadius - inRadius;
 
       if( error < maxErrorScalar )
@@ -621,7 +639,7 @@ walberla::optional< bool > intersectsSurface( const DistanceObject & distanceObj
       if( sqDistance < sqInRadius)
          return true; // clearly the box must intersect the mesh
 
-                      // The point closest to the box center is located in the spherical shell between the box's insphere and ciricumsphere
+                      // The point closest to the box center is located in the spherical shell between the box's insphere and circumsphere
       const Scalar error = circumRadius - inRadius;
 
       if(error < maxErrorScalar)

@@ -108,7 +108,7 @@ class Quaternion
 
 public:
    //**Type definitions****************************************************************************
-   typedef Type  ElementType;  //!< Type of the quaternion elements.
+   using ElementType = Type;  //!< Type of the quaternion elements.
    //**********************************************************************************************
 
    //**Constructors********************************************************************************
@@ -230,7 +230,7 @@ static_assert( std::is_trivially_copyable<Quaternion<real_t>>::value, "Quaternio
  * \param j The initial value for the second imaginary part.
  * \param k The initial value for the third imaginary part.
  *
- * The initial values for the quaterion have to be chosen such that the length of the
+ * The initial values for the quaternion have to be chosen such that the length of the
  * quaternion is 1.
  */
 template< typename Type >  // Data type of the quaternion
@@ -659,7 +659,7 @@ template< typename Other>   // Data type of the vector
 inline const Vector3< typename MathTrait<Type,Other>::MultType >
    Quaternion<Type>::rotate( const Vector3<Other>& v ) const
 {
-   typedef typename MathTrait<Type,Other>::MultType  MT;
+   using MT = typename MathTrait<Type, Other>::MultType;
 
    // Multiplication in two steps
    const MT w( v_[1]*v[0] + v_[2]*v[1] + v_[3]*v[2] );
@@ -701,7 +701,7 @@ template< typename Other >  // Data type of the matrix
 inline const Matrix3< typename MathTrait<Type,Other>::MultType >
    Quaternion<Type>::rotate( const Matrix3<Other>& m ) const
 {
-   typedef typename MathTrait<Type,Other>::MultType  MT;
+   using MT = typename MathTrait<Type, Other>::MultType;
    const Matrix3<MT> R( this->toRotationMatrix() );
    return R.rotate( m );
 }
@@ -725,7 +725,7 @@ template< typename Other >  // Data type of the diagonal matrix
 inline const Matrix3< typename MathTrait<Type,Other>::MultType >
    Quaternion<Type>::diagRotate( const Matrix3<Other>& m ) const
 {
-   typedef typename MathTrait<Type,Other>::MultType  MT;
+   using MT = typename MathTrait<Type, Other>::MultType;
    const Matrix3<MT> R( this->toRotationMatrix() );
    return R.diagRotate( m );
 }
@@ -733,7 +733,7 @@ inline const Matrix3< typename MathTrait<Type,Other>::MultType >
 
 
 //*************************************************************************************************
-/*!\brief Returns the angle in radian measure between the quaterion and a given axis.
+/*!\brief Returns the angle in radian measure between the quaternion and a given axis.
  *
  * \param axis The given axis.
  * \return The angle in radian measure.
@@ -743,7 +743,7 @@ template< typename Other >  // Data type of the axis
 inline typename MathTrait<Type,Other>::HighType
    Quaternion<Type>::calcAngle( const Vector3<Other>& axis ) const
 {
-   typedef typename MathTrait<Type,Other>::HighType  High;
+   using High = typename MathTrait<Type, Other>::HighType;
 
    const Vector3<High> u( v_[1], v_[2], v_[3] );
    const High y  ( u.length() );
@@ -816,12 +816,10 @@ inline bool operator==( const Quaternion<T1>& lhs, const Quaternion<T2>& rhs )
 {
    // In order to compare the two quaternions, the data values of the lower-order data
    // type are converted to the higher-order data type within the equal function.
-   if( !equal( lhs[0], rhs[0] ) ||
-       !equal( lhs[1], rhs[1] ) ||
-       !equal( lhs[2], rhs[2] ) ||
-       !equal( lhs[2], rhs[2] ) )
-      return false;
-   else return true;
+   return equal( lhs[0], rhs[0] ) &&
+          equal( lhs[1], rhs[1] ) &&
+          equal( lhs[2], rhs[2] ) &&
+          equal( lhs[2], rhs[2] );
 }
 //*************************************************************************************************
 
@@ -890,7 +888,7 @@ std::istream& operator>>( std::istream& is, Quaternion<Type>& q )
       return is;
    }
 
-   // Transfering the input to the quaternion values
+   // Transferring the input to the quaternion values
    q.set( r, i, j, k );
 
    // Resetting the flags
@@ -911,9 +909,7 @@ std::istream& operator>>( std::istream& is, Quaternion<Type>& q )
 template< typename Type >  // Data type of the quaternion
 inline bool isnan( const Quaternion<Type>& q )
 {
-   if( isnan( q[0] ) || isnan( q[1] ) || isnan( q[2] ) || isnan( q[3] ) )
-      return true;
-   else return false;
+   return isnan( q[0] ) || isnan( q[1] ) || isnan( q[2] ) || isnan( q[3] );
 }
 //*************************************************************************************************
 
@@ -1061,7 +1057,7 @@ template< typename T1    // Data type of the left-hand side quaternion
 inline const Quaternion< typename MathTrait<T1,T2>::MultType >
    operator*( const Quaternion<T1>& lhs, const Quaternion<T2>& rhs )
 {
-   typedef typename MathTrait<T1,T2>::MultType  MT;
+   using MT = typename MathTrait<T1, T2>::MultType;
 
    const MT r( lhs[0]*rhs[0] - lhs[1]*rhs[1] - lhs[2]*rhs[2] - lhs[3]*rhs[3] );
    const MT i( lhs[0]*rhs[1] + lhs[1]*rhs[0] + lhs[2]*rhs[3] - lhs[3]*rhs[2] );
@@ -1141,7 +1137,7 @@ using math::Quaternion;
 template<typename T>
 struct VectorTrait< Quaternion<T> >
 {
-   typedef T OutputType;
+   using OutputType = T;
 
    static const uint_t F_SIZE =  4u;
    static T    get( const Quaternion<T> & v, uint_t f )       { return v[f]; }

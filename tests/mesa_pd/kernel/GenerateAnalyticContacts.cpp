@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file   GenerateAnalyticContacts.cpp
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -79,7 +79,7 @@ int main( int argc, char ** argv )
    auto ps = std::make_shared<data::ParticleStorage>(100);
    auto ss = std::make_shared<data::ShapeStorage>();
    ParticleAccessorWithShape accessor(ps, ss);
-   data::LinkedCells      lc(math::AABB(-1,-1,-1,4,4,4), real_t(1));
+   data::LinkedCells      lc(math::AABB(-1,-1,-1,4,4,4), real_t(1.3));
 
    //initialize particles
    const real_t radius  = real_t(0.6);

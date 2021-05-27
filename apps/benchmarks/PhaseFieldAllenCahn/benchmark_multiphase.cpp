@@ -27,8 +27,6 @@
 
 #include "field/AddToStorage.h"
 #include "field/FlagField.h"
-#include "field/communication/PackInfo.h"
-#include "field/python/Exports.h"
 #include "field/vtk/VTKWriter.h"
 
 #include "geometry/InitBoundaryHandling.h"
@@ -51,7 +49,6 @@
 #   include "cuda/AddGPUFieldToStorage.h"
 #   include "cuda/DeviceSelectMPI.h"
 #   include "cuda/HostFieldAllocator.h"
-#   include "cuda/NVTX.h"
 #   include "cuda/ParallelStreams.h"
 #   include "cuda/communication/GPUPackInfo.h"
 #   include "cuda/communication/MemcpyPackInfo.h"
@@ -87,7 +84,7 @@ using flag_t           = walberla::uint8_t;
 using FlagField_T      = FlagField< flag_t >;
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
-typedef cuda::GPUField< double > GPUField;
+typedef cuda::GPUField< real_t > GPUField;
 #endif
 // using CommScheme_T = cuda::communication::UniformGPUScheme<stencil::D2Q9>;
 

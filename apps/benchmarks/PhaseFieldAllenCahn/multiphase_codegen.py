@@ -137,7 +137,7 @@ stream_hydro = create_lb_update_rule(stencil=stencil_hydro,
 # GENERATE SWEEPS #
 ###################
 
-cpu_vec = {'instruction_set': 'sse', 'assume_inner_stride_one': True, 'nontemporal': True}
+cpu_vec = {'assume_inner_stride_one': True, 'nontemporal': True}
 
 vp = [('int32_t', 'cudaBlockSize0'),
       ('int32_t', 'cudaBlockSize1')]
@@ -153,7 +153,7 @@ info_header = f"""
 """
 
 with CodeGeneration() as ctx:
-    if ctx.cuda is False:
+    if not ctx.cuda:
         if not ctx.optimize_for_localhost:
             cpu_vec = {'instruction_set': None}
 

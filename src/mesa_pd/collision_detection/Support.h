@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file Support.h
+//! \file
 //! \author Tobias Scharpff
 //! \author Tobias Leemann
 //
@@ -43,7 +43,7 @@ public:
     * \brief Estimates the point which is farthest in direction \a d.
     *
     * \param d The normalized search direction in world-frame coordinates.
-    * \return The support point in world-frame coordinates in direction a\ d.
+    * \return The support point in world-frame coordinates in direction \a d.
     */
    Vec3 support( Vec3 d ) const;
 public:

@@ -53,24 +53,21 @@ namespace field {
       //** Type Definitions  *******************************************************************************************
       /*! \name Type Definitions */
       //@{
-      typedef typename Field<T,fSize_>::value_type             value_type;
+      using value_type = typename Field<T, fSize_>::value_type;
 
-      typedef typename Field<T,fSize_>::iterator               iterator;
-      typedef typename Field<T,fSize_>::const_iterator         const_iterator;
+      using iterator = typename Field<T, fSize_>::iterator;
+      using const_iterator = typename Field<T, fSize_>::const_iterator;
 
-      typedef typename Field<T,fSize_>::reverse_iterator       reverse_iterator;
-      typedef typename Field<T,fSize_>::const_reverse_iterator const_reverse_iterator;
+      using reverse_iterator = typename Field<T, fSize_>::reverse_iterator;
+      using const_reverse_iterator = typename Field<T, fSize_>::const_reverse_iterator;
 
-      typedef typename Field<T,fSize_>::base_iterator          base_iterator;
-      typedef typename Field<T,fSize_>::const_base_iterator    const_base_iterator;
+      using base_iterator = typename Field<T, fSize_>::base_iterator;
+      using const_base_iterator = typename Field<T, fSize_>::const_base_iterator;
 
-      typedef typename Field<T,fSize_>::Ptr                    Ptr;
-      typedef typename Field<T,fSize_>::ConstPtr               ConstPtr;
+      using Ptr = typename Field<T, fSize_>::Ptr;
+      using ConstPtr = typename Field<T, fSize_>::ConstPtr;
 
-      typedef typename std::conditional<VectorTrait<T>::F_SIZE!=0,
-                                        GhostLayerField<typename VectorTrait<T>::OutputType, VectorTrait<T>::F_SIZE*fSize_>,
-                                        GhostLayerField<T, fSize_>
-                                        >::type FlattenedField;
+      using FlattenedField = typename std::conditional<VectorTrait<T>::F_SIZE != 0, GhostLayerField<typename VectorTrait<T>::OutputType, VectorTrait<T>::F_SIZE * fSize_>, GhostLayerField<T, fSize_>>::type;
       //@}
       //****************************************************************************************************************
 
@@ -90,7 +87,7 @@ namespace field {
                        const std::vector<T> & fValues, const Layout & layout = zyxf,
                        const shared_ptr<FieldAllocator<T> > &alloc = shared_ptr<FieldAllocator<T> >() );
 
-      virtual ~GhostLayerField() {}
+      ~GhostLayerField() override = default;
 
 
 
@@ -102,7 +99,7 @@ namespace field {
                  const shared_ptr<FieldAllocator<T> > &alloc = shared_ptr<FieldAllocator<T> >() );
 
 
-      virtual void resize( uint_t xSize, uint_t ySize, uint_t zSize );
+      void resize( uint_t xSize, uint_t ySize, uint_t zSize ) override;
               void resize( uint_t xSize, uint_t ySize, uint_t zSize, uint_t gl );
 
       using Field<T,fSize_>::resize;
@@ -200,8 +197,8 @@ namespace field {
       /*! \name Slicing */
       //@{
       GhostLayerField<T,fSize_> * getSlicedField( const CellInterval & interval ) const;
-      virtual void slice           ( const CellInterval & interval );
-      virtual void shiftCoordinates( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz );
+      void slice           ( const CellInterval & interval ) override;
+      void shiftCoordinates( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz ) override;
       //@}
       //****************************************************************************************************************
 
@@ -214,8 +211,8 @@ namespace field {
       //** Shallow Copy ************************************************************************************************
       /*! \name Shallow Copy */
       //@{
-      virtual Field<T,fSize_> * cloneShallowCopyInternal()   const;
-      virtual typename Field<T,fSize_>::FlattenedField * flattenedShallowCopyInternal() const;
+      Field<T,fSize_> * cloneShallowCopyInternal()   const override;
+      typename Field<T,fSize_>::FlattenedField * flattenedShallowCopyInternal() const override;
       GhostLayerField(const GhostLayerField<T,fSize_> & other);
       template <typename T2, uint_t fSize2>
       GhostLayerField(const GhostLayerField<T2, fSize2> & other);

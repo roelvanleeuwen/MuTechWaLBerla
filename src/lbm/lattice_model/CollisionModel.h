@@ -81,7 +81,7 @@ class SRT
 {
 public:
 
-   typedef SRT_tag tag;
+   using tag = SRT_tag;
    static const bool constant = true;
    
    SRT( const real_t _omega, const uint_t _level = uint_t(0) ) :
@@ -138,14 +138,14 @@ class SRTField
 {
 public:
 
-   typedef SRT_tag tag;
+   using tag = SRT_tag;
    static const bool constant = false;
 
    SRTField() :
       omegaFieldId_(), omegaField_( NULL ), level_( uint_t(0) ) {}
 
    SRTField( const BlockDataID & omegaFieldId, const uint_t _level = uint_t(0) ) :
-      omegaFieldId_( omegaFieldId ), omegaField_( NULL ), level_( _level ) {}
+      omegaFieldId_( omegaFieldId ), omegaField_( nullptr ), level_( _level ) {}
 
    void setFieldId( const BlockDataID & omegaFieldId, const uint_t _level = uint_t(0) )
    {
@@ -212,7 +212,7 @@ class TRT
 {
 public:
 
-   typedef TRT_tag tag;
+   using tag = TRT_tag;
    
    static const real_t threeSixteenth;
 
@@ -332,7 +332,7 @@ class D3Q19MRT
 {
 public:
 
-   typedef MRT_tag tag;
+   using tag = MRT_tag;
    
    static const real_t threeSixteenth;
    
@@ -581,7 +581,7 @@ class D3Q27Cumulant
 {
 public:
   
-   typedef Cumulant_tag tag;
+   using tag = Cumulant_tag;
 
    /// Initializes all omegas to one except omega1
    D3Q27Cumulant( const real_t _omega1, const uint_t _level = uint_t(0) ) :

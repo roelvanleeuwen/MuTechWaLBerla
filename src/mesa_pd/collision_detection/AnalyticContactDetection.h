@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file AnalyticContactDetection.h
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -46,7 +46,7 @@ namespace collision_detection {
 class AnalyticContactDetection
 {
 public:
-   virtual ~AnalyticContactDetection() {}
+   virtual ~AnalyticContactDetection() = default;
 
    size_t& getIdx1() {return idx1_;}
    size_t& getIdx2() {return idx2_;}

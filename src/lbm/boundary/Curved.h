@@ -48,11 +48,11 @@ namespace lbm {
 template< typename LatticeModel_T, typename FlagField_T >
 class Curved : public Boundary< typename FlagField_T::flag_t >
 {
-   typedef PdfField< LatticeModel_T >        PDFField;
-   typedef typename LatticeModel_T::Stencil  Stencil;
-   typedef typename FlagField_T::flag_t      flag_t;
+   using PDFField = PdfField<LatticeModel_T>;
+   using Stencil = typename LatticeModel_T::Stencil;
+   using flag_t = typename FlagField_T::flag_t;
 
-   typedef GhostLayerField< shared_ptr< std::array<real_t, Stencil::Size> >, 1 >  WeightField;
+   using WeightField = GhostLayerField<shared_ptr<std::array<real_t, Stencil::Size>>, 1>;
 
 public:
 
@@ -256,10 +256,10 @@ inline void Curved< LatticeModel_T, FlagField_T >::treatDirection( const cell_id
    }
    else
    {
-      WALBERLA_ASSERT( weights_->get( nx, ny, nz ).get() != NULL );
+      WALBERLA_ASSERT( weights_->get( nx, ny, nz ).get() != nullptr );
       WALBERLA_ASSERT_LESS( Stencil::invDirIdx(dir), weights_->get( nx, ny, nz )->size() );
       
-      // linear multi reflection model without non-equilibirum
+      // linear multi reflection model without non-equilibrium
 
       const real_t weight = ( *( weights_->get( nx, ny, nz ) ) )[Stencil::invDirIdx( dir )];
 

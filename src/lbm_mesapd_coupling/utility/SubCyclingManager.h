@@ -34,18 +34,18 @@ namespace lbm_mesapd_coupling {
 
 class SubCyclingManager {
 public:
-   typedef std::function<void ()> VoidVoidFunc;
+   using VoidVoidFunc = std::function<void ()>;
 
    /*! \name Construction & Destruction */
    //@{
    explicit SubCyclingManager(size_t numberOfSubCycles, shared_ptr<WcTimingPool> timingPool = nullptr);
 
-   virtual ~SubCyclingManager() {}
+   virtual ~SubCyclingManager() = default;
    //@}
 
    /*! \name Registration Functions */
    //@{
-   typedef size_t FuncHandle;
+   using FuncHandle = size_t;
 
    FuncHandle addFuncBeforeSubCycles(const VoidVoidFunc &f, const std::string &identifier = "Other");
    FuncHandle addFuncDuringSubCycles(const VoidVoidFunc &f, const std::string &identifier = "Other");
@@ -64,7 +64,7 @@ public:
    //@}
 
 private:
-   typedef std::pair<std::string, VoidVoidFunc> IdentifiedFunc;
+   using IdentifiedFunc = std::pair<std::string, VoidVoidFunc>;
 
    inline void executeBeforeFunctions();
    inline void executeDuringFunctions();

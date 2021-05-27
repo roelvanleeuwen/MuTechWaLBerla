@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file GeneralContactDetection.h
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -199,13 +199,7 @@ bool GeneralContactDetection::collideGJKEPA(Support& geom0, Support& geom1)
    {
       EPA epa;
       epa.useSphereOptimization(false);
-      if (epa.doEPAmargin(geom0, geom1, gjk, contactNormal_, contactPoint_, penetrationDepth_, margin))
-      {
-         return true;
-      } else
-      {
-         return false;
-      }
+      return epa.doEPAmargin(geom0, geom1, gjk, contactNormal_, contactPoint_, penetrationDepth_, margin);
    } else
    {
       return false;

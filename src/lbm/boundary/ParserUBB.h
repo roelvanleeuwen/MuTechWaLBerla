@@ -50,10 +50,10 @@ namespace lbm {
 template< typename LatticeModel_T, typename flag_t, bool AdaptVelocityToExternalForce = false, bool StoreForce = false >
 class ParserUBB : public Boundary<flag_t>
 {
-   typedef lbm::PdfField< LatticeModel_T >   PDFField;
-   typedef typename LatticeModel_T::Stencil  Stencil;
+   using PDFField = lbm::PdfField<LatticeModel_T>;
+   using Stencil = typename LatticeModel_T::Stencil;
 
-   typedef GhostLayerField< Vector3<real_t>, 1 > ForceField;
+   using ForceField = GhostLayerField<Vector3<real_t>, 1>;
 
 public:
 
@@ -108,8 +108,8 @@ public:
       return velocity != nullptr;
    }
 
-   typedef GhostLayerField< shared_ptr<Parser>, 1 > ParserField;
-   typedef GhostLayerField< Vector3<real_t>, 1 >    VelocityField;
+   using ParserField = GhostLayerField<shared_ptr<Parser>, 1>;
+   using VelocityField = GhostLayerField<Vector3<real_t>, 1>;
 
    static shared_ptr<Parser> createConfiguration( const Config::BlockHandle & config )
       { return make_shared<Parser>( config ); }
@@ -258,9 +258,9 @@ Vector3< real_t > ParserUBB<LatticeModel_T, flag_t, AdaptVelocityToExternalForce
    symbols["t"] = t;
 
    Vector3< real_t > v;
-   v[0] = parsers_[0].evaluate( symbols );
-   v[1] = parsers_[1].evaluate( symbols );
-   v[2] = parsers_[2].evaluate( symbols );
+   v[0] = real_c(parsers_[0].evaluate( symbols ));
+   v[1] = real_c(parsers_[1].evaluate( symbols ));
+   v[2] = real_c(parsers_[2].evaluate( symbols ));
    return v;
 }
 
@@ -275,9 +275,9 @@ Vector3< real_t > ParserUBB<LatticeModel_T, flag_t, AdaptVelocityToExternalForce
    symbols["z"] = x[2];
 
    Vector3< real_t > v;
-   v[0] = parsers_[0].evaluate( symbols );
-   v[1] = parsers_[1].evaluate( symbols );
-   v[2] = parsers_[2].evaluate( symbols );
+   v[0] = real_c(parsers_[0].evaluate( symbols ));
+   v[1] = real_c(parsers_[1].evaluate( symbols ));
+   v[2] = real_c(parsers_[2].evaluate( symbols ));
    return v;
 }
 

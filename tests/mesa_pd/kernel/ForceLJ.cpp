@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file   ForceLJ.cpp
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -95,7 +95,7 @@ int main( int argc, char ** argv )
    WALBERLA_CHECK_LESS   ( p1.getForce()[0], real_t(0), p1 << p2 );
    WALBERLA_CHECK_GREATER( p2.getForce()[0], real_t(0), p1 << p2 );
 
-   //action = reactio
+   //action = reaction
    p1.getForceRef()           = Vec3(0,0,0);
    p2.getForceRef()           = Vec3(0,0,0);
    p2.getPositionRef()        = Vec3( 1, 2, 3) * real_t(0.1);

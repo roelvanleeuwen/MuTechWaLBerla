@@ -74,8 +74,27 @@ waLBerla_execute_test( NAME  SuViscoelasticityShortTest COMMAND $<TARGET_FILE:Su
 waLBerla_compile_test( FILES field/QCriterionTest.cpp DEPENDS field blockforest )
 waLBerla_execute_test( NAME QCriterionTest )
 
+add_subdirectory(field)
+waLBerla_compile_test( FILES field/AlignedPDFfieldTest.cpp DEPENDS field blockforest lbm )
+waLBerla_execute_test( NAME AlignedPDFfieldTest COMMAND $<TARGET_FILE:AlignedPDFfieldTest> ${CMAKE_CURRENT_SOURCE_DIR}/field/AlignedPDFfieldTest.prm )
+
 # Code Generation
 if( WALBERLA_BUILD_WITH_CODEGEN )
+add_subdirectory(codegen)
+
+waLBerla_generate_target_from_python(NAME GeneratedOutflowBCGenerated
+        FILE codegen/GeneratedOutflowBC.py
+        OUT_FILES GeneratedOutflowBC_Sweep.cpp GeneratedOutflowBC_Sweep.h
+        GeneratedOutflowBC_MacroSetter.cpp GeneratedOutflowBC_MacroSetter.h
+        GeneratedOutflowBC_Dynamic_UBB.cpp GeneratedOutflowBC_Dynamic_UBB.h
+        GeneratedOutflowBC_Static_UBB.cpp GeneratedOutflowBC_Static_UBB.h
+        GeneratedOutflowBC_NoSlip.cpp GeneratedOutflowBC_NoSlip.h
+        GeneratedOutflowBC_Outflow.cpp GeneratedOutflowBC_Outflow.h
+        GeneratedOutflowBC_PackInfo.cpp GeneratedOutflowBC_PackInfo.h
+        GeneratedOutflowBC_InfoHeader.h)
+waLBerla_compile_test( FILES codegen/GeneratedOutflowBC.cpp DEPENDS GeneratedOutflowBCGenerated)
+waLBerla_execute_test( NAME GeneratedOutflowBC COMMAND $<TARGET_FILE:GeneratedOutflowBC> ${CMAKE_CURRENT_SOURCE_DIR}/codegen/GeneratedOutflowBC.prm  )
+
 
 waLBerla_generate_target_from_python(NAME LbCodeGenerationExampleGenerated
       FILE codegen/LbCodeGenerationExample.py
@@ -84,12 +103,10 @@ waLBerla_generate_target_from_python(NAME LbCodeGenerationExampleGenerated
       LbCodeGenerationExample_UBB.cpp LbCodeGenerationExample_UBB.h )
 waLBerla_compile_test( FILES codegen/LbCodeGenerationExample.cpp DEPENDS LbCodeGenerationExampleGenerated)
 
-# FluctuatingMRT test does not work with WALBERLA_OPTIMIZE_FOR_LOCALHOST since the random number generator is not implemented with SIMD
-if ( NOT WALBERLA_OPTIMIZE_FOR_LOCALHOST )
 waLBerla_generate_target_from_python(NAME FluctuatingMRTGenerated FILE codegen/FluctuatingMRT.py
                               OUT_FILES FluctuatingMRT_LatticeModel.cpp FluctuatingMRT_LatticeModel.h )
 waLBerla_compile_test( FILES codegen/FluctuatingMRT.cpp DEPENDS FluctuatingMRTGenerated)
-endif()
+waLBerla_execute_test( NAME FluctuatingMRT COMMAND $<TARGET_FILE:FluctuatingMRT> ${CMAKE_CURRENT_SOURCE_DIR}/codegen/FluctuatingMRT.prm PROCESSES 1)
 
 waLBerla_generate_target_from_python(NAME FieldLayoutAndVectorizationTestGenerated FILE codegen/FieldLayoutAndVectorizationTest.py
                                      OUT_FILES FieldLayoutAndVectorizationTest_FZYX_Vec_LatticeModel.cpp FieldLayoutAndVectorizationTest_FZYX_Vec_LatticeModel.h
@@ -97,5 +114,35 @@ waLBerla_generate_target_from_python(NAME FieldLayoutAndVectorizationTestGenerat
                                                FieldLayoutAndVectorizationTest_ZYXF_Vec_LatticeModel.cpp FieldLayoutAndVectorizationTest_ZYXF_Vec_LatticeModel.h
                                                FieldLayoutAndVectorizationTest_ZYXF_NoVec_LatticeModel.cpp FieldLayoutAndVectorizationTest_ZYXF_NoVec_LatticeModel.h )
 waLBerla_compile_test( FILES codegen/FieldLayoutAndVectorizationTest.cpp DEPENDS FieldLayoutAndVectorizationTestGenerated)
+
+waLBerla_generate_target_from_python(NAME LbmPackInfoGenerationTestCodegen FILE codegen/LbmPackInfoGenerationTest.py
+                                     OUT_FILES AccessorBasedPackInfoEven.cpp AccessorBasedPackInfoEven.h
+                                               AccessorBasedPackInfoOdd.cpp AccessorBasedPackInfoOdd.h
+                                               FromKernelPackInfoPull.cpp FromKernelPackInfoPull.h
+                                               FromKernelPackInfoPush.cpp FromKernelPackInfoPush.h)
+
+waLBerla_link_files_to_builddir( "diff_packinfos.sh" )
+waLBerla_execute_test( NAME LbmPackInfoGenerationDiffTest COMMAND bash diff_packinfos.sh )
+
+
+waLBerla_generate_target_from_python( NAME InplaceStreamingCodegen
+      FILE codegen/InplaceStreamingCodegen.py
+      OUT_FILES PullSweep.h PullSweep.cpp
+                PullNoSlip.h PullNoSlip.cpp
+                PullUBB.h PullUBB.cpp
+                PullOutflow.h PullOutflow.cpp
+                PullInit.h PullInit.cpp
+                InPlaceSweep.h InPlaceSweep.cpp
+                InPlaceNoSlip.h InPlaceNoSlip.cpp
+                InPlaceUBB.h InPlaceUBB.cpp
+                InPlaceOutflow.h InPlaceOutflow.cpp
+                InPlaceInit.h InPlaceInit.cpp
+                InplaceStreamingCodegen.h)
+
+waLBerla_compile_test( FILES codegen/InplaceStreamingCodegenTest.cpp
+                       DEPENDS InplaceStreamingCodegen )
+
+waLBerla_execute_test( NAME InplaceStreamingCodegenTest
+                       COMMAND $<TARGET_FILE:InplaceStreamingCodegenTest> ${CMAKE_CURRENT_SOURCE_DIR}/codegen/InplaceStreamingCodegen3D.prm  )
 
 endif()

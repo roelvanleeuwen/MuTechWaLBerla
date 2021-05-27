@@ -66,11 +66,16 @@ namespace field {
     */
    //*******************************************************************************************************************
    template <typename T, uint_t fieldFSize>
-   class FieldIterator : public std::iterator <std::forward_iterator_tag,T>
+   class FieldIterator
    {
    public:
-      typedef Field<typename std::remove_const<T>::type, fieldFSize> FieldType;
-      typedef T value_type;
+      using iterator_category = std::forward_iterator_tag;
+      using value_type = T;
+      using difference_type = std::ptrdiff_t;
+      using pointer = T*;
+      using reference = T&;
+
+      using FieldType = Field<typename std::remove_const<T>::type, fieldFSize>;
 
       static const uint_t F_SIZE = fieldFSize;
 
@@ -214,8 +219,8 @@ namespace field {
    class ForwardFieldIterator : public FieldIterator<T,fieldFSize>
    {
    public:
-      typedef FieldIterator<T,fieldFSize> Parent;
-      typedef Field<typename std::remove_const<T>::type, fieldFSize> FieldType;
+      using Parent = FieldIterator<T, fieldFSize>;
+      using FieldType = Field<typename std::remove_const<T>::type, fieldFSize>;
 
       //**Constructor/Destructor****************************************************************************************
       /*!\name Constructor/Destructor */
@@ -257,8 +262,8 @@ namespace field {
    class ReverseFieldIterator : public FieldIterator<T,fieldFSize>
    {
    public:
-       typedef FieldIterator<T,fieldFSize> Parent;
-       typedef Field<typename std::remove_const<T>::type, fieldFSize> FieldType;
+       using Parent = FieldIterator<T, fieldFSize>;
+       using FieldType = Field<typename std::remove_const<T>::type, fieldFSize>;
 
       //**Constructor/Destructor****************************************************************************************
       /*!\name Constructor/Destructor */

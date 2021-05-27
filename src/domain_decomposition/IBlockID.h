@@ -44,9 +44,9 @@ class IBlockID {
 
 public:
    /// ID type which can be used as a key in a map
-   typedef uint64_t IDType;
+   using IDType = uint64_t;
 
-   virtual ~IBlockID() {}
+   virtual ~IBlockID() = default;
 
    virtual bool operator< ( const IBlockID& rhs ) const = 0;
    virtual bool operator==( const IBlockID& rhs ) const = 0;

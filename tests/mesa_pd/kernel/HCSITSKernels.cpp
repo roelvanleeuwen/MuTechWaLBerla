@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file   HCSITSKernels.cpp
+//! \file
 //! \author Tobias Leemann <tobias.leemann@fau.de>
 //
 //======================================================================================================================
@@ -63,8 +63,8 @@ public:
    const real_t& getMass(const size_t p_idx) const {return ss_->shapes[ps_->getShapeIDRef(p_idx)]->getMass();}
    const real_t& getInvMass(const size_t p_idx) const {return ss_->shapes[ps_->getShapeIDRef(p_idx)]->getInvMass();}
 
-   const Mat3& getInertia(const size_t p_idx) const {return ss_->shapes[ps_->getShapeIDRef(p_idx)]->getInertiaBF();}
-   const Mat3& getInvInertia(const size_t p_idx) const {return ss_->shapes[ps_->getShapeIDRef(p_idx)]->getInvInertiaBF();}
+   const Mat3& getInertiaBF(const size_t p_idx) const {return ss_->shapes[ps_->getShapeIDRef(p_idx)]->getInertiaBF();}
+   const Mat3& getInvInertiaBF(const size_t p_idx) const {return ss_->shapes[ps_->getShapeIDRef(p_idx)]->getInvInertiaBF();}
 
    data::BaseShape* getShape(const size_t p_idx) const {return ss_->shapes[ps_->getShapeIDRef(p_idx)].get();}
 private:
@@ -260,8 +260,8 @@ void normalReactionTest(kernel::HCSITSRelaxationStep::RelaxationModel model)
 
 
 /**Check hard contact constraints on two overlapping, colliding spheres
- * Works only for the solvers that really archieve seperation after a single
- * timestep. Use SphereSeperationTest to check for seperation after multiple
+ * Works only for the solvers that really achieve separation after a single
+ * timestep. Use SphereSeperationTest to check for separation after multiple
  * timesteps.
  * @param model The collision model to use.
  * */
@@ -360,10 +360,10 @@ void SphereSeperationTest(kernel::HCSITSRelaxationStep::RelaxationModel model){
       WALBERLA_LOG_INFO(p2->getLinearVelocity());
       solveCount ++;
       if(solveCount==maxIter){
-         WALBERLA_CHECK(false, "Seperation did not occur after " << maxIter << " Iterations performed.");
+         WALBERLA_CHECK(false, "Separation did not occur after " << maxIter << " Iterations performed.");
       }
    }
-   WALBERLA_LOG_INFO("Seperation achieved after " << solveCount << " iterations.");
+   WALBERLA_LOG_INFO("Separation achieved after " << solveCount << " iterations.");
 }
 
 /**

@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file DetectAndStoreContacts.h
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //! \author Tobias Leemann <tobias.leemann@fau.de>
 //
@@ -41,7 +41,7 @@ namespace mesa_pd {
 namespace kernel {
 
 /**
- * Kernel which performes collision detection on a pair of two particles
+ * Kernel which performs collision detection on a pair of two particles
  * and inserts the contact (if existent) into the contact storage passed in the constructor.
  * Call this kernel on each particle pair to perform contact detection and insert each contact in the contact
  * storage.

@@ -46,6 +46,14 @@ namespace communication {
    {
    public:
 
+      //**Construction & Destruction************************************************************************************
+      /*! \name Construction & Destruction */
+      //@{
+               UniformMPIDatatypeInfo() = default;
+      virtual ~UniformMPIDatatypeInfo() = default;
+      //@}
+      //****************************************************************************************************************
+
       /*************************************************************************************************************//**
       * Return the MPI data type that should be used for sending to neighbor in  specified direction
       *****************************************************************************************************************/

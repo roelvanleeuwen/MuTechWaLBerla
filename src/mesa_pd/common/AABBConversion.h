@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file AABBConversion.h
+//! \file
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
 //
 //======================================================================================================================
@@ -32,6 +32,7 @@ namespace mesa_pd {
 
 math::AABB getAABBFromInteractionRadius(const Vector3<real_t> & pos, const real_t interactionRadius )
 {
+   WALBERLA_ASSERT_GREATER(interactionRadius, 0_r, "Did you forget to set the interaction radius?");
    return math::AABB( pos[0]-interactionRadius, pos[1]-interactionRadius, pos[2]-interactionRadius,
                       pos[0]+interactionRadius, pos[1]+interactionRadius, pos[2]+interactionRadius );
 }

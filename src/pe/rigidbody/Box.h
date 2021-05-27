@@ -74,7 +74,7 @@ public:
    //**Destructor**********************************************************************************
    /*!\name Destructor */
    //@{
-   virtual ~Box();
+   ~Box() override;
    //@}
    //**********************************************************************************************
 
@@ -83,7 +83,7 @@ public:
    /*!\name Get functions */
    //@{
    inline const Vec3& getLengths() const;
-   virtual inline real_t getVolume() const;
+   inline real_t getVolume() const override;
    //@}
    //**********************************************************************************************
 
@@ -119,15 +119,15 @@ public:
    //**Utility functions***************************************************************************
    /*!\name Utility functions */
    //@{
-   inline virtual Vec3 support( const Vec3& d ) const;
-   inline virtual Vec3 supportContactThreshold( const Vec3& d ) const;
+   inline Vec3 support( const Vec3& d ) const override;
+   inline Vec3 supportContactThreshold( const Vec3& d ) const override;
    //@}
    //**********************************************************************************************
 
    //**Output functions****************************************************************************
    /*!\name Output functions */
    //@{
-   virtual void print( std::ostream& os, const char* tab ) const;
+   void print( std::ostream& os, const char* tab ) const override;
    //@}
    //**********************************************************************************************
 
@@ -135,15 +135,15 @@ protected:
    //**Utility functions***************************************************************************
    /*!\name Utility functions */
    //@{
-   virtual bool containsRelPointImpl ( real_t px, real_t py, real_t pz ) const;
-   virtual bool isSurfaceRelPointImpl( real_t px, real_t py, real_t pz ) const;
+   bool containsRelPointImpl ( real_t px, real_t py, real_t pz ) const override;
+   bool isSurfaceRelPointImpl( real_t px, real_t py, real_t pz ) const override;
    //@}
    //**********************************************************************************************
 
    //**Utility functions***************************************************************************
    /*!\name Utility functions */
    //@{
-   virtual void calcBoundingBox();  // Calculation of the axis-aligned bounding box
+   void calcBoundingBox() override;  // Calculation of the axis-aligned bounding box
    //@}
    //**********************************************************************************************
 
@@ -417,7 +417,7 @@ inline real_t Box::calcDensity( const Vec3& l, real_t mass )
 /*!\brief Estimates the point which is farthest in direction \a d.
  *
  * \param d The normalized search direction in world-frame coordinates.
- * \return The support point in world-frame coordinates in direction a\ d.
+ * \return The support point in world-frame coordinates in direction \a d.
  */
 inline Vec3 Box::support( const Vec3& d ) const
 {
@@ -449,7 +449,7 @@ inline Vec3 Box::support( const Vec3& d ) const
 /*!\brief Estimates the point which is farthest in direction \a d.
  *
  * \param d The normalized search direction in world-frame coordinates.
- * \return The support point in world-frame coordinates in direction a\ d extended by a vector in
+ * \return The support point in world-frame coordinates in direction \a d extended by a vector in
  *         direction \a d of length \a pe::contactThreshold.
  */
 inline Vec3 Box::supportContactThreshold( const Vec3& d ) const

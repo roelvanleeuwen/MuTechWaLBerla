@@ -31,9 +31,7 @@
 #   pragma warning( disable : 4706 )
 #elif ( defined WALBERLA_CXX_COMPILER_IS_GNU ) || ( defined WALBERLA_CXX_COMPILER_IS_CLANG )
 #   pragma GCC diagnostic push
-#   if !( ( __clang_major__ == 3 ) && ( __clang_minor__ <= 4 ) )
-#     pragma GCC diagnostic ignored "-Wpragmas"
-#   endif
+#   pragma GCC diagnostic ignored "-Wpragmas"
 #   pragma GCC diagnostic ignored "-Wsign-conversion"
 #   pragma GCC diagnostic ignored "-Wconversion"
 #   pragma GCC diagnostic ignored "-Wshorten-64-to-32"
@@ -139,7 +137,7 @@ double FunctionParser::evaluate( const std::map<std::string,double> & symbolTabl
       auto symbolEntryIt = symbolTable.find( *vIt );
 
       if( symbolEntryIt == symbolTable.end() )
-         WALBERLA_ABORT( "Error evaluationg expression. Variable \"" << *vIt << "\" not specified in symbol table!" );
+         WALBERLA_ABORT( "Error evaluating expression. Variable \"" << *vIt << "\" not specified in symbol table!" );
 
       symbolTable_->variable_ref( *vIt ) = symbolEntryIt->second;
    }

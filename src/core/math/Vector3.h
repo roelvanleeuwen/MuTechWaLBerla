@@ -94,22 +94,22 @@ private:
 
 public:
    //**Type definitions****************************************************************************
-   typedef typename SqrtTrait<Type>::Type Length;  //!< Vector length return type.
+   using Length = typename SqrtTrait<Type>::Type;  //!< Vector length return type.
                                                    /*!< Return type of the Vector3<Type>::length
                                                         function. */
-   typedef Type value_type;
+   using value_type = Type;
    //*******************************************************************************************************************
 
    //**Constructors*****************************************************************************************************
-                              explicit inline Vector3() = default;
-                              explicit inline Vector3( Type init );
-   template< typename Other > explicit inline Vector3( Other init );
-                              explicit inline Vector3( Type x, Type y, Type z );
-                              explicit inline Vector3( const Type* init );
-                                       inline Vector3( const Vector3& v ) = default;
+                              explicit inline constexpr Vector3() = default;
+                              explicit inline constexpr Vector3( Type init );
+   template< typename Other > explicit inline constexpr Vector3( Other init );
+                              explicit inline constexpr Vector3( Type x, Type y, Type z );
+                              explicit inline constexpr Vector3( const Type* init );
+                                       inline constexpr Vector3( const Vector3& v ) = default;
 
    template< typename Other >
-   inline Vector3( const Vector3<Other>& v );
+   inline constexpr Vector3( const Vector3<Other>& v );
    //*******************************************************************************************************************
 
    //**Destructor*******************************************************************************************************
@@ -208,7 +208,7 @@ Vector3<T> & normalize( Vector3<T> & v );
 // \param init Initial value for all vector elements.
 */
 template< typename Type >
-inline Vector3<Type>::Vector3( Type init )
+inline constexpr Vector3<Type>::Vector3( Type init )
 {
    v_[0] = v_[1] = v_[2] = init;
 }
@@ -223,7 +223,7 @@ inline Vector3<Type>::Vector3( Type init )
 */
 template< typename Type >
 template< typename Other >
-inline Vector3<Type>::Vector3( Other init )
+inline constexpr Vector3<Type>::Vector3( Other init )
 {
    static_assert( std::is_arithmetic<Other>::value, "Vector3 only accepts arithmetic data types in Vector3( Other init )");
 
@@ -241,7 +241,7 @@ inline Vector3<Type>::Vector3( Other init )
 // \param z The initial value for the z-component.
 */
 template< typename Type >
-inline Vector3<Type>::Vector3( Type x, Type y, Type z )
+inline constexpr Vector3<Type>::Vector3( Type x, Type y, Type z )
 {
    v_[0] = x;
    v_[1] = y;
@@ -259,7 +259,7 @@ inline Vector3<Type>::Vector3( Type x, Type y, Type z )
 // The array is assumed to have at least three valid elements.
 */
 template< typename Type >
-inline Vector3<Type>::Vector3( const Type* init )
+inline constexpr Vector3<Type>::Vector3( const Type* init )
 {
    v_[0] = init[0];
    v_[1] = init[1];
@@ -276,7 +276,7 @@ inline Vector3<Type>::Vector3( const Type* init )
 */
 template< typename Type >
 template< typename Other >
-inline Vector3<Type>::Vector3( const Vector3<Other>& v )
+inline constexpr Vector3<Type>::Vector3( const Vector3<Other>& v )
 {
    v_[0] = numeric_cast<Type>( v.v_[0] );
    v_[1] = numeric_cast<Type>( v.v_[1] );
@@ -333,9 +333,7 @@ inline bool Vector3<Type>::operator==( Other rhs ) const
 {
    // In order to compare the vector and the scalar value, the data values of the lower-order
    // data type are converted to the higher-order data type within the equal function.
-   if( !equal( v_[0], rhs ) || !equal( v_[1], rhs ) || !equal( v_[2], rhs ) )
-      return false;
-   else return true;
+   return equal( v_[0], rhs ) && equal( v_[1], rhs ) && equal( v_[2], rhs );
 }
 //**********************************************************************************************************************
 
@@ -353,9 +351,7 @@ inline bool Vector3<Type>::operator==( const Vector3<Other>& rhs ) const
 {
    // In order to compare the two vectors, the data values of the lower-order data
    // type are converted to the higher-order data type within the equal function.
-   if( !equal( v_[0], rhs.v_[0] ) || !equal( v_[1], rhs.v_[1] ) || !equal( v_[2], rhs.v_[2] ) )
-      return false;
-   else return true;
+   return equal( v_[0], rhs.v_[0] ) && equal( v_[1], rhs.v_[1] ) && equal( v_[2], rhs.v_[2] );
 }
 //**********************************************************************************************************************
 
@@ -376,9 +372,7 @@ inline bool Vector3<Type>::operator!=( Other rhs ) const
 {
    // In order to compare the vector and the scalar value, the data values of the lower-order
    // data type are converted to the higher-order data type within the equal function.
-   if( !equal( v_[0], rhs ) || !equal( v_[1], rhs ) || !equal( v_[2], rhs ) )
-      return true;
-   else return false;
+   return !(*this == rhs);
 }
 //**********************************************************************************************************************
 
@@ -396,9 +390,7 @@ inline bool Vector3<Type>::operator!=( const Vector3<Other>& rhs ) const
 {
    // In order to compare the two vectors, the data values of the lower-order data
    // type are converted to the higher-order data type within the equal function.
-   if( !equal( v_[0], rhs.v_[0] ) || !equal( v_[1], rhs.v_[1] ) || !equal( v_[2], rhs.v_[2] ) )
-      return true;
-   else return false;
+   return !(*this == rhs);
 }
 //**********************************************************************************************************************
 
@@ -683,7 +675,7 @@ inline HIGH Vector3<Type>::operator*( const Vector3<Other>& rhs ) const
 
 //**********************************************************************************************************************
 /*!\fn Vector3<HIGH> Vector3<Type>::operator/( Other rhs ) const
-// \brief Division operator for the divison of a vector by a scalar value
+// \brief Division operator for the division of a vector by a scalar value
 // \brief (\f$ \vec{a}=\vec{b}/s \f$).
 //
 // \param rhs The right-hand-side scalar value for the division.
@@ -1221,7 +1213,7 @@ inline bool operator==( long double scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of an unsigned char scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1240,7 +1232,7 @@ inline bool operator!=( unsigned char scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of a char scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1259,7 +1251,7 @@ inline bool operator!=( char scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of a signed char scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1278,7 +1270,7 @@ inline bool operator!=( signed char scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of a wchar_t scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1297,7 +1289,7 @@ inline bool operator!=( wchar_t scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of an unsigned short scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1316,7 +1308,7 @@ inline bool operator!=( unsigned short scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of a short scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1335,7 +1327,7 @@ inline bool operator!=( short scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of an uint_t scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1354,7 +1346,7 @@ inline bool operator!=( unsigned int scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of an int scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1373,7 +1365,7 @@ inline bool operator!=( int scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of an unsigned long scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1392,7 +1384,7 @@ inline bool operator!=( unsigned long scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of a long scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1411,7 +1403,7 @@ inline bool operator!=( long scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of a float scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1430,7 +1422,7 @@ inline bool operator!=( float scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of a double scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1449,7 +1441,7 @@ inline bool operator!=( double scalar, const Vector3<Type>& vec )
 // \brief Inequality operator for the comparison of a long double scalar value and a vector.
 //
 // \param scalar The left-hand-side scalar value for the comparison.
-// \param vec The right-hand-side vector for the comparision.
+// \param vec The right-hand-side vector for the comparison.
 // \return bool
 //
 // If one value of the vector is inequal to the scalar value, the inequality test returns true,
@@ -1528,7 +1520,7 @@ std::istream& operator>>( std::istream& is, Vector3<Type>& v )
       return is;
    }
 
-   // Transfering the input to the vector values
+   // Transferring the input to the vector values
    v[0] = x; v[1] = y; v[2] = z;
 
    // Resetting the flags
@@ -1587,7 +1579,7 @@ inline std::istream& operator>>( std::istream& is, Vector3<bool>& v )
       }
    }
 
-   // Transfering the input to the vector values
+   // Transferring the input to the vector values
    v[0] = x; v[1] = y; v[2] = z;
 
    // Resetting the flags
@@ -1810,7 +1802,7 @@ struct Vector3LexicographicalyLess
    //
    // \param lhs left hand side of less-than-operator.
    // \param rhs right hand side of less-than-operator.
-   // \returns true if lhs < rhs (lexicogrphically), else returns false.
+   // \returns true if lhs < rhs (lexicographically), else returns false.
    */
    bool operator()( const Vector3<T> & lhs, const Vector3<T> & rhs ) const
    {
@@ -1934,7 +1926,7 @@ namespace walberla {
 template<typename T>
 struct VectorTrait< Vector3<T> >
 {
-   typedef T OutputType;
+   using OutputType = T;
 
    static const uint_t F_SIZE =  3u;
    static T    get( const Vector3<T> & v, uint_t f )       { return v[f]; }
@@ -1977,7 +1969,7 @@ namespace std
     {
         std::size_t operator()( walberla::Vector3<T> const & v ) const noexcept
         {
-            return walberla::Vector3<T>::hash_value( v );
+            return walberla::math::hash_value( v );
         }
     };
 } // namespace std

@@ -48,9 +48,9 @@ public:
 
    static const uint_t F_SIZE = Field_T::F_SIZE;
 
-   typedef Field_T                                         BaseField_T;
-   typedef typename FlagField_T::flag_t                    flag_t;
-   typedef TrilinearFieldInterpolator<Field_T,FlagField_T> OwnType;
+   using BaseField_T = Field_T;
+   using flag_t = typename FlagField_T::flag_t;
+   using OwnType = TrilinearFieldInterpolator<Field_T, FlagField_T>;
 
    TrilinearFieldInterpolator( const weak_ptr<StructuredBlockStorage> & blockStorage, const IBlock & block,
                                const BaseField_T & baseField, const FlagField_T & flagField,
@@ -94,7 +94,7 @@ public:
       const cell_idx_t zNeighbor1 = cell_idx_c( floor( z - containingCellCenter[2] ) );
       const cell_idx_t zNeighbor2 = zNeighbor1 + cell_idx_t(1);
 
-      // define the 8 nearest cells required for the trilienar interpolation
+      // define the 8 nearest cells required for the trilinear interpolation
       // the cell 'ccc' is the one with the smallest x-, y-, and z-indices
       Cell ccc( containingCell.x() + xNeighbor1, containingCell.y() + yNeighbor1, containingCell.z() + zNeighbor1 );
       Cell hcc( containingCell.x() + xNeighbor2, containingCell.y() + yNeighbor1, containingCell.z() + zNeighbor1 );

@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file SyncNextNeighbors.cpp
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -87,6 +87,8 @@ void SyncNextNeighbors::generateSynchronizationMessages(walberla::mpi::BufferSys
    // position update
    for( auto pIt = ps.begin(); pIt != ps.end(); )
    {
+      WALBERLA_ASSERT_GREATER(pIt->getInteractionRadius(), 0_r, "Did you forget to set the interaction radius?");
+
       //skip all ghost particles
       if (data::particle_flags::isSet( pIt->getFlags(), data::particle_flags::GHOST))
       {

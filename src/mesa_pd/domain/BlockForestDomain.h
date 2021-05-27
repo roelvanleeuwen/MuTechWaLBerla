@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file BlockForestDomain.h
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -37,7 +37,7 @@ public:
 
    /**
     * @brief If the BlockForest is changed this function has to be called in order to
-    * update all interal caches!
+    * update all internal caches!
     *
     * Updates the local caches for local and neighbor AABBs.
     */
@@ -45,7 +45,7 @@ public:
 
    bool   isContainedInProcessSubdomain(const uint_t rank, const Vec3& pt) const override;
    bool   isContainedInLocalSubdomain(const Vec3& pt, const real_t& radius) const override;
-   /// Is the sphere defined by \p pt and \p radius completely inside the local subdomin?
+   /// Is the sphere defined by \p pt and \p radius completely inside the local subdomain?
    /// \attention Also take into account periodicity!
    /// \param pt center of the sphere
    /// \param radius radius of the sphere

@@ -22,16 +22,9 @@ waLBerla_compile_test( FILES config/ConfigTest.cpp )
 waLBerla_execute_test( NAME ConfigTest COMMAND $<TARGET_FILE:ConfigTest> ${CMAKE_CURRENT_SOURCE_DIR}/config/ConfigTest.dat )
 
 if( WALBERLA_BUILD_WITH_BOOST )
-   waLBerla_compile_test( FILES config/PropertyTreeTest.cpp)
-   #waLBerla_execute_test(NAME PropertyTreeTest COMMAND $<TARGET_FILE:PropertyTreeTest> )
-endif( WALBERLA_BUILD_WITH_BOOST )
-
-
-if( WALBERLA_BUILD_WITH_BOOST )
    waLBerla_compile_test( FILES config/MultiArrayIOTest.cpp )
    waLBerla_execute_test( NAME MultiArrayIOTest COMMAND $<TARGET_FILE:MultiArrayIOTest> )
 endif( WALBERLA_BUILD_WITH_BOOST )
-
 
 #########
 # debug #
@@ -89,9 +82,9 @@ waLBerla_compile_test( FILES math/GenericAABBTest.cpp DEPENDS stencil domain_dec
 waLBerla_execute_test( NAME GenericAABBTest )
 
 if( WALBERLA_BUILD_WITH_BOOST )
-   waLBerla_compile_test( FILES math/PhysicalCheckTest.cpp DEPENDS stencil )
-   waLBerla_execute_test( NAME PhysicalCheckTest 
-                          COMMAND $<TARGET_FILE:PhysicalCheckTest>  ${CMAKE_CURRENT_SOURCE_DIR}/math/PhysicalCheckTestInput.prm )
+waLBerla_compile_test( FILES math/PhysicalCheckTest.cpp DEPENDS stencil )
+waLBerla_execute_test( NAME PhysicalCheckTest
+                       COMMAND $<TARGET_FILE:PhysicalCheckTest>  ${CMAKE_CURRENT_SOURCE_DIR}/math/PhysicalCheckTestInput.prm )
 endif( WALBERLA_BUILD_WITH_BOOST )
 
 
@@ -179,8 +172,15 @@ waLBerla_execute_test( NAME SweepTimeloopTimerReduction PROCESSES 9  )
 # core #
 ########
 
-waLBerla_compile_test( FILES AllHeaderTest.cpp DEPENDS blockforest field geometry pe pe_coupling python_coupling )
+if ( WALBERLA_BUILD_WITH_PYTHON )
+   waLBerla_compile_test( FILES AllHeaderTest.cpp DEPENDS blockforest field geometry pe pe_coupling python_coupling )
+else()
+   waLBerla_compile_test( FILES AllHeaderTest.cpp DEPENDS blockforest field geometry pe pe_coupling )
+endif()
 waLBerla_execute_test( NAME AllHeaderTest )
+
+waLBerla_compile_test( FILES Angles.test.cpp )
+waLBerla_execute_test( NAME Angles )
 
 waLBerla_compile_test( FILES ConcatIterator.cpp )
 waLBerla_execute_test( NAME ConcatIterator )
@@ -216,7 +216,7 @@ waLBerla_execute_test( NAME UNIQUEID PROCESSES 4)
 waLBerla_compile_test( FILES VersionTest.cpp )
 waLBerla_execute_test( NAME VersionTest )
 
-if( WALBERLA_BUILD_WITH_BOOST OR WALBERLA_USE_STD_VARIANT )
+if ( WALBERLA_CXX_COMPILER_IS_INTEL AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS "20.0" )
   waLBerla_compile_test( FILES VariantTest )
   waLBerla_execute_test( NAME VariantTest )
 endif()

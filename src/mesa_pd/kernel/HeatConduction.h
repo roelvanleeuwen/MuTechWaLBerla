@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file HeatConduction.h
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -40,7 +40,7 @@ namespace kernel {
 /**
  * Heat conduction interaction kernel
  *
- * This kernel implements a simple heat conduction: \frac{dQ}{dt} = - \alpha (T_2 - T_1)
+ * This kernel implements a simple heat conduction: \f$ \frac{dQ}{dt} = - \alpha (T_2 - T_1) \f$
  *
  * \code
  * const walberla::real_t& getTemperature(const size_t p_idx) const;

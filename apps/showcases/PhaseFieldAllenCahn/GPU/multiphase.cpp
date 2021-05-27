@@ -27,20 +27,19 @@
 
 #include "cuda/AddGPUFieldToStorage.h"
 #include "cuda/DeviceSelectMPI.h"
-#include "cuda/NVTX.h"
 #include "cuda/ParallelStreams.h"
 #include "cuda/communication/UniformGPUScheme.h"
 
 #include "field/AddToStorage.h"
 #include "field/FlagField.h"
 #include "field/communication/PackInfo.h"
-#include "field/python/Exports.h"
 #include "field/vtk/VTKWriter.h"
 
 #include "geometry/InitBoundaryHandling.h"
 
 #include "python_coupling/CreateConfig.h"
 #include "python_coupling/PythonCallback.h"
+#include "python_coupling/export/FieldExports.h"
 
 #include "timeloop/SweepTimeloop.h"
 
@@ -319,8 +318,8 @@ int main(int argc, char** argv)
                python_coupling::PythonCallback callback("at_end_of_time_step");
                if (callback.isCallable())
                {
-                  callback.data().exposePtr("blocks", blocks);
-                  callback.data().exposePtr("time_loop", timeLoop);
+                  callback.data().exposeValue("blocks", blocks);
+                  callback.data().exposeValue( "timeStep", timeLoop->getCurrentTimeStep());
                   callback();
                }
             }

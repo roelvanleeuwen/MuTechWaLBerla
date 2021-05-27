@@ -12,6 +12,10 @@ from pystencils.backends.cbackend import get_headers
 from pystencils.backends.simd_instruction_sets import get_supported_instruction_sets
 from pystencils.stencil import inverse_direction, offset_to_direction_string
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
+from pystencils_walberla.kernel_selection import KernelCallNode, KernelFamily, HighLevelInterfaceSpec
+from pystencils.backends.cuda_backend import CudaSympyPrinter
+from pystencils.kernelparameters import SHAPE_DTYPE
+from pystencils.data_types import TypedSymbol
 
 __all__ = ['generate_sweep', 'generate_pack_info', 'generate_pack_info_for_field', 'generate_pack_info_from_kernel',
            'generate_mpidtype_info_from_kernel', 'default_create_kernel_parameters', 'KernelInfo',
@@ -20,7 +24,7 @@ __all__ = ['generate_sweep', 'generate_pack_info', 'generate_pack_info_for_field
 
 def generate_sweep(generation_context, class_name, assignments,
                    namespace='pystencils', field_swaps=(), staggered=False, varying_parameters=(),
-                   inner_outer_split=False,
+                   inner_outer_split=False, ghost_layers_to_include=0,
                    **create_kernel_params):
     """Generates a waLBerla sweep from a pystencils representation.
 
@@ -44,60 +48,98 @@ def generate_sweep(generation_context, class_name, assignments,
                             the C++ class constructor even if the kernel does not need them.
         inner_outer_split: if True generate a sweep that supports separate iteration over inner and outer regions
                            to allow for communication hiding.
+        ghost_layers_to_include: determines how many ghost layers should be included for the Sweep.
+                                 This is relevant if a setter kernel should also set correct values to the ghost layers.
         **create_kernel_params: remaining keyword arguments are passed to `pystencils.create_kernel`
     """
     create_kernel_params = default_create_kernel_parameters(generation_context, create_kernel_params)
 
-    if not generation_context.cuda and create_kernel_params['target'] == 'gpu':
+    target = create_kernel_params['target']
+    if not generation_context.cuda and target == 'gpu':
         return
 
     if isinstance(assignments, KernelFunction):
         ast = assignments
-        create_kernel_params['target'] = ast.target
+        target = ast.target
     elif not staggered:
         ast = create_kernel(assignments, **create_kernel_params)
     else:
         ast = create_staggered_kernel(assignments, **create_kernel_params)
-    ast.assumed_inner_stride_one = create_kernel_params['cpu_vectorize_info']['assume_inner_stride_one']
 
+    ast.function_name = class_name.lower()
+
+    selection_tree = KernelCallNode(ast)
+    generate_selective_sweep(generation_context, class_name, selection_tree, target=target, namespace=namespace,
+                             field_swaps=field_swaps, varying_parameters=varying_parameters,
+                             inner_outer_split=inner_outer_split, ghost_layers_to_include=ghost_layers_to_include,
+                             cpu_vectorize_info=create_kernel_params['cpu_vectorize_info'],
+                             cpu_openmp=create_kernel_params['cpu_openmp'])
+
+
+def generate_selective_sweep(generation_context, class_name, selection_tree, interface_mappings=(), target=None,
+                             namespace='pystencils', field_swaps=(), varying_parameters=(),
+                             inner_outer_split=False, ghost_layers_to_include=0,
+                             cpu_vectorize_info=None, cpu_openmp=False):
+    """Generates a selective sweep from a kernel selection tree. A kernel selection tree consolidates multiple
+    pystencils ASTs in a tree-like structure. See also module `pystencils_walberla.kernel_selection`.
+
+    Args:
+        generation_context: see documentation of `generate_sweep`
+        class_name: name of the generated sweep class
+        selection_tree: Instance of `AbstractKernelSelectionNode`, root of the selection tree
+        interface_mappings: sequence of `AbstractInterfaceArgumentMapping` instances for selection arguments of
+                            the selection tree
+        target: `None`, `'cpu'` or `'gpu'`; inferred from kernels if `None` is given.
+        namespace: see documentation of `generate_sweep`
+        field_swaps: see documentation of `generate_sweep`
+        varying_parameters: see documentation of `generate_sweep`
+        inner_outer_split: see documentation of `generate_sweep`
+        ghost_layers_to_include: see documentation of `generate_sweep`
+        cpu_vectorize_info: Dictionary containing information about CPU vectorization applied to the kernels
+        cpu_openmp: Whether or not CPU kernels use OpenMP parallelization
+    """
     def to_name(f):
         return f.name if isinstance(f, Field) else f
 
     field_swaps = tuple((to_name(e[0]), to_name(e[1])) for e in field_swaps)
     temporary_fields = tuple(e[1] for e in field_swaps)
 
-    ast.function_name = class_name.lower()
+    kernel_family = KernelFamily(selection_tree, class_name,
+                                 temporary_fields, field_swaps, varying_parameters)
+
+    if target is None:
+        target = kernel_family.get_ast_attr('target')
+    elif target != kernel_family.get_ast_attr('target'):
+        raise ValueError('Mismatch between target parameter and AST targets.')
+
+    if not generation_context.cuda and target == 'gpu':
+        return
+
+    representative_field = {p.field_name for p in kernel_family.parameters if p.is_field_parameter}
+    representative_field = sorted(representative_field)[0]
 
     env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)
     add_pystencils_filters_to_jinja_env(env)
 
-    if inner_outer_split is False:
-        jinja_context = {
-            'kernel': KernelInfo(ast, temporary_fields, field_swaps, varying_parameters),
-            'namespace': namespace,
-            'class_name': class_name,
-            'target': create_kernel_params.get("target", "cpu"),
-            'headers': get_headers(ast),
-        }
-        header = env.get_template("Sweep.tmpl.h").render(**jinja_context)
-        source = env.get_template("Sweep.tmpl.cpp").render(**jinja_context)
-    else:
-        main_kernel_info = KernelInfo(ast, temporary_fields, field_swaps, varying_parameters)
-        representative_field = {p.field_name for p in main_kernel_info.parameters if p.is_field_parameter}
-        representative_field = sorted(representative_field)[0]
+    interface_spec = HighLevelInterfaceSpec(kernel_family.kernel_selection_parameters, interface_mappings)
 
-        jinja_context = {
-            'kernel': main_kernel_info,
-            'namespace': namespace,
-            'class_name': class_name,
-            'target': create_kernel_params.get("target", "cpu"),
-            'field': representative_field,
-            'headers': get_headers(ast),
-        }
-        header = env.get_template("SweepInnerOuter.tmpl.h").render(**jinja_context)
-        source = env.get_template("SweepInnerOuter.tmpl.cpp").render(**jinja_context)
+    jinja_context = {
+        'kernel': kernel_family,
+        'namespace': namespace,
+        'class_name': class_name,
+        'target': target,
+        'field': representative_field,
+        'ghost_layers_to_include': ghost_layers_to_include,
+        'inner_outer_split': inner_outer_split,
+        'interface_spec': interface_spec,
+        'generate_functor': True,
+        'cpu_vectorize_info': cpu_vectorize_info,
+        'cpu_openmp': cpu_openmp
+    }
+    header = env.get_template("Sweep.tmpl.h").render(**jinja_context)
+    source = env.get_template("Sweep.tmpl.cpp").render(**jinja_context)
 
-    source_extension = "cpp" if create_kernel_params.get("target", "cpu") == "cpu" else "cu"
+    source_extension = "cpp" if target == "cpu" else "cu"
     generation_context.write_file("{}.h".format(class_name), header)
     generation_context.write_file("{}.{}".format(class_name, source_extension), source)
 
@@ -132,7 +174,7 @@ def generate_pack_info_from_kernel(generation_context, class_name: str, assignme
         class_name: name of the generated class
         assignments: list of assignments from the compute kernel - generates PackInfo for "pull" part only
                      i.e. the kernel is expected to only write to the center
-        kind:
+        kind: can either be pull or push
         **create_kernel_params: remaining keyword arguments are passed to `pystencils.create_kernel`
     """
     assert kind in ('push', 'pull')
@@ -240,7 +282,6 @@ def generate_pack_info(generation_context, class_name: str,
         pack_kernels[direction_strings] = KernelInfo(pack_ast)
         unpack_kernels[direction_strings] = KernelInfo(unpack_ast)
         elements_per_cell[direction_strings] = len(terms)
-
     fused_kernel = create_kernel([Assignment(buffer.center, t) for t in all_accesses], **create_kernel_params)
     fused_kernel.assumed_inner_stride_one = create_kernel_params['cpu_vectorize_info']['assume_inner_stride_one']
 
@@ -332,6 +373,49 @@ class KernelInfo:
         self.field_swaps = tuple(field_swaps)
         self.varying_parameters = tuple(varying_parameters)
         self.parameters = ast.get_parameters()  # cache parameters here
+
+    @property
+    def fields_accessed(self):
+        return self.ast.fields_accessed
+
+    def get_ast_attr(self, name):
+        """Returns the value of an attribute of the AST managed by this KernelInfo.
+        For compatibility with KernelFamily."""
+        return self.ast.__getattribute__(name)
+
+    def generate_kernel_invocation_code(self, **kwargs):
+        ast = self.ast
+        ast_params = self.parameters
+        is_cpu = self.ast.target == 'cpu'
+        call_parameters = ", ".join([p.symbol.name for p in ast_params])
+
+        if not is_cpu:
+            stream = kwargs.get('stream', '0')
+            spatial_shape_symbols = kwargs.get('spatial_shape_symbols', ())
+
+            if not spatial_shape_symbols:
+                spatial_shape_symbols = [p.symbol for p in ast_params if p.is_field_shape]
+                spatial_shape_symbols.sort(key=lambda e: e.coordinate)
+            else:
+                spatial_shape_symbols = [TypedSymbol(s, SHAPE_DTYPE) for s in spatial_shape_symbols]
+
+            assert spatial_shape_symbols, "No shape parameters in kernel function arguments.\n"\
+                "Please only use kernels for generic field sizes!"
+
+            indexing_dict = ast.indexing.call_parameters(spatial_shape_symbols)
+            sp_printer_c = CudaSympyPrinter()
+            kernel_call_lines = [
+                "dim3 _block(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e)
+                                                                  for e in indexing_dict['block']),
+                "dim3 _grid(int(%s), int(%s), int(%s));" % tuple(sp_printer_c.doprint(e)
+                                                                 for e in indexing_dict['grid']),
+                "internal_%s::%s<<<_grid, _block, 0, %s>>>(%s);" % (ast.function_name, ast.function_name,
+                                                                    stream, call_parameters),
+            ]
+
+            return "\n".join(kernel_call_lines)
+        else:
+            return f"internal_{ast.function_name}::{ast.function_name}({call_parameters});"
 
 
 def get_vectorize_instruction_set(generation_context):

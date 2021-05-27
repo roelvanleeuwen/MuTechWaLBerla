@@ -73,17 +73,21 @@ class BlockStorage : private NonCopyable {
 
 public:
 
-   typedef std::map< IBlockID::IDType, IBlock* > BlockContainerType ;
+   using BlockContainerType = std::map<IBlockID::IDType, IBlock *> ;
 
    class const_iterator;
 
-   class iterator : public std::iterator <std::forward_iterator_tag, IBlock > {
+   class iterator {
       friend class const_iterator;
       friend class BlockStorage;
    public:
+      using iterator_category = std::forward_iterator_tag;
+      using value_type = IBlock;
+      using difference_type = std::ptrdiff_t;
+      using pointer = IBlock*;
+      using reference = IBlock&;
 
-      iterator( const iterator & it ) :
-         it_( it.it_ ), end_( it.end_ ), requiredSelectors_( it.requiredSelectors_ ), incompatibleSelectors_( it.incompatibleSelectors_ ) {}
+      iterator( const iterator & it )  = default;
 
       iterator & operator++()    { ++it_; checkStateAndAdapt(); return *this; }      // prefix ++X
       iterator   operator++(int) { iterator it( *this ); operator++(); return it; }; // postfix X++
@@ -128,8 +132,7 @@ public:
 
       const_iterator( const iterator & it ) :
          it_( it.it_ ), end_( it.end_ ), requiredSelectors_( it.requiredSelectors_ ), incompatibleSelectors_( it.incompatibleSelectors_ ) {}
-      const_iterator( const const_iterator & it ) :
-         it_( it.it_ ), end_( it.end_ ), requiredSelectors_( it.requiredSelectors_ ), incompatibleSelectors_( it.incompatibleSelectors_ ) {}
+      const_iterator( const const_iterator & it )  = default;
 
       const_iterator & operator++()    { ++it_; checkStateAndAdapt(); return *this; }            // prefix ++X
       const_iterator   operator++(int) { const_iterator it( *this ); operator++(); return it; }; // postfix X++
@@ -280,7 +283,7 @@ public:
     
      if( it != iBlocks_.end()) return it->second;
 
-     return NULL;
+     return nullptr;
    }
 
    //*******************************************************************************************************************
@@ -301,7 +304,7 @@ public:
     
      if( it != iBlocks_.end()) return it->second;
 
-     return NULL;
+     return nullptr;
    }
 
    //*******************************************************************************************************************

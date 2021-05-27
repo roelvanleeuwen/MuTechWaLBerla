@@ -17,7 +17,7 @@
 //! \ingroup lbm
 //! \author Matthias Markl <matthias.markl@fau.de>
 //
-// @see Ginzbourg, I.   : Generic boundary conditions for lattice Boltzmann models and their application to advection and anisotropic disperion equations
+// @see Ginzbourg, I.   : Generic boundary conditions for lattice Boltzmann models and their application to advection and anisotropic dispersion equations
 // @see Like, L. et. al.: Boundary Conditions for thermal lattice Boltzmann equation method
 //
 //======================================================================================================================
@@ -51,8 +51,8 @@ class SimpleDiffusionDirichlet : public Boundary<flag_t>
    static_assert( LatticeModel_T::compressible,                                                             "Only works with compressible models!" );
    //static_assert( (std::is_same< typename LatticeModel_T::ForceModel::tag, force_model::None_tag >::value), "Only works without additional forces!" );
 
-   typedef PdfField< LatticeModel_T >        PDFField;
-   typedef typename LatticeModel_T::Stencil  Stencil;
+   using PDFField = PdfField<LatticeModel_T>;
+   using Stencil = typename LatticeModel_T::Stencil;
 
 public:
 

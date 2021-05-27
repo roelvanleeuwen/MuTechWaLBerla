@@ -60,7 +60,7 @@ namespace cr {
 //*************************************************************************************************
 /**
  * \ingroup pe
- * \brief Particular implementation of the collision resoution for the hard contacts.
+ * \brief Particular implementation of the collision resolution for the hard contacts.
  *
  * The following code example illustrates the setup of the solver:
  * \snippet PeDocumentationSnippets.cpp Setup HCSITS
@@ -117,22 +117,22 @@ public:
                                                         domain_decomposition::BlockDataID   storageID,
                                                         domain_decomposition::BlockDataID   ccdID,
                                                         domain_decomposition::BlockDataID   fcdID,
-                                                        WcTimingTree* tt = NULL );
+                                                        WcTimingTree* tt = nullptr );
    //@}
    //**********************************************************************************************
    //**Destructor**********************************************************************************
    /*!\name Destructor */
    //@{
-   ~HardContactSemiImplicitTimesteppingSolvers();
+   ~HardContactSemiImplicitTimesteppingSolvers() override;
    //@}
    //**********************************************************************************************
 
    //**Get functions*******************************************************************************
    /*!\name Get functions */
    //@{
-   virtual inline real_t            getMaximumPenetration()        const override;
-   virtual inline size_t            getNumberOfContacts()          const override;
-   virtual inline size_t            getNumberOfContactsTreated()   const override;
+   inline real_t            getMaximumPenetration()        const override;
+   inline size_t            getNumberOfContacts()          const override;
+   inline size_t            getNumberOfContactsTreated()   const override;
    inline const std::map<IBlockID::IDType, ContactCache> getContactCache() const { return blockToContactCache_; }
    inline real_t                    getSpeedLimitFactor() const;
    inline size_t                    getMaxIterations() const { return maxIterations_; }
@@ -237,7 +237,7 @@ private:
    size_t maxSubIterations_;          //!< Maximum number of iterations of iterative solvers in the one-contact problem.
    real_t abortThreshold_;            //!< If L-infinity iterate difference drops below this threshold the iteration is aborted.
    RelaxationModel relaxationModel_;  //!< The method used to relax unilateral contacts
-   real_t overRelaxationParam_;       //!< Parameter specifying the convergence speed for othogonal projection models.
+   real_t overRelaxationParam_;       //!< Parameter specifying the convergence speed for orthogonal projection models.
    real_t relaxationParam_;           //!< Parameter specifying underrelaxation of velocity corrections for boundary bodies.
    real_t maximumPenetration_;
    size_t numContacts_;
@@ -270,7 +270,7 @@ private:
 };
 //*************************************************************************************************
 
-typedef HardContactSemiImplicitTimesteppingSolvers HCSITS;
+using HCSITS = HardContactSemiImplicitTimesteppingSolvers;
 
 //=================================================================================================
 //
@@ -331,12 +331,12 @@ inline real_t HardContactSemiImplicitTimesteppingSolvers::getSpeedLimitFactor() 
  * \param f The overrelaxation parameter.
  * \return void
  *
- * The overrelaxation parameter \omega is only used when the relaxation model is one of
+ * The overrelaxation parameter \a omega is only used when the relaxation model is one of
  * - ApproximateInelasticCoulombContactByOrthogonalProjections
  * - InelasticCoulombContactByOrthogonalProjections
  *
  * It is used to control the convergence of the model. Large values show faster convergence,
- * but they can also lead to divergence ("exploding" particles). The default values is 1.0.
+ * but they can also lead to divergence ("exploding" particles). The default value is 1.0.
  */
 inline void HardContactSemiImplicitTimesteppingSolvers::setOverRelaxationParameter( real_t omega )
 {
@@ -416,7 +416,7 @@ inline void HardContactSemiImplicitTimesteppingSolvers::setErrorReductionParamet
 
 
 //*************************************************************************************************
-/*!\brief Sets the threshold of movement of a particle during collsion resolulution
+/*!\brief Sets the threshold of movement of a particle during collision resolution
 *
 * \param threshold If movement is smaller than threshold, col. resolution is stopped.
 * \return void
@@ -433,7 +433,7 @@ inline void HardContactSemiImplicitTimesteppingSolvers::setAbortThreshold( real_
 //*************************************************************************************************
 /*!\brief Activates/Deactivates the speed limiter and sets the limit
 *
-* \param active activate/deactivate speed limtier
+* \param active activate/deactivate speed limiter
 * \param speedLimitFactor size of bounding box will be multiplied by this factor to get the maximal distance a body is allowed to travel within one timestep
 * \return void
 */

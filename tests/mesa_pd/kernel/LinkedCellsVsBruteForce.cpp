@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file   LinkedCellsVsBruteForce.cpp
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -100,7 +100,7 @@ int main( int argc, char ** argv )
    //init data structures
    auto ps = std::make_shared<data::ParticleStorage>(100);
    auto ss = std::make_shared<data::ShapeStorage>();
-   data::LinkedCells     lc(blk.getAABB(), real_t(1));
+   data::LinkedCells     lc(blk.getAABB(), real_t(1.1));
    std::vector<collision_detection::AnalyticContactDetection> cs1(100);
    std::vector<collision_detection::AnalyticContactDetection> cs2(100);
 

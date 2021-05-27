@@ -69,11 +69,10 @@ options_dict = {
         'relaxation_rate': omega,
     },
     'cumulant': {
+        'method': 'cumulant',
         'stencil': 'D3Q19',
         'compressible': True,
-        'method': 'mrt',
-        'cumulant': True,
-        'relaxation_rates': [0, omega, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        'relaxation_rate': omega,
     },
 }
 
@@ -136,7 +135,7 @@ with CodeGeneration() as ctx:
     ]
     lb_method = create_lb_method(**options)
     update_rule = create_lb_update_rule(lb_method=lb_method, **options)
-
+ 
     if not noopt:
         update_rule = insert_fast_divisions(update_rule)
         update_rule = insert_fast_sqrts(update_rule)
@@ -158,7 +157,7 @@ with CodeGeneration() as ctx:
 
     # getter & setter
     setter_assignments = macroscopic_values_setter(lb_method, velocity=velocity_field.center_vector,
-                                                   pdfs=pdfs.center_vector, density=1)
+                                                   pdfs=pdfs.center_vector, density=1.0)
     getter_assignments = macroscopic_values_getter(lb_method, velocity=velocity_field.center_vector,
                                                    pdfs=pdfs.center_vector, density=None)
     generate_sweep(ctx, 'UniformGridGPU_MacroSetter', setter_assignments)

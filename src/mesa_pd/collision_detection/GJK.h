@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file GJK.h
+//! \file
 //! \author Tobias Scharpff
 //! \author Tobias Leemann
 //
@@ -35,7 +35,7 @@ namespace mesa_pd {
 namespace collision_detection {
 
 //*************************************************************************************************
-/*!\brief Impelementation of the Gilbert-Johnson-Keerthi Algorithm.
+/*!\brief Implementation of the Gilbert-Johnson-Keerthi Algorithm.
  */
 class GJK
 {

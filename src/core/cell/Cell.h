@@ -47,7 +47,7 @@ public:
 
    /*! \name Constructors */
    //@{
-   Cell() {}
+   Cell() = default;
    inline Cell( const cell_idx_t _x, const cell_idx_t _y, const cell_idx_t _z ) { cell[0] = _x; cell[1] = _y; cell[2] = _z; }
  //inline Cell( const int        _x, const int        _y, const int        _z );
    inline Cell( const uint_t     _x, const uint_t     _y, const uint_t     _z );
@@ -121,7 +121,7 @@ inline Cell::Cell( const uint_t _x, const uint_t _y, const uint_t _z )
 /*******************************************************************************************************************//**
  * \brief   Less-than comparison operator for Cells.
  *
- * Compares a cell's coordinates lexicographically (first x, than eventualy y and (if necessary) finally z).
+ * Compares a cell's coordinates lexicographically (first x, then eventually y and (if necessary) finally z).
  *
  * \param [in] rhs  the cell compared to *this.
  *
@@ -138,7 +138,7 @@ inline bool Cell::operator<( const Cell & rhs ) const
  /******************************************************************************************************************//**
  * \brief   Equal comparison operator for Cells.
  *
- * Compares a cell's coordinates for equality (first x, then eventualy y and (if necessary) finally z).
+ * Compares a cell's coordinates for equality (first x, then eventually y and (if necessary) finally z).
  *
  * \param [in] rhs  The cell compared to *this.
  *

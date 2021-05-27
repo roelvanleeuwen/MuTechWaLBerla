@@ -50,10 +50,6 @@
 #define WALBERLA_SIMD_SSE2_AVAILABLE 1
 #endif
 
-#ifdef __VECTOR4DOUBLE__
-#define WALBERLA_SIMD_QPX_AVAILABLE 1
-#endif
-
 
 
 
@@ -65,13 +61,6 @@
 //===================================================================================================================
 
 #ifndef WALBERLA_SIMD_FORCE_SCALAR
-
-// QPX (IBM BlueGeneQ)
-#if defined( WALBERLA_SIMD_QPX_AVAILABLE ) && !defined( WALBERLA_USE_SIMD )
-#include "QPX.h"
-#define WALBERLA_USE_QPX 1
-#define WALBERLA_USE_SIMD 1
-#endif
 
 // AVX2 ( Intel Haswell )
 #if defined( WALBERLA_SIMD_AVX2_AVAILABLE )
@@ -127,7 +116,7 @@ namespace simd {
 
 template<typename T> struct is_vector4_type {  static const bool value = false; };
 
-#if ( defined WALBERLA_CXX_COMPILER_IS_GNU ) && ( __GNUC__ >= 6 )
+#ifdef WALBERLA_CXX_COMPILER_IS_GNU
 #   pragma GCC diagnostic push
 #   pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
@@ -156,19 +145,13 @@ template<typename T> struct is_vector4_type {  static const bool value = false; 
 #endif
 
 
-#ifdef WALBERLA_USE_QPX
-   using namespace qpx;
-   template<> struct is_vector4_type<qpx::double4_t> {  static const bool value = true; };
-#endif
-
-
 #ifdef WALBERLA_USE_SCALAR_SIMD_EMULATION
    using namespace scalar;
    template<> struct is_vector4_type<scalar::double4_t> {  static const bool value = true; };
 #endif
 
 
-#if ( defined WALBERLA_CXX_COMPILER_IS_GNU ) && ( __GNUC__ >= 6 )
+#ifdef WALBERLA_CXX_COMPILER_IS_GNU
 #   pragma GCC diagnostic pop
 #endif
 

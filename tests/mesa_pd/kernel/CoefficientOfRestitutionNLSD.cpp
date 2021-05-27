@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file CoefficientOfRestitutionNLSD.cpp
+//! \file
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
 //
 //======================================================================================================================
@@ -62,7 +62,7 @@ private:
 /*
  * Tests the integrator accuracy for a DEM simulation by comparing the given coefficient of restitution to the simulated one.
  * For that, the velocity after a single sphere-wall collision is divided by the initial velocity before the simulation.
- * The parameters of the DEM are chosen such as to (analytically) yield the desried coefficient of restitution.
+ * The parameters of the DEM are chosen such as to (analytically) yield the desired coefficient of restitution.
  *
  * The simulation can be adapted via command line arguments.
  *

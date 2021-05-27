@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ForceLJ.h
+//! \file
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -37,7 +37,7 @@ namespace mesa_pd {
 namespace kernel {
 
 /**
- * Kernel which calculates the Lennard Jones froce between two particles.
+ * Kernel which calculates the Lennard Jones force between two particles.
  *
  * This kernel uses the type property of a particle to decide on the material parameters.
  *

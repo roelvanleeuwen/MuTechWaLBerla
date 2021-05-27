@@ -47,17 +47,17 @@ namespace lbm {
 
 
 // VelocityFunctor_T: functor that requires to implement two member functions:
-//   1. A member function "void operator()( const real_t t )" that is called once before the boundary treatement with the current time
+//   1. A member function "void operator()( const real_t t )" that is called once before the boundary treatment with the current time
 //   2. A member function "Vector3< real_t > operator()( const Vector3< real_t > & x, const real_t t )" that is called for every
-//      boundary link treated by "treatDirection". The arguments are the position 'x' of the boudnary cell in the simulation space and the current time 't'.
-//      The functon is supposed to return the velocity used by the boundary treatment.
+//      boundary link treated by "treatDirection". The arguments are the position 'x' of the boundary cell in the simulation space and the current time 't'.
+//      The function is supposed to return the velocity used by the boundary treatment.
 template< typename LatticeModel_T, typename flag_t, typename VelocityFunctor_T, bool AdaptVelocityToExternalForce = false, bool StoreForce = false >
 class DynamicUBB : public Boundary<flag_t>
 {
-   typedef lbm::PdfField< LatticeModel_T >   PDFField;
-   typedef typename LatticeModel_T::Stencil  Stencil;
+   using PDFField = lbm::PdfField<LatticeModel_T>;
+   using Stencil = typename LatticeModel_T::Stencil;
 
-   typedef GhostLayerField< Vector3<real_t>, 1 > ForceField;
+   using ForceField = GhostLayerField<Vector3<real_t>, 1>;
 
 public:
 

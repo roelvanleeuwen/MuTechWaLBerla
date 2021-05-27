@@ -1,5 +1,3 @@
-from functools import partial
-
 import numpy as np
 from jinja2 import Environment, PackageLoader, StrictUndefined
 from pystencils import Field, FieldType
@@ -8,8 +6,12 @@ from pystencils.boundaries.createindexlist import (
     boundary_index_array_coordinate_names, direction_member_name,
     numpy_data_type_for_boundary_object)
 from pystencils.data_types import TypedSymbol, create_type
-from pystencils_walberla.codegen import KernelInfo, default_create_kernel_parameters
+from pystencils_walberla.codegen import default_create_kernel_parameters
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
+from pystencils_walberla.additional_data_handler import AdditionalDataHandler
+from pystencils_walberla.kernel_selection import (
+    KernelFamily, AbstractKernelSelectionNode, KernelCallNode, HighLevelInterfaceSpec)
+from pystencils.astnodes import KernelFunction
 
 
 def generate_boundary(generation_context,
@@ -22,7 +24,14 @@ def generate_boundary(generation_context,
                       kernel_creation_function=None,
                       target='cpu',
                       namespace='pystencils',
+                      additional_data_handler=None,
+                      interface_mappings=(),
+                      generate_functor=True,
                       **create_kernel_params):
+
+    if boundary_object.additional_data and additional_data_handler is None:
+        raise ValueError("Boundary object has additional data but you have not provided an AdditionalDataHandler.")
+
     struct_name = "IndexInfo"
     boundary_object.name = class_name
     dim = len(neighbor_stencil[0])
@@ -47,35 +56,33 @@ def generate_boundary(generation_context,
         kernel_creation_function = create_boundary_kernel
 
     kernel = kernel_creation_function(field, index_field, neighbor_stencil, boundary_object, **create_kernel_params)
-    kernel.function_name = "boundary_" + boundary_object.name
-    kernel.assumed_inner_stride_one = False
 
-    # waLBerla is a 3D framework. Therefore, a zero for the z index has to be added if we work in 2D
-    if dim == 2:
-        stencil = ()
-        for d in neighbor_stencil:
-            d = d + (0,)
-            stencil = stencil + (d,)
+    if isinstance(kernel, KernelFunction):
+        kernel.function_name = "boundary_" + boundary_object.name
+        selection_tree = KernelCallNode(kernel)
+    elif isinstance(kernel, AbstractKernelSelectionNode):
+        selection_tree = kernel
     else:
-        stencil = neighbor_stencil
+        raise ValueError(f"kernel_creation_function returned wrong type: {kernel.__class__}")
 
-    stencil_info = [(i, d, ", ".join([str(e) for e in d])) for i, d in enumerate(stencil)]
-    inv_dirs = []
-    for direction in stencil:
-        inverse_dir = tuple([-i for i in direction])
-        inv_dirs.append(stencil.index(inverse_dir))
+    kernel_family = KernelFamily(selection_tree, class_name)
+    interface_spec = HighLevelInterfaceSpec(kernel_family.kernel_selection_parameters, interface_mappings)
+
+    if additional_data_handler is None:
+        additional_data_handler = AdditionalDataHandler(stencil=neighbor_stencil)
 
     context = {
+        'kernel': kernel_family,
         'class_name': boundary_object.name,
+        'interface_spec': interface_spec,
+        'generate_functor': generate_functor,
         'StructName': struct_name,
         'StructDeclaration': struct_from_numpy_dtype(struct_name, index_struct_dtype),
-        'kernel': KernelInfo(kernel),
-        'stencil_info': stencil_info,
-        'inverse_directions': inv_dirs,
         'dim': dim,
         'target': target,
         'namespace': namespace,
-        'inner_or_boundary': boundary_object.inner_or_boundary
+        'inner_or_boundary': boundary_object.inner_or_boundary,
+        'additional_data_handler': additional_data_handler
     }
 
     env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)
@@ -85,8 +92,8 @@ def generate_boundary(generation_context,
     source = env.get_template('Boundary.tmpl.cpp').render(**context)
 
     source_extension = "cpp" if target == "cpu" else "cu"
-    generation_context.write_file("{}.h".format(class_name), header)
-    generation_context.write_file("{}.{}".format(class_name, source_extension), source)
+    generation_context.write_file(f"{class_name}.h", header)
+    generation_context.write_file(f"{class_name}.{source_extension}", source)
 
 
 def generate_staggered_boundary(generation_context, class_name, boundary_object,
@@ -104,23 +111,23 @@ def generate_staggered_flux_boundary(generation_context, class_name, boundary_ob
 
 
 def struct_from_numpy_dtype(struct_name, numpy_dtype):
-    result = "struct %s { \n" % (struct_name,)
+    result = f"struct {struct_name} {{ \n"
 
     equality_compare = []
     constructor_params = []
     constructor_initializer_list = []
     for name, (sub_type, offset) in numpy_dtype.fields.items():
         pystencils_type = create_type(sub_type)
-        result += "    %s %s;\n" % (pystencils_type, name)
+        result += f"    {pystencils_type} {name};\n"
         if name in boundary_index_array_coordinate_names or name == direction_member_name:
-            constructor_params.append("%s %s_" % (pystencils_type, name))
-            constructor_initializer_list.append("%s(%s_)" % (name, name))
+            constructor_params.append(f"{pystencils_type} {name}_")
+            constructor_initializer_list.append(f"{name}({name}_)")
         else:
-            constructor_initializer_list.append("%s()" % name)
+            constructor_initializer_list.append(f"{name}()")
         if pystencils_type.is_float():
-            equality_compare.append("floatIsEqual(%s, o.%s)" % (name, name))
+            equality_compare.append(f"floatIsEqual({name}, o.{name})")
         else:
-            equality_compare.append("%s == o.%s" % (name, name))
+            equality_compare.append(f"{name} == o.{name}")
 
     result += "    %s(%s) : %s {}\n" % \
               (struct_name, ", ".join(constructor_params), ", ".join(constructor_initializer_list))

@@ -64,9 +64,9 @@ private :
    class EPA_Triangle;
    class EPA_TriangleComp;
 
-   typedef std::vector<EPA_Triangle>  EPA_EntryBuffer;
-   typedef std::vector<EPA_Triangle*> EPA_EntryHeap;
-   typedef std::vector<EPA_Edge>      EPA_EdgeBuffer;
+   using EPA_EntryBuffer = std::vector<EPA_Triangle>;
+   using EPA_EntryHeap = std::vector<EPA_Triangle *>;
+   using EPA_EdgeBuffer = std::vector<EPA_Edge>;
    //**********************************************************************************************
 
 public:
@@ -210,7 +210,7 @@ private:
 //*************************************************************************************************
 /*!\brief Class storing Information about a triangular facette (Triangle) of the EPA-Polytope
  *
- * see Collision detction in interactiv 3D environments; Gino van den bergen page 155
+ * see Collision detection in interactive 3D environments; Gino van den bergen page 155
  */
 class EPA::EPA_Triangle {
 public:
@@ -468,7 +468,7 @@ inline bool EPA::EPA_TriangleComp::operator()( const EPA_Triangle *tria1,
 //=================================================================================================
 
 //*************************************************************************************************
-/*! \brief Calucates a support point of a body extended by threshold.
+/*! \brief Calculates a support point of a body extended by threshold.
  * Adds this support and the base points at bodies a and b to the vector.
  * \param geom The body.
  * \param dir The support point direction.
@@ -495,7 +495,7 @@ inline void EPA::pushSupportMargin(const GeomPrimitive &geom1, const GeomPrimiti
 
 
 //*************************************************************************************************
-/*! \brief Calucates a support point of a body extended by threshold.
+/*! \brief Calculates a support point of a body extended by threshold.
  * Replaces the old value in the vectors at "IndexToReplace" with this support and the base points at bodies a and b .
  * \param geom The body.
  * \param dir The support point direction.
