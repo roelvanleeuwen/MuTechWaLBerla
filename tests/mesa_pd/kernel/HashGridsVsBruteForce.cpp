@@ -14,7 +14,6 @@
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
 //! \file
-//! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
 //
 //======================================================================================================================
@@ -73,16 +72,12 @@ public:
    std::vector<collision_detection::AnalyticContactDetection>& cs_;
 };
 
-/*
- * Generates particles randomly inside the domain.
- * Then checks if the Hash Grids find the same interaction pairs as the naive all-against-all check.
- * Similar to test in "LinkedCellsVsBruteForce.cpp"
- */
-int main( int argc, char ** argv )
+
+void checkTestScenario( real_t radiusRatio )
 {
-   Environment env(argc, argv);
-   WALBERLA_UNUSED(env);
-   walberla::mpi::MPIManager::instance()->useWorldComm();
+   const real_t radius  = real_t(0.5);
+   const real_t radiusMax = std::sqrt(radiusRatio) * radius;
+   const real_t radiusMin = radius / std::sqrt(radiusRatio);
 
    math::seedRandomGenerator( numeric_cast<std::mt19937::result_type>( 42 * walberla::mpi::MPIManager::instance()->rank() ) );
 
@@ -100,6 +95,9 @@ int main( int argc, char ** argv )
    WALBERLA_CHECK_EQUAL(forest->size(), 1);
    const Block& blk = *static_cast<blockforest::Block*>(&*forest->begin());
 
+   WALBERLA_CHECK(blk.getAABB().xSize() > radiusMax && blk.getAABB().ySize() > radiusMax &&  blk.getAABB().zSize() > radiusMax,
+                  "Condition for next neighbor sync violated!" );
+
    //init data structures
    auto ps = std::make_shared<data::ParticleStorage>(100);
    auto ss = std::make_shared<data::ShapeStorage>();
@@ -112,9 +110,11 @@ int main( int argc, char ** argv )
    ParticleAccessorWithShape accessor(ps, ss);
 
    //initialize particles
-   const real_t radius  = real_t(0.5);
-   auto smallSphere = ss->create<data::Sphere>( radius );
+   auto smallSphere = ss->create<data::Sphere>( radiusMin );
    ss->shapes[smallSphere]->updateMassAndInertia(real_t(2707));
+
+   auto largeSphere = ss->create<data::Sphere>( radiusMax );
+   ss->shapes[largeSphere]->updateMassAndInertia(real_t(2707));
 
    for (int i = 0; i < 1000; ++i)
    {
@@ -122,9 +122,17 @@ int main( int argc, char ** argv )
       p.getPositionRef()          = Vec3( math::realRandom(blk.getAABB().xMin(), blk.getAABB().xMax()),
                                        math::realRandom(blk.getAABB().yMin(), blk.getAABB().yMax()),
                                        math::realRandom(blk.getAABB().zMin(), blk.getAABB().zMax()) );
-      p.getInteractionRadiusRef() = radius;
-      p.getShapeIDRef()           = smallSphere;
+
       p.getOwnerRef()             = walberla::mpi::MPIManager::instance()->rank();
+      if(math::boolRandom())
+      {
+         p.getInteractionRadiusRef() = radiusMin;
+         p.getShapeIDRef()           = smallSphere;
+      } else
+      {
+         p.getInteractionRadiusRef() = radiusMax;
+         p.getShapeIDRef()           = largeSphere;
+      }
    }
 
    //init kernels
@@ -243,6 +251,21 @@ int main( int argc, char ** argv )
    }
 
    WALBERLA_LOG_DEVEL_ON_ROOT("Insertion after clear all checked");
+
+}
+
+/*
+ * Generates particles randomly inside the domain.
+ * Then checks if the Hash Grids find the same interaction pairs as the naive all-against-all check.
+ * Similar to test in "LinkedCellsVsBruteForce.cpp"
+ */
+int main( int argc, char ** argv ) {
+   Environment env(argc, argv);
+   WALBERLA_UNUSED(env);
+   walberla::mpi::MPIManager::instance()->useWorldComm();
+
+   checkTestScenario(walberla::real_t(1)); // monodisperse
+   checkTestScenario(walberla::real_t(10)); // bidisperse
 
    return EXIT_SUCCESS;
 }

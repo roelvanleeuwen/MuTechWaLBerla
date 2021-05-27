@@ -73,15 +73,123 @@ class HashGrids
 {
 
 public:
-   //**Constants **********************************************************************************
-   static const size_t xCellCount;
-   static const size_t yCellCount;
-   static const size_t zCellCount;
-   static const size_t cellVectorSize;
-   static const size_t occupiedCellsVectorSize;
-   static const size_t minimalGridDensity;
-   static const real_t hierarchyFactor;
-   //**********************************************************************************************
+   //=================================================================================================
+   //
+   //  CONSTANTS
+   //
+   //=================================================================================================
+
+
+   //*************************************************************************************************
+   /*!\brief The initial number of cells in x-direction of a newly created hash grid.
+    *
+    * This value represents the initial number of cells of a newly created hash grid in x-direction.
+    * The larger the value (i.e. the greater the number of cells of every newly created hash grid),
+    * the more memory is required for the storage of the hash grid. Since the size of a hash grid is
+    * increased at runtime in order to adapt to the number of currently inserted particles, 16x16x16
+    * is a suitable choice for the initial size of a newly created hash grid - it already consists
+    * of four thousand cells, yet only requires a few hundred kilobytes of memory. Note that the
+    * initial number of cells must both be greater-or-equal to 4 and equal to a power of two. Also
+    * note that the initial number of cells does not necessarily have to be equal for all three
+    * coordinate directions.
+    */
+   static constexpr size_t xCellCount = 16;
+   //*************************************************************************************************
+
+
+   //*************************************************************************************************
+   /*!\brief The initial number of cells in y-direction of a newly created hash grid.
+    *
+    * See HashGrids::xCellCount for more infos.
+    */
+   static constexpr size_t yCellCount = 16;
+   //*************************************************************************************************
+
+
+   //*************************************************************************************************
+   /*!\brief The initial number of cells in z-direction of a newly created hash grid.
+    *
+    * See HashGrids::xCellCount for more infos.
+    */
+   static constexpr size_t zCellCount = 16;
+   //*************************************************************************************************
+
+
+   //*************************************************************************************************
+   /*!\brief The initial storage capacity of a newly created grid cell particle container.
+    *
+    * This value specifies the initial storage capacity reserved for every grid cell particle container,
+    * i.e., the number of particles that can initially be assigned to a grid cell with the need to
+    * increase the storage capacity. The smaller this number, the more likely the storage capacity
+    * of a particle container must be increased, leading to potentially costly reallocation operations,
+    * which generally involve the entire storage space to be copied to a new location. The greater
+    * this number, the more memory is required. Rule of thumb:
+    *
+    *                        \f$ cellVectorSize = 2 \cdot hierarchyFactor^3 \f$
+    */
+   static constexpr size_t cellVectorSize = 16;
+   //*************************************************************************************************
+
+
+   //*************************************************************************************************
+   /*!\brief The initial storage capacity of the grid-global vector.
+    *
+    * This value specifies the initial storage capacity of the grid-global vector that keeps track
+    * of all particle-occupied cells. As long as at least one particle is assigned to a certain cell, this
+    * cell is recorded in a grid-global list that keeps track of all particle-occupied cells in order to
+    * avoid iterating through all grid cells whenever all particles that are stored in the grid need
+    * to be addressed.
+    */
+   static constexpr size_t occupiedCellsVectorSize = 256;
+   //*************************************************************************************************
+
+
+   //*************************************************************************************************
+   /*!\brief The minimal ratio of cells to particles that must be maintained at any time.
+    *
+    * This \a minimalGridDensity specifies the minimal ratio of cells to particles that is allowed
+    * before a grid grows.\n
+    * In order to handle an initially unknown and ultimately arbitrary number of particles, each hash
+    * grid, starting with a rather small number of cells at the time of its creation, must have the
+    * ability to grow as new particles are inserted. Therefore, if by inserting a particle into a hash grid
+    * the associated grid density - that is the ratio of cells to particles - drops below the threshold
+    * specified by \a minimalGridDensity, the number of cells in each coordinate direction is doubled
+    * (thus the total number of grid cells is increased by a factor of 8).
+    *
+    * Possible settings: any integral value greater than 0.
+    */
+   static constexpr size_t minimalGridDensity = 8;
+   //*************************************************************************************************
+
+   //*************************************************************************************************
+   /*!\brief The constant factor by which the cell size of any two successive grids differs.
+    *
+    * This factor specifies the size difference of two successive grid levels of the hierarchical
+    * hash grids. The grid hierarchy is constructed such that the cell size of any two successive
+    * grids differs by a constant factor - the hierarchy factor \a hierarchyFactor. As a result,
+    * the cell size \f$ c_k \f$ of grid \f$ k \f$ can be expressed as:
+    *
+    *                          \f$ c_k = c_0 \cdot hierarchyFactor^k \f$.
+    *
+    * Note that the hierarchy does not have to be dense, which means, if not every valid cell size
+    * that can be generated is required, some in-between grids are not created. Consequently, the
+    * cell size of two successive grids differs by a factor of \f$ hierarchyFactor^x \f$, with x
+    * being an integral value that is not necessarily equal to 1.
+    *
+    * The larger the ratio between the cell size of two successive grids, the more particles are
+    * potentially assigned to one single cell, but overall fewer grids have to be used. On the other
+    * hand, the smaller the ratio between the cell size of two successive grids, the fewer particles
+    * are assigned to one single cell, but overall more grids have to be created. Hence, the number
+    * of particles that are stored in one single cell is inversely proportional to the number of grids
+    * which are in use. Unfortunately, minimizing the number of particles that are potentially assigned
+    * to the same cell and at the same time also minimizing the number of grids in the hierarchy are
+    * two opposing goals. In general - based on the evaluation of a number of different scenarios -
+    * the best choice seems to be a hierarchy factor that is equal to 2.0.
+    *
+    * Possible settings: any floating point value that is greater than 1.0.
+    */
+   static constexpr real_t hierarchyFactor = real_t(2);
+   //*************************************************************************************************
 
 private:
    //**Type definitions****************************************************************************
@@ -815,124 +923,6 @@ bool HashGrids::isPowerOfTwo( size_t number )
 //*************************************************************************************************
 
 
-
-//=================================================================================================
-//
-//  CONSTANTS
-//
-//=================================================================================================
-
-
-//*************************************************************************************************
-/*!\brief The initial number of cells in x-direction of a newly created hash grid.
- *
- * This value represents the initial number of cells of a newly created hash grid in x-direction.
- * The larger the value (i.e. the greater the number of cells of every newly created hash grid),
- * the more memory is required for the storage of the hash grid. Since the size of a hash grid is
- * increased at runtime in order to adapt to the number of currently inserted particles, 16x16x16
- * is a suitable choice for the initial size of a newly created hash grid - it already consists
- * of four thousand cells, yet only requires a few hundred kilobytes of memory. Note that the
- * initial number of cells must both be greater-or-equal to 4 and equal to a power of two. Also
- * note that the initial number of cells does not necessarily have to be equal for all three
- * coordinate directions.
- */
-const size_t HashGrids::xCellCount = 16;
-//*************************************************************************************************
-
-
-//*************************************************************************************************
-/*!\brief The initial number of cells in y-direction of a newly created hash grid.
- *
- * See HashGrids::xCellCount for more infos.
- */
-const size_t HashGrids::yCellCount = 16;
-//*************************************************************************************************
-
-
-//*************************************************************************************************
-/*!\brief The initial number of cells in z-direction of a newly created hash grid.
- *
- * See HashGrids::xCellCount for more infos.
- */
-const size_t HashGrids::zCellCount = 16;
-//*************************************************************************************************
-
-
-//*************************************************************************************************
-/*!\brief The initial storage capacity of a newly created grid cell particle container.
- *
- * This value specifies the initial storage capacity reserved for every grid cell particle container,
- * i.e., the number of particles that can initially be assigned to a grid cell with the need to
- * increase the storage capacity. The smaller this number, the more likely the storage capacity
- * of a particle container must be increased, leading to potentially costly reallocation operations,
- * which generally involve the entire storage space to be copied to a new location. The greater
- * this number, the more memory is required. Rule of thumb:
- *
- *                        \f$ cellVectorSize = 2 \cdot hierarchyFactor^3 \f$
- */
-const size_t HashGrids::cellVectorSize = 16;
-//*************************************************************************************************
-
-
-//*************************************************************************************************
-/*!\brief The initial storage capacity of the grid-global vector.
- *
- * This value specifies the initial storage capacity of the grid-global vector that keeps track
- * of all particle-occupied cells. As long as at least one particle is assigned to a certain cell, this
- * cell is recorded in a grid-global list that keeps track of all particle-occupied cells in order to
- * avoid iterating through all grid cells whenever all particles that are stored in the grid need
- * to be addressed.
- */
-const size_t HashGrids::occupiedCellsVectorSize = 256;
-//*************************************************************************************************
-
-
-//*************************************************************************************************
-/*!\brief The minimal ratio of cells to particles that must be maintained at any time.
- *
- * This \a minimalGridDensity specifies the minimal ratio of cells to particles that is allowed
- * before a grid grows.\n
- * In order to handle an initially unknown and ultimately arbitrary number of particles, each hash
- * grid, starting with a rather small number of cells at the time of its creation, must have the
- * ability to grow as new particles are inserted. Therefore, if by inserting a particle into a hash grid
- * the associated grid density - that is the ratio of cells to particles - drops below the threshold
- * specified by \a minimalGridDensity, the number of cells in each coordinate direction is doubled
- * (thus the total number of grid cells is increased by a factor of 8).
- *
- * Possible settings: any integral value greater than 0.
- */
-const size_t HashGrids::minimalGridDensity = 8;
-//*************************************************************************************************
-
-//*************************************************************************************************
-/*!\brief The constant factor by which the cell size of any two successive grids differs.
- *
- * This factor specifies the size difference of two successive grid levels of the hierarchical
- * hash grids. The grid hierarchy is constructed such that the cell size of any two successive
- * grids differs by a constant factor - the hierarchy factor \a hierarchyFactor. As a result,
- * the cell size \f$ c_k \f$ of grid \f$ k \f$ can be expressed as:
- *
- *                          \f$ c_k = c_0 \cdot hierarchyFactor^k \f$.
- *
- * Note that the hierarchy does not have to be dense, which means, if not every valid cell size
- * that can be generated is required, some in-between grids are not created. Consequently, the
- * cell size of two successive grids differs by a factor of \f$ hierarchyFactor^x \f$, with x
- * being an integral value that is not necessarily equal to 1.
- *
- * The larger the ratio between the cell size of two successive grids, the more particles are
- * potentially assigned to one single cell, but overall fewer grids have to be used. On the other
- * hand, the smaller the ratio between the cell size of two successive grids, the fewer particles
- * are assigned to one single cell, but overall more grids have to be created. Hence, the number
- * of particles that are stored in one single cell is inversely proportional to the number of grids
- * which are in use. Unfortunately, minimizing the number of particles that are potentially assigned
- * to the same cell and at the same time also minimizing the number of grids in the hierarchy are
- * two opposing goals. In general - based on the evaluation of a number of different scenarios -
- * the best choice seems to be a hierarchy factor that is equal to 2.0.
- *
- * Possible settings: any floating point value that is greater than 1.0.
- */
-const real_t HashGrids::hierarchyFactor = real_t(2);
-//*************************************************************************************************
 
 
 } //namespace data
