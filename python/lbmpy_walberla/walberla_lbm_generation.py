@@ -37,7 +37,6 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
     rho_sym = sp.Symbol('rho')
     pdfs_sym = sp.symbols(f'f_:{len(lb_method.stencil)}')
     vel_arr_symbols = [IndexedBase(sp.Symbol('u'), shape=(1,))[i] for i in range(len(vel_symbols))]
-
     momentum_density_symbols = sp.symbols(f'md_:{len(vel_symbols)}')
     second_momentum_symbols = sp.Symbol(f'p_:{len(vel_symbols)**2}')
 
@@ -121,7 +120,6 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
         'need_block_offsets': [
             'block_offset_{}'.format(i) in [param.symbol.name for param in stream_collide_ast.get_parameters()] for i in
             range(3)],
-
     }
 
     env = Environment(loader=PackageLoader('lbmpy_walberla'), undefined=StrictUndefined)
@@ -136,7 +134,6 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
 
 def generate_lattice_model(generation_context, class_name, collision_rule, field_layout='zyxf', refinement_scaling=None,
                            **create_kernel_params):
-
     # usually a numpy layout is chosen by default i.e. xyzf - which is bad for waLBerla where at least the spatial
     # coordinates should be ordered in reverse direction i.e. zyx
     is_float = not generation_context.double_accuracy
