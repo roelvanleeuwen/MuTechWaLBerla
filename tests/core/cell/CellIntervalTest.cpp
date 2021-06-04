@@ -172,11 +172,10 @@ void testIterators( const CellInterval & ci )
 
             ++ctr;
          }
-
-         WALBERLA_CHECK_EQUAL( ctr, ci.numCells() );
-         WALBERLA_CHECK_EQUAL( it2, --ci.begin() );
       }
    }
+   WALBERLA_CHECK_EQUAL(ctr, ci.numCells());
+   WALBERLA_CHECK_EQUAL(it2, --ci.begin());
 }
 
 void testEmptyCI( const CellInterval & ci )
