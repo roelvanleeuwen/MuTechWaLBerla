@@ -1,5 +1,6 @@
 add_library(
       lodepng
+      EXCLUDE_FROM_ALL
       lodepng.cpp
       lodepng.h
 )

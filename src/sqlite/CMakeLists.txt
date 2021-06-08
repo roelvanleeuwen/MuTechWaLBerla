@@ -4,7 +4,7 @@
 #
 ###################################################################################################
 
-add_definitions( -DSQLITE_OMIT_LOAD_EXTENSION )
 waLBerla_add_module( DEPENDS core )
+target_link_libraries( sqlite PRIVATE sqlite3 )
 
 ###################################################################################################
