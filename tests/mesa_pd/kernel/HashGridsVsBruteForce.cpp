@@ -18,13 +18,10 @@
 //
 //======================================================================================================================
 
-#include <mesa_pd/collision_detection/AnalyticContactDetection.h>
 #include <mesa_pd/data/HashGrids.h>
 #include <mesa_pd/data/ParticleAccessor.h>
 #include <mesa_pd/data/ParticleStorage.h>
-#include <mesa_pd/data/ShapeStorage.h>
 #include <mesa_pd/domain/BlockForestDomain.h>
-#include <mesa_pd/kernel/DoubleCast.h>
 #include <mesa_pd/kernel/ParticleSelector.h>
 #include <mesa_pd/mpi/SyncNextNeighbors.h>
 
@@ -43,35 +40,22 @@
 namespace walberla {
 namespace mesa_pd {
 
-class ParticleAccessorWithShape : public data::ParticleAccessor
+using IdxPair_T = std::pair<size_t, size_t>;
+
+struct compPair
 {
-public:
-   ParticleAccessorWithShape(std::shared_ptr<data::ParticleStorage>& ps, std::shared_ptr<data::ShapeStorage>& ss)
-         : ParticleAccessor(ps)
-         , ss_(ss)
-   {}
-
-   const auto& getInvMass(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvMass();}
-
-   const auto& getInvInertiaBF(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvInertiaBF();}
-
-   data::BaseShape* getShape(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)].get();}
-private:
-   std::shared_ptr<data::ShapeStorage> ss_;
-};
-
-class comp
-{
-public:
-   comp(std::vector<collision_detection::AnalyticContactDetection>& cs) : cs_(cs) {}
-   bool operator()(const size_t& c1, const size_t& c2)
+   bool operator()(const IdxPair_T& a, const IdxPair_T& b)
    {
-      if (cs_[c1].getIdx1() == cs_[c2].getIdx1()) return cs_[c1].getIdx2() < cs_[c2].getIdx2();
-      return cs_[c1].getIdx1() < cs_[c2].getIdx1();
+      if (a.first == b.first) return a.second < b.second;
+      return a.first < b.first;
    }
-   std::vector<collision_detection::AnalyticContactDetection>& cs_;
+
 };
 
+bool areOverlapping(Vec3 pos1, real_t radius1, Vec3 pos2, real_t radius2)
+{
+   return (pos2-pos1).length() < radius1 + radius2;
+}
 
 void checkTestScenario( real_t radiusRatio )
 {
@@ -93,50 +77,35 @@ void checkTestScenario( real_t radiusRatio )
    domain::BlockForestDomain domain(forest);
 
    WALBERLA_CHECK_EQUAL(forest->size(), 1);
-   const Block& blk = *static_cast<blockforest::Block*>(&*forest->begin());
+   auto& blk = *forest->begin();
 
    WALBERLA_CHECK(blk.getAABB().xSize() > radiusMax && blk.getAABB().ySize() > radiusMax &&  blk.getAABB().zSize() > radiusMax,
                   "Condition for next neighbor sync violated!" );
 
    //init data structures
    auto ps = std::make_shared<data::ParticleStorage>(100);
-   auto ss = std::make_shared<data::ShapeStorage>();
    data::HashGrids hg;
-   std::vector<collision_detection::AnalyticContactDetection> csBF(100);
-   std::vector<collision_detection::AnalyticContactDetection> csHG1(100);
-   std::vector<collision_detection::AnalyticContactDetection> csHG2(100);
-   std::vector<collision_detection::AnalyticContactDetection> csHG3(100);
+   std::vector<IdxPair_T> csBF;
+   std::vector<IdxPair_T> csHG1;
+   std::vector<IdxPair_T> csHG2;
+   std::vector<IdxPair_T> csHG3;
 
-   ParticleAccessorWithShape accessor(ps, ss);
+   data::ParticleAccessor accessor(ps);
 
    //initialize particles
-   auto smallSphere = ss->create<data::Sphere>( radiusMin );
-   ss->shapes[smallSphere]->updateMassAndInertia(real_t(2707));
-
-   auto largeSphere = ss->create<data::Sphere>( radiusMax );
-   ss->shapes[largeSphere]->updateMassAndInertia(real_t(2707));
-
    for (int i = 0; i < 1000; ++i)
    {
-      data::Particle&& p          = *ps->create();
-      p.getPositionRef()          = Vec3( math::realRandom(blk.getAABB().xMin(), blk.getAABB().xMax()),
-                                       math::realRandom(blk.getAABB().yMin(), blk.getAABB().yMax()),
-                                       math::realRandom(blk.getAABB().zMin(), blk.getAABB().zMax()) );
+      data::Particle&& p = *ps->create();
+      p.getPositionRef() = Vec3( math::realRandom(blk.getAABB().xMin(), blk.getAABB().xMax()),
+                                 math::realRandom(blk.getAABB().yMin(), blk.getAABB().yMax()),
+                                 math::realRandom(blk.getAABB().zMin(), blk.getAABB().zMax()) );
 
-      p.getOwnerRef()             = walberla::mpi::MPIManager::instance()->rank();
-      if(math::boolRandom())
-      {
-         p.getInteractionRadiusRef() = radiusMin;
-         p.getShapeIDRef()           = smallSphere;
-      } else
-      {
-         p.getInteractionRadiusRef() = radiusMax;
-         p.getShapeIDRef()           = largeSphere;
-      }
+      p.getOwnerRef() = walberla::mpi::MPIManager::instance()->rank();
+      p.getInteractionRadiusRef() = math::realRandom(radiusMin, radiusMax);
    }
 
    //init kernels
-   mpi::SyncNextNeighbors                 SNN;
+   mpi::SyncNextNeighbors SNN;
 
    SNN(*ps, domain);
 
@@ -145,11 +114,13 @@ void checkTestScenario( real_t radiusRatio )
                                accessor,
                                [&csBF](const size_t idx1, const size_t idx2, auto& ac)
    {
-      collision_detection::AnalyticContactDetection         acd;
-      kernel::DoubleCast               double_cast;
-      if (double_cast(idx1, idx2, ac, acd, ac ))
+      if (areOverlapping(ac.getPosition(idx1), ac.getInteractionRadius(idx1),
+                         ac.getPosition(idx2), ac.getInteractionRadius(idx2) ))
       {
-         csBF.push_back(acd);
+         if(ac.getUid(idx2) < ac.getUid(idx1))
+            csBF.push_back(IdxPair_T(idx2, idx1));
+         else
+            csBF.push_back(IdxPair_T(idx1, idx2));
       }
    },
    accessor );
@@ -162,11 +133,13 @@ void checkTestScenario( real_t radiusRatio )
                               accessor,
                               [&csHG1](const size_t idx1, const size_t idx2, auto& ac)
    {
-      collision_detection::AnalyticContactDetection         acd;
-      kernel::DoubleCast               double_cast;
-      if (double_cast(idx1, idx2, ac, acd, ac ))
+      if (areOverlapping(ac.getPosition(idx1), ac.getInteractionRadius(idx1),
+                         ac.getPosition(idx2), ac.getInteractionRadius(idx2) ))
       {
-         csHG1.push_back(acd);
+         if(ac.getUid(idx2) < ac.getUid(idx1))
+            csHG1.push_back(IdxPair_T(idx2, idx1));
+         else
+            csHG1.push_back(IdxPair_T(idx1, idx2));
       }
    },
    accessor );
@@ -174,20 +147,18 @@ void checkTestScenario( real_t radiusRatio )
    WALBERLA_CHECK_EQUAL(csBF.size(), csHG1.size());
    WALBERLA_LOG_DEVEL(csBF.size() << " contacts detected");
 
-   std::vector<size_t> csBF_idx(csBF.size());
-   std::vector<size_t> csHG1_idx(csHG1.size());
-   std::iota(csBF_idx.begin(), csBF_idx.end(), 0);
-   std::iota(csHG1_idx.begin(), csHG1_idx.end(), 0);
-   std::sort(csBF_idx.begin(), csBF_idx.end(), comp(csBF));
-   std::sort(csHG1_idx.begin(), csHG1_idx.end(), comp(csHG1));
+   compPair compareFct;
+   std::sort(csBF.begin(), csBF.end(), compareFct);
+   std::sort(csHG1.begin(), csHG1.end(), compareFct);
 
    for (size_t i = 0; i < csBF.size(); ++i)
    {
-      WALBERLA_CHECK_EQUAL(csBF[csBF_idx[i]].getIdx1(), csHG1[csHG1_idx[i]].getIdx1());
-      WALBERLA_CHECK_EQUAL(csBF[csBF_idx[i]].getIdx2(), csHG1[csHG1_idx[i]].getIdx2());
+      WALBERLA_CHECK_EQUAL(csBF[i].first, csHG1[i].first);
+      WALBERLA_CHECK_EQUAL(csBF[i].second, csHG1[i].second);
    }
 
    WALBERLA_LOG_DEVEL_ON_ROOT("Initial insertion checked");
+   WALBERLA_MPI_BARRIER();
 
    // redo to check clear
    hg.clear();
@@ -197,28 +168,28 @@ void checkTestScenario( real_t radiusRatio )
                               accessor,
                               [&csHG2](const size_t idx1, const size_t idx2, auto& ac)
                               {
-                                 collision_detection::AnalyticContactDetection         acd;
-                                 kernel::DoubleCast               double_cast;
-                                 if (double_cast(idx1, idx2, ac, acd, ac ))
+                                 if (areOverlapping(ac.getPosition(idx1), ac.getInteractionRadius(idx1),
+                                                    ac.getPosition(idx2), ac.getInteractionRadius(idx2) ))
                                  {
-                                    csHG2.push_back(acd);
+                                    if(ac.getUid(idx2) < ac.getUid(idx1))
+                                       csHG2.push_back(IdxPair_T(idx2, idx1));
+                                    else
+                                       csHG2.push_back(IdxPair_T(idx1, idx2));
                                  }
                               },
                               accessor );
 
    WALBERLA_CHECK_EQUAL(csBF.size(), csHG2.size());
 
-   std::vector<size_t> csHG2_idx(csHG2.size());
-   std::iota(csHG2_idx.begin(), csHG2_idx.end(), 0);
-   std::sort(csHG2_idx.begin(), csHG2_idx.end(), comp(csHG2));
+   std::sort(csHG2.begin(), csHG2.end(), compareFct);
 
    for (size_t i = 0; i < csBF.size(); ++i)
    {
-      WALBERLA_CHECK_EQUAL(csBF[csBF_idx[i]].getIdx1(), csHG2[csHG2_idx[i]].getIdx1());
-      WALBERLA_CHECK_EQUAL(csBF[csBF_idx[i]].getIdx2(), csHG2[csHG2_idx[i]].getIdx2());
+      WALBERLA_CHECK_EQUAL(csBF[i].first, csHG2[i].first);
+      WALBERLA_CHECK_EQUAL(csBF[i].second, csHG2[i].second);
    }
-
    WALBERLA_LOG_DEVEL_ON_ROOT("Insertion after clear checked");
+   WALBERLA_MPI_BARRIER();
 
    // redo to check clearAll
    hg.clearAll();
@@ -228,29 +199,30 @@ void checkTestScenario( real_t radiusRatio )
                               accessor,
                               [&csHG3](const size_t idx1, const size_t idx2, auto& ac)
                               {
-                                 collision_detection::AnalyticContactDetection         acd;
-                                 kernel::DoubleCast               double_cast;
-                                 if (double_cast(idx1, idx2, ac, acd, ac ))
+                                 if (areOverlapping(ac.getPosition(idx1), ac.getInteractionRadius(idx1),
+                                                    ac.getPosition(idx2), ac.getInteractionRadius(idx2) ))
                                  {
-                                    csHG3.push_back(acd);
+                                    if(ac.getUid(idx2) < ac.getUid(idx1))
+                                       csHG3.push_back(IdxPair_T(idx2, idx1));
+                                    else
+                                       csHG3.push_back(IdxPair_T(idx1, idx2));
                                  }
                               },
                               accessor );
 
    WALBERLA_CHECK_EQUAL(csBF.size(), csHG3.size());
 
-   std::vector<size_t> csHG3_idx(csHG3.size());
-   csHG3_idx = std::vector<size_t>(csHG3.size());
-   std::iota(csHG3_idx.begin(), csHG3_idx.end(), 0);
-   std::sort(csHG3_idx.begin(), csHG3_idx.end(), comp(csHG3));
+   std::sort(csHG3.begin(), csHG3.end(), compareFct);
 
    for (size_t i = 0; i < csBF.size(); ++i)
    {
-      WALBERLA_CHECK_EQUAL(csBF[csBF_idx[i]].getIdx1(), csHG3[csHG3_idx[i]].getIdx1());
-      WALBERLA_CHECK_EQUAL(csBF[csBF_idx[i]].getIdx2(), csHG3[csHG3_idx[i]].getIdx2());
+      WALBERLA_CHECK_EQUAL(csBF[i].first, csHG3[i].first);
+      WALBERLA_CHECK_EQUAL(csBF[i].second, csHG3[i].second);
    }
 
    WALBERLA_LOG_DEVEL_ON_ROOT("Insertion after clear all checked");
+   WALBERLA_MPI_BARRIER();
+
 
 }
 
@@ -264,8 +236,11 @@ int main( int argc, char ** argv ) {
    WALBERLA_UNUSED(env);
    walberla::mpi::MPIManager::instance()->useWorldComm();
 
+   WALBERLA_LOG_DEVEL_ON_ROOT("Checking monodisperse case");
    checkTestScenario(walberla::real_t(1)); // monodisperse
-   checkTestScenario(walberla::real_t(10)); // bidisperse
+
+   WALBERLA_LOG_DEVEL_ON_ROOT("Checking polydisperse case");
+   checkTestScenario(walberla::real_t(10)); // polydisperse
 
    return EXIT_SUCCESS;
 }

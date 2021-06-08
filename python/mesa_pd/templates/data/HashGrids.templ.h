@@ -307,11 +307,11 @@ private:
    //! List for storing all the hash grids that are in use.
    /*! This data structure is used to represent the grid hierarchy. All hash grids are stored in
        ascending order by the size of their cells. */
-   using GridList = std::list<HashGrid *>;
+   using GridList = std::list<shared_ptr<HashGrid>>;
 
 public:
-   explicit HashGrids();
-   ~HashGrids();
+   explicit HashGrids() = default;
+   ~HashGrids() = default;
 
    // initializes Hash Grid with given particle
    template <typename Accessor>
@@ -342,8 +342,6 @@ private:
 
    inline void addInfiniteParticle(size_t p_idx);
 
-   static inline bool isPowerOfTwo( size_t number );
-
    ParticleIdxVector infiniteParticles_;
    GridList     gridList_;       //!< List of all grids that form the hierarchy.
    /*!< The grids in this list are sorted in ascending order by the
@@ -356,9 +354,9 @@ private:
 HashGrids::HashGrid::HashGrid( real_t cellSpan )
 {
    // Initialization of all member variables and ...
-   xCellCount_   = isPowerOfTwo( xCellCount ) ? xCellCount : 16;
-   yCellCount_   = isPowerOfTwo( yCellCount ) ? yCellCount : 16;
-   zCellCount_   = isPowerOfTwo( zCellCount ) ? zCellCount : 16;
+   xCellCount_   = math::uintIsPowerOfTwo( xCellCount ) ? xCellCount : 16;
+   yCellCount_   = math::uintIsPowerOfTwo( yCellCount ) ? yCellCount : 16;
+   zCellCount_   = math::uintIsPowerOfTwo( zCellCount ) ? zCellCount : 16;
 
    xHashMask_    = xCellCount_ - 1;
    yHashMask_    = yCellCount_ - 1;
@@ -774,24 +772,9 @@ void HashGrids::HashGrid::checkAgainstVectorEachParticlePairHalf( const Particle
 //
 //*************************************************************************************************
 
-HashGrids::HashGrids()
-{
-}
-
-HashGrids::~HashGrids()
-{
-   // Delete all grids that are stored in the grid hierarchy (=> gridList_).
-   for( auto gridIt = gridList_.begin(); gridIt != gridList_.end(); ++gridIt ) {
-      delete (*gridIt);
-   }
-}
-
 // clear all particles and grids
 void HashGrids::clearAll()
 {
-   for( auto gridIt = gridList_.begin(); gridIt != gridList_.end(); ++gridIt ) {
-      delete (*gridIt);
-   }
    gridList_.clear();
    infiniteParticles_.clear();
 }
@@ -820,14 +803,14 @@ void HashGrids::operator()(const size_t p_idx, Accessor& ac)
 
       auto particleSize = 2_r * ac.getInteractionRadius(p_idx);
 
-      HashGrid* grid = nullptr;
+      shared_ptr<HashGrid> grid = nullptr;
 
       if( gridList_.empty() )
       {
          // If no hash grid yet exists in the hierarchy, an initial hash grid is created
          // based on the particle's size.
 
-         grid = new HashGrid( particleSize * std::sqrt( hierarchyFactor ) );
+         grid = std::make_shared<HashGrid>( particleSize * std::sqrt( hierarchyFactor ) );
       }
       else
       {
@@ -845,7 +828,7 @@ void HashGrids::operator()(const size_t p_idx, Accessor& ac)
                cellSpan /= hierarchyFactor;
                if( particleSize < cellSpan ) {
                   while( particleSize < cellSpan ) cellSpan /= hierarchyFactor;
-                  grid = new HashGrid( cellSpan * hierarchyFactor );
+                  grid = std::make_shared<HashGrid>(cellSpan * hierarchyFactor );
                   gridList_.insert( gIt, grid );
                }
 
@@ -855,7 +838,7 @@ void HashGrids::operator()(const size_t p_idx, Accessor& ac)
          }
 
          while( particleSize >= cellSpan) cellSpan *= hierarchyFactor;
-         grid = new HashGrid( cellSpan );
+         grid = std::make_shared<HashGrid>( cellSpan );
       }
 
       grid->addParticle( p_idx, ac );
@@ -908,21 +891,6 @@ inline void HashGrids::forEachParticlePairHalf(const bool openmp, const Selector
 
    // exclude infinite - infinite interactions
 }
-
-//*************************************************************************************************
-/*!\brief Checks whether a certain number is equal to a power of two.
- *
- * This function is used to ensure that the number of cells in each coordinate dimension of a hash
- * grid is equal to a power of two so that the modulo calculations required for the hash value
- * computation can be replaced by bitwise AND operations.
- */
-bool HashGrids::isPowerOfTwo( size_t number )
-{
-   return ( ( number > 0 ) && ( ( number & ( number - 1 ) ) == 0 ) );
-}
-//*************************************************************************************************
-
-
 
 
 } //namespace data
