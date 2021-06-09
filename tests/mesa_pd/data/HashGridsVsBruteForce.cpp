@@ -42,16 +42,15 @@ namespace mesa_pd {
 
 using IdxPair_T = std::pair<size_t, size_t>;
 
-struct compPair
+// unique sorting of index pairs
+bool compPair(const IdxPair_T& a, const IdxPair_T& b)
 {
-   bool operator()(const IdxPair_T& a, const IdxPair_T& b)
-   {
-      if (a.first == b.first) return a.second < b.second;
-      return a.first < b.first;
-   }
+   if (a.first == b.first) return a.second < b.second;
+   return a.first < b.first;
+}
 
-};
-
+// check contact between two particles with position and radius
+// mimics sphere-sphere contact detection
 bool areOverlapping(Vec3 pos1, real_t radius1, Vec3 pos2, real_t radius2)
 {
    return (pos2-pos1).length() < radius1 + radius2;
@@ -66,7 +65,7 @@ void checkTestScenario( real_t radiusRatio )
    math::seedRandomGenerator( numeric_cast<std::mt19937::result_type>( 42 * walberla::mpi::MPIManager::instance()->rank() ) );
 
    //logging::Logging::instance()->setStreamLogLevel(logging::Logging::DETAIL);
-   //logging::Logging::instance()->includeLoggingToFile("MESA_PD_Kernel_SyncNextNeighbor");
+   //logging::Logging::instance()->includeLoggingToFile("MESA_PD_Data_HashGridsVsBruteForce");
    //logging::Logging::instance()->setFileLogLevel(logging::Logging::DETAIL);
 
    //init domain partitioning
@@ -147,9 +146,8 @@ void checkTestScenario( real_t radiusRatio )
    WALBERLA_CHECK_EQUAL(csBF.size(), csHG1.size());
    WALBERLA_LOG_DEVEL(csBF.size() << " contacts detected");
 
-   compPair compareFct;
-   std::sort(csBF.begin(), csBF.end(), compareFct);
-   std::sort(csHG1.begin(), csHG1.end(), compareFct);
+   std::sort(csBF.begin(), csBF.end(), compPair);
+   std::sort(csHG1.begin(), csHG1.end(), compPair);
 
    for (size_t i = 0; i < csBF.size(); ++i)
    {
@@ -181,7 +179,7 @@ void checkTestScenario( real_t radiusRatio )
 
    WALBERLA_CHECK_EQUAL(csBF.size(), csHG2.size());
 
-   std::sort(csHG2.begin(), csHG2.end(), compareFct);
+   std::sort(csHG2.begin(), csHG2.end(), compPair);
 
    for (size_t i = 0; i < csBF.size(); ++i)
    {
@@ -212,7 +210,7 @@ void checkTestScenario( real_t radiusRatio )
 
    WALBERLA_CHECK_EQUAL(csBF.size(), csHG3.size());
 
-   std::sort(csHG3.begin(), csHG3.end(), compareFct);
+   std::sort(csHG3.begin(), csHG3.end(), compPair);
 
    for (size_t i = 0; i < csBF.size(); ++i)
    {
@@ -237,7 +235,7 @@ int main( int argc, char ** argv ) {
    walberla::mpi::MPIManager::instance()->useWorldComm();
 
    WALBERLA_LOG_DEVEL_ON_ROOT("Checking monodisperse case");
-   checkTestScenario(walberla::real_t(1)); // monodisperse
+   checkTestScenario(walberla::real_t(1.01)); // monodisperse
 
    WALBERLA_LOG_DEVEL_ON_ROOT("Checking polydisperse case");
    checkTestScenario(walberla::real_t(10)); // polydisperse
