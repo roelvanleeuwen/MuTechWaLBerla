@@ -30,23 +30,21 @@ foreach (config srt trt mrt smagorinsky entropic smagorinsky_noopt entropic_kbc_
 endforeach ()
 
 
-foreach (config srt trt mrt smagorinsky entropic)
+foreach (config srt_d3q19_aa srt_d3q19_esotwist)
 
-    waLBerla_generate_target_from_python(NAME UniformGridGPUGenerated_AA_${config}
-          FILE UniformGridGPU_AA.py
+    waLBerla_generate_target_from_python(NAME UniformGridGPUGenerated_InPlace_${config}
+          FILE UniformGridGPU_InPlace.py
           CODEGEN_CFG ${config}
-          OUT_FILES UniformGridGPU_AA_PackInfoPull.cu UniformGridGPU_AA_PackInfoPull.h
-          UniformGridGPU_AA_LbKernelOdd.cu UniformGridGPU_AA_LbKernelOdd.h
-          UniformGridGPU_AA_LbKernelEven.cu UniformGridGPU_AA_LbKernelEven.h
-          UniformGridGPU_AA_PackInfoPush.cu UniformGridGPU_AA_PackInfoPush.h
-          UniformGridGPU_AA_MacroSetter.cpp UniformGridGPU_AA_MacroSetter.h
-          UniformGridGPU_AA_MacroGetter.cpp UniformGridGPU_AA_MacroGetter.h
-          UniformGridGPU_AA_Defines.h
+          OUT_FILES   UniformGridGPU_InPlace_LbKernel.cu UniformGridGPU_InPlace_LbKernel.h
+                      UniformGridGPU_InPlace_PackInfoEven.cu UniformGridGPU_InPlace_PackInfoEven.h
+                      UniformGridGPU_InPlace_PackInfoOdd.cu UniformGridGPU_InPlace_PackInfoOdd.h
+                      UniformGridGPU_InPlace_MacroSetter.cpp UniformGridGPU_InPlace_MacroSetter.h
+                      UniformGridGPU_InPlace_Defines.h
           )
 
 
-    waLBerla_add_executable(NAME UniformGridBenchmarkGPU_AA_${config}
-          FILES UniformGridGPU_AA.cpp
-          DEPENDS blockforest boundary core cuda domain_decomposition field geometry timeloop vtk gui UniformGridGPUGenerated_AA_${config})
-    set_target_properties( UniformGridBenchmarkGPU_AA_${config} PROPERTIES CXX_VISIBILITY_PRESET hidden)
+    waLBerla_add_executable(NAME UniformGridBenchmarkGPU_InPlace_${config}
+          FILES UniformGridGPU_InPlace.cpp
+          DEPENDS blockforest boundary core cuda domain_decomposition field geometry timeloop vtk gui UniformGridGPUGenerated_InPlace_${config})
+    set_target_properties( UniformGridBenchmarkGPU_InPlace_${config} PROPERTIES CXX_VISIBILITY_PRESET hidden)
 endforeach ()
