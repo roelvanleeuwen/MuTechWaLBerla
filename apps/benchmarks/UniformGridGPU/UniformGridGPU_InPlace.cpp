@@ -12,6 +12,7 @@
 #include "cuda/ParallelStreams.h"
 #include "cuda/communication/GPUPackInfo.h"
 #include "cuda/communication/UniformGPUScheme.h"
+#include "cuda/FieldCopy.h"
 
 #include "domain_decomposition/SharedSweep.h"
 
@@ -22,10 +23,8 @@
 
 #include "geometry/all.h"
 
-#include "gui/Gui.h"
-
 #include "lbm/PerformanceLogger.h"
-#include "lbm/inplace_streaming/TimestepTracker.h"
+#include "lbm/inplace_streaming/all.h"
 
 #include "python_coupling/CreateConfig.h"
 #include "python_coupling/DictWrapper.h"
@@ -35,10 +34,6 @@
 
 #include "InitShearVelocity.h"
 
-#ifdef WALBERLA_ENABLE_GUI
-#   include "lbm/gui/PdfFieldDisplayAdaptor.h"
-#endif
-
 #include <cmath>
 
 #include "UniformGridGPU_InPlace_Defines.h"
@@ -46,28 +41,14 @@
 #include "UniformGridGPU_InPlace_MacroSetter.h"
 #include "UniformGridGPU_InPlace_PackInfoEven.h"
 #include "UniformGridGPU_InPlace_PackInfoOdd.h"
+#include "UniformGridGPU_InPlace_NoSlip.h"
+#include "UniformGridGPU_InPlace_UBB.h"
 
 using namespace walberla;
 
 using CommunicationStencil_T = Stencil_T;
 using PdfField_T             = GhostLayerField< real_t, Stencil_T::Q >;
 using VelocityField_T        = GhostLayerField< real_t, 3 >;
-
-class AlternatingBeforeFunction
-{
- public:
-   typedef std::function< void() > BeforeFunction;
-
-   AlternatingBeforeFunction(BeforeFunction evenFunc, BeforeFunction oddFunc,
-                             std::shared_ptr< lbm::TimestepTracker >& tracker)
-      : tracker_(tracker), funcs_{ evenFunc, oddFunc } {};
-
-   void operator()() { funcs_[tracker_->getCounter()](); }
-
- private:
-   std::shared_ptr< lbm::TimestepTracker > tracker_;
-   std::vector< BeforeFunction > funcs_;
-};
 
 int main(int argc, char** argv)
 {
@@ -80,6 +61,10 @@ int main(int argc, char** argv)
 
       WALBERLA_CUDA_CHECK(cudaPeekAtLastError());
 
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///                                        SETUP AND CONFIGURATION                                             ///
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
       auto config = *cfg;
       logging::configureLogging(config);
       auto blocks = blockforest::createUniformBlockGridFromConfig(config);
@@ -90,23 +75,29 @@ int main(int argc, char** argv)
       auto parameters        = config->getOneBlock("Parameters");
       const real_t omega     = parameters.getParameter< real_t >("omega", real_c(1.4));
       const uint_t timesteps = parameters.getParameter< uint_t >("timesteps", uint_c(50));
+      const bool initShearFlow = parameters.getParameter<bool>("initShearFlow", true);
 
       // Creating fields
       BlockDataID pdfFieldCpuID =
          field::addToStorage< PdfField_T >(blocks, "pdfs cpu", real_t(std::nan("")), field::fzyx);
       BlockDataID velFieldCpuID = field::addToStorage< VelocityField_T >(blocks, "vel", real_t(0), field::fzyx);
 
-      WALBERLA_LOG_INFO_ON_ROOT("Initializing shear flow");
-      initShearVelocity(blocks, velFieldCpuID);
-
-      pystencils::UniformGridGPU_InPlace_MacroSetter setterSweep(pdfFieldCpuID, velFieldCpuID);
-
-      for (auto& block : *blocks)
-         setterSweep(&block);
+      // Initialize velocity on cpu
+      if( initShearFlow ){
+         WALBERLA_LOG_INFO_ON_ROOT("Initializing shear flow");
+         initShearVelocity(blocks, velFieldCpuID);
+      }
 
       BlockDataID pdfFieldGpuID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldCpuID, "pdfs on GPU", true);
+      // Velocity field is copied to the GPU
       BlockDataID velFieldGpuID =
          cuda::addGPUFieldToStorage< VelocityField_T >(blocks, velFieldCpuID, "velocity on GPU", true);
+
+      pystencils::UniformGridGPU_InPlace_MacroSetter setterSweep(pdfFieldGpuID, velFieldGpuID);
+
+      // Set up initial PDF values
+      for (auto& block : *blocks)
+         setterSweep(&block);
 
       Vector3< int > innerOuterSplit =
          parameters.getParameter< Vector3< int > >("innerOuterSplit", Vector3< int >(1, 1, 1));
@@ -129,6 +120,10 @@ int main(int argc, char** argv)
       WALBERLA_CUDA_CHECK(cudaDeviceGetStreamPriorityRange(&streamLowPriority, &streamHighPriority));
       WALBERLA_CHECK(gpuBlockSize[2] == 1);
 
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///                                           SWEEPS AND COMM SCHEME                                           ///
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
       using LbSweep      = lbm::UniformGridGPU_InPlace_LbKernel;
       using PackInfoEven = lbm::UniformGridGPU_InPlace_PackInfoEven;
       using PackInfoOdd  = lbm::UniformGridGPU_InPlace_PackInfoOdd;
@@ -137,67 +132,51 @@ int main(int argc, char** argv)
       LbSweep lbSweep(pdfFieldGpuID, velFieldGpuID, omega, gpuBlockSize[0], gpuBlockSize[1], innerOuterSplitCell);
       lbSweep.setOuterPriority(streamHighPriority);
 
-      auto evenScheme = make_shared< UniformGPUScheme< Stencil_T > >(blocks, cudaEnabledMPI);
-      evenScheme->addPackInfo(make_shared< PackInfoEven >(pdfFieldGpuID));
+      // Initial setup is the post-collision state of an even time step
+      auto tracker = make_shared< lbm::TimestepTracker >(0);
 
-      auto oddScheme = make_shared< UniformGPUScheme< Stencil_T > >(blocks, cudaEnabledMPI);
-      oddScheme->addPackInfo(make_shared< PackInfoOdd >(pdfFieldGpuID));
+      UniformGPUScheme< Stencil_T > comm(blocks, cudaEnabledMPI);
+      auto packInfo = make_shared< lbm::CombinedGpuPackInfo< PackInfoEven, PackInfoOdd > >(tracker, pdfFieldGpuID);
+      comm.addPackInfo(packInfo);
 
       auto defaultStream = cuda::StreamRAII::newPriorityStream(streamLowPriority);
 
-      auto tracker = make_shared< lbm::TimestepTracker >(1);
-
       auto setupPhase = [&]() {
-         for (auto& block : *blocks)
-            kernelEven(&block);
-
-         pullScheme->communicate();
-
-         for (auto& block : *blocks)
-            kernelOdd(&block);
+         //TODO: Initial Boundary Handling
       };
 
-      auto tearDownPhase = [&]() {
-         pushScheme->communicate();
-         cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldCpuID, pdfFieldGpuID);
-         for (auto& block : *blocks)
-            getterSweep(&block);
-      };
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///                                          TIME STEP DEFINITIONS                                             ///
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
       auto simpleOverlapTimeStep = [&]() {
-         // Even
-         pushScheme->startCommunication(defaultStream);
+         // Communicate post-collision values of previous timestep...
+         comm.startCommunication(defaultStream);
          for (auto& block : *blocks)
-            kernelEven.inner(&block, defaultStream);
-         pushScheme->wait(defaultStream);
+            // While already executing the next time step.
+            lbSweep.inner(&block, tracker->getCounterPlusOne(), defaultStream);
+         comm.wait(defaultStream);
          for (auto& block : *blocks)
-            kernelEven.outer(&block, defaultStream);
-
-         // Odd
-         pullScheme->startCommunication(defaultStream);
-         for (auto& block : *blocks)
-            kernelOdd.inner(&block, defaultStream);
-         pullScheme->wait(defaultStream);
-         for (auto& block : *blocks)
-            kernelOdd.outer(&block, defaultStream);
+            lbSweep.outer(&block, tracker->getCounterPlusOne(), defaultStream);
+         tracker->advance();
       };
 
       auto normalTimeStep = [&]() {
-         pushScheme->communicate(defaultStream);
+         comm.communicate(defaultStream);
          for (auto& block : *blocks)
-            kernelEven(&block, defaultStream);
-
-         pullScheme->communicate(defaultStream);
-         for (auto& block : *blocks)
-            kernelOdd(&block, defaultStream);
+            lbSweep(&block, tracker->getCounterPlusOne(), defaultStream);
+         tracker->advance();
       };
 
       auto kernelOnlyFunc = [&]() {
+         tracker->advance();
          for (auto& block : *blocks)
-            kernelEven(&block, defaultStream);
-         for (auto& block : *blocks)
-            kernelOdd(&block, defaultStream);
+            lbSweep(&block, tracker->getCounter(), defaultStream);
       };
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///                                             TIME LOOP SETUP                                                ///
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
       SweepTimeloop timeLoop(blocks->getBlockStorage(), timesteps / 2);
 
@@ -229,12 +208,16 @@ int main(int argc, char** argv)
                                                          "simulation_step", false, true, true, false, 0);
          auto velWriter = make_shared< field::VTKWriter< VelocityField_T > >(velFieldCpuID, "vel");
          vtkOutput->addCellDataWriter(velWriter);
+
          vtkOutput->addBeforeFunction([&]() {
-            tearDownPhase();
-            setupPhase();
+           cuda::fieldCpy< VelocityField_T , cuda::GPUField< real_t > >(blocks, velFieldCpuID, velFieldGpuID);
          });
          timeLoop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       }
+
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///                                               BENCHMARK                                                    ///
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
       int warmupSteps     = parameters.getParameter< int >("warmupSteps", 2);
       int outerIterations = parameters.getParameter< int >("outerIterations", 1);
@@ -251,64 +234,40 @@ int main(int argc, char** argv)
          timeLoop.addFuncAfterTimeStep(logger, "remaining time logger");
       }
 
-      bool useGui = parameters.getParameter< bool >("useGui", false);
-      if (useGui)
+      for (int outerIteration = 0; outerIteration < outerIterations; ++outerIteration)
       {
-#ifdef WALBERLA_ENABLE_GUI
-         cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldCpuID, pdfFieldGpuID);
-         timeLoop.addFuncAfterTimeStep(
-            cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldCpuID, pdfFieldGpuID),
-            "copy to CPU");
-         GUI gui(timeLoop, blocks, argc, argv);
-         gui.registerDisplayAdaptorCreator(
-            [&](const IBlock& block, ConstBlockDataID blockDataID) -> gui::DisplayAdaptor* {
-               if (block.isDataOfType< PdfField_T >(blockDataID))
-                  return new lbm::PdfFieldDisplayAdaptor< GhostLayerField< real_t, Stencil_T::Q >, Stencil_T >(
-                     blockDataID);
-               return nullptr;
-            });
-         gui.run();
-#else
-         WALBERLA_ABORT_NO_DEBUG_INFO("Application was built without GUI. Set useGui to false or re-compile with GUI.")
-#endif
-      }
-      else
-      {
-         for (int outerIteration = 0; outerIteration < outerIterations; ++outerIteration)
+         WALBERLA_CUDA_CHECK(cudaPeekAtLastError());
+
+         timeLoop.setCurrentTimeStepToZero();
+         WcTimer simTimer;
+         cudaDeviceSynchronize();
+         WALBERLA_CUDA_CHECK(cudaPeekAtLastError());
+         WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps");
+         simTimer.start();
+         timeLoop.run();
+         cudaDeviceSynchronize();
+         simTimer.end();
+         WALBERLA_LOG_INFO_ON_ROOT("Simulation finished");
+         auto time      = simTimer.last();
+         auto nrOfCells = real_c(cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2]);
+
+         auto mlupsPerProcess = nrOfCells * real_c(timesteps) / time * 1e-6;
+         WALBERLA_LOG_RESULT_ON_ROOT("MLUPS per process " << mlupsPerProcess);
+         WALBERLA_LOG_RESULT_ON_ROOT("Time per time step " << time / real_c(timesteps));
+         WALBERLA_ROOT_SECTION()
          {
-            WALBERLA_CUDA_CHECK(cudaPeekAtLastError());
-
-            timeLoop.setCurrentTimeStepToZero();
-            WcTimer simTimer;
-            cudaDeviceSynchronize();
-            WALBERLA_CUDA_CHECK(cudaPeekAtLastError());
-            WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps");
-            simTimer.start();
-            timeLoop.run();
-            cudaDeviceSynchronize();
-            simTimer.end();
-            WALBERLA_LOG_INFO_ON_ROOT("Simulation finished");
-            auto time      = simTimer.last();
-            auto nrOfCells = real_c(cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2]);
-
-            auto mlupsPerProcess = nrOfCells * real_c(timesteps) / time * 1e-6;
-            WALBERLA_LOG_RESULT_ON_ROOT("MLUPS per process " << mlupsPerProcess);
-            WALBERLA_LOG_RESULT_ON_ROOT("Time per time step " << time / real_c(timesteps));
-            WALBERLA_ROOT_SECTION()
+            python_coupling::PythonCallback pythonCallbackResults("results_callback");
+            if (pythonCallbackResults.isCallable())
             {
-               python_coupling::PythonCallback pythonCallbackResults("results_callback");
-               if (pythonCallbackResults.isCallable())
-               {
-                  const char* storagePattern = "InPlace";
-                  pythonCallbackResults.data().exposeValue("mlupsPerProcess", mlupsPerProcess);
-                  pythonCallbackResults.data().exposeValue("stencil", infoStencil);
-                  pythonCallbackResults.data().exposeValue("configName", infoConfigName);
-                  pythonCallbackResults.data().exposeValue("storagePattern", storagePattern);
-                  pythonCallbackResults.data().exposeValue("cse_global", infoCseGlobal);
-                  pythonCallbackResults.data().exposeValue("cse_pdfs", infoCsePdfs);
-                  // Call Python function to report results
-                  pythonCallbackResults();
-               }
+               const char* storagePattern = "InPlace";
+               pythonCallbackResults.data().exposeValue("mlupsPerProcess", mlupsPerProcess);
+               pythonCallbackResults.data().exposeValue("stencil", infoStencil);
+               pythonCallbackResults.data().exposeValue("configName", infoConfigName);
+               pythonCallbackResults.data().exposeValue("storagePattern", storagePattern);
+               pythonCallbackResults.data().exposeValue("cse_global", infoCseGlobal);
+               pythonCallbackResults.data().exposeValue("cse_pdfs", infoCsePdfs);
+               // Call Python function to report results
+               pythonCallbackResults();
             }
          }
       }

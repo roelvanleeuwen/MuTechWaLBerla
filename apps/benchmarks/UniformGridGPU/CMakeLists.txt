@@ -38,7 +38,9 @@ foreach (config srt_d3q19_aa srt_d3q19_esotwist)
           OUT_FILES   UniformGridGPU_InPlace_LbKernel.cu UniformGridGPU_InPlace_LbKernel.h
                       UniformGridGPU_InPlace_PackInfoEven.cu UniformGridGPU_InPlace_PackInfoEven.h
                       UniformGridGPU_InPlace_PackInfoOdd.cu UniformGridGPU_InPlace_PackInfoOdd.h
-                      UniformGridGPU_InPlace_MacroSetter.cpp UniformGridGPU_InPlace_MacroSetter.h
+                      UniformGridGPU_InPlace_NoSlip.cu UniformGridGPU_InPlace_NoSlip.h
+                      UniformGridGPU_InPlace_UBB.cu UniformGridGPU_InPlace_UBB.h
+                      UniformGridGPU_InPlace_MacroSetter.cu UniformGridGPU_InPlace_MacroSetter.h
                       UniformGridGPU_InPlace_Defines.h
           )
 

@@ -3,13 +3,14 @@ import numpy as np
 import pystencils as ps
 from lbmpy.creationfunctions import create_lb_collision_rule
 from lbmpy.advanced_streaming import Timestep
+from lbmpy.boundaries import NoSlip, UBB
 from pystencils_walberla import CodeGeneration, generate_sweep
 from pystencils.data_types import TypedSymbol
 from pystencils.fast_approximation import insert_fast_sqrts, insert_fast_divisions
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
 from lbmpy.stencils import get_stencil
 
-from lbmpy_walberla import generate_alternating_lbm_sweep, generate_lb_pack_info
+from lbmpy_walberla import generate_alternating_lbm_sweep, generate_lb_pack_info, generate_alternating_lbm_boundary
 
 omega = sp.symbols("omega")
 omega_free = sp.Symbol("omega_free")
@@ -80,6 +81,7 @@ with CodeGeneration() as ctx:
     options = options_dict.get(config_key, options_dict['srt'])
 
     q = len(stencil)
+    dim = len(stencil[0])
     pdfs, velocity_field = ps.fields(f"pdfs({q}), velocity(3) : double[3D]", layout='fzyx')
 
     common_options = {
@@ -125,6 +127,15 @@ with CodeGeneration() as ctx:
                                                    streaming_pattern=streaming_pattern,
                                                    previous_timestep=Timestep.EVEN)
     generate_sweep(ctx, 'UniformGridGPU_InPlace_MacroSetter', setter_assignments, target='gpu')
+
+    # Boundaries
+    noslip = NoSlip()
+    ubb = UBB(sp.symbols(f'u_:{dim}'))
+
+    generate_alternating_lbm_boundary(ctx, 'UniformGridGPU_InPlace_NoSlip', noslip, lb_method, field_name=pdfs.name,
+                                      streaming_pattern=streaming_pattern, target='gpu')
+    generate_alternating_lbm_boundary(ctx, 'UniformGridGPU_InPlace_UBB', ubb, lb_method, field_name=pdfs.name,
+                                      streaming_pattern=streaming_pattern, target='gpu')
 
     # communication
     generate_lb_pack_info(ctx, 'UniformGridGPU_InPlace_PackInfo', stencil, pdfs,

@@ -24,8 +24,6 @@
 #include "cuda/communication/UniformGPUScheme.h"
 #include "cuda/DeviceSelectMPI.h"
 #include "domain_decomposition/SharedSweep.h"
-#include "gui/Gui.h"
-#include "lbm/gui/Connection.h"
 
 #include "UniformGridGPU_LatticeModel.h"
 #include "UniformGridGPU_LbKernel.h"
@@ -36,6 +34,8 @@
 #include "UniformGridGPU_MacroSetter.h"
 #include "UniformGridGPU_MacroGetter.h"
 #include "UniformGridGPU_Defines.h"
+
+#include "InitShearVelocity.h"
 
 
 using namespace walberla;
@@ -52,32 +52,6 @@ using CommScheme_T = cuda::communication::UniformGPUScheme<CommunicationStencil_
 using VelocityField_T = GhostLayerField<real_t, 3>;
 using flag_t = walberla::uint8_t;
 using FlagField_T = FlagField<flag_t>;
-
-
-void initShearVelocity(const shared_ptr<StructuredBlockStorage> & blocks, BlockDataID velFieldID,
-                       const real_t xMagnitude=real_t(0.1), const real_t fluctuationMagnitude=real_t(0.05) )
-{
-    math::seedRandomGenerator(0);
-    auto halfZ = blocks->getDomainCellBB().zMax() / 2;
-    for( auto & block: *blocks)
-    {
-        auto velField = block.getData<VelocityField_T>( velFieldID );
-        WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(velField,
-            Cell globalCell;
-            blocks->transformBlockLocalToGlobalCell(globalCell, block, Cell(x, y, z));
-            real_t randomReal = xMagnitude * math::realRandom<real_t>(-fluctuationMagnitude, fluctuationMagnitude);
-            velField->get(x, y, z, 1) = real_t(0);
-            velField->get(x, y, z, 2) = randomReal;
-
-            if( globalCell[2] >= halfZ ) {
-                velField->get(x, y, z, 0) = xMagnitude;
-            } else {
-                velField->get(x, y, z, 0) = -xMagnitude;
-            }
-        );
-    }
-}
-
 
 int main( int argc, char **argv )
 {
@@ -314,49 +288,40 @@ int main( int argc, char **argv )
           timeLoop.addFuncAfterTimeStep( logger, "remaining time logger" );
       }
 
-      bool useGui = parameters.getParameter<bool>( "useGui", false );
-      if( useGui )
-      {
-          GUI gui( timeLoop, blocks, argc, argv);
-          lbm::connectToGui<LatticeModel_T>(gui);
-          gui.run();
-      }
-      else
-      {
-          for ( int outerIteration = 0; outerIteration < outerIterations; ++outerIteration )
-          {
-              timeLoop.setCurrentTimeStepToZero();
-              WcTimer simTimer;
-              cudaDeviceSynchronize();
-              WALBERLA_LOG_INFO_ON_ROOT( "Starting simulation with " << timesteps << " time steps" );
-              simTimer.start();
-              timeLoop.run();
-              cudaDeviceSynchronize();
-              simTimer.end();
-              WALBERLA_LOG_INFO_ON_ROOT( "Simulation finished" );
-              auto time = simTimer.last();
-              auto nrOfCells = real_c( cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2] );
-              auto mlupsPerProcess = nrOfCells * real_c( timesteps ) / time * 1e-6;
-              WALBERLA_LOG_RESULT_ON_ROOT( "MLUPS per process " << mlupsPerProcess );
-              WALBERLA_LOG_RESULT_ON_ROOT( "Time per time step " << time / real_c( timesteps ));
-              WALBERLA_ROOT_SECTION()
-              {
-                  python_coupling::PythonCallback pythonCallbackResults( "results_callback" );
-                  if ( pythonCallbackResults.isCallable())
-                  {
-                      const char * storagePattern = "twofield";
-                      pythonCallbackResults.data().exposeValue( "mlupsPerProcess", mlupsPerProcess );
-                      pythonCallbackResults.data().exposeValue( "stencil", infoStencil );
-                      pythonCallbackResults.data().exposeValue( "configName", infoConfigName );
-                      pythonCallbackResults.data().exposeValue( "storagePattern", storagePattern );
-                      pythonCallbackResults.data().exposeValue( "cse_global", infoCseGlobal );
-                      pythonCallbackResults.data().exposeValue( "cse_pdfs", infoCsePdfs );
-                      // Call Python function to report results
-                      pythonCallbackResults();
-                  }
-              }
-          }
-      }
+       for ( int outerIteration = 0; outerIteration < outerIterations; ++outerIteration )
+       {
+           timeLoop.setCurrentTimeStepToZero();
+           WcTimer simTimer;
+           cudaDeviceSynchronize();
+           WALBERLA_LOG_INFO_ON_ROOT( "Starting simulation with " << timesteps << " time steps" );
+           simTimer.start();
+           timeLoop.run();
+           cudaDeviceSynchronize();
+           simTimer.end();
+           WALBERLA_LOG_INFO_ON_ROOT( "Simulation finished" );
+           auto time = simTimer.last();
+           auto nrOfCells = real_c( cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2] );
+           auto mlupsPerProcess = nrOfCells * real_c( timesteps ) / time * 1e-6;
+           WALBERLA_LOG_RESULT_ON_ROOT( "MLUPS per process " << mlupsPerProcess );
+           WALBERLA_LOG_RESULT_ON_ROOT( "Time per time step " << time / real_c( timesteps ));
+           WALBERLA_ROOT_SECTION()
+           {
+               python_coupling::PythonCallback pythonCallbackResults( "results_callback" );
+               if ( pythonCallbackResults.isCallable())
+               {
+                   const char * storagePattern = "twofield";
+                   pythonCallbackResults.data().exposeValue( "mlupsPerProcess", mlupsPerProcess );
+                   pythonCallbackResults.data().exposeValue( "stencil", infoStencil );
+                   pythonCallbackResults.data().exposeValue( "configName", infoConfigName );
+                   pythonCallbackResults.data().exposeValue( "storagePattern", storagePattern );
+                   pythonCallbackResults.data().exposeValue( "cse_global", infoCseGlobal );
+                   pythonCallbackResults.data().exposeValue( "cse_pdfs", infoCsePdfs );
+                   // Call Python function to report results
+                   pythonCallbackResults();
+               }
+           }
+       }
+
    }
 
    return 0;
