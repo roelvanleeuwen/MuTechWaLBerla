@@ -13,6 +13,7 @@
 #include "cuda/communication/GPUPackInfo.h"
 #include "cuda/communication/UniformGPUScheme.h"
 #include "cuda/FieldCopy.h"
+#include "cuda/lbm/CombinedInPlaceGpuPackInfo.h"
 
 #include "domain_decomposition/SharedSweep.h"
 
@@ -49,6 +50,7 @@ using namespace walberla;
 using CommunicationStencil_T = Stencil_T;
 using PdfField_T             = GhostLayerField< real_t, Stencil_T::Q >;
 using VelocityField_T        = GhostLayerField< real_t, 3 >;
+using FlagField_T            = FlagField<uint8_t>;
 
 int main(int argc, char** argv)
 {
@@ -121,7 +123,7 @@ int main(int argc, char** argv)
       WALBERLA_CHECK(gpuBlockSize[2] == 1);
 
       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      ///                                           SWEEPS AND COMM SCHEME                                           ///
+      ///                                      LB SWEEPS AND BOUNDARY HANDLING                                       ///
       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
       using LbSweep      = lbm::UniformGridGPU_InPlace_LbKernel;
@@ -132,22 +134,44 @@ int main(int argc, char** argv)
       LbSweep lbSweep(pdfFieldGpuID, velFieldGpuID, omega, gpuBlockSize[0], gpuBlockSize[1], innerOuterSplitCell);
       lbSweep.setOuterPriority(streamHighPriority);
 
+      // Boundaries
+      const FlagUID fluidFlagUID( "Fluid" );
+      BlockDataID flagFieldID = field::addFlagFieldToStorage<FlagField_T>(blocks, "Boundary Flag Field");
+      auto boundariesConfig = config->getBlock( "Boundaries" );
+      bool disableBoundaries = true;
+      if( boundariesConfig )
+      {
+         disableBoundaries = false;
+         geometry::initBoundaryHandling< FlagField_T >( *blocks, flagFieldID, boundariesConfig );
+         geometry::setNonBoundaryCellsToDomain< FlagField_T >( *blocks, flagFieldID, fluidFlagUID );
+      }
+
+      lbm::UniformGridGPU_InPlace_NoSlip noSlip(blocks, pdfFieldGpuID);
+      noSlip.fillFromFlagField<FlagField_T>(blocks, flagFieldID, FlagUID("NoSlip"), fluidFlagUID);
+
+      lbm::UniformGridGPU_InPlace_UBB ubb(blocks, pdfFieldGpuID);
+      ubb.fillFromFlagField<FlagField_T>(blocks, flagFieldID, FlagUID("UBB"), fluidFlagUID);
+
       // Initial setup is the post-collision state of an even time step
       auto tracker = make_shared< lbm::TimestepTracker >(0);
 
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      ///                                           COMMUNICATION SCHEME                                             ///
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
       UniformGPUScheme< Stencil_T > comm(blocks, cudaEnabledMPI);
-      auto packInfo = make_shared< lbm::CombinedGpuPackInfo< PackInfoEven, PackInfoOdd > >(tracker, pdfFieldGpuID);
+      auto packInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< PackInfoEven, PackInfoOdd > >(tracker, pdfFieldGpuID);
       comm.addPackInfo(packInfo);
-
-      auto defaultStream = cuda::StreamRAII::newPriorityStream(streamLowPriority);
-
-      auto setupPhase = [&]() {
-         //TODO: Initial Boundary Handling
-      };
 
       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       ///                                          TIME STEP DEFINITIONS                                             ///
       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      auto defaultStream = cuda::StreamRAII::newPriorityStream(streamLowPriority);
+
+      auto setupPhase = [&]() {
+        //TODO: Initial Boundary Handling
+      };
 
       auto simpleOverlapTimeStep = [&]() {
          // Communicate post-collision values of previous timestep...

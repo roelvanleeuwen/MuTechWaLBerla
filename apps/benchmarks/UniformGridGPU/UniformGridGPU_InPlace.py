@@ -130,7 +130,7 @@ with CodeGeneration() as ctx:
 
     # Boundaries
     noslip = NoSlip()
-    ubb = UBB(sp.symbols(f'u_:{dim}'))
+    ubb = UBB((0.05, 0, 0))
 
     generate_alternating_lbm_boundary(ctx, 'UniformGridGPU_InPlace_NoSlip', noslip, lb_method, field_name=pdfs.name,
                                       streaming_pattern=streaming_pattern, target='gpu')

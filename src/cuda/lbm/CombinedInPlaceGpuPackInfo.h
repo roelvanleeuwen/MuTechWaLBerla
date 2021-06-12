@@ -13,16 +13,12 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file CombinedGpuPackInfo.h
+//! \file CombinedInPlaceGpuPackInfo.h
 //! \author Frederik Hennig <frederik.hennig@fau.de>
 //
 //======================================================================================================================
 
 #pragma once
-
-#include "waLBerlaDefinitions.h"
-
-#if defined(WALBERLA_BUILD_WITH_CUDA)
 
 #define IS_EVEN(x) ((x & 1) ^ 1)
 
@@ -34,11 +30,11 @@ namespace walberla {
 namespace lbm {
 
 template< typename EvenPackInfo, typename OddPackInfo >
-class CombinedGpuPackInfo : public cuda::GeneratedGPUPackInfo
+class CombinedInPlaceGpuPackInfo : public cuda::GeneratedGPUPackInfo
 {
  public:
    template< typename... Args >
-   CombinedGpuPackInfo(std::shared_ptr< lbm::TimestepTracker >& tracker, Args&&... args)
+   CombinedInPlaceGpuPackInfo(std::shared_ptr< lbm::TimestepTracker >& tracker, Args&&... args)
       : tracker_(tracker), evenPackInfo_(std::forward< Args >(args)...), oddPackInfo_(std::forward< Args >(args)...)
    {}
 
@@ -85,4 +81,4 @@ class CombinedGpuPackInfo : public cuda::GeneratedGPUPackInfo
 } // namespace lbm
 } // namespace walberla
 
-#endif
+
