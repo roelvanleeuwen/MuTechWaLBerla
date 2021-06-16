@@ -97,7 +97,7 @@ class {{class_name}}
 
 public:
     typedef stencil::{{stencil_name}} Stencil;
-    typedef stencil::{{stencil_name}} CommunicationStencil;
+    typedef stencil::{{communication_stencil_name}} CommunicationStencil;
     static const real_t w[{{Q}}];
     static const real_t wInv[{{Q}}];
 
