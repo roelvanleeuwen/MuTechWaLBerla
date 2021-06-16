@@ -2,7 +2,8 @@ import sympy as sp
 import numpy as np
 import pystencils as ps
 from lbmpy.creationfunctions import create_lb_collision_rule
-from lbmpy.advanced_streaming import Timestep
+from lbmpy.advanced_streaming import Timestep, is_inplace
+from lbmpy.advanced_streaming.utility import streaming_patterns
 from lbmpy.boundaries import NoSlip, UBB
 from pystencils_walberla import CodeGeneration, generate_sweep
 from pystencils.data_types import TypedSymbol
@@ -39,6 +40,11 @@ options_dict = {
         'method': 'mrt',
         'relaxation_rates': [omega, 1.3, 1.4, omega, 1.2, 1.1],
     },
+    'cumulant': {
+        'method': 'cumulant',
+        'relaxation_rate': omega,
+        'compressible': True,
+    },
     'entropic': {
         'method': 'mrt',
         'compressible': True,
@@ -55,12 +61,15 @@ options_dict = {
 info_header = """
 #include "stencil/D3Q{q}.h"\nusing Stencil_T = walberla::stencil::D3Q{q};
 const char * infoStencil = "{stencil}";
+const char * infoStreamingPattern = "{streaming_pattern}";
+const char * infoCollisionOperator = "{collision_operator}";
 const char * infoConfigName = "{configName}";
 const bool infoCseGlobal = {cse_global};
 const bool infoCsePdfs = {cse_pdfs};
 """
 
 with CodeGeneration() as ctx:
+    """ Required format for the config string: {collision_operator}_{stencil}_{streaming_pattern}[_noopt] """
     config_tokens = ctx.config.split('_')
     optimize = True
     if config_tokens[-1] == 'noopt':
@@ -68,8 +77,8 @@ with CodeGeneration() as ctx:
         config_tokens = config_tokens[:-1]
 
     streaming_pattern = config_tokens[-1]
-    if streaming_pattern not in ['aa', 'esotwist']:
-        raise ValueError(f"{streaming_pattern} is no valid in-place streaming pattern.")
+    if streaming_pattern not in streaming_patterns:
+        raise ValueError(f"Invalid streaming pattern: {streaming_pattern}")
 
     stencil_str = config_tokens[-2]
     stencil = get_stencil(stencil_str)
@@ -82,7 +91,7 @@ with CodeGeneration() as ctx:
 
     q = len(stencil)
     dim = len(stencil[0])
-    pdfs, velocity_field = ps.fields(f"pdfs({q}), velocity(3) : double[3D]", layout='fzyx')
+    pdfs, pdfs_tmp, velocity_field = ps.fields(f"pdfs({q}), pdfs_tmp({q}), velocity(3) : double[3D]", layout='fzyx')
 
     common_options = {
         'stencil': stencil,
@@ -102,6 +111,12 @@ with CodeGeneration() as ctx:
 
     options.update(common_options)
 
+    if not is_inplace(streaming_pattern):
+        options['optimization']['symbolic_temporary_field'] = pdfs_tmp
+        field_swaps = [(pdfs, pdfs_tmp)]
+    else:
+        field_swaps = []
+
     vp = [
         ('int32_t', 'cudaBlockSize0'),
         ('int32_t', 'cudaBlockSize1')
@@ -118,8 +133,7 @@ with CodeGeneration() as ctx:
 
     generate_alternating_lbm_sweep(ctx, 'UniformGridGPU_InPlace_LbKernel', collision_rule, streaming_pattern,
                                    optimization=options['optimization'],
-                                   inner_outer_split=True,
-                                   varying_parameters=vp)
+                                   inner_outer_split=True, varying_parameters=vp, field_swaps=field_swaps)
 
     # getter & setter
     setter_assignments = macroscopic_values_setter(lb_method, density=1.0, velocity=velocity_field.center_vector,
@@ -139,12 +153,15 @@ with CodeGeneration() as ctx:
 
     # communication
     generate_lb_pack_info(ctx, 'UniformGridGPU_InPlace_PackInfo', stencil, pdfs,
-                          streaming_pattern=streaming_pattern, target='gpu')
+                          streaming_pattern=streaming_pattern, target='gpu',
+                          always_generate_separate_classes=True)
 
     infoHeaderParams = {
         'stencil': stencil_str,
         'q': q,
         'configName': ctx.config,
+        'collision_operator': config_key,
+        'streaming_pattern' : streaming_pattern,
         'cse_global': int(options['optimization']['cse_global']),
         'cse_pdfs': int(options['optimization']['cse_pdfs']),
     }

@@ -29,24 +29,28 @@ foreach (config srt trt mrt smagorinsky entropic smagorinsky_noopt entropic_kbc_
     set_target_properties( UniformGridBenchmarkGPU_${config} PROPERTIES CXX_VISIBILITY_PRESET hidden)
 endforeach ()
 
+foreach(spattern aa esotwist)
+    foreach(stencil d3q19 d3q27)
+        foreach (col srt trt mrt cumulant entropic smagorinsky)
+            set(config ${col}_${stencil}_${spattern})
+            waLBerla_generate_target_from_python(NAME UniformGridGPUGenerated_InPlace_${config}
+                    FILE UniformGridGPU_InPlace.py
+                    CODEGEN_CFG ${config}
+                    OUT_FILES   UniformGridGPU_InPlace_LbKernel.cu UniformGridGPU_InPlace_LbKernel.h
+                    UniformGridGPU_InPlace_PackInfoEven.cu UniformGridGPU_InPlace_PackInfoEven.h
+                    UniformGridGPU_InPlace_PackInfoOdd.cu UniformGridGPU_InPlace_PackInfoOdd.h
+                    UniformGridGPU_InPlace_NoSlip.cu UniformGridGPU_InPlace_NoSlip.h
+                    UniformGridGPU_InPlace_UBB.cu UniformGridGPU_InPlace_UBB.h
+                    UniformGridGPU_InPlace_MacroSetter.cu UniformGridGPU_InPlace_MacroSetter.h
+                    UniformGridGPU_InPlace_Defines.h
+                    )
 
-foreach (config srt_d3q19_aa srt_d3q19_esotwist)
 
-    waLBerla_generate_target_from_python(NAME UniformGridGPUGenerated_InPlace_${config}
-          FILE UniformGridGPU_InPlace.py
-          CODEGEN_CFG ${config}
-          OUT_FILES   UniformGridGPU_InPlace_LbKernel.cu UniformGridGPU_InPlace_LbKernel.h
-                      UniformGridGPU_InPlace_PackInfoEven.cu UniformGridGPU_InPlace_PackInfoEven.h
-                      UniformGridGPU_InPlace_PackInfoOdd.cu UniformGridGPU_InPlace_PackInfoOdd.h
-                      UniformGridGPU_InPlace_NoSlip.cu UniformGridGPU_InPlace_NoSlip.h
-                      UniformGridGPU_InPlace_UBB.cu UniformGridGPU_InPlace_UBB.h
-                      UniformGridGPU_InPlace_MacroSetter.cu UniformGridGPU_InPlace_MacroSetter.h
-                      UniformGridGPU_InPlace_Defines.h
-          )
+            waLBerla_add_executable(NAME UniformGridBenchmarkGPU_InPlace_${config}
+                    FILES UniformGridGPU_InPlace.cpp
+                    DEPENDS blockforest boundary core cuda domain_decomposition field geometry timeloop vtk UniformGridGPUGenerated_InPlace_${config})
+            set_target_properties( UniformGridBenchmarkGPU_InPlace_${config} PROPERTIES CXX_VISIBILITY_PRESET hidden)
+        endforeach ()
+    endforeach()
+endforeach()
 
-
-    waLBerla_add_executable(NAME UniformGridBenchmarkGPU_InPlace_${config}
-          FILES UniformGridGPU_InPlace.cpp
-          DEPENDS blockforest boundary core cuda domain_decomposition field geometry timeloop vtk gui UniformGridGPUGenerated_InPlace_${config})
-    set_target_properties( UniformGridBenchmarkGPU_InPlace_${config} PROPERTIES CXX_VISIBILITY_PRESET hidden)
-endforeach ()

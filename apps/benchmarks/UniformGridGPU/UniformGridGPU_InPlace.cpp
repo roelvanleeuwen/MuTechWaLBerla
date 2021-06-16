@@ -138,10 +138,10 @@ int main(int argc, char** argv)
       const FlagUID fluidFlagUID( "Fluid" );
       BlockDataID flagFieldID = field::addFlagFieldToStorage<FlagField_T>(blocks, "Boundary Flag Field");
       auto boundariesConfig = config->getBlock( "Boundaries" );
-      bool disableBoundaries = true;
+      bool boundaries = false;
       if( boundariesConfig )
       {
-         disableBoundaries = false;
+         boundaries = true;
          geometry::initBoundaryHandling< FlagField_T >( *blocks, flagFieldID, boundariesConfig );
          geometry::setNonBoundaryCellsToDomain< FlagField_T >( *blocks, flagFieldID, fluidFlagUID );
       }
@@ -169,29 +169,49 @@ int main(int argc, char** argv)
 
       auto defaultStream = cuda::StreamRAII::newPriorityStream(streamLowPriority);
 
-      auto setupPhase = [&]() {
-        //TODO: Initial Boundary Handling
+      auto boundarySweep = [&](IBlock * block, uint8_t t, cudaStream_t stream){
+         noSlip.run(block, t, stream);
+         ubb.run(block, t, stream);
+      };
+
+      auto boundaryInner = [&](IBlock * block, uint8_t t, cudaStream_t stream){
+         noSlip.inner(block, t, stream);
+         ubb.inner(block, t, stream);
+      };
+
+      auto boundaryOuter = [&](IBlock * block, uint8_t t, cudaStream_t stream){
+         noSlip.outer(block, t, stream);
+         ubb.outer(block, t, stream);
       };
 
       auto simpleOverlapTimeStep = [&]() {
          // Communicate post-collision values of previous timestep...
          comm.startCommunication(defaultStream);
-         for (auto& block : *blocks)
-            // While already executing the next time step.
+         for (auto& block : *blocks){
+            if(boundaries) boundaryInner(&block, tracker->getCounter(), defaultStream);
             lbSweep.inner(&block, tracker->getCounterPlusOne(), defaultStream);
+         }
          comm.wait(defaultStream);
-         for (auto& block : *blocks)
+         for (auto& block : *blocks){
+            if(boundaries) boundaryOuter(&block, tracker->getCounter(), defaultStream);
             lbSweep.outer(&block, tracker->getCounterPlusOne(), defaultStream);
+         }
+
          tracker->advance();
       };
 
       auto normalTimeStep = [&]() {
          comm.communicate(defaultStream);
-         for (auto& block : *blocks)
+         for (auto& block : *blocks){
+            if(boundaries) boundarySweep(&block, tracker->getCounter(), defaultStream);
             lbSweep(&block, tracker->getCounterPlusOne(), defaultStream);
+         }
+
          tracker->advance();
       };
 
+      // With two-fields patterns, ghost layer cells act as constant stream-in boundaries;
+      // with in-place patterns, ghost layer cells act as wet-node no-slip boundaries.
       auto kernelOnlyFunc = [&]() {
          tracker->advance();
          for (auto& block : *blocks)
@@ -202,7 +222,7 @@ int main(int argc, char** argv)
       ///                                             TIME LOOP SETUP                                                ///
       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-      SweepTimeloop timeLoop(blocks->getBlockStorage(), timesteps / 2);
+      SweepTimeloop timeLoop(blocks->getBlockStorage(), timesteps);
 
       const std::string timeStepStrategy = parameters.getParameter< std::string >("timeStepStrategy", "normal");
       std::function< void() > timeStep;
@@ -214,6 +234,8 @@ int main(int argc, char** argv)
       {
          WALBERLA_LOG_INFO_ON_ROOT(
             "Running only compute kernel without boundary - this makes only sense for benchmarking!")
+         // Run initial communication once to provide any missing stream-in populations
+         comm.communicate();
          timeStep = kernelOnlyFunc;
       }
       else
@@ -286,6 +308,8 @@ int main(int argc, char** argv)
                const char* storagePattern = "InPlace";
                pythonCallbackResults.data().exposeValue("mlupsPerProcess", mlupsPerProcess);
                pythonCallbackResults.data().exposeValue("stencil", infoStencil);
+               pythonCallbackResults.data().exposeValue("collisionOperator", infoCollisionOperator);
+               pythonCallbackResults.data().exposeValue("streamingPattern", infoStreamingPattern);
                pythonCallbackResults.data().exposeValue("configName", infoConfigName);
                pythonCallbackResults.data().exposeValue("storagePattern", storagePattern);
                pythonCallbackResults.data().exposeValue("cse_global", infoCseGlobal);
