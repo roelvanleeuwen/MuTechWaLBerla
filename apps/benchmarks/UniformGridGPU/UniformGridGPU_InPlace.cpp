@@ -267,7 +267,6 @@ int main(int argc, char** argv)
 
       int warmupSteps     = parameters.getParameter< int >("warmupSteps", 2);
       int outerIterations = parameters.getParameter< int >("outerIterations", 1);
-      setupPhase();
       for (int i = 0; i < warmupSteps; ++i)
          timeLoop.singleStep();
 
@@ -308,7 +307,7 @@ int main(int argc, char** argv)
                const char* storagePattern = "InPlace";
                pythonCallbackResults.data().exposeValue("mlupsPerProcess", mlupsPerProcess);
                pythonCallbackResults.data().exposeValue("stencil", infoStencil);
-               pythonCallbackResults.data().exposeValue("collisionOperator", infoCollisionOperator);
+               pythonCallbackResults.data().exposeValue("collisionSetup", infoCollisionSetup);
                pythonCallbackResults.data().exposeValue("streamingPattern", infoStreamingPattern);
                pythonCallbackResults.data().exposeValue("configName", infoConfigName);
                pythonCallbackResults.data().exposeValue("storagePattern", storagePattern);

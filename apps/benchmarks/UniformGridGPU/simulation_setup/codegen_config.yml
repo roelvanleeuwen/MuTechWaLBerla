@@ -1,0 +1,5 @@
+
+stencil : D3Q27 # Options: D3Q19, D3Q27
+streaming_pattern : aa # Options: pull, push, aa, esotwist
+collision_setup : srt # Options: See 'UniformGridGPU_InPlace.py'
+optimize: True

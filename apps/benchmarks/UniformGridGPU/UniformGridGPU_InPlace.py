@@ -1,5 +1,6 @@
 import sympy as sp
 import numpy as np
+import yaml
 import pystencils as ps
 from lbmpy.creationfunctions import create_lb_collision_rule
 from lbmpy.advanced_streaming import Timestep, is_inplace
@@ -62,35 +63,40 @@ info_header = """
 #include "stencil/D3Q{q}.h"\nusing Stencil_T = walberla::stencil::D3Q{q};
 const char * infoStencil = "{stencil}";
 const char * infoStreamingPattern = "{streaming_pattern}";
-const char * infoCollisionOperator = "{collision_operator}";
+const char * infoCollisionSetup = "{collision_setup}";
 const char * infoConfigName = "{configName}";
 const bool infoCseGlobal = {cse_global};
 const bool infoCsePdfs = {cse_pdfs};
 """
 
+default_config = {
+    'stencil' : 'D3Q27',
+    'streaming_pattern' : 'aa',
+    'collision_setup' : 'srt',
+    'optimize' : True,
+}
+
+USER_CONFIG_FILE = '../simulation_setup/codegen_config.yml'
+
 with CodeGeneration() as ctx:
-    """ Required format for the config string: {collision_operator}_{stencil}_{streaming_pattern}[_noopt] """
-    config_tokens = ctx.config.split('_')
-    optimize = True
-    if config_tokens[-1] == 'noopt':
-        optimize = False
-        config_tokens = config_tokens[:-1]
+    with open(USER_CONFIG_FILE, 'r') as f:
+        user_config = yaml.load(f, Loader=yaml.FullLoader)
 
-    streaming_pattern = config_tokens[-1]
-    if streaming_pattern not in streaming_patterns:
-        raise ValueError(f"Invalid streaming pattern: {streaming_pattern}")
+    cfg = default_config.copy()
+    cfg.update(user_config)
 
-    stencil_str = config_tokens[-2]
+    stencil_str = cfg['stencil']
     stencil = get_stencil(stencil_str)
+    streaming_pattern = cfg['streaming_pattern']
+    assert streaming_pattern in streaming_patterns, f"Invalid streaming pattern: {streaming_pattern}"
 
-    if len(stencil[0]) != 3:
-        raise ValueError("This app only works with 3D stencils")
-
-    config_key = '_'.join(config_tokens[:-2])
-    options = options_dict.get(config_key, options_dict['srt'])
+    collision_setup = cfg['collision_setup']
+    options = options_dict[collision_setup]
+    optimize = cfg['optimize']
 
     q = len(stencil)
     dim = len(stencil[0])
+    assert dim == 3, "This app supports only three-dimensional stencils"
     pdfs, pdfs_tmp, velocity_field = ps.fields(f"pdfs({q}), pdfs_tmp({q}), velocity(3) : double[3D]", layout='fzyx')
 
     common_options = {
@@ -160,7 +166,7 @@ with CodeGeneration() as ctx:
         'stencil': stencil_str,
         'q': q,
         'configName': ctx.config,
-        'collision_operator': config_key,
+        'collision_setup': collision_setup,
         'streaming_pattern' : streaming_pattern,
         'cse_global': int(options['optimization']['cse_global']),
         'cse_pdfs': int(options['optimization']['cse_pdfs']),
