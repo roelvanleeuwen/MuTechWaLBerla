@@ -141,15 +141,6 @@ template< typename LatticeModel_T, typename flag_t >
 inline void SimpleDiffusionDirichlet< LatticeModel_T, flag_t >::registerCell( const flag_t, const cell_idx_t, const cell_idx_t, const cell_idx_t,
                                                                                 const BoundaryConfiguration & bc )
 {
-   WALBERLA_ASSERT_EQUAL( dynamic_cast< const ScalarConfiguration * >( &bc ), &bc );
-
-   const ScalarConfiguration & sclConfig = dynamic_cast< const ScalarConfiguration & >( bc );
-
-   if( init_ )
-      WALBERLA_ASSERT_FLOAT_EQUAL( val_, sclConfig.val() );
-
-   init_ = true;
-   val_  = sclConfig.val();
 }
 
 
