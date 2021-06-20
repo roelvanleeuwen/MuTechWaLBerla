@@ -80,7 +80,7 @@ USER_CONFIG_FILE = '../simulation_setup/codegen_config.yml'
 
 with CodeGeneration() as ctx:
     with open(USER_CONFIG_FILE, 'r') as f:
-        user_config = yaml.load(f, Loader=yaml.FullLoader)
+        user_config = yaml.safe_load(f)
 
     cfg = default_config.copy()
     cfg.update(user_config)

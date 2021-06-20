@@ -241,7 +241,7 @@ int main(int argc, char** argv)
       else
       {
          WALBERLA_ABORT_NO_DEBUG_INFO("Invalid value for 'timeStepStrategy'. Allowed values are 'noOverlap', "
-                                      "'complexOverlap', 'simpleOverlap', 'kernelOnly'");
+                                      "'simpleOverlap', 'kernelOnly'");
       }
 
       timeLoop.add() << BeforeFunction(timeStep) << Sweep([](IBlock*) {}, "time step");
