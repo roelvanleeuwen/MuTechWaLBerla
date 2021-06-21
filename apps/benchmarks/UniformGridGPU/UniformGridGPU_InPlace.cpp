@@ -120,7 +120,6 @@ int main(int argc, char** argv)
       int streamHighPriority = 0;
       int streamLowPriority  = 0;
       WALBERLA_CUDA_CHECK(cudaDeviceGetStreamPriorityRange(&streamLowPriority, &streamHighPriority));
-      WALBERLA_CHECK(gpuBlockSize[2] == 1);
 
       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       ///                                      LB SWEEPS AND BOUNDARY HANDLING                                       ///
@@ -131,7 +130,7 @@ int main(int argc, char** argv)
       using PackInfoOdd  = lbm::UniformGridGPU_InPlace_PackInfoOdd;
       using cuda::communication::UniformGPUScheme;
 
-      LbSweep lbSweep(pdfFieldGpuID, velFieldGpuID, omega, gpuBlockSize[0], gpuBlockSize[1], innerOuterSplitCell);
+      LbSweep lbSweep(pdfFieldGpuID, velFieldGpuID, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], innerOuterSplitCell);
       lbSweep.setOuterPriority(streamHighPriority);
 
       // Boundaries

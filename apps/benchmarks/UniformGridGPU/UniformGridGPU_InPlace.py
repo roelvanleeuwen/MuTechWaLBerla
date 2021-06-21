@@ -23,7 +23,7 @@ if compile_time_block_size:
 else:
     sweep_block_size = (TypedSymbol("cudaBlockSize0", np.int32),
                         TypedSymbol("cudaBlockSize1", np.int32),
-                        1)
+                        TypedSymbol("cudaBlockSize2", np.int32))
 
 gpu_indexing_params = {'block_size': sweep_block_size}
 
@@ -125,7 +125,8 @@ with CodeGeneration() as ctx:
 
     vp = [
         ('int32_t', 'cudaBlockSize0'),
-        ('int32_t', 'cudaBlockSize1')
+        ('int32_t', 'cudaBlockSize1'),
+        ('int32_t', 'cudaBlockSize2')
     ]
 
     # LB Sweep
