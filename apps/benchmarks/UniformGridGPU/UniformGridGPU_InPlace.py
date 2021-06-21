@@ -1,6 +1,5 @@
 import sympy as sp
 import numpy as np
-import yaml
 import pystencils as ps
 from lbmpy.creationfunctions import create_lb_collision_rule
 from lbmpy.advanced_streaming import Timestep, is_inplace
@@ -68,30 +67,24 @@ const bool infoCseGlobal = {cse_global};
 const bool infoCsePdfs = {cse_pdfs};
 """
 
-default_config = {
-    'stencil' : 'D3Q27',
-    'streaming_pattern' : 'aa',
-    'collision_setup' : 'srt',
-    'optimize' : True,
-}
-
-USER_CONFIG_FILE = '../simulation_setup/codegen_config.yml'
+# DEFAULTS
+optimize = True
 
 with CodeGeneration() as ctx:
-    with open(USER_CONFIG_FILE, 'r') as f:
-        user_config = yaml.safe_load(f)
+    config_tokens = ctx.config.split('_')
 
-    cfg = default_config.copy()
-    cfg.update(user_config)
+    assert len(config_tokens) >= 3
+    stencil_str = config_tokens[0]
+    streaming_pattern = config_tokens[1]
+    collision_setup = config_tokens[2]
 
-    stencil_str = cfg['stencil']
+    if len(config_tokens) >= 4:
+        optimize = (config_tokens[3] == 'True')
+
     stencil = get_stencil(stencil_str)
-    streaming_pattern = cfg['streaming_pattern']
     assert streaming_pattern in streaming_patterns, f"Invalid streaming pattern: {streaming_pattern}"
 
-    collision_setup = cfg['collision_setup']
     options = options_dict[collision_setup]
-    optimize = cfg['optimize']
 
     q = len(stencil)
     dim = len(stencil[0])
@@ -165,7 +158,7 @@ with CodeGeneration() as ctx:
     infoHeaderParams = {
         'q': q,
         'stencil': stencil_str,
-        'streaming_pattern' : streaming_pattern,
+        'streaming_pattern': streaming_pattern,
         'collision_setup': collision_setup,
         'cse_global': int(options['optimization']['cse_global']),
         'cse_pdfs': int(options['optimization']['cse_pdfs']),
