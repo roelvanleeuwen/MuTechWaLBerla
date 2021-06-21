@@ -38,6 +38,8 @@ class CombinedInPlaceGpuPackInfo : public cuda::GeneratedGPUPackInfo
       : tracker_(tracker), evenPackInfo_(std::forward< Args >(args)...), oddPackInfo_(std::forward< Args >(args)...)
    {}
 
+   virtual ~CombinedInPlaceGpuPackInfo() = default;
+
    void pack(stencil::Direction dir, unsigned char* buffer, IBlock* block, cudaStream_t stream) override
    {
       if (IS_EVEN(tracker_->getCounter()))
