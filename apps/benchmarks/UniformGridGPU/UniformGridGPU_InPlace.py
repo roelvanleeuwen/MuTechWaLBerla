@@ -64,7 +64,6 @@ info_header = """
 const char * infoStencil = "{stencil}";
 const char * infoStreamingPattern = "{streaming_pattern}";
 const char * infoCollisionSetup = "{collision_setup}";
-const char * infoConfigName = "{configName}";
 const bool infoCseGlobal = {cse_global};
 const bool infoCsePdfs = {cse_pdfs};
 """
@@ -164,11 +163,10 @@ with CodeGeneration() as ctx:
                           always_generate_separate_classes=True)
 
     infoHeaderParams = {
-        'stencil': stencil_str,
         'q': q,
-        'configName': ctx.config,
-        'collision_setup': collision_setup,
+        'stencil': stencil_str,
         'streaming_pattern' : streaming_pattern,
+        'collision_setup': collision_setup,
         'cse_global': int(options['optimization']['cse_global']),
         'cse_pdfs': int(options['optimization']['cse_pdfs']),
     }
