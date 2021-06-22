@@ -154,20 +154,14 @@ def communication_compare():
                 scenarios.add(sc)
 
 
-GPU_MEMORY = {
-    'gtx1080': 8 * (2**30),
-    'gtx1080ti': 11 * (2**30),
-    'rtx2080ti': 11 * (2**30),
-    'v100': 32 * (2**30)
-}
-
-def single_gpu_benchmark(gpu_type):
+def single_gpu_benchmark(gpu_mem_gb=8):
     """Benchmarks only the LBM compute kernel"""
     wlb.log_info_on_root("Running single GPU benchmarks")
     wlb.log_info_on_root("")
 
+    gpu_mem = gpu_mem_gb * (2 ** 30)
+
     scenarios = wlb.ScenarioManager()
-    total_gpu_mem = GPU_MEMORY[gpu_type]
     block_sizes = [(i, i, i) for i in (64, 128, 256, 384)] + [(512, 512, 128)]
     cuda_blocks = [(32, 1, 1), (64, 1, 1), (128, 1, 1), (256, 1, 1), (512, 1, 1),
                    (32, 2, 1), (64, 2, 1), (128, 2, 1), (256, 2, 1),
@@ -179,14 +173,13 @@ def single_gpu_benchmark(gpu_type):
             if not cuda_block_size_ok(cuda_block_size):
                 wlb.log_info_on_root(f"Cuda block size {cuda_block_size} would exceed register limit. Skipping.")
                 continue
-            if not domain_block_size_ok(block_size, total_gpu_mem):
+            if not domain_block_size_ok(block_size, gpu_mem):
                 wlb.log_info_on_root(f"Block size {block_size} would exceed GPU memory. Skipping.")
                 continue
             scenario = Scenario(cells_per_block=block_size,
                                 gpuBlockSize=cuda_block_size,
                                 timeStepStrategy='kernelOnly',
-                                timesteps=num_time_steps(block_size),
-                                gpu_type=gpu_type)
+                                timesteps=num_time_steps(block_size))
             scenarios.add(scenario)
 
 
@@ -271,7 +264,7 @@ if __name__ == '__main__':
 else:
     wlb.log_info_on_root("Batch run of benchmark scenarios, saving result to {}".format(DB_FILE))
     # Select the benchmark you want to run
-    single_gpu_benchmark('gtx1080ti')
+    single_gpu_benchmark()
     # benchmarks different CUDA block sizes and domain sizes and measures single
     # GPU performance of compute kernel (no communication)
     # communication_compare(): benchmarks different communication routines, with and without overlap
