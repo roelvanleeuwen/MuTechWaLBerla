@@ -12,6 +12,8 @@ import waLBerla as wlb
 from waLBerla.tools.config import block_decomposition
 from waLBerla.tools.sqlitedb import sequenceValuesToScalars, checkAndUpdateSchema, storeSingle
 from copy import deepcopy
+from functools import reduce
+import operator
 import sys
 import sqlite3
 
@@ -34,15 +36,29 @@ BASE_CONFIG = {
     }
 }
 
+def prod(seq):
+    return reduce(operator.mul, seq, 1)
 
-def num_time_steps(block_size):
+def num_time_steps(block_size, time_steps_for_128_block=200):
     cells = block_size[0] * block_size[1] * block_size[2]
-    time_steps = (128 ** 3 / cells) * TIME_STEPS_FOR_128_BLOCK
+    time_steps = (128 ** 3 / cells) * time_steps_for_128_block
     return int(time_steps)
+
+def cuda_block_size_ok(block_size, regs_per_threads=168):
+    """Checks if a given CUDA block size does not exceed the SM register limit.
+    168 registers per thread was obtained using cuobjdump on both SRT and Cumulant
+    kernels. You might want to validate that for your own kernels."""
+
+    return prod(block_size) * regs_per_threads < 64 * (2**10)
+
+def domain_block_size_ok(block_size, total_mem, gls=1, q=27, size_per_value=8):
+    """Checks if a single block of given size fits into GPU memory"""
+    return prod(b+2*gls for b in block_size) * q * size_per_value < total_mem
 
 
 class Scenario:
-    def __init__(self, cells_per_block=(256, 128, 128), **kwargs):
+    def __init__(self, cells_per_block=(256, 128, 128), db_file=DB_FILE, **kwargs):
+        self.db_file = db_file
         self.config_dict = deepcopy(BASE_CONFIG)
         self.config_dict['Parameters'].update(kwargs)
         self.config_dict['DomainSetup']['blocks'] = block_decomposition(wlb.mpi.numProcesses())
@@ -74,8 +90,8 @@ class Scenario:
         # check multiple times e.g. may fail when multiple benchmark processes are running
         for num_try in range(num_tries):
             try:
-                checkAndUpdateSchema(result, "runs", DB_FILE)
-                storeSingle(result, "runs", DB_FILE)
+                checkAndUpdateSchema(result, "runs", self.db_file)
+                storeSingle(result, "runs", self.db_file)
                 break
             except sqlite3.OperationalError as e:
                 wlb.log_warning("Sqlite DB writing failed: try {}/{}  {}".format(num_try + 1, num_tries, str(e)))
@@ -138,12 +154,20 @@ def communication_compare():
                 scenarios.add(sc)
 
 
-def single_gpu_benchmark():
+GPU_MEMORY = {
+    'gtx1080': 8 * (2**30),
+    'gtx1080ti': 11 * (2**30),
+    'rtx2080ti': 11 * (2**30),
+    'v100': 32 * (2**30)
+}
+
+def single_gpu_benchmark(gpu_type):
     """Benchmarks only the LBM compute kernel"""
     wlb.log_info_on_root("Running single GPU benchmarks")
     wlb.log_info_on_root("")
 
     scenarios = wlb.ScenarioManager()
+    total_gpu_mem = GPU_MEMORY[gpu_type]
     block_sizes = [(i, i, i) for i in (64, 128, 256, 384)] + [(512, 512, 128)]
     cuda_blocks = [(32, 1, 1), (64, 1, 1), (128, 1, 1), (256, 1, 1), (512, 1, 1),
                    (32, 2, 1), (64, 2, 1), (128, 2, 1), (256, 2, 1),
@@ -152,10 +176,17 @@ def single_gpu_benchmark():
                    (32, 16, 1)]
     for block_size in block_sizes:
         for cuda_block_size in cuda_blocks:
+            if not cuda_block_size_ok(cuda_block_size):
+                wlb.log_info_on_root(f"Cuda block size {cuda_block_size} would exceed register limit. Skipping.")
+                continue
+            if not domain_block_size_ok(block_size, total_gpu_mem):
+                wlb.log_info_on_root(f"Block size {block_size} would exceed GPU memory. Skipping.")
+                continue
             scenario = Scenario(cells_per_block=block_size,
                                 gpuBlockSize=cuda_block_size,
                                 timeStepStrategy='kernelOnly',
-                                timesteps=num_time_steps(block_size))
+                                timesteps=num_time_steps(block_size),
+                                gpu_type=gpu_type)
             scenarios.add(scenario)
 
 
@@ -240,7 +271,7 @@ if __name__ == '__main__':
 else:
     wlb.log_info_on_root("Batch run of benchmark scenarios, saving result to {}".format(DB_FILE))
     # Select the benchmark you want to run
-    single_gpu_benchmark()
+    single_gpu_benchmark('gtx1080ti')
     # benchmarks different CUDA block sizes and domain sizes and measures single
     # GPU performance of compute kernel (no communication)
     # communication_compare(): benchmarks different communication routines, with and without overlap

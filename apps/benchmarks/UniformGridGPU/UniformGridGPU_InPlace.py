@@ -79,7 +79,7 @@ with CodeGeneration() as ctx:
     collision_setup = config_tokens[2]
 
     if len(config_tokens) >= 4:
-        optimize = (config_tokens[3] == 'True')
+        optimize = (config_tokens[3] != 'noopt')
 
     stencil = get_stencil(stencil_str)
     assert streaming_pattern in streaming_patterns, f"Invalid streaming pattern: {streaming_pattern}"

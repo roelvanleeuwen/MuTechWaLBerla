@@ -31,7 +31,7 @@ endforeach ()
 
 foreach(streaming_pattern aa) # choose from {pull, push, aa, esotwist}
     foreach(stencil d3q27) # choose from {d3q19 d3q27}
-        foreach (collision_setup srt) # choose from {srt trt mrt cumulant entropic smagorinsky}
+        foreach (collision_setup srt trt mrt cumulant) # choose from {srt trt mrt cumulant entropic smagorinsky}
             set(config ${stencil}_${streaming_pattern}_${collision_setup})
             waLBerla_generate_target_from_python(NAME UniformGridGPUGenerated_InPlace_${config}
                     FILE UniformGridGPU_InPlace.py
