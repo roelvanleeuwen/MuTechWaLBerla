@@ -45,11 +45,6 @@ options_dict = {
         'relaxation_rate': omega,
         'compressible': True,
     },
-    'cumulant-overrelax': {
-        'method': 'cumulant',
-        'relaxation_rates': [1, 1, omega] + [1.1] * 9,
-        'compressible': True,
-    },
     'entropic': {
         'method': 'mrt',
         'compressible': True,
