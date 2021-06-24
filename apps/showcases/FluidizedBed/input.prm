@@ -28,17 +28,20 @@ NumericalSetup
     dx 0.0002; // in m
     uInflow 0.01; // in LBM units, should be smaller than 0.1, this then determines dt
 
-    // product of number of blocks has to be equal to number of used processes
+    // product of number of blocks should be equal to number of used processes
     numXBlocks 2;
     numYBlocks 2;
     numZBlocks 2;
 
-    useLubricationForces false;
+    useLubricationForces true;
     numberOfParticleSubCycles 10;
 }
 
 Output
 {
-    vtkSpacingParticles 0.01; // in s
-    vtkSpacingFluid 0.01; // in s
+    infoSpacing 0.01; // in s
+
+    vtkSpacingParticles 0.1; // in s
+    vtkSpacingFluid 0.1; // in s
+    vtkFolder vtk_out;
 }

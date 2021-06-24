@@ -24,16 +24,13 @@
 
 #include "boundary/all.h"
 
-#include "core/waLBerlaBuildInfo.h"
 #include "core/DataTypes.h"
 #include "core/Environment.h"
-#include "core/SharedFunctor.h"
 #include "core/debug/Debug.h"
 #include "core/math/all.h"
 #include "core/timing/RemainingTimeLogger.h"
 #include "core/logging/all.h"
 #include "core/mpi/Broadcast.h"
-#include "core/mpi/Reduce.h"
 #include "core/grid_generator/SCIterator.h"
 
 #include "domain_decomposition/SharedSweep.h"
@@ -75,7 +72,6 @@
 #include "mesa_pd/kernel/LinearSpringDashpot.h"
 #include "mesa_pd/kernel/ParticleSelector.h"
 #include "mesa_pd/kernel/VelocityVerlet.h"
-#include "mesa_pd/mpi/ClearNextNeighborSync.h"
 #include "mesa_pd/mpi/SyncNextNeighbors.h"
 #include "mesa_pd/mpi/ReduceProperty.h"
 #include "mesa_pd/mpi/ReduceContactHistory.h"
@@ -90,9 +86,7 @@
 #include "field/vtk/all.h"
 #include "lbm/vtk/all.h"
 
-#include <functional>
-
-namespace sphere_wall_collision
+namespace fluidized_bed
 {
 
 ///////////
@@ -263,6 +257,121 @@ void createPlaneSetup(const shared_ptr<mesa_pd::data::ParticleStorage> & ps, con
    }
 }
 
+struct ParticleInfo
+{
+   real_t averageVelocity = 0_r;
+   real_t maximumVelocity = 0_r;
+   uint_t numParticles = 0;
+   real_t maximumHeight = 0_r;
+   real_t particleVolume = 0_r;
+   real_t heightOfMass = 0_r;
+
+   void allReduce()
+   {
+      walberla::mpi::allReduceInplace(numParticles, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(averageVelocity, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(maximumVelocity, walberla::mpi::MAX);
+      walberla::mpi::allReduceInplace(maximumHeight, walberla::mpi::MAX);
+      walberla::mpi::allReduceInplace(particleVolume, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(heightOfMass, walberla::mpi::SUM);
+
+      averageVelocity /= real_c(numParticles);
+      heightOfMass /= particleVolume;
+   }
+};
+
+std::ostream &operator<<(std::ostream &os, ParticleInfo const &m) {
+   return os << "Particle Info: uAvg = " << m.averageVelocity << ", uMax = " << m.maximumVelocity
+             << ", numParticles = " << m.numParticles << ", zMax = " << m.maximumHeight << ", Vp = "
+             << m.particleVolume << ", zMass = " << m.heightOfMass;
+}
+
+
+template< typename Accessor_T>
+ParticleInfo evaluateParticleInfo(const Accessor_T & ac)
+{
+   static_assert (std::is_base_of<mesa_pd::data::IAccessor, Accessor_T>::value, "Provide a valid accessor" );
+
+   ParticleInfo info;
+   for(uint_t i = 0; i < ac.size(); ++i)
+   {
+      if (isSet(ac.getFlags(i), mesa_pd::data::particle_flags::GHOST)) continue;
+      if (isSet(ac.getFlags(i), mesa_pd::data::particle_flags::GLOBAL)) continue;
+
+      ++info.numParticles;
+      real_t velMagnitude = ac.getLinearVelocity(i).length();
+      real_t particleVolume = ac.getShape(i)->getVolume();
+      real_t height = ac.getPosition(i)[2];
+      info.averageVelocity += velMagnitude;
+      info.maximumVelocity = std::max(info.maximumVelocity, velMagnitude);
+      info.maximumHeight = std::max(info.maximumHeight, height);
+      info.particleVolume += particleVolume;
+      info.heightOfMass += particleVolume*height;
+   }
+
+   info.allReduce();
+
+   return info;
+}
+
+struct FluidInfo
+{
+   uint_t numFluidCells = 0;
+   real_t averageVelocity = 0_r;
+   real_t maximumVelocity = 0_r;
+   real_t averageDensity = 0_r;
+   real_t maximumDensity = 0_r;
+
+
+   void allReduce()
+   {
+      walberla::mpi::allReduceInplace(numFluidCells, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(averageVelocity, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(maximumVelocity, walberla::mpi::MAX);;
+      walberla::mpi::allReduceInplace(averageDensity, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(maximumDensity, walberla::mpi::MAX);
+
+      averageVelocity /= real_c(numFluidCells);
+      averageDensity /= real_c(numFluidCells);
+   }
+};
+
+std::ostream &operator<<(std::ostream &os, FluidInfo const &m) {
+   return os << "Fluid Info: numFluidCells = " << m.numFluidCells
+             << ", uAvg = " << m.averageVelocity << ", uMax = " << m.maximumVelocity
+             << ", densityAvg = " << m.averageDensity << ", densityMax = " << m.maximumDensity;
+}
+
+
+template <typename BoundaryHandling_T>
+FluidInfo evaluateFluidInfo( const shared_ptr< StructuredBlockStorage > & blocks, const BlockDataID & pdfFieldID, const BlockDataID & boundaryHandlingID )
+{
+   FluidInfo info;
+
+   for( auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt )
+   {
+      auto pdfField = blockIt->getData< PdfField_T > ( pdfFieldID );
+      auto boundaryHandling = blockIt->getData< BoundaryHandling_T >( boundaryHandlingID );
+
+      WALBERLA_FOR_ALL_CELLS_XYZ(pdfField,
+                                 if( !boundaryHandling->isDomain(x,y,z) ) continue;
+                                 ++info.numFluidCells;
+                                 Vector3<real_t> velocity(0_r);
+                                 real_t density = pdfField->getDensityAndVelocity(velocity, x, y, z);
+                                 real_t velMagnitude = velocity.length();
+                                 info.averageVelocity += velMagnitude;
+                                 info.maximumVelocity = std::max(info.maximumVelocity, velMagnitude);
+                                 info.averageDensity += density;
+                                 info.maximumDensity = std::max(info.maximumDensity, density);
+      )
+   }
+   info.allReduce();
+   return info;
+}
+
+
+
+
 //////////
 // MAIN //
 //////////
@@ -270,8 +379,18 @@ void createPlaneSetup(const shared_ptr<mesa_pd::data::ParticleStorage> & ps, con
 //*******************************************************************************************************************
 /*!\brief Basic simulation of a fluidization setup
  *
- * Initially, the monosized sphere are created on a structured grid inside the domain.
+ * Initially, the mono-sized sphere are created on a structured grid inside the domain.
+ * The domain is either periodic or bounded by walls in the horizontal directions (x and y).
+ * In z-direction, a constant inflow from below is provided
+ * and a pressure boundary condition is set at the top, resembling an outflow boundary.
+ *
+ * The simulation is run for the given number of seconds (runTime).
+ *
  * All parameters should be set via the input file.
+ *
+ * For the overall algorithm and the different model parameters, see
+ * Rettinger, Rüde - An efficient four-way coupled lattice Boltzmann - discrete element method for
+ * fully resolved simulations of particle-laden flows (2020, preprint: https://arxiv.org/abs/2003.01490)
  *
  */
 //*******************************************************************************************************************
@@ -316,8 +435,10 @@ int main( int argc, char **argv )
    const uint_t numberOfParticleSubCycles = numericalSetup.getParameter<uint_t>("numberOfParticleSubCycles");
 
    Config::BlockHandle outputSetup = cfgFile->getBlock( "Output" );
+   const real_t infoSpacing_SI = outputSetup.getParameter<real_t>("infoSpacing");
    const real_t vtkSpacingParticles_SI = outputSetup.getParameter<real_t>("vtkSpacingParticles");
    const real_t vtkSpacingFluid_SI = outputSetup.getParameter<real_t>("vtkSpacingFluid");
+   const std::string vtkFolder = outputSetup.getParameter<std::string>("vtkFolder");
 
    // convert SI units to simulation (LBM) units and check setup
 
@@ -357,6 +478,7 @@ int main( int argc, char **argv )
    const real_t dx = real_t(1);
 
    const uint_t numTimeSteps = uint_c(std::ceil(runTime_SI / dt_SI));
+   const uint_t infoSpacing = uint_c(std::ceil(infoSpacing_SI / dt_SI));
    const uint_t vtkSpacingParticles = uint_c(std::ceil(vtkSpacingParticles_SI / dt_SI));
    const uint_t vtkSpacingFluid = uint_c(std::ceil(vtkSpacingFluid_SI / dt_SI));
 
@@ -378,17 +500,19 @@ int main( int argc, char **argv )
    WALBERLA_LOG_INFO_ON_ROOT(" - dt = " << dt_SI << " s");
    WALBERLA_LOG_INFO_ON_ROOT(" - total time steps = " << numTimeSteps);
    WALBERLA_LOG_INFO_ON_ROOT(" - particle generation spacing = " << particleGenerationSpacing);
+   WALBERLA_LOG_INFO_ON_ROOT(" - info spacing = " << infoSpacing );
    WALBERLA_LOG_INFO_ON_ROOT(" - vtk spacing particles = " << vtkSpacingParticles << ", fluid slice = " << vtkSpacingFluid);
 
    ///////////////////////////
    // BLOCK STRUCTURE SETUP //
    ///////////////////////////
 
+   const bool periodicInZ = false;
    shared_ptr< StructuredBlockForest > blocks  = blockforest::createUniformBlockGrid( numXBlocks, numYBlocks, numZBlocks,
-                                                      cellsPerBlockPerDirection[0], cellsPerBlockPerDirection[1], cellsPerBlockPerDirection[2], dx,
-                                                      0, false, false,
-                                                      periodicInX, periodicInY, false, //periodicity
-                                                      false );
+                                                                                      cellsPerBlockPerDirection[0], cellsPerBlockPerDirection[1], cellsPerBlockPerDirection[2], dx,
+                                                                                      0, false, false,
+                                                                                      periodicInX, periodicInY, periodicInZ, //periodicity
+                                                                                      false );
 
    auto simulationDomain = blocks->getDomain();
 
@@ -413,9 +537,9 @@ int main( int argc, char **argv )
    ss->shapes[sphereShape]->updateMassAndInertia(densityParticle);
 
    // create spheres
-   for (auto pt : grid_generator::SCGrid( simulationDomain.getExtended(-particleGenerationSpacing*0.5_r),
-                                          simulationDomain.center(), particleGenerationSpacing)) {
-
+   auto generationDomain = simulationDomain.getExtended(-particleGenerationSpacing*0.5_r);
+   for (auto pt : grid_generator::SCGrid( generationDomain, generationDomain.center(), particleGenerationSpacing))
+   {
       if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt)) {
          mesa_pd::data::Particle &&p = *ps->create();
          p.setPosition(pt);
@@ -423,6 +547,7 @@ int main( int argc, char **argv )
          p.setOwner(mpi::MPIManager::instance()->rank());
          p.setShapeID(sphereShape);
          p.setType(0);
+         p.setLinearVelocity(0.1_r * Vector3<real_t>(math::realRandom(-uInflow, uInflow))); // set small initial velocity to break symmetries
       }
    }
 
@@ -502,15 +627,17 @@ int main( int argc, char **argv )
       particleVtkOutput->addOutput<mesa_pd::data::SelectParticleUid>("uid");
       particleVtkOutput->addOutput<mesa_pd::data::SelectParticleLinearVelocity>("velocity");
       particleVtkOutput->addOutput<mesa_pd::data::SelectParticleInteractionRadius>("radius");
-      particleVtkOutput->setParticleSelector([sphereShape](const mesa_pd::data::ParticleStorage::iterator &pIt) { return pIt->getShapeID() == sphereShape; }); //limit output to sphere
-      auto particleVtkWriter = vtk::createVTKOutput_PointData(particleVtkOutput, "Particles", vtkSpacingParticles);
+      //limit output to process-local spheres
+      particleVtkOutput->setParticleSelector([sphereShape](const mesa_pd::data::ParticleStorage::iterator &pIt) { return pIt->getShapeID() == sphereShape &&
+                                                                                                                         !(mesa_pd::data::particle_flags::isSet(pIt->getFlags(), mesa_pd::data::particle_flags::GHOST)); });
+      auto particleVtkWriter = vtk::createVTKOutput_PointData( particleVtkOutput, "particles", vtkSpacingParticles, vtkFolder );
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(particleVtkWriter), "VTK (sphere data)");
    }
 
    if( vtkSpacingFluid != uint_t(0) )
    {
       // velocity field, only a slice
-      auto pdfFieldVTK = vtk::createVTKOutput_BlockData( blocks, "fluid_field", vtkSpacingFluid );
+      auto pdfFieldVTK = vtk::createVTKOutput_BlockData( blocks, "fluid", vtkSpacingFluid, 0, false, vtkFolder );
 
       pdfFieldVTK->addBeforeFunction( fullPDFCommunicationScheme );
 
@@ -527,8 +654,8 @@ int main( int argc, char **argv )
 
       pdfFieldVTK->addCellInclusionFilter( combinedSliceFilter );
 
-      pdfFieldVTK->addCellDataWriter( make_shared< lbm::VelocityVTKWriter< LatticeModel_T, float > >( pdfFieldID, "VelocityFromPDF" ) );
-      pdfFieldVTK->addCellDataWriter( make_shared< lbm::DensityVTKWriter < LatticeModel_T, float > >( pdfFieldID, "DensityFromPDF" ) );
+      pdfFieldVTK->addCellDataWriter( make_shared< lbm::VelocityVTKWriter< LatticeModel_T, float > >( pdfFieldID, "velocity" ) );
+      pdfFieldVTK->addCellDataWriter( make_shared< lbm::DensityVTKWriter < LatticeModel_T, float > >( pdfFieldID, "density" ) );
 
       timeloop.addFuncBeforeTimeStep( vtk::writeFiles( pdfFieldVTK ), "VTK (fluid field data)" );
 
@@ -536,7 +663,7 @@ int main( int argc, char **argv )
 
    if( vtkSpacingFluid != uint_t(0) || vtkSpacingParticles != uint_t(0) )
    {
-      vtk::writeDomainDecomposition( blocks, "domain_decomposition" );
+      vtk::writeDomainDecomposition( blocks, "domain_decomposition", vtkFolder );
    }
 
    // add LBM communication function and boundary handling sweep (does the hydro force calculations and the no-slip treatment)
@@ -571,14 +698,14 @@ int main( int argc, char **argv )
    const bool useOpenMP = false;
 
    // time loop
-   for (uint_t i = 0; i < numTimeSteps; ++i )
+   for (uint_t timeStep = 0; timeStep < numTimeSteps; ++timeStep )
    {
       // perform a single simulation step -> this contains LBM and setting of the hydrodynamic interactions
       timeloop.singleStep( timeloopTiming );
          
       reduceProperty.operator()<mesa_pd::HydrodynamicForceTorqueNotification>(*ps);
 
-      if( i == 0 )
+      if( timeStep == 0 )
       {
          lbm_mesapd_coupling::InitializeHydrodynamicForceTorqueForAveragingKernel initializeHydrodynamicForceTorqueForAveragingKernel;
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, initializeHydrodynamicForceTorqueForAveragingKernel, *accessor );
@@ -656,6 +783,21 @@ int main( int argc, char **argv )
       // update particle mapping
       timeloopAfterParticles.singleStep(timeloopTiming);
 
+
+      if(timeStep % infoSpacing == 0)
+      {
+         timeloopTiming["Evaluate infos"].start();
+
+         auto particleInfo = evaluateParticleInfo(*accessor);
+         WALBERLA_LOG_INFO_ON_ROOT(particleInfo);
+
+         auto fluidInfo = evaluateFluidInfo<BoundaryHandling_T>(blocks, pdfFieldID, boundaryHandlingID);
+         WALBERLA_LOG_INFO_ON_ROOT(fluidInfo);
+
+         timeloopTiming["Evaluate infos"].end();
+      }
+
+
    }
 
    timeloopTiming.logResultOnRoot();
@@ -663,8 +805,8 @@ int main( int argc, char **argv )
    return EXIT_SUCCESS;
 }
 
-} // namespace sphere_wall_collision
+} // namespace fluidized_bed
 
 int main( int argc, char **argv ){
-   sphere_wall_collision::main(argc, argv);
+   fluidized_bed::main(argc, argv);
 }
