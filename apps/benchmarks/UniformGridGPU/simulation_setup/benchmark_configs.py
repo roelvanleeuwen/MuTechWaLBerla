@@ -154,12 +154,18 @@ def communication_compare():
                 scenarios.add(sc)
 
 
-def single_gpu_benchmark(gpu_mem_gb=8):
+def single_gpu_benchmark():
     """Benchmarks only the LBM compute kernel"""
     wlb.log_info_on_root("Running single GPU benchmarks")
     wlb.log_info_on_root("")
 
+    gpu_mem_gb = int(os.environ.get('GPU_MEMORY_GB', 8))
     gpu_mem = gpu_mem_gb * (2 ** 30)
+    gpu_type = os.environ.get('GPU_TYPE')
+
+    kwargs = {}
+    if gpu_type is not None:
+        kwargs['gpu_type'] = gpu_type
 
     scenarios = wlb.ScenarioManager()
     block_sizes = [(i, i, i) for i in (64, 128, 256, 384)] + [(512, 512, 128)]
@@ -179,7 +185,8 @@ def single_gpu_benchmark(gpu_mem_gb=8):
             scenario = Scenario(cells_per_block=block_size,
                                 gpuBlockSize=cuda_block_size,
                                 timeStepStrategy='kernelOnly',
-                                timesteps=num_time_steps(block_size))
+                                timesteps=num_time_steps(block_size),
+                                **kwargs)
             scenarios.add(scenario)
 
 

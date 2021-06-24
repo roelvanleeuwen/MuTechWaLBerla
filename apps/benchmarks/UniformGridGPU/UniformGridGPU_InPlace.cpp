@@ -130,7 +130,7 @@ int main(int argc, char** argv)
       using PackInfoOdd  = lbm::UniformGridGPU_InPlace_PackInfoOdd;
       using cuda::communication::UniformGPUScheme;
 
-      LbSweep lbSweep(pdfFieldGpuID, velFieldGpuID, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], innerOuterSplitCell);
+      LbSweep lbSweep(pdfFieldGpuID, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], innerOuterSplitCell);
       lbSweep.setOuterPriority(streamHighPriority);
 
       // Boundaries

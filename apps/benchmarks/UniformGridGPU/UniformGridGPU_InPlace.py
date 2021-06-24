@@ -45,6 +45,11 @@ options_dict = {
         'relaxation_rate': omega,
         'compressible': True,
     },
+    'cumulant-overrelax': {
+        'method': 'cumulant',
+        'relaxation_rates': [omega] + [1 + x*1e-2 for x in range(1, 11)],
+        'compressible': True,
+    },
     'entropic': {
         'method': 'mrt',
         'compressible': True,
@@ -94,9 +99,6 @@ with CodeGeneration() as ctx:
     common_options = {
         'stencil': stencil,
         'field_name': pdfs.name,
-        'output': {
-            'velocity': velocity_field
-        },
         'optimization': {
             'target': 'gpu',
             'cse_global': True,
