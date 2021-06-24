@@ -384,7 +384,7 @@ FluidInfo evaluateFluidInfo( const shared_ptr< StructuredBlockStorage > & blocks
  * In z-direction, a constant inflow from below is provided
  * and a pressure boundary condition is set at the top, resembling an outflow boundary.
  *
- * The simulation is run for the given number of seconds (runTime).
+ * The simulation is run for the given number of seconds (runtime).
  *
  * All parameters should be set via the input file.
  *
@@ -414,7 +414,7 @@ int main( int argc, char **argv )
    const real_t zSize_SI = physicalSetup.getParameter<real_t>("zSize");
    const bool periodicInX = physicalSetup.getParameter<bool>("periodicInX");
    const bool periodicInY = physicalSetup.getParameter<bool>("periodicInY");
-   const real_t runTime_SI = physicalSetup.getParameter<real_t>("runTime");
+   const real_t runtime_SI = physicalSetup.getParameter<real_t>("runtime");
    const real_t uInflow_SI = physicalSetup.getParameter<real_t>("uInflow");
    const real_t gravitationalAcceleration_SI = physicalSetup.getParameter<real_t>("gravitationalAcceleration");
    const real_t kinematicViscosityFluid_SI = physicalSetup.getParameter<real_t>("kinematicViscosityFluid");
@@ -477,7 +477,7 @@ int main( int argc, char **argv )
    const real_t densityParticle = densityRatio;
    const real_t dx = real_t(1);
 
-   const uint_t numTimeSteps = uint_c(std::ceil(runTime_SI / dt_SI));
+   const uint_t numTimeSteps = uint_c(std::ceil(runtime_SI / dt_SI));
    const uint_t infoSpacing = uint_c(std::ceil(infoSpacing_SI / dt_SI));
    const uint_t vtkSpacingParticles = uint_c(std::ceil(vtkSpacingParticles_SI / dt_SI));
    const uint_t vtkSpacingFluid = uint_c(std::ceil(vtkSpacingFluid_SI / dt_SI));
