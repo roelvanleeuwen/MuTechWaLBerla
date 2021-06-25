@@ -74,7 +74,7 @@ function( waLBerla_generate_target_from_python )
     string(REPLACE "\"" "\\\"" pythonParameters ${pythonParameters})   # even one more quoting level required
     string(REPLACE "\n" "" pythonParameters ${pythonParameters})  # remove newline characters
 
-    set( WALBERLA_PYTHON_DIR ${walberla_SOURCE_DIR}/python)
+    set( WALBERLA_PYTHON_DIR ${walberla_SOURCE_DIR}/python:${walberla_SOURCE_DIR}/extern/pystencils:${walberla_SOURCE_DIR}/extern/lbmpy)
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${codegenCfg}")
 
     add_custom_command(OUTPUT ${generatedWithAbsolutePath}
@@ -301,5 +301,29 @@ function( set_version VERSION_MAJOR VERSION_PATCH )
   set( WALBERLA_PATCH_LEVEL   ${VERSION_PATCH} CACHE STRING "waLBerla patch level" FORCE )
   set( WALBERLA_VERSION "${VERSION_MAJOR}.${VERSION_PATCH}" CACHE STRING "waLBerla version" FORCE )
   mark_as_advanced( WALBERLA_MAJOR_VERSION WALBERLA_PATCH_LEVEL )
+endfunction()
+#######################################################################################################################
+
+#######################################################################################################################
+#
+# updates all submodules in the walberla repository
+# this function will propagate GIT_FOUND to the parent scope
+#
+#######################################################################################################################
+function( git_update_submodules )
+    find_package(Git QUIET)
+    set(GIT_FOUND ${GIT_FOUND} PARENT_SCOPE)
+    if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+        # Update submodules as needed
+        if(WALBERLA_GIT_SUBMODULE_AUTO)
+            message(STATUS "Submodule update")
+            execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                  RESULT_VARIABLE GIT_SUBMOD_RESULT)
+            if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+                message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+            endif()
+        endif()
+    endif()
 endfunction()
 #######################################################################################################################

@@ -1,3 +1,9 @@
 [submodule "extern/pybind11"]
 	path = extern/pybind11
 	url = https://github.com/pybind/pybind11.git
+[submodule "extern/lbmpy"]
+	path = extern/lbmpy
+	url = ../../pycodegen/lbmpy
+[submodule "extern/pystencils"]
+	path = extern/pystencils
+	url = ../../pycodegen/pystencils

@@ -566,19 +566,26 @@ endif ( )
 ##
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_CODEGEN )
-   find_package( PythonInterp 3 QUIET REQUIRED)
-   execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import lbmpy"
+   git_update_submodules()
+   find_package( PythonInterp 3.6 QUIET REQUIRED)
+
+   execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import lbmpy; import pystencils"
          RESULT_VARIABLE LBMPY_FOUND )
     if(NOT LBMPY_FOUND EQUAL 0)
-       message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated but pystencils or lbmpy package not found.
-                            Please install lbmpy e.g.: 'pip3 install lbmpy'")
+       if( GIT_FOUND )
+          message(FATAL_ERROR "Please update git submodules or install pystencils and lbmpy via pip.")
+       else()
+          message(FATAL_ERROR "Please install pystencils and lbmpy e.g. via pip")
+       endif()
     endif()
+    set(ENV{PYTHONPATH} ${walberla_SOURCE_DIR}/extern/pystencils:$ENV{PYTHONPATH})
     execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from pystencils.include import get_pystencils_include_path; print(get_pystencils_include_path())"
                     OUTPUT_VARIABLE PYSTENCILS_INCLUDE_PATH)
     include_directories( ${PYSTENCILS_INCLUDE_PATH} )
+    string(STRIP ${PYSTENCILS_INCLUDE_PATH} PYSTENCILS_INCLUDE_PATH_TMP)
+    message( STATUS "Found pystencils: ${PYSTENCILS_INCLUDE_PATH_TMP}" )
 
-    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import jinja2"
-          RESULT_VARIABLE JINJA2_FOUND )
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import jinja2" RESULT_VARIABLE JINJA2_FOUND )
     if(NOT JINJA2_FOUND EQUAL 0)
        message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated and jinja2 package not found.
        Please install jinja2 e.g.: 'pip3 install jinja2'")
@@ -619,19 +626,7 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
         string(STRIP "${PYBIND11_CMAKE_PATH}" PYBIND11_CMAKE_PATH)
         find_package(pybind11 PATHS "${PYBIND11_CMAKE_PATH}" NO_DEFAULT_PATH REQUIRED)
     else()
-        find_package(Git QUIET)
-        if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-           # Update submodules as needed
-           if(WALBERLA_GIT_SUBMODULE_AUTO)
-              message(STATUS "Submodule update")
-              execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                    RESULT_VARIABLE GIT_SUBMOD_RESULT)
-              if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-                 message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-              endif()
-           endif()
-        endif()
+        git_update_submodules()
 
         if(NOT EXISTS "${PROJECT_SOURCE_DIR}/extern/pybind11/CMakeLists.txt")
             if(EXISTS "${PROJECT_SOURCE_DIR}/.git")
