@@ -528,7 +528,7 @@ int main( int argc, char **argv )
    using ParticleAccessor_T = mesa_pd::data::ParticleAccessorWithShape;
    auto accessor = walberla::make_shared<ParticleAccessor_T >(ps, ss);
 
-   // prevent particles from interfering with inflow and outflow by putting the bounding planes slightly before
+   // prevent particles from interfering with inflow and outflow by putting the bounding planes slightly in front
    const real_t planeOffsetFromInflow = dx;
    const real_t planeOffsetFromOutflow = dx;
    createPlaneSetup(ps, ss, simulationDomain, periodicInX, periodicInY, planeOffsetFromInflow, planeOffsetFromOutflow);
@@ -605,6 +605,8 @@ int main( int argc, char **argv )
    ///////////////
 
    // map particles into the LBM simulation
+   // note: planes are not mapped and are thus only visible to the particles, not to the fluid
+   // instead, the respective boundary conditions for the fluid are explicitly set, see the boundary handling
    ps->forEachParticle(false, lbm_mesapd_coupling::RegularParticlesSelector(), *accessor, movingParticleMappingKernel, *accessor, MO_Flag);
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
@@ -702,7 +704,7 @@ int main( int argc, char **argv )
    {
       // perform a single simulation step -> this contains LBM and setting of the hydrodynamic interactions
       timeloop.singleStep( timeloopTiming );
-         
+
       reduceProperty.operator()<mesa_pd::HydrodynamicForceTorqueNotification>(*ps);
 
       if( timeStep == 0 )
