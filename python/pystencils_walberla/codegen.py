@@ -147,7 +147,7 @@ def generate_selective_sweep(generation_context, class_name, selection_tree, int
 def generate_pack_info_for_field(generation_context, class_name: str, field: Field,
                                  direction_subset: Optional[Tuple[Tuple[int, int, int]]] = None,
                                  operator=None,
-                                 communication_kind='push',
+                                 gl_to_inner=False,
                                  **create_kernel_params):
     """Creates a pack info for a pystencils field assuming a pull-type stencil, packing all cell elements.
 
@@ -158,17 +158,16 @@ def generate_pack_info_for_field(generation_context, class_name: str, field: Fie
         direction_subset: optional sequence of directions for which values should be packed
                           otherwise a D3Q27 stencil is assumed
         operator: optional operator for, e.g., reduction pack infos
-        communication_kind: can either be pull or push
+        gl_to_inner: communicates values from ghost layers of sender to interior of receiver
         **create_kernel_params: remaining keyword arguments are passed to `pystencils.create_kernel`
     """
-    assert communication_kind in ('push', 'pull')
 
     if not direction_subset:
         direction_subset = tuple((i, j, k) for i, j, k in product(*[(-1, 0, 1)] * 3))
 
     all_index_accesses = [field(*ind) for ind in product(*[range(s) for s in field.index_shape])]
     return generate_pack_info(generation_context, class_name, {direction_subset: all_index_accesses}, operator=operator,
-                              communication_kind=communication_kind, **create_kernel_params)
+                              gl_to_inner=gl_to_inner, **create_kernel_params)
 
 
 def generate_pack_info_from_kernel(generation_context, class_name: str, assignments: Sequence[Assignment],
@@ -219,7 +218,7 @@ def generate_pack_info_from_kernel(generation_context, class_name: str, assignme
 
 def generate_pack_info(generation_context, class_name: str,
                        directions_to_pack_terms: Dict[Tuple[Tuple], Sequence[Field.Access]],
-                       namespace='pystencils', operator=None, communication_kind='push',
+                       namespace='pystencils', operator=None, gl_to_inner=False,
                        **create_kernel_params):
     """Generates a waLBerla GPU PackInfo
 
@@ -230,7 +229,7 @@ def generate_pack_info(generation_context, class_name: str,
                                   packed for which direction
         namespace: inner namespace of the generated class
         operator: optional operator for, e.g., reduction pack infos
-        communication_kind: can either be pull or push
+        gl_to_inner: communicates values from ghost layers of sender to interior of receiver
         **create_kernel_params: remaining keyword arguments are passed to `pystencils.create_kernel`
     """
     items = [(e[0], sorted(e[1], key=lambda x: str(x))) for e in directions_to_pack_terms.items()]
@@ -308,7 +307,7 @@ def generate_pack_info(generation_context, class_name: str,
         'dtype': dtype,
         'field_name': field_names.pop(),
         'namespace': namespace,
-        'kind': communication_kind,
+        'gl_to_inner': gl_to_inner,
     }
     env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)
     add_pystencils_filters_to_jinja_env(env)

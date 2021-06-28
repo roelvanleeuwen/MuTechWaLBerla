@@ -11,4 +11,4 @@ with CodeGeneration() as ctx:
     # communication
     generate_pack_info_for_field(ctx, 'ScalarFieldCommunication', field, target='cpu')
     generate_pack_info_for_field(ctx, 'ScalarFieldPullReduction', field, target='cpu', operator=op.add,
-                                 communication_kind='pull')
+                                 gl_to_inner=True)
