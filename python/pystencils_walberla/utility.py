@@ -12,7 +12,7 @@ def generate_info_header(ctx: CodeGenerationContext,
                          additional_headers: set = None,
                          headers_to_ignore: set = None,
                          additional_typedefs: dict = None,
-                         additional_code: str = None):
+                         additional_code: str = ""):
     """Generates an info header, consolidating required information about the generated code.
     The info header #includes all generated header files, and is thus the only header the
     application needs to #include. It can also contain aliases for waLBerla stencil types and
