@@ -53,7 +53,7 @@ options_dict = {
     },
     'cumulant-overrelax': {
         'method': 'cumulant',
-        'relaxation_rates': [omega] + [1 + x*1e-2 for x in range(1, 11)],
+        'relaxation_rates': [omega] + [1 + x * 1e-2 for x in range(1, 11)],
         'compressible': True,
     },
     'entropic': {

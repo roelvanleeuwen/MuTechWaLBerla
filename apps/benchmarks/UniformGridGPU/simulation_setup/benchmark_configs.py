@@ -11,7 +11,6 @@ import os
 import waLBerla as wlb
 from waLBerla.tools.config import block_decomposition
 from waLBerla.tools.sqlitedb import sequenceValuesToScalars, checkAndUpdateSchema, storeSingle
-from copy import deepcopy
 from functools import reduce
 import operator
 import sys
@@ -63,7 +62,8 @@ def domain_block_size_ok(block_size, total_mem, gls=1, q=27, size_per_value=8):
 class Scenario:
     def __init__(self, cells_per_block=(256, 128, 128), periodic=(1, 1, 1), cuda_blocks=(256, 1, 1),
                  timesteps=None, time_step_strategy="normal", omega=1.8, cuda_enabled_mpi=False,
-                 inner_outer_split=(1, 1, 1), warmup_steps=5, outer_iterations=3, init_shear_flow=False):
+                 inner_outer_split=(1, 1, 1), warmup_steps=5, outer_iterations=3, init_shear_flow=False,
+                 additional_info=None):
 
         self.blocks = block_decomposition(wlb.mpi.numProcesses())
 
@@ -83,6 +83,7 @@ class Scenario:
         self.vtk_write_frequency = 0
 
         self.config_dict = self.config(print_dict=False)
+        self.additional_info = additional_info
 
     @wlb.member_callback
     def config(self, print_dict=True):
@@ -108,6 +109,8 @@ class Scenario:
         }
         if print_dict:
             wlb.log_info_on_root("Scenario:\n" + pformat(config_dict))
+            if self.additional_info:
+                wlb.log_info_on_root("Additional Info:\n" + pformat(self.additional_info))
         return config_dict
 
     @wlb.member_callback
@@ -116,6 +119,10 @@ class Scenario:
         data.update(self.config_dict['Parameters'])
         data.update(self.config_dict['DomainSetup'])
         data.update(kwargs)
+
+        if self.additional_info is not None:
+            data.update(self.additional_info)
+
         data['executable'] = sys.argv[0]
         data['compile_flags'] = wlb.build_info.compiler_flags
         data['walberla_version'] = wlb.build_info.version
@@ -185,9 +192,9 @@ def single_gpu_benchmark():
     gpu_mem = gpu_mem_gb * (2 ** 30)
     gpu_type = os.environ.get('GPU_TYPE')
 
-    kwargs = {}
+    additional_info = {}
     if gpu_type is not None:
-        kwargs['gpu_type'] = gpu_type
+        additional_info['gpu_type'] = gpu_type
 
     scenarios = wlb.ScenarioManager()
     block_sizes = [(i, i, i) for i in (64, 128, 256, 320, 384, 448, 512)]
@@ -208,7 +215,7 @@ def single_gpu_benchmark():
                                 cuda_blocks=cuda_block_size,
                                 time_step_strategy='kernelOnly',
                                 timesteps=num_time_steps(block_size),
-                                **kwargs)
+                                additional_info=additional_info)
             scenarios.add(scenario)
 
 
