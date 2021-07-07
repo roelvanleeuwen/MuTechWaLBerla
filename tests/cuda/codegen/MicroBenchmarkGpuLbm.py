@@ -16,6 +16,6 @@ with CodeGeneration() as ctx:
 
     # Stream-only sweep
     stencil = get_stencil("D3Q19")
-    stream_only = create_stream_only_kernel(stencil, src_field='src', dst_field='dst')
+    stream_only = create_stream_only_kernel(stencil, src_field=src, dst_field=dst)
     generate_sweep(ctx, 'MicroBenchmarkStreamKernel', stream_only,
                    target='gpu', gpu_indexing_params={'block_size': (128, 1, 1)})
