@@ -286,7 +286,7 @@ def expression_to_code(expr, variable_prefix="lm.", variables_without_prefix=Non
 
 
 def type_expr(eq, dtype):
-    # manually cast 0.5 to dtype since this was somehow be not done automatically
+    # manually cast 0.5 to dtype since this is somehow not done automatically
     eq = eq.subs(sp.Rational(1, 2), cast_func(sp.Rational(1, 2), dtype))
     return eq.subs({s: TypedSymbol(s.name, dtype) for s in eq.atoms(sp.Symbol)})
 
