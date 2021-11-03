@@ -12,10 +12,6 @@ from lbmpy.advanced_streaming import Timestep
 
 from pystencils import Field
 
-
-
-
-
 with CodeGeneration() as ctx:
     #   Common Setup
     data_type = "float64" if ctx.double_accuracy else "float32"
