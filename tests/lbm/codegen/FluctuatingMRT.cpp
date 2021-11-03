@@ -69,10 +69,10 @@ int main( int argc, char ** argv )
    const real_t          temperature     = real_t(0.01);
    const uint_t          seed            = uint_t(0);
 
-   const real_t remainingTimeLoggerFrequency = parameters.getParameter< double >( "remainingTimeLoggerFrequency", 3.0 ); // in seconds
+   const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >( "remainingTimeLoggerFrequency", real_c(3.0) ); // in seconds
 
    // create fields
-   real_t force             = 2E-4; // Force to apply on each node on each axis
+   real_t force             = real_c(2E-4); // Force to apply on each node on each axis
    BlockDataID forceFieldId = field::addToStorage<VectorField_T>( blocks, "Force", force, field::fzyx );
 
    LatticeModel_T latticeModel = LatticeModel_T( forceFieldId, omega, omega, omega_2, omega, seed, temperature, uint_t(0) );

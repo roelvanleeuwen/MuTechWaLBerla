@@ -8,9 +8,10 @@ from pystencils_walberla import CodeGeneration
 from lbmpy_walberla import generate_lattice_model
 
 with CodeGeneration() as ctx:
+    data_type = "float64" if ctx.double_accuracy else "float32"
     omega_shear = sp.symbols("omega_shear")
     temperature = sp.symbols("temperature")
-    force_field, vel_field = ps.fields("force(3), velocity(3): [3D]", layout='fzyx')
+    force_field, vel_field = ps.fields(f"force(3), velocity(3): {data_type}[3D]", layout='fzyx')
 
     def rr_getter(moment_group):
         """Maps a group of moments to a relaxation rate (shear, bulk, even, odd)

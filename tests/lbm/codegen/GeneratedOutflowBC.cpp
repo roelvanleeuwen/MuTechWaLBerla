@@ -70,10 +70,10 @@ Vector3< real_t > ShearProfile::operator()( const Cell& pos, const shared_ptr< S
 {
    Cell globalCell;
    CellInterval domain = SbF->getDomainCellBB();
-   real_t h_y          = domain.yMax() - domain.yMin();
+   real_t h_y          = real_c(domain.yMax()) - real_c(domain.yMin());
    SbF->transformBlockLocalToGlobalCell(globalCell, block, pos);
 
-   real_t u = inflow_velocity_ * (globalCell[1] / h_y);
+   real_t u = inflow_velocity_ * (real_c(globalCell[1]) / h_y);
 
    Vector3< real_t > result(u, 0.0, 0.0);
    return result;
@@ -170,7 +170,7 @@ int main(int argc, char** argv)
    timeloop.run();
 
    CellInterval domain = blocks->getDomainCellBB();
-   real_t h_y          = domain.yMax() - domain.yMin();
+   real_t h_y          = real_c(domain.yMax()) - real_c(domain.yMin());
    for (auto& block : *blocks)
    {
       auto velField = block.getData<VelocityField_T>(velFieldID);
@@ -179,7 +179,7 @@ int main(int argc, char** argv)
          velField,
    Cell globalCell;
          blocks->transformBlockLocalToGlobalCell(globalCell, block, Cell(x, y, z));
-         WALBERLA_CHECK_FLOAT_EQUAL_EPSILON(velField->get(x, y, z, 0), u_max * (globalCell[1] / h_y), 0.01)
+         WALBERLA_CHECK_FLOAT_EQUAL_EPSILON(velField->get(x, y, z, 0), u_max * (real_c(globalCell[1]) / h_y), real_c(0.01))
       )
    }
 

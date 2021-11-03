@@ -12,7 +12,7 @@ from lbmpy.updatekernels import create_lbm_kernel, create_stream_only_kernel
 from pystencils import AssignmentCollection, create_kernel, Target
 from pystencils.astnodes import SympyAssignment
 from pystencils.backends.cbackend import CBackend, CustomSympyPrinter, get_headers
-from pystencils.data_types import TypedSymbol, type_all_numbers, cast_func
+from pystencils.data_types import TypedSymbol, cast_func
 from pystencils.field import Field
 from pystencils.stencil import offset_to_direction_string
 from pystencils.sympyextensions import get_symmetric_part
@@ -55,9 +55,7 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
         if hasattr(force_model, 'macroscopic_velocity_shift'):
             macroscopic_velocity_shift = [e.subs(force_model.subs_dict_force)
                                           for e in force_model.macroscopic_velocity_shift(rho_sym)]
-            macroscopic_velocity_shift = [expression_to_code(e.subs(sp.Rational(1, 2), cast_func(sp.Rational(1, 2),
-                                                                                                 dtype_string)),
-                                                             "lm.", ['rho'], dtype=dtype_string)
+            macroscopic_velocity_shift = [expression_to_code(e, "lm.", ['rho'], dtype=dtype_string)
                                           for e in macroscopic_velocity_shift]
 
     cqc = lb_method.conserved_quantity_computation
@@ -134,7 +132,6 @@ def __lattice_model(generation_context, class_name, lb_method, stream_collide_as
 def generate_lattice_model(generation_context, class_name, collision_rule, field_layout='zyxf', refinement_scaling=None,
                            target=Target.CPU, data_type=None, cpu_openmp=None, cpu_vectorize_info=None,
                            **create_kernel_params):
-
     config = config_from_context(generation_context, target=target, data_type=data_type,
                                  cpu_openmp=cpu_openmp, cpu_vectorize_info=cpu_vectorize_info, **create_kernel_params)
 
@@ -289,14 +286,8 @@ def expression_to_code(expr, variable_prefix="lm.", variables_without_prefix=Non
 
 
 def type_expr(eq, dtype):
-    def recurse(expr):
-        for i in range(len(expr.args)):
-            if expr.args[i] == sp.Rational or expr.args[i] == sp.Float:
-                expr.args[i] = type_all_numbers(expr.args[i], dtype=dtype)
-            else:
-                recurse(expr.args[i])
-
-    recurse(eq)
+    # manually cast 0.5 to dtype since this was somehow be not done automatically
+    eq = eq.subs(sp.Rational(1, 2), cast_func(sp.Rational(1, 2), dtype))
     return eq.subs({s: TypedSymbol(s.name, dtype) for s in eq.atoms(sp.Symbol)})
 
 

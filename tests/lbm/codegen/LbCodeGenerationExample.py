@@ -7,8 +7,9 @@ from pystencils_walberla import CodeGeneration, generate_info_header
 from lbmpy_walberla import RefinementScaling, generate_boundary, generate_lattice_model
 
 with CodeGeneration() as ctx:
+    data_type = "float64" if ctx.double_accuracy else "float32"
     omega, omega_free = sp.symbols("omega, omega_free")
-    force_field, vel_field, omega_out = ps.fields("force(3), velocity(3), omega_out: [3D]", layout='fzyx')
+    force_field, vel_field, omega_out = ps.fields(f"force(3), velocity(3), omega_out: {data_type}[3D]", layout='fzyx')
 
     stencil = LBStencil(Stencil.D3Q19)
     lbm_config = LBMConfig(stencil=stencil, method=Method.MRT, entropic=True,

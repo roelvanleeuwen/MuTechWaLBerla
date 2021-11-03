@@ -99,6 +99,7 @@ waLBerla_generate_target_from_python(NAME LbCodeGenerationExampleGenerated
       LbCodeGenerationExample_UBB.cpp LbCodeGenerationExample_UBB.h
       LbCodeGenerationExample.h)
 waLBerla_compile_test( FILES codegen/LbCodeGenerationExample.cpp DEPENDS LbCodeGenerationExampleGenerated)
+waLBerla_execute_test( NAME LbCodeGenerationExample COMMAND $<TARGET_FILE:LbCodeGenerationExample> ${CMAKE_CURRENT_SOURCE_DIR}/codegen/LbCodeGenerationExample.prm PROCESSES 1)
 
 waLBerla_generate_target_from_python(NAME FluctuatingMRTGenerated FILE codegen/FluctuatingMRT.py
                               OUT_FILES FluctuatingMRT_LatticeModel.cpp FluctuatingMRT_LatticeModel.h )

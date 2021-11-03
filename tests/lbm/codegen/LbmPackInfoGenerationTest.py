@@ -1,18 +1,19 @@
 from lbmpy.creationfunctions import create_lb_collision_rule, create_lb_update_rule
 from lbmpy.advanced_streaming import Timestep
-from lbmpy.stencils import get_stencil
+from lbmpy import Stencil, LBStencil
 from pystencils_walberla import CodeGeneration, generate_pack_info_from_kernel
 from lbmpy_walberla.packinfo import generate_lb_pack_info
 from pystencils.field import Field
 
 with CodeGeneration() as ctx:
+    data_type = "float64" if ctx.double_accuracy else "float32"
     streaming_pattern = 'aa'
     target = 'cpu'
-    stencil = get_stencil('D3Q19')
+    stencil = LBStencil(Stencil.D3Q19)
     dim = len(stencil[0])
     values_per_cell = len(stencil)
     collision_rule = create_lb_collision_rule(method='srt', stencil=stencil)
-    pdf_field = Field.create_generic('pdfs', dim, index_shape=(values_per_cell,), layout='fzyx')
+    pdf_field = Field.create_generic('pdfs', dim, index_shape=(values_per_cell,), dtype=data_type, layout='fzyx')
     optimization = {
         'symbolic_field': pdf_field,
         'target': target
