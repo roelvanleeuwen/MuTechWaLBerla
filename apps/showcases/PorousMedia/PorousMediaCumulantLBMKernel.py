@@ -37,5 +37,5 @@ with CodeGeneration() as ctx:
     refinement_scaling = RefinementScaling()
     refinement_scaling.add_standard_relaxation_rate_scaling(omega)
 
-   generate_lattice_model(ctx, "LbCodeGen_LatticeModel", collision_rule, refinement_scaling=refinement_scaling,
-                          field_layout=layout)
+    generate_lattice_model(ctx, "LbCodeGen_LatticeModel", collision_rule, refinement_scaling=refinement_scaling,
+                           field_layout=layout)
