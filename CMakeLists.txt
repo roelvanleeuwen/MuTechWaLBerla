@@ -1072,7 +1072,11 @@ if ( WALBERLA_BUILD_WITH_CUDA )
     include(CheckLanguage)
     check_language(CUDA)
     if( CMAKE_CUDA_COMPILER )
-
+        try_compile( WALBERLA_CUDA_HOSTCXX_WORKS "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestCUDACompatibility.cu"
+             COMPILE_DEFINITIONS -Werror )
+        if(NOT WALBERLA_CUDA_HOSTCXX_WORKS)
+           message(FATAL_ERROR "This combination of CUDA compiler and host compiler does not work!")
+        endif()
         if(${CMAKE_VERSION} VERSION_GREATER "3.18.0" AND NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
             set(CMAKE_CUDA_ARCHITECTURES OFF)
             message(WARNING "CMAKE_CUDA_ARCHITECTURES was not set. It is automatically set to: ${CMAKE_CUDA_ARCHITECTURES}")
