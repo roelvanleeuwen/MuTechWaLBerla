@@ -1078,8 +1078,7 @@ if ( WALBERLA_BUILD_WITH_CUDA )
         endif()
 
         enable_language(CUDA)
-        try_compile( WALBERLA_CUDA_HOSTCXX_WORKS "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestCUDACompatibility.cu"
-              COMPILE_DEFINITIONS -Werror )
+        try_compile( WALBERLA_CUDA_HOSTCXX_WORKS "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestCUDACompatibility.cu")
         if(NOT WALBERLA_CUDA_HOSTCXX_WORKS)
            message(FATAL_ERROR "This combination of CUDA compiler and host compiler does not work!")
         endif()
