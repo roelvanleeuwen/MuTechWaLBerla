@@ -1,30 +1,29 @@
-import argparse
-
 #!/usr/bin/env python3
 
 import os
 import re
-
+import argparse
 
 def create_cmake_lists (folder, module_name, top_level=True, deps = []):
     header_and_source = []
     subfolder = []
-    newline = '\n    '
+    newline_and_indent = '\n    '
+    newline = '\n'
     add_sub = '\nadd_subdirectory( '
     for entry in os.scandir(folder):
         if entry.name == 'all.h':
             continue
         if entry.is_file():
-            if entry.name.endswith('.h') or entry.name.endswith('.cpp'):
+            if entry.name.endswith('.hpp') or entry.name.endswith('.h') or entry.name.endswith('.cpp'):
                 header_and_source += [entry.name]
         else:
             if entry.name != 'doc' and entry.name != 'CMakeFiles':
                 subfolder += [entry.name]
             create_cmake_lists(folder + '/' + entry.name, module_name, False)
 
-    print(subfolder)
-    if not header_and_source:
-        return
+    # print(subfolder)
+    # if not header_and_source:
+    #    return
 
     if top_level:
         with open(folder + '/CMakeListsRefactor.txt', 'w') as f:
@@ -32,7 +31,7 @@ def create_cmake_lists (folder, module_name, top_level=True, deps = []):
 target_link_libraries( {module_name} PUBLIC {' '.join(x for x in deps)} )
 target_sources( {module_name}
     PRIVATE
-    {newline.join(x for x in header_and_source)}     
+    {newline_and_indent.join(x for x in header_and_source)}     
     )
 
 add_subdirectory( {add_sub.join(x + ' )' for x in subfolder)}
@@ -42,8 +41,9 @@ add_subdirectory( {add_sub.join(x + ' )' for x in subfolder)}
         with open(folder + '/CMakeLists.txt', 'w') as f:
             content = f"""target_sources( {module_name}
     PRIVATE
-    {newline.join(x for x in header_and_source)}     
-    )
+    {newline_and_indent.join(x for x in header_and_source)}     
+)
+{newline.join(['add_subdirectory( ' + x + ' )' for x in subfolder])}
 """
             f.write(content)
 
