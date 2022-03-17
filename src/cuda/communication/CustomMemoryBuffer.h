@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file BasicBuffer.h
+//! \file CustomMemoryBuffer.h
 //! \ingroup cuda
 //! \author Martin Bauer <martin.bauer@fau.de>
 //! \brief Basic Buffer supporting different memory spaces
@@ -100,13 +100,13 @@ namespace communication {
       static void *allocate( size_t size )
       {
          void *p;
-         WALBERLA_CUDA_CHECK( cudaMallocHost( &p, size ));
+         WALBERLA_CUDA_CHECK( cudaMallocHost( &p, size ))
          return p;
       }
 
       static void deallocate( void *ptr )
       {
-         WALBERLA_CUDA_CHECK( cudaFreeHost( ptr ));
+         WALBERLA_CUDA_CHECK( cudaFreeHost( ptr ))
       }
 
       static void memcpy( void *dst, void *src, size_t count )
@@ -120,13 +120,13 @@ namespace communication {
       static void *allocate( size_t size )
       {
          void *p;
-         WALBERLA_CUDA_CHECK( cudaMalloc( &p, size ));
+         WALBERLA_CUDA_CHECK( cudaMalloc( &p, size ))
          return p;
       }
 
       static void deallocate( void *ptr )
       {
-         WALBERLA_CUDA_CHECK( cudaFree( ptr ));
+         WALBERLA_CUDA_CHECK( cudaFree( ptr ))
       }
 
       static void memcpy( void *dst, void *src, size_t count )

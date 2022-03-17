@@ -39,6 +39,7 @@
 #include "core/debug/CheckFunctions.h"
 
 #include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <limits>
 #include <type_traits>
@@ -164,6 +165,7 @@ public:
    inline Type            sqrLength()                    const;
    inline Vector3<Length> getNormalized()                const;
    inline Vector3<Length> getNormalizedOrZero()          const;
+   inline Vector3<Length> getNormalizedIfNotZero()       const;
    inline void            reset();
    inline Type*           data()                         {return v_;}
    inline Type const *    data()                         const {return v_;}
@@ -857,13 +859,38 @@ Vector3<typename Vector3<Type>::Length> Vector3<Type>::getNormalized() const
 //**********************************************************************************************************************
 
 //**********************************************************************************************************************
-/*!\fn Vector3<Length>& Vector3<Type>::getNormalized() const
+/*!\fn Vector3<Length>& Vector3<Type>::getNormalizedOrZero() const
+// \brief Calculation of the normalized vector (\f$|\vec{a}|=1\f$) without precondition.
+//
+// \return The normalized vector or a vector with all components equal to zero if vector is too small.
+*/
+template< typename Type >
+Vector3<typename Vector3<Type>::Length> Vector3<Type>::getNormalizedOrZero() const
+{
+   const Length len( length() );
+
+   if (floatIsEqual( len, Length(0) )) { return Vector3<Length>( static_cast<Length>( 0 ) ); }
+
+   const Length ilen( Length(1) / len );
+
+   const Vector3<Length> result ( static_cast<Length>( v_[0] ) * ilen,
+                                  static_cast<Length>( v_[1] ) * ilen,
+                                  static_cast<Length>( v_[2] ) * ilen );
+
+   WALBERLA_ASSERT_FLOAT_EQUAL( result.sqrLength(), 1.0, "initial vector: " << result );
+
+   return result;
+}
+//**********************************************************************************************************************
+
+//**********************************************************************************************************************
+/*!\fn Vector3<Length>& Vector3<Type>::getNormalizedIfNotZero() const
 // \brief Calculation of the normalized vector (\f$|\vec{a}|=1\f$) without precondition.
 //
 // \return The normalized vector or the original vector if vector is too small.
 */
 template< typename Type >
-Vector3<typename Vector3<Type>::Length> Vector3<Type>::getNormalizedOrZero() const
+Vector3<typename Vector3<Type>::Length> Vector3<Type>::getNormalizedIfNotZero() const
 {
    const Length len( length() );
 
@@ -871,9 +898,9 @@ Vector3<typename Vector3<Type>::Length> Vector3<Type>::getNormalizedOrZero() con
 
    const Length ilen( Length(1) / len );
 
-   Vector3<Length> result ( static_cast<Length>( v_[0] ) * ilen,
-                            static_cast<Length>( v_[1] ) * ilen,
-                            static_cast<Length>( v_[2] ) * ilen );
+   const Vector3<Length> result ( static_cast<Length>( v_[0] ) * ilen,
+                                  static_cast<Length>( v_[1] ) * ilen,
+                                  static_cast<Length>( v_[2] ) * ilen );
 
    WALBERLA_ASSERT_FLOAT_EQUAL( result.sqrLength(), 1.0, "initial vector: " << result );
 
@@ -1816,22 +1843,29 @@ struct Vector3LexicographicalyLess
 /**
 // \brief Function providing a hash value for Vector3.
 //
-// \tparam  T Datatype of the Vector3's elements.
+// \tparam  T Datatype of the Vector3's elements (only integers are supported).
 // \param   v The vector the hash is computed for.
 // \returns   A hash for the entire Vector3.
 */
-template< typename T >
-size_t hash_value( const Vector3<T> & v )
+template< typename T, typename Enable = std::enable_if_t<std::is_integral_v<T>> >
+std::size_t hash_value( const Vector3<T> & v )
 {
-   size_t seed = 0;
-   std::hash<T> hasher;
+   std::size_t seed;
 
-   seed ^= hasher(v[0]) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-   seed ^= hasher(v[1]) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-   seed ^= hasher(v[2]) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+   if constexpr( sizeof(std::size_t) >= 8 )
+   {
+      seed = (static_cast<std::size_t>(v[0]) << 42) +
+             (static_cast<std::size_t>(v[1]) << 21) +
+             (static_cast<std::size_t>(v[2]) << 0);
+   }
+   else
+   {
+      seed = (static_cast<std::size_t>(v[0]) << 21) +
+             (static_cast<std::size_t>(v[1]) << 10) +
+             (static_cast<std::size_t>(v[2]) << 0);
+   }
 
    return seed;
-
 }
 } // namespace math
 
@@ -1969,7 +2003,7 @@ namespace std
     {
         std::size_t operator()( walberla::Vector3<T> const & v ) const noexcept
         {
-            return walberla::Vector3<T>::hash_value( v );
+            return walberla::math::hash_value( v );
         }
     };
 } // namespace std

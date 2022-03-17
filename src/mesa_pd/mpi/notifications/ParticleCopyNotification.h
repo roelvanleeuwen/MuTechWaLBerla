@@ -58,6 +58,7 @@ public:
       walberla::real_t invMass {real_t(1)};
       walberla::mesa_pd::Vec3 oldForce {real_t(0)};
       size_t shapeID {};
+      std::shared_ptr<walberla::mesa_pd::data::BaseShape> baseShape {make_shared<walberla::mesa_pd::data::BaseShape>()};
       walberla::mesa_pd::Rot3 rotation {};
       walberla::mesa_pd::Vec3 angularVelocity {real_t(0)};
       walberla::mesa_pd::Vec3 oldTorque {real_t(0)};
@@ -69,6 +70,13 @@ public:
       walberla::mesa_pd::Vec3 hydrodynamicTorque {real_t(0)};
       walberla::mesa_pd::Vec3 oldHydrodynamicForce {real_t(0)};
       walberla::mesa_pd::Vec3 oldHydrodynamicTorque {real_t(0)};
+      walberla::real_t virtualMass {real_t(0)};
+      walberla::real_t invMassIncludingVirtual {real_t(0)};
+      walberla::mesa_pd::Vec3 oldLinearAcceleration {real_t(0)};
+      walberla::mesa_pd::Mat3 invInertiaBF {real_t(0)};
+      walberla::mesa_pd::Mat3 virtualInertiaBF {real_t(0)};
+      walberla::mesa_pd::Mat3 invInertiaBFIncludingVirtual {real_t(0)};
+      walberla::mesa_pd::Vec3 oldAngularAcceleration {real_t(0)};
       int64_t clusterID {-1};
       int64_t segmentID {-1};
    };
@@ -92,6 +100,7 @@ inline data::ParticleStorage::iterator createNewParticle(data::ParticleStorage& 
    pIt->setInvMass(data.invMass);
    pIt->setOldForce(data.oldForce);
    pIt->setShapeID(data.shapeID);
+   pIt->setBaseShape(data.baseShape);
    pIt->setRotation(data.rotation);
    pIt->setAngularVelocity(data.angularVelocity);
    pIt->setOldTorque(data.oldTorque);
@@ -103,6 +112,13 @@ inline data::ParticleStorage::iterator createNewParticle(data::ParticleStorage& 
    pIt->setHydrodynamicTorque(data.hydrodynamicTorque);
    pIt->setOldHydrodynamicForce(data.oldHydrodynamicForce);
    pIt->setOldHydrodynamicTorque(data.oldHydrodynamicTorque);
+   pIt->setVirtualMass(data.virtualMass);
+   pIt->setInvMassIncludingVirtual(data.invMassIncludingVirtual);
+   pIt->setOldLinearAcceleration(data.oldLinearAcceleration);
+   pIt->setInvInertiaBF(data.invInertiaBF);
+   pIt->setVirtualInertiaBF(data.virtualInertiaBF);
+   pIt->setInvInertiaBFIncludingVirtual(data.invInertiaBFIncludingVirtual);
+   pIt->setOldAngularAcceleration(data.oldAngularAcceleration);
    pIt->setClusterID(data.clusterID);
    pIt->setSegmentID(data.segmentID);
    return pIt;
@@ -141,6 +157,7 @@ mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, cons
    buf << obj.particle_.getInvMass();
    buf << obj.particle_.getOldForce();
    buf << obj.particle_.getShapeID();
+   buf << obj.particle_.getBaseShape();
    buf << obj.particle_.getRotation();
    buf << obj.particle_.getAngularVelocity();
    buf << obj.particle_.getOldTorque();
@@ -152,6 +169,13 @@ mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, cons
    buf << obj.particle_.getHydrodynamicTorque();
    buf << obj.particle_.getOldHydrodynamicForce();
    buf << obj.particle_.getOldHydrodynamicTorque();
+   buf << obj.particle_.getVirtualMass();
+   buf << obj.particle_.getInvMassIncludingVirtual();
+   buf << obj.particle_.getOldLinearAcceleration();
+   buf << obj.particle_.getInvInertiaBF();
+   buf << obj.particle_.getVirtualInertiaBF();
+   buf << obj.particle_.getInvInertiaBFIncludingVirtual();
+   buf << obj.particle_.getOldAngularAcceleration();
    buf << obj.particle_.getClusterID();
    buf << obj.particle_.getSegmentID();
    return buf;
@@ -171,6 +195,7 @@ mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, mesa_pd:
    buf >> objparam.invMass;
    buf >> objparam.oldForce;
    buf >> objparam.shapeID;
+   buf >> objparam.baseShape;
    buf >> objparam.rotation;
    buf >> objparam.angularVelocity;
    buf >> objparam.oldTorque;
@@ -182,6 +207,13 @@ mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, mesa_pd:
    buf >> objparam.hydrodynamicTorque;
    buf >> objparam.oldHydrodynamicForce;
    buf >> objparam.oldHydrodynamicTorque;
+   buf >> objparam.virtualMass;
+   buf >> objparam.invMassIncludingVirtual;
+   buf >> objparam.oldLinearAcceleration;
+   buf >> objparam.invInertiaBF;
+   buf >> objparam.virtualInertiaBF;
+   buf >> objparam.invInertiaBFIncludingVirtual;
+   buf >> objparam.oldAngularAcceleration;
    buf >> objparam.clusterID;
    buf >> objparam.segmentID;
    return buf;

@@ -38,6 +38,7 @@
 #include <mesa_pd/data/DataTypes.h>
 #include <mesa_pd/data/IAccessor.h>
 #include <mesa_pd/data/Flags.h>
+#include <mesa_pd/data/shape/BaseShape.h>
 #include <blockforest/BlockForest.h>
 #include <mesa_pd/data/STLOverloads.h>
 
@@ -82,6 +83,7 @@ public:
       using force_type = walberla::mesa_pd::Vec3;
       using oldForce_type = walberla::mesa_pd::Vec3;
       using shapeID_type = size_t;
+      using baseShape_type = std::shared_ptr<walberla::mesa_pd::data::BaseShape>;
       using rotation_type = walberla::mesa_pd::Rot3;
       using angularVelocity_type = walberla::mesa_pd::Vec3;
       using torque_type = walberla::mesa_pd::Vec3;
@@ -94,12 +96,20 @@ public:
       using newContactHistory_type = std::map<walberla::id_t, walberla::mesa_pd::data::ContactHistory>;
       using temperature_type = walberla::real_t;
       using heatFlux_type = walberla::real_t;
+      using numContacts_type = uint_t;
       using dv_type = walberla::mesa_pd::Vec3;
       using dw_type = walberla::mesa_pd::Vec3;
       using hydrodynamicForce_type = walberla::mesa_pd::Vec3;
       using hydrodynamicTorque_type = walberla::mesa_pd::Vec3;
       using oldHydrodynamicForce_type = walberla::mesa_pd::Vec3;
       using oldHydrodynamicTorque_type = walberla::mesa_pd::Vec3;
+      using virtualMass_type = walberla::real_t;
+      using invMassIncludingVirtual_type = walberla::real_t;
+      using oldLinearAcceleration_type = walberla::mesa_pd::Vec3;
+      using invInertiaBF_type = walberla::mesa_pd::Mat3;
+      using virtualInertiaBF_type = walberla::mesa_pd::Mat3;
+      using invInertiaBFIncludingVirtual_type = walberla::mesa_pd::Mat3;
+      using oldAngularAcceleration_type = walberla::mesa_pd::Vec3;
       using clusterID_type = int64_t;
       using segmentID_type = int64_t;
       using neighborState_type = std::unordered_set<walberla::mpi::MPIRank>;
@@ -149,6 +159,10 @@ public:
       shapeID_type& getShapeIDRef() {return storage_.getShapeIDRef(i_);}
       void setShapeID(shapeID_type const & v) { storage_.setShapeID(i_, v);}
       
+      baseShape_type const & getBaseShape() const {return storage_.getBaseShape(i_);}
+      baseShape_type& getBaseShapeRef() {return storage_.getBaseShapeRef(i_);}
+      void setBaseShape(baseShape_type const & v) { storage_.setBaseShape(i_, v);}
+      
       rotation_type const & getRotation() const {return storage_.getRotation(i_);}
       rotation_type& getRotationRef() {return storage_.getRotationRef(i_);}
       void setRotation(rotation_type const & v) { storage_.setRotation(i_, v);}
@@ -197,6 +211,10 @@ public:
       heatFlux_type& getHeatFluxRef() {return storage_.getHeatFluxRef(i_);}
       void setHeatFlux(heatFlux_type const & v) { storage_.setHeatFlux(i_, v);}
       
+      numContacts_type const & getNumContacts() const {return storage_.getNumContacts(i_);}
+      numContacts_type& getNumContactsRef() {return storage_.getNumContactsRef(i_);}
+      void setNumContacts(numContacts_type const & v) { storage_.setNumContacts(i_, v);}
+      
       dv_type const & getDv() const {return storage_.getDv(i_);}
       dv_type& getDvRef() {return storage_.getDvRef(i_);}
       void setDv(dv_type const & v) { storage_.setDv(i_, v);}
@@ -220,6 +238,34 @@ public:
       oldHydrodynamicTorque_type const & getOldHydrodynamicTorque() const {return storage_.getOldHydrodynamicTorque(i_);}
       oldHydrodynamicTorque_type& getOldHydrodynamicTorqueRef() {return storage_.getOldHydrodynamicTorqueRef(i_);}
       void setOldHydrodynamicTorque(oldHydrodynamicTorque_type const & v) { storage_.setOldHydrodynamicTorque(i_, v);}
+      
+      virtualMass_type const & getVirtualMass() const {return storage_.getVirtualMass(i_);}
+      virtualMass_type& getVirtualMassRef() {return storage_.getVirtualMassRef(i_);}
+      void setVirtualMass(virtualMass_type const & v) { storage_.setVirtualMass(i_, v);}
+      
+      invMassIncludingVirtual_type const & getInvMassIncludingVirtual() const {return storage_.getInvMassIncludingVirtual(i_);}
+      invMassIncludingVirtual_type& getInvMassIncludingVirtualRef() {return storage_.getInvMassIncludingVirtualRef(i_);}
+      void setInvMassIncludingVirtual(invMassIncludingVirtual_type const & v) { storage_.setInvMassIncludingVirtual(i_, v);}
+      
+      oldLinearAcceleration_type const & getOldLinearAcceleration() const {return storage_.getOldLinearAcceleration(i_);}
+      oldLinearAcceleration_type& getOldLinearAccelerationRef() {return storage_.getOldLinearAccelerationRef(i_);}
+      void setOldLinearAcceleration(oldLinearAcceleration_type const & v) { storage_.setOldLinearAcceleration(i_, v);}
+      
+      invInertiaBF_type const & getInvInertiaBF() const {return storage_.getInvInertiaBF(i_);}
+      invInertiaBF_type& getInvInertiaBFRef() {return storage_.getInvInertiaBFRef(i_);}
+      void setInvInertiaBF(invInertiaBF_type const & v) { storage_.setInvInertiaBF(i_, v);}
+      
+      virtualInertiaBF_type const & getVirtualInertiaBF() const {return storage_.getVirtualInertiaBF(i_);}
+      virtualInertiaBF_type& getVirtualInertiaBFRef() {return storage_.getVirtualInertiaBFRef(i_);}
+      void setVirtualInertiaBF(virtualInertiaBF_type const & v) { storage_.setVirtualInertiaBF(i_, v);}
+      
+      invInertiaBFIncludingVirtual_type const & getInvInertiaBFIncludingVirtual() const {return storage_.getInvInertiaBFIncludingVirtual(i_);}
+      invInertiaBFIncludingVirtual_type& getInvInertiaBFIncludingVirtualRef() {return storage_.getInvInertiaBFIncludingVirtualRef(i_);}
+      void setInvInertiaBFIncludingVirtual(invInertiaBFIncludingVirtual_type const & v) { storage_.setInvInertiaBFIncludingVirtual(i_, v);}
+      
+      oldAngularAcceleration_type const & getOldAngularAcceleration() const {return storage_.getOldAngularAcceleration(i_);}
+      oldAngularAcceleration_type& getOldAngularAccelerationRef() {return storage_.getOldAngularAccelerationRef(i_);}
+      void setOldAngularAcceleration(oldAngularAcceleration_type const & v) { storage_.setOldAngularAcceleration(i_, v);}
       
       clusterID_type const & getClusterID() const {return storage_.getClusterID(i_);}
       clusterID_type& getClusterIDRef() {return storage_.getClusterIDRef(i_);}
@@ -304,6 +350,7 @@ public:
    using force_type = walberla::mesa_pd::Vec3;
    using oldForce_type = walberla::mesa_pd::Vec3;
    using shapeID_type = size_t;
+   using baseShape_type = std::shared_ptr<walberla::mesa_pd::data::BaseShape>;
    using rotation_type = walberla::mesa_pd::Rot3;
    using angularVelocity_type = walberla::mesa_pd::Vec3;
    using torque_type = walberla::mesa_pd::Vec3;
@@ -316,12 +363,20 @@ public:
    using newContactHistory_type = std::map<walberla::id_t, walberla::mesa_pd::data::ContactHistory>;
    using temperature_type = walberla::real_t;
    using heatFlux_type = walberla::real_t;
+   using numContacts_type = uint_t;
    using dv_type = walberla::mesa_pd::Vec3;
    using dw_type = walberla::mesa_pd::Vec3;
    using hydrodynamicForce_type = walberla::mesa_pd::Vec3;
    using hydrodynamicTorque_type = walberla::mesa_pd::Vec3;
    using oldHydrodynamicForce_type = walberla::mesa_pd::Vec3;
    using oldHydrodynamicTorque_type = walberla::mesa_pd::Vec3;
+   using virtualMass_type = walberla::real_t;
+   using invMassIncludingVirtual_type = walberla::real_t;
+   using oldLinearAcceleration_type = walberla::mesa_pd::Vec3;
+   using invInertiaBF_type = walberla::mesa_pd::Mat3;
+   using virtualInertiaBF_type = walberla::mesa_pd::Mat3;
+   using invInertiaBFIncludingVirtual_type = walberla::mesa_pd::Mat3;
+   using oldAngularAcceleration_type = walberla::mesa_pd::Vec3;
    using clusterID_type = int64_t;
    using segmentID_type = int64_t;
    using neighborState_type = std::unordered_set<walberla::mpi::MPIRank>;
@@ -371,6 +426,10 @@ public:
    shapeID_type& getShapeIDRef(const size_t idx) {return shapeID_[idx];}
    void setShapeID(const size_t idx, shapeID_type const & v) { shapeID_[idx] = v; }
    
+   baseShape_type const & getBaseShape(const size_t idx) const {return baseShape_[idx];}
+   baseShape_type& getBaseShapeRef(const size_t idx) {return baseShape_[idx];}
+   void setBaseShape(const size_t idx, baseShape_type const & v) { baseShape_[idx] = v; }
+   
    rotation_type const & getRotation(const size_t idx) const {return rotation_[idx];}
    rotation_type& getRotationRef(const size_t idx) {return rotation_[idx];}
    void setRotation(const size_t idx, rotation_type const & v) { rotation_[idx] = v; }
@@ -419,6 +478,10 @@ public:
    heatFlux_type& getHeatFluxRef(const size_t idx) {return heatFlux_[idx];}
    void setHeatFlux(const size_t idx, heatFlux_type const & v) { heatFlux_[idx] = v; }
    
+   numContacts_type const & getNumContacts(const size_t idx) const {return numContacts_[idx];}
+   numContacts_type& getNumContactsRef(const size_t idx) {return numContacts_[idx];}
+   void setNumContacts(const size_t idx, numContacts_type const & v) { numContacts_[idx] = v; }
+   
    dv_type const & getDv(const size_t idx) const {return dv_[idx];}
    dv_type& getDvRef(const size_t idx) {return dv_[idx];}
    void setDv(const size_t idx, dv_type const & v) { dv_[idx] = v; }
@@ -442,6 +505,34 @@ public:
    oldHydrodynamicTorque_type const & getOldHydrodynamicTorque(const size_t idx) const {return oldHydrodynamicTorque_[idx];}
    oldHydrodynamicTorque_type& getOldHydrodynamicTorqueRef(const size_t idx) {return oldHydrodynamicTorque_[idx];}
    void setOldHydrodynamicTorque(const size_t idx, oldHydrodynamicTorque_type const & v) { oldHydrodynamicTorque_[idx] = v; }
+   
+   virtualMass_type const & getVirtualMass(const size_t idx) const {return virtualMass_[idx];}
+   virtualMass_type& getVirtualMassRef(const size_t idx) {return virtualMass_[idx];}
+   void setVirtualMass(const size_t idx, virtualMass_type const & v) { virtualMass_[idx] = v; }
+   
+   invMassIncludingVirtual_type const & getInvMassIncludingVirtual(const size_t idx) const {return invMassIncludingVirtual_[idx];}
+   invMassIncludingVirtual_type& getInvMassIncludingVirtualRef(const size_t idx) {return invMassIncludingVirtual_[idx];}
+   void setInvMassIncludingVirtual(const size_t idx, invMassIncludingVirtual_type const & v) { invMassIncludingVirtual_[idx] = v; }
+   
+   oldLinearAcceleration_type const & getOldLinearAcceleration(const size_t idx) const {return oldLinearAcceleration_[idx];}
+   oldLinearAcceleration_type& getOldLinearAccelerationRef(const size_t idx) {return oldLinearAcceleration_[idx];}
+   void setOldLinearAcceleration(const size_t idx, oldLinearAcceleration_type const & v) { oldLinearAcceleration_[idx] = v; }
+   
+   invInertiaBF_type const & getInvInertiaBF(const size_t idx) const {return invInertiaBF_[idx];}
+   invInertiaBF_type& getInvInertiaBFRef(const size_t idx) {return invInertiaBF_[idx];}
+   void setInvInertiaBF(const size_t idx, invInertiaBF_type const & v) { invInertiaBF_[idx] = v; }
+   
+   virtualInertiaBF_type const & getVirtualInertiaBF(const size_t idx) const {return virtualInertiaBF_[idx];}
+   virtualInertiaBF_type& getVirtualInertiaBFRef(const size_t idx) {return virtualInertiaBF_[idx];}
+   void setVirtualInertiaBF(const size_t idx, virtualInertiaBF_type const & v) { virtualInertiaBF_[idx] = v; }
+   
+   invInertiaBFIncludingVirtual_type const & getInvInertiaBFIncludingVirtual(const size_t idx) const {return invInertiaBFIncludingVirtual_[idx];}
+   invInertiaBFIncludingVirtual_type& getInvInertiaBFIncludingVirtualRef(const size_t idx) {return invInertiaBFIncludingVirtual_[idx];}
+   void setInvInertiaBFIncludingVirtual(const size_t idx, invInertiaBFIncludingVirtual_type const & v) { invInertiaBFIncludingVirtual_[idx] = v; }
+   
+   oldAngularAcceleration_type const & getOldAngularAcceleration(const size_t idx) const {return oldAngularAcceleration_[idx];}
+   oldAngularAcceleration_type& getOldAngularAccelerationRef(const size_t idx) {return oldAngularAcceleration_[idx];}
+   void setOldAngularAcceleration(const size_t idx, oldAngularAcceleration_type const & v) { oldAngularAcceleration_[idx] = v; }
    
    clusterID_type const & getClusterID(const size_t idx) const {return clusterID_[idx];}
    clusterID_type& getClusterIDRef(const size_t idx) {return clusterID_[idx];}
@@ -557,6 +648,7 @@ public:
    std::vector<force_type> force_ {};
    std::vector<oldForce_type> oldForce_ {};
    std::vector<shapeID_type> shapeID_ {};
+   std::vector<baseShape_type> baseShape_ {};
    std::vector<rotation_type> rotation_ {};
    std::vector<angularVelocity_type> angularVelocity_ {};
    std::vector<torque_type> torque_ {};
@@ -569,12 +661,20 @@ public:
    std::vector<newContactHistory_type> newContactHistory_ {};
    std::vector<temperature_type> temperature_ {};
    std::vector<heatFlux_type> heatFlux_ {};
+   std::vector<numContacts_type> numContacts_ {};
    std::vector<dv_type> dv_ {};
    std::vector<dw_type> dw_ {};
    std::vector<hydrodynamicForce_type> hydrodynamicForce_ {};
    std::vector<hydrodynamicTorque_type> hydrodynamicTorque_ {};
    std::vector<oldHydrodynamicForce_type> oldHydrodynamicForce_ {};
    std::vector<oldHydrodynamicTorque_type> oldHydrodynamicTorque_ {};
+   std::vector<virtualMass_type> virtualMass_ {};
+   std::vector<invMassIncludingVirtual_type> invMassIncludingVirtual_ {};
+   std::vector<oldLinearAcceleration_type> oldLinearAcceleration_ {};
+   std::vector<invInertiaBF_type> invInertiaBF_ {};
+   std::vector<virtualInertiaBF_type> virtualInertiaBF_ {};
+   std::vector<invInertiaBFIncludingVirtual_type> invInertiaBFIncludingVirtual_ {};
+   std::vector<oldAngularAcceleration_type> oldAngularAcceleration_ {};
    std::vector<clusterID_type> clusterID_ {};
    std::vector<segmentID_type> segmentID_ {};
    std::vector<neighborState_type> neighborState_ {};
@@ -598,6 +698,7 @@ ParticleStorage::Particle& ParticleStorage::Particle::operator=(const ParticleSt
    getForceRef() = rhs.getForce();
    getOldForceRef() = rhs.getOldForce();
    getShapeIDRef() = rhs.getShapeID();
+   getBaseShapeRef() = rhs.getBaseShape();
    getRotationRef() = rhs.getRotation();
    getAngularVelocityRef() = rhs.getAngularVelocity();
    getTorqueRef() = rhs.getTorque();
@@ -610,12 +711,20 @@ ParticleStorage::Particle& ParticleStorage::Particle::operator=(const ParticleSt
    getNewContactHistoryRef() = rhs.getNewContactHistory();
    getTemperatureRef() = rhs.getTemperature();
    getHeatFluxRef() = rhs.getHeatFlux();
+   getNumContactsRef() = rhs.getNumContacts();
    getDvRef() = rhs.getDv();
    getDwRef() = rhs.getDw();
    getHydrodynamicForceRef() = rhs.getHydrodynamicForce();
    getHydrodynamicTorqueRef() = rhs.getHydrodynamicTorque();
    getOldHydrodynamicForceRef() = rhs.getOldHydrodynamicForce();
    getOldHydrodynamicTorqueRef() = rhs.getOldHydrodynamicTorque();
+   getVirtualMassRef() = rhs.getVirtualMass();
+   getInvMassIncludingVirtualRef() = rhs.getInvMassIncludingVirtual();
+   getOldLinearAccelerationRef() = rhs.getOldLinearAcceleration();
+   getInvInertiaBFRef() = rhs.getInvInertiaBF();
+   getVirtualInertiaBFRef() = rhs.getVirtualInertiaBF();
+   getInvInertiaBFIncludingVirtualRef() = rhs.getInvInertiaBFIncludingVirtual();
+   getOldAngularAccelerationRef() = rhs.getOldAngularAcceleration();
    getClusterIDRef() = rhs.getClusterID();
    getSegmentIDRef() = rhs.getSegmentID();
    getNeighborStateRef() = rhs.getNeighborState();
@@ -636,6 +745,7 @@ ParticleStorage::Particle& ParticleStorage::Particle::operator=(ParticleStorage:
    getForceRef() = std::move(rhs.getForceRef());
    getOldForceRef() = std::move(rhs.getOldForceRef());
    getShapeIDRef() = std::move(rhs.getShapeIDRef());
+   getBaseShapeRef() = std::move(rhs.getBaseShapeRef());
    getRotationRef() = std::move(rhs.getRotationRef());
    getAngularVelocityRef() = std::move(rhs.getAngularVelocityRef());
    getTorqueRef() = std::move(rhs.getTorqueRef());
@@ -648,12 +758,20 @@ ParticleStorage::Particle& ParticleStorage::Particle::operator=(ParticleStorage:
    getNewContactHistoryRef() = std::move(rhs.getNewContactHistoryRef());
    getTemperatureRef() = std::move(rhs.getTemperatureRef());
    getHeatFluxRef() = std::move(rhs.getHeatFluxRef());
+   getNumContactsRef() = std::move(rhs.getNumContactsRef());
    getDvRef() = std::move(rhs.getDvRef());
    getDwRef() = std::move(rhs.getDwRef());
    getHydrodynamicForceRef() = std::move(rhs.getHydrodynamicForceRef());
    getHydrodynamicTorqueRef() = std::move(rhs.getHydrodynamicTorqueRef());
    getOldHydrodynamicForceRef() = std::move(rhs.getOldHydrodynamicForceRef());
    getOldHydrodynamicTorqueRef() = std::move(rhs.getOldHydrodynamicTorqueRef());
+   getVirtualMassRef() = std::move(rhs.getVirtualMassRef());
+   getInvMassIncludingVirtualRef() = std::move(rhs.getInvMassIncludingVirtualRef());
+   getOldLinearAccelerationRef() = std::move(rhs.getOldLinearAccelerationRef());
+   getInvInertiaBFRef() = std::move(rhs.getInvInertiaBFRef());
+   getVirtualInertiaBFRef() = std::move(rhs.getVirtualInertiaBFRef());
+   getInvInertiaBFIncludingVirtualRef() = std::move(rhs.getInvInertiaBFIncludingVirtualRef());
+   getOldAngularAccelerationRef() = std::move(rhs.getOldAngularAccelerationRef());
    getClusterIDRef() = std::move(rhs.getClusterIDRef());
    getSegmentIDRef() = std::move(rhs.getSegmentIDRef());
    getNeighborStateRef() = std::move(rhs.getNeighborStateRef());
@@ -675,6 +793,7 @@ void swap(ParticleStorage::Particle lhs, ParticleStorage::Particle rhs)
    std::swap(lhs.getForceRef(), rhs.getForceRef());
    std::swap(lhs.getOldForceRef(), rhs.getOldForceRef());
    std::swap(lhs.getShapeIDRef(), rhs.getShapeIDRef());
+   std::swap(lhs.getBaseShapeRef(), rhs.getBaseShapeRef());
    std::swap(lhs.getRotationRef(), rhs.getRotationRef());
    std::swap(lhs.getAngularVelocityRef(), rhs.getAngularVelocityRef());
    std::swap(lhs.getTorqueRef(), rhs.getTorqueRef());
@@ -687,12 +806,20 @@ void swap(ParticleStorage::Particle lhs, ParticleStorage::Particle rhs)
    std::swap(lhs.getNewContactHistoryRef(), rhs.getNewContactHistoryRef());
    std::swap(lhs.getTemperatureRef(), rhs.getTemperatureRef());
    std::swap(lhs.getHeatFluxRef(), rhs.getHeatFluxRef());
+   std::swap(lhs.getNumContactsRef(), rhs.getNumContactsRef());
    std::swap(lhs.getDvRef(), rhs.getDvRef());
    std::swap(lhs.getDwRef(), rhs.getDwRef());
    std::swap(lhs.getHydrodynamicForceRef(), rhs.getHydrodynamicForceRef());
    std::swap(lhs.getHydrodynamicTorqueRef(), rhs.getHydrodynamicTorqueRef());
    std::swap(lhs.getOldHydrodynamicForceRef(), rhs.getOldHydrodynamicForceRef());
    std::swap(lhs.getOldHydrodynamicTorqueRef(), rhs.getOldHydrodynamicTorqueRef());
+   std::swap(lhs.getVirtualMassRef(), rhs.getVirtualMassRef());
+   std::swap(lhs.getInvMassIncludingVirtualRef(), rhs.getInvMassIncludingVirtualRef());
+   std::swap(lhs.getOldLinearAccelerationRef(), rhs.getOldLinearAccelerationRef());
+   std::swap(lhs.getInvInertiaBFRef(), rhs.getInvInertiaBFRef());
+   std::swap(lhs.getVirtualInertiaBFRef(), rhs.getVirtualInertiaBFRef());
+   std::swap(lhs.getInvInertiaBFIncludingVirtualRef(), rhs.getInvInertiaBFIncludingVirtualRef());
+   std::swap(lhs.getOldAngularAccelerationRef(), rhs.getOldAngularAccelerationRef());
    std::swap(lhs.getClusterIDRef(), rhs.getClusterIDRef());
    std::swap(lhs.getSegmentIDRef(), rhs.getSegmentIDRef());
    std::swap(lhs.getNeighborStateRef(), rhs.getNeighborStateRef());
@@ -714,6 +841,7 @@ std::ostream& operator<<( std::ostream& os, const ParticleStorage::Particle& p )
          "force               : " << p.getForce() << "\n" <<
          "oldForce            : " << p.getOldForce() << "\n" <<
          "shapeID             : " << p.getShapeID() << "\n" <<
+         "baseShape           : " << p.getBaseShape() << "\n" <<
          "rotation            : " << p.getRotation() << "\n" <<
          "angularVelocity     : " << p.getAngularVelocity() << "\n" <<
          "torque              : " << p.getTorque() << "\n" <<
@@ -726,12 +854,20 @@ std::ostream& operator<<( std::ostream& os, const ParticleStorage::Particle& p )
          "newContactHistory   : " << p.getNewContactHistory() << "\n" <<
          "temperature         : " << p.getTemperature() << "\n" <<
          "heatFlux            : " << p.getHeatFlux() << "\n" <<
+         "numContacts         : " << p.getNumContacts() << "\n" <<
          "dv                  : " << p.getDv() << "\n" <<
          "dw                  : " << p.getDw() << "\n" <<
          "hydrodynamicForce   : " << p.getHydrodynamicForce() << "\n" <<
          "hydrodynamicTorque  : " << p.getHydrodynamicTorque() << "\n" <<
          "oldHydrodynamicForce: " << p.getOldHydrodynamicForce() << "\n" <<
          "oldHydrodynamicTorque: " << p.getOldHydrodynamicTorque() << "\n" <<
+         "virtualMass         : " << p.getVirtualMass() << "\n" <<
+         "invMassIncludingVirtual: " << p.getInvMassIncludingVirtual() << "\n" <<
+         "oldLinearAcceleration: " << p.getOldLinearAcceleration() << "\n" <<
+         "invInertiaBF        : " << p.getInvInertiaBF() << "\n" <<
+         "virtualInertiaBF    : " << p.getVirtualInertiaBF() << "\n" <<
+         "invInertiaBFIncludingVirtual: " << p.getInvInertiaBFIncludingVirtual() << "\n" <<
+         "oldAngularAcceleration: " << p.getOldAngularAcceleration() << "\n" <<
          "clusterID           : " << p.getClusterID() << "\n" <<
          "segmentID           : " << p.getSegmentID() << "\n" <<
          "neighborState       : " << p.getNeighborState() << "\n" <<
@@ -823,6 +959,7 @@ inline ParticleStorage::iterator ParticleStorage::create(const id_t& uid)
    force_.emplace_back(real_t(0));
    oldForce_.emplace_back(real_t(0));
    shapeID_.emplace_back();
+   baseShape_.emplace_back(make_shared<walberla::mesa_pd::data::BaseShape>());
    rotation_.emplace_back();
    angularVelocity_.emplace_back(real_t(0));
    torque_.emplace_back(real_t(0));
@@ -835,12 +972,20 @@ inline ParticleStorage::iterator ParticleStorage::create(const id_t& uid)
    newContactHistory_.emplace_back();
    temperature_.emplace_back(real_t(0));
    heatFlux_.emplace_back(real_t(0));
+   numContacts_.emplace_back(0);
    dv_.emplace_back(real_t(0));
    dw_.emplace_back(real_t(0));
    hydrodynamicForce_.emplace_back(real_t(0));
    hydrodynamicTorque_.emplace_back(real_t(0));
    oldHydrodynamicForce_.emplace_back(real_t(0));
    oldHydrodynamicTorque_.emplace_back(real_t(0));
+   virtualMass_.emplace_back(real_t(0));
+   invMassIncludingVirtual_.emplace_back(real_t(0));
+   oldLinearAcceleration_.emplace_back(real_t(0));
+   invInertiaBF_.emplace_back(real_t(0));
+   virtualInertiaBF_.emplace_back(real_t(0));
+   invInertiaBFIncludingVirtual_.emplace_back(real_t(0));
+   oldAngularAcceleration_.emplace_back(real_t(0));
    clusterID_.emplace_back(-1);
    segmentID_.emplace_back(-1);
    neighborState_.emplace_back();
@@ -887,6 +1032,7 @@ inline ParticleStorage::iterator ParticleStorage::erase(iterator& it)
    force_.pop_back();
    oldForce_.pop_back();
    shapeID_.pop_back();
+   baseShape_.pop_back();
    rotation_.pop_back();
    angularVelocity_.pop_back();
    torque_.pop_back();
@@ -899,12 +1045,20 @@ inline ParticleStorage::iterator ParticleStorage::erase(iterator& it)
    newContactHistory_.pop_back();
    temperature_.pop_back();
    heatFlux_.pop_back();
+   numContacts_.pop_back();
    dv_.pop_back();
    dw_.pop_back();
    hydrodynamicForce_.pop_back();
    hydrodynamicTorque_.pop_back();
    oldHydrodynamicForce_.pop_back();
    oldHydrodynamicTorque_.pop_back();
+   virtualMass_.pop_back();
+   invMassIncludingVirtual_.pop_back();
+   oldLinearAcceleration_.pop_back();
+   invInertiaBF_.pop_back();
+   virtualInertiaBF_.pop_back();
+   invInertiaBFIncludingVirtual_.pop_back();
+   oldAngularAcceleration_.pop_back();
    clusterID_.pop_back();
    segmentID_.pop_back();
    neighborState_.pop_back();
@@ -938,6 +1092,7 @@ inline void ParticleStorage::reserve(const size_t size)
    force_.reserve(size);
    oldForce_.reserve(size);
    shapeID_.reserve(size);
+   baseShape_.reserve(size);
    rotation_.reserve(size);
    angularVelocity_.reserve(size);
    torque_.reserve(size);
@@ -950,12 +1105,20 @@ inline void ParticleStorage::reserve(const size_t size)
    newContactHistory_.reserve(size);
    temperature_.reserve(size);
    heatFlux_.reserve(size);
+   numContacts_.reserve(size);
    dv_.reserve(size);
    dw_.reserve(size);
    hydrodynamicForce_.reserve(size);
    hydrodynamicTorque_.reserve(size);
    oldHydrodynamicForce_.reserve(size);
    oldHydrodynamicTorque_.reserve(size);
+   virtualMass_.reserve(size);
+   invMassIncludingVirtual_.reserve(size);
+   oldLinearAcceleration_.reserve(size);
+   invInertiaBF_.reserve(size);
+   virtualInertiaBF_.reserve(size);
+   invInertiaBFIncludingVirtual_.reserve(size);
+   oldAngularAcceleration_.reserve(size);
    clusterID_.reserve(size);
    segmentID_.reserve(size);
    neighborState_.reserve(size);
@@ -974,6 +1137,7 @@ inline void ParticleStorage::clear()
    force_.clear();
    oldForce_.clear();
    shapeID_.clear();
+   baseShape_.clear();
    rotation_.clear();
    angularVelocity_.clear();
    torque_.clear();
@@ -986,12 +1150,20 @@ inline void ParticleStorage::clear()
    newContactHistory_.clear();
    temperature_.clear();
    heatFlux_.clear();
+   numContacts_.clear();
    dv_.clear();
    dw_.clear();
    hydrodynamicForce_.clear();
    hydrodynamicTorque_.clear();
    oldHydrodynamicForce_.clear();
    oldHydrodynamicTorque_.clear();
+   virtualMass_.clear();
+   invMassIncludingVirtual_.clear();
+   oldLinearAcceleration_.clear();
+   invInertiaBF_.clear();
+   virtualInertiaBF_.clear();
+   invInertiaBFIncludingVirtual_.clear();
+   oldAngularAcceleration_.clear();
    clusterID_.clear();
    segmentID_.clear();
    neighborState_.clear();
@@ -1011,6 +1183,7 @@ inline size_t ParticleStorage::size() const
    //WALBERLA_ASSERT_EQUAL( uid_.size(), force.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), oldForce.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), shapeID.size() );
+   //WALBERLA_ASSERT_EQUAL( uid_.size(), baseShape.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), rotation.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), angularVelocity.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), torque.size() );
@@ -1023,12 +1196,20 @@ inline size_t ParticleStorage::size() const
    //WALBERLA_ASSERT_EQUAL( uid_.size(), newContactHistory.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), temperature.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), heatFlux.size() );
+   //WALBERLA_ASSERT_EQUAL( uid_.size(), numContacts.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), dv.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), dw.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), hydrodynamicForce.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), hydrodynamicTorque.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), oldHydrodynamicForce.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), oldHydrodynamicTorque.size() );
+   //WALBERLA_ASSERT_EQUAL( uid_.size(), virtualMass.size() );
+   //WALBERLA_ASSERT_EQUAL( uid_.size(), invMassIncludingVirtual.size() );
+   //WALBERLA_ASSERT_EQUAL( uid_.size(), oldLinearAcceleration.size() );
+   //WALBERLA_ASSERT_EQUAL( uid_.size(), invInertiaBF.size() );
+   //WALBERLA_ASSERT_EQUAL( uid_.size(), virtualInertiaBF.size() );
+   //WALBERLA_ASSERT_EQUAL( uid_.size(), invInertiaBFIncludingVirtual.size() );
+   //WALBERLA_ASSERT_EQUAL( uid_.size(), oldAngularAcceleration.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), clusterID.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), segmentID.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), neighborState.size() );
@@ -1297,6 +1478,15 @@ public:
    size_t const & operator()(const data::Particle& p) const {return p.getShapeID();}
 };
 ///Predicate that selects a certain property from a Particle
+class SelectParticleBaseShape
+{
+public:
+   using return_type = std::shared_ptr<walberla::mesa_pd::data::BaseShape>;
+   std::shared_ptr<walberla::mesa_pd::data::BaseShape>& operator()(data::Particle& p) const {return p.getBaseShapeRef();}
+   std::shared_ptr<walberla::mesa_pd::data::BaseShape>& operator()(data::Particle&& p) const {return p.getBaseShapeRef();}
+   std::shared_ptr<walberla::mesa_pd::data::BaseShape> const & operator()(const data::Particle& p) const {return p.getBaseShape();}
+};
+///Predicate that selects a certain property from a Particle
 class SelectParticleRotation
 {
 public:
@@ -1405,6 +1595,15 @@ public:
    walberla::real_t const & operator()(const data::Particle& p) const {return p.getHeatFlux();}
 };
 ///Predicate that selects a certain property from a Particle
+class SelectParticleNumContacts
+{
+public:
+   using return_type = uint_t;
+   uint_t& operator()(data::Particle& p) const {return p.getNumContactsRef();}
+   uint_t& operator()(data::Particle&& p) const {return p.getNumContactsRef();}
+   uint_t const & operator()(const data::Particle& p) const {return p.getNumContacts();}
+};
+///Predicate that selects a certain property from a Particle
 class SelectParticleDv
 {
 public:
@@ -1457,6 +1656,69 @@ public:
    walberla::mesa_pd::Vec3& operator()(data::Particle& p) const {return p.getOldHydrodynamicTorqueRef();}
    walberla::mesa_pd::Vec3& operator()(data::Particle&& p) const {return p.getOldHydrodynamicTorqueRef();}
    walberla::mesa_pd::Vec3 const & operator()(const data::Particle& p) const {return p.getOldHydrodynamicTorque();}
+};
+///Predicate that selects a certain property from a Particle
+class SelectParticleVirtualMass
+{
+public:
+   using return_type = walberla::real_t;
+   walberla::real_t& operator()(data::Particle& p) const {return p.getVirtualMassRef();}
+   walberla::real_t& operator()(data::Particle&& p) const {return p.getVirtualMassRef();}
+   walberla::real_t const & operator()(const data::Particle& p) const {return p.getVirtualMass();}
+};
+///Predicate that selects a certain property from a Particle
+class SelectParticleInvMassIncludingVirtual
+{
+public:
+   using return_type = walberla::real_t;
+   walberla::real_t& operator()(data::Particle& p) const {return p.getInvMassIncludingVirtualRef();}
+   walberla::real_t& operator()(data::Particle&& p) const {return p.getInvMassIncludingVirtualRef();}
+   walberla::real_t const & operator()(const data::Particle& p) const {return p.getInvMassIncludingVirtual();}
+};
+///Predicate that selects a certain property from a Particle
+class SelectParticleOldLinearAcceleration
+{
+public:
+   using return_type = walberla::mesa_pd::Vec3;
+   walberla::mesa_pd::Vec3& operator()(data::Particle& p) const {return p.getOldLinearAccelerationRef();}
+   walberla::mesa_pd::Vec3& operator()(data::Particle&& p) const {return p.getOldLinearAccelerationRef();}
+   walberla::mesa_pd::Vec3 const & operator()(const data::Particle& p) const {return p.getOldLinearAcceleration();}
+};
+///Predicate that selects a certain property from a Particle
+class SelectParticleInvInertiaBF
+{
+public:
+   using return_type = walberla::mesa_pd::Mat3;
+   walberla::mesa_pd::Mat3& operator()(data::Particle& p) const {return p.getInvInertiaBFRef();}
+   walberla::mesa_pd::Mat3& operator()(data::Particle&& p) const {return p.getInvInertiaBFRef();}
+   walberla::mesa_pd::Mat3 const & operator()(const data::Particle& p) const {return p.getInvInertiaBF();}
+};
+///Predicate that selects a certain property from a Particle
+class SelectParticleVirtualInertiaBF
+{
+public:
+   using return_type = walberla::mesa_pd::Mat3;
+   walberla::mesa_pd::Mat3& operator()(data::Particle& p) const {return p.getVirtualInertiaBFRef();}
+   walberla::mesa_pd::Mat3& operator()(data::Particle&& p) const {return p.getVirtualInertiaBFRef();}
+   walberla::mesa_pd::Mat3 const & operator()(const data::Particle& p) const {return p.getVirtualInertiaBF();}
+};
+///Predicate that selects a certain property from a Particle
+class SelectParticleInvInertiaBFIncludingVirtual
+{
+public:
+   using return_type = walberla::mesa_pd::Mat3;
+   walberla::mesa_pd::Mat3& operator()(data::Particle& p) const {return p.getInvInertiaBFIncludingVirtualRef();}
+   walberla::mesa_pd::Mat3& operator()(data::Particle&& p) const {return p.getInvInertiaBFIncludingVirtualRef();}
+   walberla::mesa_pd::Mat3 const & operator()(const data::Particle& p) const {return p.getInvInertiaBFIncludingVirtual();}
+};
+///Predicate that selects a certain property from a Particle
+class SelectParticleOldAngularAcceleration
+{
+public:
+   using return_type = walberla::mesa_pd::Vec3;
+   walberla::mesa_pd::Vec3& operator()(data::Particle& p) const {return p.getOldAngularAccelerationRef();}
+   walberla::mesa_pd::Vec3& operator()(data::Particle&& p) const {return p.getOldAngularAccelerationRef();}
+   walberla::mesa_pd::Vec3 const & operator()(const data::Particle& p) const {return p.getOldAngularAcceleration();}
 };
 ///Predicate that selects a certain property from a Particle
 class SelectParticleClusterID

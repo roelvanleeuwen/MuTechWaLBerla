@@ -25,7 +25,7 @@
 #include <core/mpi/RecvBuffer.h>
 #include <core/mpi/SendBuffer.h>
 
-#include "geometry/structured/extern/lodepng.h"
+#include "lodepng.h"
 
 namespace walberla {
 namespace pe {
@@ -366,6 +366,7 @@ void Raytracer::syncImageUsingMPIReduce(std::vector<BodyIntersectionInfo>& inter
 }
   
 /*!\brief Conflate the intersectionsBuffer of each process onto the root process using MPI_Gather.
+ * \param intersections Intersections to conflate.
  * \param intersectionsBuffer Buffer containing intersections.
  * \param tt Optional TimingTree.
  *

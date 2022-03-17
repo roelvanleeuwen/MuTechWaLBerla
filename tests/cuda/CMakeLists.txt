@@ -12,7 +12,10 @@ waLBerla_execute_test( NAME  GPUPackInfoTest )
 waLBerla_compile_test( FILES communication/GPUPackInfoCommunicationTest.cpp DEPENDS domain_decomposition blockforest stencil )
 waLBerla_execute_test( NAME  GPUPackInfoCommunicationTest )
 
-waLBerla_compile_test( FILES FieldTransferTest )
+waLBerla_compile_test( FILES communication/GPUBlockSelectorCommunicationTest.cpp DEPENDS domain_decomposition blockforest stencil )
+waLBerla_execute_test( NAME  GPUBlockSelectorCommunicationTest )
+
+waLBerla_compile_test( FILES FieldTransferTest.cpp )
 waLBerla_execute_test( NAME  FieldTransferTest )
 
 waLBerla_compile_test( FILES SimpleKernelTest.cpp Kernels.cu DEPENDS blockforest timeloop gui )
@@ -35,10 +38,10 @@ waLBerla_compile_test( FILES codegen/CodegenPoissonGPU.cpp DEPENDS gui cuda time
 waLBerla_execute_test( NAME CodegenPoissonGPU )
 
 # The following tests work only for CUDA enabled MPI
-waLBerla_compile_test( FILES communication/CommTest )
+waLBerla_compile_test( FILES communication/CommTest.cpp )
 #waLBerla_execute_test( NAME  CommTest PROCESSES 2)
 
-waLBerla_compile_test( FILES CudaMPI DEPENDS blockforest timeloop gui )
+waLBerla_compile_test( FILES CudaMPI.cpp DEPENDS blockforest timeloop gui )
 #waLBerla_execute_test( NAME  CudaMPI )
 
 waLBerla_compile_test( FILES AlignmentTest.cpp DEPENDS blockforest timeloop )
@@ -47,4 +50,10 @@ waLBerla_generate_target_from_python(NAME MicroBenchmarkGpuLbmGenerated FILE cod
       OUT_FILES MicroBenchmarkStreamKernel.cu MicroBenchmarkCopyKernel.cu MicroBenchmarkStreamKernel.h MicroBenchmarkCopyKernel.h)
 waLBerla_compile_test( FILES codegen/MicroBenchmarkGpuLbm.cpp DEPENDS MicroBenchmarkGpuLbmGenerated)
 
+waLBerla_generate_target_from_python(NAME CodegenGeneratedGPUFieldPackInfo FILE codegen/GeneratedFieldPackInfoTestGPU.py
+        OUT_FILES ScalarFieldCommunicationGPU.cu ScalarFieldCommunicationGPU.h
+        ScalarFieldPullReductionGPU.cu ScalarFieldPullReductionGPU.h )
+waLBerla_compile_test( FILES codegen/GeneratedFieldPackInfoTestGPU.cpp
+        DEPENDS blockforest core field CodegenGeneratedGPUFieldPackInfo )
+waLBerla_execute_test( NAME GeneratedFieldPackInfoTestGPU )
 endif()

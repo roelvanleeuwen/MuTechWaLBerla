@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file BasicBuffer.h
+//! \file CustomMemoryBuffer.impl.h
 //! \ingroup cuda
 //! \author Martin Bauer <martin.bauer@fau.de>
 //
@@ -26,14 +26,10 @@ namespace communication {
 
 
    template<typename Allocator>
-   CustomMemoryBuffer<Allocator>::CustomMemoryBuffer()
-           : begin_( nullptr ), cur_( nullptr ), end_( nullptr )
-   {
-   }
+   CustomMemoryBuffer<Allocator>::CustomMemoryBuffer() = default;
 
    template<typename Allocator>
    CustomMemoryBuffer<Allocator>::CustomMemoryBuffer( std::size_t initSize )
-           : begin_( nullptr ), cur_( nullptr ), end_( nullptr )
    {
       if( initSize > 0 )
       {
@@ -45,7 +41,6 @@ namespace communication {
 
    template<typename Allocator>
    CustomMemoryBuffer<Allocator>::CustomMemoryBuffer( const CustomMemoryBuffer &pb )
-           : begin_( nullptr ), cur_( nullptr ), end_( nullptr )
    {
       if( pb.begin_ != nullptr )
       {
@@ -59,7 +54,10 @@ namespace communication {
    template<typename Allocator>
    CustomMemoryBuffer<Allocator> &CustomMemoryBuffer<Allocator>::operator=( const CustomMemoryBuffer<Allocator> &pb )
    {
-      auto copy( pb );
+      if( this == &pb )
+         return *this;
+
+      CustomMemoryBuffer<Allocator> copy( pb );
       std::swap( cur_, copy.cur_ );
       std::swap( begin_, copy.begin_ );
       std::swap( end_, copy.end_ );
@@ -105,7 +103,7 @@ namespace communication {
       resize( size() + bytes );
       auto result = cur_;
       cur_ += bytes;
-      WALBERLA_ASSERT_LESS_EQUAL( cur_, end_ );
+      WALBERLA_ASSERT_LESS_EQUAL( cur_, end_ )
       return result;
    }
 

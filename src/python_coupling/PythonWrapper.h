@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file python/Python.h
+//! \file PythonWrapper.h
 //! \ingroup core
 //! \author Matthias Markl <matthias.markl@fau.de>
 //! \author Martin Bauer <martin.bauer@fau.de>
@@ -27,6 +27,14 @@
 #include "waLBerlaDefinitions.h"
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON // macro defined in waLBerlaDefinitions.h
+
+#define PYBIND11_NAMESPACE walberla::pybind11
+
+namespace PYBIND11_NAMESPACE {}
+namespace pybind11 {
+   // pybind11 uses ::pybind11 in a few places internally, so we need this alias
+   using namespace PYBIND11_NAMESPACE;
+}
 
 #include "pybind11/pybind11.h"
 

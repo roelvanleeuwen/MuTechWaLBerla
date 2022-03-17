@@ -25,7 +25,7 @@
 ##
 ############################################################################################################################
 
-CMAKE_MINIMUM_REQUIRED (VERSION 3.10)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.14)
 
 
 PROJECT ( walberla )
@@ -250,6 +250,14 @@ else()
 endif()
 mark_as_advanced ( WALBERLA_CXX_COMPILER_IS_MPI_WRAPPER )
 
+# Check for intel llvm compiler
+if( CMAKE_CXX_COMPILER MATCHES "icpx" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "icpx" )
+   option ( WALBERLA_CXX_COMPILER_IS_INTELLLVM "Use Intel LLVM compiler" ON  )
+else()
+   option ( WALBERLA_CXX_COMPILER_IS_INTELLLVM "Use Intel LLVM compiler" OFF  )
+endif()
+mark_as_advanced ( WALBERLA_CXX_COMPILER_IS_INTELLLVM )
+
 ############################################################################################################################
 
 
@@ -357,11 +365,22 @@ endif()
 # architecture optimization
 if( WALBERLA_OPTIMIZE_FOR_LOCALHOST )
    if( WALBERLA_CXX_COMPILER_IS_GNU OR WALBERLA_CXX_COMPILER_IS_INTEL OR WALBERLA_CXX_COMPILER_IS_CLANG )
-      add_flag ( CMAKE_CXX_FLAGS "-march=native" )
-      add_flag ( CMAKE_C_FLAGS   "-march=native" )
+      if( CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64" )
+        # no -march=native available on this compiler, but there is currently only one such processor
+      else()
+        add_flag ( CMAKE_CXX_FLAGS "-march=native" )
+        add_flag ( CMAKE_C_FLAGS   "-march=native" )
+      endif()
+      
       if( WALBERLA_CXX_COMPILER_IS_INTEL )
         add_flag ( CMAKE_CXX_FLAGS "-xhost" )
         add_flag ( CMAKE_C_FLAGS   "-xhost" )
+      endif()
+
+      if( EXISTS "/proc/sys/abi/sve_default_vector_length" )
+        file( READ "/proc/sys/abi/sve_default_vector_length" SVE_LENGTH )
+        add_flag ( CMAKE_CXX_FLAGS "-msve-vector-bits=${SVE_LENGTH}" )
+        add_flag ( CMAKE_C_FLAGS   "-msve-vector-bits=${SVE_LENGTH}" )
       endif()
    endif()
 endif()
@@ -416,6 +435,10 @@ if ( WALBERLA_BUILD_WITH_FASTMATH )
     if( WALBERLA_CXX_COMPILER_IS_MSVC )
         add_flag( CMAKE_CXX_FLAGS "/fp:fast" )
     endif()
+else()
+   if( WALBERLA_CXX_COMPILER_IS_INTELLLVM )
+      add_flag( CMAKE_CXX_FLAGS "-fp-model=precise")
+   endif()
 endif()
 
 # Xcode generator disables -isystem flag, even though current versions of Xcode support it
@@ -464,8 +487,12 @@ endif()
 ############################################################################################################################
 
 try_compile( WALBERLA_USE_STD_FILESYSTEM "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdFilesystem.cpp"
-             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_FILESYSTEM )
+             COMPILE_DEFINITIONS -DWALBERLA_USE_STD_FILESYSTEM COPY_FILE "${CMAKE_CURRENT_BINARY_DIR}/TestStdFilesystem" )
 if( WALBERLA_USE_STD_FILESYSTEM )
+  # detect https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90050 by checking whether it segfaults
+  execute_process( COMMAND "${CMAKE_CURRENT_BINARY_DIR}/TestStdFilesystem" OUTPUT_QUIET RESULT_VARIABLE WALBERLA_STD_FILESYSTEM_WORKS )
+endif()
+if( WALBERLA_USE_STD_FILESYSTEM AND WALBERLA_STD_FILESYSTEM_WORKS EQUAL 0 )
    message( STATUS "Found std::filesystem")
 else()
    try_compile( WALBERLA_USE_STD_EXPERIMENTAL_FILESYSTEM "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestStdFilesystem.cpp"
@@ -551,18 +578,19 @@ endif ( )
 ##
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_CODEGEN )
-   find_package( PythonInterp 3 QUIET REQUIRED)
-   execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import lbmpy"
+   set( Python_FIND_FRAMEWORK LAST )
+    find_package (Python COMPONENTS Interpreter Development)
+   execute_process(COMMAND ${Python_EXECUTABLE} -c "import lbmpy"
          RESULT_VARIABLE LBMPY_FOUND )
     if(NOT LBMPY_FOUND EQUAL 0)
        message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated but pystencils or lbmpy package not found.
                             Please install lbmpy e.g.: 'pip3 install lbmpy'")
     endif()
-    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from pystencils.include import get_pystencils_include_path; print(get_pystencils_include_path())"
+    execute_process(COMMAND ${Python_EXECUTABLE} -c "from pystencils.include import get_pystencils_include_path; print(get_pystencils_include_path())"
                     OUTPUT_VARIABLE PYSTENCILS_INCLUDE_PATH)
     include_directories( ${PYSTENCILS_INCLUDE_PATH} )
 
-    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import jinja2"
+    execute_process(COMMAND ${Python_EXECUTABLE} -c "import jinja2"
           RESULT_VARIABLE JINJA2_FOUND )
     if(NOT JINJA2_FOUND EQUAL 0)
        message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated and jinja2 package not found.
@@ -580,13 +608,8 @@ endif()
 ##
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_PYTHON )
-
-    find_package( PythonInterp 3.6 QUIET REQUIRED)
-    find_package( PythonLibs QUIET REQUIRED)
-
-    if( NOT (PYTHON_LIBRARY AND PYTHON_INCLUDE_DIR ) )
-        message( FATAL_ERROR "Couldn't find any python library" )
-    endif()
+   set( Python_FIND_FRAMEWORK LAST )
+    find_package( Python COMPONENTS Interpreter Development REQUIRED)
 
     if(WALBERLA_CXX_COMPILER_IS_INTEL)
         # Intel C++17 support introduced in 2.6.2 (https://github.com/pybind/pybind11/pull/2729)
@@ -595,11 +618,11 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
         set(PYBIND11_MINIMUM_VERSION "2.6.0")
     endif()
 
-    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import pybind11; print(pybind11._version.__version__)"
+    execute_process(COMMAND ${Python_EXECUTABLE} -c "import pybind11; print(pybind11._version.__version__)"
                     OUTPUT_VARIABLE pybind11_VERSION ERROR_QUIET RESULT_VARIABLE pybind11_VERSION_RESULT)
     string(STRIP "${pybind11_VERSION}" pybind11_VERSION)
     if(pybind11_VERSION_RESULT EQUAL "0" AND pybind11_VERSION VERSION_GREATER_EQUAL "${PYBIND11_MINIMUM_VERSION}")
-        execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pybind11 --cmakedir
+        execute_process(COMMAND ${Python_EXECUTABLE} -m pybind11 --cmakedir
                         OUTPUT_VARIABLE PYBIND11_CMAKE_PATH)
         string(STRIP "${PYBIND11_CMAKE_PATH}" PYBIND11_CMAKE_PATH)
         find_package(pybind11 PATHS "${PYBIND11_CMAKE_PATH}" NO_DEFAULT_PATH REQUIRED)
@@ -629,10 +652,10 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
         add_subdirectory(extern/pybind11)
 
         if(pybind11_VERSION VERSION_LESS "2.6.2")
-            # if pybind11 was installed into ${PYTHON_INCLUDE_DIR} (e.g. by pip), that will have a higher priority than the Git submodule unless we reorder the search path
+            # if pybind11 was installed into ${Python_INCLUDE_DIRS} (e.g. by pip), that will have a higher priority than the Git submodule unless we reorder the search path
             # introduced in 2.6.0 (https://github.com/pybind/pybind11/issues/2709), fixed in 2.6.2 (https://github.com/pybind/pybind11/pull/2716)
             set_property( TARGET pybind11::pybind11
-                          PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/extern/pybind11/include" "${PYTHON_INCLUDE_DIR}")
+                          PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/extern/pybind11/include" "${Python_INCLUDE_DIRS}")
         endif()
     endif()
 
@@ -822,6 +845,7 @@ option (WALBERLA_ENABLE_GUI "This flag builds the graphical user interface, depe
 
 if ( WALBERLA_ENABLE_GUI )
 
+    message( WARNING "The GUI is deprecated and will probably not work correctly." )
     find_package( Qt4 COMPONENTS QtCore QtGui QtOpenGL QtXml REQUIRED )
     set( OpenGL_GL_PREFERENCE LEGACY )
     find_package( OpenGL REQUIRED )
@@ -996,11 +1020,18 @@ endif()
 option ( WALBERLA_THREAD_SAFE_LOGGING "Enables/Disables thread-safe logging" ON )
 
 if ( WALBERLA_BUILD_WITH_OPENMP )
+    if( APPLE AND EXISTS /opt/local/lib/libomp AND EXISTS /opt/local/include/libomp ) # find libomp from MacPorts
+        set( CMAKE_FRAMEWORK_PATH /opt/local/lib/libomp )
+        set( CMAKE_INCLUDE_PATH /opt/local/include/libomp )
+    endif()
     find_package( OpenMP )
     if (OpenMP_FOUND)
         add_flag ( CMAKE_C_FLAGS   "${OpenMP_C_FLAGS}" )
         add_flag ( CMAKE_CXX_FLAGS "${OpenMP_CXX_FLAGS}" )
         list ( APPEND SERVICE_LIBS ${OpenMP_CXX_LIBRARIES} )
+        if( OpenMP_CXX_INCLUDE_DIRS )
+            include_directories( ${OpenMP_CXX_INCLUDE_DIRS} )
+        endif()
     else()
         #workarounds
         if ( WALBERLA_CXX_COMPILER_IS_NEC )
@@ -1011,6 +1042,17 @@ if ( WALBERLA_BUILD_WITH_OPENMP )
             message(FATAL_ERROR "Could NOT enable OpenMP")
         endif()
     endif()
+
+    if( WALBERLA_CXX_COMPILER_IS_CLANG OR WALBERLA_CXX_COMPILER_IS_INTELLLVM )
+       # check for bug in combination with OpenMP and sign conversion https://bugs.llvm.org/show_bug.cgi?id=48387
+       try_compile( WALBERLA_CLANG_OPENMP_BUG "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TestClangOpenMPBug.cpp"
+             COMPILE_DEFINITIONS -Werror )
+       if( NOT ${WALBERLA_CLANG_OPENMP_BUG} )
+          message( WARNING "Setting -Wno-sign-conversion due to a compiler bug in LLVM (https://bugs.llvm.org/show_bug.cgi?id=48387)" )
+          add_flag( CMAKE_CXX_FLAGS "-Wno-sign-conversion" )
+       endif()
+    endif()
+
 else()
     if ( WALBERLA_CXX_COMPILER_IS_CRAY )
         add_flag ( CMAKE_C_FLAGS   "-h noomp" )
@@ -1049,6 +1091,7 @@ if ( WALBERLA_BUILD_WITH_CUDA )
         #CUDA_FOUND is need for our cmake mechanism
         set ( CUDA_FOUND TRUE )
     else()
+        message( WARNING "CUDA could not be enabled. The host compiler might not be compatible. Check CMakeFiles/CMakeError.log for more information" )
         set ( WALBERLA_BUILD_WITH_CUDA FALSE )
     endif ( )
 endif ( )
@@ -1062,6 +1105,13 @@ if (WALBERLA_BUILD_WITH_CUDA AND (CMAKE_CUDA_COMPILER_VERSION VERSION_LESS "11.0
     # CUDA < 11 does not support C++17. std::experimental::any works with C++14, unlike std::any.
     set(CMAKE_CUDA_STANDARD 14)
     set(WALBERLA_USE_STD_EXPERIMENTAL_ANY 1)
+endif()
+
+# Can be used in CMake files containing generated files where the file suffix is dependent on the target
+if (WALBERLA_BUILD_WITH_CUDA AND CUDA_FOUND)
+    set(CODEGEN_FILE_SUFFIX "cu")
+else()
+    set(CODEGEN_FILE_SUFFIX "cpp")
 endif()
 ############################################################################################################################
 
@@ -1241,6 +1291,11 @@ include_directories ( ${CMAKE_CURRENT_BINARY_DIR}/src )
 # All include paths are specified relative to src/ directory
 include_directories ( ${CMAKE_CURRENT_SOURCE_DIR}/src )
 
+# external
+add_subdirectory( extern )
+
+# sources
+add_subdirectory ( src )
 
 # Generate file with compile options, and add install rule for it
 configure_file ( src/waLBerlaDefinitions.in.h
@@ -1248,8 +1303,6 @@ configure_file ( src/waLBerlaDefinitions.in.h
 
 install( FILES ${walberla_BINARY_DIR}/src/waLBerlaDefinitions.h DESTINATION walberla/ )
 
-# sources
-add_subdirectory ( src )
 
 # test
 if ( WALBERLA_BUILD_TESTS )

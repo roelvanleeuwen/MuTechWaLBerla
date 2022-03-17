@@ -26,24 +26,43 @@ namespace cuda {
 namespace communication {
 
 
-template<typename Stencil>
-UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf,
-                                             bool sendDirectlyFromGPU,
-                                             const int tag )
+   template<typename Stencil>
+   UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf,
+                                                bool sendDirectlyFromGPU,
+                                                const int tag )
         : blockForest_( bf ),
           setupBeforeNextCommunication_( true ),
           communicationInProgress_( false ),
           sendFromGPU_( sendDirectlyFromGPU ),
           bufferSystemCPU_( mpi::MPIManager::instance()->comm(), tag ),
           bufferSystemGPU_( mpi::MPIManager::instance()->comm(), tag ),
-          parallelSectionManager_( -1 )
+          parallelSectionManager_( -1 ),
+          requiredBlockSelectors_( Set<SUID>::emptySet() ),
+          incompatibleBlockSelectors_( Set<SUID>::emptySet() )
+   {}
+
+   template<typename Stencil>
+   UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf,
+                                                const Set<SUID> & requiredBlockSelectors,
+                                                const Set<SUID> & incompatibleBlockSelectors,
+                                                bool sendDirectlyFromGPU,
+                                                const int tag )
+      : blockForest_( bf ),
+        setupBeforeNextCommunication_( true ),
+        communicationInProgress_( false ),
+        sendFromGPU_( sendDirectlyFromGPU ),
+        bufferSystemCPU_( mpi::MPIManager::instance()->comm(), tag ),
+        bufferSystemGPU_( mpi::MPIManager::instance()->comm(), tag ),
+        parallelSectionManager_( -1 ),
+        requiredBlockSelectors_( requiredBlockSelectors ),
+        incompatibleBlockSelectors_( incompatibleBlockSelectors )
    {}
 
 
    template<typename Stencil>
    void UniformGPUScheme<Stencil>::startCommunication( cudaStream_t stream )
    {
-      WALBERLA_ASSERT( !communicationInProgress_ );
+      WALBERLA_ASSERT( !communicationInProgress_ )
       auto forest = blockForest_.lock();
 
       auto currentBlockForestStamp = forest->getBlockForest().getModificationStamp();
@@ -67,6 +86,10 @@ UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf
          for( auto &iBlock : *forest )
          {
             auto block = dynamic_cast< Block * >( &iBlock );
+
+            if( !selectable::isSetSelected( block->getState(), requiredBlockSelectors_, incompatibleBlockSelectors_ ) )
+               continue;
+
             for( auto dir = Stencil::beginNoCenter(); dir != Stencil::end(); ++dir )
             {
                const auto neighborIdx = blockforest::getBlockNeighborhoodSectionIndex( *dir );
@@ -74,19 +97,22 @@ UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf
                   continue;
                auto nProcess = mpi::MPIRank( block->getNeighborProcess( neighborIdx, uint_t( 0 )));
 
+               if( !selectable::isSetSelected( block->getNeighborState( neighborIdx, uint_t(0) ), requiredBlockSelectors_, incompatibleBlockSelectors_ ) )
+                  continue;
+
                for( auto &pi : packInfos_ )
                {
                   parallelSection.run([&](auto s) {
                      auto size = pi->size( *dir, block );
                      auto gpuDataPtr = bufferSystemGPU_.sendBuffer( nProcess ).advanceNoResize( size );
-                     WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr );
+                     WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr )
                      pi->pack( *dir, gpuDataPtr, block, s );
 
                      if( !sendFromGPU_ )
                      {
                         auto cpuDataPtr = bufferSystemCPU_.sendBuffer( nProcess ).advanceNoResize( size );
-                        WALBERLA_ASSERT_NOT_NULLPTR( cpuDataPtr );
-                        WALBERLA_CUDA_CHECK( cudaMemcpyAsync( cpuDataPtr, gpuDataPtr, size, cudaMemcpyDeviceToHost, s ));
+                        WALBERLA_ASSERT_NOT_NULLPTR( cpuDataPtr )
+                        WALBERLA_CUDA_CHECK( cudaMemcpyAsync( cpuDataPtr, gpuDataPtr, size, cudaMemcpyDeviceToHost, s ))
                      }
                   });
                }
@@ -109,7 +135,7 @@ UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf
    template<typename Stencil>
    void UniformGPUScheme<Stencil>::wait( cudaStream_t stream )
    {
-      WALBERLA_ASSERT( communicationInProgress_ );
+      WALBERLA_ASSERT( communicationInProgress_ )
 
       auto forest = blockForest_.lock();
 
@@ -118,6 +144,7 @@ UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf
          auto parallelSection = parallelSectionManager_.parallelSection( stream );
          for( auto recvInfo = bufferSystemGPU_.begin(); recvInfo != bufferSystemGPU_.end(); ++recvInfo )
          {
+            recvInfo.buffer().clear();
             for( auto &header : headers_[recvInfo.rank()] )
             {
                auto block = dynamic_cast< Block * >( forest->getBlock( header.blockId ));
@@ -126,7 +153,7 @@ UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf
                {
                   auto size = pi->size( header.dir, block );
                   auto gpuDataPtr = recvInfo.buffer().advanceNoResize( size );
-                  WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr );
+                  WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr )
                   parallelSection.run([&](auto s) {
                      pi->unpack( stencil::inverseDir[header.dir], gpuDataPtr, block, s );
                   });
@@ -141,6 +168,7 @@ UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf
          {
             auto &gpuBuffer = bufferSystemGPU_.sendBuffer( recvInfo.rank());
 
+            recvInfo.buffer().clear();
             gpuBuffer.clear();
             for( auto &header : headers_[recvInfo.rank()] ) {
                auto block = dynamic_cast< Block * >( forest->getBlock( header.blockId ));
@@ -150,12 +178,12 @@ UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf
                   auto size = pi->size( header.dir, block );
                   auto cpuDataPtr = recvInfo.buffer().advanceNoResize( size );
                   auto gpuDataPtr = gpuBuffer.advanceNoResize( size );
-                  WALBERLA_ASSERT_NOT_NULLPTR( cpuDataPtr );
-                  WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr );
+                  WALBERLA_ASSERT_NOT_NULLPTR( cpuDataPtr )
+                  WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr )
 
                   parallelSection.run([&](auto s) {
                      WALBERLA_CUDA_CHECK( cudaMemcpyAsync( gpuDataPtr, cpuDataPtr, size,
-                                                           cudaMemcpyHostToDevice, s ));
+                                                           cudaMemcpyHostToDevice, s ))
                      pi->unpack( stencil::inverseDir[header.dir], gpuDataPtr, block, s );
                   });
                }
@@ -181,6 +209,9 @@ UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf
       for( auto &iBlock : *forest ) {
          auto block = dynamic_cast< Block * >( &iBlock );
 
+         if( !selectable::isSetSelected( block->getState(), requiredBlockSelectors_, incompatibleBlockSelectors_ ) )
+            continue;
+
          for( auto dir = Stencil::beginNoCenter(); dir != Stencil::end(); ++dir ) {
             // skip if block has no neighbors in this direction
             const auto neighborIdx = blockforest::getBlockNeighborhoodSectionIndex( *dir );
@@ -188,11 +219,15 @@ UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf
                continue;
 
             WALBERLA_ASSERT( block->neighborhoodSectionHasEquallySizedBlock( neighborIdx ),
-                             "Works for uniform setups only" );
+                             "Works for uniform setups only" )
             WALBERLA_ASSERT_EQUAL( block->getNeighborhoodSectionSize( neighborIdx ), uint_t( 1 ),
-                                   "Works for uniform setups only" );
+                                   "Works for uniform setups only" )
 
             const BlockID &nBlockId = block->getNeighborId( neighborIdx, uint_t( 0 ));
+
+            if( !selectable::isSetSelected( block->getNeighborState( neighborIdx, uint_t(0) ), requiredBlockSelectors_, incompatibleBlockSelectors_ ) )
+               continue;
+
             auto nProcess = mpi::MPIRank( block->getNeighborProcess( neighborIdx, uint_t( 0 )));
 
             for( auto &pi : packInfos_ )
@@ -233,7 +268,7 @@ UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf
    template<typename Stencil>
    void UniformGPUScheme<Stencil>::addPackInfo( const shared_ptr<GeneratedGPUPackInfo> &pi )
    {
-      WALBERLA_ASSERT( !communicationInProgress_, "Cannot add pack info while communication is in progress" );
+      WALBERLA_ASSERT( !communicationInProgress_, "Cannot add pack info while communication is in progress" )
       packInfos_.push_back( pi );
       setupBeforeNextCommunication_ = true;
    }

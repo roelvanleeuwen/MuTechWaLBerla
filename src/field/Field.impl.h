@@ -54,10 +54,10 @@ namespace field {
    //*******************************************************************************************************************
    /*!Creates an uninitialized field of given size
     *
-    * \param xSize  size of x dimension
-    * \param ySize  size of y dimension
-    * \param zSize  size of z dimension
-    * \param layout memory layout of the field (see Field::Layout)
+    * \param _xSize  size of x dimension
+    * \param _ySize  size of y dimension
+    * \param _zSize  size of z dimension
+    * \param l       memory layout of the field (see Field::Layout)
     * \param alloc  class that describes how to allocate memory for the field, see FieldAllocator
     *******************************************************************************************************************/
    template<typename T, uint_t fSize_>
@@ -72,11 +72,11 @@ namespace field {
    //*******************************************************************************************************************
    /*! Creates a field and initializes it with constant
     *
-    * \param xSize   size of x dimension
-    * \param ySize   size of y dimension
-    * \param zSize   size of z dimension
+    * \param _xSize  size of x dimension
+    * \param _ySize  size of y dimension
+    * \param _zSize  size of z dimension
     * \param initVal every element of the field is set to initVal
-    * \param layout  memory layout of the field (see Field::Layout)
+    * \param l       memory layout of the field (see Field::Layout)
     * \param alloc  class that describes how to allocate memory for the field, see FieldAllocator
     *******************************************************************************************************************/
    template<typename T, uint_t fSize_>
@@ -92,11 +92,11 @@ namespace field {
    //*******************************************************************************************************************
    /*! Creates a field and initializes f coordinate with vector values
     *
-    * \param xSize   size of x dimension
-    * \param ySize   size of y dimension
-    * \param zSize   size of z dimension
+    * \param _xSize  size of x dimension
+    * \param _ySize  size of y dimension
+    * \param _zSize  size of z dimension
     * \param fValues initializes f coordinate with values from vector (see set(std::vector&) )
-    * \param layout  memory layout of the field (see Field::Layout)
+    * \param l       memory layout of the field (see Field::Layout)
     * \param alloc  class that describes how to allocate memory for the field, see FieldAllocator
     *******************************************************************************************************************/
    template<typename T, uint_t fSize_>
@@ -114,6 +114,9 @@ namespace field {
    /*! Deletes all stored data, and resizes the field
     *
     *  The resized field is uninitialized.
+    * \param _xSize  size of x dimension
+    * \param _ySize  size of y dimension
+    * \param _zSize  size of z dimension
     *******************************************************************************************************************/
    template<typename T, uint_t fSize_>
    void Field<T,fSize_>::resize( uint_t _xSize, uint_t _ySize, uint_t _zSize )
@@ -294,10 +297,10 @@ namespace field {
     * Must be called exactly once!  This is automatically called by all constructors
     * that take at least one argument
     *
-    * \param xSize   size of x dimension
-    * \param ySize   size of y dimension
-    * \param zSize   size of z dimension
-    * \param layout  memory layout of the field (see Field::Layout)
+    * \param _xSize  size of x dimension
+    * \param _ySize  size of y dimension
+    * \param _zSize  size of z dimension
+    * \param l       memory layout of the field (see Field::Layout)
     * \param alloc   the allocator to use. If a NULL shared pointer is given, a sensible default is selected,
     *                depending on layout
     * \param innerGhostLayerSizeForAlignedAlloc
@@ -316,14 +319,20 @@ namespace field {
       // Automatically select allocator if none was given
       if ( alloc == nullptr )
       {
-#ifdef __BIGGEST_ALIGNMENT__
-         const uint_t alignment = __BIGGEST_ALIGNMENT__;
+#if defined(__ARM_FEATURE_SVE) && defined(__ARM_FEATURE_SVE_BITS) && __ARM_FEATURE_SVE_BITS > 0
+         const uint_t alignment = __ARM_FEATURE_SVE_BITS/8;
+#elif defined(__ARM_FEATURE_SVE)
+         const uint_t alignment = 64;
+#elif defined(__ARM_NEON)
+         const uint_t alignment = 16;
 #elif defined(__AVX512F__)
          const uint_t alignment = 64;
 #elif defined(__AVX__)
          const uint_t alignment = 32;
 #elif defined(__SSE__) || defined(_MSC_VER)
          const uint_t alignment = 16;
+#elif defined(__BIGGEST_ALIGNMENT__)
+         const uint_t alignment = __BIGGEST_ALIGNMENT__;
 #else
          const uint_t alignment = 64;
 #endif
@@ -355,24 +364,24 @@ namespace field {
          fAllocSize_ = fSize_;
 
          WALBERLA_CHECK_LESS_EQUAL( fSize_ * xAllocSize_ * yAllocSize_ * zAllocSize_ + xSize_ + ySize_ * xAllocSize_ + zSize_ * xAllocSize_ * yAllocSize_,
-                                    std::numeric_limits< cell_idx_t >::max(),
-                                    "The data type 'cell_idx_t' is too small for your field size! Your field is too large.\nYou may have to set 'cell_idx_t' to an 'int64_t'." );
+                                    std::numeric_limits< int64_t >::max(),
+                                    "The data type 'int64_t' is too small for your field size! Your field is too large." );
 
-         ffact_ = cell_idx_c(xAllocSize_ * yAllocSize_ * zAllocSize_);
-         zfact_ = cell_idx_c(xAllocSize_ * yAllocSize_);
-         yfact_ = cell_idx_c(xAllocSize_);
+         ffact_ = int64_t(xAllocSize_) * int64_t(yAllocSize_) * int64_t(zAllocSize_);
+         zfact_ = int64_t(xAllocSize_) * int64_t(yAllocSize_);
+         yfact_ = int64_t(xAllocSize_);
          xfact_ = 1;
       } else {
          values_ = allocator_->allocate(zSize_, ySize_, xSize_, fSize_, yAllocSize_, xAllocSize_, fAllocSize_);
          zAllocSize_ = zSize_;
 
          WALBERLA_CHECK_LESS_EQUAL( fSize_ + xSize_ * fAllocSize_ + ySize_ * fAllocSize_ * xAllocSize_ + zSize_ * fAllocSize_ * xAllocSize_ * yAllocSize_,
-                                    std::numeric_limits< cell_idx_t >::max(),
-                                    "The data type 'cell_idx_t' is too small for your field size! Your field is too large.\nYou may have to set 'cell_idx_t' to an 'int64_t'." );
+                                    std::numeric_limits< int64_t >::max(),
+                                    "The data type 'int64_t' is too small for your field size! Your field is too large." );
 
-         zfact_ = cell_idx_c(fAllocSize_ * xAllocSize_ * yAllocSize_);
-         yfact_ = cell_idx_c(fAllocSize_ * xAllocSize_);
-         xfact_ = cell_idx_c(fAllocSize_);
+         zfact_ = int64_t (fAllocSize_) * int64_t(xAllocSize_) * int64_t(yAllocSize_);
+         yfact_ = int64_t(fAllocSize_) * int64_t(xAllocSize_);
+         xfact_ = int64_t (fAllocSize_);
          ffact_ = 1;
       }
 
@@ -715,7 +724,7 @@ namespace field {
    {
       assertValidCoordinates( x, y, z, f );
 
-      const cell_idx_t index = f*ffact_+ x*xfact_+ y*yfact_+ z*zfact_;
+      const int64_t index = f*int64_t(ffact_) + int64_t(x)*int64_t(xfact_) + int64_t(y)*int64_t(yfact_) + int64_t(z)*int64_t(zfact_);
 
       WALBERLA_ASSERT_LESS( int64_c(index) + int64_c(valuesWithOffset_ - values_), int64_c(allocSize_) );
       WALBERLA_ASSERT_GREATER_EQUAL( int64_c(index) + int64_c(valuesWithOffset_ - values_), int64_c(0) );
@@ -1076,8 +1085,12 @@ namespace field {
     * This is used for example in the constructor of the GhostLayerField
     *
     * Internally this is implementing by adding an offset to the values_ pointer, and by adapting the size_ members.
-    * \param xOff The x coordinate that is afterwards mapped to zero
-    * \param xs   The new size of the x coordinate. Has to be smaller than (old xSize())-xOff
+    * \param xOffset The x coordinate that is afterwards mapped to zero
+    * \param xs      The new size of the x coordinate. Has to be smaller than (old xSize())-xOffset
+    * \param yOffset The y coordinate that is afterwards mapped to zero
+    * \param ys      The new size of the y coordinate. Has to be smaller than (old ySize())-yOffset
+    * \param zOffset The z coordinate that is afterwards mapped to zero
+    * \param zs      The new size of the z coordinate. Has to be smaller than (old zSize())-zOffset
     *******************************************************************************************************************/
    template<typename T, uint_t fSize_>
    void Field<T,fSize_>::setOffsets(uint_t xOffset, uint_t xs,
@@ -1096,7 +1109,7 @@ namespace field {
       xSize_ = xs;
       ySize_ = ys;
       zSize_ = zs;
-      const auto offset = xOff_*xfact_+ yOff_*yfact_+ zOff_*zfact_;
+      const int64_t offset = int64_t(xOff_)*int64_t(xfact_) + int64_t(yOff_)*int64_t(yfact_) + int64_t(zOff_)*int64_t(zfact_);
       valuesWithOffset_ = values_ + offset;
    }
 

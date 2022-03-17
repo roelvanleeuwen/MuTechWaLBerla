@@ -27,10 +27,6 @@
 #pragma once
 
 #include <mesa_pd/data/DataTypes.h>
-#include <mesa_pd/domain/IDomain.h>
-
-#include <core/logging/Logging.h>
-#include <core/mpi/MPIManager.h>
 
 namespace walberla {
 namespace mesa_pd {
@@ -42,6 +38,48 @@ template <typename Accessor>
 inline Vec3 getVelocityAtWFPoint(const size_t p_idx, Accessor& ac, const Vec3& wf_pt)
 {
    return ac.getLinearVelocity(p_idx) + cross(ac.getAngularVelocity(p_idx), ( wf_pt - ac.getPosition(p_idx) ));
+}
+
+/**
+ * Transformations between world frame (WF) and body frame (BF) coordinates
+ */
+template <typename Accessor>
+inline Vec3 transformPositionFromWFtoBF(const size_t p_idx, Accessor& ac, const Vec3& positionWF)
+{
+   return ac.getRotation(p_idx).getMatrix().getTranspose() * ( positionWF - ac.getPosition(p_idx)  );
+}
+
+template <typename Accessor>
+inline Vec3 transformVectorFromWFtoBF(const size_t p_idx, Accessor& ac, const Vec3& vectorWF)
+{
+   return ac.getRotation(p_idx).getMatrix().getTranspose() * vectorWF;
+}
+
+template <typename Accessor>
+inline Vec3 transformPositionFromBFtoWF(const size_t p_idx, Accessor& ac, const Vec3& positionBF)
+{
+   return ac.getPosition(p_idx) + ac.getRotation(p_idx).getMatrix() * positionBF;
+}
+
+template <typename Accessor>
+inline Vec3 transformVectorFromBFtoWF(const size_t p_idx, Accessor& ac, const Vec3& vectorBF)
+{
+   return ac.getRotation(p_idx).getMatrix() * vectorBF;
+}
+
+/**
+ * Transform (inverse) particle's moment of inertia from body frame coordinates (as stored by shape) to world frame.
+ */
+template <typename Accessor>
+inline Mat3 getInvInertia(const size_t p_idx, Accessor& ac)
+{
+   return math::transformMatrixRART(ac.getRotation(p_idx).getMatrix(), ac.getInvInertiaBF(p_idx));
+}
+
+template <typename Accessor>
+inline Mat3 getInertia(const size_t p_idx, Accessor& ac)
+{
+   return math::transformMatrixRART(ac.getRotation(p_idx).getMatrix(), ac.getInertiaBF(p_idx));
 }
 
 /**
