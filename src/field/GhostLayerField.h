@@ -200,8 +200,8 @@ namespace field {
       /*! \name Slicing */
       //@{
       GhostLayerField<T> * getSlicedField( const CellInterval & interval ) const;
-      virtual void slice           ( const CellInterval & interval ) override;
-      virtual void shiftCoordinates( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz ) override;
+      void slice           ( const CellInterval & interval ) override;
+      void shiftCoordinates( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz ) override;
       //@}
       //****************************************************************************************************************
 
@@ -214,8 +214,8 @@ namespace field {
       //** Shallow Copy ************************************************************************************************
       /*! \name Shallow Copy */
       //@{
-      virtual Field<T> * cloneShallowCopyInternal()   const override;
-      virtual typename Field<T>::FlattenedField * flattenedShallowCopyInternal() const override;
+      Field<T> * cloneShallowCopyInternal()   const override;
+      typename Field<T>::FlattenedField * flattenedShallowCopyInternal() const override;
       GhostLayerField(const GhostLayerField<T> & other);
       template <typename T2>
       GhostLayerField(const GhostLayerField<T2> & other);

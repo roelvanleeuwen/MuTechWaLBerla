@@ -45,7 +45,7 @@ namespace field {
     *******************************************************************************************************************/
    template<typename T>
    Field<T>::Field( )
-       : values_( NULL ), valuesWithOffset_( NULL ),
+       : values_( nullptr ), valuesWithOffset_( nullptr ),
          xSize_(0), ySize_(0), zSize_(0), fSize_(0),
          xAllocSize_(0), yAllocSize_(0), zAllocSize_(0), fAllocSize_(0)
    {
@@ -54,7 +54,6 @@ namespace field {
    //*******************************************************************************************************************
    /*!Creates an uninitialized field of given size
     *
-<<<<<<< HEAD
     * \param xSize  size of x dimension
     * \param ySize  size of y dimension
     * \param zSize  size of z dimension
@@ -107,7 +106,7 @@ namespace field {
    Field<T>::Field( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSize,
                            const std::vector<T> & fValues, const Layout & l,
                            const shared_ptr<FieldAllocator<T> > &alloc)
-        : values_( NULL ), valuesWithOffset_( NULL )
+        : values_(nullptr ), valuesWithOffset_(nullptr )
    {
       init(_xSize,_ySize,_zSize,_fSize,l,alloc);
       set(fValues);
@@ -130,8 +129,8 @@ namespace field {
          return;
 
       allocator_->decrementReferenceCount( values_ );
-      values_ = NULL;
-      valuesWithOffset_ = NULL;
+      values_ = nullptr;
+      valuesWithOffset_ = nullptr;
       init( _xSize, _ySize, _zSize, _fSize, layout_, allocator_ );
    }
 
@@ -189,7 +188,7 @@ namespace field {
    template<typename T>
    typename Field<T>::FlattenedField * Field<T>::flattenedShallowCopyInternal() const
    {
-      return new FlattenedField(*this) ;
+      return new FlattenedField(*this);
    }
 
    //*******************************************************************************************************************
@@ -211,7 +210,7 @@ namespace field {
 
       WALBERLA_ASSERT ( hasSameSize     ( *res ) )
       WALBERLA_ASSERT ( hasSameAllocSize( *res ) )
-      
+
       return res;
    }
 
@@ -279,7 +278,7 @@ namespace field {
         xSize_            ( other.xSize_ ),
         ySize_            ( other.ySize_ ),
         zSize_            ( other.zSize_ ),
-        fSize_            ( other.fSize_ ),
+        fSize_            (VectorTrait<T2>::F_SIZE * other.fSize_),
         xAllocSize_       ( other.xAllocSize_ ),
         yAllocSize_       ( other.yAllocSize_ ),
         zAllocSize_       ( other.zAllocSize_ ),

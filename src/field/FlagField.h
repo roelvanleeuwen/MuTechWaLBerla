@@ -196,7 +196,7 @@ protected:
    /*! \name Shallow Copy */
    //@{
    FlagField(const FlagField<T> & other);
-   virtual Field<T> * cloneShallowCopyInternal()   const;
+   Field<T> * cloneShallowCopyInternal()   const override;
    //@}
    //*******************************************************************************************************************
 

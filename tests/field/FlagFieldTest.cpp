@@ -35,8 +35,6 @@ namespace wlb = walberla;
 
 using std::vector;
 using std::string;
-using std::cout;
-using std::endl;
 
 void registerTest()
 {
@@ -62,7 +60,7 @@ void registerTest()
    catch( std::runtime_error & /*err*/) {
       overFlow = true;
    }
-   WALBERLA_CHECK(overFlow);
+   WALBERLA_CHECK(overFlow)
 
    vector<string> names;
    names.emplace_back("Flag1");
@@ -76,10 +74,10 @@ void registerTest()
 
    for(size_t i=0; i<names.size(); ++i)
    {
-      WALBERLA_CHECK(ff.flagExists(names[i]));
-      WALBERLA_CHECK(ff.flagExists(i));
-      WALBERLA_CHECK_EQUAL(ff.getFlag(names[i]), 1 << i );
-      WALBERLA_CHECK_EQUAL( ff.getFlagUID( numeric_cast<FlagField<walberla::uint8_t>::flag_t>( 1 << i ) ), FlagUID(names[i]) );
+      WALBERLA_CHECK(ff.flagExists(names[i]))
+      WALBERLA_CHECK(ff.flagExists(i))
+      WALBERLA_CHECK_EQUAL(ff.getFlag(names[i]), 1 << i )
+      WALBERLA_CHECK_EQUAL( ff.getFlagUID( numeric_cast<FlagField<walberla::uint8_t>::flag_t>( 1 << i ) ), FlagUID(names[i]) )
    }
 
    //ff.printRegistered(cout);
@@ -88,19 +86,19 @@ void registerTest()
 void accessTest()
 {
    FlagField<wlb::uint8_t> ff (3,3,3,1);
-   WALBERLA_CHECK_EQUAL( ff.xSize(), 3 );
+   WALBERLA_CHECK_EQUAL( ff.xSize(), 3 )
 
    wlb::uint8_t flag = ff.registerFlag("MyFlag");
 
-   WALBERLA_CHECK_EQUAL( ff.get(0,0,0), 0);
+   WALBERLA_CHECK_EQUAL( ff.get(0,0,0), 0)
    ff.addFlag(0,0,0,flag);
 
-   WALBERLA_CHECK (ff.isFlagSet(0,0,0,flag));
+   WALBERLA_CHECK (ff.isFlagSet(0,0,0,flag))
 
    ff.removeFlag(0,0,0,flag);
-   WALBERLA_CHECK (! ff.isFlagSet(0,0,0,flag) );
+   WALBERLA_CHECK (! ff.isFlagSet(0,0,0,flag) )
 
-   WALBERLA_CHECK( ff.get(0,0,0) == 0);
+   WALBERLA_CHECK( ff.get(0,0,0) == 0)
 }
 
 void iteratorTest()
@@ -112,7 +110,7 @@ void iteratorTest()
       addFlag(i, flag);
 
    for( auto i = ff.begin(); i != ff.end(); ++i )
-      WALBERLA_CHECK( isFlagSet(i, flag) );
+      WALBERLA_CHECK( isFlagSet(i, flag) )
 }
 
 void shallowCopyTest()
@@ -124,11 +122,11 @@ void shallowCopyTest()
    ff.registerFlag("FirstFlag");
 
    shared_ptr< FField > sliced = shared_ptr< FField > ( ff.getSlicedField(CellInterval(0,1,0,2,2,2)) );
-   WALBERLA_CHECK_NOT_NULLPTR( sliced );
+   WALBERLA_CHECK_NOT_NULLPTR( sliced )
 
    sliced->registerFlag("SecondFlag");
 
-   WALBERLA_CHECK( ff.flagExists("SecondFlag")  );
+   WALBERLA_CHECK( ff.flagExists("SecondFlag")  )
 
 
    // Test deep copy
@@ -141,10 +139,10 @@ void shallowCopyTest()
    FField * f2 = f1->clone();
    delete f1;
 
-   WALBERLA_CHECK( f2->flagExists( "Flag1" ) );
-   WALBERLA_CHECK( f2->flagExists( "Flag2" ) );
-   WALBERLA_CHECK( f2->isFlagSet( 0,0,0,flag1 ) );
-   WALBERLA_CHECK( f2->isFlagSet( 1,1,1,flag2 ) );
+   WALBERLA_CHECK( f2->flagExists( "Flag1" ) )
+   WALBERLA_CHECK( f2->flagExists( "Flag2" ) )
+   WALBERLA_CHECK( f2->isFlagSet( 0,0,0,flag1 ) )
+   WALBERLA_CHECK( f2->isFlagSet( 1,1,1,flag2 ) )
 
    delete f2;
 
@@ -186,15 +184,15 @@ void neighborhoodTest()
    for( auto it = ff.begin(); it != ff.end(); ++it )
    {
       if (it.x() == 1 && it.y() == 1 && it.z() == 1) {
-         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q19>(it, i) );
-         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q19>(it, g) );
-         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q19>(it, l) );
+         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q19>(it, i) )
+         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q19>(it, g) )
+         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q19>(it, l) )
       }
 
       if (it.x() == 1 && it.y() == 2 && it.z() == 2) {
-         WALBERLA_CHECK( !isFlagInNeighborhood<stencil::D3Q19>(it, i) );
-         WALBERLA_CHECK( !isFlagInNeighborhood<stencil::D3Q19>(it, g) );
-         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q19>(it, l) );
+         WALBERLA_CHECK( !isFlagInNeighborhood<stencil::D3Q19>(it, i) )
+         WALBERLA_CHECK( !isFlagInNeighborhood<stencil::D3Q19>(it, g) )
+         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q19>(it, l) )
       }
 
    }
@@ -206,15 +204,15 @@ void neighborhoodTest()
    for( auto it = ff.begin(); it != ff.end(); ++it )
    {
       if (it.x() == 1 && it.y() == 1 && it.z() == 1) {
-         WALBERLA_CHECK( field::isFlagInNeighborhood<stencil::D3Q27>(it, i) );
-         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q27>(it, g) );
-         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q27>(it, l) );
+         WALBERLA_CHECK( field::isFlagInNeighborhood<stencil::D3Q27>(it, i) )
+         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q27>(it, g) )
+         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q27>(it, l) )
       }
 
       if (it.x() == 2 && it.y() == 2 && it.z() == 2) {
-         WALBERLA_CHECK( !isFlagInNeighborhood<stencil::D3Q27>(it, i) );
-         WALBERLA_CHECK( !isFlagInNeighborhood<stencil::D3Q27>(it, g) );
-         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q27>(it, l) );
+         WALBERLA_CHECK( !isFlagInNeighborhood<stencil::D3Q27>(it, i) )
+         WALBERLA_CHECK( !isFlagInNeighborhood<stencil::D3Q27>(it, g) )
+         WALBERLA_CHECK( isFlagInNeighborhood<stencil::D3Q27>(it, l) )
       }
 
    }

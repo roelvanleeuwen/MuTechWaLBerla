@@ -33,9 +33,9 @@ namespace field {
    {
       // With 0 alignment this function makes no sense
       // use normal malloc instead
-      WALBERLA_ASSERT_GREATER( alignment, 0 );
+      WALBERLA_ASSERT_GREATER( alignment, 0 )
       // Tests if alignment is power of two (assuming alignment>0)
-      WALBERLA_ASSERT( !(alignment & (alignment - 1)) );
+      WALBERLA_ASSERT( !(alignment & (alignment - 1)) )
 
 
       void *pa;  // pointer to allocated memory
@@ -51,7 +51,7 @@ namespace field {
       // Store pointer to real allocated chunk just before usable chunk
       *((void **)ptr-1)=pa;
 
-      WALBERLA_ASSERT_EQUAL( ((size_t)ptr) % alignment, 0 );
+      WALBERLA_ASSERT_EQUAL( ((size_t)ptr) % alignment, 0 )
 
       return ptr;
    }
@@ -60,11 +60,11 @@ namespace field {
    {
       // With 0 alignment this function makes no sense
       // use normal malloc instead
-      WALBERLA_ASSERT_GREATER( alignment, 0 );
+      WALBERLA_ASSERT_GREATER( alignment, 0 )
       // Tests if alignment is power of two (assuming alignment>0)
-      WALBERLA_ASSERT( !(alignment & (alignment - 1)) );
+      WALBERLA_ASSERT( !(alignment & (alignment - 1)) )
 
-      WALBERLA_ASSERT_LESS( offset, alignment );
+      WALBERLA_ASSERT_LESS( offset, alignment )
 
       if( offset == 0 )
          return aligned_malloc( size, alignment );
@@ -84,7 +84,7 @@ namespace field {
       // Store pointer to real allocated chunk just before usable chunk
       *((void **)ptr-1)=pa;
 
-      WALBERLA_ASSERT_EQUAL( ((size_t)ptr+offset) % alignment, 0 );
+      WALBERLA_ASSERT_EQUAL( ((size_t)ptr+offset) % alignment, 0 )
 
       return ptr;
    }
