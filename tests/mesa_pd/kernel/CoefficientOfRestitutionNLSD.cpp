@@ -20,7 +20,7 @@
 
 #include "mesa_pd/collision_detection/AnalyticContactDetection.h"
 
-#include "mesa_pd/data/ParticleAccessor.h"
+#include "mesa_pd/data/ParticleAccessorWithShape.h"
 #include "mesa_pd/data/ParticleStorage.h"
 #include "mesa_pd/data/ShapeStorage.h"
 
@@ -40,29 +40,10 @@ namespace dem_integrator_accuracy {
 using namespace walberla;
 using namespace walberla::mesa_pd;
 
-
-class ParticleAccessorWithShape : public data::ParticleAccessor
-{
-public:
-   ParticleAccessorWithShape(std::shared_ptr<data::ParticleStorage>& ps, std::shared_ptr<data::ShapeStorage>& ss)
-         : ParticleAccessor(ps)
-         , ss_(ss)
-   {}
-
-   const auto& getInvMass(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvMass();}
-
-   const auto& getInvInertiaBF(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)]->getInvInertiaBF();}
-
-   data::BaseShape* getShape(const size_t p_idx) const {return ss_->shapes[ps_->getShapeID(p_idx)].get();}
-private:
-   std::shared_ptr<data::ShapeStorage> ss_;
-};
-
-
 /*
  * Tests the integrator accuracy for a DEM simulation by comparing the given coefficient of restitution to the simulated one.
  * For that, the velocity after a single sphere-wall collision is divided by the initial velocity before the simulation.
- * The parameters of the DEM are chosen such as to (analytically) yield the desried coefficient of restitution.
+ * The parameters of the DEM are chosen such as to (analytically) yield the desired coefficient of restitution.
  *
  * The simulation can be adapted via command line arguments.
  *
@@ -100,7 +81,7 @@ int main( int argc, char** argv )
    //init data structures
    auto ps = walberla::make_shared<data::ParticleStorage>(2);
    auto ss = walberla::make_shared<data::ShapeStorage>();
-   using ParticleAccessor_T = ParticleAccessorWithShape;
+   using ParticleAccessor_T = mesa_pd::data::ParticleAccessorWithShape;
    auto accessor = walberla::make_shared<ParticleAccessor_T >(ps, ss);
 
    auto sphereShape = ss->create<data::Sphere>( radius );

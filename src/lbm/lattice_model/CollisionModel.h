@@ -81,7 +81,7 @@ class SRT
 {
 public:
 
-   typedef SRT_tag tag;
+   using tag = SRT_tag;
    static const bool constant = true;
    
    SRT( const real_t _omega, const uint_t _level = uint_t(0) ) :
@@ -109,6 +109,7 @@ public:
 
    real_t omega() const { return omega_; }
    inline real_t omega_bulk() const { return omega(); }
+   inline real_t omega_odd() const { return omega(); }
    real_t viscosity() const { return viscosity_; }
 
    real_t omega( const cell_idx_t /*x*/, const cell_idx_t /*y*/, const cell_idx_t /*z*/,
@@ -138,14 +139,14 @@ class SRTField
 {
 public:
 
-   typedef SRT_tag tag;
+   using tag = SRT_tag;
    static const bool constant = false;
 
    SRTField() :
       omegaFieldId_(), omegaField_( NULL ), level_( uint_t(0) ) {}
 
    SRTField( const BlockDataID & omegaFieldId, const uint_t _level = uint_t(0) ) :
-      omegaFieldId_( omegaFieldId ), omegaField_( NULL ), level_( _level ) {}
+      omegaFieldId_( omegaFieldId ), omegaField_( nullptr ), level_( _level ) {}
 
    void setFieldId( const BlockDataID & omegaFieldId, const uint_t _level = uint_t(0) )
    {
@@ -212,7 +213,7 @@ class TRT
 {
 public:
 
-   typedef TRT_tag tag;
+   using tag = TRT_tag;
    
    static const real_t threeSixteenth;
 
@@ -274,6 +275,7 @@ public:
                  const Vector3<real_t> & /*velocity*/ = Vector3<real_t>(), const real_t /*rho*/ = real_t(1) ) const { return omega(); }
 
    inline real_t omega_bulk() const { return omega(); }
+   inline real_t omega_odd() const { return lambda_d(); }
 
    static real_t lambda_e( const real_t _omega ) { return _omega; }
    static real_t lambda_d( const real_t _omega, const real_t _magicNumber = threeSixteenth )
@@ -332,7 +334,7 @@ class D3Q19MRT
 {
 public:
 
-   typedef MRT_tag tag;
+   using tag = MRT_tag;
    
    static const real_t threeSixteenth;
    
@@ -484,6 +486,7 @@ public:
                  const Vector3<real_t> & /*velocity*/ = Vector3<real_t>(), const real_t /*rho*/ = real_t(1) ) const { return omega(); }
 
    real_t omega_bulk() const { return s_[1]; }
+   real_t omega_odd() const { return s_[4]; }
 
    real_t viscosity() const { return viscosity_; }
    real_t viscosity( const cell_idx_t /*x*/, const cell_idx_t /*y*/, const cell_idx_t /*z*/ ) const { return viscosity_; }
@@ -581,7 +584,7 @@ class D3Q27Cumulant
 {
 public:
   
-   typedef Cumulant_tag tag;
+   using tag = Cumulant_tag;
 
    /// Initializes all omegas to one except omega1
    D3Q27Cumulant( const real_t _omega1, const uint_t _level = uint_t(0) ) :

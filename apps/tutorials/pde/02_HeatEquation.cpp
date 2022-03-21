@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file 06_HeatEquation.cpp
+//! \file 02_HeatEquation.cpp
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
 //
 //======================================================================================================================
@@ -43,7 +43,7 @@
 namespace walberla {
 
 
-typedef GhostLayerField<real_t,1> ScalarField;
+using ScalarField = GhostLayerField<real_t, 1>;
 using Stencil_T = stencil::D2Q5;
 
 

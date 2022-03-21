@@ -48,13 +48,19 @@ namespace communication {
                                   bool sendDirectlyFromGPU = false,
                                   const int tag = 5432 );
 
+       explicit UniformGPUScheme( weak_ptr<StructuredBlockForest> bf,
+                                 const Set<SUID> & requiredBlockSelectors,
+                                 const Set<SUID> & incompatibleBlockSelectors,
+                                 bool sendDirectlyFromGPU = false,
+                                 const int tag = 5432 );
+
        void addPackInfo( const shared_ptr<GeneratedGPUPackInfo> &pi );
 
-       void startCommunication( cudaStream_t stream = 0);
-       void wait( cudaStream_t stream = 0);
+       void startCommunication( cudaStream_t stream = nullptr);
+       void wait( cudaStream_t stream = nullptr);
 
-      void operator()( cudaStream_t stream = 0 )         { communicate( stream ); }
-      inline void communicate( cudaStream_t stream = 0 ) { startCommunication(stream); wait(stream); }
+      void operator()( cudaStream_t stream = nullptr )         { communicate( stream ); }
+      inline void communicate( cudaStream_t stream = nullptr ) { startCommunication(stream); wait(stream); }
 
    private:
        void setupCommunication();
@@ -82,6 +88,9 @@ namespace communication {
            stencil::Direction dir;
        };
        std::map<mpi::MPIRank, std::vector<Header> > headers_;
+
+       Set<SUID> requiredBlockSelectors_;
+       Set<SUID> incompatibleBlockSelectors_;
    };
 
 

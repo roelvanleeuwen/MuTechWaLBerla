@@ -45,7 +45,7 @@ inline bool intersects(const EllipsoidID ellipsoid, const Ray& ray, real_t& t, V
 
 inline bool intersects(const BodyID body, const Ray& ray, real_t& t, Vec3& n);
    
-inline bool intersects(const AABB& aabb, const Ray& ray, real_t& t, real_t padding = real_t(0.0), Vec3* n = NULL);
+inline bool intersects(const AABB& aabb, const Ray& ray, real_t& t, real_t padding = real_t(0.0), Vec3* n = nullptr);
 inline bool intersectsSphere(const Vec3& gpos, real_t radius, const Ray& ray, real_t& t0, real_t& t1);
 
 struct IntersectsFunctor
@@ -222,7 +222,7 @@ inline bool intersects(const CapsuleID capsule, const Ray& ray, real_t& t, Vec3&
    }
    
    // Check now for end capping half spheres.
-   // Only check them if the ray didnt both enter and leave the cylinder part of the capsule already (t0hit && t1hit).
+   // Only check them if the ray didn't both enter and leave the cylinder part of the capsule already (t0hit && t1hit).
    if (!t0hit || !t1hit) {
       real_t t0_left, t1_left;
       Vec3 leftSpherePos(-halfLength, 0, 0);
@@ -430,14 +430,14 @@ inline bool intersects(const AABB& aabb, const Ray& ray, real_t& t, real_t paddi
       tmax = tzmax;
    }
    
-   if (n != NULL) {
+   if (n != nullptr) {
       (*n)[0] = (*n)[1] = (*n)[2] = real_t(0);
    }
    real_t t_;
    if (tmin > 0) {
       // ray hit box from outside
       t_ = tmin;
-      if (n != NULL) {
+      if (n != nullptr) {
          (*n)[tminAxis] = real_t(1);
       }
    } else if (tmax < 0) {
@@ -447,12 +447,12 @@ inline bool intersects(const AABB& aabb, const Ray& ray, real_t& t, real_t paddi
    } else {
       // ray origin within box
       t_ = tmax;
-      if (n != NULL) {
+      if (n != nullptr) {
          (*n)[tmaxAxis] = real_t(1);
       }
    }
    
-   if (n != NULL) {
+   if (n != nullptr) {
       if (ray.getDirection() * (*n) > 0) {
          *n = -(*n);
       }

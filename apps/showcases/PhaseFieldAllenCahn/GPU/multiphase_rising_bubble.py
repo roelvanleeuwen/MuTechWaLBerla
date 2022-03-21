@@ -7,7 +7,7 @@ from lbmpy.phasefield_allen_cahn.parameter_calculation import calculate_dimensio
 
 
 class Scenario:
-    def __init__(self):
+    def __init__(self, cuda_enabled_mpi=False):
         # output frequencies
         self.vtkWriteFrequency = 1000
         self.dbWriteFrequency = 200
@@ -39,6 +39,8 @@ class Scenario:
                                                                 density_ratio=1000,
                                                                 viscosity_ratio=100)
 
+        self.interface_thickness = 5
+
         # everything else
         self.dbFile = "risingBubble3D.db"
 
@@ -46,6 +48,9 @@ class Scenario:
 
         self.counter = 0
         self.yPositions = []
+
+        self.cudaEnabledMpi = cuda_enabled_mpi
+        self.cuda_blocks = (64, 2, 2)
 
     @wlb.member_callback
     def config(self):
@@ -63,6 +68,8 @@ class Scenario:
                 'overlappingWidth': self.overlappingWidth,
                 'remainingTimeLoggerFrequency': 10.0,
                 'scenario': self.scenario,
+                'cudaEnabledMpi': self.cudaEnabledMpi,
+                'gpuBlockSize': self.cuda_blocks
             },
             'PhysicalParameters': {
                 'density_liquid': self.density_heavy,
@@ -72,6 +79,7 @@ class Scenario:
                 'gravitational_acceleration': self.parameters["gravitational_acceleration"],
                 'relaxation_time_liquid': self.parameters.get("relaxation_time_heavy"),
                 'relaxation_time_gas': self.parameters.get("relaxation_time_light"),
+                'interface_thickness': self.interface_thickness
             },
             'Boundaries': {
                 'Border': [

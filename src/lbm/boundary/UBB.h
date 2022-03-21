@@ -49,12 +49,12 @@ namespace lbm {
 template< typename LatticeModel_T, typename flag_t, bool AdaptVelocityToExternalForce = false, bool StoreForce = false >
 class UBB : public Boundary<flag_t>
 {
-   typedef PdfField< LatticeModel_T >        PDFField;
-   typedef typename LatticeModel_T::Stencil  Stencil;
+   using PDFField = PdfField<LatticeModel_T>;
+   using Stencil = typename LatticeModel_T::Stencil;
 
-   typedef GhostLayerField< Vector3<real_t>, 1 >  VelField;
+   using VelField = GhostLayerField<Vector3<real_t>, 1>;
 
-   typedef GhostLayerField< Vector3<real_t>, 1 > ForceField;
+   using ForceField = GhostLayerField<Vector3<real_t>, 1>;
 
 public:
 
@@ -87,7 +87,7 @@ public:
 
 
 
-   inline UBB( const BoundaryUID & boundaryUID, const FlagUID & uid, PDFField* const pdfField, FlagField<flag_t> * const flagField = NULL );
+   inline UBB( const BoundaryUID & boundaryUID, const FlagUID & uid, PDFField* const pdfField, FlagField<flag_t> * const flagField = nullptr );
 
    void pushFlags( std::vector< FlagUID > & uids ) const { uids.push_back( uid_ ); }
 
@@ -146,7 +146,7 @@ inline UBB< LatticeModel_T, flag_t, AdaptVelocityToExternalForce, StoreForce >::
    Boundary<flag_t>( boundaryUID ), uid_( uid ), pdfField_( pdfField )
 {
    WALBERLA_ASSERT_NOT_NULLPTR( pdfField_ );
-   if (flagField != NULL)
+   if (flagField != nullptr)
       vel_ = make_shared<VelField>( pdfField_->xSize(), pdfField_->ySize(), pdfField_->zSize(), flagField->nrOfGhostLayers(), field::zyxf );
    else
       vel_ = make_shared<VelField>( pdfField_->xSize(), pdfField_->ySize(), pdfField_->zSize(), pdfField_->nrOfGhostLayers(), field::zyxf );

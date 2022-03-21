@@ -90,9 +90,9 @@ std::vector<T> gatherv( const std::vector<T> & values, int recvRank = 0, MPI_Com
       if( values.empty() )
       {
          if( !result.empty() )
-            MPI_Gatherv( NULL, 0, MPITrait<T>::type(), &(result[0]), &(recvCounts[0]), &(displacements[0]), MPITrait<T>::type(), recvRank, comm );
+            MPI_Gatherv( nullptr, 0, MPITrait<T>::type(), &(result[0]), &(recvCounts[0]), &(displacements[0]), MPITrait<T>::type(), recvRank, comm );
          else
-            MPI_Gatherv( NULL, 0, MPITrait<T>::type(), NULL, &(recvCounts[0]), &(displacements[0]), MPITrait<T>::type(), recvRank, comm );
+            MPI_Gatherv( nullptr, 0, MPITrait<T>::type(), nullptr, &(recvCounts[0]), &(displacements[0]), MPITrait<T>::type(), recvRank, comm );
       }
       else
       {
@@ -109,11 +109,11 @@ std::vector<T> gatherv( const std::vector<T> & values, int recvRank = 0, MPI_Com
 
    if( values.empty() )
    {
-      MPI_Gatherv( NULL, 0, MPITrait<T>::type(), NULL, NULL, NULL, MPITrait<T>::type(), recvRank, comm );
+      MPI_Gatherv( nullptr, 0, MPITrait<T>::type(), nullptr, nullptr, nullptr, MPITrait<T>::type(), recvRank, comm );
    }
    else
    {
-      MPI_Gatherv( const_cast<T*>( &(values[0]) ), int_c( values.size() ), MPITrait<T>::type(), NULL, NULL, NULL, MPITrait<T>::type(),
+      MPI_Gatherv( const_cast<T*>( &(values[0]) ), int_c( values.size() ), MPITrait<T>::type(), nullptr, nullptr, nullptr, MPITrait<T>::type(),
                    recvRank, comm );
    }
 
@@ -171,7 +171,7 @@ std::vector<T> allGatherv( const std::vector<T> & values, MPI_Comm comm = MPI_CO
    {
       if( values.empty() )
       {
-         MPI_Allgatherv( NULL, 0, MPITrait<T>::type(), &(result[0]), &(recvCounts[0]), &(displacements[0]),
+         MPI_Allgatherv( nullptr, 0, MPITrait<T>::type(), &(result[0]), &(recvCounts[0]), &(displacements[0]),
                          MPITrait<T>::type(), comm );
       }
       else
@@ -198,11 +198,11 @@ std::vector< std::string > allGatherv( const std::vector< std::string > & values
 * - the buffer contents are gathered on process with targetRank
 * - buffer contents are sorted by rank and stored consecutively in a mpi::RecvBuffer
 *
-* \param sendBuffer [in]  sendBuffer with (possibly) different size on each process
-* \param recvBuffer [out] recvBuffer which is left unchanged on all processes but targetRank
+* \param[in]  sendBuffer  sendBuffer with (possibly) different size on each process
+* \param[out] recvBuffer  recvBuffer which is left unchanged on all processes but targetRank
 *                         on targetRank  recvBuffer holds the gathered result
-* \param targetRank [in]  rank of the process where data is gathered
-* \param comm       [in]  mpi communicator to use
+* \param[in]  targetRank  rank of the process where data is gathered
+* \param[in]  comm        mpi communicator to use
 */
 //*******************************************************************************************************************
 void gathervBuffer( const mpi::SendBuffer & sendBuffer, mpi::RecvBuffer & recvBuffer, int targetRank = 0, MPI_Comm comm = MPI_COMM_WORLD );

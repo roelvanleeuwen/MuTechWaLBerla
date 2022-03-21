@@ -60,7 +60,6 @@ namespace python_coupling {
 
 
 #ifdef WALBERLA_BUILD_WITH_PYTHON
-   public:
             pybind11::dict & dict()        { return d_; }
       const pybind11::dict & dict() const  { return d_; }
    protected:
@@ -92,7 +91,7 @@ namespace python_coupling {
    template<typename T> bool DictWrapper::checkedGet( const std::string & name, T output ) { return false; }
 
    template<typename T> T DictWrapper::get( const std::string & ) {
-      WALBERLA_ABORT("Not available - waLBerla was built without Python suppport");
+      WALBERLA_ABORT("Not available - waLBerla was built without Python support");
 #ifdef __IBMCPP__
       return *(reinterpret_cast< T * >( NULL )); // silencing incorrect IBM compiler warning
 #endif

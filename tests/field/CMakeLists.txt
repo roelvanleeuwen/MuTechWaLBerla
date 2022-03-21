@@ -38,8 +38,8 @@ waLBerla_compile_test( FILES adaptors/AdaptorTest.cpp DEPENDS blockforest gui lb
 waLBerla_execute_test( NAME AdaptorTest )
 
 waLBerla_compile_test( FILES FieldGatherTest.cpp DEPENDS blockforest gui )
-waLBerla_execute_test( NAME FieldGatherTest3 COMMAND $<TARGET_FILE:FieldGatherTest>  PROCESSES 3 )
-waLBerla_execute_test( NAME FieldGatherTest1 COMMAND $<TARGET_FILE:FieldGatherTest>  PROCESSES 1 )
+waLBerla_execute_test( NAME FieldGatherTest3 COMMAND $<TARGET_FILE:FieldGatherTest>  PROCESSES 3 DEPENDS_ON_TARGETS FieldGatherTest )
+waLBerla_execute_test( NAME FieldGatherTest1 COMMAND $<TARGET_FILE:FieldGatherTest>  PROCESSES 1 DEPENDS_ON_TARGETS FieldGatherTest )
 
 waLBerla_compile_test( FILES FieldFileIOTest.cpp DEPENDS blockforest )
 waLBerla_execute_test( NAME FieldFileIOTest1Proc  COMMAND $<TARGET_FILE:FieldFileIOTest> PROCESSES 1  )
@@ -77,4 +77,16 @@ waLBerla_generate_target_from_python(NAME CodeGenMultipleFieldSwaps FILE codegen
         OUT_FILES MultipleFieldSwaps.cpp MultipleFieldSwaps.h )
 waLBerla_compile_test( FILES codegen/MultipleFieldSwaps.cpp DEPENDS gui timeloop CodeGenMultipleFieldSwaps)
 waLBerla_execute_test( NAME MultipleFieldSwaps )
+
+waLBerla_generate_target_from_python(NAME CodegenGeneratedCPUFieldPackInfo FILE codegen/GeneratedFieldPackInfoTest.py
+        OUT_FILES ScalarFieldCommunication.cpp ScalarFieldCommunication.h
+                  ScalarFieldPullReduction.cpp ScalarFieldPullReduction.h )
+waLBerla_compile_test( FILES codegen/GeneratedFieldPackInfoTest.cpp
+        DEPENDS blockforest core field CodegenGeneratedCPUFieldPackInfo )
+waLBerla_execute_test( NAME GeneratedFieldPackInfoTest )
+
+waLBerla_generate_target_from_python(NAME CodeGenEK FILE codegen/EK.py
+        OUT_FILES EKFlux.cpp EKFlux.h EKContinuity.cpp EKContinuity.h )
+waLBerla_compile_test( FILES codegen/EK.cpp DEPENDS blockforest core field timeloop CodeGenEK)
+waLBerla_execute_test( NAME EK )
 endif()

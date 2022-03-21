@@ -48,8 +48,8 @@ class GenericAABB
 
 public:
    // Typedefs
-   typedef T            value_type;  /// scalar data type
-   typedef Vector3< T > vector_type; /// data type for three dimensional vectors
+   using value_type = T;  /// scalar data type
+   using vector_type = Vector3<T>; /// data type for three dimensional vectors
 
    // Constructors
    inline GenericAABB();
@@ -132,9 +132,9 @@ public:
    inline value_type intersectionVolume( const GenericAABB & other ) const;
    inline GenericAABB getIntersection( const GenericAABB & other ) const;
 
-   inline bool isIdentical( const GenericAABB & rhs ) const;
+   inline bool isIdentical( const GenericAABB & other ) const;
 
-   inline bool isEqual( const GenericAABB & rhs ) const;
+   inline bool isEqual( const GenericAABB & other ) const;
 
    inline value_type sqDistance( const vector_type & point ) const;
    inline value_type sqSignedDistance( const vector_type & point ) const;

@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file BasicExports.cpp
+//! \file BasicExport.cpp
 //! \ingroup python_coupling
 //! \author Martin Bauer <martin.bauer@fau.de>
 //! \author Markus Holzer <markus.holzer@fau.de>
@@ -373,63 +373,6 @@ void timingTreeStopWrapper(WcTimingTree & tt, const std::string& name)
    tt.stop(name);
 }
 
-void exportTiming(py::module_ &m)
-{
-   py::class_<WcTimer> (m, "Timer")
-      .def( py::init<>() )
-      .def( "start",  &WcTimer::start )
-      .def( "stop",   &WcTimer::end   )
-      .def( "reset",  &WcTimer::reset )
-      .def( "merge",  &WcTimer::merge )
-      .def_property_readonly( "counter",      &WcTimer::getCounter   )
-      .def_property_readonly( "total",        &WcTimer::total        )
-      .def_property_readonly( "sumOfSquares", &WcTimer::sumOfSquares )
-      .def_property_readonly( "average",      &WcTimer::average      )
-      .def_property_readonly( "variance",     &WcTimer::variance     )
-      .def_property_readonly( "min",          &WcTimer::min          )
-      .def_property_readonly( "max",          &WcTimer::max          )
-      .def_property_readonly( "last",         &WcTimer::last         )
-      ;
-
-
-   WcTimer & ( WcTimingPool::*pGetItem ) ( const std::string & ) = &WcTimingPool::operator[];
-
-   {
-      py::scope classScope =
-      py::class_<WcTimingPool, shared_ptr<WcTimingPool> > (m, "TimingPool")
-         .def( py::init<>() )
-         .def_property_readonly( "__getitem__",     pGetItem)
-         .def( "__contains__",    &WcTimingPool::timerExists )
-         .def( "getReduced",      &WcTimingPool::getReduced)
-         .def( "merge",           &WcTimingPool::merge)
-         .def( "clear",           &WcTimingPool::clear )
-         .def( "unifyRegisteredTimersAcrossProcesses", &WcTimingPool::unifyRegisteredTimersAcrossProcesses )
-         .def( "logResultOnRoot", &WcTimingPool::logResultOnRoot)
-         ;
-      WALBERLA_UNUSED( classScope );
-
-      py::enum_<timing::ReduceType>(m, "ReduceType")
-          .value("min"  , timing::REDUCE_MIN)
-          .value("avg"  , timing::REDUCE_AVG)
-          .value("max"  , timing::REDUCE_MAX)
-          .value("total", timing::REDUCE_TOTAL)
-          .export_values()
-          ;
-   }
-
-   const WcTimer & ( WcTimingTree::*pTimingTreeGet ) ( const std::string & ) const = &WcTimingTree::operator[];
-   py::class_<WcTimingTree, shared_ptr<WcTimingTree> > (m, "TimingTree")
-         .def( py::init<>() )
-         .def_property_readonly( "__getitem__",  pTimingTreeGet )
-         .def( "start",        &WcTimingTree::start )
-         .def( "stop",         &timingTreeStopWrapper )
-         .def( "getReduced",   &WcTimingTree::getReduced )
-         .def( "toDict",       &buildDictFromTimingTree )
-    ;
-}
-
-
-
 
 //======================================================================================================================
 //
@@ -700,8 +643,6 @@ void exportBasicWalberlaDatastructures(py::module_ &m)
    exportCellInterval(m);
    exportAABB(m);
 
-   exportTiming(m);
-
    exportIBlock(m);
    exportCommunication(m);
 
@@ -709,7 +650,7 @@ void exportBasicWalberlaDatastructures(py::module_ &m)
    exportStencilDirections(m);
 
    // Add empty callbacks module
-   m.def_submodule("callbacks", "Empty callbacks module. Needed for the Szenario manager");
+   m.def_submodule("callbacks", "Empty callbacks module. Needed for the Scenario manager");
 
 }
 

@@ -169,7 +169,6 @@ protected:
 
    std::string identifier_;
 private:
-
   BlockCellDataWriter() = default;
 
 }; // class BlockCellDataWriter
@@ -196,7 +195,7 @@ inline void BlockCellDataWriter::push( Base64Writer& b64, const cell_idx_t x, co
 
 } // namespace internal
 
-typedef internal::BlockCellDataWriter BlockCellDataWriterInterface;
+using BlockCellDataWriterInterface = internal::BlockCellDataWriter;
 
 
 
@@ -218,12 +217,11 @@ class BlockCellDataWriter : public BlockCellDataWriterInterface
 
 public:
 
-   typedef T value_type;
+   using value_type = T;
 
    BlockCellDataWriter( const std::string & id) : BlockCellDataWriterInterface( id ), fSize_(0) {}
    BlockCellDataWriter( const std::string & id, const uint_t fSize) : BlockCellDataWriterInterface( id ), fSize_(fSize) {}
    ~BlockCellDataWriter() override = default;
-
    void push( std::ostream & os, const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
    {
       vtk::toStream( os, evaluate( x, y, z, f ) );
@@ -250,7 +248,6 @@ public:
    {
       b64 << evaluate( x, y, z, f, localXCell, localYCell, localZCell, globalX, globalY, globalZ, samplingDx, samplingDy, samplingDz );
    }
-
    uint_t fSize() const override { return fSize_; }
 
    std::string typeString() const override { return vtk::typeToString< T >(); }
@@ -284,7 +281,7 @@ template< typename T >
 class BlockCellDataWriterScalingAdapter : public T
 {
 public:
-   typedef typename T::value_type value_type;
+  using value_type = typename T::value_type;
 
    BlockCellDataWriterScalingAdapter( const std::string& id, const T & base, value_type factor ) 
       : T( base ), factor_( factor ) { this->setIdentifier( id ); }

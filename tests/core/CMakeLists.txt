@@ -22,16 +22,9 @@ waLBerla_compile_test( FILES config/ConfigTest.cpp )
 waLBerla_execute_test( NAME ConfigTest COMMAND $<TARGET_FILE:ConfigTest> ${CMAKE_CURRENT_SOURCE_DIR}/config/ConfigTest.dat )
 
 if( WALBERLA_BUILD_WITH_BOOST )
-   waLBerla_compile_test( FILES config/PropertyTreeTest.cpp)
-   #waLBerla_execute_test(NAME PropertyTreeTest COMMAND $<TARGET_FILE:PropertyTreeTest> )
-endif( WALBERLA_BUILD_WITH_BOOST )
-
-
-if( WALBERLA_BUILD_WITH_BOOST )
    waLBerla_compile_test( FILES config/MultiArrayIOTest.cpp )
    waLBerla_execute_test( NAME MultiArrayIOTest COMMAND $<TARGET_FILE:MultiArrayIOTest> )
 endif( WALBERLA_BUILD_WITH_BOOST )
-
 
 #########
 # debug #
@@ -90,8 +83,9 @@ waLBerla_execute_test( NAME GenericAABBTest )
 
 if( WALBERLA_BUILD_WITH_BOOST )
    waLBerla_compile_test( FILES math/PhysicalCheckTest.cpp DEPENDS stencil )
-   waLBerla_execute_test( NAME PhysicalCheckTest 
-                          COMMAND $<TARGET_FILE:PhysicalCheckTest>  ${CMAKE_CURRENT_SOURCE_DIR}/math/PhysicalCheckTestInput.prm )
+   waLBerla_execute_test( NAME PhysicalCheckTest
+         COMMAND $<TARGET_FILE:PhysicalCheckTest> ${CMAKE_CURRENT_SOURCE_DIR}/math/PhysicalCheckTestInput.prm
+         DEPENDS_ON_TARGETS PhysicalCheckTest )
 endif( WALBERLA_BUILD_WITH_BOOST )
 
 
@@ -171,7 +165,7 @@ waLBerla_execute_test( NAME TimingPoolTest PROCESSES 3  )
 waLBerla_compile_test( FILES timing/TimingTreeTest.cpp )
 waLBerla_execute_test( NAME TimingTreeTest PROCESSES 3)
 
-waLBerla_compile_test( FILES timing/SweepTimeloopTimerReduction.cpp DEPENDS timeloop blockforest )
+waLBerla_compile_test( FILES timing/SweepTimeloopTimerReduction.cpp DEPENDS blockforest domain_decomposition timeloop)
 waLBerla_execute_test( NAME SweepTimeloopTimerReduction PROCESSES 9  )
 
 
@@ -205,8 +199,11 @@ waLBerla_execute_test( NAME FunctionTraitsTest )
 waLBerla_compile_test( FILES GridGeneratorTest.cpp )
 waLBerla_execute_test( NAME GridGeneratorTest )
 
-waLBerla_compile_test( FILES MemoryUsage.cpp )
-waLBerla_execute_test( NAME MemoryUsage )
+#TODO: find fix for this test with intel OneApi compiler
+if(NOT WALBERLA_CXX_COMPILER_IS_INTELLLVM )
+   waLBerla_compile_test( FILES MemoryUsage.cpp )
+   waLBerla_execute_test( NAME MemoryUsage )
+endif()
 
 waLBerla_compile_test( FILES OpenMPWrapperTest.cpp )
 waLBerla_execute_test( NAME OpenMPWrapperTest )

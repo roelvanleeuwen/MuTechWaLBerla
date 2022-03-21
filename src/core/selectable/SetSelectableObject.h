@@ -38,8 +38,8 @@ namespace selectable {
 *          selection attributes, and objects of type Set (see "Set.h") as selector
 *
 *   SetSelectableObject is an implementation of SelectableObject that stores objects of type T which are attached with
-*   selection attributes of type SetSelectionPair<U>. Every object of type SetSelectionPair<U> contains two sets of
-*   type Set<U> - one "include" and one "exclude" set. For information on which objects are selected given a certain
+*   selection attributes of type `SetSelectionPair<U>`. Every object of type `SetSelectionPair<U>` contains two sets of
+*   type `Set<U>` - one "include" and one "exclude" set. For information on which objects are selected given a certain
 *   selection request see the documentation of the function "select".
 */
 //**********************************************************************************************************************
@@ -49,14 +49,14 @@ class SetSelectableObject : public SelectableObject< T, SetSelectionPair<U>, Set
 {
 public:
 
-   SetSelectableObject() {}
+   SetSelectableObject() = default;
 
    SetSelectableObject( const T& object, const Set<U>& include, const Set<U>& exclude, const std::string& identifier = std::string() ) {
 
       add( object, include, exclude, identifier );
    }
 
-   virtual ~SetSelectableObject() {}
+   ~SetSelectableObject() override = default;
 
    void add( const T& object, const Set<U>& include, const Set<U>& exclude, const std::string& identifier = std::string() ) {
 
@@ -73,7 +73,7 @@ private:
    };
 
    // added inline qualifier to suppress unjustified MSVC warning C4505
-   virtual inline void select( std::vector< size_t >& index, const Set<U>& selector ) const;
+   inline void select( std::vector< size_t >& index, const Set<U>& selector ) const override;
 
 }; // SetSelectableObject
 

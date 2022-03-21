@@ -19,6 +19,7 @@ stages:
 
 .build_template:
    script:
+      - pip install -I cmake==3.16.3
       - export NUM_CORES=$(nproc --all)
       - export MAX_BUILD_CORES=$(( $(awk '( $1 == "MemTotal:" ) { print $2 }' /proc/meminfo) / ( 4 * 1024 * 1024  ) ))
       - "[[ $MAX_BUILD_CORES -lt $NUM_CORES ]] && export NUM_BUILD_CORES=$MAX_BUILD_CORES || export NUM_BUILD_CORES=$NUM_CORES"
@@ -33,11 +34,13 @@ stages:
       - cd $CI_PROJECT_DIR/build
       - if dpkg --compare-versions `ompi_info | head -2 | tail -1 | sed 's/[^0-9.]*\([0-9.]*\).*/\1/'` ge 1.10; then export MPIEXEC_PREFLAGS="--allow-run-as-root" ; fi
       - cmake ..
+        -DCMAKE_CXX_FLAGS=$CMAKE_CXX_FLAGS
         -DWALBERLA_BUFFER_DEBUG=$WALBERLA_BUFFER_DEBUG
         -DWALBERLA_BUILD_TESTS=ON
         -DWALBERLA_BUILD_BENCHMARKS=ON
         -DWALBERLA_BUILD_TUTORIALS=ON
         -DWALBERLA_BUILD_TOOLS=ON
+        -DWALBERLA_BUILD_SHOWCASES=ON
         -DWALBERLA_BUILD_WITH_MPI=$WALBERLA_BUILD_WITH_MPI
         -DWALBERLA_BUILD_WITH_CUDA=$WALBERLA_BUILD_WITH_CUDA
         -DWALBERLA_BUILD_WITH_PYTHON=$WALBERLA_BUILD_WITH_PYTHON
@@ -52,7 +55,10 @@ stages:
         -DWALBERLA_STL_BOUNDS_CHECKS=$WALBERLA_STL_BOUNDS_CHECKS
       - cmake . -LA
       - make -j $NUM_BUILD_CORES -l $NUM_CORES
-      - ctest -LE $CTEST_EXCLUDE_LABELS -C $CMAKE_BUILD_TYPE --output-on-failure -j $NUM_CORES
+      - ctest -LE $CTEST_EXCLUDE_LABELS -C $CMAKE_BUILD_TYPE --output-on-failure -j $NUM_CORES -T Test
+   after_script:
+      - pip3 install lxml
+      - python3 cmake/ctest2junit.py build > report.xml
    tags:
       - docker
    variables:
@@ -67,6 +73,12 @@ stages:
       WALBERLA_BUILD_WITH_METIS: "ON"
       WALBERLA_BUILD_WITH_PARMETIS: "ON"
       WALBERLA_ENABLE_GUI: "OFF"
+   artifacts:
+      when: always
+      reports:
+         junit:
+            - report.xml
+            - python/report.xml
 
 
 ###############################################################################
@@ -80,24 +92,15 @@ stages:
 intel_19_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/intel:19
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CXX_FLAGS: "-qoverride-limits"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -106,22 +109,13 @@ intel_19_serial:
 intel_19_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/intel:19
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CXX_FLAGS: "-qoverride-limits"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -130,17 +124,9 @@ intel_19_mpionly:
 intel_19_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/intel:19
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CXX_FLAGS: "-qoverride-limits"
    tags:
       - cuda
       - docker
@@ -149,21 +135,13 @@ intel_19_hybrid:
 intel_19_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/intel:19
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CXX_FLAGS: "-qoverride-limits"
    tags:
       - cuda
       - docker
@@ -172,19 +150,11 @@ intel_19_serial_dbg:
 intel_19_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/intel:19
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CXX_FLAGS: "-qoverride-limits"
    tags:
       - cuda
       - docker
@@ -193,18 +163,10 @@ intel_19_mpionly_dbg:
 intel_19_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/intel:19
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CXX_FLAGS: "-qoverride-limits"
    tags:
       - cuda
       - docker
@@ -219,6 +181,7 @@ intel_19_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
+      CMAKE_CXX_FLAGS: "-qoverride-limits"
    tags:
       - cuda
       - docker
@@ -227,24 +190,14 @@ intel_19_hybrid_dbg_sp:
 gcc_7_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:7
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -252,22 +205,12 @@ gcc_7_serial:
 gcc_7_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:7
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -275,21 +218,11 @@ gcc_7_mpionly:
 gcc_7_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:7
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -297,26 +230,15 @@ gcc_7_hybrid:
 gcc_7_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:7
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_ENABLE_GUI: "ON"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -324,23 +246,13 @@ gcc_7_serial_dbg:
 gcc_7_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:7
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -348,18 +260,9 @@ gcc_7_mpionly_dbg:
 gcc_7_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:7
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    tags:
       - cuda
       - docker
@@ -376,7 +279,6 @@ gcc_7_hybrid_dbg_sp:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -384,24 +286,14 @@ gcc_7_hybrid_dbg_sp:
 gcc_8_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -409,22 +301,12 @@ gcc_8_serial:
 gcc_8_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -432,21 +314,11 @@ gcc_8_mpionly:
 gcc_8_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -454,25 +326,15 @@ gcc_8_hybrid:
 gcc_8_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -480,23 +342,13 @@ gcc_8_serial_dbg:
 gcc_8_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -504,22 +356,12 @@ gcc_8_mpionly_dbg:
 gcc_8_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -536,7 +378,6 @@ gcc_8_hybrid_dbg_sp:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -545,10 +386,9 @@ gcc_9_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
@@ -560,7 +400,6 @@ gcc_9_serial:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - docker
 
@@ -568,10 +407,9 @@ gcc_9_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
@@ -581,7 +419,6 @@ gcc_9_mpionly:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - docker
 
@@ -589,10 +426,9 @@ gcc_9_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
@@ -601,7 +437,6 @@ gcc_9_hybrid:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - docker
 
@@ -609,10 +444,9 @@ gcc_9_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
@@ -625,7 +459,6 @@ gcc_9_serial_dbg:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - docker
 
@@ -633,10 +466,9 @@ gcc_9_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
@@ -647,7 +479,6 @@ gcc_9_mpionly_dbg:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - docker
 
@@ -655,10 +486,9 @@ gcc_9_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
@@ -668,7 +498,6 @@ gcc_9_hybrid_dbg:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - docker
 
@@ -684,7 +513,6 @@ gcc_9_hybrid_dbg_sp:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - docker
 
@@ -692,10 +520,9 @@ gcc_10_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
@@ -707,7 +534,6 @@ gcc_10_serial:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - docker
 
@@ -715,10 +541,9 @@ gcc_10_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
@@ -728,24 +553,24 @@ gcc_10_mpionly:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - docker
 
 gcc_10_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
-   stage: pretest
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
    tags:
       - docker
 
@@ -753,10 +578,9 @@ gcc_10_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
@@ -766,6 +590,9 @@ gcc_10_serial_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
    tags:
       - docker
 
@@ -773,10 +600,9 @@ gcc_10_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
@@ -784,6 +610,9 @@ gcc_10_mpionly_dbg:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
    tags:
       - docker
 
@@ -791,16 +620,18 @@ gcc_10_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
    variables:
       WALBERLA_BUILD_WITH_CUDA: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
    tags:
       - docker
 
@@ -813,21 +644,22 @@ gcc_10_hybrid_dbg_sp:
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
    tags:
       - docker
 
-clang_6.0_serial:
+gcc_11_serial:
    extends: .build_template
-   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:6.0
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
    before_script:
-      - pip3 install lbmpy jinja2
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
       - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
-      WALBERLA_BUILD_WITH_CUDA: "ON"
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
@@ -836,7 +668,119 @@ clang_6.0_serial:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
+   tags:
+      - docker
+
+gcc_11_mpionly:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+gcc_11_hybrid:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
+   stage: pretest
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   tags:
+      - docker
+
+gcc_11_serial_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   tags:
+      - docker
+
+gcc_11_mpionly_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   tags:
+      - docker
+
+gcc_11_hybrid_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   tags:
+      - docker
+
+gcc_11_hybrid_dbg_sp:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_DOUBLE_ACCURACY: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      WALBERLA_BUILD_WITH_METIS: "OFF"
+   tags:
+      - docker
+
+clang_6.0_serial:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:6.0
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "ON"
+      WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
    tags:
       - cuda
       - docker
@@ -844,22 +788,12 @@ clang_6.0_serial:
 clang_6.0_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:6.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -867,21 +801,11 @@ clang_6.0_mpionly:
 clang_6.0_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:6.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -889,25 +813,15 @@ clang_6.0_hybrid:
 clang_6.0_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:6.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -915,23 +829,13 @@ clang_6.0_serial_dbg:
 clang_6.0_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:6.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -939,18 +843,9 @@ clang_6.0_mpionly_dbg:
 clang_6.0_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:6.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    tags:
       - cuda
       - docker
@@ -967,7 +862,6 @@ clang_6.0_hybrid_dbg_sp:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -975,24 +869,14 @@ clang_6.0_hybrid_dbg_sp:
 clang_7.0_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:7.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1000,22 +884,12 @@ clang_7.0_serial:
 clang_7.0_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:7.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1023,21 +897,11 @@ clang_7.0_mpionly:
 clang_7.0_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:7.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1045,25 +909,15 @@ clang_7.0_hybrid:
 clang_7.0_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:7.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1071,23 +925,13 @@ clang_7.0_serial_dbg:
 clang_7.0_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:7.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1095,22 +939,12 @@ clang_7.0_mpionly_dbg:
 clang_7.0_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:7.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1127,7 +961,6 @@ clang_7.0_hybrid_dbg_sp:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1135,24 +968,14 @@ clang_7.0_hybrid_dbg_sp:
 clang_8.0_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:8.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1160,22 +983,12 @@ clang_8.0_serial:
 clang_8.0_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:8.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1183,21 +996,11 @@ clang_8.0_mpionly:
 clang_8.0_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:8.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1205,25 +1008,15 @@ clang_8.0_hybrid:
 clang_8.0_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:8.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1231,23 +1024,13 @@ clang_8.0_serial_dbg:
 clang_8.0_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:8.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1255,22 +1038,12 @@ clang_8.0_mpionly_dbg:
 clang_8.0_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:8.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1287,7 +1060,6 @@ clang_8.0_hybrid_dbg_sp:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1295,24 +1067,14 @@ clang_8.0_hybrid_dbg_sp:
 clang_9.0_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:9.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1320,22 +1082,12 @@ clang_9.0_serial:
 clang_9.0_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:9.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1343,21 +1095,11 @@ clang_9.0_mpionly:
 clang_9.0_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:9.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1365,25 +1107,15 @@ clang_9.0_hybrid:
 clang_9.0_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:9.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1391,23 +1123,13 @@ clang_9.0_serial_dbg:
 clang_9.0_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:9.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1415,22 +1137,12 @@ clang_9.0_mpionly_dbg:
 clang_9.0_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:9.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1447,7 +1159,6 @@ clang_9.0_hybrid_dbg_sp:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1455,24 +1166,14 @@ clang_9.0_hybrid_dbg_sp:
 clang_10.0_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:10.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1480,22 +1181,12 @@ clang_10.0_serial:
 clang_10.0_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:10.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
    tags:
       - cuda
       - docker
@@ -1503,17 +1194,11 @@ clang_10.0_mpionly:
 clang_10.0_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:10.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
    tags:
       - cuda
       - docker
@@ -1521,21 +1206,15 @@ clang_10.0_hybrid:
 clang_10.0_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:10.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
    tags:
       - cuda
       - docker
@@ -1543,19 +1222,13 @@ clang_10.0_serial_dbg:
 clang_10.0_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:10.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
    tags:
       - cuda
       - docker
@@ -1563,18 +1236,12 @@ clang_10.0_mpionly_dbg:
 clang_10.0_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:10.0
-   before_script:
-      - pip3 install lbmpy jinja2
-      - cd python
-      - python3 -m unittest discover pystencils_walberla/
-      - python3 -m unittest discover lbmpy_walberla/
-      - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
-      WALBERLA_BUILD_WITH_CODEGEN: "ON"
-      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
    tags:
       - cuda
       - docker
@@ -1582,15 +1249,482 @@ clang_10.0_hybrid_dbg:
 clang_10.0_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:10.0
-   stage: pretest
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_DOUBLE_ACCURACY: "OFF"
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_METIS: "OFF"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
    tags:
       - cuda
+      - docker
+
+clang_11.0_serial:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_11.0_mpionly:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_11.0_hybrid:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_11.0_serial_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_11.0_mpionly_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_11.0_hybrid_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_11.0_hybrid_dbg_sp:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_DOUBLE_ACCURACY: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      WALBERLA_BUILD_WITH_METIS: "OFF"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_12.0_serial:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_12.0_mpionly:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_12.0_hybrid:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_12.0_serial_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_12.0_mpionly_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_12.0_hybrid_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_12.0_hybrid_dbg_sp:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_DOUBLE_ACCURACY: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      WALBERLA_BUILD_WITH_METIS: "OFF"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_13.0_serial:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_13.0_mpionly:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+clang_13.0_hybrid:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   tags:
+      - docker
+
+clang_13.0_serial_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   tags:
+      - docker
+
+clang_13.0_mpionly_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   tags:
+      - docker
+
+clang_13.0_hybrid_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
+   before_script:
+      - pip3 install lbmpy==0.4.1 jinja2 pytest
+      - cd python
+      - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
+      - cd ..
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
+      WALBERLA_BUILD_WITH_PYTHON: "ON"
+   tags:
+      - docker
+
+clang_13.0_hybrid_dbg_sp:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
+   stage: pretest
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_DOUBLE_ACCURACY: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      WALBERLA_BUILD_WITH_METIS: "OFF"
+   tags:
+      - docker
+
+inteloneapi_22.1_serial:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/inteloneapi:22.1
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+inteloneapi_22.1_mpionly:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/inteloneapi:22.1
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+   only:
+      variables:
+         - $ENABLE_NIGHTLY_BUILDS
+   tags:
+      - docker
+
+inteloneapi_22.1_hybrid:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/inteloneapi:22.1
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+   tags:
+      - docker
+
+inteloneapi_22.1_serial_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/inteloneapi:22.1
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      WALBERLA_BUILD_WITH_MPI: "OFF"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+   tags:
+      - docker
+
+inteloneapi_22.1_mpionly_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/inteloneapi:22.1
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_BUILD_WITH_OPENMP: "OFF"
+   tags:
+      - docker
+
+inteloneapi_22.1_hybrid_dbg:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/inteloneapi:22.1
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+   tags:
+      - docker
+
+inteloneapi_22.1_hybrid_dbg_sp:
+   extends: .build_template
+   image: i10git.cs.fau.de:5005/walberla/buildenvs/inteloneapi:22.1
+   variables:
+      WALBERLA_BUILD_WITH_CUDA: "OFF"
+      CMAKE_BUILD_TYPE: "DebugOptimized"
+      WALBERLA_DOUBLE_ACCURACY: "OFF"
+      WALBERLA_BUILD_WITH_PARMETIS: "OFF"
+      WALBERLA_BUILD_WITH_METIS: "OFF"
+   tags:
       - docker
 
 
@@ -1757,7 +1891,10 @@ coverage:
       - cd build
       - cmake -LA -DWALBERLA_BUILD_TESTS=ON -DWALBERLA_BUILD_BENCHMARKS=ON -DWALBERLA_BUILD_TUTORIALS=ON -DWALBERLA_BUILD_WITH_MPI=$WALBERLA_BUILD_WITH_MPI -DWALBERLA_BUILD_WITH_OPENMP=$WALBERLA_BUILD_WITH_OPENMP -DWALBERLA_DOUBLE_ACCURACY=$WALBERLA_DOUBLE_ACCURACY -DWARNING_ERROR=ON -G "$CMAKE_GENERATOR" -DCMAKE_DISABLE_FIND_PACKAGE_Boost=TRUE ..
       - MSBuild.exe walberla.sln /property:Configuration=$BUILD_CONFIGURATION /verbosity:minimal /maxcpucount:4
-      - ctest -LE $CTEST_EXCLUDE_LABELS -C $BUILD_CONFIGURATION --output-on-failure -j 4
+      - ctest -LE $CTEST_EXCLUDE_LABELS -C $BUILD_CONFIGURATION --output-on-failure -j 4 -T Test
+   after_script:
+      - pip3 install lxml
+      - python3 cmake/ctest2junit.py build > report.xml
    variables:
       CMAKE_GENERATOR: "Visual Studio 15 2017 Win64"
       BUILD_CONFIGURATION: "Release"
@@ -1765,6 +1902,12 @@ coverage:
       WALBERLA_BUILD_WITH_MPI: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "ON"
       WALBERLA_DOUBLE_ACCURACY: "ON"
+   artifacts:
+      when: always
+      reports:
+         junit:
+            - report.xml
+            - python/report.xml
 
 
 
@@ -1934,12 +2077,21 @@ msvc-14.2_mpionly:
       - mpirun --version
       - mkdir build
       - cd build
-      - cmake .. -DWALBERLA_BUILD_TESTS=ON -DWALBERLA_BUILD_BENCHMARKS=ON -DWALBERLA_BUILD_TUTORIALS=ON -DWALBERLA_BUILD_TOOLS=ON -DWALBERLA_BUILD_WITH_MPI=$WALBERLA_BUILD_WITH_MPI -DWALBERLA_BUILD_WITH_PYTHON=$WALBERLA_BUILD_WITH_PYTHON -DWALBERLA_BUILD_WITH_OPENMP=$WALBERLA_BUILD_WITH_OPENMP -DWALBERLA_BUILD_WITH_CUDA=$WALBERLA_BUILD_WITH_CUDA -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWARNING_ERROR=ON
+      - cmake .. -DWALBERLA_BUILD_TESTS=ON -DWALBERLA_BUILD_BENCHMARKS=ON -DWALBERLA_BUILD_TUTORIALS=ON -DWALBERLA_BUILD_TOOLS=ON -DWALBERLA_BUILD_WITH_MPI=$WALBERLA_BUILD_WITH_MPI -DWALBERLA_BUILD_WITH_PYTHON=$WALBERLA_BUILD_WITH_PYTHON -DWALBERLA_BUILD_WITH_CODEGEN=$WALBERLA_BUILD_WITH_CODEGEN -DWALBERLA_BUILD_WITH_OPENMP=$WALBERLA_BUILD_WITH_OPENMP -DWALBERLA_BUILD_WITH_CUDA=$WALBERLA_BUILD_WITH_CUDA -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DWARNING_ERROR=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - cmake . -LA
       - make -j $NUM_BUILD_CORES -l $NUM_CORES
-      - ctest -LE "$CTEST_EXCLUDE_LABELS|cuda" -C $CMAKE_BUILD_TYPE --output-on-failure -j $NUM_CORES
+      - ctest -LE "$CTEST_EXCLUDE_LABELS|cuda" -C $CMAKE_BUILD_TYPE --output-on-failure -j $NUM_CORES -T Test
+   after_script:
+      - pip3 install lxml
+      - python3 cmake/ctest2junit.py build > report.xml
    tags:
-      - mac
+      - macmini
+   artifacts:
+      when: always
+      reports:
+         junit:
+            - report.xml
+            - python/report.xml
 
 mac_Serial_Dbg:
    <<: *mac_build_definition
@@ -1949,6 +2101,7 @@ mac_Serial_Dbg:
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
 
 mac_Serial:
    <<: *mac_build_definition
@@ -1958,6 +2111,7 @@ mac_Serial:
       WALBERLA_BUILD_WITH_MPI: "OFF"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
 
 mac_MpiOnly_Dbg:
    <<: *mac_build_definition
@@ -1967,6 +2121,7 @@ mac_MpiOnly_Dbg:
       WALBERLA_BUILD_WITH_MPI: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
       OMPI_MCA_btl: "self,tcp"
 
 mac_MpiOnly:
@@ -1977,6 +2132,7 @@ mac_MpiOnly:
       WALBERLA_BUILD_WITH_MPI: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      WALBERLA_BUILD_WITH_CODEGEN: "ON"
       OMPI_MCA_btl: "self,tcp"
 
 ###############################################################################

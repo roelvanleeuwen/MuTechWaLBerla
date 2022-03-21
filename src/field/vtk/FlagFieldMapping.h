@@ -34,14 +34,14 @@ template< typename FlagField_T, typename T >
 class FlagFieldMapping : public vtk::BlockCellDataWriter<T>
 {
 private:
-   typedef typename FlagField_T::flag_t flag_t;
+   using flag_t = typename FlagField_T::flag_t;
 public:
 
    FlagFieldMapping( const ConstBlockDataID flagId, const std::string& id ) :
-      vtk::BlockCellDataWriter<T>( id, 1 ), flagId_( flagId ), flagField_( NULL ) {}
+      vtk::BlockCellDataWriter<T>( id, 1 ), flagId_( flagId ), flagField_( nullptr ) {}
 
    FlagFieldMapping( const ConstBlockDataID flagId, const std::string& id, const std::map< FlagUID, T > mapping ) :
-      vtk::BlockCellDataWriter<T>( id, 1 ), flagId_( flagId ), flagField_( NULL ), mapping_( mapping ) {}
+      vtk::BlockCellDataWriter<T>( id, 1 ), flagId_( flagId ), flagField_( nullptr ), mapping_( mapping ) {}
 
    void addMapping( const FlagUID& flag, const T& value )
    {
@@ -51,7 +51,7 @@ public:
 
 protected:
 
-   void configure()
+   void configure() override
    {
       WALBERLA_ASSERT_NOT_NULLPTR( this->block_ )
       flagField_ = this->block_->template getData< FlagField_T >( flagId_ );
@@ -64,7 +64,7 @@ protected:
       }
    }
 
-   T evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t /*f*/ )
+   T evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t /*f*/ ) override
    {
       WALBERLA_ASSERT_NOT_NULLPTR( flagField_ )
       T result = 0;
@@ -86,11 +86,11 @@ protected:
 template<typename FieldType, typename TargetType=uint8_t>
 class BinarizationFieldWriter : public vtk::BlockCellDataWriter<TargetType>
 {
-   typedef typename FieldType::value_type SrcType;
+   using SrcType = typename FieldType::value_type;
 
 public:
    BinarizationFieldWriter( const ConstBlockDataID fieldID, const std::string& id, SrcType mask) :
-           vtk::BlockCellDataWriter<TargetType>( id, 1 ), fieldID_( fieldID ), field_( NULL ), mask_( mask ) {}
+           vtk::BlockCellDataWriter<TargetType>( id, 1 ), fieldID_( fieldID ), field_( nullptr ), mask_( mask ) {}
 
 protected:
 

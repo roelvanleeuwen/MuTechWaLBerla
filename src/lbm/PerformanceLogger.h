@@ -44,7 +44,7 @@ namespace lbm {
 /*!
 *   \brief Class for using the PerformanceEvaluation in a timeloop
 *
-*   Providing a measurement interval, this class will regularly (every <interval> time steps) measure and report the
+*   Providing a measurement interval, this class will regularly (every \a interval time steps) measure and report the
 *   LBM performance. At the end of the simulation logOverallResults() may be called to output minimum, maximum and
 *   average performance during the simulation run.   
 */
@@ -97,7 +97,7 @@ PerformanceLogger<FlagField_T>::PerformanceLogger( const shared_ptr< StructuredB
                    const Set<SUID> & requiredSelectors /*= Set<SUID>::emptySet()*/,
                    const Set<SUID> & incompatibleSelectors /*= Set<SUID>::emptySet()*/ )
                    : performanceEvaluation_( blocks, flagFieldId, fluid, requiredSelectors, incompatibleSelectors ),
-                     interval_(interval), timestep_(1), refreshCellCountOnCall_(false), timeloop_(NULL)
+                     interval_(interval), timestep_(1), refreshCellCountOnCall_(false), timeloop_(nullptr)
 {
 }
 

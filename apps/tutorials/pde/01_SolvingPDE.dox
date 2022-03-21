@@ -7,7 +7,7 @@ namespace walberla {
 \brief Implementing an iterative solver, initializing fields, and setting Dirichlet boundary conditions by functions, 
 domain setup with an axis-aligned bounding box. File 05_SolvingPDE.cpp.
 
-\section problemdescription Problem Description
+\section problemdescription01 Problem Description
 
 After learning the basic concepts and data structures of waLBerla, we can now already implement our own solver
 for an elliptic partial differential equation, discretized by finite differences. The regarded equation, describing the behavior of the unknown \f$u\f$, is:
@@ -34,7 +34,7 @@ which yields the following discretized equation, valid for a Cartesian grid with
 \f]
 
 The resulting linear system of equations (\f$\mathbf{A}x=b\f$) can be solved with either a direct or an iterative solver. 
-Probably the simplest variant of latter is the Jacobi method which applies a splitting of the system matrix in its diagonal and off-diagonal parts
+Probably the simplest variant of the latter is the Jacobi method which applies a splitting of the system matrix in its diagonal and off-diagonal parts
 to come up with an iterative solution procedure. This finally allows to write the method in a matrix-free version, given by:
 \f[
    u_{i,j}^{(n+1)} = \left(\frac{2}{(\Delta x)^2} + \frac{2}{(\Delta y)^2} + 4\pi^2\right)^{-1}\left[ f_{i,j} + \frac{1}{(\Delta x)^2}\left(u_{i+1,j}^{(n)} + 
@@ -44,10 +44,10 @@ to come up with an iterative solution procedure. This finally allows to write th
 \section implementationJacobiSweep Implementation of the Jacobi Sweep
 
 Coming back to the concepts of waLBerla, this is a perfectly suitable example for a sweep. 
-It requires to sum up weighted values of the neighboring cells together with the function value of the right-hand side, 
+It requires summing up weighted values of the neighboring cells together with the function value of the right-hand side, 
 which is then divided by the weight of the center cell. 
 To avoid data dependencies, i.e., reading neighboring data that has already been updated in a previous step, 
-two fields (source and destination) are used like in \ref tutorial03. 
+two fields (source and destination) are used like in \ref tutorial_basics_03. 
 After the sweep, the data pointers are swapped. A possible, but not optimal, implementation of this procedure is shown below. 
 The class has private members `srcID_, dstID_, rhsID_, dx_, dy_` that store the BlockDataIDs of the source, destination, and right-hand side field, 
 and the grid spacings \f$\Delta x\f$ and \f$ \Delta y\f$.
@@ -81,8 +81,8 @@ void JacobiSweep::operator()( IBlock * const block )
 
 This is already the entire implementation of the Jacobi method! 
 As always, there are of course various other ways to achieve this. 
-The stencil concept utilized by waLBerla allows a very convenient since flexible and also faster implementation with the help of neighborhood iterators and stencil weights.
-The performance problem of above implementation lies in the fact that the prefactors are recomputed for each step and each cell. 
+The stencil concept utilized by waLBerla allows a very convenient (since flexible) and also faster implementation with the help of neighborhood iterators and stencil weights.
+The performance problem of the above implementation lies in the fact that the prefactors are recomputed for each step and each cell. 
 Since they are constant, it is a better idea to precalculate them and store them in a `weights` vector.
 
 \code
@@ -150,7 +150,7 @@ dst->get(x,y,z) *= weights_[ Stencil_T::idx[ stencil::C ] ];
 Despite being faster, the implementation using the stencil concept is more flexible than the hard coded variant from the beginning 
 since it can be used for different stencil layouts.
 Say you use a different, probably higher-order, discretization of the PDE and come up with a D2Q9 stencil.
-Then, simply change the typedef to `typedef stencil::D2Q9 Stencil_T` and change and add the weight values in the `weights` vector accordingly. 
+Then, simply change the typedef to `typedef stencil::D2Q9 Stencil_T` and add the new weight values in the `weights` vector accordingly. 
 The implementation of the JacobiSweepStencil class stays untouched and the simulations can readily be carried out.
 
 
@@ -295,7 +295,7 @@ Using the GUI, the converged profile looks like:
 
 \image html tutorial_pde01_solution.png
 
-In the next tutorial of the PDE section, \ref pde02, the Jacobi method is used to solve the linear system of equations arising from an implicit time-stepping method
+In the next tutorial of the PDE section, \ref tutorial_pde02, the Jacobi method is used to solve the linear system of equations arising from an implicit time-stepping method
 for the solution of the famous heat equation. 
 It is also shown how to include the functionality to stop the simulation based on the norm of the residual, 
 which is very often used to terminate the iterative solver.

@@ -22,9 +22,10 @@ In the code generation python script, we first require a few imports from lbmpy 
 
 From the `lbmpy.creationfunctions` we require the functions to create collision and update rules. For the actual code generation, `generate_lattice_model` from `lbmpy_walberla` is required. Since we will define symbols, `SymPy` is also needed.
 
-\code
+\code{.py}
 import sympy as sp
 
+from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil
 from lbmpy.creationfunctions import create_lb_collision_rule, create_lb_update_rule
 
 from pystencils_walberla import CodeGeneration, generate_pack_info_from_kernel
@@ -32,31 +33,29 @@ from lbmpy_walberla import generate_lattice_model
 \endcode
 
 First, we define a few general parameters. These include the stencil (D2Q9) and the memory layout (`fzyx`, see \ref tutorial_codegen01 ). We define a SymPy symbol for the relaxation rate \f$ \omega \f$. This means we can later set it to a specific value from the waLBerla code. A dictionary with optimization parameters is also set up. Here, we enable global common subexpression elimination (`cse_global`) and set the PDF field's memory layout.
-\code
-stencil = 'D2Q9'
+\code{.py}
+stencil = LBStencil(Stencil.D2Q9)
 omega = sp.Symbol('omega')
 layout = 'fzyx'
 
-#   Optimization
-optimizations = {'target': 'cpu', 'cse_global': True, 'field_layout': layout}
+#   Optimizations for the LBM Method
+lbm_opt = LBMOptimisation(cse_global=True, field_layout=layout)
 \endcode
 
 Next, we set the parameters for the SRT method in a dictionary and create both the collision and update rules by calling the respective lbmpy functions. They both return an `AssignmentCollection` containing all necessary equations. The only parameters needed for SRT are the stencil and the relaxation rate. For generating the lattice model, we only require the collision rule's equations since `generate_lattice_model` adds the two-fields pull scheme for the streaming step internally. At this point, the lattice model generation is limited to the standard stream-pull-collide scheme.
 
 The update rule is still needed in the code generation process; namely for the pack info generation. The collision step only acts within one cell. Thus, the collision rule's equations contain no neighbour accesses. Calling `create_lb_update_rule` inserts the two-fields pull scheme as `generate_lattice_model`, and resulting update rule contains exactly those neighbour accesses which are required for `generate_pack_info_from_kernel` to build the optimized pack info.
 
-\code
-srt_params = {'stencil': stencil,
-              'method': 'srt',
-              'relaxation_rate': omega}
+\code{.py}
+lbm_config = LBMConfig(stencil=stencil, method=Method.SRT, relaxation_rate=omega)
 
-srt_collision_rule = create_lb_collision_rule(optimization=optimizations, **srt_params)
-srt_update_rule = create_lb_update_rule(collision_rule=srt_collision_rule, optimization=optimizations)
+srt_collision_rule = create_lb_collision_rule(lbm_config=lbm_config, lbm_optimisation=lbm_opt)
+srt_update_rule = create_lb_update_rule(lbm_config=lbm_config, lbm_optimisation=lbm_opt)
 \endcode
 
 Finally, we create the code generation context and call the respective functions for generating the lattice model and the pack info. Both require the context and a class name as parameters. To  `generate_lattice_model`, we also pass the collision rule and the field layout; `generate_pack_info_from_kernel` receives the update rule.
 
-\code
+\code{.py}
 with CodeGeneration() as ctx:
     generate_lattice_model(ctx, "SRTLatticeModel", srt_collision_rule, field_layout=layout)
     generate_pack_info_from_kernel(ctx, "SRTPackInfo", srt_update_rule)
@@ -68,7 +67,7 @@ Furthermore, if we optimise the waLBerla for the machine, it is compiled on with
 
 As a final touch, we still need to set up the CMake build target for the code generation script. This time, two distinct classes (the lattice model and the pack information) will be generated. Therefore, we need to list the header and source file names for both classes separately.
 
-\code
+\code{.unparsed}
 walberla_generate_target_from_python( NAME 02_LBMLatticeModelGenerationPython
                                       FILE 02_LBMLatticeModelGeneration.py
                                       OUT_FILES SRTLatticeModel.cpp SRTLatticeModel.h

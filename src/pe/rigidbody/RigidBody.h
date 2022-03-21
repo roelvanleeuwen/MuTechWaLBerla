@@ -498,7 +498,7 @@ inline void RigidBody::calcMotion()
  */
 inline bool RigidBody::hasManager() const
 {
-   return manager_ != 0;
+   return manager_ != nullptr;
 }
 //*************************************************************************************************
 
@@ -713,7 +713,7 @@ inline const Vec3 RigidBody::getPosition() const
  *
  * \return The relative position of the rigid body.
  *
- * If this body is not containted in a superbody the zero-vector is returned.
+ * If this body is not contained in a superbody the zero-vector is returned.
  */
 inline const Vec3 RigidBody::getRelPosition() const
 {
@@ -780,7 +780,7 @@ inline const Vec3 RigidBody::getBodyAngularVel() const
  *
  * \return The global angular velocity.
  *
- * This function returns the angluar velocity of the center of mass in reference to the global
+ * This function returns the angular velocity of the center of mass in reference to the global
  * world frame.
  */
 inline const Vec3 & RigidBody::getAngularVel() const
@@ -1848,7 +1848,7 @@ inline void RigidBody::addImpulseAtPos( const Vec3& j, const Vec3& p )
 //=================================================================================================
 
 //*************************************************************************************************
-/*!\brief Signals an internal modification of a contained subordiante body.
+/*!\brief Signals an internal modification of a contained subordinate body.
  *
  * \return void
  *
@@ -1863,7 +1863,7 @@ inline void RigidBody::signalModification()
 
 
 //*************************************************************************************************
-/*!\brief Signals a position change of a contained subordiante body.
+/*!\brief Signals a position change of a contained subordinate body.
  *
  * \return void
  *
@@ -1878,7 +1878,7 @@ inline void RigidBody::signalTranslation()
 
 
 //*************************************************************************************************
-/*!\brief Signals an orientation change of a contained subordiante body.
+/*!\brief Signals an orientation change of a contained subordinate body.
  *
  * \return void
  *
@@ -1893,7 +1893,7 @@ inline void RigidBody::signalRotation()
 
 
 //*************************************************************************************************
-/*!\brief Signals a fixation change of a contained subordiante body.
+/*!\brief Signals a fixation change of a contained subordinate body.
  *
  * \return void
  *
@@ -2141,7 +2141,7 @@ inline void RigidBody::setPositionImpl( real_t px, real_t py, real_t pz )
  * \param gpos The relative position.
  * \return void
  *
- * This function sets the relatvie position of the rigid body w. r. t. the superbodies position.
+ * This function sets the relative position of the rigid body w. r. t. the superbodies position.
  *
  * \b Note:
  * - Setting the position of a rigid body without superbody will have no effect.
@@ -2598,7 +2598,7 @@ inline void RigidBody::rotate( const Quat& dq )
 //*************************************************************************************************
 
 //*************************************************************************************************
-/*!\brief Implements the rotation of a rigid body. May be overwritten in dervied classes for performance reasons.
+/*!\brief Implements the rotation of a rigid body. May be overwritten in derived classes for performance reasons.
  *
  * \param dq The quaternion for the rotation.
  * \return void
@@ -2729,7 +2729,7 @@ inline void RigidBody::rotateAroundOrigin( const Quat& dq )
 //*************************************************************************************************
 
 //*************************************************************************************************
-/*!\brief Implements the rotation of a rigid body. May be overwritten in dervied classes for performance reasons.
+/*!\brief Implements the rotation of a rigid body. May be overwritten in derived classes for performance reasons.
  *
  * \param dq The quaternion for the rotation.
  * \return void
@@ -2753,13 +2753,12 @@ inline void RigidBody::rotateAroundOriginImpl( const Quat& dq )
 /*!\brief Rotation of the rigid body around a specific global coordinate.
  *
  * \param point The global center of the rotation.
- * \param axis The global rotation axis.
- * \param angle The rotation angle (radian measure).
+ * \param dq The quaternion for the rotation.
  * \return void
  *
- * This function rotates the rigid body around the given global coordiante \a point and changes
+ * This function rotates the rigid body around the given global coordinate \a point and changes
  * both the global position and the orientation/rotation of the rigid body. The rigid body is rotated
- * around the given axis \a axis by \a angle degrees (radian measure).\n
+ * by the quaternion \a dq.\n
  *
  * \b Note:
  * - Rotating a rigid body contained in a union changes the mass distribution and geometry of the
@@ -2797,7 +2796,7 @@ inline void RigidBody::rotateAroundPointImpl( const Vec3& point, const Quat& dq 
  * \param angle The rotation angle (radian measure).
  * \return void
  *
- * This function rotates the rigid body around the given global coordiante \a point and changes
+ * This function rotates the rigid body around the given global coordinate \a point and changes
  * both the global position and the orientation/rotation of the rigid body. The rigid body is rotated
  * around the given axis \a axis by \a angle degrees (radian measure).\n
  *
@@ -3016,7 +3015,7 @@ inline bool RigidBody::isSurfaceRelPointImpl( real_t /*px*/, real_t /*py*/, real
 /*!\brief Estimates the point which is farthest in direction \a d.
  *
  * \param d The normalized search direction in world-frame coordinates.
- * \return The support point in world-frame coordinates in direction a\ d.
+ * \return The support point in world-frame coordinates in direction \a d.
  */
 inline Vec3 RigidBody::support(const Vec3& /*d*/) const
 {
@@ -3030,7 +3029,7 @@ inline Vec3 RigidBody::support(const Vec3& /*d*/) const
 /*!\brief Estimates the point which is farthest in direction \a d.
  *
  * \param d The normalized search direction in world-frame coordinates
- * \return The support point in world-frame coordinates in direction a\ d extended by a vector in
+ * \return The support point in world-frame coordinates in direction \a d extended by a vector in
  *         direction \a d of length \a pe::contactThreshold.
  */
 inline Vec3 RigidBody::supportContactThreshold(const Vec3& /*d*/) const

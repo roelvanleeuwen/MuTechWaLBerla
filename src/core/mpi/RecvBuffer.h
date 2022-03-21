@@ -81,7 +81,7 @@ class GenericRecvBuffer
 {
 public:
    //**Type definitions*************************************************************************************************
-   typedef T  ElementType;  //!< Type of the receive buffer elements.
+   using ElementType = T;  //!< Type of the receive buffer elements.
    //*******************************************************************************************************************
 
    //**Constructors*****************************************************************************************************
@@ -173,7 +173,7 @@ private:
 };
 //**********************************************************************************************************************
 
-typedef GenericRecvBuffer<> RecvBuffer;
+using RecvBuffer = GenericRecvBuffer<>;
 
 
 
@@ -189,9 +189,9 @@ typedef GenericRecvBuffer<> RecvBuffer;
 template< typename T >  // Element type
 inline GenericRecvBuffer<T>::GenericRecvBuffer()
    : capacity_( 0    )  // Capacity of the receive buffer
-   , begin_   ( NULL )  // Pointer to the first element
-   , cur_     ( NULL )  // Pointer to the current element
-   , end_     ( NULL )  // Pointer to the last element
+   , begin_   ( nullptr )  // Pointer to the first element
+   , cur_     ( nullptr )  // Pointer to the current element
+   , end_     ( nullptr )  // Pointer to the last element
 {}
 //**********************************************************************************************************************
 
@@ -615,9 +615,9 @@ inline void GenericRecvBuffer<T>::reset()
 {
    delete [] begin_;
    capacity_ = 0;
-   begin_    = NULL;
-   cur_      = NULL;
-   end_      = NULL;
+   begin_    = nullptr;
+   cur_      = nullptr;
+   end_      = nullptr;
 }
 //**********************************************************************************************************************
 

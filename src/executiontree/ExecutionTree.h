@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file TaskTree.h
+//! \file ExecutionTree.h
 //! \ingroup executiontree
 //! \author Martin Bauer <martin.bauer@fau.de>
 //
@@ -57,7 +57,7 @@ template< typename FunctorType > class SharedSweep;
 
 /*! Creates a functor node around any callable object. The wrapped functor is copied.
  *
- * \param any callable object. The object is copied - if its state has to be modified later, pass a shared_ptr to a functor instead
+ * \param t callable object. The object is copied - if its state has to be modified later, pass a shared_ptr to a functor instead
  * \param name optional name of the functor node
  * \param timingTree optional timing tree object to time all executions of this functor
  */
@@ -86,7 +86,7 @@ shared_ptr< Sequence > parallelSequence( std::initializer_list< IFunctionNodePtr
 /*! Note that runs its contents only every n'th call
  *
  * \param node task that is only run every n'th call
- * \param name the interval i.e. "n"
+ * \param interval the interval i.e. "n"
  * \param onFirst if false the task is not run at the first call
  * \param startValue initial call counter
  */
@@ -107,7 +107,7 @@ std::ostream &operator<<( std::ostream &os, const IFunctionNode &node );
 class IFunctionNode
 {
 public:
-   virtual ~IFunctionNode() {}
+   virtual ~IFunctionNode() = default;
    virtual void operator()() = 0;
    virtual std::string getName() const = 0;
    virtual std::deque< shared_ptr< IFunctionNode > > getChildren() const { return {}; }
@@ -122,7 +122,7 @@ public:
            const std::string &name,
            const TimingTreePtr & timingTree );
 
-   std::string getName() const override { return name_ != "" ? name_ : "Functor"; };
+   std::string getName() const override { return !name_.empty() ? name_ : "Functor"; };
    void operator() () override;
 
 private:
@@ -158,7 +158,7 @@ public:
 
    void push_back( const IFunctionNodePtr &fct ) { children_.push_back( fct ); }
    void push_front( const IFunctionNodePtr &fct ) { children_.push_front( fct ); }
-   std::string getName() const override { return name_ != "" ? name_ : "Sequence"; };
+   std::string getName() const override { return !name_.empty() ? name_ : "Sequence"; };
    std::deque< IFunctionNodePtr > getChildren() const override { return children_; };
 
 private:

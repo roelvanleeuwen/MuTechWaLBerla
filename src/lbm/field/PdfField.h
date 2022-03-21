@@ -78,8 +78,8 @@ public:
    //** Type Definitions  **********************************************************************************************
    /*! \name Type Definitions */
    //@{
-   typedef LatticeModel_T                    LatticeModel;
-   typedef typename LatticeModel_T::Stencil  Stencil;
+   using LatticeModel = LatticeModel_T;
+   using Stencil = typename LatticeModel_T::Stencil;
 
    typedef typename GhostLayerField< real_t >::value_type             value_type;
 
@@ -104,7 +104,7 @@ public:
              const uint_t ghostLayers = uint_t(1), const field::Layout & _layout = field::zyxf,
              const shared_ptr< field::FieldAllocator<real_t> > & alloc = shared_ptr< field::FieldAllocator<real_t> >() );
 
-   virtual ~PdfField() {}
+   ~PdfField() override = default;
 
 
 
@@ -282,7 +282,7 @@ protected:
    /*! \name Shallow Copy */
    //@{
    inline PdfField( const PdfField< LatticeModel_T > & other );
-   Field< real_t > * cloneShallowCopyInternal() const { return new PdfField< LatticeModel_T >( *this ); }
+   Field< real_t > * cloneShallowCopyInternal() const override { return new PdfField< LatticeModel_T >( *this ); }
    //@}
    //*******************************************************************************************************************
 

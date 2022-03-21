@@ -47,7 +47,7 @@ public:
 
    /*! \name Constructors */
    //@{
-   Cell() {}
+   Cell() = default;
    inline Cell( const cell_idx_t _x, const cell_idx_t _y, const cell_idx_t _z ) { cell[0] = _x; cell[1] = _y; cell[2] = _z; }
  //inline Cell( const int        _x, const int        _y, const int        _z );
    inline Cell( const uint_t     _x, const uint_t     _y, const uint_t     _z );
@@ -74,8 +74,8 @@ public:
 
    /*! \name Access operators */
    //@{
-   cell_idx_t   operator[]( size_t idx ) const;
-   cell_idx_t & operator[]( size_t idx );
+   cell_idx_t   operator[]( std::size_t idx ) const;
+   cell_idx_t & operator[]( std::size_t idx );
 
    cell_idx_t   x() const { return cell[0]; }
    cell_idx_t & x()       { return cell[0]; }
@@ -121,7 +121,7 @@ inline Cell::Cell( const uint_t _x, const uint_t _y, const uint_t _z )
 /*******************************************************************************************************************//**
  * \brief   Less-than comparison operator for Cells.
  *
- * Compares a cell's coordinates lexicographically (first x, than eventualy y and (if necessary) finally z).
+ * Compares a cell's coordinates lexicographically (first x, then eventually y and (if necessary) finally z).
  *
  * \param [in] rhs  the cell compared to *this.
  *
@@ -138,7 +138,7 @@ inline bool Cell::operator<( const Cell & rhs ) const
  /******************************************************************************************************************//**
  * \brief   Equal comparison operator for Cells.
  *
- * Compares a cell's coordinates for equality (first x, then eventualy y and (if necessary) finally z).
+ * Compares a cell's coordinates for equality (first x, then eventually y and (if necessary) finally z).
  *
  * \param [in] rhs  The cell compared to *this.
  *
@@ -158,7 +158,7 @@ inline bool Cell::operator==( const Cell & rhs ) const
  *
  * \return  The idx-th coordinate component. This is equal to this->cell[i].
  **********************************************************************************************************************/
-inline cell_idx_t Cell::operator[]( size_t idx ) const
+inline cell_idx_t Cell::operator[]( std::size_t idx ) const
 {
    WALBERLA_ASSERT_LESS( idx, 3, "Index 'idx' = " << idx << " out of bounds! Cell: " << *this );
    return cell[idx];
@@ -257,7 +257,7 @@ inline Cell Cell::operator-() const
  *
  * \return  The idx-th coordinate component. This is equal to this->cell[i].
  **********************************************************************************************************************/
-inline cell_idx_t & Cell::operator[]( size_t idx )
+inline cell_idx_t & Cell::operator[]( std::size_t idx )
 {
    WALBERLA_ASSERT_LESS( idx, 3, "Index 'idx' = " << idx << " out of bounds! Cell: " << *this );
    return cell[idx];
@@ -330,18 +330,28 @@ inline std::istream & operator>>( std::istream & is, Cell & cell )
  *
  * \param [in]   cell  The cell to be hashed.
  *
- * \return  a hopefully unique hash.
+ * \return  a hash that is unique for cell indices from 0 to 2 million
+ *          (64bit architectures) or from 0 to 1000 (32bit architectures)
+ *          in all three dimensions.
  **********************************************************************************************************************/
 inline std::size_t hash_value( const Cell & cell )
 {
-  std::size_t seed = 0;
-  std::hash<cell_idx_t> hasher;
+   std::size_t seed;
 
-  seed ^= hasher(cell.x()) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-  seed ^= hasher(cell.y()) + 0x9e3779b9 + (seed<<6) + (seed>>2);
-  seed ^= hasher(cell.z()) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+   if constexpr( sizeof(std::size_t) >= 8 )
+   {
+      seed = (static_cast<std::size_t>(cell.x()) << 42) +
+             (static_cast<std::size_t>(cell.y()) << 21) +
+             (static_cast<std::size_t>(cell.z()) << 0);
+   }
+   else
+   {
+      seed = (static_cast<std::size_t>(cell.x()) << 21) +
+             (static_cast<std::size_t>(cell.y()) << 10) +
+             (static_cast<std::size_t>(cell.z()) << 0);
+   }
 
-  return seed;
+   return seed;
 }
 
 

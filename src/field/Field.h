@@ -71,8 +71,7 @@ namespace field {
       //** Type Definitions  *******************************************************************************************
       /*! \name Type Definitions */
       //@{
-      typedef T                                    value_type;
-
+      using value_type = T;
       typedef ForwardFieldIterator<T>       iterator;
       typedef ForwardFieldIterator<const T> const_iterator;
 
@@ -251,10 +250,10 @@ namespace field {
 
       inline Layout layout() const { return layout_; }
 
-      cell_idx_t xStride() const { return xfact_; }
-      cell_idx_t yStride() const { return yfact_; }
-      cell_idx_t zStride() const { return zfact_; }
-      cell_idx_t fStride() const { return ffact_; }
+      int64_t xStride() const { return xfact_; }
+      int64_t yStride() const { return yfact_; }
+      int64_t zStride() const { return zfact_; }
+      int64_t fStride() const { return ffact_; }
 
       cell_idx_t xOff() const { return xOff_; }
       cell_idx_t yOff() const { return yOff_; }
@@ -278,8 +277,7 @@ namespace field {
       //** Monitoring  *************************************************************************************************
       /*! \name Monitoring */
       //@{
-      typedef std::function< void ( cell_idx_t x, cell_idx_t y,
-                                      cell_idx_t z, cell_idx_t f, const T & value) > MonitorFunction;
+      using MonitorFunction = std::function<void (cell_idx_t, cell_idx_t, cell_idx_t, cell_idx_t, const T &)>;
 
       void addMonitoringFunction( const MonitorFunction & func );
       //@}
@@ -369,10 +367,10 @@ namespace field {
       Layout layout_;        //!< Determines in which order the values are stored
 
       uint_t     allocSize_; //!< The overall size of the T* (padding included)
-      cell_idx_t ffact_;     //!< Access multiplication factor for the f-dimension.
-      cell_idx_t xfact_;     //!< Access multiplication factor for the x-dimension.
-      cell_idx_t yfact_;     //!< Access multiplication factor for the y-dimension.
-      cell_idx_t zfact_;     //!< Access multiplication factor for the z-dimension.
+      int64_t ffact_;     //!< Access multiplication factor for the f-dimension.
+      int64_t xfact_;     //!< Access multiplication factor for the x-dimension.
+      int64_t yfact_;     //!< Access multiplication factor for the y-dimension.
+      int64_t zfact_;     //!< Access multiplication factor for the z-dimension.
 
       shared_ptr<FieldAllocator<T> > allocator_; //!< Allocator for the field
 

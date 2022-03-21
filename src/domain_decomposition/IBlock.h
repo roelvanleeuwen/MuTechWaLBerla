@@ -207,7 +207,7 @@ class IBlock : private NonCopyable
 {
 public:
 
-   typedef internal::BlockData BlockData;
+   using BlockData = internal::BlockData;
 
    friend class           BlockStorage;
    friend class StructuredBlockStorage;
@@ -313,7 +313,11 @@ inline const T* IBlock::getData( const ConstBlockDataID & index ) const {
    WALBERLA_ASSERT_LESS( uint_t( index ), data_.size() )
 
    if( data_[index] == nullptr )
+<<<<<<< HEAD
       return NULL;
+=======
+      return nullptr;
+>>>>>>> 8dfa7d51f9600fc08d5edffa304fa538bd4f9c21
 
    return data_[index]->template get< T >();
 }
@@ -336,7 +340,11 @@ inline const T* IBlock::getData( const BlockDataID & index ) const {
    WALBERLA_ASSERT_LESS( uint_t( index ), data_.size() )
 
    if( data_[index] == nullptr )
+<<<<<<< HEAD
       return NULL;
+=======
+      return nullptr;
+>>>>>>> 8dfa7d51f9600fc08d5edffa304fa538bd4f9c21
 
    return data_[index]->template get< T >();
 }
@@ -446,7 +454,11 @@ inline void IBlock::addData( const BlockDataID & index, BlockData * const data )
       data_.resize( index+1, nullptr );
 
    if( data != nullptr ) {
+<<<<<<< HEAD
       WALBERLA_ASSERT_NULLPTR( data_[index] )
+=======
+      WALBERLA_ASSERT_NULLPTR( data_[index] );
+>>>>>>> 8dfa7d51f9600fc08d5edffa304fa538bd4f9c21
       data_[index] = data;
    }
 }
@@ -484,7 +496,11 @@ inline const T* IBlock::uncheckedFastGetData( const BlockDataID & index ) const 
    WALBERLA_ASSERT_LESS( uint_t( index ), data_.size() )
 
    if( data_[index] == nullptr )
+<<<<<<< HEAD
       return NULL;
+=======
+      return nullptr;
+>>>>>>> 8dfa7d51f9600fc08d5edffa304fa538bd4f9c21
 
    return data_[index]->template uncheckedFastGet< T >();
 }

@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file MarchingCubes.cpp
+//! \file MarchingCubes.impl.h
 //! \ingroup postprocessing
 //! \author Martin Bauer <martin.bauer@fau.de>
 //! \author Simon Bogner <simon.bogner@fau.de>
@@ -378,7 +378,7 @@ void generateIsoSurface_internal( const Field_T & f, real_t threshold,
 
 
 
-   typedef Vector3<real_t> RealVec3;
+   using RealVec3 = Vector3<real_t>;
 
    // the field store for every edge the index of the vertex that was computed on it
    // or -1 for "not yet computed"

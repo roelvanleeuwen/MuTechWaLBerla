@@ -60,7 +60,7 @@ Vector3<real_t> massEvaluationDomain( const shared_ptr< StructuredBlockStorage >
 *   \code
 *   BlockDataID densityId = field::addFieldAdaptor< lbm::Adaptor<LatticeModel_T>::Density >( blocks, pdfFieldId,
 *                                                                                            "density adaptor" );
-*   \code
+*   \endcode
 *
 *   for creating a density adaptor. The type of this adaptor/field is 'lbm::Adaptor<LatticeModel_T>::Density'.
 *   An example for using a SharedFunctor that can be used to register the mass evaluation at a time loop might look
@@ -69,7 +69,7 @@ Vector3<real_t> massEvaluationDomain( const shared_ptr< StructuredBlockStorage >
 *   \code
 *   makeSharedFunctor( lbm::makeMassEvaluation< lbm::Adaptor<LatticeModel_T>::Density >( config, blocks,
 *                                                                                        uint_t(0), densityId ) )
-*   \code
+*   \endcode
 *
 *   Note that for this example the plot and log frequency can be controlled via the configuration file. In this example,
 *   _all_ cells are processed. If not all of your cells are actually fluid cells, you should use a 'makeMassEvaluation'
@@ -78,7 +78,7 @@ Vector3<real_t> massEvaluationDomain( const shared_ptr< StructuredBlockStorage >
 *   \code
 *   makeSharedFunctor( lbm::makeMassEvaluation< lbm::Adaptor<LatticeModel_T>::Density, FlagField_T >(
                           config, blocks, uint_t(0), densityId, flagFieldId, fluidFlagUID ) )
-*   \code
+*   \endcode
 */
 //**********************************************************************************************************************
 
@@ -96,7 +96,7 @@ shared_ptr< walberla::field::MassEvaluation< DensityField_T > > makeMassEvaluati
                                                                                     const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
                                                                                     const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
-   typedef walberla::field::MassEvaluation< DensityField_T > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, plotFrequency, logFrequency, filename, requiredSelectors, incompatibleSelectors ) );
    evaluation->setDomainNormalization( internal::massEvaluationDomain( blocks, level ) );
    return evaluation;
@@ -111,7 +111,7 @@ makeMassEvaluation( const shared_ptr< StructuredBlockStorage > & blocks, const u
                     const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
                     const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
-   typedef walberla::field::MassEvaluation< DensityField_T, walberla::field::FlagFieldEvaluationFilter<FlagField_T> > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T, walberla::field::FlagFieldEvaluationFilter<FlagField_T>>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, walberla::field::FlagFieldEvaluationFilter<FlagField_T>( flagFieldId, fluid ),
                                                    plotFrequency, logFrequency, filename, requiredSelectors, incompatibleSelectors ) );
    evaluation->setDomainNormalization( internal::massEvaluationDomain( blocks, level ) );
@@ -126,7 +126,7 @@ shared_ptr< walberla::field::MassEvaluation< DensityField_T, Filter_T > > makeMa
                                                                                               const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
                                                                                               const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
-   typedef walberla::field::MassEvaluation< DensityField_T, Filter_T > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T, Filter_T>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, filter, plotFrequency, logFrequency, filename, requiredSelectors, incompatibleSelectors ) );
    evaluation->setDomainNormalization( internal::massEvaluationDomain( blocks, level ) );
    return evaluation;
@@ -143,7 +143,7 @@ makeMassEvaluation( const shared_ptr< StructuredBlockStorage > & blocks, const u
                     const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
                     const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
-   typedef walberla::field::MassEvaluation< DensityField_T, field::DefaultEvaluationFilter, Pseudo2D > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T, field::DefaultEvaluationFilter, Pseudo2D>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, plotFrequency, logFrequency, filename, requiredSelectors, incompatibleSelectors ) );
    evaluation->setDomainNormalization( internal::massEvaluationDomain( blocks, level ) );
    return evaluation;
@@ -158,7 +158,7 @@ makeMassEvaluation( const shared_ptr< StructuredBlockStorage > & blocks, const u
                     const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
                     const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
-   typedef walberla::field::MassEvaluation< DensityField_T, walberla::field::FlagFieldEvaluationFilter<FlagField_T>, Pseudo2D > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T, walberla::field::FlagFieldEvaluationFilter<FlagField_T>, Pseudo2D>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, walberla::field::FlagFieldEvaluationFilter<FlagField_T>( flagFieldId, fluid ),
                                                    plotFrequency, logFrequency, filename, requiredSelectors, incompatibleSelectors ) );
    evaluation->setDomainNormalization( internal::massEvaluationDomain( blocks, level ) );
@@ -174,7 +174,7 @@ makeMassEvaluation( const shared_ptr< StructuredBlockStorage > & blocks, const u
                     const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
                     const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
-   typedef walberla::field::MassEvaluation< DensityField_T, Filter_T, Pseudo2D > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T, Filter_T, Pseudo2D>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, filter, plotFrequency, logFrequency, filename, requiredSelectors, incompatibleSelectors ) );
    evaluation->setDomainNormalization( internal::massEvaluationDomain( blocks, level ) );
    return evaluation;
@@ -202,7 +202,7 @@ shared_ptr< walberla::field::MassEvaluation< DensityField_T > > makeMassEvaluati
                                                                                     const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
    WALBERLA_LBM_MAKE_MASS_EVALUATION_CONFIG_PARSER( config )
-   typedef walberla::field::MassEvaluation< DensityField_T > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, defaultPlotFrequency, defaultLogFrequency, defaultFilename, requiredSelectors, incompatibleSelectors ) );
    WALBERLA_FIELD_MAKE_MASS_EVALUATION_SET_AND_RETURN()
 }
@@ -217,7 +217,7 @@ makeMassEvaluation( const Config_T & config,
                     const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
    WALBERLA_LBM_MAKE_MASS_EVALUATION_CONFIG_PARSER( config )
-   typedef walberla::field::MassEvaluation< DensityField_T, walberla::field::FlagFieldEvaluationFilter<FlagField_T> > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T, walberla::field::FlagFieldEvaluationFilter<FlagField_T>>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, walberla::field::FlagFieldEvaluationFilter<FlagField_T>( flagFieldId, fluid ),
                                                    defaultPlotFrequency, defaultLogFrequency, defaultFilename, requiredSelectors, incompatibleSelectors ) );
    WALBERLA_FIELD_MAKE_MASS_EVALUATION_SET_AND_RETURN()
@@ -232,7 +232,7 @@ shared_ptr< walberla::field::MassEvaluation< DensityField_T, Filter_T > > makeMa
                                                                                               const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
    WALBERLA_LBM_MAKE_MASS_EVALUATION_CONFIG_PARSER( config )
-   typedef walberla::field::MassEvaluation< DensityField_T, Filter_T > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T, Filter_T>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, filter, defaultPlotFrequency, defaultLogFrequency, defaultFilename, requiredSelectors, incompatibleSelectors ) );
    WALBERLA_FIELD_MAKE_MASS_EVALUATION_SET_AND_RETURN()
 }
@@ -249,7 +249,7 @@ makeMassEvaluation( const Config_T & config,
                     const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
    WALBERLA_LBM_MAKE_MASS_EVALUATION_CONFIG_PARSER( config )
-   typedef walberla::field::MassEvaluation< DensityField_T, field::DefaultEvaluationFilter, Pseudo2D > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T, field::DefaultEvaluationFilter, Pseudo2D>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, defaultPlotFrequency, defaultLogFrequency, defaultFilename, requiredSelectors, incompatibleSelectors ) );
    WALBERLA_FIELD_MAKE_MASS_EVALUATION_SET_AND_RETURN()
 }
@@ -264,7 +264,7 @@ makeMassEvaluation( const Config_T & config,
                     const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
    WALBERLA_LBM_MAKE_MASS_EVALUATION_CONFIG_PARSER( config )
-   typedef walberla::field::MassEvaluation< DensityField_T, walberla::field::FlagFieldEvaluationFilter<FlagField_T>, Pseudo2D > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T, walberla::field::FlagFieldEvaluationFilter<FlagField_T>, Pseudo2D>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, walberla::field::FlagFieldEvaluationFilter<FlagField_T>( flagFieldId, fluid ),
                                                    defaultPlotFrequency, defaultLogFrequency, defaultFilename, requiredSelectors, incompatibleSelectors ) );
    WALBERLA_FIELD_MAKE_MASS_EVALUATION_SET_AND_RETURN()
@@ -280,7 +280,7 @@ makeMassEvaluation( const Config_T & config,
                     const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
 {
    WALBERLA_LBM_MAKE_MASS_EVALUATION_CONFIG_PARSER( config )
-   typedef walberla::field::MassEvaluation< DensityField_T, Filter_T, Pseudo2D > ME_T;
+   using ME_T = walberla::field::MassEvaluation<DensityField_T, Filter_T, Pseudo2D>;
    auto evaluation = shared_ptr< ME_T >( new ME_T( blocks, fieldId, filter, defaultPlotFrequency, defaultLogFrequency, defaultFilename, requiredSelectors, incompatibleSelectors ) );
    WALBERLA_FIELD_MAKE_MASS_EVALUATION_SET_AND_RETURN()
 }

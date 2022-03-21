@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file BasicBuffer.h
+//! \file CustomMemoryBuffer.h
 //! \ingroup cuda
 //! \author Martin Bauer <martin.bauer@fau.de>
 //! \brief Basic Buffer supporting different memory spaces
@@ -52,7 +52,7 @@ namespace communication {
     * The buffer has a beginning, a current position and an end position. Here is an overview of the most important
     * operations:
     *   - clear: reset current position to begin, does not change size
-    *   - advance: moves current position number of bytes forward and returns poitner to the old current position
+    *   - advance: moves current position number of bytes forward and returns pointer to the old current position
     *              two versions are available, one that automatically resizes and reallocates the buffer, and one that
     *              fails if not enough space is available
     */
@@ -100,13 +100,13 @@ namespace communication {
       static void *allocate( size_t size )
       {
          void *p;
-         WALBERLA_CUDA_CHECK( cudaMallocHost( &p, size ));
+         WALBERLA_CUDA_CHECK( cudaMallocHost( &p, size ))
          return p;
       }
 
       static void deallocate( void *ptr )
       {
-         WALBERLA_CUDA_CHECK( cudaFreeHost( ptr ));
+         WALBERLA_CUDA_CHECK( cudaFreeHost( ptr ))
       }
 
       static void memcpy( void *dst, void *src, size_t count )
@@ -120,13 +120,13 @@ namespace communication {
       static void *allocate( size_t size )
       {
          void *p;
-         WALBERLA_CUDA_CHECK( cudaMalloc( &p, size ));
+         WALBERLA_CUDA_CHECK( cudaMalloc( &p, size ))
          return p;
       }
 
       static void deallocate( void *ptr )
       {
-         WALBERLA_CUDA_CHECK( cudaFree( ptr ));
+         WALBERLA_CUDA_CHECK( cudaFree( ptr ))
       }
 
       static void memcpy( void *dst, void *src, size_t count )

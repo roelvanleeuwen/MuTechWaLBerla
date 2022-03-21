@@ -1,6 +1,6 @@
 //======================================================================================================================
 /*!
- *  \file   waLBerlaDefinitions.h
+ *  \file   waLBerlaDefinitions.in.h
  *  \author Martin Bauer <martin.bauer@fau.de>
  *  \brief  Global Definitions configured by cmake ( edit only the *.in.h file! )
  */
@@ -33,7 +33,6 @@
 #cmakedefine WALBERLA_MESAPD_CONVEX_POLYHEDRON_AVAILABLE
 
 #cmakedefine WALBERLA_BUILD_WITH_CUDA
-#cmakedefine WALBERLA_CUDA_NVTX_AVAILABLE
 
 #cmakedefine WALBERLA_BUILD_WITH_CODEGEN
 

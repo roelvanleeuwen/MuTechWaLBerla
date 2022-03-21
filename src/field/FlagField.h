@@ -86,7 +86,7 @@ public:
    //** Type Definitions  **********************************************************************************************
    /*! \name Type Definitions */
    //@{
-   typedef T flag_t;
+   using flag_t = T;
 
    typedef typename GhostLayerField<T>::value_type             value_type;
 
@@ -111,7 +111,7 @@ public:
 
    FlagField( uint_t xSize, uint_t ySize, uint_t zSize, uint_t gl,
               const shared_ptr<FieldAllocator<T> > &alloc = make_shared<StdFieldAlloc<T> >());
-   virtual ~FlagField();
+   ~FlagField() override;
 
    inline FlagField<T> * clone()              const;
    inline FlagField<T> * cloneUninitialized() const;
@@ -123,16 +123,16 @@ public:
    //** Access Functions ***********************************************************************************************
    /*! \name Access Functions */
    //@{
-   typedef cell_idx_t idx;
+   using idx = cell_idx_t;
 
-   void addMask    (idx x, idx y, idx z, flag_t m) { WALBERLA_ASSERT(isRegistered(m)); field::addMask( this->get(x,y,z), m ); }
-   void addFlag    (idx x, idx y, idx z, flag_t f) { WALBERLA_ASSERT(isRegistered(f)); field::addFlag( this->get(x,y,z), f ); }
+   void addMask    (idx x, idx y, idx z, flag_t m) { WALBERLA_ASSERT(isRegistered(m)) field::addMask( this->get(x,y,z), m ); }
+   void addFlag    (idx x, idx y, idx z, flag_t f) { WALBERLA_ASSERT(isRegistered(f)) field::addFlag( this->get(x,y,z), f ); }
 
    void addMask    ( const Cell & cell, flag_t m ) { addMask( cell.x(), cell.y(), cell.z(), m ); }
    void addFlag    ( const Cell & cell, flag_t f ) { addFlag( cell.x(), cell.y(), cell.z(), f ); }
 
-   void removeMask (idx x, idx y, idx z, flag_t m) { WALBERLA_ASSERT(isRegistered(m)); field::removeMask( this->get(x,y,z), m ); }
-   void removeFlag (idx x, idx y, idx z, flag_t f) { WALBERLA_ASSERT(isRegistered(f)); field::removeFlag( this->get(x,y,z), f ); }
+   void removeMask (idx x, idx y, idx z, flag_t m) { WALBERLA_ASSERT(isRegistered(m)) field::removeMask( this->get(x,y,z), m ); }
+   void removeFlag (idx x, idx y, idx z, flag_t f) { WALBERLA_ASSERT(isRegistered(f)) field::removeFlag( this->get(x,y,z), f ); }
 
    void removeMask ( const Cell & cell, flag_t m ) { removeMask( cell.x(), cell.y(), cell.z(), m ); }
    void removeFlag ( const Cell & cell, flag_t f ) { removeFlag( cell.x(), cell.y(), cell.z(), f ); }
@@ -175,7 +175,7 @@ public:
 
    inline void   getAllRegisteredFlags( std::vector<FlagUID> & out ) const;
 
-   inline const std::map<FlagUID, flag_t> & getMapping() const { WALBERLA_ASSERT_NOT_NULLPTR( data_ ); return data_->uidToFlag; }
+   inline const std::map<FlagUID, flag_t> & getMapping() const { WALBERLA_ASSERT_NOT_NULLPTR( data_ ) return data_->uidToFlag; }
    //@}
    //*******************************************************************************************************************
 

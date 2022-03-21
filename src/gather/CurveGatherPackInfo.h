@@ -97,8 +97,8 @@ class CurveGatherPackInfo : public GatherPackInfo
       /**
        * Construction using vector of sample points
        *
-       * @samplePoints  Curve definition using a vector of points in R^3.
-       *                The points are expected to be in "world" coordinates
+       * @param samplePoints  Curve definition using a vector of points in R^3.
+       *                      The points are expected to be in "world" coordinates
        */
       CurveGatherPackInfo( const shared_ptr<StructuredBlockStorage> & bs,
                            ConstBlockDataID field,
@@ -106,7 +106,7 @@ class CurveGatherPackInfo : public GatherPackInfo
                            const shared_ptr<DataProcessor> & dp);
 
 
-      virtual ~CurveGatherPackInfo() {}
+      ~CurveGatherPackInfo() override {}
 
       //@}
       //****************************************************************************************************************
@@ -117,13 +117,13 @@ class CurveGatherPackInfo : public GatherPackInfo
       /*! \name Packing Interface  */
       //@{
 
-      virtual void packData  ( const IBlock * sender,
-                               mpi::SendBuffer & outBuffer );
+      void packData  ( const IBlock * sender,
+                               mpi::SendBuffer & outBuffer ) override;
 
-      virtual void unpackData( mpi::RecvBuffer & buffer );
+      void unpackData( mpi::RecvBuffer & buffer ) override;
 
 
-      virtual void gatherFinished();
+      void gatherFinished() override;
       //@}
       //****************************************************************************************************************
 

@@ -115,7 +115,7 @@ real_t Sample::median() const
  * The variance calculated here is the _uncorrected_ variance.
  * See: http://en.wikipedia.org/w/index.php?title=Bessel%27s_correction&oldid=526066331
  *
- * \param    mean   the mean()
+ * \param    theMean   the mean()
  *
  * \returns  The uncorrected variance.
  **********************************************************************************************************************/
@@ -264,7 +264,7 @@ real_t Sample::quantile(const real_t p) const
  *    %mad       by mad()
  *    %size       by size()
  *
- * \returns  The formated string.
+ * \returns  The formatted string.
  **********************************************************************************************************************/
 std::string Sample::format(const std::string & formatString) const
 {

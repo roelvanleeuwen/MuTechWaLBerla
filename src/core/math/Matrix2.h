@@ -1,15 +1,15 @@
 //======================================================================================================================
 //
-//  This file is part of waLBerla. waLBerla is free software: you can 
+//  This file is part of waLBerla. waLBerla is free software: you can
 //  redistribute it and/or modify it under the terms of the GNU General Public
-//  License as published by the Free Software Foundation, either version 3 of 
+//  License as published by the Free Software Foundation, either version 3 of
 //  the License, or (at your option) any later version.
-//  
-//  waLBerla is distributed in the hope that it will be useful, but WITHOUT 
-//  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
-//  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License 
+//
+//  waLBerla is distributed in the hope that it will be useful, but WITHOUT
+//  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+//  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 //  for more details.
-//  
+//
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
@@ -87,16 +87,16 @@ private:
 
 public:
    //**Constructors*****************************************************************************************************
-   explicit inline Matrix2();
-   explicit inline Matrix2( Type init );
-   explicit inline Matrix2( Type xx, Type xy, Type yx, Type yy );
-   explicit inline Matrix2( const Type* init );
+   explicit inline constexpr Matrix2();
+   explicit inline constexpr Matrix2( Type init );
+   explicit inline constexpr Matrix2( Type xx, Type xy, Type yx, Type yy );
+   explicit inline constexpr Matrix2( const Type* init );
 
 
-   inline Matrix2( const Matrix2& m );
+   inline constexpr Matrix2( const Matrix2& m );
 
    template< typename Other >
-   inline Matrix2( const Matrix2<Other>& m );
+   inline constexpr Matrix2( const Matrix2<Other>& m );
    //*******************************************************************************************************************
 
    //**Destructor*******************************************************************************************************
@@ -189,7 +189,7 @@ private:
 // with 0.
 */
 template< typename Type >
-inline Matrix2<Type>::Matrix2()
+inline constexpr Matrix2<Type>::Matrix2()
 {
    v_[0] = v_[3] = Type(1);
    v_[1] = v_[2] = Type(0);
@@ -204,7 +204,7 @@ inline Matrix2<Type>::Matrix2()
 // \param init Initial value for all matrix elements.
 */
 template< typename Type >
-inline Matrix2<Type>::Matrix2( Type init )
+inline constexpr Matrix2<Type>::Matrix2( Type init )
 {
    v_[0] = v_[1] = v_[2] = v_[3] = init;
 }
@@ -221,8 +221,8 @@ inline Matrix2<Type>::Matrix2( Type init )
 // \param yy The initial value for the yy-component.
 */
 template< typename Type >
-inline Matrix2<Type>::Matrix2( Type xx, Type xy,
-                               Type yx, Type yy  )
+inline constexpr Matrix2<Type>::Matrix2( Type xx, Type xy,
+                                         Type yx, Type yy  )
 {
    v_[0] = xx; v_[1] = xy;
    v_[2] = yx; v_[3] = yy;
@@ -239,7 +239,7 @@ inline Matrix2<Type>::Matrix2( Type xx, Type xy,
 // The array is assumed to have at least nine valid elements.
 */
 template< typename Type >
-inline Matrix2<Type>::Matrix2( const Type* init )
+inline constexpr Matrix2<Type>::Matrix2( const Type* init )
 {
    v_[0] = init[0];
    v_[1] = init[1];
@@ -258,7 +258,7 @@ inline Matrix2<Type>::Matrix2( const Type* init )
 // The copy constructor is explicitly defined in order to enable/facilitate NRV optimization.
 */
 template< typename Type >
-inline Matrix2<Type>::Matrix2( const Matrix2& m )
+inline constexpr Matrix2<Type>::Matrix2( const Matrix2& m )
 {
    v_[0] = m.v_[0];
    v_[1] = m.v_[1];
@@ -276,7 +276,7 @@ inline Matrix2<Type>::Matrix2( const Matrix2& m )
 */
 template< typename Type >
 template< typename Other >
-inline Matrix2<Type>::Matrix2( const Matrix2<Other>& m )
+inline constexpr Matrix2<Type>::Matrix2( const Matrix2<Other>& m )
 {
    v_[0] = m.v_[0];
    v_[1] = m.v_[1];
@@ -375,12 +375,10 @@ inline bool Matrix2<Type>::operator==( const Matrix2<Other>& rhs ) const
 {
    // In order to compare the vector and the scalar value, the data values of the lower-order
    // data type are converted to the higher-order data type.
-   if( !equal( v_[0], rhs.v_[0] ) ||
-       !equal( v_[1], rhs.v_[1] ) ||
-       !equal( v_[2], rhs.v_[2] ) ||
-       !equal( v_[3], rhs.v_[3] ) )
-      return false;
-   else return true;
+   return equal( v_[0], rhs.v_[0] ) &&
+          equal( v_[1], rhs.v_[1] ) &&
+          equal( v_[2], rhs.v_[2] ) &&
+          equal( v_[3], rhs.v_[3] );
 }
 //**********************************************************************************************************************
 
@@ -398,12 +396,7 @@ inline bool Matrix2<Type>::operator!=( const Matrix2<Other>& rhs ) const
 {
    // In order to compare the vector and the scalar value, the data values of the lower-order
    // data type are converted to the higher-order data type.
-   if( !equal( v_[0], rhs.v_[0] ) ||
-       !equal( v_[1], rhs.v_[1] ) ||
-       !equal( v_[2], rhs.v_[2] ) ||
-       !equal( v_[3], rhs.v_[3] ) )
-      return true;
-   else return false;
+   return !(*this == rhs);
 }
 //**********************************************************************************************************************
 
@@ -781,9 +774,7 @@ inline const Matrix2<Type> Matrix2<Type>::getInverse() const
 template< typename Type >
 inline bool Matrix2<Type>::isSingular() const
 {
-   if( equal( getDeterminant(), Type(0) ) )
-      return true;
-   else return false;
+   return equal( getDeterminant(), Type(0) );
 }
 //**********************************************************************************************************************
 
@@ -839,12 +830,12 @@ inline const Matrix2<Type> fabs( const Matrix2<Type>& m );
 // \param matrix The right-hand-side matrix for the multiplication.
 // \return The scaled result matrix.
 */
-//template< typename Type, typename Other >
-//inline const Matrix2<HIGH> operator*( Other scalar, const Matrix2<Type>& matrix )
-//{
-//   static_assert( ! std::is_scalar<Other>::value, "Only scalar types allowed" );
-//   return matrix*scalar;
-//}
+template< typename Type, typename Other >
+inline typename std::enable_if< std::is_fundamental< Other >::value, Matrix2< HIGH > >::type
+operator*(Other scalar, const Matrix2< Type >& matrix)
+{
+   return matrix * scalar;
+}
 //**********************************************************************************************************************
 
 
@@ -875,11 +866,8 @@ std::ostream& operator<<( std::ostream& os, const Matrix2<Type>& m )
 template< typename Type >
 inline bool isnan( const Matrix2<Type>& m )
 {
-   if( math::isnan( m[0] ) || math::isnan( m[1] )||
-       math::isnan( m[2] ) || math::isnan( m[3] )  )
-      return true;
-   else
-      return false;
+   return math::isnan( m[0] ) || math::isnan( m[1] )||
+       math::isnan( m[2] ) || math::isnan( m[3] );
 }
 //**********************************************************************************************************************
 
@@ -999,7 +987,7 @@ namespace walberla {
 template<typename T>
 struct VectorTrait< Matrix2<T> >
 {
-   typedef T OutputType;
+   using OutputType = T;
 
    static const uint_t F_SIZE =  4u;
    static T    get( const Matrix2<T> & v, uint_t f )       { return v[f]; }

@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file Helper.h
+//! \file BoundarySetterFlagFieldSpecialization.h
 //! \ingroup geometry
 //! \author Martin Bauer <martin.bauer@fau.de>
 //
@@ -97,7 +97,7 @@ namespace initializer {
             ++blockHandleIt;
       }
 
-      if (boundaryConfigBlocks.size () > 0 ) {
+      if (!boundaryConfigBlocks.empty() ) {
          WALBERLA_ABORT_NO_DEBUG_INFO( "No boundary setup blocks are allowed when configuring a flag field"
                                                << blockHandle.getKey() );
       }

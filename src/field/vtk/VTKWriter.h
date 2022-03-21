@@ -60,8 +60,8 @@ namespace field {
 * \param continuousNumbering  important when writeFrequency > 1,  if true the simulation steps are numbered continuously
 *                             otherwise they are numbered after the timestep
 * \param binary               switch for binary output
-* \param litteEndian          byte order
-* \param simultaneousIOOps    number of simultaneous IO operations, 0 means all processes write concurrently
+* \param littleEndian         byte order
+* \param simultaneousIOOperations    number of simultaneous IO operations, 0 means all processes write concurrently
 *                             limiting the number of simultaneous IO operations makes sense for huge number of processes
 *                             in order to not overload the file system
 * \param requiredStates       see selectable concept
@@ -102,24 +102,23 @@ template< typename Field_T, typename OutputType = typename VectorTrait<typename 
 class VTKWriter : public vtk::BlockCellDataWriter< OutputType >
 {
 public:
-   typedef VectorTrait<typename Field_T::value_type > OutputTrait;
-
-   typedef vtk::BlockCellDataWriter<OutputType> base_t;
+   using OutputTrait = VectorTrait<typename Field_T::value_type>;
+   using base_t = vtk::BlockCellDataWriter<OutputType>;
 
    VTKWriter( const ConstBlockDataID bdid, const std::string& id ) :
-      base_t( id ), bdid_( bdid ), field_( NULL ), fSize_(0) {}
+      base_t( id ), bdid_( bdid ), field_( nullptr ), fSize_(0) {}
 
 protected:
 
-   void configure() {
-      WALBERLA_ASSERT_NOT_NULLPTR( this->block_ );
+   void configure() override {
+      WALBERLA_ASSERT_NOT_NULLPTR( this->block_ )
       field_ = this->block_->template getData< Field_T >( bdid_ );
 
       WALBERLA_ASSERT_NOT_NULLPTR( field_ )
       fSize_ = field_->fSize();
    }
 
-   OutputType evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f )
+   OutputType evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
    {
       if ( fSize_ == 1 )
       {
@@ -192,7 +191,7 @@ inline vtk::VTKOutput::Write createVTKOutput  ( const ConstBlockDataID & fieldId
                                                 const Set<SUID>& incompatibleStates = Set<SUID>::emptySet(),
                                                 bool useMPIIO = true, const uint_t initialExecutionCount = 0 )
 {
-   typedef typename VectorTrait<typename Field_T::value_type >::OutputType OutputType;
+   using OutputType = typename VectorTrait<typename Field_T::value_type>::OutputType;
 
    return createVTKOutput<Field_T, OutputType> (
                fieldId, blocks, identifier, writeFrequency, ghostLayers, forcePVTU, baseFolder,executionFolder,
@@ -247,7 +246,7 @@ inline vtk::VTKOutput::Write createScalingVTKOutput  ( const ConstBlockDataID & 
                                                        const Set<SUID>& incompatibleStates = Set<SUID>::emptySet(),
                                                        bool useMPIIO = true, const uint_t initialExecutionCount = 0 )
 {
-   typedef typename VectorTrait<typename Field_T::value_type >::OutputType OutputType;
+   using OutputType = typename VectorTrait<typename Field_T::value_type>::OutputType;
 
    return createScalingVTKOutput<Field_T, OutputType> (
                fieldId, blocks, identifier, writeFrequency, factor, ghostLayers, forcePVTU, baseFolder,executionFolder,

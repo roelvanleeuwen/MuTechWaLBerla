@@ -90,7 +90,6 @@ void marshal( mpi::SendBuffer& buffer, const Union<BodyTypes...>& obj )
  *
  * \param buffer The buffer from where to read.
  * \param objparam The object to be reconstructed.
- * \param hasSuperBody False if body is not part of a union. Passed on to rigid body unmarshalling.
  * \return void
  */
 inline
@@ -130,7 +129,7 @@ inline std::unique_ptr<Union<BodyTypes...>> instantiate( mpi::RecvBuffer& buffer
    // Decoding the contained primitives
    for( size_t i = 0; i < subobjparam.size_; ++i )
    {
-      decltype ( static_cast<BodyID>(nullptr)->getTypeID() ) type;
+      decltype ( un->getTypeID() ) type;
       buffer >> type;
       BodyPtr obj( UnmarshalDynamically<std::tuple<BodyTypes...>>::execute(buffer, type, domain, block) );
       obj->setRemote( true );

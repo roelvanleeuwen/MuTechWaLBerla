@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file LBLidDrivenCavity.cpp
+//! \file 03_LBLidDrivenCavity.cpp
 //! \author Florian Schornbaum <florian.schornbaum@fau.de>
 //
 //======================================================================================================================
@@ -75,11 +75,11 @@ using FlagField_T = FlagField<flag_t>; // the flag field: used for marking cells
                                           // (also used for distinguishing between different boundary conditions
                                           //  -> every boundary condition possesses its own, unique flag)
 
-typedef lbm::NoSlip< LatticeModel_T, flag_t >     NoSlip_T; // no slip boundary condition
-typedef lbm::SimpleUBB< LatticeModel_T, flag_t >  UBB_T;    // velocity bounce back boundary condition that internally works with one ...
+using NoSlip_T = lbm::NoSlip<LatticeModel_T, flag_t>; // no slip boundary condition
+using UBB_T = lbm::SimpleUBB<LatticeModel_T, flag_t>;    // velocity bounce back boundary condition that internally works with one ...
                                                             // ... constant velocity that must be set during the setup phase
 
-typedef BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T, UBB_T > BoundaryHandling_T; // the boundary handling, includes a collection of all boundary conditions
+using BoundaryHandling_T = BoundaryHandling<FlagField_T, Stencil_T, NoSlip_T, UBB_T>; // the boundary handling, includes a collection of all boundary conditions
 
 ///////////
 // FLAGS //

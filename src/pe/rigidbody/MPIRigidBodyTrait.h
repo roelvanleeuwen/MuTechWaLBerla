@@ -47,15 +47,15 @@ class MPIRigidBodyTrait
 {
 protected:
    //**Type definitions****************************************************************************
-   typedef std::vector<Owner>             ShadowOwners;       //!< Vector for remote MPI processes the rigid body is contained in.
-   typedef std::set<BlockID>              BlockStates;        //!< Stores the information if neighbor block knows about object.
+   using ShadowOwners = std::vector<Owner>;       //!< Vector for remote MPI processes the rigid body is contained in.
+   using BlockStates = std::set<BlockID>;        //!< Stores the information if neighbor block knows about object.
    //**********************************************************************************************
 
 public:
    //**Type definitions****************************************************************************
-   typedef ShadowOwners::iterator        ShadowOwnersIterator;       //!< Iterator over the connected processes.
-   typedef ShadowOwners::const_iterator  ConstShadowOwnersIterator;  //!< ConstIterator over the connected processes.
-   typedef size_t                        SizeType;
+   using ShadowOwnersIterator = ShadowOwners::iterator;       //!< Iterator over the connected processes.
+   using ConstShadowOwnersIterator = ShadowOwners::const_iterator;  //!< ConstIterator over the connected processes.
+   using SizeType = size_t;
    //**********************************************************************************************
 
    //**Constructor*********************************************************************************
@@ -68,7 +68,7 @@ public:
    //**Destructor**********************************************************************************
    /*!\name Destructor */
    //@{
-   virtual ~MPIRigidBodyTrait() {};
+   virtual ~MPIRigidBodyTrait() = default;
    //@}
    //**********************************************************************************************
 
@@ -136,7 +136,7 @@ inline MPIRigidBodyTrait::MPIRigidBodyTrait( )
 //*************************************************************************************************
 /*!\brief Registering a new remote process the rigid body is contained in.
  *
- * \param process The remote process to be registered with the rigid body.
+ * \param owner The remote process to be registered with the rigid body.
  * \return void
  *
  * This function registers the given remote process with the rigid body. In case the process is
@@ -153,7 +153,7 @@ inline void MPIRigidBodyTrait::registerShadowOwner( const Owner& owner )
 //*************************************************************************************************
 /*!\brief Deregistering a remote process from the rigid body.
  *
- * \param process The remote process to be deregistered from the rigid body.
+ * \param owner The remote process to be deregistered from the rigid body.
  * \return void
  *
  * This function deregisters the given remote process from the rigid body. This call has linear
@@ -171,16 +171,14 @@ inline void MPIRigidBodyTrait::deregisterShadowOwner( const Owner& owner )
 //*************************************************************************************************
 /*!\brief Checks whether the given remote process is registered with the rigid body.
  *
- * \param process The remote process that possibly registered with the rigid body.
+ * \param owner The remote process that possibly registered with the rigid body.
  * \return \a true if the given process is registered with the rigid body, \a false if not.
  *
  * This call has linear complexity.
  */
 inline bool MPIRigidBodyTrait::isShadowOwnerRegistered( const Owner& owner ) const
 {
-   if( std::find( shadowOwners_.begin(), shadowOwners_.end(), owner ) == shadowOwners_.end() )
-      return false;
-   else return true;
+   return std::find( shadowOwners_.begin(), shadowOwners_.end(), owner ) != shadowOwners_.end();
 }
 //*************************************************************************************************
 

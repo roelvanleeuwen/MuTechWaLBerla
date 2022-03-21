@@ -40,7 +40,7 @@ namespace kernel {
 /**
  * Init the datastructures for the particles for later use of the HCSITS-Solver.
  * Call this kernel on all particles that will be treated with HCSITS before performing any relaxation timesteps.
- * Use setGlobalAcceleration() to set an accelleration action uniformly across all particles (e.g. gravity)
+ * Use setGlobalAcceleration() to set an acceleration action uniformly across all particles (e.g. gravity)
  * \ingroup mesa_pd_kernel
  */
 class InitParticlesForHCSITS
@@ -87,7 +87,8 @@ inline void InitParticlesForHCSITS::operator()(size_t j, Accessor& ac, real_t dt
       initializeVelocityCorrections( ac, j, ac.getDvRef(j), ac.getDwRef(j), dt ); // use applied external forces to calculate starting velocity
       if(!isSet(particle_flags, FIXED)){ // Update velocities with global acceleration and angular velocity with euler eqn
          ac.getLinearVelocityRef(j) = ac.getLinearVelocity(j) + getGlobalAcceleration() * dt;
-         ac.getAngularVelocityRef(j) = ac.getAngularVelocity(j) + dt * ( ac.getInvInertia(j) * ( ( ac.getInertia(j) * ac.getAngularVelocity(j) ) % ac.getAngularVelocity(j) ) );
+         const auto omegaBF = transformVectorFromWFtoBF(j, ac, ac.getAngularVelocity(j));
+         ac.getAngularVelocityRef(j) = ac.getAngularVelocity(j) + dt * transformVectorFromBFtoWF(j, ac, ( ac.getInvInertiaBF(j) * ( ( ac.getInertiaBF(j) * omegaBF ) % omegaBF ) ) );
       }
    }
 }
@@ -110,7 +111,7 @@ template <typename Accessor>
 inline void InitParticlesForHCSITS::initializeVelocityCorrections(Accessor& ac, size_t body, Vec3& dv, Vec3& dw, real_t dt ) const
 {
    dv = ( ac.getInvMass(body) * dt ) * ac.getForce(body);
-   dw = dt * ( ac.getInvInertia(body) * ac.getTorque(body) );
+   dw = dt * ( getInvInertia(body, ac) * ac.getTorque(body) );
 
    ac.getForceRef(body) = Vec3();
    ac.getTorqueRef(body) = Vec3();

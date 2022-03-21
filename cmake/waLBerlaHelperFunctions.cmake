@@ -79,10 +79,12 @@ function( waLBerla_generate_target_from_python )
 
     add_custom_command(OUTPUT ${generatedWithAbsolutePath}
           DEPENDS ${sourceFile}
-          COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${WALBERLA_PYTHON_DIR}:$ENV{PYTHONPATH} ${PYTHON_EXECUTABLE} ${sourceFile} ${pythonParameters}
+          COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${WALBERLA_PYTHON_DIR}:$ENV{PYTHONPATH} ${Python_EXECUTABLE} ${sourceFile} ${pythonParameters}
           WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${codegenCfg}")
 
     add_library(${PYGEN_NAME} ${generatedWithAbsolutePath})
+    # cmake might not be able to determine linker language since file extension is "hidden" in variable
+    set_target_properties(${PYGEN_NAME} PROPERTIES LINKER_LANGUAGE CXX)
     target_include_directories(${PYGEN_NAME} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/${codegenCfg})
 endfunction()
 #######################################################################################################################
@@ -176,6 +178,8 @@ function ( waLBerla_export )
     set( WALBERLA_CXX_STANDARD_REQUIRED ${CMAKE_CXX_STANDARD_REQUIRED} CACHE INTERNAL "CXX Standard Required")
     set( WALBERLA_CXX_EXTENSIONS ${CMAKE_CXX_EXTENSIONS} CACHE INTERNAL "CXX Extensions")
 
+    set( WALBERLA_Python_EXECUTABLE ${Python_EXECUTABLE} CACHE INTERNAL "Python EXECUTABLE")
+
 endfunction( waLBerla_export)
 
 #######################################################################################################################
@@ -234,6 +238,8 @@ function ( waLBerla_import )
     set( CMAKE_CXX_STANDARD ${WALBERLA_CXX_STANDARD}  PARENT_SCOPE)
     set( CMAKE_CXX_STANDARD_REQUIRED ${WALBERLA_STANDARD_REQUIRED} PARENT_SCOPE)
     set( CMAKE_CXX_EXTENSIONS ${WALBERLA_EXTENSIONS} PARENT_SCOPE)
+
+    set( Python_EXECUTABLE ${WALBERLA_Python_EXECUTABLE} PARENT_SCOPE)
 
     link_directories( ${WALBERLA_LINK_DIRS} )
 endfunction( waLBerla_import)

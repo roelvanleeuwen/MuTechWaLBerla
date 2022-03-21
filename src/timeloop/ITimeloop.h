@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file AbstractTimeloop.h
+//! \file ITimeloop.h
 //! \ingroup timeloop
 //! \author bauer
 //
@@ -31,7 +31,7 @@ namespace timeloop {
 class ITimeloop
 {
 public:
-   virtual ~ITimeloop() {};
+   virtual ~ITimeloop() = default;
 
    virtual void run()        = 0;
    virtual void singleStep() = 0;

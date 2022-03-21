@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file SynchronizeForces.h
+//! \file SyncForces.h
 //! \author Sebastian Eibl <sebastian.eibl@fau.de>
 //
 //======================================================================================================================
@@ -110,7 +110,7 @@ void reduceForces( BlockStorage& blocks, BlockDataID storageID )
          it.buffer() >> sender;
          it.buffer() >> receiver;
          auto blk = blocks.getBlock(receiver);
-         WALBERLA_CHECK(blk != NULL, receiver << " not on this process!");
+         WALBERLA_CHECK(blk != nullptr, receiver << " not on this process!");
          IBlock& block = *blk;
          Storage* storage  = block.getData< Storage >( storageID );
          BodyStorage& localStorage  = (*storage)[0];
@@ -231,7 +231,7 @@ void distributeForces( BlockStorage& blocks, BlockDataID storageID )
          it.buffer() >> sender;
          it.buffer() >> receiver;
          auto blk = blocks.getBlock(receiver);
-         WALBERLA_CHECK(blk != NULL, receiver << " not on this process!");
+         WALBERLA_CHECK(blk != nullptr, receiver << " not on this process!");
          IBlock& block = *blk;
          Storage* storage  = block.getData< Storage >( storageID );
          BodyStorage& localStorage  = (*storage)[0];

@@ -88,16 +88,16 @@ public:
 
 private:
    //**Type definitions****************************************************************************
-   typedef std::string                                  Key;                  //!< Parameter key.
-   typedef std::string                                  Value;                //!< Parameter value.
-   typedef std::map<Key,Value, CaseInsensitiveCompare>  Map;                  //!< Parameter map.
-   typedef std::list<Block>                             List;                 //!< List for parameter blocks.
-   typedef std::map<Value,Value>                        ValueReplacementMap;  //!< Parameter value replacement map
+   using Key = std::string;                  //!< Parameter key.
+   using Value = std::string;                //!< Parameter value.
+   using Map = std::map<Key, Value, CaseInsensitiveCompare>;                  //!< Parameter map.
+   using List = std::list<Block>;                 //!< List for parameter blocks.
+   using ValueReplacementMap = std::map<Value, Value>;  //!< Parameter value replacement map
 
-   typedef std::stringstream::pos_type         sstreamPos;  //!< Stream position.
-   typedef std::pair<sstreamPos,unsigned int>  Pair;        //!< Pair consisting of a stream position
+   using sstreamPos = std::stringstream::pos_type;  //!< Stream position.
+   using Pair = std::pair<sstreamPos, unsigned int>;        //!< Pair consisting of a stream position
                                                             //!< and a line number.
-   typedef std::vector<Pair>                   LineVector;  //!< Vector for Pair.
+   using LineVector = std::vector<Pair>;  //!< Vector for Pair.
    //*******************************************************************************************************************
 
    //**Member constants*************************************************************************************************
@@ -106,11 +106,11 @@ private:
 
 public:
    //**Type definitions****************************************************************************
-   typedef std::vector<BlockHandle>  Blocks;          //!< Container for block handles.
-   typedef List::size_type           size_type;       //!< Size type for a Block count.
+   using Blocks = std::vector<BlockHandle>;          //!< Container for block handles.
+   using size_type = List::size_type;       //!< Size type for a Block count.
 
-   typedef Map::iterator             iterator;        //!< Iterator over the contained parameters.
-   typedef Map::const_iterator       const_iterator;  //!< Constant iterator over the contained parameters.
+   using iterator = Map::iterator;        //!< Iterator over the contained parameters.
+   using const_iterator = Map::const_iterator;  //!< Constant iterator over the contained parameters.
    //*******************************************************************************************************************
 
    //**Error codes******************************************************************************************************
@@ -197,7 +197,7 @@ public:
       inline Parameter<T> getParameter( std::string key ) const;
 
       template< typename T >
-      inline Parameter<T> getParameter( const std::string & key, const T & defaultValue ) const;
+      inline Parameter<T> getParameter( const std::string & key, const T & def ) const;
 
       inline bool setParameter( const std::string & key, const std::string & value );
       
@@ -278,9 +278,9 @@ public:
       inline Parameter<T> getParameter( const std::string & key ) const;
 
       template< typename T >
-      inline Parameter<T> getParameter( const std::string & key, const T& defaultValue ) const;
+      inline Parameter<T> getParameter( const std::string & key, const T& def ) const;
 
-      bool isValid() const { return block_ != NULL; }
+      bool isValid() const { return block_ != nullptr; }
       operator bool() const { return isValid(); }
 
       inline const_iterator begin() const;
@@ -346,7 +346,7 @@ public:
    inline Parameter<T> getParameter( const std::string& key ) const;
 
    template< typename T >
-   inline Parameter<T> getParameter( const std::string& key, const T & defaultValue ) const;
+   inline Parameter<T> getParameter( const std::string& key, const T & def ) const;
 
 
    inline iterator       begin();
@@ -514,7 +514,7 @@ inline Config::Parameter<Type> Config::getParameter( const std::string & key ) c
 
 
 //**********************************************************************************************************************
-/*!\fn Config::Parameter<T> Config::getParameter( const std::string& key, const T& ) const
+/*!\fn Config::Parameter<T> Config::getParameter( const std::string& key, const T& def ) const
 // \brief Returns an extracted parameter.
 //
 // \param key The key of the extracted parameter.
@@ -1058,7 +1058,7 @@ inline Config::const_iterator Config::Block::end() const
 // an error until the BlockHandle object is bound to a block.
  */
 inline Config::BlockHandle::BlockHandle()
-   :block_(0)
+   :block_(nullptr)
 {}
 //**********************************************************************************************************************
 
@@ -1093,6 +1093,7 @@ inline const std::string& Config::BlockHandle::getKey() const
 /*!\fn bool Config::BlockHandle::isDefined( std::string key ) const
 // \brief Checks if a parameter was defined in the parameter file.
 //
+// \param key The parameter key to be checked.
 // \return \a true if the parameter was defined, \a false if the parameter wasn't defined.
  */
 inline bool Config::BlockHandle::isDefined( std::string key ) const
@@ -1118,7 +1119,7 @@ inline Config::Parameter<Type> Config::BlockHandle::getParameter( const std::str
 //**********************************************************************************************************************
 
 //**********************************************************************************************************************
-/*!\fn Config::Parameter<T> Config::BlockHandle::getParameter( const std::string& key, const T & ) const
+/*!\fn Config::Parameter<T> Config::BlockHandle::getParameter( const std::string& key, const T & def ) const
 // \brief Returns an extracted parameter.
 //
 // \param key The key of the extracted parameter.

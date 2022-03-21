@@ -106,9 +106,10 @@ struct AddToStorage
                            const typename GhostLayerField_T::value_type & initValue, const Layout layout, const uint_t nrOfGhostLayers,
                            const bool /*alwaysInitialize*/, const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction,
                            const Set<SUID> & requiredSelectors, const Set<SUID> & incompatibleSelectors,
-                           const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = defaultSize )
+                           const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = defaultSize,
+                           const shared_ptr< field::FieldAllocator<Value_T> > alloc = nullptr)
    {
-      auto dataHandling = walberla::make_shared< field::AlwaysInitializeBlockDataHandling< GhostLayerField_T > >( blocks, nrOfGhostLayers, initValue, layout, calculateSize );
+      auto dataHandling = walberla::make_shared< field::AlwaysInitializeBlockDataHandling< GhostLayerField_T > >( blocks, nrOfGhostLayers, initValue, layout, calculateSize, alloc );
       dataHandling->addInitializationFunction( initFunction );
       return blocks->addBlockData( dataHandling, identifier, requiredSelectors, incompatibleSelectors );
    }
@@ -123,7 +124,8 @@ struct AddToStorage< GhostLayerField_T, BlockStorage_T,
                            const typename GhostLayerField_T::value_type & initValue, const Layout layout, const uint_t nrOfGhostLayers,
                            const bool alwaysInitialize, const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction,
                            const Set<SUID> & requiredSelectors, const Set<SUID> & incompatibleSelectors,
-                           const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = defaultSize )
+                           const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = defaultSize,
+                           const shared_ptr< field::FieldAllocator<Value_T> > alloc = nullptr)
    {
       if( alwaysInitialize )
       {
@@ -131,7 +133,6 @@ struct AddToStorage< GhostLayerField_T, BlockStorage_T,
          dataHandling->addInitializationFunction( initFunction );
          return blocks->addBlockData( dataHandling, identifier, requiredSelectors, incompatibleSelectors );
       }
-
       auto dataHandling = walberla::make_shared< field::DefaultBlockDataHandling< GhostLayerField_T > >( blocks, fSize, nrOfGhostLayers, initValue, layout, calculateSize );
       dataHandling->addInitializationFunction( initFunction );
       return blocks->addBlockData( dataHandling, identifier, requiredSelectors, incompatibleSelectors );
@@ -153,7 +154,7 @@ BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                           const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction =
                              std::function< void ( GhostLayerField_T * field, IBlock * const block ) >(),
                           const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
-                          const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
+                          const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet())
 {
    return internal::AddToStorage< GhostLayerField_T, BlockStorage_T >::add( blocks, identifier, fSize, initValue, layout, nrOfGhostLayers,
                                                                             alwaysInitialize, initFunction, requiredSelectors, incompatibleSelectors );
@@ -190,13 +191,13 @@ BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                           const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction =
                           std::function< void ( GhostLayerField_T * field, IBlock * const block ) >(),
                           const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
-                          const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() )
+                          const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet(),
+                          const shared_ptr< field::FieldAllocator<typename GhostLayerField_T::value_type> > alloc = nullptr)
 {
    return internal::AddToStorage< GhostLayerField_T, BlockStorage_T >::add( blocks, identifier, fSize, initValue, layout, nrOfGhostLayers,
                                                                             alwaysInitialize, initFunction, requiredSelectors,
-                                                                            incompatibleSelectors, calculateSize );
+                                                                            incompatibleSelectors, calculateSize, alloc );
 }
-
 
 
 template< typename GhostLayerField_T, typename BlockStorage_T >
@@ -223,11 +224,9 @@ BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
 //**********************************************************************************************************************
 /*! Adds a copy of an existing field to BlockStorage
 *
-* Template parameters:
-*   Field_T         the type of the field that should be cloned ( and the type that is created )
-*   BlockStorage_T  the type of the BlockStorage ( will be deduced automatically )
+*   \tparam Field_T         the type of the field that should be cloned ( and the type that is created )
+*   \tparam BlockStorage_T  the type of the BlockStorage ( will be deduced automatically )
 *
-* Parameters:
 *   \param blocks        BlockStorage where the original field is stored and the new one is created
 *   \param fieldToClone  BlockDataID of the Field that is cloned
 *   \param identifier    name for new the field ( displayed in GUI and debugging functions )
@@ -253,11 +252,9 @@ BlockDataID addCloneToStorage( const shared_ptr< BlockStorage_T > & blocks,
 //**********************************************************************************************************************
 /*! Adds a flattened shallow copy of an existing field to BlockStorage
 *
-* Template parameters:
-*   Field_T         the type of the field that should be cloned and flattened
-*   BlockStorage_T  the type of the BlockStorage ( will be deduced automatically )
+*   \tparam Field_T         the type of the field that should be cloned and flattened
+*   \tparam BlockStorage_T  the type of the BlockStorage ( will be deduced automatically )
 *
-* Parameters:
 *   \param blocks        BlockStorage where the original field is stored and the new one is created
 *   \param fieldToClone  BlockDataID of the Field that is cloned
 *   \param identifier    name for new the field ( displayed in GUI and debugging functions )

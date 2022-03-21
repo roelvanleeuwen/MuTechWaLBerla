@@ -60,8 +60,8 @@ class BodyVelocityInitializer
 
 public:
 
-   typedef GhostLayerField< Vector3<real_t>, 1>          Vec3Field_T;
-   typedef FieldInterpolator_T<Vec3Field_T, FlagField_T> Vec3FieldInterpolator_T;
+   using Vec3Field_T = GhostLayerField<Vector3<real_t>, 1>;
+   using Vec3FieldInterpolator_T = FieldInterpolator_T<Vec3Field_T, FlagField_T>;
 
    BodyVelocityInitializer( const shared_ptr<StructuredBlockStorage> & blockStorage,
                             const BlockDataID & bodyStorageID, const BlockDataID & flagFieldID, const Set< FlagUID > & domainFlags,
@@ -83,8 +83,6 @@ public:
          for( auto bodyIt = pe::LocalBodyIterator::begin(*blockIt, bodyStorageID_); bodyIt != pe::LocalBodyIterator::end(); ++bodyIt )
          {
             if(!dpmBodySelectorFct_(bodyIt.getBodyID())) continue;
-
-            Vector3<real_t> forceOnFluid( real_t(0) );
 
             Vector3<real_t> bodyPosition = bodyIt->getPosition();
 

@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file 06_HeatEquation_Extensions.cpp
+//! \file 03_HeatEquation_Extensions.cpp
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
 //
 //======================================================================================================================
@@ -44,7 +44,7 @@
 namespace walberla {
 
 
-typedef GhostLayerField<real_t,1> ScalarField;
+using ScalarField = GhostLayerField<real_t, 1>;
 using Stencil_T = stencil::D2Q5;
 
 
@@ -161,7 +161,7 @@ void JacobiIterationResidual::operator()()
 
 void JacobiIterationResidual::init()
 {
-   // temporal storage
+   // temporary storage
    uint_t cells( uint_c(0) );
 
    // iterate all blocks
@@ -189,7 +189,7 @@ real_t JacobiIterationResidual::residualNorm()
       auto u   = block->getData< ScalarField >( srcID_ );
       auto rhs = block->getData< ScalarField >( rhsID_ );
 
-      // temporal storage
+      // temporary storage
       real_t residual( real_c(0) );
 
       // iterate all cells inside the block

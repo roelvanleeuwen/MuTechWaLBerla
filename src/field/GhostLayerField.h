@@ -90,8 +90,7 @@ namespace field {
                        const std::vector<T> & fValues, const Layout & layout = zyxf,
                        const shared_ptr<FieldAllocator<T> > &alloc = shared_ptr<FieldAllocator<T> >() );
 
-      virtual ~GhostLayerField() = default;
-
+      ~GhostLayerField() override = default;
 
 
       void init( uint_t xSizeWithoutGhostLayer,
@@ -103,7 +102,7 @@ namespace field {
                  const shared_ptr<FieldAllocator<T> > &alloc = shared_ptr<FieldAllocator<T> >() );
 
 
-      virtual void resize( uint_t xSize, uint_t ySize, uint_t zSize, uint_t _fSize );
+      virtual void resize( uint_t xSize, uint_t ySize, uint_t zSize, uint_t _fSize ) override;
               void resize( uint_t xSize, uint_t ySize, uint_t zSize, uint_t _fSize, uint_t gl );
 
       using Field<T>::resize;
@@ -201,8 +200,8 @@ namespace field {
       /*! \name Slicing */
       //@{
       GhostLayerField<T> * getSlicedField( const CellInterval & interval ) const;
-      virtual void slice           ( const CellInterval & interval );
-      virtual void shiftCoordinates( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz );
+      virtual void slice           ( const CellInterval & interval ) override;
+      virtual void shiftCoordinates( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz ) override;
       //@}
       //****************************************************************************************************************
 
@@ -215,8 +214,8 @@ namespace field {
       //** Shallow Copy ************************************************************************************************
       /*! \name Shallow Copy */
       //@{
-      virtual Field<T> * cloneShallowCopyInternal()   const;
-      virtual typename Field<T>::FlattenedField * flattenedShallowCopyInternal() const;
+      virtual Field<T> * cloneShallowCopyInternal()   const override;
+      virtual typename Field<T>::FlattenedField * flattenedShallowCopyInternal() const override;
       GhostLayerField(const GhostLayerField<T> & other);
       template <typename T2>
       GhostLayerField(const GhostLayerField<T2> & other);

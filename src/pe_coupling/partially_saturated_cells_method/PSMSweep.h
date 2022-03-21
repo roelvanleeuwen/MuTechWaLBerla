@@ -66,10 +66,10 @@ class PSMSweep
 {
 public:
 
-   typedef typename lbm::SweepBase< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut_T >::PdfField_T  PdfField_T;
-   typedef typename LatticeModel_T::Stencil                   Stencil_T;
-   typedef std::pair< pe::BodyID, real_t >                    BodyAndVolumeFraction_T;
-   typedef Field< std::vector< BodyAndVolumeFraction_T >, 1 > BodyAndVolumeFractionField_T;
+   using PdfField_T = typename lbm::SweepBase<LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut_T>::PdfField_T;
+   using Stencil_T = typename LatticeModel_T::Stencil;
+   using BodyAndVolumeFraction_T = std::pair<pe::BodyID, real_t>;
+   using BodyAndVolumeFractionField_T = Field<std::vector<BodyAndVolumeFraction_T>, 1>;
 
    PSMSweep( const BlockDataID & pdfFieldID,
              const BlockDataID & bodyAndVolumeFractionFieldID,
@@ -133,9 +133,9 @@ template< typename LatticeModel_T, typename Filter_T, typename DensityVelocityIn
 void PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut_T, SolidCollision_T, Weighting_T
 >::streamCollide( IBlock * const block, const uint_t numberOfGhostLayersToInclude )
 {
-   PdfField_T * src( NULL );
-   PdfField_T * dst( NULL );
-   BodyAndVolumeFractionField_T * bodyAndVolumeFractionField( NULL );
+   PdfField_T * src( nullptr );
+   PdfField_T * dst( nullptr );
+   BodyAndVolumeFractionField_T * bodyAndVolumeFractionField( nullptr );
 
    getFields( block, src, dst, bodyAndVolumeFractionField );
 
@@ -187,7 +187,7 @@ void PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut
                auto pdfs_equ = lbm::EquilibriumDistribution< LatticeModel_T >::get( velocity, rho );
 
                // possible external forcing on fluid
-               const auto commonForceTerms = lm.forceModel().template directionIndependentTerms< LatticeModel_T >( x, y, z, velocity, rho, omega, collisionModel.omega_bulk() );
+               const auto commonForceTerms = lm.forceModel().template directionIndependentTerms< LatticeModel_T >( x, y, z, velocity, rho, omega, collisionModel.omega_bulk(), collisionModel.omega_odd() );
 
                // check if body is present
                if( bodyAndVolumeFractionField->get(x,y,z).size() != size_t(0) )
@@ -252,7 +252,7 @@ void PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut
                   {
                      // external forcing
                      const real_t forceTerm = lm.forceModel().template forceTerm< LatticeModel_T >( x, y, z, velocity, rho, commonForceTerms, LatticeModel_T::w[ d.toIdx() ],
-                                                                                                    real_c(d.cx()), real_c(d.cy()), real_c(d.cz()), omega, collisionModel.omega_bulk() );
+                                                                                                    real_c(d.cx()), real_c(d.cy()), real_c(d.cz()), omega, collisionModel.omega_bulk(), collisionModel.omega_odd() );
 
                      dst->get( x, y, z, d.toIdx() ) = pdfs[d.toIdx()] - omega * ( real_c(1) - Bn ) * ( pdfs[d.toIdx()] - pdfs_equ[d.toIdx()] ) //SRT
                                                       + omega_n[d.toIdx()] + ( real_c(1) - Bn ) * forceTerm;
@@ -265,7 +265,7 @@ void PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut
                   {
                      // external forcing
                      const real_t forceTerm = lm.forceModel().template forceTerm< LatticeModel_T >( x, y, z, velocity, rho, commonForceTerms, LatticeModel_T::w[ d.toIdx() ],
-                                                                                                    real_c(d.cx()), real_c(d.cy()), real_c(d.cz()), omega, collisionModel.omega_bulk() );
+                                                                                                    real_c(d.cx()), real_c(d.cy()), real_c(d.cz()), omega, collisionModel.omega_bulk(), collisionModel.omega_odd() );
 
                      dst->get( x, y, z, d.toIdx() ) = pdfs[d.toIdx()] - omega * ( pdfs[d.toIdx()] - pdfs_equ[d.toIdx()] ) + forceTerm;
                   }
@@ -282,8 +282,8 @@ template< typename LatticeModel_T, typename Filter_T, typename DensityVelocityIn
 void PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut_T, SolidCollision_T, Weighting_T
 >::stream( IBlock * const block, const uint_t numberOfGhostLayersToInclude )
 {
-   PdfField_T * src( NULL );
-   PdfField_T * dst( NULL );
+   PdfField_T * src( nullptr );
+   PdfField_T * dst( nullptr );
    lbm::SweepBase<LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut_T>::getFields( block, src, dst );
    lbm::StreamPull< LatticeModel_T >::execute( src, dst, block, this->filter_, numberOfGhostLayersToInclude );
 }
@@ -340,7 +340,7 @@ void PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut
                auto pdfs_equ = lbm::EquilibriumDistribution< LatticeModel_T >::get( velocity, rho );
 
                // possible external forcing on fluid
-               const auto commonForceTerms = lm.forceModel().template directionIndependentTerms< LatticeModel_T >( x, y, z, velocity, rho, omega, collisionModel.omega_bulk() );
+               const auto commonForceTerms = lm.forceModel().template directionIndependentTerms< LatticeModel_T >( x, y, z, velocity, rho, omega, collisionModel.omega_bulk(), collisionModel.omega_odd() );
 
                // check if a body is present
                if( bodyAndVolumeFractionField->get(x,y,z).size() != size_t(0) )
@@ -406,7 +406,7 @@ void PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut
                   {
                      // external forcing
                      const real_t forceTerm = lm.forceModel().template forceTerm< LatticeModel_T >( x, y, z, velocity, rho, commonForceTerms, LatticeModel_T::w[ d.toIdx() ],
-                                                                                                    real_c(d.cx()), real_c(d.cy()), real_c(d.cz()), omega, collisionModel.omega_bulk() );
+                                                                                                    real_c(d.cx()), real_c(d.cy()), real_c(d.cz()), omega, collisionModel.omega_bulk(), collisionModel.omega_odd() );
 
                      src->get( x, y, z, d.toIdx() ) = pdfs[d.toIdx()] - omega * ( real_c(1) - Bn ) * ( pdfs[d.toIdx()] - pdfs_equ[d.toIdx()] ) //SRT
                                                       + omega_n[d.toIdx()] + ( real_c(1) - Bn ) * forceTerm;
@@ -419,7 +419,7 @@ void PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut
                   {
                      // external forcing
                      const real_t forceTerm = lm.forceModel().template forceTerm< LatticeModel_T >( x, y, z, velocity, rho, commonForceTerms, LatticeModel_T::w[ d.toIdx() ],
-                                                                                                    real_c(d.cx()), real_c(d.cy()), real_c(d.cz()), omega, collisionModel.omega_bulk() );
+                                                                                                    real_c(d.cx()), real_c(d.cy()), real_c(d.cz()), omega, collisionModel.omega_bulk(), collisionModel.omega_odd() );
 
                      src->get( x, y, z, d.toIdx() ) = pdfs[d.toIdx()] - omega * ( pdfs[d.toIdx()] - pdfs_equ[d.toIdx()] )  + forceTerm;
                   }
@@ -441,7 +441,7 @@ shared_ptr< PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelo
 makePSMSweep( const BlockDataID & pdfFieldID, const BlockDataID & bodyAndVolumeFractionFieldID, const shared_ptr<StructuredBlockStorage> & blockStorage,
               const Filter_T & filter, const DensityVelocityIn_T & densityVelocityIn, const DensityVelocityOut_T & densityVelocityOut )
 {
-   typedef PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut_T, SolidCollision_T, Weighting_T > PSMS_T;
+   using PSMS_T = PSMSweep<LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut_T, SolidCollision_T, Weighting_T>;
    return shared_ptr< PSMS_T >( new PSMS_T( pdfFieldID, bodyAndVolumeFractionFieldID, blockStorage, filter, densityVelocityIn, densityVelocityOut ) );
 }
 
@@ -450,7 +450,7 @@ shared_ptr< PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelo
 makePSMSweep( const BlockDataID & srcID, const BlockDataID & dstID, const BlockDataID & bodyAndVolumeFractionFieldID, const shared_ptr<StructuredBlockStorage> & blockStorage,
               const Filter_T & filter, const DensityVelocityIn_T & densityVelocityIn, const DensityVelocityOut_T & densityVelocityOut )
 {
-   typedef PSMSweep< LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut_T, SolidCollision_T, Weighting_T > PSMS_T;
+   using PSMS_T = PSMSweep<LatticeModel_T, Filter_T, DensityVelocityIn_T, DensityVelocityOut_T, SolidCollision_T, Weighting_T>;
    return shared_ptr< PSMS_T >( new PSMS_T( srcID, dstID, bodyAndVolumeFractionFieldID, blockStorage, filter, densityVelocityIn, densityVelocityOut ) );
 }
 

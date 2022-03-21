@@ -38,11 +38,11 @@ class D3Q15 : public LatticeModelBase< CollisionModel_T, Compressible, ForceMode
 {
 public:
 
-   typedef typename LatticeModelBase< CollisionModel_T, Compressible, ForceModel_T, EquilibriumAccuracyOrder >::CollisionModel  CollisionModel;
-   typedef typename LatticeModelBase< CollisionModel_T, Compressible, ForceModel_T, EquilibriumAccuracyOrder >::ForceModel      ForceModel;
+   using CollisionModel = typename LatticeModelBase<CollisionModel_T, Compressible, ForceModel_T, EquilibriumAccuracyOrder>::CollisionModel;
+   using ForceModel = typename LatticeModelBase<CollisionModel_T, Compressible, ForceModel_T, EquilibriumAccuracyOrder>::ForceModel;
 
-   typedef stencil::D3Q15 Stencil;
-   typedef stencil::D3Q27 CommunicationStencil;
+   using Stencil = stencil::D3Q15;
+   using CommunicationStencil = stencil::D3Q27;
 
    static const char * NAME;
 
@@ -62,11 +62,11 @@ public:
       static_assert( (std::is_same< ForceModel_T, force_model::None >::value), "This constructor is only available if the force model is equal to force_model::None!" );
    }
 
-   virtual ~D3Q15() {}
+   ~D3Q15() override = default;
 
 protected:
 
-   virtual void config( IBlock & /*block*/, StructuredBlockStorage & /*sbs*/ ) {}
+   void config( IBlock & /*block*/, StructuredBlockStorage & /*sbs*/ ) override {}
 };
 
 template< typename CM, bool C, typename FM, int EAO > const char*  D3Q15<CM,C,FM,EAO>::NAME = "D3Q15";

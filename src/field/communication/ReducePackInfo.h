@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ReduceFieldPackInfo.h
+//! \file ReducePackInfo.h
 //! \ingroup field
 //! \author Matthias Markl <matthias.markl@fau.de>
 //! \brief Stores/reduces ghost layers to/from a communication buffer
@@ -42,7 +42,7 @@ template< template<typename> class ReduceOperation, typename GhostLayerField_T >
 class ReducePackInfo : public walberla::communication::ReducePackInfo
 {
 public:
-   typedef typename GhostLayerField_T::value_type T;
+   using T = typename GhostLayerField_T::value_type;
 
    ReducePackInfo( const BlockDataID & bdId, T init )
         : bdId_(bdId),
@@ -50,19 +50,19 @@ public:
           op_()
    {}
 
-   virtual ~ReducePackInfo() {}
+   ~ReducePackInfo() override = default;
 
    bool constantDataExchange() const { return false; }
    bool threadsafeReceiving()  const { return false; }
 
-   virtual void safeCommunicateLocal( const IBlock * sender, IBlock * receiver, stencil::Direction dir );
-   virtual void packData            ( const IBlock * sender,   stencil::Direction dir, mpi::SendBuffer & outBuffer );
-   virtual void safeUnpackData      (       IBlock * receiver, stencil::Direction dir, mpi::RecvBuffer & buffer    );
+   void safeCommunicateLocal( const IBlock * sender, IBlock * receiver, stencil::Direction dir ) override;
+   void packData            ( const IBlock * sender,   stencil::Direction dir, mpi::SendBuffer & outBuffer ) override;
+   void safeUnpackData      (       IBlock * receiver, stencil::Direction dir, mpi::RecvBuffer & buffer    ) override;
 
    size_t getDataSize() const { return getSize() * sizeof(T); }
 
 protected:
-   virtual size_t initData( IBlock * receiver, stencil::Direction dir );
+   size_t initData( IBlock * receiver, stencil::Direction dir ) override;
 
    const BlockDataID        bdId_;
    const T                  init_;

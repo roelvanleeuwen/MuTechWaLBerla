@@ -118,7 +118,7 @@ public:
    explicit GenericBufferSystem( const MPI_Comm & communicator, int tag = 0 );
    GenericBufferSystem( const GenericBufferSystem & other );
    GenericBufferSystem & operator=( const GenericBufferSystem & other );
-   ~GenericBufferSystem() {}
+   ~GenericBufferSystem() = default;
    //@}
    //*******************************************************************************************************************
 
@@ -211,7 +211,7 @@ public:
    //* Rank Ranges     *************************************************************************************************
    /*! \name Rank Ranges  */
    //@{
-   typedef std::set<MPIRank> RankRange;
+   using RankRange = std::set<MPIRank>;
    static RankRange noRanks();
    static RankRange allRanks();
    static RankRange allRanksButRoot();
@@ -255,7 +255,7 @@ protected:
    //each concurrently running communication uses different tags
    static std::set<int> activeTags_;
 
-   bool useIProbe_ = false; ///< switch betwenn IProbe and two message communication for varying size communication
+   bool useIProbe_ = false; ///< switch between IProbe and two message communication for varying size communication
 
    int64_t bytesSent_        = 0; ///< number of bytes sent during last communication
    int64_t bytesReceived_    = 0; ///< number of bytes received during last communication
@@ -264,7 +264,7 @@ protected:
    int64_t numberOfReceives_ = 0; ///< number of communication partners during last receive
 };
 
-typedef GenericBufferSystem<RecvBuffer, SendBuffer> BufferSystem;
+using BufferSystem = GenericBufferSystem<RecvBuffer, SendBuffer>;
 
 } // namespace mpi
 } // namespace walberla

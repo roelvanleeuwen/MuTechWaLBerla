@@ -35,7 +35,7 @@ class ActiveCellSweep : FlagFieldSweepBase< LatticeModel_T, FlagField_T >
 {
 public:
 
-   typedef typename FlagFieldSweepBase<LatticeModel_T,FlagField_T>::PdfField_T  PdfField_T;
+   using PdfField_T = typename FlagFieldSweepBase<LatticeModel_T, FlagField_T>::PdfField_T;
 
    // block has NO dst pdf field, lbm mask consists of multiple flags
    ActiveCellSweep( const CellOperation & op, const BlockDataID & pdfField, const ConstBlockDataID & flagField,
@@ -47,7 +47,7 @@ public:
                     const Set< FlagUID > & lbmMask, const bool _useIterators = false ) :
       FlagFieldSweepBase<LatticeModel_T,FlagField_T>( src, dst, flagField, lbmMask ), cellOperation_( op ), useIterators_( _useIterators ) {}
 
-   virtual ~ActiveCellSweep() {}
+   virtual ~ActiveCellSweep() = default;
 
    const CellOperation & getCellOperation() const { return cellOperation_; }
          CellOperation & getCellOperation()       { return cellOperation_; }

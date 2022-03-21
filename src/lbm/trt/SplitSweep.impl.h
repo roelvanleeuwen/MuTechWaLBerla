@@ -68,8 +68,8 @@ public:
    static_assert( (std::is_same< typename LatticeModel_T::ForceModel::tag, force_model::None_tag >::value),        "Only works without additional forces!" );
    static_assert( LatticeModel_T::equilibriumAccuracyOrder == 2, "Only works for lattice models that require the equilibrium distribution to be order 2 accurate!" );
 
-   typedef typename FlagFieldSweepBase<LatticeModel_T,FlagField_T>::PdfField_T  PdfField_T;
-   typedef typename LatticeModel_T::Stencil                                     Stencil;
+   using PdfField_T = typename FlagFieldSweepBase<LatticeModel_T, FlagField_T>::PdfField_T;
+   using Stencil = typename LatticeModel_T::Stencil;
 
    // block has NO dst pdf field, lbm mask consists of multiple flags
    SplitSweep( const BlockDataID & pdfField, const ConstBlockDataID & flagField, const Set< FlagUID > & lbmMask ) :
@@ -93,9 +93,9 @@ void SplitSweep< LatticeModel_T, FlagField_T, typename std::enable_if< std::is_s
                                                                        >::type
    >::operator()( IBlock * const block )                                               
 {
-   PdfField_T * src( NULL );
-   PdfField_T * dst( NULL );
-   const FlagField_T * flagField( NULL );
+   PdfField_T * src( nullptr );
+   PdfField_T * dst( nullptr );
+   const FlagField_T * flagField( nullptr );
 
    auto lbm = this->getLbmMaskAndFields( block, src, dst, flagField );
 
@@ -545,9 +545,9 @@ void SplitSweep< LatticeModel_T, FlagField_T, typename std::enable_if< std::is_s
                                                                        >::type
    >::stream( IBlock * const block, const uint_t numberOfGhostLayersToInclude )
 {
-   PdfField_T * src( NULL );
-   PdfField_T * dst( NULL );
-   const FlagField_T * flagField( NULL );
+   PdfField_T * src( nullptr );
+   PdfField_T * dst( nullptr );
+   const FlagField_T * flagField( nullptr );
 
    auto lbm = this->getLbmMaskAndFields( block, src, dst, flagField );
 
@@ -568,8 +568,8 @@ void SplitSweep< LatticeModel_T, FlagField_T, typename std::enable_if< std::is_s
 {
    WALBERLA_ASSERT_EQUAL( numberOfGhostLayersToInclude, uint_t(0) ); // the implementation right now doesn't support inclusion of ghost layers in collide step!
 
-   PdfField_T * src( NULL );
-   const FlagField_T * flagField( NULL );
+   PdfField_T * src( nullptr );
+   const FlagField_T * flagField( nullptr );
 
    auto lbm = this->getLbmMaskAndFields( block, src, flagField );
 
@@ -1005,8 +1005,8 @@ public:
    static_assert( (std::is_same< typename LatticeModel_T::ForceModel::tag, force_model::None_tag >::value),        "Only works without additional forces!" );
    static_assert( LatticeModel_T::equilibriumAccuracyOrder == 2, "Only works for lattice models that require the equilibrium distribution to be order 2 accurate!" );
 
-   typedef typename FlagFieldSweepBase<LatticeModel_T,FlagField_T>::PdfField_T  PdfField_T;
-   typedef typename LatticeModel_T::Stencil                                     Stencil;
+   using PdfField_T = typename FlagFieldSweepBase<LatticeModel_T, FlagField_T>::PdfField_T;
+   using Stencil = typename LatticeModel_T::Stencil;
 
    // block has NO dst pdf field, lbm mask consists of multiple flags
    SplitSweep( const BlockDataID & pdfField, const ConstBlockDataID & flagField, const Set< FlagUID > & lbmMask ) :
@@ -1030,9 +1030,9 @@ void SplitSweep< LatticeModel_T, FlagField_T, typename std::enable_if< std::is_s
                                                                        >::type
    >::operator()( IBlock * const block )
 {
-   PdfField_T * src( NULL );
-   PdfField_T * dst( NULL );
-   const FlagField_T * flagField( NULL );
+   PdfField_T * src( nullptr );
+   PdfField_T * dst( nullptr );
+   const FlagField_T * flagField( nullptr );
 
    auto lbm = this->getLbmMaskAndFields( block, src, dst, flagField );
 
@@ -1501,9 +1501,9 @@ void SplitSweep< LatticeModel_T, FlagField_T, typename std::enable_if< std::is_s
                                                                        >::type
    >::stream( IBlock * const block, const uint_t numberOfGhostLayersToInclude )
 {
-   PdfField_T * src( NULL );
-   PdfField_T * dst( NULL );
-   const FlagField_T * flagField( NULL );
+   PdfField_T * src( nullptr );
+   PdfField_T * dst( nullptr );
+   const FlagField_T * flagField( nullptr );
 
    auto lbm = this->getLbmMaskAndFields( block, src, dst, flagField );
 
@@ -1524,8 +1524,8 @@ void SplitSweep< LatticeModel_T, FlagField_T, typename std::enable_if< std::is_s
 {
    WALBERLA_ASSERT_EQUAL( numberOfGhostLayersToInclude, uint_t(0) ); // the implementation right now doesn't support inclusion of ghost layers in collide step!
 
-   PdfField_T * src( NULL );
-   const FlagField_T * flagField( NULL );
+   PdfField_T * src( nullptr );
+   const FlagField_T * flagField( nullptr );
 
    auto lbm = this->getLbmMaskAndFields( block, src, flagField );
 

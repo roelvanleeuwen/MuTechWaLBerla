@@ -133,26 +133,26 @@ using walberla::real_t;
 // TYPEDEFS //
 //////////////
 
-typedef lbm::D2Q9< lbm::collision_model::SRT,       false > D2Q9_SRT_INCOMP;
-typedef lbm::D2Q9< lbm::collision_model::SRT,       true  > D2Q9_SRT_COMP;
-typedef lbm::D2Q9< lbm::collision_model::TRT,       false > D2Q9_TRT_INCOMP;
-typedef lbm::D2Q9< lbm::collision_model::TRT,       true  > D2Q9_TRT_COMP;
+using D2Q9_SRT_INCOMP = lbm::D2Q9<lbm::collision_model::SRT, false>;
+using D2Q9_SRT_COMP = lbm::D2Q9<lbm::collision_model::SRT, true>;
+using D2Q9_TRT_INCOMP = lbm::D2Q9<lbm::collision_model::TRT, false>;
+using D2Q9_TRT_COMP = lbm::D2Q9<lbm::collision_model::TRT, true>;
 
-typedef lbm::D3Q15< lbm::collision_model::SRT,      false > D3Q15_SRT_INCOMP;
-typedef lbm::D3Q15< lbm::collision_model::SRT,      true  > D3Q15_SRT_COMP;
-typedef lbm::D3Q15< lbm::collision_model::TRT,      false > D3Q15_TRT_INCOMP;
-typedef lbm::D3Q15< lbm::collision_model::TRT,      true  > D3Q15_TRT_COMP;
+using D3Q15_SRT_INCOMP = lbm::D3Q15<lbm::collision_model::SRT, false>;
+using D3Q15_SRT_COMP = lbm::D3Q15<lbm::collision_model::SRT, true>;
+using D3Q15_TRT_INCOMP = lbm::D3Q15<lbm::collision_model::TRT, false>;
+using D3Q15_TRT_COMP = lbm::D3Q15<lbm::collision_model::TRT, true>;
 
-typedef lbm::D3Q19< lbm::collision_model::SRT,      false > D3Q19_SRT_INCOMP;
-typedef lbm::D3Q19< lbm::collision_model::SRT,      true  > D3Q19_SRT_COMP;
-typedef lbm::D3Q19< lbm::collision_model::TRT,      false > D3Q19_TRT_INCOMP;
-typedef lbm::D3Q19< lbm::collision_model::TRT,      true  > D3Q19_TRT_COMP;
-typedef lbm::D3Q19< lbm::collision_model::D3Q19MRT, false > D3Q19_MRT_INCOMP;
+using D3Q19_SRT_INCOMP = lbm::D3Q19<lbm::collision_model::SRT, false>;
+using D3Q19_SRT_COMP = lbm::D3Q19<lbm::collision_model::SRT, true>;
+using D3Q19_TRT_INCOMP = lbm::D3Q19<lbm::collision_model::TRT, false>;
+using D3Q19_TRT_COMP = lbm::D3Q19<lbm::collision_model::TRT, true>;
+using D3Q19_MRT_INCOMP = lbm::D3Q19<lbm::collision_model::D3Q19MRT, false>;
 
-typedef lbm::D3Q27< lbm::collision_model::SRT,      false > D3Q27_SRT_INCOMP;
-typedef lbm::D3Q27< lbm::collision_model::SRT,      true  > D3Q27_SRT_COMP;
-typedef lbm::D3Q27< lbm::collision_model::TRT,      false > D3Q27_TRT_INCOMP;
-typedef lbm::D3Q27< lbm::collision_model::TRT,      true  > D3Q27_TRT_COMP;
+using D3Q27_SRT_INCOMP = lbm::D3Q27<lbm::collision_model::SRT, false>;
+using D3Q27_SRT_COMP = lbm::D3Q27<lbm::collision_model::SRT, true>;
+using D3Q27_TRT_INCOMP = lbm::D3Q27<lbm::collision_model::TRT, false>;
+using D3Q27_TRT_COMP = lbm::D3Q27<lbm::collision_model::TRT, true>;
 
 template< typename LatticeModel_T >
 struct Types
@@ -776,16 +776,15 @@ private:
 template< typename LatticeModel_T >
 struct MyBoundaryTypes
 {
-   typedef lbm::NoSlip< LatticeModel_T, flag_t >                                  NoSlip_T;
-   typedef lbm::NoSlip< LatticeModel_T, flag_t >                                  Obstacle_T;
-   typedef lbm::Curved< LatticeModel_T, FlagField_T >                             Curved_T;
-   typedef lbm::DynamicUBB< LatticeModel_T, flag_t,
-                            SinusInflowVelocity<Is2D< LatticeModel_T >::value> >  DynamicUBB_T;
-   typedef lbm::Outlet< LatticeModel_T, FlagField_T, 2, 1 >                       Outlet21_T;
-   typedef lbm::Outlet< LatticeModel_T, FlagField_T, 4, 3 >                       Outlet43_T;
-   typedef lbm::SimplePressure< LatticeModel_T, flag_t >                          PressureOutlet_T;
+   using NoSlip_T = lbm::NoSlip<LatticeModel_T, flag_t>;
+   using Obstacle_T = lbm::NoSlip<LatticeModel_T, flag_t>;
+   using Curved_T = lbm::Curved<LatticeModel_T, FlagField_T>;
+   using DynamicUBB_T = lbm::DynamicUBB<LatticeModel_T, flag_t, SinusInflowVelocity<Is2D<LatticeModel_T>::value>>;
+   using Outlet21_T = lbm::Outlet<LatticeModel_T, FlagField_T, 2, 1>;
+   using Outlet43_T = lbm::Outlet<LatticeModel_T, FlagField_T, 4, 3>;
+   using PressureOutlet_T = lbm::SimplePressure<LatticeModel_T, flag_t>;
 
-   typedef BoundaryHandling< FlagField_T, typename Types<LatticeModel_T>::Stencil_T, NoSlip_T, Obstacle_T, Curved_T, DynamicUBB_T, Outlet21_T, Outlet43_T, PressureOutlet_T > BoundaryHandling_T;
+   using BoundaryHandling_T = BoundaryHandling<FlagField_T, typename Types<LatticeModel_T>::Stencil_T, NoSlip_T, Obstacle_T, Curved_T, DynamicUBB_T, Outlet21_T, Outlet43_T, PressureOutlet_T>;
 };
 
 
@@ -1065,7 +1064,7 @@ void keepInflowOutflowAtTheSameLevel( std::vector< std::pair< const Block *, uin
    uint_t maxInflowLevel( uint_t(0) );
    uint_t maxOutflowLevel( uint_t(0) );
 
-   // In addtion to keeping in- and outflow blocks at the same level, this callback also
+   // In addition to keeping in- and outflow blocks at the same level, this callback also
    // prevents these blocks from coarsening.
 
    for( auto it = minTargetLevels.begin(); it != minTargetLevels.end(); ++it )
@@ -1473,7 +1472,7 @@ void Evaluation< LatticeModel_T >::operator()()
       {
          WALBERLA_LOG_RESULT_ON_ROOT( "force acting on cylinder (in dimensionless lattice units of the coarsest grid - evaluated in time step "
                                       << forceEvaluationExecutionCount_ << "):\n   " << force_ << oss.str() <<
-                                      "\ndrag and lift coefficients (including extremas of last " << ( coefficients_[0].size() * checkFrequency_ ) << " time steps):"
+                                      "\ndrag and lift coefficients (including extrema of last " << ( coefficients_[0].size() * checkFrequency_ ) << " time steps):"
                                       "\n   \"real\" area:"
                                       "\n      c_D: " << cDRealArea << " (min = " << coefficientExtremas_[0].first << ", max = " << coefficientExtremas_[0].second << ")" <<
                                       "\n      c_L: " << cLRealArea << " (min = " << coefficientExtremas_[1].first << ", max = " << coefficientExtremas_[1].second << ")" <<
@@ -2285,7 +2284,7 @@ struct AddRefinementTimeStep
          }
          else
          {
-            typedef lbm::SplitSweep< LatticeModel_T, FlagField_T > Sweep_T;
+            using Sweep_T = lbm::SplitSweep<LatticeModel_T, FlagField_T>;
             auto mySweep = make_shared< Sweep_T >( pdfFieldId, flagFieldId, Fluid_Flag );
 
             addRefinementTimeStep< LatticeModel_T, Sweep_T >( timeloop, blocks, pdfFieldId, boundaryHandlingId, timingPool, levelwiseTimingPool,
@@ -2365,10 +2364,10 @@ void run( const shared_ptr< Config > & config, const LatticeModel_T & latticeMod
    
    // add velocity field + initialize velocity field writer (only used for simulations with an adaptive block structure)
 
-   typedef field::GhostLayerField< Vector3<real_t>, 1 > VelocityField_T;
+   using VelocityField_T = field::GhostLayerField<Vector3<real_t>, 1>;
    BlockDataID velocityFieldId = field::addToStorage< VelocityField_T >( blocks, "velocity", Vector3<real_t>(0), field::zyxf, FieldGhostLayers, true, None, Empty );
 
-   typedef lbm::VelocityFieldWriter< typename Types<LatticeModel_T>::PdfField_T, VelocityField_T > VelocityFieldWriter_T;
+   using VelocityFieldWriter_T = lbm::VelocityFieldWriter<typename Types<LatticeModel_T>::PdfField_T, VelocityField_T>;
    BlockSweepWrapper< VelocityFieldWriter_T > velocityFieldWriter( blocks, VelocityFieldWriter_T( pdfFieldId, velocityFieldId ), None, Empty );
    velocityFieldWriter();
 
@@ -2570,14 +2569,14 @@ void run( const shared_ptr< Config > & config, const LatticeModel_T & latticeMod
                      blockforest::DynamicDiffusionBalance< blockforest::NoPhantomData >( maxIterations, flowIterations ) );
       }
 
-      // add callback functions which are executed after all block data was unpakced after the dynamic load balancing
+      // add callback functions which are executed after all block data was unpacked after the dynamic load balancing
 
       // for blocks that have *not* migrated: store current flag field state (required for lbm::PostProcessing)
       blockforest.addRefreshCallbackFunctionAfterBlockDataIsUnpacked( lbm::MarkerFieldGenerator< LatticeModel_T, field::FlagFieldEvaluationFilter<FlagField_T> >(
                pdfFieldId, markerDataId, flagFieldFilter ) );
       // (re)set boundaries = (re)initialize flag field for every block with respect to the new block structure (the size of neighbor blocks might have changed)
       blockforest.addRefreshCallbackFunctionAfterBlockDataIsUnpacked( blockforest::BlockForest::RefreshCallbackWrappper( boundarySetter ) );
-      // treat boundary-fluid cell convertions
+      // treat boundary-fluid cell conversions
       blockforest.addRefreshCallbackFunctionAfterBlockDataIsUnpacked( lbm::PostProcessing< LatticeModel_T, field::FlagFieldEvaluationFilter<FlagField_T> >(
                pdfFieldId, markerDataId, flagFieldFilter ) );
       // (re)set velocity field (velocity field data is not migrated!)
@@ -2921,10 +2920,10 @@ int main( int argc, char **argv )
                               "//                                                                                                                      //\n"
                               "//                                               Schaefer Turek Benchmark                                               //\n"
                               "//                                                                                                                      //\n"
-                              "// Reference: Schaefer, M. and Turek, S. (1996) 'Benchmark computations of laminar flow around a cylinder (with support //\n"
+                              "// Reference: Schaefer, M. and Turek, S. (1996) Benchmark computations of laminar flow around a cylinder (with support  //\n"
                               "//            by F. Durst, E. Krause and R. Rannacher), in E. Hirschel (Ed.): Flow Simulation with High-Performance     //\n"
-                              "//            Computers II. DFG Priority Research Program Results 1993-1995, No. 52 in Notes Numer, Fluid Mech.,        //\n"
-                              "//            pp.547-566, Vieweg, Weisbaden.                                                                            //\n"
+                              "//            Computers II. DFG Priority Research Program Results 1993-1995, No. 48 in Notes on Numerical Fluid         //\n"
+                              "//            Mechanics, pp.547-566, Vieweg, Weisbaden.                                                                 //\n"
                               "//                                                                                                                      //\n"
                               "//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////" );
 

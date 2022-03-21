@@ -41,13 +41,13 @@ FieldIterator<T>::FieldIterator( const typename FieldIterator<T>::FieldType * fi
 {
    if ( field->xyzSize().empty() )
    {
-      linePtr_ = NULL;
-      lineEnd_ = NULL;
-      f_       = NULL;
+      linePtr_ = nullptr;
+      lineEnd_ = nullptr;
+      f_       = nullptr;
       return;
    }
 
-   typedef typename std::remove_const<T>::type NonConstT;
+   using NonConstT = typename std::remove_const<T>::type;
 
    cur_[0] = cur_[1] = cur_[2] = 0;
    if( f_->layout() == fzyx )
@@ -114,7 +114,7 @@ FieldIterator<T>::FieldIterator( const typename FieldIterator<T>::FieldType * fi
  **********************************************************************************************************************/
 template <typename T>
 FieldIterator<T>::FieldIterator()
-   : linePtr_(NULL), lineEnd_(NULL), f_(NULL)
+   : linePtr_(nullptr), lineEnd_(nullptr), f_(nullptr)
 {
 }
 
@@ -210,7 +210,7 @@ void FieldIterator<T>::initCoordinateAccessOptimizationPointers( )
 template <typename T>
 inline void FieldIterator<T>::incrementLine()
 {
-   WALBERLA_ASSERT_EQUAL( linePtr_, lineEnd_ );
+   WALBERLA_ASSERT_EQUAL( linePtr_, lineEnd_ )
 
    linePtr_ += skips_[3];
    cur_[2]++;
@@ -228,7 +228,7 @@ inline void FieldIterator<T>::incrementLine()
          if(cur_[0] == cell_idx_c(sizes_[0]) )
          {
             // iterator at end
-            linePtr_ = NULL;
+            linePtr_ = nullptr;
             return;
          }
       }
@@ -246,7 +246,7 @@ inline void FieldIterator<T>::incrementLine()
 template <typename T>
 inline void FieldIterator<T>::decrementLine()
 {
-   WALBERLA_ASSERT_EQUAL( linePtr_, lineBegin_-1 );
+   WALBERLA_ASSERT_EQUAL( linePtr_, lineBegin_-1 )
 
    linePtr_ -= skips_[3];
    cur_[2]--;
@@ -264,7 +264,7 @@ inline void FieldIterator<T>::decrementLine()
          if(cur_[0] < 0 )
          {
             // iterator at end
-            linePtr_ = NULL;
+            linePtr_ = nullptr;
             return;
          }
       }
@@ -304,6 +304,7 @@ inline bool FieldIterator<T>::operator!=( const FieldIterator<T>& it ) const
 //**********************************************************************************************************************
 /*!\brief Neighbor access relative to current position
  * \param d Direction enumeration which defines deltas for x,y,z
+ * \param cf Delta for f
  **********************************************************************************************************************/
 template <typename T>
 inline T & FieldIterator<T>::neighbor( stencil::Direction d, cell_idx_t cf ) const
@@ -315,6 +316,8 @@ inline T & FieldIterator<T>::neighbor( stencil::Direction d, cell_idx_t cf ) con
 
 //**********************************************************************************************************************
 /*!\brief uint_t variant of above function
+ * \param d Direction enumeration which defines deltas for x,y,z
+ * \param cf Delta for f
  **********************************************************************************************************************/
 template <typename T>
 inline T & FieldIterator<T>::neighbor( stencil::Direction d, uint_t cf ) const
@@ -325,7 +328,10 @@ inline T & FieldIterator<T>::neighbor( stencil::Direction d, uint_t cf ) const
 
 //**********************************************************************************************************************
 /*!\brief Neighbor access relative to current position
- * \param d Direction enumeration which defines deltas for x,y,z,f
+ * \param cx Delta for x
+ * \param cy Delta for y
+ * \param cz Delta for z
+ * \param cf Delta for f
  **********************************************************************************************************************/
 template <typename T>
 inline T & FieldIterator<T>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz, cell_idx_t cf ) const
@@ -337,7 +343,7 @@ inline T & FieldIterator<T>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx_t 
           cz * f_->zfact_ +
           cf * f_->ffact_;
 
-   WALBERLA_ASSERT ( f_->addressInsideAllocedSpace( res ) );
+   WALBERLA_ASSERT ( f_->addressInsideAllocedSpace( res ) )
 
    return *res;
 }
@@ -346,6 +352,10 @@ inline T & FieldIterator<T>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx_t 
 //**********************************************************************************************************************
 /*!\brief Neighbor variant that takes unsigned int as f parameter,
  *        needed since the stencil toIdx() is an unsigned int
+ * \param cx Delta for x
+ * \param cy Delta for y
+ * \param cz Delta for z
+ * \param cf Delta for f
  **********************************************************************************************************************/
 template <typename T>
 inline T & FieldIterator<T>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz, uint_t cf ) const
@@ -358,12 +368,13 @@ inline T & FieldIterator<T>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx_t 
 //**********************************************************************************************************************
 /*!\brief For beginXYZ iterators, one often needs a specific f
  * Assumes that iterator stands at f==0
+ * \param cf Delta for f
  **********************************************************************************************************************/
 template <typename T>
 inline  T & FieldIterator<T>::getF( cell_idx_t cf ) const
 {
-   WALBERLA_ASSERT_EQUAL( f(), 0 );
-   WALBERLA_ASSERT_LESS( cf, cell_idx_t ( f_->fSize() ) );
+   WALBERLA_ASSERT_EQUAL( f(), 0 )
+   WALBERLA_ASSERT_LESS( cf, cell_idx_t ( f_->fSize() ) )
    T * res = linePtr_;
    res += cf * f_->ffact_;
    return *res;
@@ -373,6 +384,7 @@ inline  T & FieldIterator<T>::getF( cell_idx_t cf ) const
 //**********************************************************************************************************************
 /*!\brief Equivalent to neighbor(cell_idx_t) see above.
  *        Takes an uint_t instead a cell_idx_t, since stencil::toIndex() returns uint_t
+ * \param cf Delta for f
  **********************************************************************************************************************/
 template <typename T>
 inline  T & FieldIterator<T>::getF( uint_t cf ) const
