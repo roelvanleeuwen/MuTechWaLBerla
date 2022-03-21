@@ -72,19 +72,19 @@ namespace field {
       /*! \name Type Definitions */
       //@{
       using value_type = T;
-      typedef ForwardFieldIterator<T>       iterator;
-      typedef ForwardFieldIterator<const T> const_iterator;
+      using iterator = ForwardFieldIterator<T>;
+      using const_iterator =  ForwardFieldIterator<const T>;
 
-      typedef ReverseFieldIterator<T>       reverse_iterator;
-      typedef ReverseFieldIterator<const T> const_reverse_iterator;
+      using reverse_iterator = ReverseFieldIterator<T>;
+      using const_reverse_iterator =  ReverseFieldIterator<const T>;
 
-      typedef FieldIterator<T >             base_iterator;
-      typedef FieldIterator<const T >       const_base_iterator;
+      using base_iterator =  FieldIterator<T >;
+      using const_base_iterator = FieldIterator<const T >;
 
-      typedef FieldPointer<Field<T>, Field<T>, T >             Ptr;
-      typedef FieldPointer<Field<T>, const Field<T>, const T > ConstPtr;
+      using Ptr = FieldPointer<Field<T>, Field<T>, T >;
+      using ConstPtr =  FieldPointer<Field<T>, const Field<T>, const T >;
 
-      typedef typename std::conditional<VectorTrait<T>::F_SIZE!=0, Field<typename VectorTrait<T>::OutputType>, Field<T>>::type FlattenedField;
+      using FlattenedField = typename std::conditional<VectorTrait<T>::F_SIZE!=0, Field<typename VectorTrait<T>::OutputType>, Field<T>>::type;
 
       //@}
       //****************************************************************************************************************

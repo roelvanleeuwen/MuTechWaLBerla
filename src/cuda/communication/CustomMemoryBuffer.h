@@ -61,7 +61,7 @@ namespace communication {
    class CustomMemoryBuffer
    {
    public:
-      typedef uint8_t ElementType;
+      using ElementType = uint8_t;
 
       explicit CustomMemoryBuffer();
       explicit CustomMemoryBuffer( std::size_t initSize );

@@ -149,7 +149,7 @@ inline void static_assert_uint_t() {
 // data structure specific data types
 
 using cell_idx_t = int;
-//typedef int64_t cell_idx_t;
+//using cell_idx_t = int64_t ;
 
 WALBERLA_STATIC_ASSERT( std::numeric_limits<cell_idx_t>::is_specialized &&
                      std::numeric_limits<cell_idx_t>::is_integer &&
@@ -164,7 +164,7 @@ template< typename T > inline cell_idx_t cell_idx_c( T t ) { return numeric_cast
 #ifdef WALBERLA_DOUBLE_ACCURACY
 using real_t = double;
 #else
-typedef float  real_t;
+using real_t =  float;
 #endif
 
 inline constexpr real_t operator"" _r( long double t ) { return static_cast< real_t >(t); }

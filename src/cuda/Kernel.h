@@ -126,12 +126,12 @@ namespace cuda {
       //** Type checking of parameters **********************************************************************************
       /*! \name Type checking of parameters  */
       //@{
-      typedef typename std::remove_pointer<FuncPtr>::type FuncType;
+      using FuncType = typename std::remove_pointer<FuncPtr>::type;
 
       #define CHECK_PARAMETER_FUNC( Number ) \
       template<typename T> \
       bool checkParameter##Number( typename std::enable_if< (FunctionTraits<FuncType>::arity > Number ), T >::type *  = 0 ) { \
-         typedef typename FunctionTraits<FuncType>::template argument<Number>::type ArgType; \
+         using ArgType = typename FunctionTraits<FuncType>::template argument<Number>::type; \
          return std::is_same< T, ArgType >::value; \
       } \
       template<typename T> \
