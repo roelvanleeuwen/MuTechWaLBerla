@@ -32,13 +32,13 @@ namespace pde {
 
 SweepBase::Field_T * SweepBase::getDstField( IBlock * const block, Field_T * const src )
 {
-   WALBERLA_ASSERT_NOT_NULLPTR( block );
-   WALBERLA_ASSERT_NOT_NULLPTR( src );
+   WALBERLA_ASSERT_NOT_NULLPTR( block )
+   WALBERLA_ASSERT_NOT_NULLPTR( src )
 
    if( dstFromBlockData_ )
    {
       Field_T * dst = block->getData< Field_T >( dst_ );
-      WALBERLA_ASSERT_NOT_NULLPTR( dst );
+      WALBERLA_ASSERT_NOT_NULLPTR( dst )
       return dst;
    }
 
@@ -48,12 +48,12 @@ SweepBase::Field_T * SweepBase::getDstField( IBlock * const block, Field_T * con
 #ifndef NDEBUG
       std::fill( (*it)->beginWithGhostLayer(), (*it)->end(), std::numeric_limits< Field_T::value_type >::quiet_NaN() );
 #endif
-      WALBERLA_ASSERT_NOT_NULLPTR( *it );
+      WALBERLA_ASSERT_NOT_NULLPTR( *it )
       return *it;
    }
 
    Field_T * dst = src->cloneUninitialized();
-   WALBERLA_ASSERT_NOT_NULLPTR( dst );
+   WALBERLA_ASSERT_NOT_NULLPTR( dst )
    
    // take care of proper thread<->memory assignment (first-touch allocation policy !)
    WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ( dst,

@@ -99,15 +99,15 @@ class GhostLayerField<T> : public Field<T>
              uint_t nrGhostLayers, const Layout& layout = zyxf,
              const shared_ptr< FieldAllocator< T > >& alloc = shared_ptr< FieldAllocator< T > >());
 
-   virtual void resize(uint_t xSize, uint_t ySize, uint_t zSize, uint_t _fSize) override;
+   void resize(uint_t xSize, uint_t ySize, uint_t zSize, uint_t _fSize) override;
    void resize(uint_t xSize, uint_t ySize, uint_t zSize, uint_t _fSize, uint_t gl);
 
    using Field< T >::resize;
 
-   inline GhostLayerField< T >* clone() const;
-   inline GhostLayerField< T >* cloneUninitialized() const;
-   inline GhostLayerField< T >* cloneShallowCopy() const;
-   inline FlattenedField* flattenedShallowCopy() const;
+   inline GhostLayerField< T >* clone() const override;
+   inline GhostLayerField< T >* cloneUninitialized() const override;
+   inline GhostLayerField< T >* cloneShallowCopy() const override;
+   inline FlattenedField* flattenedShallowCopy() const override;
    //@}
    //****************************************************************************************************************
 
@@ -193,7 +193,7 @@ class GhostLayerField<T> : public Field<T>
    //** Slicing  ****************************************************************************************************
    /*! \name Slicing */
    //@{
-   GhostLayerField< T >* getSlicedField(const CellInterval& interval) const;
+   GhostLayerField< T >* getSlicedField(const CellInterval& interval) const override;
    void slice(const CellInterval& interval) override;
    void shiftCoordinates(cell_idx_t cx, cell_idx_t cy, cell_idx_t cz) override;
    //@}
@@ -253,6 +253,30 @@ class GhostLayerField<T, fSize_> : public GhostLayerField<T> {
    void resize(uint_t xSize, uint_t ySize, uint_t zSize)
    {
       GhostLayerField<T>::resize(xSize, ySize, zSize, fSize_);
+   }
+
+   template<typename ...Args>
+   GhostLayerField<T, fSize_>  * clone()
+   {
+      return dynamic_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::clone());
+   }
+
+   template<typename ...Args>
+   GhostLayerField<T, fSize_>  * cloneUninitialized()
+   {
+      return dynamic_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::cloneUninitialized());
+   }
+
+   template<typename ...Args>
+   GhostLayerField<T, fSize_>  * cloneShallowCopy()
+   {
+      return dynamic_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::cloneShallowCopy());
+   }
+
+   template<typename ...Args>
+   FlattenedField* flattenedShallowCopy()
+   {
+      return dynamic_cast<FlattenedField* > (GhostLayerField<T>::flattenedShallowCopy());
    }
 };
 #ifdef WALBERLA_CXX_COMPILER_IS_CLANG

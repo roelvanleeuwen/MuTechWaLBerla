@@ -34,9 +34,6 @@
 #include <iostream>
 #include <set>
 
-// TODO ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-// TODO /////////////  Tests must be removed when depricated Field with templated fSize is removed ////////////////
-// TODO //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 using namespace walberla;
 
@@ -322,9 +319,7 @@ void resizeTest(field::Layout layout)
    WALBERLA_CHECK_EQUAL( field.yAllocSize(), 2+2*gl);
    WALBERLA_CHECK_EQUAL( field.zAllocSize(), 1+2*gl);
 
-
-   // TODO: here the old API is violated since the constructor does not return GhostLayerField<uint_t, 3*fSize>
-   // TODO: but GhostLayerField<uint_t>. However this might be a corner case that nobody notices?
+   // TODO this was adapted ...
    Field<int> * p = &field;
    WALBERLA_CHECK_EQUAL( p->xSize(), 4);
    WALBERLA_CHECK_EQUAL( p->ySize(), 2);
@@ -333,7 +328,7 @@ void resizeTest(field::Layout layout)
    WALBERLA_CHECK_EQUAL( p->yAllocSize(), 2+2*gl);
    WALBERLA_CHECK_EQUAL( p->zAllocSize(), 1+2*gl);
 
-   p->resize(3,4,5,3);
+   p->resize(3,4,5, 3);
    WALBERLA_CHECK_EQUAL( field.xSize(), 3);
    WALBERLA_CHECK_EQUAL( field.ySize(), 4);
    WALBERLA_CHECK_EQUAL( field.zSize(), 5);
@@ -391,9 +386,8 @@ void sliceTest(field::Layout layout)
    WALBERLA_CHECK_EQUAL ( counter, field.xSize() * field.ySize() * field.zSize() * fSize );
 
 
-   // TODO: here the old API is violated since the constructor does not return GhostLayerField<uint_t, 3*fSize>
-   // TODO: but GhostLayerField<uint_t>. However this might be a corner case that nobody notices?
-   auto sliced = shared_ptr<Field<int> > ( field.getSlicedField(sliceInterval) );
+
+   auto sliced = shared_ptr<Field<int,fSize> > ( field.getSlicedField(sliceInterval) );
 
    WALBERLA_CHECK_EQUAL ( sliced->xSize(), sliceInterval.xSize() );
    WALBERLA_CHECK_EQUAL ( sliced->ySize(), sliceInterval.ySize() );
@@ -598,7 +592,7 @@ void flattenTest()
                   field( x,y,z,f )[g] = val;
                }
 
-   shared_ptr<Field<uint_t>> flattened(field.flattenedShallowCopy());
+   shared_ptr<Field<uint_t, 3*fSize>> flattened(field.flattenedShallowCopy());
 
    Field<uint_t, 3*fSize> cmp ( 2,2,1 );
    WALBERLA_CHECK_EQUAL(cmp.xSize(), flattened->xSize());
@@ -644,9 +638,7 @@ void ghostFlattenTest()
                   field( x,y,z,f )[g] = val;
                }
 
-   // TODO: here the old API is violated since the constructor does not return GhostLayerField<uint_t, 3*fSize>
-   // TODO: but GhostLayerField<uint_t>. However this might be a corner case that nobody notices?
-   shared_ptr<GhostLayerField<uint_t>> flattened(field.flattenedShallowCopy());
+   shared_ptr<GhostLayerField<uint_t, 3*fSize>> flattened(field.flattenedShallowCopy());
 
    GhostLayerField<uint_t, 3*fSize> cmp ( 2,2,1, 1 );
    WALBERLA_CHECK_EQUAL(cmp.xSize(), flattened->xSize());
@@ -737,6 +729,6 @@ int main( int argc, char**argv )
    //swapableCompareTest();
    //printerTest();
 
-   return EXIT_SUCCESS;
+   return 0;
 }
 
