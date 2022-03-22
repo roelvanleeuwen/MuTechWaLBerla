@@ -298,10 +298,11 @@ namespace field {
       const uint_t xs = Field<T>::xSize() + 2 * uint_c( numGhostLayers );
       const uint_t ys = Field<T>::ySize() + 2 * uint_c( numGhostLayers );
       const uint_t zs = Field<T>::zSize() + 2 * uint_c( numGhostLayers );
+      const uint_t fs = Field<T>::fSize();
 
-      return const_iterator(  this,
-                              -numGhostLayers,-numGhostLayers,-numGhostLayers,0,
-                              xs, ys, zs );
+      return const_iterator( this,
+                            -numGhostLayers, -numGhostLayers, -numGhostLayers, 0,
+                             xs, ys, zs, fs );
 
    }
 
