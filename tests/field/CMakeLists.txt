@@ -19,6 +19,9 @@ waLBerla_execute_test( NAME DistributionTest )
 waLBerla_compile_test( FILES FieldTest.cpp )
 waLBerla_execute_test( NAME FieldTest )
 
+waLBerla_compile_test( FILES FieldTestWithTemplatedFSize.cpp )
+waLBerla_execute_test( NAME FieldTestWithTemplatedFSize )
+
 waLBerla_compile_test( FILES FieldOfCustomTypesTest.cpp  )
 waLBerla_execute_test( NAME FieldOfCustomTypesTest )
 

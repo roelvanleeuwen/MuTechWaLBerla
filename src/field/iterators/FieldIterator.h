@@ -38,7 +38,7 @@ namespace walberla {
 namespace field {
 
 
-   template<typename T> class Field; // forward for friend declaration
+   template<typename T, uint_t... fSize_> class Field; // forward for friend declaration
 
 
 
@@ -80,7 +80,7 @@ namespace field {
       //** Copy Operations *********************************************************************************************
       /*!\name Copy Operations */
       //@{
-      FieldIterator                         ( const FieldIterator<T> & other );
+      FieldIterator              ( const FieldIterator<T> & other );
       FieldIterator<T>& operator=( const FieldIterator<T> & other );
       //@}
       //****************************************************************************************************************

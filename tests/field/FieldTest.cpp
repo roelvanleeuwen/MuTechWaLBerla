@@ -15,6 +15,7 @@
 //
 //! \file FieldTest.cpp
 //! \ingroup field
+//! \author Markus Holzer <markus.holzer@fau.de>
 //! \author Martin Bauer <martin.bauer@fau.de>
 //! \brief Tests basic functionality of Field and GhostLayerField
 //

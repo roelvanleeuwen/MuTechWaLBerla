@@ -48,8 +48,12 @@ namespace field
  *
  */
 //*******************************************************************************************************************
-template< typename T >
-class GhostLayerField : public Field< T >
+template<typename T, uint_t... fSize_>
+class GhostLayerField : public Field<T, fSize_...>{};
+
+template<typename T>
+class GhostLayerField<T> : public Field<T>
+
 {
  public:
    //** Type Definitions  *******************************************************************************************
@@ -202,17 +206,55 @@ class GhostLayerField : public Field< T >
    //** Shallow Copy ************************************************************************************************
    /*! \name Shallow Copy */
    //@{
-   Field< T >* cloneShallowCopyInternal() const override;
-   typename Field< T >::FlattenedField* flattenedShallowCopyInternal() const override;
-   GhostLayerField(const GhostLayerField< T >& other);
-   template< typename T2 >
-   GhostLayerField(const GhostLayerField< T2 >& other);
+   Field<T> * cloneShallowCopyInternal()   const override;
+   typename Field<T>::FlattenedField * flattenedShallowCopyInternal() const override;
+   GhostLayerField(const GhostLayerField<T> & other);
+   template <typename T2>
+   GhostLayerField<T>(const GhostLayerField<T2> & other);
    //@}
    //****************************************************************************************************************
 
-   template< typename T2 >
+   template <typename T2, uint_t... fSize2>
    friend class GhostLayerField;
 };
+
+#ifdef WALBERLA_CXX_COMPILER_IS_CLANG
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-conversion"
+#endif
+template<typename T, uint_t fSize_>
+class GhostLayerField<T, fSize_> : public GhostLayerField<T> {
+ public:
+   GhostLayerField(GhostLayerField<T> field)
+      : GhostLayerField<T>::GhostLayerField(field)
+   {}
+
+   typedef typename std::conditional<VectorTrait<T>::F_SIZE!=0,
+                                      GhostLayerField<typename VectorTrait<T>::OutputType, VectorTrait<T>::F_SIZE*fSize_>,
+                                      GhostLayerField<T, fSize_>>::type FlattenedField;
+
+
+   template<typename ...Args>
+   GhostLayerField(uint_t xSize, uint_t ySize, uint_t zSize, Args&&... args)
+      : GhostLayerField<T>::GhostLayerField(xSize, ySize, zSize, fSize_, std::forward<Args>(args)...)
+   {}
+
+   template<typename ...Args>
+   void init(uint_t xSize, uint_t ySize, uint_t zSize, Args&&... args)
+   {
+      GhostLayerField<T>::init(xSize, ySize, zSize, fSize_, std::forward<Args>(args)...);
+   }
+
+   template<typename ...Args>
+   void resize(uint_t xSize, uint_t ySize, uint_t zSize)
+   {
+      GhostLayerField<T>::resize(xSize, ySize, zSize, fSize_);
+   }
+};
+#ifdef WALBERLA_CXX_COMPILER_IS_CLANG
+#pragma clang diagnostic pop
+#endif
+
 
 } // namespace field
 } // namespace walberla
