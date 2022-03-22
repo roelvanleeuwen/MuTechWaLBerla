@@ -229,6 +229,8 @@ class GhostLayerField<T, fSize_> : public GhostLayerField<T> {
       : GhostLayerField<T>::GhostLayerField(field)
    {}
 
+   static const uint_t F_SIZE = fSize_;
+
    typedef typename std::conditional<VectorTrait<T>::F_SIZE!=0,
                                       GhostLayerField<typename VectorTrait<T>::OutputType, VectorTrait<T>::F_SIZE*fSize_>,
                                       GhostLayerField<T, fSize_>>::type FlattenedField;

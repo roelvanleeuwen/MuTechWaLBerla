@@ -333,10 +333,10 @@ namespace internal
 
 template< typename GhostLayerField_T >
 inline GhostLayerField_T * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t fSize, const uint_t gl,
-                                     const typename GhostLayerField_T::value_type & v, Layout l,
+                                     const typename GhostLayerField_T::value_type & initValue, Layout l,
                                      const shared_ptr< field::FieldAllocator<typename GhostLayerField_T::value_type> > & alloc=nullptr)
 {
-   return new GhostLayerField_T(x,y,z,fSize,gl,v,l, alloc);
+   return new GhostLayerField_T(x, y, z, fSize, gl, initValue, l, alloc);
 }
 template<>
 inline FlagField<uint8_t> * allocate( const uint_t x, const uint_t y, const uint_t z, const uint_t  /*fSize*/, const uint_t gl, const uint8_t &, Layout,

@@ -395,6 +395,7 @@ class Field<T, fSize_> : public Field<T> {
    Field(Field<T> field)
       : Field<T>::Field(field)
    {}
+   static const uint_t F_SIZE = fSize_;
 
    typedef typename std::conditional<VectorTrait<T>::F_SIZE!=0,
                                       Field<typename VectorTrait<T>::OutputType, VectorTrait<T>::F_SIZE*fSize_>,
