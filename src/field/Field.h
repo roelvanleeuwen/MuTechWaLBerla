@@ -74,6 +74,8 @@ namespace field {
       //** Type Definitions  *******************************************************************************************
       /*! \name Type Definitions */
       //@{
+     // TODO remove when old field class is removed
+      static constexpr bool OLD = false;
       using value_type = T;
       using iterator = ForwardFieldIterator<T>;
       using const_iterator =  ForwardFieldIterator<const T>;
@@ -396,6 +398,7 @@ class Field<T, fSize_> : public Field<T> {
       : Field<T>::Field(field)
    {}
    static const uint_t F_SIZE = fSize_;
+   static constexpr bool OLD = true;
 
    typedef typename std::conditional<VectorTrait<T>::F_SIZE!=0,
                                       Field<typename VectorTrait<T>::OutputType, VectorTrait<T>::F_SIZE*fSize_>,

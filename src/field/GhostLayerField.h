@@ -59,6 +59,7 @@ class GhostLayerField<T> : public Field<T>
    //** Type Definitions  *******************************************************************************************
    /*! \name Type Definitions */
    //@{
+   static constexpr bool OLD = false;
    using value_type = typename Field< T >::value_type;
 
    using iterator       = typename Field< T >::iterator;
@@ -230,6 +231,7 @@ class GhostLayerField<T, fSize_> : public GhostLayerField<T> {
    {}
 
    static const uint_t F_SIZE = fSize_;
+   static constexpr bool OLD = true;
 
    typedef typename std::conditional<VectorTrait<T>::F_SIZE!=0,
                                       GhostLayerField<typename VectorTrait<T>::OutputType, VectorTrait<T>::F_SIZE*fSize_>,

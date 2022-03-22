@@ -67,12 +67,12 @@ BlockDataID addFlagFieldToStorage( const shared_ptr< BlockStorage_T > & blocks,
 {
    if( alwaysInitialize )
    {
-      auto dataHandling = make_shared< field::AlwaysInitializeBlockDataHandling< FlagField_T > >( blocks, nrOfGhostLayers );
+      auto dataHandling = make_shared< field::AlwaysInitializeBlockDataHandling< FlagField_T > >( blocks, uint_t(1), nrOfGhostLayers );
       dataHandling->addInitializationFunction( initFunction );
       return blocks->addBlockData( dataHandling, identifier, requiredSelectors, incompatibleSelectors );
    }
 
-   auto dataHandling = make_shared< field::DefaultBlockDataHandling< FlagField_T > >( blocks, nrOfGhostLayers );
+   auto dataHandling = make_shared< field::DefaultBlockDataHandling< FlagField_T > >( blocks, uint_t(1), nrOfGhostLayers );
    dataHandling->addInitializationFunction( initFunction );
    return blocks->addBlockData( dataHandling, identifier, requiredSelectors, incompatibleSelectors );
 }
@@ -154,6 +154,22 @@ struct AddToStorage< GhostLayerField_T, BlockStorage_T,
 };
 
 } // namespace internal
+
+template< typename GhostLayerField_T, typename BlockStorage_T >
+BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
+                         const std::string & identifier,
+                         const typename GhostLayerField_T::value_type & initValue = typename GhostLayerField_T::value_type(),
+                         const Layout layout = zyxf,
+                         const uint_t nrOfGhostLayers = uint_t(1),
+                         const bool alwaysInitialize = false,
+                         const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction =
+                            std::function< void ( GhostLayerField_T * field, IBlock * const block ) >(),
+                         const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
+                         const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet())
+{
+   return internal::AddToStorage< GhostLayerField_T, BlockStorage_T >::add( blocks, identifier, GhostLayerField_T::F_SIZE, initValue, layout, nrOfGhostLayers,
+                                                                           alwaysInitialize, initFunction, requiredSelectors, incompatibleSelectors );
+}
 
 
 template< typename GhostLayerField_T, typename BlockStorage_T >
