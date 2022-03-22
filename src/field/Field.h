@@ -429,25 +429,25 @@ class Field<T, fSize_> : public Field<T> {
    }
 
    template<typename ...Args>
-   Field<T, fSize_>  * clone()
+   Field<T, fSize_>  * clone() const
    {
       return dynamic_cast<Field<T, fSize_>* > (Field<T>::clone());
    }
 
    template<typename ...Args>
-   Field<T, fSize_>  * cloneUninitialized()
+   Field<T, fSize_>  * cloneUninitialized() const
    {
       return dynamic_cast<Field<T, fSize_>* > (Field<T>::cloneUninitialized());
    }
 
    template<typename ...Args>
-   Field<T, fSize_>  * cloneShallowCopy()
+   Field<T, fSize_>  * cloneShallowCopy() const
    {
       return dynamic_cast<Field<T, fSize_>* > (Field<T>::cloneShallowCopy());
    }
 
    template<typename ...Args>
-   FlattenedField* flattenedShallowCopy()
+   FlattenedField* flattenedShallowCopy() const
    {
       return dynamic_cast<FlattenedField* > (Field<T>::flattenedShallowCopy());
    }

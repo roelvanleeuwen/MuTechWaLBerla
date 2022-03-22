@@ -256,25 +256,25 @@ class GhostLayerField<T, fSize_> : public GhostLayerField<T> {
    }
 
    template<typename ...Args>
-   GhostLayerField<T, fSize_>  * clone()
+   GhostLayerField<T, fSize_>  * clone() const
    {
       return dynamic_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::clone());
    }
 
    template<typename ...Args>
-   GhostLayerField<T, fSize_>  * cloneUninitialized()
+   GhostLayerField<T, fSize_>  * cloneUninitialized() const
    {
       return dynamic_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::cloneUninitialized());
    }
 
    template<typename ...Args>
-   GhostLayerField<T, fSize_>  * cloneShallowCopy()
+   GhostLayerField<T, fSize_>  * cloneShallowCopy() const
    {
       return dynamic_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::cloneShallowCopy());
    }
 
    template<typename ...Args>
-   FlattenedField* flattenedShallowCopy()
+   FlattenedField* flattenedShallowCopy() const
    {
       return dynamic_cast<FlattenedField* > (GhostLayerField<T>::flattenedShallowCopy());
    }

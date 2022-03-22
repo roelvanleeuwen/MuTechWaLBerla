@@ -113,9 +113,9 @@ public:
               const shared_ptr<FieldAllocator<T> > &alloc = make_shared<StdFieldAlloc<T> >());
    ~FlagField() override;
 
-   inline FlagField<T> * clone()              const;
-   inline FlagField<T> * cloneUninitialized() const;
-   inline FlagField<T> * cloneShallowCopy()   const;
+   inline FlagField<T> * clone()              const override;
+   inline FlagField<T> * cloneUninitialized() const override;
+   inline FlagField<T> * cloneShallowCopy()   const override;
    //@}
    //*******************************************************************************************************************
 
@@ -183,7 +183,7 @@ public:
    //** Slicing  *******************************************************************************************************
    /*! \name Slicing */
    //@{
-   FlagField<T> * getSlicedField( const CellInterval & interval ) const;
+   FlagField<T> * getSlicedField( const CellInterval & interval ) const override;
    //@}
    //*******************************************************************************************************************
 
