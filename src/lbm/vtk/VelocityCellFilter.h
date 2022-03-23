@@ -41,7 +41,7 @@ public:
    void operator()( CellSet& filteredCells, const IBlock& block, const StructuredBlockStorage& storage,
          const uint_t ghostLayers = uint_t(0) ) {
       const PdfField_T* pdf = block.getData< PdfField_T >( pdfFieldId_ );
-      WALBERLA_CHECK_NOT_NULLPTR(pdf);
+      WALBERLA_CHECK_NOT_NULLPTR(pdf)
 
       filter_(block);
 

@@ -37,7 +37,7 @@ namespace lbm {
 
 
 template< typename LatticeModel_T, typename OutputType = float >
-class NonEqulibriumVTKWriter : public vtk::BlockCellDataWriter< OutputType, LatticeModel_T::Stencil::Size >
+class NonEqulibriumVTKWriter : public vtk::BlockCellDataWriter< OutputType >
 {
 public:
 
@@ -45,15 +45,15 @@ public:
    using Stencil = typename LatticeModel_T::Stencil;
 
    NonEqulibriumVTKWriter( const ConstBlockDataID & pdf, const std::string & id ) :
-      vtk::BlockCellDataWriter< OutputType, Stencil::Size >( id ), bdid_( pdf ), pdf_( nullptr ) {}
+      vtk::BlockCellDataWriter< OutputType >( id, uint_c(Stencil::Q) ), bdid_( pdf ), pdf_( nullptr ) {}
 
 protected:
 
-   void configure() override { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ); pdf_ = this->block_->template getData< PdfField_T >( bdid_ ); }
+   void configure() override { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ) pdf_ = this->block_->template getData< PdfField_T >( bdid_ ); }
 
    OutputType evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
    {
-      WALBERLA_ASSERT_NOT_NULLPTR( pdf_ );
+      WALBERLA_ASSERT_NOT_NULLPTR( pdf_ )
 
       Vector3<real_t> v;
 

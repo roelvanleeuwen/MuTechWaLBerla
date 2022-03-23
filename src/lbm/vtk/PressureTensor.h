@@ -32,22 +32,22 @@ namespace lbm {
 
 
 template< typename LatticeModel_T, typename OutputType = float >
-class PressureTensorVTKWriter : public vtk::BlockCellDataWriter< OutputType, 9 >
+class PressureTensorVTKWriter : public vtk::BlockCellDataWriter< OutputType>
 {
 public:
 
    using PdfField_T = PdfField<LatticeModel_T>;
 
    PressureTensorVTKWriter( const ConstBlockDataID & pdfFieldId, const std::string & id ) :
-      vtk::BlockCellDataWriter< OutputType, 9 >( id ), bdid_( pdfFieldId ), pdf_( NULL ) {}
+      vtk::BlockCellDataWriter< OutputType >( id, uint_c(9) ), bdid_( pdfFieldId ), pdf_( nullptr ) {}
 
 protected:
 
-   void configure() { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ); pdf_ = this->block_->template getData< PdfField_T >( bdid_ ); }
+   void configure() { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ) pdf_ = this->block_->template getData< PdfField_T >( bdid_ ); }
 
    OutputType evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f )
    {
-      WALBERLA_ASSERT_NOT_NULLPTR( pdf_ );
+      WALBERLA_ASSERT_NOT_NULLPTR( pdf_ )
       return numeric_cast< OutputType >( (pdf_->getPressureTensor(x,y,z))[ uint_c(f) ] );
    }
 
