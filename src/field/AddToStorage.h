@@ -103,26 +103,17 @@ template< typename GhostLayerField_T, typename BlockStorage_T, class Enable = vo
 struct AddToStorage
 {
    using Value_T = typename GhostLayerField_T::value_type;
+   using InitFunction_T = std::function< void ( GhostLayerField_T * field, IBlock * const block ) >;
+   using CalculateFunction_T = std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >;
+
    static BlockDataID add( const shared_ptr< BlockStorage_T > & blocks, const std::string & identifier, const uint_t fSize,
                            const typename GhostLayerField_T::value_type & initValue, const Layout layout, const uint_t nrOfGhostLayers,
-                           const bool /*alwaysInitialize*/, const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction,
+                           const bool /*alwaysInitialize*/, const InitFunction_T & initFunction,
                            const Set<SUID> & requiredSelectors, const Set<SUID> & incompatibleSelectors,
-                           const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = defaultSize,
+                           const CalculateFunction_T calculateSize = defaultSize,
                            const shared_ptr< field::FieldAllocator<Value_T> > alloc = nullptr)
    {
       auto dataHandling = walberla::make_shared< field::AlwaysInitializeBlockDataHandling< GhostLayerField_T > >( blocks, fSize, nrOfGhostLayers, initValue, layout, calculateSize, alloc );
-      dataHandling->addInitializationFunction( initFunction );
-      return blocks->addBlockData( dataHandling, identifier, requiredSelectors, incompatibleSelectors );
-   }
-
-   static BlockDataID add( const shared_ptr< BlockStorage_T > & blocks, const std::string & identifier,
-                          const typename GhostLayerField_T::value_type & initValue, const Layout layout, const uint_t nrOfGhostLayers,
-                          const bool /*alwaysInitialize*/, const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction,
-                          const Set<SUID> & requiredSelectors, const Set<SUID> & incompatibleSelectors,
-                          const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = defaultSize,
-                          const shared_ptr< field::FieldAllocator<Value_T> > alloc = nullptr)
-   {
-      auto dataHandling = walberla::make_shared< field::AlwaysInitializeBlockDataHandling< GhostLayerField_T > >( blocks, nrOfGhostLayers, initValue, layout, calculateSize, alloc );
       dataHandling->addInitializationFunction( initFunction );
       return blocks->addBlockData( dataHandling, identifier, requiredSelectors, incompatibleSelectors );
    }
@@ -134,11 +125,14 @@ struct AddToStorage< GhostLayerField_T, BlockStorage_T,
 	                                            ! std::is_same< GhostLayerField_T, FlagField< typename GhostLayerField_T::value_type > >::value >::type >
 {
    using Value_T = typename GhostLayerField_T::value_type;
+   using InitFunction_T = std::function< void ( GhostLayerField_T * field, IBlock * const block ) >;
+   using CalculateFunction_T = std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) >;
+
    static BlockDataID add( const shared_ptr< BlockStorage_T > & blocks, const std::string & identifier, const uint_t fSize,
                            const typename GhostLayerField_T::value_type & initValue, const Layout layout, const uint_t nrOfGhostLayers,
-                           const bool alwaysInitialize, const std::function< void ( GhostLayerField_T * field, IBlock * const block ) > & initFunction,
+                           const bool alwaysInitialize, const InitFunction_T & initFunction,
                            const Set<SUID> & requiredSelectors, const Set<SUID> & incompatibleSelectors,
-                           const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize = defaultSize,
+                           const CalculateFunction_T calculateSize = defaultSize,
                            const shared_ptr< field::FieldAllocator<Value_T> > alloc = nullptr)
    {
       if( alwaysInitialize )
@@ -155,7 +149,8 @@ struct AddToStorage< GhostLayerField_T, BlockStorage_T,
 
 } // namespace internal
 
-template< typename GhostLayerField_T, typename BlockStorage_T >
+
+template< typename GhostLayerField_T, typename BlockStorage_T, typename = std::enable_if_t<GhostLayerField_T::OLD>>
 BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                          const std::string & identifier,
                          const typename GhostLayerField_T::value_type & initValue = typename GhostLayerField_T::value_type(),
@@ -171,8 +166,7 @@ BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                                                                            alwaysInitialize, initFunction, requiredSelectors, incompatibleSelectors );
 }
 
-
-template< typename GhostLayerField_T, typename BlockStorage_T >
+template< typename GhostLayerField_T, typename BlockStorage_T>
 BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                           const std::string & identifier,
                           const uint_t fSize,
@@ -189,7 +183,7 @@ BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                                                                               alwaysInitialize, initFunction, requiredSelectors, incompatibleSelectors );
 }
 
-template< typename GhostLayerField_T, typename BlockStorage_T >
+template< typename GhostLayerField_T, typename BlockStorage_T, typename = std::enable_if_t<GhostLayerField_T::OLD>>
 BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                          const std::string & identifier,
                          const typename GhostLayerField_T::value_type & initValue,
@@ -221,7 +215,7 @@ BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
 }
 
 
-template< typename GhostLayerField_T, typename BlockStorage_T >
+template< typename GhostLayerField_T, typename BlockStorage_T, typename = std::enable_if_t<GhostLayerField_T::OLD>>
 BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                          const std::string & identifier,
                          const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize,
@@ -262,7 +256,7 @@ BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
 }
 
 
-template< typename GhostLayerField_T, typename BlockStorage_T >
+template< typename GhostLayerField_T, typename BlockStorage_T, typename = std::enable_if_t<GhostLayerField_T::OLD> >
 BlockDataID addToStorage( const shared_ptr< BlockStorage_T > & blocks,
                          const std::string & identifier,
                          const std::function< Vector3< uint_t > ( const shared_ptr< StructuredBlockStorage > &, IBlock * const ) > calculateSize,
