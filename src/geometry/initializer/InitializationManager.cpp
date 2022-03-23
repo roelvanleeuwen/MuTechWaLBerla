@@ -40,7 +40,7 @@ void InitializationManager::registerInitializer( const InitializerUID & uid, con
    auto result = geometryRegistry_.insert( std::make_pair(uid, geometry) );
    if( !result.second )
       WALBERLA_ABORT("You are trying to register GeometryFactory '" << uid.getIdentifier() << "', but a GeometryFactory with that"
-                     " name has already been registered!");
+                     " name has already been registered!")
 }
 
 void InitializationManager::init( const Config::BlockHandle & blockHandle )
@@ -61,7 +61,7 @@ void InitializationManager::init( const Config::BlockHandle & blockHandle )
          for( auto geometryIt = geometryRegistry_.begin(); geometryIt != geometryRegistry_.end(); ++geometryIt )
             oss <<  "\n   " << geometryIt->first.getIdentifier();
 
-         WALBERLA_ABORT( oss.str() );
+         WALBERLA_ABORT( oss.str() )
       }
 
       foundGeometryIt->second->init( blockStorage_, *blockIt );
