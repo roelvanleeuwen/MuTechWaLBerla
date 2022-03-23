@@ -300,13 +300,13 @@ class GhostLayerField<T, fSize_> : public GhostLayerField<T> {
    /*! \name Shallow Copy */
    //@{
 
-   GhostLayerField<T, fSize_>( const GhostLayerField<T, fSize_>& other ): Field<T, fSize_>( other )
-   {}
-
-
-   template <typename T2, uint_t fSize2>
-   GhostLayerField<T, fSize_>(const GhostLayerField<T2, fSize2> & other) : Field<T2, fSize2>( other )
-   {}
+//   GhostLayerField<T, fSize_>( const GhostLayerField<T, fSize_>& other ): Field<T, fSize_>( other )
+//   {}
+//
+//
+//   template <typename T2, uint_t fSize2>
+//   GhostLayerField<T, fSize_>(const GhostLayerField<T2, fSize2> & other) : Field<T2, fSize2>( other )
+//   {}
 
    //@}
    //****************************************************************************************************************

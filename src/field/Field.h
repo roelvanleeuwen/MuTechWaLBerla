@@ -461,12 +461,12 @@ class Field<T, fSize_> : public Field<T> {
       return reinterpret_cast<FlattenedField* > (Field<T>::flattenedShallowCopy());
    }
 
-   Field<T, fSize_>( const Field<T, fSize_>& other ): Field<T>( other )
-   {}
-
-   template <typename T2, uint_t fSize2>
-   Field<T, fSize_>(const Field<T2, fSize2> & other) : Field<T2>( other )
-   {}
+//   Field<T, fSize_>( const Field<T, fSize_>& other ): Field<T>( other )
+//   {}
+//
+//   template <typename T2, uint_t fSize2>
+//   Field<T, fSize_>(const Field<T2, fSize2> & other) : Field<T2>( other )
+//   {}
 
 };
 
