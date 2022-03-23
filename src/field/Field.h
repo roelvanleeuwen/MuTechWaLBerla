@@ -405,10 +405,19 @@ class Field<T, fSize_> : public Field<T> {
                                       Field<T, fSize_>>::type FlattenedField;
 
 
-   template<typename ...Args>
-   Field(uint_t xSize, uint_t ySize, uint_t zSize, Args&&... args)
-      : Field<T>::Field(xSize, ySize, zSize, fSize_, std::forward<Args>(args)...)
-   {}
+   Field( uint_t xSize, uint_t ySize, uint_t zSize,
+         const Layout & layout = zyxf,
+         const shared_ptr<FieldAllocator<T> > &alloc = shared_ptr<FieldAllocator<T> >() )
+      : Field<T>::Field(xSize, ySize, zSize, fSize_, layout, alloc){}
+   Field( uint_t xSize, uint_t ySize, uint_t zSize,
+         const T & initValue, const Layout & layout = zyxf,
+         const shared_ptr<FieldAllocator<T> > &alloc = shared_ptr<FieldAllocator<T> >() )
+      : Field<T>::Field(xSize, ySize, zSize, fSize_, initValue, layout, alloc){}
+   Field( uint_t xSize, uint_t ySize, uint_t zSize,
+         const std::vector<T> & fValues, const Layout & layout = zyxf,
+         const shared_ptr<FieldAllocator<T> > &alloc = shared_ptr<FieldAllocator<T> >() )
+      : Field<T>::Field(xSize, ySize, zSize, fSize_, fValues, layout, alloc){}
+
 
    template<typename ...Args>
    void init(uint_t xSize, uint_t ySize, uint_t zSize, Args&&... args)
@@ -425,32 +434,39 @@ class Field<T, fSize_> : public Field<T> {
    template<typename ...Args>
    Field<T, fSize_>  * getSlicedField( const CellInterval & interval ) const
    {
-      return dynamic_cast<Field<T, fSize_>* > (Field<T>::getSlicedField( interval ));
+      return reinterpret_cast<Field<T, fSize_>* > (Field<T>::getSlicedField( interval ));
    }
 
    template<typename ...Args>
    Field<T, fSize_>  * clone() const
    {
-      return dynamic_cast<Field<T, fSize_>* > (Field<T>::clone());
+      return reinterpret_cast<Field<T, fSize_>* > (Field<T>::clone());
    }
 
    template<typename ...Args>
    Field<T, fSize_>  * cloneUninitialized() const
    {
-      return dynamic_cast<Field<T, fSize_>* > (Field<T>::cloneUninitialized());
+      return reinterpret_cast<Field<T, fSize_>* > (Field<T>::cloneUninitialized());
    }
 
    template<typename ...Args>
    Field<T, fSize_>  * cloneShallowCopy() const
    {
-      return dynamic_cast<Field<T, fSize_>* > (Field<T>::cloneShallowCopy());
+      return reinterpret_cast<Field<T, fSize_>* > (Field<T>::cloneShallowCopy());
    }
 
    template<typename ...Args>
    FlattenedField* flattenedShallowCopy() const
    {
-      return dynamic_cast<FlattenedField* > (Field<T>::flattenedShallowCopy());
+      return reinterpret_cast<FlattenedField* > (Field<T>::flattenedShallowCopy());
    }
+
+   Field<T, fSize_>( const Field<T, fSize_>& other ): Field<T>( other )
+   {}
+
+   template <typename T2, uint_t fSize2>
+   Field<T, fSize_>(const Field<T2, fSize2> & other) : Field<T2>( other )
+   {}
 
 };
 

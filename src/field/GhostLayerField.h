@@ -237,16 +237,33 @@ class GhostLayerField<T, fSize_> : public GhostLayerField<T> {
                                       GhostLayerField<typename VectorTrait<T>::OutputType, VectorTrait<T>::F_SIZE*fSize_>,
                                       GhostLayerField<T, fSize_>>::type FlattenedField;
 
+   GhostLayerField( uint_t xSize, uint_t ySize, uint_t zSize, uint_t gl,
+                   const Layout & layout = zyxf,
+                   const shared_ptr<FieldAllocator<T> > &alloc = shared_ptr<FieldAllocator<T> >() )
+      : GhostLayerField<T>::GhostLayerField(xSize, ySize, zSize, fSize_, gl, layout, alloc) {}
+
+   GhostLayerField( uint_t xSize, uint_t ySize, uint_t zSize, uint_t gl,
+                   const T & initValue, const Layout & layout = zyxf,
+                   const shared_ptr<FieldAllocator<T> > &alloc = shared_ptr<FieldAllocator<T> >() )
+      : GhostLayerField<T>::GhostLayerField(xSize, ySize, zSize, fSize_, gl, initValue, layout, alloc) {}
+
+   GhostLayerField( uint_t xSize, uint_t ySize, uint_t zSize, uint_t gl,
+                   const std::vector<T> & fValues, const Layout & layout = zyxf,
+                   const shared_ptr<FieldAllocator<T> > &alloc = shared_ptr<FieldAllocator<T> >() )
+      : GhostLayerField<T>::GhostLayerField(xSize, ySize, zSize, fSize_, gl, fValues, layout, alloc) {}
+
+
 
    template<typename ...Args>
-   GhostLayerField(uint_t xSize, uint_t ySize, uint_t zSize, Args&&... args)
-      : GhostLayerField<T>::GhostLayerField(xSize, ySize, zSize, fSize_, std::forward<Args>(args)...)
-   {}
-
-   template<typename ...Args>
-   void init(uint_t xSize, uint_t ySize, uint_t zSize, Args&&... args)
+   void init(uint_t xSizeWithoutGhostLayer,
+             uint_t ySizeWithoutGhostLayer,
+             uint_t zSizeWithoutGhostLayer,
+             uint_t nrGhostLayers,
+             const Layout & layout = zyxf,
+             const shared_ptr<FieldAllocator<T> > &alloc = shared_ptr<FieldAllocator<T> >()
+   )
    {
-      GhostLayerField<T>::init(xSize, ySize, zSize, fSize_, std::forward<Args>(args)...);
+      GhostLayerField<T>::init(xSizeWithoutGhostLayer, ySizeWithoutGhostLayer, zSizeWithoutGhostLayer, fSize_, nrGhostLayers, layout, alloc);
    }
 
    template<typename ...Args>
@@ -258,26 +275,42 @@ class GhostLayerField<T, fSize_> : public GhostLayerField<T> {
    template<typename ...Args>
    GhostLayerField<T, fSize_>  * clone() const
    {
-      return dynamic_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::clone());
+      return reinterpret_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::clone());
    }
 
    template<typename ...Args>
    GhostLayerField<T, fSize_>  * cloneUninitialized() const
    {
-      return dynamic_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::cloneUninitialized());
+      return reinterpret_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::cloneUninitialized());
    }
 
    template<typename ...Args>
    GhostLayerField<T, fSize_>  * cloneShallowCopy() const
    {
-      return dynamic_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::cloneShallowCopy());
+      return reinterpret_cast<GhostLayerField<T, fSize_>* > (GhostLayerField<T>::cloneShallowCopy());
    }
 
    template<typename ...Args>
    FlattenedField* flattenedShallowCopy() const
    {
-      return dynamic_cast<FlattenedField* > (GhostLayerField<T>::flattenedShallowCopy());
+      return reinterpret_cast<FlattenedField* > (GhostLayerField<T>::flattenedShallowCopy());
    }
+
+   //** Shallow Copy ************************************************************************************************
+   /*! \name Shallow Copy */
+   //@{
+
+   GhostLayerField<T, fSize_>( const GhostLayerField<T, fSize_>& other ): Field<T, fSize_>( other )
+   {}
+
+
+   template <typename T2, uint_t fSize2>
+   GhostLayerField<T, fSize_>(const GhostLayerField<T2, fSize2> & other) : Field<T2, fSize2>( other )
+   {}
+
+   //@}
+   //****************************************************************************************************************
+
 };
 #ifdef WALBERLA_CXX_COMPILER_IS_CLANG
 #pragma clang diagnostic pop
