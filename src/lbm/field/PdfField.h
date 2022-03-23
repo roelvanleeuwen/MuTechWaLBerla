@@ -111,9 +111,9 @@ public:
    //inline bool operator==( const PdfField & rhs ) const; // TODO! -> ticket
    //inline bool operator!=( const PdfField & rhs ) const { return !operator==( rhs ); }
 
-   inline PdfField * clone()              const;
-   inline PdfField * cloneUninitialized() const;
-   inline PdfField * cloneShallowCopy()   const;
+   inline PdfField * clone()              const override;
+   inline PdfField * cloneUninitialized() const override;
+   inline PdfField * cloneShallowCopy()   const override;
 
    const LatticeModel_T & latticeModel() const { return latticeModel_; }
          LatticeModel_T & latticeModel()       { return latticeModel_; }

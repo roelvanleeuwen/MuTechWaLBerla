@@ -321,7 +321,7 @@ void resizeTest(field::Layout layout)
    WALBERLA_CHECK_EQUAL( field.zAllocSize(), 1+2*gl);
 
 
-   // TODO How can the copy constructor be done? dynamic_cast was introduced and it not from master version
+   // TODO How can the copy constructor be done? dynamic_cast was introduced and it not from master version and it does not work afterall ..
 //   Field<int, 3> * p = reinterpret_cast< Field< int, 3 >* >(&field);
 //   WALBERLA_CHECK_EQUAL( p->xSize(), 4);
 //   WALBERLA_CHECK_EQUAL( p->ySize(), 2);
