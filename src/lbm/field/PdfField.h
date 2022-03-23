@@ -78,26 +78,29 @@ public:
    //** Type Definitions  **********************************************************************************************
    /*! \name Type Definitions */
    //@{
+   static const uint_t F_SIZE = LatticeModel_T::Stencil::Size;
+
    using LatticeModel = LatticeModel_T;
    using Stencil = typename LatticeModel_T::Stencil;
 
-   typedef typename GhostLayerField< real_t >::value_type             value_type;
+   using value_type = typename GhostLayerField<real_t, Stencil::Size>::value_type;
 
-   typedef typename GhostLayerField< real_t >::iterator               iterator;
-   typedef typename GhostLayerField< real_t >::const_iterator         const_iterator;
+   using iterator = typename GhostLayerField<real_t, Stencil::Size>::iterator;
+   using const_iterator = typename GhostLayerField<real_t, Stencil::Size>::const_iterator;
 
-   typedef typename GhostLayerField< real_t >::reverse_iterator       reverse_iterator;
-   typedef typename GhostLayerField< real_t >::const_reverse_iterator const_reverse_iterator;
+   using reverse_iterator = typename GhostLayerField<real_t, Stencil::Size>::reverse_iterator;
+   using const_reverse_iterator = typename GhostLayerField<real_t, Stencil::Size>::const_reverse_iterator;
 
-   typedef typename GhostLayerField< real_t >::base_iterator          base_iterator;
-   typedef typename GhostLayerField< real_t >::const_base_iterator    const_base_iterator;
+   using base_iterator = typename GhostLayerField<real_t, Stencil::Size>::base_iterator;
+   using const_base_iterator = typename GhostLayerField<real_t, Stencil::Size>::const_base_iterator;
 
-   typedef typename GhostLayerField< real_t >::Ptr                    Ptr;
-   typedef typename GhostLayerField< real_t >::ConstPtr               ConstPtr;
+   using Ptr = typename GhostLayerField<real_t, Stencil::Size>::Ptr;
+   using ConstPtr = typename GhostLayerField<real_t, Stencil::Size>::ConstPtr;
+
    //@}
    //*******************************************************************************************************************
 
-   PdfField( const uint_t _xSize, const uint_t _ySize, const uint_t _zSize, const uint_t _fSize,
+   PdfField( const uint_t _xSize, const uint_t _ySize, const uint_t _zSize,
              const LatticeModel_T & _latticeModel,
              const bool initialize = true, const Vector3< real_t > & initialVelocity = Vector3< real_t >( real_t(0.0) ),
              const real_t initialDensity = real_t(1.0),
@@ -292,13 +295,13 @@ protected:
 
 
 template< typename LatticeModel_T >
-PdfField< LatticeModel_T >::PdfField( const uint_t _xSize, const uint_t _ySize, const uint_t _zSize, const uint_t _fSize,
+PdfField< LatticeModel_T >::PdfField( const uint_t _xSize, const uint_t _ySize, const uint_t _zSize,
                                       const LatticeModel_T & _latticeModel,
                                       const bool initialize, const Vector3< real_t > & initialVelocity, const real_t initialDensity,
                                       const uint_t ghostLayers, const field::Layout & _layout,
                                       const shared_ptr< field::FieldAllocator<real_t> > & alloc ) :
 
-   GhostLayerField< real_t >( _xSize, _ySize, _zSize, _fSize, ghostLayers, _layout, alloc ),
+   GhostLayerField< real_t >( _xSize, _ySize, _zSize, LatticeModel_T::Stencil::Size, ghostLayers, _layout, alloc ),
    latticeModel_( _latticeModel )
 {
 #ifdef _OPENMP
