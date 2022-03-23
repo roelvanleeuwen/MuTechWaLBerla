@@ -63,7 +63,8 @@ class SimpleBB : public Boundary< typename FlagField_T::flag_t >
    using Stencil_T = typename LatticeModel_T::Stencil;
    using flag_t = typename FlagField_T::flag_t;
 
-   using BodyField = Field<pe::BodyID, 1>;
+   // TODO changed to GhostLayerField here because Copy Constructor GhostLayerField<...,fSize> to Field<...,fSize> does not work
+   using BodyField = GhostLayerField<pe::BodyID, 1>;
 
 public:
 
