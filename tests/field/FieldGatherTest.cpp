@@ -42,7 +42,7 @@ int main( int argc, char ** argv )
                                                        1.0,           // dx
                                                        oneBlockPerProcess
                                                        );
-   using Field_T = GhostLayerField<real_t>;
+   using Field_T = GhostLayerField<cell_idx_t>;
    BlockDataID fieldID = field::addToStorage<Field_T>( blocks, "Field", 3 );
 
 
@@ -73,9 +73,9 @@ int main( int argc, char ** argv )
    {
       for( auto cellIt = gatheredField.beginXYZ(); cellIt != gatheredField.end(); ++cellIt )
       {
-         WALBERLA_CHECK_EQUAL( cellIt.getF(0) - boundingBox.min()[0], cellIt.cell()[0] );
-         WALBERLA_CHECK_EQUAL( cellIt.getF(1) - boundingBox.min()[1], cellIt.cell()[1] );
-         WALBERLA_CHECK_EQUAL( cellIt.getF(2) - boundingBox.min()[2], cellIt.cell()[2] );
+         WALBERLA_CHECK_EQUAL( cellIt.getF(0) - boundingBox.min()[0], cellIt.cell()[0] )
+         WALBERLA_CHECK_EQUAL( cellIt.getF(1) - boundingBox.min()[1], cellIt.cell()[1] )
+         WALBERLA_CHECK_EQUAL( cellIt.getF(2) - boundingBox.min()[2], cellIt.cell()[2] )
       }
    }
 
