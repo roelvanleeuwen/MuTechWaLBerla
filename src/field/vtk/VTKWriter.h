@@ -106,7 +106,14 @@ public:
    using base_t = vtk::BlockCellDataWriter<OutputType>;
 
    VTKWriter( const ConstBlockDataID bdid, const std::string& id ) :
-      base_t( id ), bdid_( bdid ), field_( nullptr ), fSize_(0) {}
+      base_t( id ), bdid_( bdid ), field_( nullptr )
+   {
+      WALBERLA_ASSERT_NOT_NULLPTR( this->block_ )
+      field_ = this->block_->template getData< Field_T >( bdid_ );
+
+      WALBERLA_ASSERT_NOT_NULLPTR( field_ )
+      fSize_ = field_->fSize();
+   }
 
 protected:
 

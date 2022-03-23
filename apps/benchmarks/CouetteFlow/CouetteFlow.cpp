@@ -449,22 +449,22 @@ void setFlags( shared_ptr< StructuredBlockForest > & blocks, const BlockDataID &
 /////////
 
 template< typename LatticeModel_T, typename OutputType = float >
-class ErrorVTKWriter : public vtk::BlockCellDataWriter< OutputType, 3 >
+class ErrorVTKWriter : public vtk::BlockCellDataWriter< OutputType>
 {
 public:
 
    using PdfField_T = lbm::PdfField< LatticeModel_T >;
 
    ErrorVTKWriter( const ConstBlockDataID & pdfFieldId, const std::string & id, const Setup & setup ) :
-      vtk::BlockCellDataWriter< OutputType, 3 >( id ), bdid_( pdfFieldId ), pdf_( nullptr ), setup_( setup ) {}
+      vtk::BlockCellDataWriter< OutputType>( id, uint_c(3) ), bdid_( pdfFieldId ), pdf_( nullptr ), setup_( setup ) {}
 
 protected:
 
-   void configure() override { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ); pdf_ = this->block_->template getData< PdfField_T >( bdid_ ); }
+   void configure() override { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ) pdf_ = this->block_->template getData< PdfField_T >( bdid_ ); }
 
    OutputType evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
    {
-      WALBERLA_ASSERT_NOT_NULLPTR( pdf_ );
+      WALBERLA_ASSERT_NOT_NULLPTR( pdf_ )
 
       const auto & domain = this->blockStorage_->getDomain();
       const auto center = this->blockStorage_->getBlockLocalCellCenter( *(this->block_), Cell(x,y,z) );
