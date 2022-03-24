@@ -522,13 +522,13 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
                             xs, ys, zs, 1 );
    }
 
-   void getGhostRegion(stencil::Direction d, CellInterval & ci, cell_idx_t thickness, bool fullSlice ) const
+   void getGhostRegion(stencil::Direction d, CellInterval & ci, cell_idx_t thickness, bool fullSlice = false ) const
    {
       ci = field::getGhostRegion( *this, d, thickness, fullSlice );
    }
 
    void getSliceBeforeGhostLayer(stencil::Direction d, CellInterval & ci,
-                                                               cell_idx_t thickness, bool fullSlice ) const
+                                                               cell_idx_t thickness = 1, bool fullSlice = false ) const
    {
       ci = field::getSliceBeforeGhostLayer( *this, d, thickness, fullSlice );
    }
@@ -611,7 +611,7 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
    /*!\brief Iterates only over ghost layers of a given direction, only over xyz coordinates, f is fixed
     *******************************************************************************************************************/
    inline typename GhostLayerField<T,fSize_>::iterator
-      beginGhostLayerOnlyXYZ( stencil::Direction dir, cell_idx_t f, bool fullSlice = false )
+      beginGhostLayerOnlyXYZ( stencil::Direction dir, cell_idx_t f = 0, bool fullSlice = false )
    {
       CellInterval ci;
       getGhostRegion( dir, ci, cell_idx_c(gl_) , fullSlice );
@@ -627,7 +627,7 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
    /*!\brief Const version of beginGhostLayersOnlyXYZ()
     *******************************************************************************************************************/
    inline typename GhostLayerField<T,fSize_>::const_iterator
-      beginGhostLayerOnlyXYZ( stencil::Direction dir, cell_idx_t f, bool fullSlice = false ) const
+      beginGhostLayerOnlyXYZ( stencil::Direction dir, cell_idx_t f = 0, bool fullSlice = false ) const
    {
       CellInterval ci;
       getGhostRegion(dir, ci, cell_idx_c(gl_), fullSlice );
@@ -641,7 +641,7 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
    /*!\brief Iterates only over ghost layers of a given direction, only over xyz coordinates, f is fixed
     *******************************************************************************************************************/
    inline typename GhostLayerField<T,fSize_>::iterator
-      beginGhostLayerOnlyXYZ( uint_t thickness, stencil::Direction dir, cell_idx_t f, bool fullSlice = false )
+      beginGhostLayerOnlyXYZ( uint_t thickness, stencil::Direction dir, cell_idx_t f = 0, bool fullSlice = false )
    {
       CellInterval ci;
       getGhostRegion( dir, ci, cell_idx_c(thickness) , fullSlice );
@@ -657,7 +657,7 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
    /*!\brief Const version of beginGhostLayersOnlyXYZ()
     *******************************************************************************************************************/
    inline typename GhostLayerField<T,fSize_>::const_iterator
-      beginGhostLayerOnlyXYZ( uint_t thickness, stencil::Direction dir, cell_idx_t f, bool fullSlice = false ) const
+      beginGhostLayerOnlyXYZ( uint_t thickness, stencil::Direction dir, cell_idx_t f = 0, bool fullSlice = false ) const
    {
       CellInterval ci;
       getGhostRegion(dir, ci, cell_idx_c(thickness), fullSlice );
