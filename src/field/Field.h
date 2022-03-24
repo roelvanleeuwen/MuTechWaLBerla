@@ -423,7 +423,7 @@ class Field<T, fSize_> : public Field<T> {
       Field<T>::init(xSize, ySize, zSize, fSize_, std::forward<Args>(args)...);
    }
 
-   virtual void resize(uint_t xSize, uint_t ySize, uint_t zSize, uint_t fSize)
+   virtual void resize(uint_t xSize, uint_t ySize, uint_t zSize, uint_t  /*fSize*/)
    {
       Field<T>::resize(xSize, ySize, zSize, fSize_);
    }

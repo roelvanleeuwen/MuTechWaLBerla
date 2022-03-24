@@ -132,7 +132,7 @@ namespace initializer {
 
       for( auto blockIt = structuredBlockStorage_.begin(); blockIt != structuredBlockStorage_.end(); ++blockIt )
       {
-         GhostLayerField<real_t> * f = blockIt->getData<GhostLayerField<real_t> >( scalarFieldID_ );
+         GhostLayerField<real_t, 1> * f = blockIt->getData<GhostLayerField<real_t, 1> >( scalarFieldID_ );
 
          const cell_idx_t width  = cell_idx_c( img.width() ) ;
          const cell_idx_t height = cell_idx_c( img.height()) ;

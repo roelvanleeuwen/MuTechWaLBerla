@@ -144,7 +144,7 @@ namespace initializer {
       {
          IBlock * block = &(*blockIt);
 
-         GhostLayerField<real_t> * ff = block->getData<GhostLayerField<real_t> >( scalarFieldID_ );
+         GhostLayerField<real_t, 1> * ff = block->getData<GhostLayerField<real_t, 1> >( scalarFieldID_ );
          auto gl = cell_idx_c( ff->nrOfGhostLayers() );
 
          // If Block (extended with ghost layers) does not intersect body - skip the complete block

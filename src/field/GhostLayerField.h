@@ -298,7 +298,7 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
 
    }
 
-   void resize( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t fSize ) override
+   void resize( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t  /*fSize*/ ) override
    {
       if ( _xSize == this->xSize() && _ySize == this->ySize() && _zSize == this->zSize()  )
          return;
