@@ -45,7 +45,6 @@ typedef LatticeModel_T::CommunicationStencil      CommunicationStencil_T;
 typedef lbm::PdfField< LatticeModel_T >           PdfField_T;
 
 typedef GhostLayerField< real_t, LatticeModel_T::Stencil::D > VectorField_T;
-typedef GhostLayerField< real_t, 1 > ScalarField_T;
 
 typedef walberla::uint8_t    flag_t;
 typedef FlagField< flag_t >  FlagField_T;

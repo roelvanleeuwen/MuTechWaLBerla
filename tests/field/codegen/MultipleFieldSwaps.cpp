@@ -32,7 +32,7 @@
 
 using namespace walberla;
 
-typedef GhostLayerField<double> ScalarField;
+typedef GhostLayerField<double, 1> ScalarField;
 void testMultipleFieldSwaps()
 {
    uint_t xSize = 5;
@@ -46,9 +46,9 @@ void testMultipleFieldSwaps()
       true, true, true ); // full periodicity
 
 
-   BlockDataID fieldID_1 = field::addToStorage<ScalarField>(blocks, "Field_1", 1, real_t(1.0));
-   BlockDataID fieldID_2 = field::addToStorage<ScalarField>(blocks, "Field_2", 1, real_t(1.0));
-   BlockDataID fieldID_3 = field::addToStorage<ScalarField>(blocks, "Field_3", 1, real_t(1.0));
+   BlockDataID fieldID_1 = field::addToStorage<ScalarField>(blocks, "Field_1", real_t(1.0));
+   BlockDataID fieldID_2 = field::addToStorage<ScalarField>(blocks, "Field_2", real_t(1.0));
+   BlockDataID fieldID_3 = field::addToStorage<ScalarField>(blocks, "Field_3", real_t(1.0));
 
    pystencils::MultipleFieldSwaps kernel(fieldID_1, fieldID_2, fieldID_3);
 
