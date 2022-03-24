@@ -473,9 +473,8 @@ class Field<T, fSize_> : public Field<T> {
          this->fAllocSize_ = 0;
       }
 
-   Field<T, fSize_>( const Field<T, fSize_> & other )
+   Field<T, fSize_>( const Field<T, fSize_> & other ): Field<T>::Field(other)
    {
-      std::cout << "test" << std::endl;
       this->values_ = other.values_ ;
       this->valuesWithOffset_ = other.valuesWithOffset_ ;
       this->xOff_              =other.xOff_;
@@ -500,7 +499,7 @@ class Field<T, fSize_> : public Field<T> {
    }
 
    template <typename T2, uint_t fSize2>
-   Field<T, fSize_>( const Field<T2, fSize2> & other )
+   Field<T, fSize_>( const Field<T2, fSize2> & other ): Field<T>::Field(other)
    {
       this->values_           = other.values_[0].data() ;
       this->valuesWithOffset_ = other.valuesWithOffset_[0].data() ;
