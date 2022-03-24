@@ -394,9 +394,8 @@ namespace field {
 template<typename T, uint_t fSize_>
 class Field<T, fSize_> : public Field<T> {
  public:
-   Field(Field<T> field)
-      : Field<T>::Field(field)
-   {}
+
+   
    static const uint_t F_SIZE = fSize_;
    static constexpr bool OLD = true;
 
