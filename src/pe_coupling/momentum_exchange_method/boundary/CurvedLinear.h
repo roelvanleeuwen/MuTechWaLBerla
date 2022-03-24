@@ -68,8 +68,7 @@ class CurvedLinear : public Boundary< typename FlagField_T::flag_t >
    using Stencil_T = typename LatticeModel_T::Stencil;
    using flag_t = typename FlagField_T::flag_t;
 
-   // TODO changed to GhostLayerField here because Copy Constructor GhostLayerField<...,fSize> to Field<...,fSize> does not work
-   using BodyField_T = GhostLayerField<pe::BodyID, 1>;
+   using BodyField_T = Field<pe::BodyID, 1>;
 
 public:
 
