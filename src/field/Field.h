@@ -460,72 +460,12 @@ class Field<T, fSize_> : public Field<T> {
    }
 
  protected:
-   Field()
-      {
-         this->values_ = nullptr;
-         this->valuesWithOffset_ = nullptr;
-         this->xSize_ = 0;
-         this->ySize_ = 0;
-         this->zSize_ = 0;
-         this->xAllocSize_ = 0;
-         this->yAllocSize_ = 0;
-         this->zAllocSize_ = 0;
-         this->fAllocSize_ = 0;
-      }
+   Field():Field<T>::Field(){}
 
-   Field<T, fSize_>( const Field<T, fSize_> & other ): Field<T>::Field(other)
-   {
-      this->values_ = other.values_ ;
-      this->valuesWithOffset_ = other.valuesWithOffset_ ;
-      this->xOff_              =other.xOff_;
-      this->yOff_             = other.yOff_;
-      this->zOff_             = other.zOff_;
-      this->xSize_            = other.xSize_ ;
-      this->ySize_            = other.ySize_ ;
-      this->zSize_            = other.zSize_ ;
-      this->fSize_            = other.fSize_ ;
-      this->xAllocSize_       =other.xAllocSize_ ;
-      this->yAllocSize_       = other.yAllocSize_ ;
-      this->zAllocSize_       = other.zAllocSize_ ;
-      this->fAllocSize_       = other.fAllocSize_ ;
-      this->layout_           =other.layout_ ;
-      this->allocSize_        = other.allocSize_ ;
-      this->ffact_            = other.ffact_ ;
-      this->xfact_            = other.xfact_ ;
-      this->yfact_            = other.yfact_ ;
-      this->zfact_            = other.zfact_ ;
-      this->allocator_        = other.allocator_;
-      this->allocator_->incrementReferenceCount ( this->values_ );
-   }
+   Field<T, fSize_>( const Field<T, fSize_> & other ): Field<T>::Field(other){}
 
    template <typename T2, uint_t fSize2>
-   Field<T, fSize_>( const Field<T2, fSize2> & other ): Field<T>::Field(other)
-   {
-      this->values_           = other.values_[0].data() ;
-      this->valuesWithOffset_ = other.valuesWithOffset_[0].data() ;
-      this->xOff_             = other.xOff_;
-      this->yOff_             = other.yOff_;
-      this->zOff_             = other.zOff_;
-      this->xSize_            = other.xSize_ ;
-      this->ySize_            = other.ySize_ ;
-      this->zSize_            = other.zSize_ ;
-      this->fSize_            = VectorTrait<T2>::F_SIZE * other.fSize_ ;
-      this->xAllocSize_       = other.xAllocSize_ ;
-      this->yAllocSize_       = other.yAllocSize_ ;
-      this->zAllocSize_       = other.zAllocSize_ ;
-      this->fAllocSize_       = other.fAllocSize_*fSize_/fSize2 ;
-      this->layout_           = other.layout_ ;
-      this->allocSize_        = other.allocSize_*fSize_/fSize2 ;
-      this->ffact_            = other.ffact_ ;
-      this->xfact_            = other.xfact_*cell_idx_t(fSize_/fSize2) ;
-      this->yfact_            = other.yfact_*cell_idx_t(fSize_/fSize2) ;
-      this->zfact_            = other.zfact_*cell_idx_t(fSize_/fSize2) ;
-      this->allocator_        = std::shared_ptr<FieldAllocator<T>>(other.allocator_, reinterpret_cast<FieldAllocator<T>*>(other.allocator_.get()));
-      WALBERLA_CHECK_EQUAL(this->layout_, Layout::zyxf)
-      static_assert(fSize_ % fSize2 == 0, "number of field components do not match");
-      static_assert(std::is_same<typename Field<T2,fSize2>::FlattenedField, Field<T,fSize_>>::value, "field types are incompatible for flattening");
-      this->allocator_->incrementReferenceCount ( this->values_ );
-   }
+   Field<T, fSize_>( const Field<T2, fSize2> & other ): Field<T>::Field(other){}
 
 };
 

@@ -59,7 +59,7 @@ def make_field_type(dtype, f_size, is_gpu):
     if is_gpu:
         return f"cuda::GPUField<{dtype}>"
     else:
-        return f"field::GhostLayerField<{dtype}>"
+        return f"field::GhostLayerField<{dtype}, {f_size}>"
 
 
 def get_field_fsize(field):
