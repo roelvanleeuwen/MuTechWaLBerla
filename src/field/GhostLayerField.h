@@ -277,9 +277,6 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
       setWithGhostLayer( fValues );
    }
 
-
-
-   template<typename ...Args>
    void init(uint_t xSizeWithoutGhostLayer,
              uint_t ySizeWithoutGhostLayer,
              uint_t zSizeWithoutGhostLayer,
@@ -664,7 +661,7 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
    /*!\brief Iterates only over the last slice before ghost layer
     *******************************************************************************************************************/
    inline typename GhostLayerField<T,fSize_>::iterator
-      beginSliceBeforeGhostLayer( stencil::Direction dir, cell_idx_t thickness, bool fullSlice = false )
+      beginSliceBeforeGhostLayer( stencil::Direction dir, cell_idx_t thickness = 1, bool fullSlice = false )
    {
       CellInterval ci;
       getSliceBeforeGhostLayer(dir, ci, thickness, fullSlice );
@@ -679,7 +676,7 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
    /*!\brief Const version of beginSliceBeforeGhostLayer()
     *******************************************************************************************************************/
    inline typename GhostLayerField<T,fSize_>::const_iterator
-      beginSliceBeforeGhostLayer( stencil::Direction dir, cell_idx_t thickness, bool fullSlice = false ) const
+      beginSliceBeforeGhostLayer( stencil::Direction dir, cell_idx_t thickness = 1, bool fullSlice = false ) const
    {
       CellInterval ci;
       getSliceBeforeGhostLayer( dir, ci, thickness, fullSlice );
@@ -694,8 +691,8 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
    /*!\brief Iterates only over the last slice before ghost layer, only in XYZ direction, f is fixed
     *******************************************************************************************************************/
    inline typename GhostLayerField<T,fSize_>::iterator
-      beginSliceBeforeGhostLayerXYZ( stencil::Direction dir, cell_idx_t thickness,
-                                                                  cell_idx_t f, bool fullSlice = false  )
+      beginSliceBeforeGhostLayerXYZ( stencil::Direction dir, cell_idx_t thickness = 1,
+                                                                  cell_idx_t f = 0, bool fullSlice = false  )
    {
       CellInterval ci;
       getSliceBeforeGhostLayer(dir, ci, thickness, fullSlice );
@@ -710,8 +707,8 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
    /*!\brief Const version of beginSliceBeforeGhostLayerXYZ()
     *******************************************************************************************************************/
    inline typename GhostLayerField<T,fSize_>::const_iterator
-      beginSliceBeforeGhostLayerXYZ( stencil::Direction dir,  cell_idx_t thickness,
-                                                                  cell_idx_t f, bool fullSlice = false ) const
+      beginSliceBeforeGhostLayerXYZ( stencil::Direction dir,  cell_idx_t thickness = 1,
+                                                                  cell_idx_t f = 0, bool fullSlice = false ) const
    {
       CellInterval ci;
       getSliceBeforeGhostLayer( dir, ci, thickness, fullSlice );
