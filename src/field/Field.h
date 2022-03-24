@@ -118,7 +118,7 @@ namespace field {
                  uint_t innerGhostLayerSizeForAlignedAlloc = 0 );
 
 
-      virtual void resize( uint_t xSize, uint_t ySize, uint_t zSize, uint_t fSize );
+      void resize( uint_t xSize, uint_t ySize, uint_t zSize, uint_t fSize );
 
       virtual Field<T> * clone()              const;
       virtual Field<T> * cloneUninitialized() const;
@@ -425,48 +425,104 @@ class Field<T, fSize_> : public Field<T> {
       Field<T>::init(xSize, ySize, zSize, fSize_, std::forward<Args>(args)...);
    }
 
-   template<typename ...Args>
-   void resize(uint_t xSize, uint_t ySize, uint_t zSize)
+   virtual void resize(uint_t xSize, uint_t ySize, uint_t zSize)
    {
       Field<T>::resize(xSize, ySize, zSize, fSize_);
    }
 
-   template<typename ...Args>
    Field<T, fSize_>  * getSlicedField( const CellInterval & interval ) const
    {
-      return reinterpret_cast<Field<T, fSize_>* > (Field<T>::getSlicedField( interval ));
+      return static_cast<Field<T, fSize_>* > (Field<T>::getSlicedField( interval ));
    }
 
-   template<typename ...Args>
-   Field<T, fSize_>  * clone() const
+   virtual Field<T, fSize_>  * clone() const
    {
-      return reinterpret_cast<Field<T, fSize_>* > (Field<T>::clone());
+      return static_cast<Field<T, fSize_>* > (Field<T>::clone());
    }
 
-   template<typename ...Args>
-   Field<T, fSize_>  * cloneUninitialized() const
+   virtual Field<T, fSize_>  * cloneUninitialized() const
    {
-      return reinterpret_cast<Field<T, fSize_>* > (Field<T>::cloneUninitialized());
+      return static_cast<Field<T, fSize_>* > (Field<T>::cloneUninitialized());
    }
 
-   template<typename ...Args>
-   Field<T, fSize_>  * cloneShallowCopy() const
+   virtual Field<T, fSize_>  * cloneShallowCopy() const
    {
-      return reinterpret_cast<Field<T, fSize_>* > (Field<T>::cloneShallowCopy());
+      return static_cast<Field<T, fSize_>* > (Field<T>::cloneShallowCopy());
    }
 
-   template<typename ...Args>
-   FlattenedField* flattenedShallowCopy() const
+   virtual FlattenedField* flattenedShallowCopy() const
    {
-      return reinterpret_cast<FlattenedField* > (Field<T>::flattenedShallowCopy());
+      return static_cast<FlattenedField* > (Field<T>::flattenedShallowCopy());
    }
 
-//   Field<T, fSize_>( const Field<T, fSize_>& other ): Field<T>( other )
-//   {}
-//
-//   template <typename T2, uint_t fSize2>
-//   Field<T, fSize_>(const Field<T2, fSize2> & other) : Field<T2>( other )
-//   {}
+ protected:
+   Field()
+      {
+         this->values_ = nullptr;
+         this->valuesWithOffset_ = nullptr;
+         this->xSize_ = 0;
+         this->ySize_ = 0;
+         this->zSize_ = 0;
+         this->xAllocSize_ = 0;
+         this->yAllocSize_ = 0;
+         this->zAllocSize_ = 0;
+         this->fAllocSize_ = 0;
+      }
+
+   Field<T, fSize_>( const Field<T, fSize_> & other )
+   {
+      std::cout << "test" << std::endl;
+      this->values_ = other.values_ ;
+      this->valuesWithOffset_ = other.valuesWithOffset_ ;
+      this->xOff_              =other.xOff_;
+      this->yOff_             = other.yOff_;
+      this->zOff_             = other.zOff_;
+      this->xSize_            = other.xSize_ ;
+      this->ySize_            = other.ySize_ ;
+      this->zSize_            = other.zSize_ ;
+      this->fSize_            = other.fSize_ ;
+      this->xAllocSize_       =other.xAllocSize_ ;
+      this->yAllocSize_       = other.yAllocSize_ ;
+      this->zAllocSize_       = other.zAllocSize_ ;
+      this->fAllocSize_       = other.fAllocSize_ ;
+      this->layout_           =other.layout_ ;
+      this->allocSize_        = other.allocSize_ ;
+      this->ffact_            = other.ffact_ ;
+      this->xfact_            = other.xfact_ ;
+      this->yfact_            = other.yfact_ ;
+      this->zfact_            = other.zfact_ ;
+      this->allocator_        = other.allocator_;
+      this->allocator_->incrementReferenceCount ( this->values_ );
+   }
+
+   template <typename T2, uint_t fSize2>
+   Field<T, fSize_>( const Field<T2, fSize2> & other )
+   {
+      this->values_           = other.values_[0].data() ;
+      this->valuesWithOffset_ = other.valuesWithOffset_[0].data() ;
+      this->xOff_             = other.xOff_;
+      this->yOff_             = other.yOff_;
+      this->zOff_             = other.zOff_;
+      this->xSize_            = other.xSize_ ;
+      this->ySize_            = other.ySize_ ;
+      this->zSize_            = other.zSize_ ;
+      this->fSize_            = VectorTrait<T2>::F_SIZE * other.fSize_ ;
+      this->xAllocSize_       = other.xAllocSize_ ;
+      this->yAllocSize_       = other.yAllocSize_ ;
+      this->zAllocSize_       = other.zAllocSize_ ;
+      this->fAllocSize_       = other.fAllocSize_*fSize_/fSize2 ;
+      this->layout_           = other.layout_ ;
+      this->allocSize_        = other.allocSize_*fSize_/fSize2 ;
+      this->ffact_            = other.ffact_ ;
+      this->xfact_            = other.xfact_*cell_idx_t(fSize_/fSize2) ;
+      this->yfact_            = other.yfact_*cell_idx_t(fSize_/fSize2) ;
+      this->zfact_            = other.zfact_*cell_idx_t(fSize_/fSize2) ;
+      this->allocator_        = std::shared_ptr<FieldAllocator<T>>(other.allocator_, reinterpret_cast<FieldAllocator<T>*>(other.allocator_.get()));
+      WALBERLA_CHECK_EQUAL(this->layout_, Layout::zyxf)
+      static_assert(fSize_ % fSize2 == 0, "number of field components do not match");
+      static_assert(std::is_same<typename Field<T2,fSize2>::FlattenedField, Field<T,fSize_>>::value, "field types are incompatible for flattening");
+      this->allocator_->incrementReferenceCount ( this->values_ );
+   }
 
 };
 

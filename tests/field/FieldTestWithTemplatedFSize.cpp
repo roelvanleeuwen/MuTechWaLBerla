@@ -320,24 +320,22 @@ void resizeTest(field::Layout layout)
    WALBERLA_CHECK_EQUAL( field.yAllocSize(), 2+2*gl);
    WALBERLA_CHECK_EQUAL( field.zAllocSize(), 1+2*gl);
 
+   Field<int,3> * p = &field;
+   WALBERLA_CHECK_EQUAL( p->xSize(), 4);
+   WALBERLA_CHECK_EQUAL( p->ySize(), 2);
+   WALBERLA_CHECK_EQUAL( p->zSize(), 1);
+   WALBERLA_CHECK_EQUAL( p->xAllocSize(), 4+2*gl);
+   WALBERLA_CHECK_EQUAL( p->yAllocSize(), 2+2*gl);
+   WALBERLA_CHECK_EQUAL( p->zAllocSize(), 1+2*gl);
 
-   // TODO How can the copy constructor be done? dynamic_cast was introduced and it not from master version and it does not work afterall ..
-//   Field<int, 3> * p = reinterpret_cast< Field< int, 3 >* >(&field);
-//   WALBERLA_CHECK_EQUAL( p->xSize(), 4);
-//   WALBERLA_CHECK_EQUAL( p->ySize(), 2);
-//   WALBERLA_CHECK_EQUAL( p->zSize(), 1);
-//   WALBERLA_CHECK_EQUAL( p->xAllocSize(), 4+2*gl);
-//   WALBERLA_CHECK_EQUAL( p->yAllocSize(), 2+2*gl);
-//   WALBERLA_CHECK_EQUAL( p->zAllocSize(), 1+2*gl);
-//
-//   p->resize(3,4,5);
-//   WALBERLA_CHECK_EQUAL( field.xSize(), 3);
-//   WALBERLA_CHECK_EQUAL( field.ySize(), 4);
-//   WALBERLA_CHECK_EQUAL( field.zSize(), 5);
-//
-//   WALBERLA_CHECK_EQUAL( field.xAllocSize(), 3+2*gl);
-//   WALBERLA_CHECK_EQUAL( field.yAllocSize(), 4+2*gl);
-//   WALBERLA_CHECK_EQUAL( field.zAllocSize(), 5+2*gl);
+   p->resize(3,4,5);
+   WALBERLA_CHECK_EQUAL( field.xSize(), 3);
+   WALBERLA_CHECK_EQUAL( field.ySize(), 4);
+   WALBERLA_CHECK_EQUAL( field.zSize(), 5);
+
+   WALBERLA_CHECK_EQUAL( field.xAllocSize(), 3+2*gl);
+   WALBERLA_CHECK_EQUAL( field.yAllocSize(), 4+2*gl);
+   WALBERLA_CHECK_EQUAL( field.zAllocSize(), 5+2*gl);
 }
 
 
