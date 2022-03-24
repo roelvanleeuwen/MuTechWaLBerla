@@ -417,38 +417,44 @@ class Field<T, fSize_> : public Field<T> {
       : Field<T>::Field(xSize, ySize, zSize, fSize_, fValues, layout, alloc){}
 
 
-   template<typename ...Args>
-   void init(uint_t xSize, uint_t ySize, uint_t zSize, Args&&... args)
+   void init(uint_t xSize, uint_t ySize, uint_t zSize, const Layout & layout = zyxf,
+             shared_ptr<FieldAllocator<T> > alloc = shared_ptr<FieldAllocator<T> >(),
+             uint_t innerGhostLayerSizeForAlignedAlloc = 0)
    {
-      Field<T>::init(xSize, ySize, zSize, fSize_, std::forward<Args>(args)...);
+      Field<T>::init(xSize, ySize, zSize, fSize_, layout, alloc, innerGhostLayerSizeForAlignedAlloc);
    }
 
-   virtual void resize(uint_t xSize, uint_t ySize, uint_t zSize, uint_t  /*fSize*/)
+   void resize( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t  /*_fSize*/ ) override
    {
-      Field<T>::resize(xSize, ySize, zSize, fSize_);
+      Field<T>::resize(_xSize, _ySize, _zSize, fSize_);
    }
 
-   Field<T, fSize_>  * getSlicedField( const CellInterval & interval ) const
+   virtual void resize( uint_t _xSize, uint_t _ySize, uint_t _zSize )
+   {
+      Field<T>::resize(_xSize, _ySize, _zSize, fSize_);
+   }
+
+   Field<T, fSize_>  * getSlicedField( const CellInterval & interval ) const override
    {
       return static_cast<Field<T, fSize_>* > (Field<T>::getSlicedField( interval ));
    }
 
-   virtual Field<T, fSize_>  * clone() const
+   Field<T, fSize_>  * clone() const override
    {
       return static_cast<Field<T, fSize_>* > (Field<T>::clone());
    }
 
-   virtual Field<T, fSize_>  * cloneUninitialized() const
+   Field<T, fSize_>  * cloneUninitialized() const override
    {
       return static_cast<Field<T, fSize_>* > (Field<T>::cloneUninitialized());
    }
 
-   virtual Field<T, fSize_>  * cloneShallowCopy() const
+   Field<T, fSize_>  * cloneShallowCopy() const override
    {
       return static_cast<Field<T, fSize_>* > (Field<T>::cloneShallowCopy());
    }
 
-   virtual FlattenedField* flattenedShallowCopy() const
+   FlattenedField* flattenedShallowCopy() const override
    {
       return static_cast<FlattenedField* > (Field<T>::flattenedShallowCopy());
    }
