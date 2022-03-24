@@ -298,16 +298,16 @@ class GhostLayerField<T, fSize_> : public Field<T, fSize_> {
 
    }
 
-   void resize( uint_t _xSize, uint_t _ySize, uint_t _zSize ) override
+   void resize( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t fSize ) override
    {
       if ( _xSize == this->xSize() && _ySize == this->ySize() && _zSize == this->zSize()  )
          return;
 
-      Field<T,fSize_>::resize( _xSize+2*gl_, _ySize+2*gl_, _zSize+2*gl_);
-      Field<T,fSize_>::setOffsets( gl_, _xSize, gl_, _ySize, gl_, _zSize );
+      Field<T, fSize_>::resize( _xSize+2*gl_, _ySize+2*gl_, _zSize+2*gl_, fSize_);
+      Field<T, fSize_>::setOffsets( gl_, _xSize, gl_, _ySize, gl_, _zSize );
    }
 
-   Field<T,fSize_> * cloneShallowCopyInternal() const override
+   Field<T, fSize_> * cloneShallowCopyInternal() const override
    {
       return new GhostLayerField<T,fSize_>(*this);
    }
