@@ -100,7 +100,7 @@ class GhostLayerField<T> : public Field<T>
              uint_t nrGhostLayers, const Layout& layout = zyxf,
              const shared_ptr< FieldAllocator< T > >& alloc = shared_ptr< FieldAllocator< T > >());
 
-   void resize(uint_t xSize, uint_t ySize, uint_t zSize, uint_t _fSize);
+   void resize(uint_t xSize, uint_t ySize, uint_t zSize, uint_t _fSize) override;
    void resize(uint_t xSize, uint_t ySize, uint_t zSize, uint_t _fSize, uint_t gl);
 
    using Field< T >::resize;

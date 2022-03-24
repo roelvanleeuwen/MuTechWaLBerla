@@ -23,6 +23,7 @@
 #include "field/iterators/IteratorMacros.h"
 
 #include "core/math/Utility.h" // for equal() in operator==
+#include "Field.h"
 
 #include <algorithm>  // std::copy
 
@@ -319,7 +320,7 @@ namespace field {
    template<typename T>
    void Field<T>::init( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSize,
                                 const Layout & l, shared_ptr<FieldAllocator<T> > alloc,
-                                uint_t innerGhostLayerSizeForAlignedAlloc )
+                                uint_t innerGhostLayerSizeForAlignedAlloc)
    {
       WALBERLA_ASSERT_NULLPTR( values_ )
       WALBERLA_ASSERT_NULLPTR( valuesWithOffset_ )
@@ -410,8 +411,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! Destructor, using Allocator template parameter
     *******************************************************************************************************************/
-   template<typename T>
-   Field<T>::~Field()
+   template< typename T >
+   Field< T >::~Field()
    {
       allocator_->decrementReferenceCount( values_ );
    }

@@ -117,8 +117,7 @@ namespace field {
                  shared_ptr<FieldAllocator<T> > alloc = shared_ptr<FieldAllocator<T> >(),
                  uint_t innerGhostLayerSizeForAlignedAlloc = 0 );
 
-
-      void resize( uint_t xSize, uint_t ySize, uint_t zSize, uint_t fSize );
+      virtual void resize( uint_t xSize, uint_t ySize, uint_t zSize, uint_t fSize );
 
       virtual Field<T> * clone()              const;
       virtual Field<T> * cloneUninitialized() const;
@@ -395,7 +394,7 @@ template<typename T, uint_t fSize_>
 class Field<T, fSize_> : public Field<T> {
  public:
 
-   
+
    static const uint_t F_SIZE = fSize_;
    static constexpr bool OLD = true;
 
