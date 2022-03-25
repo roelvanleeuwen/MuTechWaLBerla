@@ -195,8 +195,7 @@ template< uint_t StencilSize >
 void check( const shared_ptr< StructuredBlockForest > & blocks, const ConstBlockDataID & flagFieldId,
             const ConstBlockDataID & pdf1, const ConstBlockDataID & pdf2 )
 {
-   // TODO PDF Field is not a child of the old GLF. I would say it is an edge case, however, technically it is API breaking here
-   using Field_T = GhostLayerField< real_t >;
+   using Field_T = GhostLayerField< real_t, StencilSize >;
 
    for( auto block = blocks->begin(); block != blocks->end(); ++block )
    {
