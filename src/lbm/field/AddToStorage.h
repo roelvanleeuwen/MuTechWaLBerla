@@ -108,20 +108,20 @@ class PdfFieldHandling : public field::BlockDataHandling< PdfField< LatticeModel
    void packLatticeModel(IBlock* const block, const BlockDataID& id, mpi::SendBuffer& buffer) const
    {
       const PdfField_T* field = block->template getData< PdfField_T >(id);
-      WALBERLA_CHECK_NOT_NULLPTR(field);
+      WALBERLA_CHECK_NOT_NULLPTR(field)
       buffer << field->latticeModel();
    }
 
    void unpackLatticeModel(IBlock* const block, const BlockDataID& id, mpi::RecvBuffer& buffer) const
    {
       PdfField_T* field = block->template getData< PdfField_T >(id);
-      WALBERLA_CHECK_NOT_NULLPTR(field);
+      WALBERLA_CHECK_NOT_NULLPTR(field)
 
       LatticeModel_T latticeModel = field->latticeModel();
       buffer >> latticeModel;
 
       auto blocks = blocks_.lock();
-      WALBERLA_CHECK_NOT_NULLPTR(blocks);
+      WALBERLA_CHECK_NOT_NULLPTR(blocks)
 
       latticeModel.configure(*block, *blocks);
       field->resetLatticeModel(latticeModel);
@@ -130,10 +130,10 @@ class PdfFieldHandling : public field::BlockDataHandling< PdfField< LatticeModel
    PdfField< LatticeModel_T >* allocateDispatch(IBlock* const block, const bool _initialize,
                                                 const real_t initialDensity)
    {
-      WALBERLA_ASSERT_NOT_NULLPTR(block);
+      WALBERLA_ASSERT_NOT_NULLPTR(block)
 
       auto blocks = blocks_.lock();
-      WALBERLA_CHECK_NOT_NULLPTR(blocks);
+      WALBERLA_CHECK_NOT_NULLPTR(blocks)
 
       latticeModel_.configure(*block, *blocks);
 

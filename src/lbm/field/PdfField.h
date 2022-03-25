@@ -300,7 +300,7 @@ PdfField< LatticeModel_T >::PdfField( const uint_t _xSize, const uint_t _ySize, 
                                       const uint_t ghostLayers, const field::Layout & _layout,
                                       const shared_ptr< field::FieldAllocator<real_t> > & alloc ) :
 
-   GhostLayerField< real_t, Stencil::Size >( _xSize, _ySize, _zSize, LatticeModel_T::Stencil::Size, ghostLayers, _layout, alloc ),
+   GhostLayerField< real_t, Stencil::Size >( _xSize, _ySize, _zSize, ghostLayers, _layout, alloc ),
    latticeModel_( _latticeModel )
 {
 #ifdef _OPENMP
