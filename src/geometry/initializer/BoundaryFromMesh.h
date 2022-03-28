@@ -36,6 +36,22 @@ namespace initializer {
 
 //**********************************************************************************************************************
 /*! Initializes the flag field according to a mesh and [color -> boundary] mapping.
+*
+* Configuration file syntax:
+  \verbatim
+     Mesh
+     {
+        fluidFlag fluid;
+        ColorToBoundaryMapper
+        {
+           default NoSlip;
+           0 { color <0.0, 0.5, 1.0>; boundary FreeSlip; }
+           1 { color <1.0, 0.5, 0.0>; boundary Velocity0; }
+        }
+     }
+  \endverbatim
+*
+* \ingroup geometry
 */
 //**********************************************************************************************************************
 template<typename FlagField_T, typename Mesh_T>
@@ -48,7 +64,7 @@ public:
                      shared_ptr<mesh::DistanceOctree<Mesh_T>> distanceOctree,
                      const uint_t numGhostLayers );
 
-   void init( shared_ptr<mesh::ColorToBoundaryMapper<Mesh_T>> colorToBoundaryMapper,
+   void init( mesh::ColorToBoundaryMapper<Mesh_T> & colorToBoundaryMapper,
               FlagUID fluidFlagID );
 
    void init( BlockStorage & blockStorage, const Config::BlockHandle & blockHandle ) override;
@@ -56,7 +72,6 @@ public:
    shared_ptr<mesh::BoundaryLocation<Mesh_T>> getBoundaryLocation() const;
 
 protected:
-   shared_ptr<StructuredBlockStorage> blocks_;
    BlockDataID flagFieldID_;
    BlockDataID flagFieldBoundarHandlingID_;
 
