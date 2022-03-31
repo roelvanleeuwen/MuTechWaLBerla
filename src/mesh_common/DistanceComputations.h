@@ -647,24 +647,28 @@ typename MeshType::Scalar TriangleDistance<MeshType>::sqDistance( InputIterator 
       }
    }
 
-   if (region >= 4) {
-     int vi =  region == 4 ? 1
-            : (region == 5 ? 0 
-                           : 2
-              );
-     OpenMesh::VertexHandle v = getVertexHandle(*mesh_, fh, vi);
+   // if the closest point lies on an edge, always choose the same face
+   // this way, boundary conditions can be set consistently close to mesh edges
+   if( region >= 4 ) {
+      const unsigned int vi =   region == 4 ? 1
+                            : ( region == 5 ? 0
+                                            : 2
+                              );
+      OpenMesh::VertexHandle vh = getVertexHandle( *mesh_, fh, vi );
 
-     OpenMesh::HalfedgeHandle heh = mesh_->halfedge_handle(fh);
-     while (mesh_->to_vertex_handle(heh) != v)
-       heh = mesh_->next_halfedge_handle(heh);
+      OpenMesh::HalfedgeHandle heh = mesh_->halfedge_handle( fh );
+      while( mesh_->to_vertex_handle( heh ) != vh )
+         heh = mesh_->next_halfedge_handle( heh );
 
-     OpenMesh::HalfedgeHandle oppHeh = mesh_->opposite_halfedge_handle(heh);
+      OpenMesh::HalfedgeHandle oppHeh = mesh_->opposite_halfedge_handle( heh );
 
-     if (heh < oppHeh)
-       fh = mesh_->face_handle(heh);
-     else
-       fh = mesh_->face_handle(oppHeh);
-     sqDistance(fh, p, region, closestPoint);
+      if( oppHeh.is_valid() and oppHeh < heh ) {
+         OpenMesh::FaceHandle oppFh = mesh_->face_handle( oppHeh );
+         WALBERLA_ASSERT( oppFh.is_valid() );
+
+         fh = oppFh;
+         sqDistance( fh, p, region, closestPoint );
+      }
    }
 
    return minDistance;
