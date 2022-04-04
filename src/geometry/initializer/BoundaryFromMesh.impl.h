@@ -32,7 +32,6 @@ namespace initializer {
 
 namespace internal {
 
-// TODO: move this to central place
 //**********************************************************************************************************************
 /*! A small helper class that makes it possible to use mesh::boundary::BoundarySetup
 *   to operate directly on the flag field instead of on a boundary handling.
@@ -141,18 +140,18 @@ BoundaryFromMesh<FlagField_T, Mesh_T>::BoundaryFromMesh(
 //*******************************************************************************************************************
 template<typename FlagField_T, typename Mesh_T>
 void BoundaryFromMesh<FlagField_T, Mesh_T>::init(
-   mesh::ColorToBoundaryMapper<Mesh_T> & colorToBoundaryMapper,
-   FlagUID fluidFlagID )
+   const mesh::ColorToBoundaryMapper<Mesh_T> & colorToBoundaryMapper,
+   const FlagUID fluidFlagID )
 {
    using namespace internal;
 
-   boundarySetup_.setFlag<FlagField_T>(flagFieldID_, fluidFlagID, mesh::BoundarySetup::OUTSIDE);
+   boundarySetup_.setFlag<FlagField_T>( flagFieldID_, fluidFlagID, mesh::BoundarySetup::OUTSIDE );
 
-   boundaryLocation_ = colorToBoundaryMapper.addBoundaryInfoToMesh(*mesh_);
+   boundaryLocation_ = colorToBoundaryMapper.addBoundaryInfoToMesh( *mesh_ );
 
    boundarySetup_.setBoundaries<FlagFieldBoundaryHandling<FlagField_T>>(
       flagFieldBoundarHandlingID_,
-      makeBoundaryLocationFunction(distanceOctree_, boundaryLocation_),
+      makeBoundaryLocationFunction( distanceOctree_, boundaryLocation_ ),
       mesh::BoundarySetup::INSIDE );
 }
 
@@ -160,8 +159,8 @@ template<typename FlagField_T, typename Mesh_T>
 void BoundaryFromMesh<FlagField_T, Mesh_T>::init(
    BlockStorage &, const Config::BlockHandle & blockHandle )
 {
-   mesh::ColorToBoundaryMapper< Mesh_T > colorToBoundaryMapper{ blockHandle.getBlock( "ColorToBoundaryMapper") };
-   FlagUID fluidFlag = FlagUID{ blockHandle.getParameter< std::string >( "fluidFlag") };
+   mesh::ColorToBoundaryMapper< Mesh_T > colorToBoundaryMapper{ blockHandle.getBlock( "ColorToBoundaryMapper" ) };
+   FlagUID fluidFlag = FlagUID{ blockHandle.getParameter< std::string >( "fluidFlag" ) };
 
    init( colorToBoundaryMapper, fluidFlag );
 }

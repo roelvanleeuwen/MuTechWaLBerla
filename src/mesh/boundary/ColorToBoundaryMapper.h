@@ -26,6 +26,7 @@
 #include "core/config/Config.h"
 #include "core/DataTypes.h"
 #include "core/debug/CheckFunctions.h"
+#include "core/math/Vector3.h"
 
 #include <map>
 

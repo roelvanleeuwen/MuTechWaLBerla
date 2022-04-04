@@ -64,8 +64,8 @@ public:
                      shared_ptr<mesh::DistanceOctree<Mesh_T>> distanceOctree,
                      const uint_t numGhostLayers );
 
-   void init( mesh::ColorToBoundaryMapper<Mesh_T> & colorToBoundaryMapper,
-              FlagUID fluidFlagID );
+   void init( const mesh::ColorToBoundaryMapper<Mesh_T> & colorToBoundaryMapper,
+              const FlagUID fluidFlagID );
 
    void init( BlockStorage & blockStorage, const Config::BlockHandle & blockHandle ) override;
 
