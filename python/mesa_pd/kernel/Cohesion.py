@@ -19,5 +19,19 @@ class Cohesion:
 
     def generate(self, module):
         ctx = {'module': module, **self.context}
+        ctx["parameters"] = ["kn",
+                             "nun",
+                             "ksFactor",
+                             "krFactor",
+                             "koFactor",
+                             "nusFactor",
+                             "nurFactor",
+                             "nuoFactor",
+                             "frictionCoefficient",
+                             "yn",
+                             "ys",
+                             "yr",
+                             "yo",
+                             ]
 
         generate_file(module['module_path'], 'kernel/Cohesion.templ.h', ctx)

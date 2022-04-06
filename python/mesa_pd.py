@@ -128,6 +128,8 @@ if __name__ == '__main__':
     mpd.add(data.SparseLinkedCells())
     mpd.add(data.ShapeStorage(ps))
 
+    mpd.add(kernel.Cohesion())
+    mpd.add(kernel.CohesionInitialization())
     mpd.add(kernel.DetectAndStoreContacts())
     mpd.add(kernel.DoubleCast(ps))
     mpd.add(kernel.ExplicitEuler())

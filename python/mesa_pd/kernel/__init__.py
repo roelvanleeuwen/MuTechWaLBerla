@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from .Cohesion import Cohesion
+from .CohesionInitialization import CohesionInitialization
 from .DetectAndStoreContacts import DetectAndStoreContacts
 from .DoubleCast import DoubleCast
 from .ExplicitEuler import ExplicitEuler
@@ -20,7 +22,9 @@ from .SpringDashpotSpring import SpringDashpotSpring
 from .TemperatureIntegration import TemperatureIntegration
 from .VelocityVerlet import VelocityVerlet
 
-__all__ = ['DoubleCast',
+__all__ = ['Cohesion',
+           'CohesionInitialization',
+           'DoubleCast',
            'DetectAndStoreContacts',
            'ExplicitEuler',
            'ForceLJ',

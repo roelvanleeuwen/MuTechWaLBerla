@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
    // Initialize Cohesion
    WALBERLA_LOG_INFO_ON_ROOT("Initializing cohesion bounds");
    lc.clear();
-   particleStorage->forEachParticle(true, mesa_pd::kernel::SelectAll(), *accessor, insertIntoLinkedCells, *accessor, lc);
+   particleStorage->forEachParticle(false, mesa_pd::kernel::SelectAll(), *accessor, insertIntoLinkedCells, *accessor, lc);
 
    lc.forEachParticlePairHalf(false, mesa_pd::kernel::SelectAll(), *accessor,
                               [&](const size_t idx1, const size_t idx2){

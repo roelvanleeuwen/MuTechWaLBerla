@@ -69,10 +69,7 @@ namespace kernel
 class Cohesion
 {
  public:
-   Cohesion(const real_t dt,
-            const real_t E = real_t(1e5),
-            const real_t damp = real_t(0),
-            const real_t b_c = real_t(10));
+   Cohesion(const uint_t numParticleTypes);
    Cohesion(const Cohesion& other) = default;
    Cohesion(Cohesion&& other)      = default;
    Cohesion& operator=(const Cohesion& other) = default;
@@ -84,29 +81,300 @@ class Cohesion
                    Accessor& ac,
                    const bool contactExists,
                    Vec3 contactNormal,
-                   real_t penetrationDepth);
-   template <typename Accessor>
-   bool wereParticlesBound(const size_t idx1, const size_t idx2, Accessor& ac);
+                   real_t penetrationDepth,
+                   real_t dt);
 
+   
+   /// assumes this parameter is symmetric
+   void setKn(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setNun(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setKsFactor(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setKrFactor(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setKoFactor(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setNusFactor(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setNurFactor(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setNuoFactor(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setFrictionCoefficient(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setYn(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setYs(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setYr(const size_t type1, const size_t type2, const real_t& val);
+   /// assumes this parameter is symmetric
+   void setYo(const size_t type1, const size_t type2, const real_t& val);
+
+   
+   real_t getKn(const size_t type1, const size_t type2) const;
+   real_t getNun(const size_t type1, const size_t type2) const;
+   real_t getKsFactor(const size_t type1, const size_t type2) const;
+   real_t getKrFactor(const size_t type1, const size_t type2) const;
+   real_t getKoFactor(const size_t type1, const size_t type2) const;
+   real_t getNusFactor(const size_t type1, const size_t type2) const;
+   real_t getNurFactor(const size_t type1, const size_t type2) const;
+   real_t getNuoFactor(const size_t type1, const size_t type2) const;
+   real_t getFrictionCoefficient(const size_t type1, const size_t type2) const;
+   real_t getYn(const size_t type1, const size_t type2) const;
+   real_t getYs(const size_t type1, const size_t type2) const;
+   real_t getYr(const size_t type1, const size_t type2) const;
+   real_t getYo(const size_t type1, const size_t type2) const;
  private:
-   template <typename Accessor>
-   inline void persistContactCohesion(const size_t idx1,
-                                      const size_t idx2,
-                                      Accessor& ac,
-                                      const Vec3 Ut,
-                                      const Vec3 Ur,
-                                      const Vec3 Uo);
-
-   real_t dt_;
-   real_t E_;
-   real_t damp_;
-   real_t b_c_;
+   uint_t numParticleTypes_;
+   
+   std::vector<real_t> kn_ {};
+   std::vector<real_t> nun_ {};
+   std::vector<real_t> ksFactor_ {};
+   std::vector<real_t> krFactor_ {};
+   std::vector<real_t> koFactor_ {};
+   std::vector<real_t> nusFactor_ {};
+   std::vector<real_t> nurFactor_ {};
+   std::vector<real_t> nuoFactor_ {};
+   std::vector<real_t> frictionCoefficient_ {};
+   std::vector<real_t> yn_ {};
+   std::vector<real_t> ys_ {};
+   std::vector<real_t> yr_ {};
+   std::vector<real_t> yo_ {};
 };
 
-Cohesion::Cohesion(const real_t dt,
-                   const real_t E,
-                   const real_t damp,
-                   const real_t b_c) : dt_(dt), E_(E), damp_(damp), b_c_(b_c) {}
+Cohesion::Cohesion(const uint_t numParticleTypes)
+{
+   numParticleTypes_ = numParticleTypes;
+   
+   kn_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   nun_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   ksFactor_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   krFactor_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   koFactor_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   nusFactor_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   nurFactor_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   nuoFactor_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   frictionCoefficient_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   yn_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   ys_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   yr_.resize(numParticleTypes * numParticleTypes, real_t(0));
+   yo_.resize(numParticleTypes * numParticleTypes, real_t(0));
+}
+
+
+inline void Cohesion::setKn(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+kn_[numParticleTypes_*type1 + type2] = val;
+kn_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setNun(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+nun_[numParticleTypes_*type1 + type2] = val;
+nun_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setKsFactor(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+ksFactor_[numParticleTypes_*type1 + type2] = val;
+ksFactor_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setKrFactor(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+krFactor_[numParticleTypes_*type1 + type2] = val;
+krFactor_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setKoFactor(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+koFactor_[numParticleTypes_*type1 + type2] = val;
+koFactor_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setNusFactor(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+nusFactor_[numParticleTypes_*type1 + type2] = val;
+nusFactor_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setNurFactor(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+nurFactor_[numParticleTypes_*type1 + type2] = val;
+nurFactor_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setNuoFactor(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+nuoFactor_[numParticleTypes_*type1 + type2] = val;
+nuoFactor_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setFrictionCoefficient(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+frictionCoefficient_[numParticleTypes_*type1 + type2] = val;
+frictionCoefficient_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setYn(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+yn_[numParticleTypes_*type1 + type2] = val;
+yn_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setYs(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+ys_[numParticleTypes_*type1 + type2] = val;
+ys_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setYr(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+yr_[numParticleTypes_*type1 + type2] = val;
+yr_[numParticleTypes_*type2 + type1] = val;
+}
+inline void Cohesion::setYo(const size_t type1, const size_t type2, const real_t& val)
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+yo_[numParticleTypes_*type1 + type2] = val;
+yo_[numParticleTypes_*type2 + type1] = val;
+}
+
+
+inline real_t Cohesion::getKn(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( kn_[numParticleTypes_*type1 + type2],
+                             kn_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for kn not symmetric!");
+return kn_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getNun(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( nun_[numParticleTypes_*type1 + type2],
+                             nun_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for nun not symmetric!");
+return nun_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getKsFactor(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( ksFactor_[numParticleTypes_*type1 + type2],
+                             ksFactor_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for ksFactor not symmetric!");
+return ksFactor_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getKrFactor(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( krFactor_[numParticleTypes_*type1 + type2],
+                             krFactor_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for krFactor not symmetric!");
+return krFactor_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getKoFactor(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( koFactor_[numParticleTypes_*type1 + type2],
+                             koFactor_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for koFactor not symmetric!");
+return koFactor_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getNusFactor(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( nusFactor_[numParticleTypes_*type1 + type2],
+                             nusFactor_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for nusFactor not symmetric!");
+return nusFactor_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getNurFactor(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( nurFactor_[numParticleTypes_*type1 + type2],
+                             nurFactor_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for nurFactor not symmetric!");
+return nurFactor_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getNuoFactor(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( nuoFactor_[numParticleTypes_*type1 + type2],
+                             nuoFactor_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for nuoFactor not symmetric!");
+return nuoFactor_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getFrictionCoefficient(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( frictionCoefficient_[numParticleTypes_*type1 + type2],
+                             frictionCoefficient_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for frictionCoefficient not symmetric!");
+return frictionCoefficient_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getYn(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( yn_[numParticleTypes_*type1 + type2],
+                             yn_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for yn not symmetric!");
+return yn_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getYs(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( ys_[numParticleTypes_*type1 + type2],
+                             ys_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for ys not symmetric!");
+return ys_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getYr(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( yr_[numParticleTypes_*type1 + type2],
+                             yr_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for yr not symmetric!");
+return yr_[numParticleTypes_*type1 + type2];
+}
+inline real_t Cohesion::getYo(const size_t type1, const size_t type2) const
+{
+WALBERLA_ASSERT_LESS( type1, numParticleTypes_ );
+WALBERLA_ASSERT_LESS( type2, numParticleTypes_ );
+WALBERLA_ASSERT_FLOAT_EQUAL( yo_[numParticleTypes_*type1 + type2],
+                             yo_[numParticleTypes_*type2 + type1],
+                             "parameter matrix for yo not symmetric!");
+return yo_[numParticleTypes_*type1 + type2];
+}
+
 
 template <typename Accessor>
 inline bool Cohesion::operator()(const size_t p_idx1,
@@ -114,344 +382,22 @@ inline bool Cohesion::operator()(const size_t p_idx1,
                                  Accessor& ac,
                                  const bool contactExists,
                                  Vec3 contactNormal,
-                                 real_t penetrationDepth) {
-
+                                 real_t penetrationDepth,
+                                 real_t dt) {
+   WALBERLA_LOG_INFO(p_idx1 << " " << p_idx2 << " " << contactNormal);
+   //WALBERLA_LOG_INFO("Checking cohesion between " << p_idx1 << " and " << p_idx2 << ".");
+/*
    auto uid_p1 = ac.getUid(p_idx1);
    auto uid_p2 = ac.getUid(p_idx2);
-
 
 
    // existing contact history of particle 1 -> particle 2
    const auto& och1 = ac.getOldContactHistoryRef(p_idx1)[uid_p2];
    // existing contact history of particle 2 -> particle 1
    const auto& och2 = ac.getOldContactHistoryRef(p_idx2)[uid_p1];
+*/
+   return true;
 
-
-   if (wereParticlesBound(p_idx1, p_idx2, ac))
-   {
-      const auto shape1 = ac.getShape(p_idx1);
-      const auto shape2 = ac.getShape(p_idx2);
-
-      WALBERLA_CHECK_EQUAL(shape1->getShapeType(), data::Sphere::SHAPE_TYPE, "Cohesion needs sphere shapes");
-      WALBERLA_CHECK_EQUAL(shape2->getShapeType(), data::Sphere::SHAPE_TYPE, "Cohesion needs sphere shapes");
-
-      const auto sphere1 = *static_cast<data::Sphere*>(shape1);
-      const auto sphere2 = *static_cast<data::Sphere*>(shape2);
-
-      real_t radius1 = sphere1.getRadius();
-      real_t radius2 = sphere2.getRadius();
-
-      contactNormal = (ac.getPosition(p_idx1) - ac.getPosition(p_idx2)).getNormalized();
-      penetrationDepth = (ac.getPosition(p_idx2) - ac.getPosition(p_idx1)).length() - radius1 - radius2;
-      real_t initialDn = och1.getInitialPenetrationDepth();
-      WALBERLA_CHECK(realIsEqual(initialDn, och2.getInitialPenetrationDepth()), "Initial dn inconsistent in contact histories.");
-      real_t initialDnDiff = penetrationDepth - initialDn;
-
-      // like in CohesionModel.py:
-      Vec3 relVel = ac.getLinearVelocity(p_idx1) - ac.getLinearVelocity(p_idx2);
-      Vec3 angVel1 = ac.getAngularVelocity(p_idx1);
-      Vec3 angVel2 = ac.getAngularVelocity(p_idx2);
-
-
-      // params
-
-      const auto kn = 2. * E_ * radius1*radius2 / (radius1+radius2);
-      const auto ks = kn * real_t(0.2);
-      const auto kr = kn * real_t(0.);
-      const auto ko = kn * real_t(0.);
-      auto mass1 = real_t(1)/ac.getInvMass(p_idx1);
-      auto mass2 = real_t(1)/ac.getInvMass(p_idx2);
-      const auto m_eff  =  mass1*mass2/(mass1 + mass2);
-      const auto nug = real_t(2) * sqrt(real_t(2)*kn*m_eff) * damp_;
-      const auto nu = nug * real_t(0.5);
-      const auto nus = nug * real_t(0.1);
-      const auto nur = nug * real_t(0.5) * real_t(0.01);
-      const auto nuo = nug * real_t(0.5) * real_t(0.01);
-
-      // calculations
-      real_t fNabs = real_t(0);
-      if(initialDnDiff >= real_t(0))
-      {
-         fNabs = real_t(-1) * kn * initialDnDiff;
-      }
-      else
-      {
-
-         fNabs = real_t(-1) * kn * initialDnDiff;
-         if(fNabs < real_t(0)) fNabs = real_t(0);
-      }
-
-      auto fn = fNabs * contactNormal + nu * (real_t(-1)*relVel * contactNormal) * contactNormal;
-      auto a_ij = radius1*radius2 / (radius1+radius2);
-
-      // Sliding
-      auto Vij = relVel
-                 + (radius1 - real_t(0.5)*fabs(initialDnDiff))
-                      * (contactNormal % angVel1)
-                 + (radius2 - real_t(0.5)*fabs(initialDnDiff))
-                      * (contactNormal % angVel2);
-//      auto Vij = relVel;
-      auto Vt = Vij - contactNormal*(dot(contactNormal, Vij));
-      auto Ut_pre = och1.getSlidingDisplacement();
-      Ut_pre = Ut_pre - contactNormal*(contactNormal*Ut_pre);
-      auto Ut = Ut_pre + dt_*Vt;
-      auto fs = real_t(-1)*ks*Ut - nus*Vt;
-
-      // Rolling
-      auto a_prime_ij = ((radius1 - real_t(0.5)*fabs(initialDnDiff)) * (radius2 - real_t(0.5)*fabs(initialDnDiff)))
-                        / ((radius1 - real_t(0.5)*fabs(initialDnDiff)) + (radius2 - real_t(0.5)*fabs(initialDnDiff)));
-      auto Vr = real_t(-1) * a_prime_ij * ((contactNormal % angVel1)
-                                           - (contactNormal % angVel2));
-
-      auto Ur_pre = och1.getRollingDisplacement();
-      Ur_pre = Ur_pre - contactNormal*(contactNormal*Ur_pre);
-      auto Ur = Ur_pre + dt_*Vr;
-      auto fr = real_t(-1)*kr*Ur - nur*Vr;
-      auto torque = a_ij * (contactNormal % fr);
-
-      // Torsion
-      auto Vo = a_ij * (contactNormal*angVel1 - contactNormal*angVel2) * contactNormal;
-      auto Uo_pre = och1.getTorsionDisplacement();
-
-      Uo_pre = contactNormal*(contactNormal*Uo_pre);
-      auto Uo = Uo_pre + dt_*Vo;
-      auto fo = real_t(-1)*ko*Uo - nuo*Vo;
-
-      auto torsion = a_ij * fo;
-
-      // rupture
-      auto y_n = b_c_ * real_t(-1);
-      auto y_s = b_c_ * real_t(0.5);
-      auto y_r = b_c_ * real_t(0.4);
-      auto y_o = b_c_ * real_t(0.4);
-
-      auto rupture = pow(fs.length() / y_s, real_t(2))
-                     + (fNabs / y_n)
-                     + pow(torque.length() / y_r, real_t(2))
-                     + pow(torsion.length() / y_o, real_t(2))
-                     - real_t(1);
-
-//      WALBERLA_LOG_INFO(ac.getUid(p_idx1) << "-" << ac.getUid(p_idx2) << ": Rupture: " << rupture);
-
-      auto& nch1 = ac.getNewContactHistoryRef(p_idx1)[uid_p2];
-      auto& nch2 = ac.getNewContactHistoryRef(p_idx2)[uid_p1];
-      nch1.setRupture(rupture);
-      nch2.setRupture(rupture);
-
-      if (rupture >= real_t(0)) {
-         WALBERLA_LOG_INFO("Cohesion bond breaks (rupture: " << rupture << ") between particle "
-                           << ac.getUid(p_idx1) << " and " << ac.getUid(p_idx2) << ".");
-         fn[0] = 0_r;
-         fn[1] = 0_r;
-         fn[2] = 0_r;
-         fs[0] = 0_r;
-         fs[1] = 0_r;
-         fs[2] = 0_r;
-
-         torque[0] = 0_r;
-         torque[1] = 0_r;
-         torque[2] = 0_r;
-
-         torque[0] = 0_r;
-         torque[1] = 0_r;
-         torque[2] = 0_r;
-
-         torsion[0] = 0_r;
-         torsion[1] = 0_r;
-         torsion[2] = 0_r;
-
-      }
-
-         auto force1 = fn + fs;
-         auto force2 = - fn - fs;
-         addForceAtomic(p_idx1, ac, force1);
-         addForceAtomic(p_idx2, ac, force2);
-
-         auto torque1 = real_t(-1) * (radius1 - real_t(0.5)*fabs(initialDnDiff)) * (contactNormal % force1)
-                        + torque
-                        + torsion;
-         auto torque2 = (radius2 - real_t(0.5)*fabs(initialDnDiff)) / (radius1 - real_t(0.5)*fabs(initialDnDiff))
-                        * (real_t(-1) * (radius1 - real_t(0.5)*fabs(initialDnDiff)) * (contactNormal % force1))
-                        - torque
-                        - torsion;
-         addTorqueAtomic(p_idx1, ac, torque1);
-         addTorqueAtomic(p_idx2, ac, torque2);
-
-         if(rupture < real_t(0))
-         {
-            persistContactCohesion(p_idx1, p_idx2, ac, Ut, Ur, Uo);
-         }
-
-
-      return true;
-   }
-   else if (!wereParticlesBound(p_idx1, p_idx2, ac) && contactExists)
-   {
-      const auto shape1 = ac.getShape(p_idx1);
-      const auto shape2 = ac.getShape(p_idx2);
-
-      WALBERLA_CHECK_EQUAL(shape1->getShapeType(), data::Sphere::SHAPE_TYPE, "Cohesion needs sphere shapes");
-      WALBERLA_CHECK_EQUAL(shape2->getShapeType(), data::Sphere::SHAPE_TYPE, "Cohesion needs sphere shapes");
-
-      const auto sphere1 = *static_cast<data::Sphere*>(shape1);
-      const auto sphere2 = *static_cast<data::Sphere*>(shape2);
-
-      real_t radius1 = sphere1.getRadius();
-      real_t radius2 = sphere2.getRadius();
-
-
-      contactNormal = (ac.getPosition(p_idx1) - ac.getPosition(p_idx2)).getNormalized();
-      penetrationDepth = (ac.getPosition(p_idx2) - ac.getPosition(p_idx1)).length() - radius1 - radius2;
-      real_t dn = penetrationDepth;
-
-      Vec3 relVel = ac.getLinearVelocity(p_idx1) - ac.getLinearVelocity(p_idx2);
-      Vec3 angVel1 = ac.getAngularVelocity(p_idx1);
-      Vec3 angVel2 = ac.getAngularVelocity(p_idx2);
-
-      const auto kn = 2. * E_ * radius1*radius2 / (radius1+radius2);
-      const auto ks = kn * real_t(1);
-      const auto kr = kn * real_t(0.);
-      const auto ko = kn * real_t(0.);
-      auto mass1 = real_t(1)/ac.getInvMass(p_idx1);
-      auto mass2 = real_t(1)/ac.getInvMass(p_idx2);
-      const auto m_eff  =  mass1*mass2/(mass1 + mass2);
-
-      const auto nug = real_t(2) * sqrt(real_t(2)*kn*m_eff) * damp_;
-      const auto nu = nug * real_t(0.5);
-      const auto nus = nug * real_t(0.1);
-      const auto nur = nug * real_t(0.5) * real_t(0.01);
-      const auto nuo = nug * real_t(0.5) * real_t(0.01);
-
-
-      auto fNabs = real_t(-1) * kn * dn;
-      if(fNabs < real_t(0)) fNabs = real_t(0);
-      auto fn = fNabs * contactNormal + nu * (real_t(-1)*relVel * contactNormal) * contactNormal;
-      auto a_ij = radius1*radius2 / (radius1+radius2);
-      auto Vij = relVel
-                 + (radius1 - real_t(0.5)*fabs(dn))
-                   * (contactNormal % angVel1)
-                 + (radius2 - real_t(0.5)*fabs(dn))
-                   * (contactNormal % angVel2);
-
-//      auto Vij = relVel;
-      auto Vt = Vij - contactNormal*(dot(contactNormal, Vij));
-      auto Ut_pre = och1.getSlidingDisplacement();
-      Ut_pre = Ut_pre - contactNormal*(contactNormal*Ut_pre);
-      auto Ut = Ut_pre + dt_*Vt;
-      auto fs = real_t(-1)*ks*Ut - nus*Vt;
-
-      // Rolling
-      auto a_prime_ij = ((radius1 - real_t(0.5)*fabs(dn)) * (radius2 - real_t(0.5)*fabs(dn)))
-                        / ((radius1 - real_t(0.5)*fabs(dn)) + (radius2 - real_t(0.5)*fabs(dn)));
-      auto Vr = real_t(-1) * a_prime_ij * ((contactNormal % angVel1)
-                                           - (contactNormal % angVel2));
-      auto Ur_pre = och1.getRollingDisplacement();
-      Ur_pre = Ur_pre - contactNormal*(contactNormal*Ur_pre);
-      auto Ur = Ur_pre + dt_*Vr;
-      auto fr = real_t(-1)*kr*Ur - nur*Vr;
-      auto torque = a_ij * (contactNormal % fr);
-
-      // Torsion
-      auto Vo = a_ij * (contactNormal*angVel1 - contactNormal*angVel2) * contactNormal;
-      auto Uo_pre = och1.getTorsionDisplacement();
-
-      Uo_pre = contactNormal*(contactNormal*Uo_pre);
-      auto Uo = Uo_pre + dt_*Vo;
-      auto fo = real_t(-1)*ko*Uo - nuo*Vo;
-      auto torsion = a_ij * fo;
-
-
-      auto force1 = fn + fs;
-      auto force2 = - fn - fs;
-      addForceAtomic(p_idx1, ac, force1);
-      addForceAtomic(p_idx2, ac, force2);
-
-      auto torque1 = real_t(-1) * (radius1 - real_t(0.5)*fabs(dn)) * (contactNormal % force1)
-                     + torque
-                     + torsion;
-      auto torque2 = (radius2 - real_t(0.5)*fabs(dn)) / (radius1 - real_t(0.5)*fabs(dn))
-                     * (real_t(-1) * (radius1 - real_t(0.5)*fabs(dn)) * (contactNormal % force1))
-                     - torque
-                     - torsion;
-      addTorqueAtomic(p_idx1, ac, torque1);
-      addTorqueAtomic(p_idx2, ac, torque2);
-
-
-      // here the non-cohesive DEM can be implemented, if a contact exists
-      return false; // might have to run normal DEM, if a contact exists
-   }
-}
-
-template <typename Accessor>
-inline void Cohesion::persistContactCohesion(const size_t p_idx1,
-                                             const size_t p_idx2,
-                                             Accessor& ac,
-                                             const Vec3 Ut,
-                                             const Vec3 Ur,
-                                             const Vec3 Uo) {
-   auto uid_p1 = ac.getUid(p_idx1);
-   auto uid_p2 = ac.getUid(p_idx2);
-
-   auto& och1 = ac.getOldContactHistoryRef(p_idx1)[uid_p2];
-   auto& och2 = ac.getOldContactHistoryRef(p_idx2)[uid_p1];
-
-   auto& nch1 = ac.getNewContactHistoryRef(p_idx1)[uid_p2];
-   auto& nch2 = ac.getNewContactHistoryRef(p_idx2)[uid_p1];
-
-   nch1.setCohesionBound(true);
-   nch2.setCohesionBound(true);
-
-   real_t initialDn = och1.getInitialPenetrationDepth();
-   nch1.setInitialPenetrationDepth(initialDn);
-   nch2.setInitialPenetrationDepth(initialDn);
-
-   nch1.setId1(och1.getId1());
-   nch1.setId2(och1.getId2());
-
-   nch2.setId1(och2.getId1());
-   nch2.setId2(och2.getId2());
-
-//   WALBERLA_LOG_INFO(" och1.getId1(): "<< och1.getId1()<<"  och1.getId2(): "<<och1.getId2());
-
-   nch1.setSlidingDisplacement(Ut);
-   nch2.setSlidingDisplacement(Ut);
-
-   nch1.setRollingDisplacement(Ur);
-   nch2.setRollingDisplacement(Ur);
-
-   nch1.setTorsionDisplacement(Uo);
-   nch2.setTorsionDisplacement(Uo);
-}
-
-template <typename Accessor>
-inline bool Cohesion::wereParticlesBound(const size_t idx1, const size_t idx2,
-                                        Accessor& ac) {
-   auto uid_p1 = ac.getUid(idx1);
-   auto uid_p2 = ac.getUid(idx2);
-
-   bool cohesionBound_1to2 = false;
-   bool cohesionBound_2to1 = false;
-
-   /// Retrieve old contact histories of both particles to check if they are bound by cohesion
-   auto oldContactHistory_p1 = ac.getOldContactHistoryRef(idx1);
-   auto contact_1to2 = oldContactHistory_p1.find(uid_p2);
-   if (contact_1to2 != oldContactHistory_p1.end()) {
-      cohesionBound_1to2 = contact_1to2->second.getCohesionBound();
-   }
-   auto oldContactHistory_p2 = ac.getOldContactHistoryRef(idx2);
-   auto contact_2to1 = oldContactHistory_p2.find(uid_p1);
-   if (contact_2to1 != oldContactHistory_p2.end()) {
-      cohesionBound_2to1 = contact_2to1->second.getCohesionBound();
-   }
-
-   // Ensure consistency of contact histories.
-   WALBERLA_CHECK(cohesionBound_1to2 == cohesionBound_2to1,
-                  "Inconsistency in old cohesion bounds detected.\n"
-                     << "Old Contact History of particle 1: \n" << contact_1to2->second
-                     << "Old Contact History of particle 2: \n" << contact_2to1->second);
-
-   // Now the current state of cohesion is known.
-   return cohesionBound_1to2;
 }
 
 } // namespace kernel
