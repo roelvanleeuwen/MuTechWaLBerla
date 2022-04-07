@@ -89,7 +89,7 @@ int main( int argc, char ** argv )
    real_t dt = 1e-5_r; // s
 
    // simulation domain
-   Vector3<uint_t> blocks(1, 1, 1);
+   Vector3<uint_t> blocks(2,2,2);
    Vector3<real_t> minCorner(0_r);
    Vector3<real_t> maxCorner(1_r);
    auto forest = blockforest::createBlockForest(math::AABB(minCorner, maxCorner),
@@ -212,7 +212,10 @@ int main( int argc, char ** argv )
                                  mesa_pd::kernel::DoubleCast double_cast;
                                  if (double_cast(idx1, idx2, ac, acd, ac)) {
                                     // particles overlap
-                                    cohesionInitKernel(idx1, idx2, ac, acd.getPenetrationDepth());
+                                    if (contactFilter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(),  *domain))
+                                    {
+                                       cohesionInitKernel(acd.getIdx1(), acd.getIdx2(), ac, acd.getPenetrationDepth());
+                                    }
                                  }
                                });
    reduceAndSwapContactHistory(*ps);
