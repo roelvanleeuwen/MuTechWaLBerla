@@ -95,13 +95,6 @@ inline void CohesionInitialization::operator()(const size_t p_idx1, const size_t
    nch1.setInitialGapSize(gapSize);
    nch2.setInitialGapSize(gapSize);
 
-   nch1.setId1(ac.getUid(p_idx1));
-   nch1.setId2(ac.getUid(p_idx2));
-
-   nch2.setId1(ac.getUid(p_idx1));
-   nch2.setId2(ac.getUid(p_idx2));
-   WALBERLA_LOG_INFO("init id1: "<<ac.getUid(p_idx1)<<" init id2: "<<ac.getUid(p_idx2));
-   WALBERLA_LOG_INFO("init id21: "<< nch2.getId1()<<" init id22: "<<nch2.getId2());
 }
 
 } // namespace kernel

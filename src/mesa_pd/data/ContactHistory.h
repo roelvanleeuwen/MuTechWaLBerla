@@ -62,14 +62,6 @@ public:
    bool& getCohesionBoundRef() {return cohesionBound_;}
    void setCohesionBound(const bool& v) { cohesionBound_ = v;}
    
-   const walberla::id_t& getId1() const {return id1_;}
-   walberla::id_t& getId1Ref() {return id1_;}
-   void setId1(const walberla::id_t& v) { id1_ = v;}
-   
-   const walberla::id_t& getId2() const {return id2_;}
-   walberla::id_t& getId2Ref() {return id2_;}
-   void setId2(const walberla::id_t& v) { id2_ = v;}
-   
    const real_t& getInitialGapSize() const {return initialGapSize_;}
    real_t& getInitialGapSizeRef() {return initialGapSize_;}
    void setInitialGapSize(const real_t& v) { initialGapSize_ = v;}
@@ -86,22 +78,15 @@ public:
    walberla::mesa_pd::Vec3& getTorsionDisplacementRef() {return torsionDisplacement_;}
    void setTorsionDisplacement(const walberla::mesa_pd::Vec3& v) { torsionDisplacement_ = v;}
    
-   const real_t& getRupture() const {return rupture_;}
-   real_t& getRuptureRef() {return rupture_;}
-   void setRupture(const real_t& v) { rupture_ = v;}
-   
 private:
    walberla::mesa_pd::Vec3 tangentialSpringDisplacement_ {};
    bool isSticking_ {};
    real_t impactVelocityMagnitude_ {};
    bool cohesionBound_ {};
-   walberla::id_t id1_ {};
-   walberla::id_t id2_ {};
    real_t initialGapSize_ {};
    walberla::mesa_pd::Vec3 slidingDisplacement_ {};
    walberla::mesa_pd::Vec3 rollingDisplacement_ {};
    walberla::mesa_pd::Vec3 torsionDisplacement_ {};
-   real_t rupture_ {};
 };
 
 inline
@@ -112,13 +97,10 @@ std::ostream& operator<<( std::ostream& os, const ContactHistory& ch )
          "isSticking          : " << ch.getIsSticking() << "\n" <<
          "impactVelocityMagnitude: " << ch.getImpactVelocityMagnitude() << "\n" <<
          "cohesionBound       : " << ch.getCohesionBound() << "\n" <<
-         "id1                 : " << ch.getId1() << "\n" <<
-         "id2                 : " << ch.getId2() << "\n" <<
          "initialGapSize      : " << ch.getInitialGapSize() << "\n" <<
          "slidingDisplacement : " << ch.getSlidingDisplacement() << "\n" <<
          "rollingDisplacement : " << ch.getRollingDisplacement() << "\n" <<
          "torsionDisplacement : " << ch.getTorsionDisplacement() << "\n" <<
-         "rupture             : " << ch.getRupture() << "\n" <<
          "================================" << std::endl;
    return os;
 }
@@ -145,13 +127,10 @@ mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, cons
    buf << obj.getIsSticking();
    buf << obj.getImpactVelocityMagnitude();
    buf << obj.getCohesionBound();
-   buf << obj.getId1();
-   buf << obj.getId2();
    buf << obj.getInitialGapSize();
    buf << obj.getSlidingDisplacement();
    buf << obj.getRollingDisplacement();
    buf << obj.getTorsionDisplacement();
-   buf << obj.getRupture();
    return buf;
 }
 
@@ -163,13 +142,10 @@ mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, mesa_pd:
    buf >> objparam.getIsStickingRef();
    buf >> objparam.getImpactVelocityMagnitudeRef();
    buf >> objparam.getCohesionBoundRef();
-   buf >> objparam.getId1Ref();
-   buf >> objparam.getId2Ref();
    buf >> objparam.getInitialGapSizeRef();
    buf >> objparam.getSlidingDisplacementRef();
    buf >> objparam.getRollingDisplacementRef();
    buf >> objparam.getTorsionDisplacementRef();
-   buf >> objparam.getRuptureRef();
    return buf;
 }
 

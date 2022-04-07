@@ -71,12 +71,9 @@ class Cohesion
    Cohesion& operator=(Cohesion&& other) = default;
 
    template <typename Accessor>
-   void operator()(const size_t p_idx1,
+   bool operator()(const size_t p_idx1,
                    const size_t p_idx2,
                    Accessor& ac,
-                   Vec3 contactPoint,
-                   Vec3 contactNormal,
-                   real_t gapSize,
                    real_t dt);
 
    template <typename Accessor>
@@ -133,14 +130,10 @@ return {{param}}_[numParticleTypes_*type1 + type2];
 {%- endfor %}
 
 
-
 template <typename Accessor>
-inline void Cohesion::operator()(const size_t p_idx1,
+inline bool Cohesion::operator()(const size_t p_idx1,
                                  const size_t p_idx2,
                                  Accessor& ac,
-                                 Vec3 contactPoint,
-                                 Vec3 contactNormal,
-                                 real_t gapSize,
                                  real_t dt) {
 
    auto uid_p1 = ac.getUid(p_idx1);
@@ -167,6 +160,9 @@ inline void Cohesion::operator()(const size_t p_idx1,
    Vec3 relVelLinear = ac.getLinearVelocity(p_idx1) - ac.getLinearVelocity(p_idx2);
    Vec3 angVel1 = ac.getAngularVelocity(p_idx1);
    Vec3 angVel2 = ac.getAngularVelocity(p_idx2);
+
+   auto contactNormal = (ac.getPosition(p_idx1) - ac.getPosition(p_idx2)).getNormalized();
+   auto gapSize = (ac.getPosition(p_idx2) - ac.getPosition(p_idx1)).length() - radius1 - radius2;
 
    real_t dn0 = och1.getInitialGapSize();
    WALBERLA_CHECK(realIsEqual(dn0, och2.getInitialGapSize()), "Initial dn inconsistent in contact histories.");
@@ -223,17 +219,20 @@ inline void Cohesion::operator()(const size_t p_idx1,
    Vec3 fo = -ko * uo_new - nuo * vo;
    auto torsion = a_ij * fo;
 
-
-   real_t ruptureParameter = fN_norm / getYn(type1,type2)
+   real_t ruptureParameter = - fN_norm / getYn(type1,type2)
                              + pow(fs.length() / getYs(type1,type2), 2)
                              + pow(torqueRolling.length() / getYr(type1,type2), 2)
                              + pow(torsion.length() / getYo(type1,type2), 2)
                              - 1_r;
 
+   WALBERLA_CHECK(!std::isnan(ruptureParameter));
+
    /*
    WALBERLA_LOG_INFO("In cohesion kernel:"  << dn);
-   WALBERLA_LOG_INFO("Normal: " << fn << " " << relVelLinear );
+   WALBERLA_LOG_INFO("Normal: " << fn << " " << relVelLinear << " " << fN_norm );
    WALBERLA_LOG_INFO("Tangential: " << fs << " " << us_new << " " <<  vt);
+   WALBERLA_LOG_INFO("Rolling: " << torqueRolling);
+   WALBERLA_LOG_INFO("Torsion: " << torsion);
    WALBERLA_LOG_INFO("Rupture: " << ruptureParameter);
    */
 
@@ -242,9 +241,7 @@ inline void Cohesion::operator()(const size_t p_idx1,
       // bond breaks -> use regular DEM
       nch1.setCohesionBound(false);
       nch2.setCohesionBound(false);
-
-      //WALBERLA_LOG_INFO("Rupture -> using non-cohesive interaction!")
-      nonCohesiveInteraction(p_idx1, p_idx2, ac, contactPoint, contactNormal, gapSize, dt);
+      return false;
 
    } else
    {
@@ -267,6 +264,8 @@ inline void Cohesion::operator()(const size_t p_idx1,
 
       addTorqueAtomic(p_idx1, ac, torque1);
       addTorqueAtomic(p_idx2, ac, torque2);
+
+      return true;
    }
 
 }

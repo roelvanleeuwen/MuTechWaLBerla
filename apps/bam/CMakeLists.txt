@@ -82,5 +82,8 @@ waLBerla_add_executable ( NAME MESA_PD_APP_Four_Adding_Box_Pierre
         FILES Four_Adding_Box_Pierre.cpp
         DEPENDS blockforest boundary core domain_decomposition field lbm lbm_mesapd_coupling mesa_pd postprocessing timeloop vtk )
 
+waLBerla_add_executable ( NAME MESA_PD_APP_CohesionExperimentNormal
+      FILES CohesionExperimentNormal.cpp
+      DEPENDS blockforest core mesa_pd postprocessing vtk )
 
 

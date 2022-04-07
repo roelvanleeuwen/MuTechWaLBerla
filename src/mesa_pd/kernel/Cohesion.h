@@ -76,21 +76,19 @@ class Cohesion
    Cohesion& operator=(Cohesion&& other) = default;
 
    template <typename Accessor>
-   void operator()(const size_t p_idx1,
+   bool operator()(const size_t p_idx1,
                    const size_t p_idx2,
                    Accessor& ac,
-                   Vec3 contactPoint,
-                   Vec3 contactNormal,
-                   real_t gapSize,
                    real_t dt);
 
    template <typename Accessor>
    void nonCohesiveInteraction(const size_t p_idx1, const size_t p_idx2,
-                   Accessor& ac, Vec3 contactPoint,
-                   Vec3 contactNormal, real_t gapSize, real_t dt);
+                               Accessor& ac, Vec3 contactPoint,
+                               Vec3 contactNormal, real_t gapSize, real_t dt);
 
    template <typename Accessor>
    bool isCohesiveBondActive(size_t p_idx1, size_t p_idx2,  Accessor& ac) const;
+
    
    /// assumes this parameter is symmetric
    void setKn(const size_t type1, const size_t type2, const real_t& val);
@@ -384,12 +382,9 @@ return yo_[numParticleTypes_*type1 + type2];
 
 
 template <typename Accessor>
-inline void Cohesion::operator()(const size_t p_idx1,
+inline bool Cohesion::operator()(const size_t p_idx1,
                                  const size_t p_idx2,
                                  Accessor& ac,
-                                 Vec3 contactPoint,
-                                 Vec3 contactNormal,
-                                 real_t gapSize,
                                  real_t dt) {
 
    auto uid_p1 = ac.getUid(p_idx1);
@@ -417,6 +412,9 @@ inline void Cohesion::operator()(const size_t p_idx1,
    Vec3 angVel1 = ac.getAngularVelocity(p_idx1);
    Vec3 angVel2 = ac.getAngularVelocity(p_idx2);
 
+   auto contactNormal = (ac.getPosition(p_idx1) - ac.getPosition(p_idx2)).getNormalized();
+   auto gapSize = (ac.getPosition(p_idx2) - ac.getPosition(p_idx1)).length() - radius1 - radius2;
+
    real_t dn0 = och1.getInitialGapSize();
    WALBERLA_CHECK(realIsEqual(dn0, och2.getInitialGapSize()), "Initial dn inconsistent in contact histories.");
    real_t dn = gapSize - dn0;
@@ -427,7 +425,7 @@ inline void Cohesion::operator()(const size_t p_idx1,
 
    // tangential part
    auto vij = relVelLinear + (radius1 - 0.5_r * abs(dn)) * (contactNormal % angVel1)
-                           + (radius2 - 0.5_r * abs(dn)) * (contactNormal % angVel2);
+              + (radius2 - 0.5_r * abs(dn)) * (contactNormal % angVel2);
    auto vt = vij - contactNormal*(dot(contactNormal, vij));
 
    auto us = och1.getTangentialSpringDisplacement();
@@ -472,26 +470,29 @@ inline void Cohesion::operator()(const size_t p_idx1,
    Vec3 fo = -ko * uo_new - nuo * vo;
    auto torsion = a_ij * fo;
 
-
-   real_t ruptureParameter = fN_norm / getYn(type1,type2)
+   real_t ruptureParameter = - fN_norm / getYn(type1,type2)
                              + pow(fs.length() / getYs(type1,type2), 2)
                              + pow(torqueRolling.length() / getYr(type1,type2), 2)
                              + pow(torsion.length() / getYo(type1,type2), 2)
                              - 1_r;
 
+   WALBERLA_CHECK(!std::isnan(ruptureParameter));
+
+   /*
    WALBERLA_LOG_INFO("In cohesion kernel:"  << dn);
-   WALBERLA_LOG_INFO("Normal: " << fn << " " << relVelLinear );
+   WALBERLA_LOG_INFO("Normal: " << fn << " " << relVelLinear << " " << fN_norm );
    WALBERLA_LOG_INFO("Tangential: " << fs << " " << us_new << " " <<  vt);
+   WALBERLA_LOG_INFO("Rolling: " << torqueRolling);
+   WALBERLA_LOG_INFO("Torsion: " << torsion);
    WALBERLA_LOG_INFO("Rupture: " << ruptureParameter);
+   */
 
    if(ruptureParameter >= 0_r)
    {
       // bond breaks -> use regular DEM
       nch1.setCohesionBound(false);
       nch2.setCohesionBound(false);
-
-      WALBERLA_LOG_INFO("Rupture -> using non-cohesive interaction!")
-      nonCohesiveInteraction(p_idx1, p_idx2, ac, contactPoint, contactNormal, gapSize, dt);
+      return false;
 
    } else
    {
@@ -514,6 +515,8 @@ inline void Cohesion::operator()(const size_t p_idx1,
 
       addTorqueAtomic(p_idx1, ac, torque1);
       addTorqueAtomic(p_idx2, ac, torque2);
+
+      return true;
    }
 
 }
@@ -556,9 +559,11 @@ inline void Cohesion::nonCohesiveInteraction(const size_t p_idx1, const size_t p
 
    Vec3 fs = ks * us_new + nus * vt;
 
+   /*
    WALBERLA_LOG_INFO("In non-cohesion kernel: " << dn);
    WALBERLA_LOG_INFO("Normal: " << fn );
    WALBERLA_LOG_INFO("Tangential (SD): " << fs << " " << us_new << vt);
+    */
 
    const Vec3 t = fs.getNormalizedIfNotZero(); // tangential unit vector
    const real_t fFriction_norm = getFrictionCoefficient(type1,type2) * fn.length();
@@ -577,8 +582,10 @@ inline void Cohesion::nonCohesiveInteraction(const size_t p_idx1, const size_t p
 
    Vec3 fTangential = f_tangential_norm * t;
 
+   /*
    WALBERLA_LOG_INFO("Tangential (friction): " << fFriction_norm);
    WALBERLA_LOG_INFO("Tangential (actual): " << fTangential);
+   */
 
    nch1.setTangentialSpringDisplacement(us_new);
    nch2.setTangentialSpringDisplacement(us_new);
@@ -618,13 +625,12 @@ inline bool Cohesion::isCohesiveBondActive(size_t p_idx1, size_t p_idx2,  Access
    // Ensure consistency of contact histories.
    WALBERLA_CHECK(cohesionBound_1to2 == cohesionBound_2to1,
                   "Inconsistency in cohesion bounds detected.\n"
-                     << "Contact History of particle 1: \n" << contact_1to2->second
-                     << "Contact History of particle 2: \n" << contact_2to1->second);
+                        << "Contact History of particle 1: \n" << contact_1to2->second
+                        << "Contact History of particle 2: \n" << contact_2to1->second);
 
    // Now the current state of cohesion is known.
    return cohesionBound_1to2;
 }
-
 
 } // namespace kernel
 } // namespace mesa_pd
