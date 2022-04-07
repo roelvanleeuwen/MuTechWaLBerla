@@ -86,4 +86,6 @@ waLBerla_add_executable ( NAME MESA_PD_APP_CohesionExperimentNormal
       FILES CohesionExperimentNormal.cpp
       DEPENDS blockforest core mesa_pd postprocessing vtk )
 
-
+waLBerla_add_executable ( NAME MESA_PD_APP_TwoSpheresOnOne
+      FILES TwoSpheresOnOne.cpp
+      DEPENDS blockforest core domain_decomposition mesa_pd vtk )

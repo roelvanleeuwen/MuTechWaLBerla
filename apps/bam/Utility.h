@@ -23,6 +23,7 @@
 #include "core/mpi/MPIManager.h"
 #include "core/mpi/Broadcast.h"
 #include "mesa_pd/data/ParticleStorage.h"
+#include "core/mpi/MPITextFile.h"
 
 namespace walberla {
 namespace mesa_pd {
