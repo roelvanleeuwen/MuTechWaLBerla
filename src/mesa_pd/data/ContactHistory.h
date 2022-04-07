@@ -70,9 +70,9 @@ public:
    walberla::id_t& getId2Ref() {return id2_;}
    void setId2(const walberla::id_t& v) { id2_ = v;}
    
-   const real_t& getInitialPenetrationDepth() const {return initialPenetrationDepth_;}
-   real_t& getInitialPenetrationDepthRef() {return initialPenetrationDepth_;}
-   void setInitialPenetrationDepth(const real_t& v) { initialPenetrationDepth_ = v;}
+   const real_t& getInitialGapSize() const {return initialGapSize_;}
+   real_t& getInitialGapSizeRef() {return initialGapSize_;}
+   void setInitialGapSize(const real_t& v) { initialGapSize_ = v;}
    
    const walberla::mesa_pd::Vec3& getSlidingDisplacement() const {return slidingDisplacement_;}
    walberla::mesa_pd::Vec3& getSlidingDisplacementRef() {return slidingDisplacement_;}
@@ -97,7 +97,7 @@ private:
    bool cohesionBound_ {};
    walberla::id_t id1_ {};
    walberla::id_t id2_ {};
-   real_t initialPenetrationDepth_ {};
+   real_t initialGapSize_ {};
    walberla::mesa_pd::Vec3 slidingDisplacement_ {};
    walberla::mesa_pd::Vec3 rollingDisplacement_ {};
    walberla::mesa_pd::Vec3 torsionDisplacement_ {};
@@ -114,7 +114,7 @@ std::ostream& operator<<( std::ostream& os, const ContactHistory& ch )
          "cohesionBound       : " << ch.getCohesionBound() << "\n" <<
          "id1                 : " << ch.getId1() << "\n" <<
          "id2                 : " << ch.getId2() << "\n" <<
-         "initialPenetrationDepth: " << ch.getInitialPenetrationDepth() << "\n" <<
+         "initialGapSize      : " << ch.getInitialGapSize() << "\n" <<
          "slidingDisplacement : " << ch.getSlidingDisplacement() << "\n" <<
          "rollingDisplacement : " << ch.getRollingDisplacement() << "\n" <<
          "torsionDisplacement : " << ch.getTorsionDisplacement() << "\n" <<
@@ -147,7 +147,7 @@ mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, cons
    buf << obj.getCohesionBound();
    buf << obj.getId1();
    buf << obj.getId2();
-   buf << obj.getInitialPenetrationDepth();
+   buf << obj.getInitialGapSize();
    buf << obj.getSlidingDisplacement();
    buf << obj.getRollingDisplacement();
    buf << obj.getTorsionDisplacement();
@@ -165,7 +165,7 @@ mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, mesa_pd:
    buf >> objparam.getCohesionBoundRef();
    buf >> objparam.getId1Ref();
    buf >> objparam.getId2Ref();
-   buf >> objparam.getInitialPenetrationDepthRef();
+   buf >> objparam.getInitialGapSizeRef();
    buf >> objparam.getSlidingDisplacementRef();
    buf >> objparam.getRollingDisplacementRef();
    buf >> objparam.getTorsionDisplacementRef();

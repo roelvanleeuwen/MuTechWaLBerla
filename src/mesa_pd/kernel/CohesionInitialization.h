@@ -65,7 +65,7 @@ class CohesionInitialization
    template <typename Accessor>
    void operator()(const size_t p_idx1, const size_t p_idx2,
                    Accessor& ac,
-                   const real_t penetrationDepth);
+                   const real_t gapSize);
 };
 
 CohesionInitialization::CohesionInitialization() {}
@@ -73,7 +73,7 @@ CohesionInitialization::CohesionInitialization() {}
 template <typename Accessor>
 inline void CohesionInitialization::operator()(const size_t p_idx1, const size_t p_idx2,
                                                Accessor& ac,
-                                               const real_t penetrationDepth) {
+                                               const real_t gapSize) {
    auto shape1 = ac.getShape(p_idx1);
    auto shape2 = ac.getShape(p_idx2);
 
@@ -81,7 +81,7 @@ inline void CohesionInitialization::operator()(const size_t p_idx1, const size_t
    WALBERLA_CHECK_EQUAL(shape2->getShapeType(), data::Sphere::SHAPE_TYPE, "Cohesion needs sphere shapes");
 
    // penetration depth has a negative sign if particles overlap
-   WALBERLA_CHECK_LESS(penetrationDepth, real_t(0), "Particles don't overlap.");
+   WALBERLA_CHECK_LESS(gapSize, real_t(0), "Particles don't overlap.");
    WALBERLA_LOG_INFO("Initializing contact between pidxs " << p_idx1 << " and " << p_idx2 << ".");
 
    // contact history of particle 1 -> particle 2
@@ -92,8 +92,8 @@ inline void CohesionInitialization::operator()(const size_t p_idx1, const size_t
    nch1.setCohesionBound(true);
    nch2.setCohesionBound(true);
 
-   nch1.setInitialPenetrationDepth(penetrationDepth);
-   nch2.setInitialPenetrationDepth(penetrationDepth);
+   nch1.setInitialGapSize(gapSize);
+   nch2.setInitialGapSize(gapSize);
 
    nch1.setId1(ac.getUid(p_idx1));
    nch1.setId2(ac.getUid(p_idx2));
