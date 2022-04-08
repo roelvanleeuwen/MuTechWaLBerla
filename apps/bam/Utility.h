@@ -86,8 +86,22 @@ class ExcludeGlobalGlobal
    bool operator()(const size_t idx, const size_t jdx, Accessor& ac) const
    {
       using namespace data::particle_flags;
-      if (isSet(ac.getFlags(idx), GLOBAL) && isSet(ac.getFlags(jdx), GLOBAL)) return false;
-      return true;
+      return !(isSet(ac.getFlags(idx), GLOBAL) && isSet(ac.getFlags(jdx), GLOBAL));
+   }
+};
+
+class SelectSphere
+{
+ public:
+   template <typename Accessor>
+   bool operator()(const size_t idx, Accessor& ac) const {
+      return ac.getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE;
+   }
+
+   template <typename Accessor>
+   bool operator()(const size_t idx1, const size_t idx2, Accessor& ac) const {
+      return ac.getShape(idx1)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE &&
+             ac.getShape(idx2)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE;
    }
 };
 

@@ -57,22 +57,6 @@ namespace walberla {
 using namespace walberla::mesa_pd;
 
 
-
-class SelectSphere
-{
- public:
-   template <typename Accessor>
-   bool operator()(const size_t idx, Accessor& ac) const {
-      return ac.getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE;
-   }
-
-   template <typename Accessor>
-   bool operator()(const size_t idx1, const size_t idx2, Accessor& ac) const {
-      return ac.getShape(idx1)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE &&
-             ac.getShape(idx2)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE;
-   }
-};
-
 int main( int argc, char ** argv )
 {
    Environment env(argc, argv);
@@ -140,7 +124,12 @@ int main( int argc, char ** argv )
       }
    }
    walberla::mpi::reduceInplace(sphereUids, walberla::mpi::SUM);
+   createPlane(*ps, *ss, domainAABB.minCorner(), Vector3<real_t>(1_r,0,0));
+   createPlane(*ps, *ss, domainAABB.minCorner(), Vector3<real_t>(0,1_r,0));
    createPlane(*ps, *ss, domainAABB.minCorner(), Vector3<real_t>(0,0,1_r));
+   createPlane(*ps, *ss, domainAABB.maxCorner(), Vector3<real_t>(-1_r,0,0));
+   createPlane(*ps, *ss, domainAABB.maxCorner(), Vector3<real_t>(0,-1_r,0));
+   createPlane(*ps, *ss, domainAABB.maxCorner(), Vector3<real_t>(0,0,-1_r));
 
    // Init kernels
    kernel::CohesionInitialization cohesionInitKernel;
@@ -163,7 +152,8 @@ int main( int argc, char ** argv )
    real_t damping = -std::log(en) / std::sqrt((std::log(en) * std::log(en) + math::pi * math::pi));
    real_t nun = 2_r * std::sqrt(kn * meff) * damping;
 
-   WALBERLA_LOG_INFO("kn = " << kn << ", nun = " << nun);
+   WALBERLA_LOG_INFO_ON_ROOT("kn = " << kn << ", nun = " << nun);
+   WALBERLA_LOG_INFO_ON_ROOT("Estimated maximum surface distance for rupture / radius= " << (y_n / kn) / sphereRadius);
 
    cohesionKernel.setKn(0,0,kn);
    cohesionKernel.setKsFactor(0,0,0_r);
@@ -230,7 +220,7 @@ int main( int argc, char ** argv )
          vtkWriter->write();
       }
 
-      ps->forEachParticlePairHalf(openmp, kernel::SelectAll(), ac,
+      ps->forEachParticlePairHalf(openmp, ExcludeGlobalGlobal(), ac,
                                   [&](size_t idx1, size_t idx2){
                                     mesa_pd::collision_detection::AnalyticContactDetection acd;
                                     mesa_pd::kernel::DoubleCast double_cast;

@@ -533,7 +533,7 @@ inline void Cohesion::nonCohesiveInteraction(const size_t p_idx1, const size_t p
    auto type2 = ac.getType(p_idx2);
 
    const auto& och1 = ac.getOldContactHistoryRef(p_idx1)[uid_p2];
-   const auto& och2 = ac.getOldContactHistoryRef(p_idx2)[uid_p1];
+   //const auto& och2 = ac.getOldContactHistoryRef(p_idx2)[uid_p1]; // should contain same info as och1
 
    auto& nch1 = ac.getNewContactHistoryRef(p_idx1)[uid_p2];
    auto& nch2 = ac.getNewContactHistoryRef(p_idx2)[uid_p1];
