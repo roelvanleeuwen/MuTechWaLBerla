@@ -129,23 +129,20 @@ int main( int argc, char ** argv )
    }
    walberla::mpi::reduceInplace(sphereUids, walberla::mpi::SUM);
 
-   bool globalBox = true;
    std::vector<Vec3> boxPositions;
    boxPositions.push_back(Vec3{centerPoint[0], centerPoint[1], sphereRadius});
 
    for (uint_t i = 0; i < boxPositions.size(); ++i) {
       Vec3 pos = boxPositions[i];
-      if (domain->isContainedInProcessSubdomain(uint_c(walberla::mpi::MPIManager::instance()->rank()), pos)) {
-         auto particle = ps->create(globalBox);
+      auto particle = ps->create(true);
 
-         particle->setShapeID(boxShape);
-         particle->setType(0);
-         particle->setPosition(pos);
-         particle->setOwner(walberla::MPIManager::instance()->rank());
-         particle->setInteractionRadius(std::sqrt(3_r) * boxEdgeLength / 2_r);
+      particle->setShapeID(boxShape);
+      particle->setType(0);
+      particle->setPosition(pos);
+      particle->setOwner(walberla::MPIManager::instance()->rank());
+      particle->setInteractionRadius(std::sqrt(3_r) * boxEdgeLength / 2_r);
 
-         WALBERLA_LOG_INFO("box created");
-      }
+      WALBERLA_LOG_INFO("box created");
    }
 
 
