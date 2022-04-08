@@ -105,6 +105,17 @@ class SelectSphere
    }
 };
 
+struct SphereAndBoxSelector
+{
+   template< typename ParticleAccessor_T >
+   bool inline operator()(const size_t particleIdx, const ParticleAccessor_T & ac) const
+   {
+      static_assert(std::is_base_of<mesa_pd::data::IAccessor, ParticleAccessor_T>::value, "Provide a valid accessor as template");
+      return ac.getShape(particleIdx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE ||
+             ac.getShape(particleIdx)->getShapeType() == mesa_pd::data::Box::SHAPE_TYPE;
+   }
+};
+
 class SelectBoxEdgeLengths
 {
  public:

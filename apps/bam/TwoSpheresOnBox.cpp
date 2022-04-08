@@ -142,7 +142,7 @@ int main( int argc, char ** argv )
          particle->setType(0);
          particle->setPosition(pos);
          particle->setOwner(walberla::MPIManager::instance()->rank());
-         particle->setInteractionRadius(sphereRadius);
+         particle->setInteractionRadius(std::sqrt(3_r) * boxEdgeLength / 2_r);
 
          WALBERLA_LOG_INFO("box created");
       }
@@ -180,6 +180,7 @@ int main( int argc, char ** argv )
    WALBERLA_LOG_INFO_ON_ROOT("kn = " << kn << ", nun = " << nun);
    WALBERLA_LOG_INFO_ON_ROOT("Estimated maximum surface distance for rupture / radius= " << (y_n / kn) / sphereRadius);
 
+   //TODO add sphere-plane parameterization: type = 0 to type = 1 interactions
    cohesionKernel.setKn(0,0,kn);
    cohesionKernel.setKsFactor(0,0,0_r);
    cohesionKernel.setKrFactor(0,0,0_r);
