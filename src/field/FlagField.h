@@ -79,7 +79,7 @@ namespace field {
 */
 //**********************************************************************************************************************
 template<typename T = uint32_t>
-class FlagField : public GhostLayerField<T,1>
+class FlagField : public GhostLayerField<T>
 {
 public:
 
@@ -88,19 +88,19 @@ public:
    //@{
    using flag_t = T;
 
-   using value_type = typename GhostLayerField<T, 1>::value_type;
+   typedef typename GhostLayerField<T>::value_type             value_type;
 
-   using iterator = typename GhostLayerField<T, 1>::iterator;
-   using const_iterator = typename GhostLayerField<T, 1>::const_iterator;
+   typedef typename GhostLayerField<T>::iterator               iterator;
+   typedef typename GhostLayerField<T>::const_iterator         const_iterator;
 
-   using reverse_iterator = typename GhostLayerField<T, 1>::reverse_iterator;
-   using const_reverse_iterator = typename GhostLayerField<T, 1>::const_reverse_iterator;
+   typedef typename GhostLayerField<T>::reverse_iterator       reverse_iterator;
+   typedef typename GhostLayerField<T>::const_reverse_iterator const_reverse_iterator;
 
-   using base_iterator = typename Field<T, 1>::base_iterator;
-   using const_base_iterator = typename Field<T, 1>::const_base_iterator;
+   typedef typename Field<T>::base_iterator                    base_iterator;
+   typedef typename Field<T>::const_base_iterator              const_base_iterator;
 
-   using Ptr = typename GhostLayerField<T, 1>::Ptr;
-   using ConstPtr = typename GhostLayerField<T, 1>::ConstPtr;
+   typedef typename GhostLayerField<T>::Ptr                    Ptr;
+   typedef typename GhostLayerField<T>::ConstPtr               ConstPtr;
    //@}
    //*******************************************************************************************************************
 
@@ -113,9 +113,9 @@ public:
               const shared_ptr<FieldAllocator<T> > &alloc = make_shared<StdFieldAlloc<T> >());
    ~FlagField() override;
 
-   inline FlagField<T> * clone()              const;
-   inline FlagField<T> * cloneUninitialized() const;
-   inline FlagField<T> * cloneShallowCopy()   const;
+   inline FlagField<T> * clone()              const override;
+   inline FlagField<T> * cloneUninitialized() const override;
+   inline FlagField<T> * cloneShallowCopy()   const override;
    //@}
    //*******************************************************************************************************************
 
@@ -125,14 +125,14 @@ public:
    //@{
    using idx = cell_idx_t;
 
-   void addMask    (idx x, idx y, idx z, flag_t m) { WALBERLA_ASSERT(isRegistered(m)); field::addMask( this->get(x,y,z), m ); }
-   void addFlag    (idx x, idx y, idx z, flag_t f) { WALBERLA_ASSERT(isRegistered(f)); field::addFlag( this->get(x,y,z), f ); }
+   void addMask    (idx x, idx y, idx z, flag_t m) { WALBERLA_ASSERT(isRegistered(m)) field::addMask( this->get(x,y,z), m ); }
+   void addFlag    (idx x, idx y, idx z, flag_t f) { WALBERLA_ASSERT(isRegistered(f)) field::addFlag( this->get(x,y,z), f ); }
 
    void addMask    ( const Cell & cell, flag_t m ) { addMask( cell.x(), cell.y(), cell.z(), m ); }
    void addFlag    ( const Cell & cell, flag_t f ) { addFlag( cell.x(), cell.y(), cell.z(), f ); }
 
-   void removeMask (idx x, idx y, idx z, flag_t m) { WALBERLA_ASSERT(isRegistered(m)); field::removeMask( this->get(x,y,z), m ); }
-   void removeFlag (idx x, idx y, idx z, flag_t f) { WALBERLA_ASSERT(isRegistered(f)); field::removeFlag( this->get(x,y,z), f ); }
+   void removeMask (idx x, idx y, idx z, flag_t m) { WALBERLA_ASSERT(isRegistered(m)) field::removeMask( this->get(x,y,z), m ); }
+   void removeFlag (idx x, idx y, idx z, flag_t f) { WALBERLA_ASSERT(isRegistered(f)) field::removeFlag( this->get(x,y,z), f ); }
 
    void removeMask ( const Cell & cell, flag_t m ) { removeMask( cell.x(), cell.y(), cell.z(), m ); }
    void removeFlag ( const Cell & cell, flag_t f ) { removeFlag( cell.x(), cell.y(), cell.z(), f ); }
@@ -175,7 +175,7 @@ public:
 
    inline void   getAllRegisteredFlags( std::vector<FlagUID> & out ) const;
 
-   inline const std::map<FlagUID, flag_t> & getMapping() const { WALBERLA_ASSERT_NOT_NULLPTR( data_ ); return data_->uidToFlag; }
+   inline const std::map<FlagUID, flag_t> & getMapping() const { WALBERLA_ASSERT_NOT_NULLPTR( data_ ) return data_->uidToFlag; }
    //@}
    //*******************************************************************************************************************
 
@@ -183,7 +183,7 @@ public:
    //** Slicing  *******************************************************************************************************
    /*! \name Slicing */
    //@{
-   FlagField<T> * getSlicedField( const CellInterval & interval ) const;
+   FlagField<T> * getSlicedField( const CellInterval & interval ) const override;
    //@}
    //*******************************************************************************************************************
 
@@ -196,7 +196,7 @@ protected:
    /*! \name Shallow Copy */
    //@{
    FlagField(const FlagField<T> & other);
-   Field<T,1> * cloneShallowCopyInternal()   const override;
+   Field<T> * cloneShallowCopyInternal()   const override;
    //@}
    //*******************************************************************************************************************
 

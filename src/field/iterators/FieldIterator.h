@@ -38,7 +38,7 @@ namespace walberla {
 namespace field {
 
 
-   template<typename T, uint_t fSize_> class Field; // forward for friend declaration
+   template<typename T, uint_t... fSize_> class Field; // forward for friend declaration
 
 
 
@@ -65,7 +65,7 @@ namespace field {
     * \image html field/doc/FieldIterator.png "Implementation"
     */
    //*******************************************************************************************************************
-   template <typename T, uint_t fieldFSize>
+   template <typename T>
    class FieldIterator
    {
    public:
@@ -75,15 +75,13 @@ namespace field {
       using pointer = T*;
       using reference = T&;
 
-      using FieldType = Field<typename std::remove_const<T>::type, fieldFSize>;
-
-      static const uint_t F_SIZE = fieldFSize;
+      using FieldType = Field<typename std::remove_const<T>::type>;
 
       //** Copy Operations *********************************************************************************************
       /*!\name Copy Operations */
       //@{
-      FieldIterator                         ( const FieldIterator<T,fieldFSize> & other );
-      FieldIterator<T,fieldFSize>& operator=( const FieldIterator<T,fieldFSize> & other );
+      FieldIterator              ( const FieldIterator<T> & other );
+      FieldIterator<T>& operator=( const FieldIterator<T> & other );
       //@}
       //****************************************************************************************************************
 
@@ -94,9 +92,9 @@ namespace field {
       inline bool           operator==( const FieldIterator& it ) const;
       inline bool           operator!=( const FieldIterator& it ) const;
 
-      operator const FieldIterator<const T, fieldFSize> & () const {
-         const FieldIterator<const T, fieldFSize> * ptr;
-         ptr = reinterpret_cast< const FieldIterator<const T, fieldFSize>* > ( this );
+      operator const FieldIterator<const T> & () const {
+         const FieldIterator<const T> * ptr;
+         ptr = reinterpret_cast< const FieldIterator<const T>* > ( this );
          return *ptr;
       }
 
@@ -162,7 +160,7 @@ namespace field {
       //****************************************************************************************************************
 
 
-      friend class Field<typename std::remove_const<T>::type, fieldFSize>;
+      friend class Field<typename std::remove_const<T>::type>;
 
       void incrementLine();
       void decrementLine();
@@ -215,12 +213,12 @@ namespace field {
    };
 
 
-   template <typename T, uint_t fieldFSize>
-   class ForwardFieldIterator : public FieldIterator<T,fieldFSize>
+   template <typename T>
+   class ForwardFieldIterator : public FieldIterator<T>
    {
    public:
-      using Parent = FieldIterator<T, fieldFSize>;
-      using FieldType = Field<typename std::remove_const<T>::type, fieldFSize>;
+     using Parent = FieldIterator<T>;
+     using FieldType = Field<typename std::remove_const<T>::type>;
 
       //**Constructor/Destructor****************************************************************************************
       /*!\name Constructor/Destructor */
@@ -228,11 +226,11 @@ namespace field {
       explicit ForwardFieldIterator(const FieldType * field,
                                     cell_idx_t xBeg, cell_idx_t yBeg, cell_idx_t zBeg, cell_idx_t fBeg,
                                     uint_t xs, uint_t ys, uint_t zs, uint_t fs )
-         : FieldIterator<T,fieldFSize>( field, xBeg, yBeg,zBeg, fBeg,xs ,ys, zs, fs, true ) {}
+         : FieldIterator<T>( field, xBeg, yBeg, zBeg, fBeg,xs ,ys, zs, fs, true ) {}
 
 
       explicit ForwardFieldIterator()
-         : FieldIterator<T,fieldFSize> ()  {}
+         : FieldIterator<T> ()  {}
       //@}
       //****************************************************************************************************************
 
@@ -258,12 +256,12 @@ namespace field {
 
 
 
-   template <typename T, uint_t fieldFSize>
-   class ReverseFieldIterator : public FieldIterator<T,fieldFSize>
+   template <typename T>
+   class ReverseFieldIterator : public FieldIterator<T>
    {
    public:
-       using Parent = FieldIterator<T, fieldFSize>;
-       using FieldType = Field<typename std::remove_const<T>::type, fieldFSize>;
+     using Parent = FieldIterator<T>;
+     using FieldType = Field<typename std::remove_const<T>::type>;
 
       //**Constructor/Destructor****************************************************************************************
       /*!\name Constructor/Destructor */
@@ -271,11 +269,11 @@ namespace field {
       explicit ReverseFieldIterator(const FieldType * field,
                                     cell_idx_t xBeg, cell_idx_t yBeg, cell_idx_t zBeg, cell_idx_t fBeg,
                                     uint_t xs, uint_t ys, uint_t zs, uint_t fs )
-          : FieldIterator<T,fieldFSize>( field, xBeg, yBeg,zBeg, fBeg,xs ,ys, zs, fs, false )
+          : FieldIterator<T>( field, xBeg, yBeg, zBeg, fBeg,xs ,ys, zs, fs, false )
       { }
 
       explicit ReverseFieldIterator()
-         : FieldIterator<T,fieldFSize> ()  {}
+         : FieldIterator<T> ()  {}
       //@}
       //****************************************************************************************************************
 

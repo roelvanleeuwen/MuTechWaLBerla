@@ -33,23 +33,23 @@ namespace lbm {
 
 
 template< typename VelocityField_T, typename Filter_T, typename OutputType = float >
-class QCriterionVTKWriter : public vtk::BlockCellDataWriter< OutputType, 1 >
+class QCriterionVTKWriter : public vtk::BlockCellDataWriter< OutputType>
 {
 public:
    QCriterionVTKWriter(const shared_ptr<StructuredBlockStorage> blockStorage, Filter_T & filter,
                    const ConstBlockDataID & velocityFieldId, const std::string & id ) :
-         vtk::BlockCellDataWriter< OutputType, 1 >(id), blockStorage_(blockStorage), filter_(filter), velocityFieldId_(velocityFieldId), velocityField_(NULL) {}
+         vtk::BlockCellDataWriter< OutputType>(id, uint_c(1)), blockStorage_(blockStorage), filter_(filter), velocityFieldId_(velocityFieldId), velocityField_(nullptr) {}
 
 protected:
 
    void configure() {
-      WALBERLA_ASSERT_NOT_NULLPTR( this->block_ );
+      WALBERLA_ASSERT_NOT_NULLPTR( this->block_ )
       velocityField_ = this->block_->template getData< VelocityField_T >(velocityFieldId_ );
    }
 
    OutputType evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t /*f*/ )
    {
-      WALBERLA_ASSERT_NOT_NULLPTR(velocityField_ );
+      WALBERLA_ASSERT_NOT_NULLPTR(velocityField_ )
 
       const real_t dx = blockStorage_->dx(blockStorage_->getLevel(*this->block_));
       const real_t dy = blockStorage_->dy(blockStorage_->getLevel(*this->block_));

@@ -32,13 +32,13 @@
 
 using namespace walberla;
 
-using ScalarField = GhostLayerField<int, 1>;
+using ScalarField = GhostLayerField<int>;
 
 
 int main( int argc, char ** argv )
 {
    auto pythonManager = python_coupling::Manager::instance();
-   pythonManager->addExporterFunction( field::exportModuleToPython<Field<int, 1>> );
+   pythonManager->addExporterFunction( field::exportModuleToPython<Field<int>> );
    pythonManager->triggerInitialization();
 
    if ( argc != 2 )
@@ -73,7 +73,7 @@ int main( int argc, char ** argv )
    WALBERLA_CHECK_EQUAL( result, 15 )
 
 
-   ScalarField f ( 3,2,2, 1, 25 );
+   ScalarField f ( 3,2,2, 1, 1, 25 );
    python_coupling::PythonCallback cb2 ( pythonFile, "cb2" );
 
    WALBERLA_ASSERT( cb2.isCallable() )

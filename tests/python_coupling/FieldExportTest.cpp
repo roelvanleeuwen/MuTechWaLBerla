@@ -53,24 +53,24 @@ int main( int argc, char ** argv )
 
    auto pythonManager = python_coupling::Manager::instance();
 
-   pythonManager->addExporterFunction( field::exportModuleToPython<Field<int, 3>, Field<real_t, 3>> );
-   pythonManager->addBlockDataConversion< Field<int, 3>, Field<real_t, 3> >() ;
+   pythonManager->addExporterFunction( field::exportModuleToPython<Field<int>, Field<real_t>> );
+   pythonManager->addBlockDataConversion< Field<int>, Field<real_t> >() ;
    pythonManager->addExporterFunction( blockforest::exportModuleToPython<stencil::D2Q9> );
    pythonManager->triggerInitialization();
 
 
    shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid( 1,1,1, 20,20,1, real_t(1.0), false, true,true,true );
 
-   auto srcIntFieldID = field::addToStorage< GhostLayerField<int, 3> >( blocks, "srcIntFieldID", int(0), field::fzyx, 1 );
-   auto dstIntFieldID = field::addToStorage< GhostLayerField<int, 3> >( blocks, "dstIntFieldID", int(0), field::fzyx, 1 );
+   auto srcIntFieldID = field::addToStorage< GhostLayerField<int> >( blocks, "srcIntFieldID", 3, int(0), field::fzyx, 1 );
+   auto dstIntFieldID = field::addToStorage< GhostLayerField<int> >( blocks, "dstIntFieldID", 3, int(0), field::fzyx, 1 );
 
-   auto srcDoubleFieldID = field::addToStorage< GhostLayerField<real_t, 3> >( blocks, "srcDoubleFieldID", real_t(0.0), field::fzyx, 1 );
-   auto dstDoubleFieldID = field::addToStorage< GhostLayerField<real_t, 3> >( blocks, "dstDoubleFieldID", real_t(0.0), field::fzyx, 1 );
+   auto srcDoubleFieldID = field::addToStorage< GhostLayerField<real_t> >( blocks, "srcDoubleFieldID", 3, real_t(0.0), field::fzyx, 1 );
+   auto dstDoubleFieldID = field::addToStorage< GhostLayerField<real_t> >( blocks, "dstDoubleFieldID", 3, real_t(0.0), field::fzyx, 1 );
    // random init
    for( auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt )
    {
-      auto srcIntField = blockIt->getData<GhostLayerField<int, 3> >( srcIntFieldID );
-      auto srcDoubleField = blockIt->getData<GhostLayerField<real_t, 3> >( srcDoubleFieldID );
+      auto srcIntField = blockIt->getData<GhostLayerField<int> >( srcIntFieldID );
+      auto srcDoubleField = blockIt->getData<GhostLayerField<real_t> >( srcDoubleFieldID );
       for( auto cellIt = srcIntField->begin(); cellIt != srcIntField->end(); ++cellIt )
          *cellIt = math::intRandom( int(0), int(42) );
       for( auto cellIt = srcDoubleField->begin(); cellIt != srcDoubleField->end(); ++cellIt )
@@ -85,10 +85,10 @@ int main( int argc, char ** argv )
    // check for equivalence
    for( auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt )
    {
-      auto srcIntField = blockIt->getData<GhostLayerField<int, 3> >( srcIntFieldID );
-      auto dstIntField = blockIt->getData<GhostLayerField<int, 3> >( dstIntFieldID );
-      auto srcDoubleField = blockIt->getData<GhostLayerField<real_t, 3> >( srcDoubleFieldID );
-      auto dstDoubleField = blockIt->getData<GhostLayerField<real_t, 3> >( dstDoubleFieldID );
+      auto srcIntField = blockIt->getData<GhostLayerField<int> >( srcIntFieldID );
+      auto dstIntField = blockIt->getData<GhostLayerField<int> >( dstIntFieldID );
+      auto srcDoubleField = blockIt->getData<GhostLayerField<real_t> >( srcDoubleFieldID );
+      auto dstDoubleField = blockIt->getData<GhostLayerField<real_t> >( dstDoubleFieldID );
 
       {
          for(cell_idx_t z = 0; z < cell_idx_c(srcIntField->zSize()); ++z)

@@ -108,8 +108,8 @@ MyBoundaryHandling<LatticeModel_T>::operator()( IBlock * const block, const Stru
 {
    using PdfField_T = lbm::PdfField< LatticeModel_T >;
 
-   WALBERLA_ASSERT_NOT_NULLPTR( block );
-   WALBERLA_ASSERT_NOT_NULLPTR( storage );
+   WALBERLA_ASSERT_NOT_NULLPTR( block )
+   WALBERLA_ASSERT_NOT_NULLPTR( storage )
 
    FlagField_T * flagField = block->getData< FlagField_T >( flagField_ );
    PdfField_T *   pdfField = block->getData< PdfField_T > (  pdfField_ );
@@ -195,7 +195,7 @@ template< uint_t StencilSize >
 void check( const shared_ptr< StructuredBlockForest > & blocks, const ConstBlockDataID & flagFieldId,
             const ConstBlockDataID & pdf1, const ConstBlockDataID & pdf2 )
 {
-   typedef GhostLayerField< real_t, StencilSize > Field_T;
+   using Field_T = GhostLayerField< real_t, StencilSize >;
 
    for( auto block = blocks->begin(); block != blocks->end(); ++block )
    {
@@ -388,8 +388,8 @@ int main( int argc, char ** argv )
    WcTimingPool timeloopTiming;
    timeloop.run( timeloopTiming );
    timeloopTiming.logResultOnRoot();
-   
-   WALBERLA_MPI_WORLD_BARRIER();
+
+   WALBERLA_MPI_WORLD_BARRIER()
 
    check<19>( blocks, flagFieldId1, pdfFieldId1, pdfFieldId2 );
    check<27>( blocks, flagFieldId3, pdfFieldId3, pdfFieldId4 );

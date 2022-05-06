@@ -78,6 +78,7 @@ public:
    //** Type Definitions  **********************************************************************************************
    /*! \name Type Definitions */
    //@{
+
    using LatticeModel = LatticeModel_T;
    using Stencil = typename LatticeModel_T::Stencil;
 
@@ -94,6 +95,7 @@ public:
 
    using Ptr = typename GhostLayerField<real_t, Stencil::Size>::Ptr;
    using ConstPtr = typename GhostLayerField<real_t, Stencil::Size>::ConstPtr;
+
    //@}
    //*******************************************************************************************************************
 
@@ -111,9 +113,9 @@ public:
    //inline bool operator==( const PdfField & rhs ) const; // TODO! -> ticket
    //inline bool operator!=( const PdfField & rhs ) const { return !operator==( rhs ); }
 
-   inline PdfField * clone()              const;
-   inline PdfField * cloneUninitialized() const;
-   inline PdfField * cloneShallowCopy()   const;
+   inline PdfField * clone()              const override;
+   inline PdfField * cloneUninitialized() const override;
+   inline PdfField * cloneShallowCopy()   const override;
 
    const LatticeModel_T & latticeModel() const { return latticeModel_; }
          LatticeModel_T & latticeModel()       { return latticeModel_; }
@@ -397,7 +399,7 @@ inline real_t PdfField< LatticeModel_T >::getDensity( const Cell & cell ) const
 template< typename LatticeModel_T >
 inline real_t PdfField< LatticeModel_T >::getDensitySI( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const real_t rho_SI ) const
 {
-   return getDensity(x,y,z) * rho_SI;
+   return getDensity(x, y, z) * rho_SI;
 }
 
 template< typename LatticeModel_T >

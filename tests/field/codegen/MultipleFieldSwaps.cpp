@@ -32,18 +32,18 @@
 
 using namespace walberla;
 
-typedef GhostLayerField<double,1> ScalarField;
+typedef GhostLayerField<double, 1> ScalarField;
 void testMultipleFieldSwaps()
 {
    uint_t xSize = 5;
    uint_t ySize = 5;
    // Create blocks
    shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid (
-      uint_t(1) , uint_t(1),  uint_t(1),  // number of blocks in x,y,z direction
-      xSize, ySize, uint_t(1),            // how many cells per block (x,y,z)
-      real_t(1),                          // dx: length of one cell in physical coordinates
-      false,                              // one block per process - "false" means all blocks to one process
-      true, true, true );                 // full periodicity
+      uint_t(1) , uint_t(1),  uint_t(1), // number of blocks in x,y,z direction
+      xSize, ySize, uint_t(1), // how many cells per block (x,y,z)
+      real_t(1),  // dx: length of one cell in physical coordinates
+      false, // one block per process - "false" means all blocks to one process
+      true, true, true ); // full periodicity
 
 
    BlockDataID fieldID_1 = field::addToStorage<ScalarField>(blocks, "Field_1", real_t(1.0));

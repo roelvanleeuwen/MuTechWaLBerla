@@ -42,7 +42,7 @@ public:
    void operator()( CellSet& filteredCells, const IBlock& block, const StructuredBlockStorage& storage,
          const uint_t ghostLayers = uint_t(0) ) {
       const VelocityField_T* velocityField = block.getData< VelocityField_T >( velocityFieldId_ );
-      WALBERLA_CHECK_NOT_NULLPTR(velocityField);
+      WALBERLA_CHECK_NOT_NULLPTR(velocityField)
 
       const real_t dx = storage.dx(storage.getLevel(block));
       const real_t dy = storage.dy(storage.getLevel(block));

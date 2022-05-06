@@ -46,8 +46,6 @@ namespace walberla {
 using LatticeModel_T = lbm::D3Q19<lbm::collision_model::SRT>;
 
 using PdfField = lbm::PdfField<LatticeModel_T>;
-typedef GhostLayerField<real_t,1 >          ScalarField;
-typedef GhostLayerField<Vector3<real_t>,1 > VectorField;
 
 
 template<typename Field_T>
@@ -58,10 +56,7 @@ public:
    using basefield_iterator = typename Field_T::const_base_iterator;
    using value_type = typename Field_T::value_type;
 
-   static_assert( basefield_t::F_SIZE >= 2, "Only for fields with F_SIZE >=2 " );
-
-   static const uint_t F_SIZE = basefield_t::F_SIZE - 1 ;
-
+   static const uint_t F_SIZE = 1u;
 
    value_type operator() ( const basefield_t & baseField,
                            cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f = 0 ) const
@@ -81,39 +76,52 @@ void iteratorTest()
    const real_t MAGIC_SRC = 42.0;
 
    // field has two f's and two ghost layers
-   GhostLayerField<real_t, 2> field ( 4, 4, 3, 2, MAGIC_SRC    );
+   uint_t gl = 2;
+   GhostLayerField<real_t> field ( 4, 4, 3, 2, gl, MAGIC_SRC    );
 
    // adapter reduces field to have only one f and one ghost layer
    using Functor = DoubledValueOfField<decltype(field)>;
    field::GhostLayerFieldAdaptor<Functor, 1 > adaptor ( field );
 
+   WALBERLA_CHECK_EQUAL(adaptor.xSize(), 4)
+   WALBERLA_CHECK_EQUAL(adaptor.ySize(), 4)
+   WALBERLA_CHECK_EQUAL(adaptor.zSize(), 3)
+   WALBERLA_CHECK_EQUAL(adaptor.fSize(), 1)
+
+   WALBERLA_CHECK_EQUAL(adaptor.xAllocSize(), 4+2*gl)
+   WALBERLA_CHECK_EQUAL(adaptor.yAllocSize(), 4+2*gl)
+   WALBERLA_CHECK_EQUAL(adaptor.zAllocSize(), 3+2*gl)
+   WALBERLA_CHECK_EQUAL(adaptor.fAllocSize(), 1)
+   WALBERLA_CHECK_EQUAL(adaptor.allocSize(), (4+2*gl) * (4+2*gl) * (3+2*gl) * field.fSize())
+
+
    uint_t ctr = 0;
    for ( auto it = adaptor.beginGhostLayerOnly( stencil::T ); it != adaptor.end(); ++it ) {
-      WALBERLA_CHECK_FLOAT_EQUAL( *it, 2 * MAGIC_SRC );
+      WALBERLA_CHECK_FLOAT_EQUAL( *it, 2 * MAGIC_SRC )
       ctr++;
    }
-   WALBERLA_CHECK_EQUAL( ctr, 4*4 * 1 * 1 ); //xSize*ySize*nrGhostLayer*fSize  of adaptor
+   WALBERLA_CHECK_EQUAL( ctr, 4*4 * 1 * 1 ) //xSize*ySize*nrGhostLayer*fSize  of adaptor
 
 
    ctr = 0;
    for ( auto it = adaptor.beginSliceBeforeGhostLayer( stencil::T, 2 ); it != adaptor.end(); ++it ) {
-      WALBERLA_CHECK_FLOAT_EQUAL( *it, 2 * MAGIC_SRC );
+      WALBERLA_CHECK_FLOAT_EQUAL( *it, 2 * MAGIC_SRC )
       ctr++;
    }
-   WALBERLA_CHECK_EQUAL( ctr, 4*4 * 2 * 1 ); //xSize*ySize*twoSlices*fSize  of adaptor
+   WALBERLA_CHECK_EQUAL( ctr, 4*4 * 2 * 1 ) //xSize*ySize*twoSlices*fSize  of adaptor
 
 }
 
 
 void simpleTest()
 {
-   typedef GhostLayerField<real_t, 3> MyField;
+   typedef GhostLayerField<real_t> MyField;
 
-   MyField field( 2, 2, 1, 2, 42 );
+   MyField field( 2, 2, 1, 3, 2, 42 );
 
    field::GhostLayerFieldAdaptor<DoubledValueOfField<MyField>, 1 > adaptor ( field );
 
-   WALBERLA_CHECK_EQUAL( adaptor.nrOfGhostLayers(), 1 );
+   WALBERLA_CHECK_EQUAL( adaptor.nrOfGhostLayers(), 1 )
 }
 
 
@@ -138,7 +146,7 @@ int main( int argc, char ** argv )
 
    LatticeModel_T latticeModel = LatticeModel_T( lbm::collision_model::SRT( real_t(1.4) ) );
 
-   BlockDataID pdfFieldID = lbm::addPdfFieldToStorage( blocks, "PdfField", latticeModel );
+   BlockDataID pdfFieldID = lbm::addPdfFieldToStorage( blocks, "PdfField", latticeModel);
 
    BlockDataID densityID  = field::addFieldAdaptor<lbm::Adaptor<LatticeModel_T>::Density>       ( blocks, pdfFieldID, "DensityAdaptor" );
    BlockDataID velocityID = field::addFieldAdaptor<lbm::Adaptor<LatticeModel_T>::VelocityVector>( blocks, pdfFieldID, "VelocityAdaptor" );

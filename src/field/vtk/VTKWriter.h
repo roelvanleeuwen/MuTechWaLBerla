@@ -99,29 +99,30 @@ inline vtk::VTKOutput::Write createVTKOutput  ( const ConstBlockDataID & fieldId
 //======================================================================================================================
 
 template< typename Field_T, typename OutputType = typename VectorTrait<typename Field_T::value_type >::OutputType >
-class VTKWriter : public vtk::BlockCellDataWriter< OutputType,
-                                                   VectorTrait<typename Field_T::value_type>::F_SIZE * Field_T::F_SIZE >
+class VTKWriter : public vtk::BlockCellDataWriter< OutputType >
 {
 public:
    using OutputTrait = VectorTrait<typename Field_T::value_type>;
-
-   using base_t = vtk::BlockCellDataWriter<OutputType, OutputTrait::F_SIZE * Field_T::F_SIZE>;
+   using base_t = vtk::BlockCellDataWriter<OutputType>;
 
    VTKWriter( const ConstBlockDataID bdid, const std::string& id ) :
-      base_t( id ), bdid_( bdid ), field_( nullptr ) {}
+      base_t( id ), bdid_( bdid ), field_( nullptr )
+   {
+   }
 
 protected:
 
    void configure() override {
-      WALBERLA_ASSERT_NOT_NULLPTR( this->block_ );
+      WALBERLA_ASSERT_NOT_NULLPTR( this->block_ )
       field_ = this->block_->template getData< Field_T >( bdid_ );
+
+      WALBERLA_ASSERT_NOT_NULLPTR( field_ )
+      fSize_ = field_->fSize();
    }
 
    OutputType evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
    {
-      WALBERLA_ASSERT_NOT_NULLPTR( field_ );
-
-      if ( Field_T::F_SIZE == 1 )
+      if ( fSize_ == 1 )
       {
          // common case that can be handled faster
          return numeric_cast<OutputType>( OutputTrait::get( field_->get(x,y,z,0), uint_c(f) )  );
@@ -137,7 +138,7 @@ protected:
 
    const ConstBlockDataID bdid_;
    const Field_T * field_;
-
+   uint_t fSize_;
 };
 
 
@@ -169,7 +170,7 @@ inline vtk::VTKOutput::Write createVTKOutput  ( const ConstBlockDataID & fieldId
    auto vtkOutput = vtk::createVTKOutput_BlockData( blocks, identifier, writeFrequency, ghostLayers, forcePVTU, baseFolder, executionFolder,
                                                     continuousNumbering, binary, littleEndian, useMPIIO, initialExecutionCount );
 
-   vtkOutput->addCellDataWriter( make_shared< VTKWriter< Field_T,OutputType > >( fieldId, identifier ) );
+   vtkOutput->addCellDataWriter( make_shared< VTKWriter< Field_T, OutputType > >( fieldId, identifier ) );
 
    return writeFiles( vtkOutput, true, simultaneousIOOperations, requiredStates, incompatibleStates );
 }

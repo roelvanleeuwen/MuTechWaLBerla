@@ -59,6 +59,11 @@ namespace field {
          boundingBox = blocks->getDomainCellBB();
       }
 
+      // TODO: is there a better way to get the fSize from the BlockForest?
+      // Maybe implement something like: uint_t fSize = block->template getFSize<Field_T> (fieldID)?
+      IBlock * firstBlock =  & ( * blocks->begin() );
+      const uint_t fSize = firstBlock->template getData<Field_T>( fieldID )->fSize();
+
       // -- Packing --
       mpi::SendBuffer sendBuffer;
       for( auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt )
@@ -83,7 +88,7 @@ namespace field {
          // layouts on different blocks
          blocks->transformGlobalToBlockLocalCellInterval( intersection, block );
          for( auto it = field->beginSliceXYZ(intersection); it != field->end(); ++it )
-            for( uint_t f = 0; f < Field_T::F_SIZE; ++f )
+            for( uint_t f = 0; f < fSize; ++f )
                sendBuffer << it.getF(f);
       }
 
@@ -97,7 +102,7 @@ namespace field {
       // -- Unpacking --
       if ( recvBuffer.size() > 0 )
       {
-         gatheredField.resize( boundingBox.size(0), boundingBox.size(1), boundingBox.size(2) );
+         gatheredField.resize( boundingBox.size(0), boundingBox.size(1), boundingBox.size(2), fSize );
 
          while ( ! recvBuffer.isEmpty() )
          {
@@ -105,7 +110,7 @@ namespace field {
             recvBuffer >> targetInterval;
 
             for( auto it = gatheredField.beginSliceXYZ(targetInterval); it != gatheredField.end(); ++it )
-               for( uint_t f = 0; f < Field_T::F_SIZE; ++f )
+               for( uint_t f = 0; f < fSize; ++f )
                   recvBuffer >> it.getF(f);
          }
       }

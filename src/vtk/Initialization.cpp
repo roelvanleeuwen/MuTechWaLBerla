@@ -45,7 +45,7 @@ static void splitVector( T& x, T& y, T& z, const Config::BlockHandle& bb, const 
    coordinates.erase( std::remove_if( coordinates.begin(), coordinates.end(), [](auto &s){ return s.empty(); } ), coordinates.end() );
 
    if( coordinates.size() != 3 )
-      WALBERLA_ABORT( errorMsg );
+      WALBERLA_ABORT( errorMsg )
 
    x = stringToNum< T >( coordinates[0] );
    y = stringToNum< T >( coordinates[1] );
@@ -85,7 +85,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
                           const std::map< std::string, VTKOutput::CellFilter > & filters,
                           const std::map< std::string, VTKOutput::BeforeFunction > & beforeFunctions )
 {
-   if( !!config )
+   if( config )
       initializeVTKOutput( outputFunctions, storage, config->getGlobalBlock(), configBlockName, writers, filters, beforeFunctions );
 }
 
@@ -129,7 +129,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
    {
       if( beforeFunctions.find( function->first ) != beforeFunctions.end() )
          WALBERLA_ABORT( "There are at least two before functions with identifier \"" << function->first <<
-                         "\" (test is case insensitive!).\nEvery function must have a unique identifier!" );
+                         "\" (test is case insensitive!).\nEvery function must have a unique identifier!" )
       beforeFunctions[ function->first ] = function->second;
    }
 
@@ -167,13 +167,13 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
 
       if( !writersBlock && !outputDomainDecomposition )
          WALBERLA_ABORT( "You declared a VTK output instance [\"" << identifier << "\"] without a \"writers\" block. "
-                         "You have to specify at least on block data writer!" );
+                         "You have to specify at least on block data writer!" )
 
       if( useMPIIO && simultaneousIOOperations > 0 )
       {
          WALBERLA_LOG_WARNING( "In VTK output instance [\"" << identifier << "\"] you request the use of MPI I/O and "
                                "specified \"simultaneousIOOperations\". Those two settings are incompatible. "
-                               "\"simultaneousIOOperations\" will be ignored!" );
+                               "\"simultaneousIOOperations\" will be ignored!" )
       }
 
       std::vector< shared_ptr< BlockCellDataWriterInterface > > selectedWriters;
@@ -185,13 +185,13 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
             if( writers.find( writerId->first ) != writers.end() )
                selectedWriters.push_back( writers[ writerId->first ] );
             else
-               WALBERLA_ABORT( "You have requested a block data writer \"" << writerId->first << "\". This writer is not available!" );
+               WALBERLA_ABORT( "You have requested a block data writer \"" << writerId->first << "\". This writer is not available!" )
          }
       }
 
       if( selectedWriters.empty() && !outputDomainDecomposition )
          WALBERLA_ABORT( "No block data writers could be selected for your VTK output instance [\"" << identifier << "\"]. "
-                         "Either you did not specify any writers or non of your specified writers are available." );
+                         "Either you did not specify any writers or non of your specified writers are available." )
 
       shared_ptr< VTKOutput > vtkOutput;
       if( outputDomainDecomposition )
@@ -225,7 +225,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
             if( beforeFunctions.find( beforeFunctionId->first ) != beforeFunctions.end() )
                vtkOutput->addBeforeFunction( beforeFunctions[ beforeFunctionId->first ] );
             else
-               WALBERLA_ABORT( "You have requested a before function \"" << beforeFunctionId->first << "\". This function is not available!" );
+               WALBERLA_ABORT( "You have requested a before function \"" << beforeFunctionId->first << "\". This function is not available!" )
          }
       }
 
@@ -246,7 +246,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
       for( auto aabb = aabbBlocks.begin(); aabb != aabbBlocks.end(); ++aabb )
       {
          if( !aabb->isDefined("min") || !aabb->isDefined("max") )
-            WALBERLA_ABORT( "You must specify a \"min\" and a \"max\" coordinate for AABB cell filter \"" << aabb->getKey() << "\"." );
+            WALBERLA_ABORT( "You must specify a \"min\" and a \"max\" coordinate for AABB cell filter \"" << aabb->getKey() << "\"." )
 
          real_t xmin;
          real_t ymin;
@@ -261,7 +261,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
 
          if( filters.find( aabb->getKey() ) != filters.end() )
             WALBERLA_ABORT( "There are at least two cell filters with identifier \"" << aabb->getKey() <<
-                            "\" (test is case insensitive!).\nEvery filter must have a unique identifier!" );
+                            "\" (test is case insensitive!).\nEvery filter must have a unique identifier!" )
 
          filters[ aabb->getKey() ] = AABBCellFilter( AABB( xmin, ymin, zmin, xmax, ymax, zmax ) );
       }
@@ -269,7 +269,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
       for( auto bb = cellBBBlocks.begin(); bb != cellBBBlocks.end(); ++bb )
       {
          if( !bb->isDefined("min") || !bb->isDefined("max") )
-            WALBERLA_ABORT( "You must specify a \"min\" and a \"max\" coordinate for CellBB cell filter \"" << bb->getKey() << "\"." );
+            WALBERLA_ABORT( "You must specify a \"min\" and a \"max\" coordinate for CellBB cell filter \"" << bb->getKey() << "\"." )
 
          uint_t level = 0;
          if( bb->isDefined( "level" ) )
@@ -288,7 +288,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
 
          if( filters.find( bb->getKey() ) != filters.end() )
             WALBERLA_ABORT( "There are at least two cell filters with identifier \"" << bb->getKey() <<
-                            "\" (test is case insensitive!).\nEvery filter must have a unique identifier!" );
+                            "\" (test is case insensitive!).\nEvery filter must have a unique identifier!" )
 
          filters[ bb->getKey() ] = CellBBCellFilter( CellInterval( xmin, ymin, zmin, xmax, ymax, zmax ), level );
       }
@@ -310,7 +310,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
                   if( filters.find( *filter ) != filters.end() )
                      combine.addFilter( filters[ *filter ] );
                   else
-                     WALBERLA_ABORT( "You have requested an inclusion cell filter \"" << *filter << "\". This filter is not available!" );
+                     WALBERLA_ABORT( "You have requested an inclusion cell filter \"" << *filter << "\". This filter is not available!" )
                }
                vtkOutput->addCellInclusionFilter( combine );
             }
@@ -319,7 +319,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
                if( filters.find( inclusionFilterId->first ) != filters.end() )
                   vtkOutput->addCellInclusionFilter( filters[ inclusionFilterId->first ] );
                else
-                  WALBERLA_ABORT( "You have requested an inclusion cell filter \"" << inclusionFilterId->first << "\". This filter is not available!" );
+                  WALBERLA_ABORT( "You have requested an inclusion cell filter \"" << inclusionFilterId->first << "\". This filter is not available!" )
             }
          }
       }
@@ -338,7 +338,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
                   if( filters.find( *filter ) != filters.end() )
                      combine.addFilter( filters[ *filter ] );
                   else
-                     WALBERLA_ABORT( "You have requested an exclusion cell filter \"" << *filter << "\". This filter is not available!" );
+                     WALBERLA_ABORT( "You have requested an exclusion cell filter \"" << *filter << "\". This filter is not available!" )
                }
                vtkOutput->addCellExclusionFilter( combine );
             }
@@ -347,7 +347,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
                if( filters.find( exclusionFilterId->first ) != filters.end() )
                   vtkOutput->addCellExclusionFilter( filters[ exclusionFilterId->first ] );
                else
-                  WALBERLA_ABORT( "You have requested an exclusion cell filter \"" << exclusionFilterId->first << "\". This filter is not available!" );
+                  WALBERLA_ABORT( "You have requested an exclusion cell filter \"" << exclusionFilterId->first << "\". This filter is not available!" )
             }
          }
       }
@@ -395,7 +395,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
                           const std::map< std::string, VTKOutput::CellFilter > & filters,
                           const std::map< std::string, VTKOutput::BeforeFunction > & beforeFunctions )
 {
-   if( !!config )
+   if( config )
       initializeVTKOutput( outputFunctions, storage, config->getGlobalBlock(), "VTK", writers, filters, beforeFunctions );
 }
 
@@ -575,7 +575,7 @@ void initializeVTKOutput( std::map< std::string, SelectableOutputFunction > & ou
                           const shared_ptr< const StructuredBlockStorage > & storage, const shared_ptr< Config > & config,
                           const std::string & configBlockName )
 {
-   if( !!config )
+   if( config )
       initializeVTKOutput( outputFunctions, registerVTKOutputFunction, storage, config->getGlobalBlock(), configBlockName );
 }
 

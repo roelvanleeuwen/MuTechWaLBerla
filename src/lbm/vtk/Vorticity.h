@@ -33,14 +33,14 @@ namespace lbm {
 
 
 template< typename VelocityField_T, typename Filter_T, typename OutputType = float >
-class VorticityComponentVTKWriter : public vtk::BlockCellDataWriter< OutputType, 1 >
+class VorticityComponentVTKWriter : public vtk::BlockCellDataWriter< OutputType>
 {
 public:
    VorticityComponentVTKWriter(const shared_ptr<StructuredBlockStorage> blockStorage, Filter_T & filter,
          const ConstBlockDataID & velocityFieldId, const uint_t componentIdx, const std::string & id,
          const real_t normalizationConstant = real_t(1)) :
-         vtk::BlockCellDataWriter< OutputType, 1 >(id), blockStorage_(blockStorage), filter_(filter),
-         velocityFieldId_(velocityFieldId), componentIdx_(componentIdx), velocityField_(NULL),
+         vtk::BlockCellDataWriter< OutputType >(id, uint_c(1)), blockStorage_(blockStorage), filter_(filter),
+         velocityFieldId_(velocityFieldId), componentIdx_(componentIdx), velocityField_(nullptr),
          normalizationConstant_(normalizationConstant) {
       WALBERLA_ASSERT(componentIdx < uint_t(3),
             "The vorticity vector only has three components, i.e. the highest possible component index is 2.");
@@ -49,12 +49,12 @@ public:
 protected:
 
    void configure() {
-      WALBERLA_ASSERT_NOT_NULLPTR( this->block_ );
+      WALBERLA_ASSERT_NOT_NULLPTR( this->block_ )
       velocityField_ = this->block_->template getData< VelocityField_T >(velocityFieldId_ );
    }
 
    OutputType evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t /*f*/ ) {
-      WALBERLA_ASSERT_NOT_NULLPTR(velocityField_ );
+      WALBERLA_ASSERT_NOT_NULLPTR(velocityField_ )
 
       const real_t dx = blockStorage_->dx(blockStorage_->getLevel(*this->block_));
       const real_t dy = blockStorage_->dy(blockStorage_->getLevel(*this->block_));

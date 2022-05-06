@@ -246,7 +246,7 @@ typename GhostLayerFieldAdaptor<Functor,glD>::const_iterator GhostLayerFieldAdap
                            cell_idx_t xBeg, cell_idx_t yBeg, cell_idx_t zBeg, cell_idx_t fBeg,
                            cell_idx_t xEnd, cell_idx_t yEnd, cell_idx_t zEnd, cell_idx_t fEnd ) const
 {
-   WALBERLA_ASSERT_LESS_EQUAL( fEnd, cell_idx_c(F_SIZE) );
+   WALBERLA_ASSERT_LESS_EQUAL( fEnd, cell_idx_c(F_SIZE) )
    return const_iterator( glField_.beginSlice(xBeg,yBeg,zBeg,fBeg, xEnd, yEnd, zEnd, fEnd ), this );
 }
 
@@ -254,7 +254,7 @@ template< typename Functor, uint_t glD >
 typename GhostLayerFieldAdaptor<Functor,glD>::const_iterator GhostLayerFieldAdaptor<Functor,glD>::beginSliceXYZ (
          const CellInterval & interval, cell_idx_t f ) const
 {
-   WALBERLA_ASSERT_LESS_EQUAL( f, cell_idx_c(F_SIZE) );
+   WALBERLA_ASSERT_LESS_EQUAL( f, cell_idx_c(F_SIZE) )
    return const_iterator( glField_.beginSliceXYZ(interval,f), this );
 }
 
@@ -302,7 +302,7 @@ typename GhostLayerFieldAdaptor<Functor,glD>::const_iterator GhostLayerFieldAdap
 
 template< typename Functor, uint_t glD >
 typename GhostLayerFieldAdaptor<Functor,glD>::const_iterator GhostLayerFieldAdaptor<Functor,glD>::beginGhostLayerOnlyXYZ(
-         stencil::Direction dir, cell_idx_t f ) const
+         stencil::Direction dir, cell_idx_t  /*f*/ ) const
 {
    CellInterval ci;
    getGhostRegion(dir,ci);

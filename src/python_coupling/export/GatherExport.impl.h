@@ -61,18 +61,17 @@ class GatherExporter
    template< typename FieldType>
    void operator() ( python_coupling::NonCopyableWrap<FieldType> )
    {
-      typedef Field< typename FieldType::value_type, FieldType::F_SIZE > ResultField;
+      typedef Field< typename FieldType::value_type > ResultField;
       IBlock * firstBlock =  & ( * blocks_->begin() );
       if( firstBlock->isDataClassOrSubclassOf<FieldType>(fieldId_) )
       {
-         auto result = make_shared< ResultField > ( 0,0,0 );
+         auto result = make_shared< ResultField > (0, 0, 0, 0);
          field::gather< FieldType, ResultField > ( *result, blocks_, fieldId_, boundingBox_, targetRank_, MPI_COMM_WORLD );
 
          if ( MPIManager::instance()->worldRank() == targetRank_ )
             resultField_ = py::cast(result);
          else
             resultField_ = py::none();
-
       }
    }
    py::object getResultField()
@@ -100,8 +99,8 @@ static py::object gatherWrapper(const shared_ptr<StructuredBlockForest> & blocks
    if ( blocks->begin() == blocks->end() ) {
       // if no blocks are on this process the field::gather function can be called with any type
       // however we have to call it, otherwise a deadlock occurs
-      auto result = make_shared< Field<real_t, 1> > ( 0,0,0 );
-      field::gather< Field<real_t, 1>, Field<real_t, 1> > ( *result, blocks, fieldID, boundingBox, targetRank, MPI_COMM_WORLD );
+      auto result = make_shared< Field<real_t> > (0, 0, 0, 0);
+      field::gather< Field<real_t>, Field<real_t> > ( *result, blocks, fieldID, boundingBox, targetRank, MPI_COMM_WORLD );
       return py::none();
    }
 

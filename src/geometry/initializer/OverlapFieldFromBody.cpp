@@ -21,17 +21,10 @@
 
 #include "OverlapFieldFromBody.h"
 
-#include "geometry/bodies/AABBBody.h"
 #include "geometry/bodies/BodyFromConfig.h"
-#include "geometry/bodies/BodyOverlapFunctions.h"
-#include "geometry/bodies/Cylinder.h"
-#include "geometry/bodies/Ellipsoid.h"
-#include "geometry/bodies/Sphere.h"
-#include "geometry/bodies/Torus.h"
 
 #include "core/Abort.h"
 #include "core/config/Config.h"
-#include "core/logging/Logging.h"
 #include "core/StringUtility.h"
 #include "field/GhostLayerField.h"
 
@@ -61,14 +54,14 @@ namespace initializer {
          if ( initialFill == addKeyword_ )
          {
             for( auto blockIt = structuredBlockStorage_.begin(); blockIt != structuredBlockStorage_.end(); ++blockIt )
-               blockIt->getData<GhostLayerField<real_t,1> > ( scalarFieldID_ )->setWithGhostLayer( real_t(1.0) );
+               blockIt->getData<GhostLayerField<real_t, 1> > ( scalarFieldID_ )->setWithGhostLayer( real_t(1.0) );
          }
          else if ( initialFill == subtractKeyword_ ) {
             for( auto blockIt = structuredBlockStorage_.begin(); blockIt != structuredBlockStorage_.end(); ++blockIt )
-               blockIt->getData<GhostLayerField<real_t,1> > ( scalarFieldID_ )->setWithGhostLayer( real_t(0.0) );
+               blockIt->getData<GhostLayerField<real_t, 1> > ( scalarFieldID_ )->setWithGhostLayer( real_t(0.0) );
          }
          else {
-            WALBERLA_ABORT("Unknown value of initialFill. Valid values are " << addKeyword_ << "," << subtractKeyword_ );
+            WALBERLA_ABORT("Unknown value of initialFill. Valid values are " << addKeyword_ << "," << subtractKeyword_ )
          }
       }
 
@@ -82,7 +75,7 @@ namespace initializer {
 
          if ( addDefined && subtractDefined )
             WALBERLA_ABORT( "Specify only one of " << addKeyword_ << " and " << subtractKeyword_ << "!\n"
-                            << "Both are defined in " << blockHandle.getKey() );
+                            << "Both are defined in " << blockHandle.getKey() )
 
          if ( subtractDefined )
             addOrSubtract = false;
@@ -99,7 +92,7 @@ namespace initializer {
          else
          {
             WALBERLA_ABORT( "Unknown Block " << subBlock.getKey() << " in block " << blockHandle.getKey() << "\n"
-                            << "Allowed blocks are 'Sphere', 'Ellipsoid' and 'Box'" );
+                            << "Allowed blocks are 'Sphere', 'Ellipsoid' and 'Box'" )
          }
 
       }

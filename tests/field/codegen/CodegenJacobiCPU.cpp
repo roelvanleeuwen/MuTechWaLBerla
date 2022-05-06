@@ -38,7 +38,7 @@
 
 using namespace walberla;
 
-typedef GhostLayerField<double,1> ScalarField;
+typedef GhostLayerField<double, 1> ScalarField;
 
 
 void testJacobi2D()
@@ -84,7 +84,7 @@ void testJacobi2D()
    auto firstBlock = blocks->begin();
    auto f = firstBlock->getData<ScalarField>( fieldID );
 
-   WALBERLA_CHECK_FLOAT_EQUAL(f->get(0,0,0), real_t(1.0 / 4.0));
+   WALBERLA_CHECK_FLOAT_EQUAL(f->get(0,0,0), real_t(1.0 / 4.0))
 }
 
 
@@ -102,7 +102,7 @@ void testJacobi3D()
            true, true, true );                 // no periodicity
 
 
-   BlockDataID fieldID = field::addToStorage<ScalarField>(blocks, "Field", real_t(0.0));
+   BlockDataID fieldID = field::addToStorage<ScalarField>(blocks, "Field", 1, real_t(0.0));
 
    // Initialize a quarter of the field with ones, the rest remains 0
    // Jacobi averages the domain -> every cell should be at 0.25 at sufficiently many timesteps
@@ -132,7 +132,7 @@ void testJacobi3D()
 
    auto firstBlock = blocks->begin();
    auto f = firstBlock->getData<ScalarField>( fieldID );
-   WALBERLA_CHECK_FLOAT_EQUAL(f->get(0,0,0), real_t(1.0 / 8.0));
+   WALBERLA_CHECK_FLOAT_EQUAL(f->get(0,0,0), real_t(1.0 / 8.0))
 }
 
 

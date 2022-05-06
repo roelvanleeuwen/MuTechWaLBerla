@@ -43,9 +43,9 @@ namespace field {
     * \param sliceValue  fixed value of the sliceCoordinate
     * \param f           fixed f value
    ********************************************************************************************************************/
-   template<typename T, uint_t fs>
+   template<typename T>
    std::ostream &  printSlice( std::ostream & os,
-                               const Field<T,fs> & field,
+                               const Field<T> & field,
                                int sliceCoord,
                                cell_idx_t sliceValue,
                                cell_idx_t f=0 );
@@ -54,9 +54,9 @@ namespace field {
    /****************************************************************************************************************//**
    * Overload of printSlice for GhostLayerFields
    ********************************************************************************************************************/
-   template<typename T, uint_t fs>
+   template<typename T>
    std::ostream &  printSlice( std::ostream & os,
-                               const GhostLayerField<T,fs> & field,
+                               const GhostLayerField<T> & field,
                                int sliceCoord,
                                cell_idx_t sliceValue,
                                cell_idx_t f=0 );

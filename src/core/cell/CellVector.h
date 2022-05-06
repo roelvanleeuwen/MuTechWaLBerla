@@ -43,7 +43,7 @@ class CellVector
 {
 public:
 
-   /*! \name Standard container typedefs */
+   /*! \name Standard container alias-declarations */
    //@{
    using iterator = std::vector<Cell>::iterator;
    using const_iterator = std::vector<Cell>::const_iterator;

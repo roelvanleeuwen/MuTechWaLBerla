@@ -15,6 +15,7 @@
   - lbm module dropped from python coupling due to deprecation for a long time
   - geometry, postprocessing and timeloop dropped from python coupling due to its low usage
   - PEP8-ification of Python API. This means all keyword arguments are now in snake_case and not in CamelCase as before.
+- Fourth dimension of Field is no longer templated. Thus the fSize is now a constructor parameter.
 
 ### Fixed
 - Guo force model for non-SRT, may change simulation results

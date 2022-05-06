@@ -43,7 +43,7 @@ namespace initializer {
          case 0:   cell = Cell( cell[1], cell[2], cell[0] );   break;
          case 1:   cell = Cell( cell[0], cell[2], cell[1] );   break;
          case 2:                                               break;
-         default:  WALBERLA_ASSERT( false);                             break;
+         default:  WALBERLA_ASSERT( false)                             break;
       }
    }
 
@@ -52,7 +52,7 @@ namespace initializer {
          case 0:   cell = Cell( cell[2], cell[0], cell[1] );   break;
          case 1:   cell = Cell( cell[0], cell[2], cell[1] );   break;
          case 2:                                               break;
-         default:  WALBERLA_ASSERT( false);                             break;
+         default:  WALBERLA_ASSERT( false)                             break;
       }
    }
 
@@ -80,7 +80,7 @@ namespace initializer {
    void ScalarFieldFromGrayScaleImage::init ( BlockStorage & , const Config::BlockHandle & block )
    {
       if ( ! block.isDefined( "file") )
-         WALBERLA_ABORT( "Missing Parameter 'file' in scalar field to image block" );
+         WALBERLA_ABORT( "Missing Parameter 'file' in scalar field to image block" )
 
       const std::string & file = block.getParameter< std::string > ( "file" );
 
@@ -101,7 +101,7 @@ namespace initializer {
       {
          if ( xOffset != 0 || yOffset != 0 )
             WALBERLA_ABORT("Error when loading image " << file
-                           << " : When 'scaleToDomain' is specified [xy]Offset has to be zero" );
+                           << " : When 'scaleToDomain' is specified [xy]Offset has to be zero" )
 
          init( img, extrusionCoordinate, true, lowerExtrusionLimit, upperExtrusionLimit );
       }
@@ -132,7 +132,7 @@ namespace initializer {
 
       for( auto blockIt = structuredBlockStorage_.begin(); blockIt != structuredBlockStorage_.end(); ++blockIt )
       {
-         GhostLayerField<real_t,1> * f = blockIt->getData<GhostLayerField<real_t,1> >( scalarFieldID_ );
+         GhostLayerField<real_t, 1> * f = blockIt->getData<GhostLayerField<real_t, 1> >( scalarFieldID_ );
 
          const cell_idx_t width  = cell_idx_c( img.width() ) ;
          const cell_idx_t height = cell_idx_c( img.height()) ;

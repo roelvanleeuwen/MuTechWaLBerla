@@ -24,18 +24,7 @@
 #include "core/Environment.h"
 #include "core/debug/TestSubsystem.h"
 
-#include <iostream>
-#include <set>
-
-
 using namespace walberla;
-
-
-using std::cout;
-using std::endl;
-
-
-
 
 struct MyClass
 {
@@ -68,12 +57,12 @@ void testCorrectNumberOfConstructorCalls()
    const uint_t expectedCalls = ( xs + 2*gl) * ( ys + 2*gl ) * (zs + 2*gl ) * fs;
 
    {
-      GhostLayerField<MyClass,fs>  field( xs, ys, zs, gl, field::fzyx,
+      GhostLayerField<MyClass, fs>  field( xs, ys, zs, gl, field::fzyx,
                                           shared_ptr<field::AllocateAligned<MyClass,32> >() );
 
-      WALBERLA_CHECK_EQUAL( expectedCalls, MyClass::constructorCalls );
+      WALBERLA_CHECK_EQUAL( expectedCalls, MyClass::constructorCalls )
       auto clonedField = field.cloneUninitialized();
-      WALBERLA_CHECK_EQUAL( 2* expectedCalls, MyClass::constructorCalls );
+      WALBERLA_CHECK_EQUAL( 2* expectedCalls, MyClass::constructorCalls )
 
       delete clonedField;
    }
@@ -92,5 +81,5 @@ int main( int argc, char**argv )
 
    testCorrectNumberOfConstructorCalls();
 
-   return 0;
+   return EXIT_SUCCESS;
 }

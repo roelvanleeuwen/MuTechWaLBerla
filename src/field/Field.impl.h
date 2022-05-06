@@ -23,6 +23,7 @@
 #include "field/iterators/IteratorMacros.h"
 
 #include "core/math/Utility.h" // for equal() in operator==
+#include "Field.h"
 
 #include <algorithm>  // std::copy
 
@@ -43,10 +44,10 @@ namespace field {
     *
     * This field has to be initialized before it can be used using the init() method
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   Field<T,fSize_>::Field( )
+   template<typename T>
+   Field<T>::Field( )
        : values_( nullptr ), valuesWithOffset_( nullptr ),
-         xSize_(0), ySize_(0), zSize_(0),
+         xSize_(0), ySize_(0), zSize_(0), fSize_(0),
          xAllocSize_(0), yAllocSize_(0), zAllocSize_(0), fAllocSize_(0)
    {
    }
@@ -54,37 +55,39 @@ namespace field {
    //*******************************************************************************************************************
    /*!Creates an uninitialized field of given size
     *
-    * \param _xSize  size of x dimension
-    * \param _ySize  size of y dimension
-    * \param _zSize  size of z dimension
-    * \param l       memory layout of the field (see Field::Layout)
+    * \param xSize  size of x dimension
+    * \param ySize  size of y dimension
+    * \param zSize  size of z dimension
+    * \param fSize   size of f dimension
+    * \param layout memory layout of the field (see Field::Layout)
     * \param alloc  class that describes how to allocate memory for the field, see FieldAllocator
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   Field<T,fSize_>::Field( uint_t _xSize, uint_t _ySize, uint_t _zSize, const Layout & l,
+   template<typename T>
+   Field<T>::Field( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSize, const Layout & l,
                            const shared_ptr<FieldAllocator<T> > &alloc )
        : values_( nullptr ), valuesWithOffset_( nullptr )
    {
-      init(_xSize,_ySize,_zSize,l,alloc);
+      init(_xSize,_ySize,_zSize,_fSize,l,alloc);
    }
 
 
    //*******************************************************************************************************************
    /*! Creates a field and initializes it with constant
     *
-    * \param _xSize  size of x dimension
-    * \param _ySize  size of y dimension
-    * \param _zSize  size of z dimension
+    * \param _xSize   size of x dimension
+    * \param _ySize   size of y dimension
+    * \param _zSize   size of z dimension
+    * \param _fSize   size of f dimension
     * \param initVal every element of the field is set to initVal
     * \param l       memory layout of the field (see Field::Layout)
     * \param alloc  class that describes how to allocate memory for the field, see FieldAllocator
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   Field<T,fSize_>::Field( uint_t _xSize, uint_t _ySize, uint_t _zSize, const T & initVal, const Layout & l,
+   template<typename T>
+   Field<T>::Field( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSize, const T & initVal, const Layout & l,
                            const shared_ptr<FieldAllocator<T> > &alloc )
           : values_( nullptr ), valuesWithOffset_( nullptr )
    {
-      init(_xSize,_ySize,_zSize,l,alloc);
+      init(_xSize,_ySize,_zSize,_fSize,l,alloc);
       set(initVal);
    }
 
@@ -92,20 +95,21 @@ namespace field {
    //*******************************************************************************************************************
    /*! Creates a field and initializes f coordinate with vector values
     *
-    * \param _xSize  size of x dimension
-    * \param _ySize  size of y dimension
-    * \param _zSize  size of z dimension
+    * \param _xSize   size of x dimension
+    * \param _ySize   size of y dimension
+    * \param _zSize   size of z dimension
+    * \param _fSize   size of f dimension
     * \param fValues initializes f coordinate with values from vector (see set(std::vector&) )
     * \param l       memory layout of the field (see Field::Layout)
     * \param alloc  class that describes how to allocate memory for the field, see FieldAllocator
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   Field<T,fSize_>::Field( uint_t _xSize, uint_t _ySize, uint_t _zSize,
+   template<typename T>
+   Field<T>::Field( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSize,
                            const std::vector<T> & fValues, const Layout & l,
                            const shared_ptr<FieldAllocator<T> > &alloc)
-        : values_( NULL ), valuesWithOffset_( NULL )
+        : values_(nullptr ), valuesWithOffset_(nullptr )
    {
-      init(_xSize,_ySize,_zSize,l,alloc);
+      init(_xSize,_ySize,_zSize,_fSize,l,alloc);
       set(fValues);
    }
 
@@ -117,17 +121,18 @@ namespace field {
     * \param _xSize  size of x dimension
     * \param _ySize  size of y dimension
     * \param _zSize  size of z dimension
+    * \param _fSize   size of f dimension
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   void Field<T,fSize_>::resize( uint_t _xSize, uint_t _ySize, uint_t _zSize )
+   template<typename T>
+   void Field<T>::resize( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSize )
    {
-      if ( _xSize == xSize_ &&  _ySize == ySize_ && _zSize == zSize_ )
+      if ( _xSize == xSize_ &&  _ySize == ySize_ && _zSize == zSize_ && _fSize == fSize_ )
          return;
 
       allocator_->decrementReferenceCount( values_ );
       values_ = nullptr;
       valuesWithOffset_ = nullptr;
-      init( _xSize, _ySize, _zSize, layout_, allocator_ );
+      init( _xSize, _ySize, _zSize, _fSize, layout_, allocator_ );
    }
 
 
@@ -139,8 +144,8 @@ namespace field {
     *
     * \return a new field, that has to be freed by caller
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   Field<T,fSize_> * Field<T,fSize_>::cloneShallowCopy() const
+   template<typename T>
+   Field<T> * Field<T>::cloneShallowCopy() const
    {
       return cloneShallowCopyInternal() ;
    }
@@ -154,8 +159,8 @@ namespace field {
     *
     * \return a new field, that has to be freed by caller
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   typename Field<T,fSize_>::FlattenedField * Field<T,fSize_>::flattenedShallowCopy() const
+   template<typename T>
+   typename Field<T>::FlattenedField * Field<T>::flattenedShallowCopy() const
    {
       return flattenedShallowCopyInternal();
    }
@@ -168,10 +173,10 @@ namespace field {
     * virtual, since the implementation of cloneShallowCopy() of derived classes has a different signature.
     *
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   Field<T,fSize_> * Field<T,fSize_>::cloneShallowCopyInternal() const
+   template<typename T>
+   Field<T> * Field<T>::cloneShallowCopyInternal() const
    {
-      return new Field<T,fSize_>(*this) ;
+      return new Field<T>(*this) ;
    }
 
    //*******************************************************************************************************************
@@ -181,10 +186,10 @@ namespace field {
     * virtual, since the implementation of flattenedShallowCopy() of derived classes has a different signature.
     *
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   typename Field<T,fSize_>::FlattenedField * Field<T,fSize_>::flattenedShallowCopyInternal() const
+   template<typename T>
+   typename Field<T>::FlattenedField * Field<T>::flattenedShallowCopyInternal() const
    {
-      return new FlattenedField(*this) ;
+      return new FlattenedField(*this);
    }
 
    //*******************************************************************************************************************
@@ -193,19 +198,20 @@ namespace field {
     *
     * \return a new field, that has to be freed by caller
     *******************************************************************************************************************/
-   template <typename T, uint_t fSize_>
-   Field<T,fSize_> * Field<T,fSize_>::cloneUninitialized() const
+   template <typename T>
+   Field<T> * Field<T>::cloneUninitialized() const
    {
-      Field<T,fSize_> * res = cloneShallowCopy();
+      Field<T> * res = cloneShallowCopy();
       res->allocator_->decrementReferenceCount( res->values_ );
       res->values_ = res->allocator_->allocate ( res->allocSize() );
 
+      // TODO: check if this is correct
       const auto offset = res->xOff_*res->xfact_+ res->yOff_*res->yfact_+ res->zOff_*res->zfact_;
       res->valuesWithOffset_ = res->values_ + offset;
 
-      WALBERLA_ASSERT ( hasSameSize     ( *res ) );
-      WALBERLA_ASSERT ( hasSameAllocSize( *res ) );    
-      
+      WALBERLA_ASSERT ( hasSameSize     ( *res ) )
+      WALBERLA_ASSERT ( hasSameAllocSize( *res ) )
+
       return res;
    }
 
@@ -215,11 +221,11 @@ namespace field {
     *
     * \return a new field, that has to be freed by caller
     *******************************************************************************************************************/
-   template <typename T, uint_t fSize_>
-   Field<T,fSize_> * Field<T,fSize_>::clone() const
+   template <typename T>
+   Field<T> * Field<T>::clone() const
    {
-      Field<T,fSize_> * res = cloneUninitialized();
-      WALBERLA_ASSERT_EQUAL ( allocSize_, res->allocSize_ );
+      Field<T> * res = cloneUninitialized();
+      WALBERLA_ASSERT_EQUAL ( allocSize_, res->allocSize_ )
 
       std::copy( values_, values_ + allocSize_, res->values_ );
 
@@ -231,8 +237,8 @@ namespace field {
    /*! Private copy constructor that creates a shallow copy
     *        i.e. reuses the memory of the copied field
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   Field<T,fSize_>::Field( const Field<T,fSize_> & other )
+   template<typename T>
+   Field<T>::Field( const Field<T> & other )
       : values_           ( other.values_ ),
         valuesWithOffset_ ( other.valuesWithOffset_ ),
         xOff_             ( other.xOff_),
@@ -241,6 +247,7 @@ namespace field {
         xSize_            ( other.xSize_ ),
         ySize_            ( other.ySize_ ),
         zSize_            ( other.zSize_ ),
+        fSize_            ( other.fSize_ ),
         xAllocSize_       ( other.xAllocSize_ ),
         yAllocSize_       ( other.yAllocSize_ ),
         zAllocSize_       ( other.zAllocSize_ ),
@@ -261,9 +268,9 @@ namespace field {
    /*! Private copy constructor that creates a flattened shallow copy
     *        i.e. reuses the memory of the copied field
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   template <typename T2, uint_t fSize2>
-   Field<T,fSize_>::Field( const Field<T2,fSize2> & other )
+   template<typename T>
+   template <typename T2>
+   Field<T>::Field( const Field<T2> & other )
       : values_           ( other.values_[0].data() ),
         valuesWithOffset_ ( other.valuesWithOffset_[0].data() ),
         xOff_             ( other.xOff_),
@@ -272,21 +279,22 @@ namespace field {
         xSize_            ( other.xSize_ ),
         ySize_            ( other.ySize_ ),
         zSize_            ( other.zSize_ ),
+        fSize_            (VectorTrait<T2>::F_SIZE * other.fSize_),
         xAllocSize_       ( other.xAllocSize_ ),
         yAllocSize_       ( other.yAllocSize_ ),
         zAllocSize_       ( other.zAllocSize_ ),
-        fAllocSize_       ( other.fAllocSize_*fSize_/fSize2 ),
+        fAllocSize_       ( other.fAllocSize_*fSize_/other.fSize_),
         layout_           ( other.layout_ ),
-        allocSize_        ( other.allocSize_*fSize_/fSize2 ),
+        allocSize_        ( other.allocSize_*fSize_/other.fSize_),
         ffact_            ( other.ffact_ ),
-        xfact_            ( other.xfact_*cell_idx_t(fSize_/fSize2) ),
-        yfact_            ( other.yfact_*cell_idx_t(fSize_/fSize2) ),
-        zfact_            ( other.zfact_*cell_idx_t(fSize_/fSize2) ),
+        xfact_            ( other.xfact_*cell_idx_t(fSize_/other.fSize_) ),
+        yfact_            ( other.yfact_*cell_idx_t(fSize_/other.fSize_) ),
+        zfact_            ( other.zfact_*cell_idx_t(fSize_/other.fSize_) ),
         allocator_        ( std::shared_ptr<FieldAllocator<T>>(other.allocator_, reinterpret_cast<FieldAllocator<T>*>(other.allocator_.get())) )
    {
-      WALBERLA_CHECK_EQUAL(layout_, Layout::zyxf);
-      static_assert(fSize_ % fSize2 == 0, "number of field components do not match");
-      static_assert(std::is_same<typename Field<T2,fSize2>::FlattenedField, Field<T,fSize_>>::value, "field types are incompatible for flattening");
+      WALBERLA_CHECK_EQUAL(layout_, Layout::zyxf)
+      WALBERLA_ASSERT(fSize_ % other.fSize_ == 0, "number of field components do not match")
+      static_assert(std::is_same<typename Field<T2>::FlattenedField, Field<T>>::value, "field types are incompatible for flattening");
       allocator_->incrementReferenceCount ( values_ );
    }
 
@@ -297,10 +305,11 @@ namespace field {
     * Must be called exactly once!  This is automatically called by all constructors
     * that take at least one argument
     *
-    * \param _xSize  size of x dimension
-    * \param _ySize  size of y dimension
-    * \param _zSize  size of z dimension
-    * \param l       memory layout of the field (see Field::Layout)
+    * \param _xSize   size of x dimension
+    * \param _ySize   size of y dimension
+    * \param _zSize   size of z dimension
+    * \param _fSize   size of f dimension
+    * \param layout  memory layout of the field (see Field::Layout)
     * \param alloc   the allocator to use. If a NULL shared pointer is given, a sensible default is selected,
     *                depending on layout
     * \param innerGhostLayerSizeForAlignedAlloc
@@ -308,13 +317,15 @@ namespace field {
     *                This parameter is passed to the allocator and can there be used to ensure
     *                alignment of the first INNER cell in each line
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   void Field<T, fSize_>::init( uint_t _xSize, uint_t _ySize, uint_t _zSize,
+   template<typename T>
+   void Field<T>::init( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSize,
                                 const Layout & l, shared_ptr<FieldAllocator<T> > alloc,
-                                uint_t innerGhostLayerSizeForAlignedAlloc )
+                                uint_t innerGhostLayerSizeForAlignedAlloc)
    {
-      WALBERLA_ASSERT_NULLPTR( values_ );
-      WALBERLA_ASSERT_NULLPTR( valuesWithOffset_ );
+      WALBERLA_ASSERT_NULLPTR( values_ )
+      WALBERLA_ASSERT_NULLPTR( valuesWithOffset_ )
+      // TODO: Do we want this check? Compare for example FieldGatherTest line 64, would fail with this check.
+      // WALBERLA_ASSERT(_fSize > 0, "fSize()=0 means: empty field")
 
       // Automatically select allocator if none was given
       if ( alloc == nullptr )
@@ -353,11 +364,12 @@ namespace field {
       xSize_ = _xSize;
       ySize_ = _ySize;
       zSize_ = _zSize;
+      fSize_ = _fSize;
       xAllocSize_ = yAllocSize_ = zAllocSize_ = fAllocSize_ = 0; // is set in alloc->allocate()
 
       layout_ = l;
 
-      WALBERLA_ASSERT(layout_ == zyxf || layout_ == fzyx);
+      WALBERLA_ASSERT(layout_ == zyxf || layout_ == fzyx)
 
       if (layout_ == fzyx ) {
          values_ = allocator_->allocate(fSize_, zSize_, ySize_, xSize_, zAllocSize_, yAllocSize_, xAllocSize_);
@@ -385,9 +397,9 @@ namespace field {
          ffact_ = 1;
       }
 
-      WALBERLA_ASSERT(xAllocSize_ >= xSize_);
-      WALBERLA_ASSERT(yAllocSize_ >= ySize_);
-      WALBERLA_ASSERT(zAllocSize_ >= zSize_);
+      WALBERLA_ASSERT(xAllocSize_ >= xSize_)
+      WALBERLA_ASSERT(yAllocSize_ >= ySize_)
+      WALBERLA_ASSERT(zAllocSize_ >= zSize_)
 
       allocSize_ = fAllocSize_ * xAllocSize_ * yAllocSize_ * zAllocSize_;
 
@@ -399,8 +411,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! Destructor, using Allocator template parameter
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize>
-   Field<T,fSize>::~Field()
+   template< typename T >
+   Field< T >::~Field()
    {
       allocator_->decrementReferenceCount( values_ );
    }
@@ -421,8 +433,8 @@ namespace field {
     * innermost loop because no index calculations have to be done.
     *
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::iterator Field<T,fSize_>::begin()
+   template<typename T>
+   inline typename Field<T>::iterator Field<T>::begin()
    {
       return iterator( this,0,0,0,0, xSize(), ySize(), zSize(), fSize() );
    }
@@ -430,10 +442,10 @@ namespace field {
    //*******************************************************************************************************************
    /*! Returns const_iterator, see begin()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::const_iterator Field<T,fSize_>::begin() const
+   template<typename T>
+   inline typename Field<T>::const_iterator Field<T>::begin() const
    {
-       return const_iterator ( const_cast< Field<T,fSize_> * >(this), 0,0,0,0,
+       return const_iterator ( const_cast< Field<T> * >(this), 0,0,0,0,
                                xSize(), ySize(), zSize(), fSize() );
    }
 
@@ -444,14 +456,14 @@ namespace field {
     * - Iterator over block defined by ( xBeg <= x < xEnd,  yBeg <= y < yEnd, ....)
     * - layout aware
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::iterator
-   Field<T,fSize_>::beginSlice( cell_idx_t xBeg, cell_idx_t yBeg, cell_idx_t zBeg, cell_idx_t fBeg,
-                                cell_idx_t xEnd, cell_idx_t yEnd, cell_idx_t zEnd, cell_idx_t fEnd )
+   template<typename T>
+   inline typename Field<T>::iterator
+   Field<T>::beginSlice( cell_idx_t xBeg, cell_idx_t yBeg, cell_idx_t zBeg, cell_idx_t fBeg,
+                             cell_idx_t xEnd, cell_idx_t yEnd, cell_idx_t zEnd, cell_idx_t fEnd )
    {
-      WALBERLA_ASSERT_LESS( xBeg, xEnd );
-      WALBERLA_ASSERT_LESS( yBeg, yEnd );
-      WALBERLA_ASSERT_LESS( zBeg, zEnd );
+      WALBERLA_ASSERT_LESS( xBeg, xEnd )
+      WALBERLA_ASSERT_LESS( yBeg, yEnd )
+      WALBERLA_ASSERT_LESS( zBeg, zEnd )
       assertValidCoordinates( xBeg  , yBeg  , zBeg  , fBeg   );
       assertValidCoordinates( xEnd-1, yEnd-1, zEnd-1, fEnd-1 ); // -1 since end points behind valid coordinates
 
@@ -461,14 +473,14 @@ namespace field {
    //*******************************************************************************************************************
    /*! Const variant of beginSlice()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::const_iterator
-   Field<T,fSize_>::beginSlice( cell_idx_t xBeg, cell_idx_t yBeg, cell_idx_t zBeg, cell_idx_t fBeg,
+   template<typename T>
+   inline typename Field<T>::const_iterator
+   Field<T>::beginSlice( cell_idx_t xBeg, cell_idx_t yBeg, cell_idx_t zBeg, cell_idx_t fBeg,
                                 cell_idx_t xEnd, cell_idx_t yEnd, cell_idx_t zEnd, cell_idx_t fEnd ) const
    {
-      WALBERLA_ASSERT_LESS( xBeg, xEnd);
-      WALBERLA_ASSERT_LESS( yBeg, yEnd);
-      WALBERLA_ASSERT_LESS( zBeg, zEnd);
+      WALBERLA_ASSERT_LESS( xBeg, xEnd)
+      WALBERLA_ASSERT_LESS( yBeg, yEnd)
+      WALBERLA_ASSERT_LESS( zBeg, zEnd)
       assertValidCoordinates( xBeg  , yBeg  , zBeg  , fBeg   );
       assertValidCoordinates( xEnd-1, yEnd-1, zEnd-1, fEnd-1 ); // -1 since end points behind valid coordinates
 
@@ -483,9 +495,9 @@ namespace field {
     * \param f fixed value of f coordinate, where iterator points to in each cell
     *
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::iterator
-   Field<T,fSize_>::beginSliceXYZ( const CellInterval & ci, cell_idx_t f )
+   template<typename T>
+   inline typename Field<T>::iterator
+   Field<T>::beginSliceXYZ( const CellInterval & ci, cell_idx_t f )
    {
       return ci.empty() ? end() : iterator( this, ci.xMin(),  ci.yMin(),  ci.zMin(),  f,
                                                   ci.xSize(), ci.ySize(), ci.zSize(), 1 );
@@ -494,9 +506,9 @@ namespace field {
    //*******************************************************************************************************************
    /*! Const variant of beginSliceXYZ()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::const_iterator
-   Field<T,fSize_>::beginSliceXYZ ( const CellInterval & ci, cell_idx_t f ) const
+   template<typename T>
+   inline typename Field<T>::const_iterator
+   Field<T>::beginSliceXYZ ( const CellInterval & ci, cell_idx_t f ) const
    {
       return ci.empty() ? end() : const_iterator( this, ci.xMin(),  ci.yMin(),  ci.zMin(),  f,
                                                         ci.xSize(), ci.ySize(), ci.zSize(), 1 );
@@ -506,9 +518,9 @@ namespace field {
    //*******************************************************************************************************************
    /*! Iterates only over XYZ coordinate, f is always 0
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::iterator
-   Field<T,fSize_>::beginXYZ()
+   template<typename T>
+   inline typename Field<T>::iterator
+   Field<T>::beginXYZ()
    {
       return iterator( this, 0,0,0,0, xSize(), ySize(), zSize(), 1 );
    }
@@ -516,9 +528,9 @@ namespace field {
    //*******************************************************************************************************************
    /*! Const version of beginXYZ()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::const_iterator
-   Field<T,fSize_>::beginXYZ() const
+   template<typename T>
+   inline typename Field<T>::const_iterator
+   Field<T>::beginXYZ() const
    {
       return const_iterator( this, 0,0,0,0, xSize(), ySize(), zSize(), 1 );
    }
@@ -526,11 +538,11 @@ namespace field {
    //*******************************************************************************************************************
    /*! End iterator, can be used with begin() and beginBlock()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   const ForwardFieldIterator<T,fSize_> Field<T,fSize_>::staticEnd = ForwardFieldIterator<T,fSize_>();
+   template<typename T>
+   const ForwardFieldIterator<T> Field<T>::staticEnd = ForwardFieldIterator<T>();
 
-   template<typename T, uint_t fSize_>
-   inline const typename Field<T,fSize_>::iterator & Field<T,fSize_>::end()
+   template<typename T>
+   inline const typename Field<T>::iterator & Field<T>::end()
    {
       return staticEnd;
    }
@@ -538,11 +550,11 @@ namespace field {
    //*******************************************************************************************************************
    /*! Const end iterator, see end()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   const ForwardFieldIterator<const T,fSize_> Field<T,fSize_>::staticConstEnd = ForwardFieldIterator<const T,fSize_>();
+   template<typename T>
+   const ForwardFieldIterator<const T> Field<T>::staticConstEnd = ForwardFieldIterator<const T>();
 
-   template<typename T, uint_t fSize_>
-   inline const typename Field<T,fSize_>::const_iterator & Field<T,fSize_>::end() const
+   template<typename T>
+   inline const typename Field<T>::const_iterator & Field<T>::end() const
    {
       return staticConstEnd;
    }
@@ -561,8 +573,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! Returns reverse iterator, which can iterate over complete field in a suitable order depending on layout
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::reverse_iterator Field<T,fSize_>::rbegin()
+   template<typename T>
+   inline typename Field<T>::reverse_iterator Field<T>::rbegin()
    {
       return reverse_iterator( this,0,0,0,0, xSize(),   ySize(),   zSize(),  fSize() );
    }
@@ -570,8 +582,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! Returns const_reverse_iterator, see begin()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::const_reverse_iterator Field<T,fSize_>::rbegin() const
+   template<typename T>
+   inline typename Field<T>::const_reverse_iterator Field<T>::rbegin() const
    {
        return const_reverse_iterator ( this, 0,0,0,0, xSize(),   ySize(),   zSize(),  fSize() );
    }
@@ -580,9 +592,9 @@ namespace field {
    //*******************************************************************************************************************
    /*! Iterates only over XYZ coordinate, f is always 0
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::reverse_iterator
-   Field<T,fSize_>::rbeginXYZ()
+   template<typename T>
+   inline typename Field<T>::reverse_iterator
+   Field<T>::rbeginXYZ()
    {
       return reverse_iterator( this, 0,0,0, 0, xSize()  , ySize()  , zSize()  , 1 );
    }
@@ -590,9 +602,9 @@ namespace field {
    //*******************************************************************************************************************
    /*! Const version of beginXYZ()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline typename Field<T,fSize_>::const_reverse_iterator
-   Field<T,fSize_>::rbeginXYZ() const
+   template<typename T>
+   inline typename Field<T>::const_reverse_iterator
+   Field<T>::rbeginXYZ() const
    {
       return const_reverse_iterator( this, 0,0,0, 0, xSize()  , ySize()  , zSize()  , 1 );
    }
@@ -600,11 +612,11 @@ namespace field {
    //*******************************************************************************************************************
    /*! End iterator, can be used with begin() and beginBlock()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   const ReverseFieldIterator<T,fSize_> Field<T,fSize_>::staticREnd = ReverseFieldIterator<T,fSize_>();
+   template<typename T>
+   const ReverseFieldIterator<T> Field<T>::staticREnd = ReverseFieldIterator<T>();
 
-   template<typename T, uint_t fSize_>
-   inline const typename Field<T,fSize_>::reverse_iterator & Field<T,fSize_>::rend()
+   template<typename T>
+   inline const typename Field<T>::reverse_iterator & Field<T>::rend()
    {
       return staticREnd;
    }
@@ -612,11 +624,11 @@ namespace field {
    //*******************************************************************************************************************
    /*! Const end iterator, see end()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   const ReverseFieldIterator<const T,fSize_> Field<T,fSize_>::staticConstREnd = ReverseFieldIterator<const T,fSize_>();
+   template<typename T>
+   const ReverseFieldIterator<const T> Field<T>::staticConstREnd = ReverseFieldIterator<const T>();
 
-   template<typename T, uint_t fSize_>
-   inline const typename Field<T,fSize_>::const_reverse_iterator & Field<T,fSize_>::rend() const
+   template<typename T>
+   inline const typename Field<T>::const_reverse_iterator & Field<T>::rend() const
    {
       return staticConstREnd;
    }
@@ -628,8 +640,8 @@ namespace field {
    //
    //===================================================================================================================
 
-   template<typename T, uint_t fSize_>
-   inline CellInterval Field<T,fSize_>::xyzSize() const
+   template<typename T>
+   inline CellInterval Field<T>::xyzSize() const
    {
       return CellInterval (0,0,0, cell_idx_c( xSize() )-1,
                                   cell_idx_c( ySize() )-1,
@@ -637,8 +649,8 @@ namespace field {
    }
 
 
-   template<typename T, uint_t fSize_>
-   inline CellInterval Field<T,fSize_>::xyzAllocSize() const
+   template<typename T>
+   inline CellInterval Field<T>::xyzAllocSize() const
    {
       return CellInterval( -xOff_,
                            -yOff_,
@@ -648,15 +660,15 @@ namespace field {
                             cell_idx_c( zAllocSize() ) - zOff_-1 );
    }
 
-   template<typename T, uint_t fSize_>
-   inline uint_t  Field<T,fSize_>::size( uint_t coord )  const
+   template<typename T>
+   inline uint_t  Field<T>::size( uint_t coord )  const
    {
       switch (coord) {
          case 0: return this->xSize();
          case 1: return this->ySize();
          case 2: return this->zSize();
          case 3: return this->fSize();
-         default: WALBERLA_ASSERT(false); return 0;
+         default: WALBERLA_ASSERT(false) return 0;
       }
    }
 
@@ -668,33 +680,33 @@ namespace field {
    //
    //===================================================================================================================
 #ifndef NDEBUG
-   template<typename T, uint_t fSize_>
-   void Field<T,fSize_>::assertValidCoordinates( cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f ) const
+   template<typename T>
+   void Field<T>::assertValidCoordinates( cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f ) const
    {
       //Bounds checks
       const cell_idx_t xEff = xOff_ + x;
       const cell_idx_t yEff = yOff_ + y;
       const cell_idx_t zEff = zOff_ + z;
 
-      WALBERLA_ASSERT_GREATER_EQUAL( xEff, 0, "Field access out of bounds: x too small: " << x << " < " << - xOff_ );
-      WALBERLA_ASSERT_GREATER_EQUAL( yEff, 0, "Field access out of bounds: y too small: " << y << " < " << - yOff_ );
-      WALBERLA_ASSERT_GREATER_EQUAL( zEff, 0, "Field access out of bounds: z too small: " << z << " < " << - zOff_ );
-      WALBERLA_ASSERT_GREATER_EQUAL( f,    0, "Field access out of bounds: f too small: " << f << " < " << 0 );
+      WALBERLA_ASSERT_GREATER_EQUAL( xEff, 0, "Field access out of bounds: x too small: " << x << " < " << - xOff_ )
+      WALBERLA_ASSERT_GREATER_EQUAL( yEff, 0, "Field access out of bounds: y too small: " << y << " < " << - yOff_ )
+      WALBERLA_ASSERT_GREATER_EQUAL( zEff, 0, "Field access out of bounds: z too small: " << z << " < " << - zOff_ )
+      WALBERLA_ASSERT_GREATER_EQUAL( f,    0, "Field access out of bounds: f too small: " << f << " < " << 0 )
 
-      WALBERLA_ASSERT_LESS( xEff, cell_idx_c( xAllocSize() ), "Field access out of bounds: x too big: " << x << " >= " << (xAllocSize() - uint_c(xOff_)) );
-      WALBERLA_ASSERT_LESS( yEff, cell_idx_c( yAllocSize() ), "Field access out of bounds: y too big: " << y << " >= " << (yAllocSize() - uint_c(yOff_)) );
-      WALBERLA_ASSERT_LESS( zEff, cell_idx_c( zAllocSize() ), "Field access out of bounds: z too big: " << z << " >= " << (zAllocSize() - uint_c(zOff_)) );
-      WALBERLA_ASSERT_LESS( f,    cell_idx_c( fSize_)       , "Field access out of bounds: f too big: " << f << " >= " << fSize_ );
+      WALBERLA_ASSERT_LESS( xEff, cell_idx_c( xAllocSize() ), "Field access out of bounds: x too big: " << x << " >= " << (xAllocSize() - uint_c(xOff_)) )
+      WALBERLA_ASSERT_LESS( yEff, cell_idx_c( yAllocSize() ), "Field access out of bounds: y too big: " << y << " >= " << (yAllocSize() - uint_c(yOff_)) )
+      WALBERLA_ASSERT_LESS( zEff, cell_idx_c( zAllocSize() ), "Field access out of bounds: z too big: " << z << " >= " << (zAllocSize() - uint_c(zOff_)) )
+      WALBERLA_ASSERT_LESS( f,    cell_idx_c( fSize_)       , "Field access out of bounds: f too big: " << f << " >= " << fSize_ )
    }
 #else
-   template<typename T, uint_t fSize_>
-   void Field<T,fSize_>::assertValidCoordinates( cell_idx_t,  cell_idx_t,  cell_idx_t,  cell_idx_t ) const
+   template<typename T>
+   void Field<T>::assertValidCoordinates( cell_idx_t,  cell_idx_t,  cell_idx_t,  cell_idx_t ) const
    { }
 #endif
 
 
-   template<typename T, uint_t fSize_>
-   bool Field<T,fSize_>::coordinatesValid( cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f ) const
+   template<typename T>
+   bool Field<T>::coordinatesValid( cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f ) const
    {
       //Bounds checks
       const cell_idx_t xEff = xOff_ + x;
@@ -719,15 +731,15 @@ namespace field {
     *
     * \note operator() is equivalent to this function
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline const T & Field<T,fSize_>::get( cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f ) const
+   template<typename T>
+   inline const T & Field<T>::get( cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f ) const
    {
       assertValidCoordinates( x, y, z, f );
 
       const int64_t index = f*int64_t(ffact_) + int64_t(x)*int64_t(xfact_) + int64_t(y)*int64_t(yfact_) + int64_t(z)*int64_t(zfact_);
 
-      WALBERLA_ASSERT_LESS( int64_c(index) + int64_c(valuesWithOffset_ - values_), int64_c(allocSize_) );
-      WALBERLA_ASSERT_GREATER_EQUAL( int64_c(index) + int64_c(valuesWithOffset_ - values_), int64_c(0) );
+      WALBERLA_ASSERT_LESS( int64_c(index) + int64_c(valuesWithOffset_ - values_), int64_c(allocSize_) )
+      WALBERLA_ASSERT_GREATER_EQUAL( int64_c(index) + int64_c(valuesWithOffset_ - values_), int64_c(0) )
 
 #     ifdef WALBERLA_FIELD_MONITORED_ACCESS
       for(uint_t i=0; i< monitorFuncs_.size(); ++i )
@@ -740,10 +752,10 @@ namespace field {
    //*******************************************************************************************************************
    /*! Non-Const variant of get()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline T&  Field<T,fSize_>::get(cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f)
+   template<typename T>
+   inline T&  Field<T>::get(cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f)
    {
-      const Field<T,fSize_>& const_this = *this;
+      const Field<T>& const_this = *this;
       return const_cast<T&>( const_this.get(x,y,z,f) );
    }
 
@@ -751,8 +763,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! get() variant which takes a uint_t as last coordinate, as for example Stencil::toIdx() returns
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline const T & Field<T,fSize_>::get( cell_idx_t x, cell_idx_t y, cell_idx_t z, uint_t f ) const
+   template<typename T>
+   inline const T & Field<T>::get( cell_idx_t x, cell_idx_t y, cell_idx_t z, uint_t f ) const
    {
       return get(x,y,z,cell_idx_c(f));
    }
@@ -760,8 +772,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! get() variant which takes a uint_t as last coordinate, as for example Stencil::toIdx() returns
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline T & Field<T,fSize_>::get( cell_idx_t x, cell_idx_t y, cell_idx_t z, uint_t f )
+   template<typename T>
+   inline T & Field<T>::get( cell_idx_t x, cell_idx_t y, cell_idx_t z, uint_t f )
    {
       return get(x,y,z,cell_idx_c(f));
    }
@@ -770,28 +782,28 @@ namespace field {
    //*******************************************************************************************************************
    /*! get function with only (x,y,z) coordinates, assumes fSize=1
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline T & Field<T,fSize_>::get( cell_idx_t x, cell_idx_t y, cell_idx_t z)
+   template<typename T>
+   inline T & Field<T>::get( cell_idx_t x, cell_idx_t y, cell_idx_t z)
    {
-      static_assert(fSize_ == 1, "f coordinate omitted for field with fSize > 1 ");
+      WALBERLA_ASSERT(fSize_ == 1, "f coordinate omitted for field with fSize > 1 ")
       return get(x,y,z,0);
    }
 
    //*******************************************************************************************************************
    /*! get function with only (x,y,z) coordinates, assumes fSize=1
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline const T & Field<T,fSize_>::get( cell_idx_t x, cell_idx_t y, cell_idx_t z) const
+   template<typename T>
+   inline const T & Field<T>::get( cell_idx_t x, cell_idx_t y, cell_idx_t z) const
    {
-      static_assert(fSize_ == 1, "f coordinate omitted for field with fSize > 1 ");
+      WALBERLA_ASSERT(fSize_ == 1, "f coordinate omitted for field with fSize > 1 ")
       return get(x,y,z,0);
    }
 
    //*******************************************************************************************************************
    /*! get overload using a cell as input, only possible if fSize=1
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline T & Field<T,fSize_>::get( const Cell & cell )
+   template<typename T>
+   inline T & Field<T>::get( const Cell & cell )
    {
       return get( cell.x(), cell.y(), cell.z() );
    }
@@ -799,8 +811,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! get overload using a cell as input, only possible if fSize=1
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline const T & Field<T,fSize_>::get( const Cell & cell ) const
+   template<typename T>
+   inline const T & Field<T>::get( const Cell & cell ) const
    {
       return get( cell.x(), cell.y(), cell.z() );
    }
@@ -814,34 +826,34 @@ namespace field {
     *
     * \param iter Iterator that belongs to another field that has equal size
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline T & Field<T,fSize_>::get( const base_iterator & iter )
+   template<typename T>
+   inline T & Field<T>::get( const base_iterator & iter )
    {
-      WALBERLA_ASSERT( hasSameAllocSize( *iter.getField() ) );
-      WALBERLA_ASSERT( hasSameSize     ( *iter.getField() ) );
-      WALBERLA_ASSERT( layout() == iter.getField()->layout() );
-      WALBERLA_ASSERT( this != iter.getField() ); // use *iterator instead!
+      WALBERLA_ASSERT( hasSameAllocSize( *iter.getField() ) )
+      WALBERLA_ASSERT( hasSameSize     ( *iter.getField() ) )
+      WALBERLA_ASSERT( layout() == iter.getField()->layout() )
+      WALBERLA_ASSERT( this != iter.getField() ) // use *iterator instead!
       return  *( valuesWithOffset_ + (&(*iter) - iter.getField()->valuesWithOffset_) );
    }
 
    //*******************************************************************************************************************
    /*! get overload, where position is specified using an iterator of another field with equal size
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline const T & Field<T,fSize_>::get( const base_iterator & iter ) const
+   template<typename T>
+   inline const T & Field<T>::get( const base_iterator & iter ) const
    {
-      WALBERLA_ASSERT( hasSameAllocSize( *iter.getField() ) );
-      WALBERLA_ASSERT( hasSameSize     ( *iter.getField() ) );
-      WALBERLA_ASSERT( layout() == iter.getField()->layout() );
-      WALBERLA_ASSERT( this != iter.getField() ); // use *iterator instead!
+      WALBERLA_ASSERT( hasSameAllocSize( *iter.getField() ) )
+      WALBERLA_ASSERT( hasSameSize     ( *iter.getField() ) )
+      WALBERLA_ASSERT( layout() == iter.getField()->layout() )
+      WALBERLA_ASSERT( this != iter.getField() ) // use *iterator instead!
       return *(valuesWithOffset_ + (&(*iter) - iter.getField()->valuesWithOffset_) );
    }
 
    //*******************************************************************************************************************
    /*! returns neighboring value of cell in the given direction
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline T & Field<T,fSize_>::getNeighbor( cell_idx_t x, cell_idx_t y, cell_idx_t z, stencil::Direction d )
+   template<typename T>
+   inline T & Field<T>::getNeighbor( cell_idx_t x, cell_idx_t y, cell_idx_t z, stencil::Direction d )
    {
       return getNeighbor(x,y,z,cell_idx_t(0),d);
    }
@@ -849,8 +861,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! returns neighboring value of cell in the given direction
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline const T & Field<T,fSize_>::getNeighbor( cell_idx_t x, cell_idx_t y, cell_idx_t z, stencil::Direction d ) const
+   template<typename T>
+   inline const T & Field<T>::getNeighbor( cell_idx_t x, cell_idx_t y, cell_idx_t z, stencil::Direction d ) const
    {
       return getNeighbor(x,y,z,cell_idx_t(0),d);
    }
@@ -858,8 +870,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! returns neighboring value of cell in the given direction
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline T & Field<T,fSize_>::getNeighbor( cell_idx_t x, cell_idx_t y, cell_idx_t z, uint_t f, stencil::Direction d )
+   template<typename T>
+   inline T & Field<T>::getNeighbor( cell_idx_t x, cell_idx_t y, cell_idx_t z, uint_t f, stencil::Direction d )
    {
       return get( x + stencil::cx[d],
                   y + stencil::cy[d],
@@ -870,8 +882,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! returns neighboring value of cell in the given direction
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline const T & Field<T,fSize_>::getNeighbor( cell_idx_t x, cell_idx_t y, cell_idx_t z, uint_t f, stencil::Direction d ) const
+   template<typename T>
+   inline const T & Field<T>::getNeighbor( cell_idx_t x, cell_idx_t y, cell_idx_t z, uint_t f, stencil::Direction d ) const
    {
       return get( x + stencil::cx[d],
                   y + stencil::cy[d],
@@ -882,8 +894,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! get overload using a cell as input, only possible if fSize=1, with neighbor access
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline T & Field<T,fSize_>::getNeighbor( const Cell & cell, stencil::Direction d )
+   template<typename T>
+   inline T & Field<T>::getNeighbor( const Cell & cell, stencil::Direction d )
    {
       return get( cell.x() + stencil::cx[d],
                   cell.y() + stencil::cy[d],
@@ -893,29 +905,29 @@ namespace field {
    //*******************************************************************************************************************
    /*! get overload using a cell as input, only possible if fSize=1, with neighbor access
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline const T & Field<T,fSize_>::getNeighbor( const Cell & cell, stencil::Direction d ) const
+   template<typename T>
+   inline const T & Field<T>::getNeighbor( const Cell & cell, stencil::Direction d ) const
    {
       return get( cell.x() + stencil::cx[d],
                   cell.y() + stencil::cy[d],
                   cell.z() + stencil::cz[d] );
    }
 
-   template<typename T, uint_t fSize_>
-   inline T & Field<T,fSize_>::getF( T * const xyz0, const cell_idx_t f )
+   template<typename T>
+   inline T & Field<T>::getF( T * const xyz0, const cell_idx_t f )
    {
-      WALBERLA_ASSERT_LESS( f, cell_idx_c(fSize_) );
-      WALBERLA_ASSERT( addressInsideAllocedSpace( xyz0 ) );
-      WALBERLA_ASSERT( addressInsideAllocedSpace( xyz0 + f * ffact_ ) );
+      WALBERLA_ASSERT_LESS( f, cell_idx_c(fSize_) )
+      WALBERLA_ASSERT( addressInsideAllocedSpace( xyz0 ) )
+      WALBERLA_ASSERT( addressInsideAllocedSpace( xyz0 + f * ffact_ ) )
       return *( xyz0 + f * ffact_ );
    }
 
-   template<typename T, uint_t fSize_>
-   inline const T & Field<T,fSize_>::getF( const T * const xyz0, const cell_idx_t f ) const
+   template<typename T>
+   inline const T & Field<T>::getF( const T * const xyz0, const cell_idx_t f ) const
    {
-      WALBERLA_ASSERT_LESS( f, cell_idx_c(fSize_) );
-      WALBERLA_ASSERT( addressInsideAllocedSpace( xyz0 ) );
-      WALBERLA_ASSERT( addressInsideAllocedSpace( xyz0 + f * ffact_ ) );
+      WALBERLA_ASSERT_LESS( f, cell_idx_c(fSize_) )
+      WALBERLA_ASSERT( addressInsideAllocedSpace( xyz0 ) )
+      WALBERLA_ASSERT( addressInsideAllocedSpace( xyz0 + f * ffact_ ) )
       return *( xyz0 + f * ffact_ );
    }
 
@@ -924,8 +936,8 @@ namespace field {
     *
     * Works only in the regions specified by size(), not in the complete allocated region as specified by allocSize()
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   void Field<T,fSize_>::set (const T & value)
+   template<typename T>
+   void Field<T>::set (const T & value)
    {
 #ifdef WALBERLA_CXX_COMPILER_IS_CLANG
 #pragma clang diagnostic push
@@ -951,10 +963,10 @@ namespace field {
     * Works only in the regions specified by size(), not in the complete allocated region as specified by allocSize()
     *
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   void Field<T,fSize_>::set (const std::vector<T> & fValues)
+   template<typename T>
+   void Field<T>::set (const std::vector<T> & fValues)
    {
-      WALBERLA_ASSERT(fValues.size() == fSize_);
+      WALBERLA_ASSERT(fValues.size() == fSize_)
       
 #ifdef WALBERLA_CXX_COMPILER_IS_CLANG
 #pragma clang diagnostic push
@@ -980,11 +992,11 @@ namespace field {
     * Copies complete allocated region as specified by allocSize()
     *
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline void Field<T,fSize_>::set (const Field<T,fSize_> & other )
+   template<typename T>
+   inline void Field<T>::set (const Field<T> & other )
    {
-      WALBERLA_ASSERT_EQUAL( xyzSize(), other.xyzSize() );
-      WALBERLA_ASSERT_EQUAL( allocSize(), other.allocSize() );
+      WALBERLA_ASSERT_EQUAL( xyzSize(), other.xyzSize() )
+      WALBERLA_ASSERT_EQUAL( allocSize(), other.allocSize() )
       std::copy( other.values_, other.values_ + allocSize_, values_ );
    }
 
@@ -992,12 +1004,12 @@ namespace field {
    /*! Swap two fields efficiently by exchanging only values_ pointer
     * The two fields have to have identical sizes and same layout.
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline void Field<T,fSize_>::swapDataPointers( Field<T,fSize_> & other)
+   template<typename T>
+   inline void Field<T>::swapDataPointers( Field<T> & other)
    {
-      WALBERLA_ASSERT( hasSameAllocSize(other) );
-      WALBERLA_ASSERT( hasSameSize(other) );
-      WALBERLA_ASSERT( layout() == other.layout() );
+      WALBERLA_ASSERT( hasSameAllocSize(other) )
+      WALBERLA_ASSERT( hasSameSize(other) )
+      WALBERLA_ASSERT( layout() == other.layout() )
       std::swap( values_, other.values_ );
       std::swap( valuesWithOffset_, other.valuesWithOffset_ );
    }
@@ -1015,8 +1027,8 @@ namespace field {
    //*********************************************************************************************************************
    /*! Equality operator compares element-wise
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline bool Field<T,fSize_>::operator==(const Field<T,fSize_> & other) const
+   template<typename T>
+   inline bool Field<T>::operator==(const Field<T> & other) const
    {
       if ( !hasSameSize(other) )
          return false;
@@ -1032,7 +1044,7 @@ namespace field {
          ++rhsIt;
       }
 
-      WALBERLA_ASSERT_EQUAL( rhsIt, other.end() );
+      WALBERLA_ASSERT_EQUAL( rhsIt, other.end() )
 
       return true;
    }
@@ -1040,8 +1052,8 @@ namespace field {
    //*********************************************************************************************************************
    /*! Inequality operator compares element-wise
    *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline bool Field<T, fSize_>::operator!=( const Field<T, fSize_> & other ) const
+   template<typename T>
+   inline bool Field<T>::operator!=( const Field<T> & other ) const
    {
       return !( *this == other );
    }
@@ -1049,8 +1061,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! True if allocation sizes of all dimensions match
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline bool Field<T,fSize_>::hasSameAllocSize( const Field<T,fSize_> & other ) const
+   template<typename T>
+   inline bool Field<T>::hasSameAllocSize( const Field<T> & other ) const
    {
       return xAllocSize_ == other.xAllocSize_ &&
              yAllocSize_ == other.yAllocSize_ &&
@@ -1061,12 +1073,13 @@ namespace field {
    //*******************************************************************************************************************
    /*! True if sizes of all dimensions match
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   inline bool Field<T,fSize_>::hasSameSize( const Field<T,fSize_> & other ) const
+   template<typename T>
+   inline bool Field<T>::hasSameSize( const Field<T> & other ) const
    {
       return xSize_ == other.xSize_ &&
              ySize_ == other.ySize_ &&
-             zSize_ == other.zSize_;
+             zSize_ == other.zSize_ &&
+             fSize_ == other.fSize_;
    }
 
 
@@ -1092,8 +1105,8 @@ namespace field {
     * \param zOffset The z coordinate that is afterwards mapped to zero
     * \param zs      The new size of the z coordinate. Has to be smaller than (old zSize())-zOffset
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   void Field<T,fSize_>::setOffsets(uint_t xOffset, uint_t xs,
+   template<typename T>
+   void Field<T>::setOffsets(uint_t xOffset, uint_t xs,
                                     uint_t yOffset, uint_t ys,
                                     uint_t zOffset, uint_t zs)
    {
@@ -1101,9 +1114,9 @@ namespace field {
       yOff_ = cell_idx_c( yOffset );
       zOff_ = cell_idx_c( zOffset );
 
-      WALBERLA_ASSERT_LESS_EQUAL( uint_c(xOff_) + xs, xAllocSize() );
-      WALBERLA_ASSERT_LESS_EQUAL( uint_c(yOff_) + ys, yAllocSize() );
-      WALBERLA_ASSERT_LESS_EQUAL( uint_c(zOff_) + zs, zAllocSize() );
+      WALBERLA_ASSERT_LESS_EQUAL( uint_c(xOff_) + xs, xAllocSize() )
+      WALBERLA_ASSERT_LESS_EQUAL( uint_c(yOff_) + ys, yAllocSize() )
+      WALBERLA_ASSERT_LESS_EQUAL( uint_c(zOff_) + zs, zAllocSize() )
 
       valuesWithOffset_ = values_;
       xSize_ = xs;
@@ -1115,8 +1128,8 @@ namespace field {
 
 
 
-   template<typename T, uint_t fSize_>
-   inline bool Field<T,fSize_>::addressInsideAllocedSpace(const T * const value) const
+   template<typename T>
+   inline bool Field<T>::addressInsideAllocedSpace(const T * const value) const
    {
       return ( value >= values_ && value < values_ + allocSize_ );
    }
@@ -1128,12 +1141,12 @@ namespace field {
    //===================================================================================================================
 
 
-   template<typename T, uint_t fSize_>
-   void Field<T,fSize_>::shiftCoordinates( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz )
+   template<typename T>
+   void Field<T>::shiftCoordinates( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz )
    {
-      WALBERLA_ASSERT_LESS_EQUAL ( uint_c(xOff_ + cx) + xSize(), xAllocSize() );
-      WALBERLA_ASSERT_LESS_EQUAL ( uint_c(yOff_ + cy) + ySize(), yAllocSize() );
-      WALBERLA_ASSERT_LESS_EQUAL ( uint_c(zOff_ + cz) + zSize(), zAllocSize() );
+      WALBERLA_ASSERT_LESS_EQUAL ( uint_c(xOff_ + cx) + xSize(), xAllocSize() )
+      WALBERLA_ASSERT_LESS_EQUAL ( uint_c(yOff_ + cy) + ySize(), yAllocSize() )
+      WALBERLA_ASSERT_LESS_EQUAL ( uint_c(zOff_ + cz) + zSize(), zAllocSize() )
 
       setOffsets( uint_c( xOff_ + cx ),  xSize(),  uint_c( yOff_ + cy ), ySize(), uint_c( zOff_ + cz ), zSize() );
    }
@@ -1150,8 +1163,8 @@ namespace field {
     * modifies also the original field!
     * The sliced field has the size as given by the slice-interval.
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   Field<T,fSize_> * Field<T,fSize_>::getSlicedField( const CellInterval & interval ) const
+   template<typename T>
+   Field<T> * Field<T>::getSlicedField( const CellInterval & interval ) const
    {
       auto slicedField = cloneShallowCopy();
       slicedField->slice ( interval );
@@ -1167,8 +1180,8 @@ namespace field {
     * Cells that are not in this cell interval can still be accessed
     * ( by coordinates smaller 0, or bigger than [xyz]Size)
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_ >
-   void Field<T,fSize_>::slice( const CellInterval & interval )
+   template<typename T >
+   void Field<T>::slice( const CellInterval & interval )
    {
       setOffsets ( uint_c( interval.xMin() + xOff_ ), interval.xSize(),
                    uint_c( interval.yMin() + yOff_ ), interval.ySize(),
@@ -1179,8 +1192,8 @@ namespace field {
    //*******************************************************************************************************************
    /*! Returns the number of objects that internally use the same data.
     *******************************************************************************************************************/
-   template<typename T, uint_t fSize_>
-   uint_t Field<T,fSize_>::referenceCount( ) const
+   template<typename T>
+   uint_t Field<T>::referenceCount( ) const
    {
       return allocator_->referenceCount( values_ );
    }
@@ -1199,14 +1212,14 @@ namespace field {
     * When a field is accessed either by get() or operator() the monitoring function is called
     *******************************************************************************************************************/
 #  ifdef WALBERLA_FIELD_MONITORED_ACCESS
-   template<typename T, uint_t fSize>
-   void Field<T,fSize>::addMonitoringFunction(const MonitorFunction & func)
+   template<typename T>
+   void Field<T>::addMonitoringFunction(const MonitorFunction & func)
    {
       monitorFuncs_.push_back(func);
    }
 #  else
-   template<typename T, uint_t fSize>
-   void Field<T,fSize>::addMonitoringFunction(const MonitorFunction & )
+   template<typename T>
+   void Field<T>::addMonitoringFunction(const MonitorFunction & )
    {
    }
 #  endif
@@ -1235,12 +1248,11 @@ namespace field {
     *
    */
    //*******************************************************************************************************************
-   template<typename T, uint_t fSize_ >
-   shared_ptr< FieldAllocator<T> > Field<T,fSize_>::getAllocator() const
+   template<typename T >
+   shared_ptr< FieldAllocator<T> > Field<T>::getAllocator() const
    {
       return this->allocator_;
    }
-
 
 }
 }

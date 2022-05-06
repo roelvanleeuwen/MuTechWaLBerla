@@ -123,9 +123,9 @@ class GhostLayerFieldDataHandling : public field::BlockDataHandling< GhostLayerF
  public:
    typedef typename GhostLayerField_T::value_type Value_T;
 
-   GhostLayerFieldDataHandling(const weak_ptr< StructuredBlockStorage >& blocks, const uint_t nrOfGhostLayers,
+   GhostLayerFieldDataHandling(const weak_ptr< StructuredBlockStorage >& blocks, const uint_t fSize, const uint_t nrOfGhostLayers,
                                const Value_T& initValue, const Layout layout, uint_t alignment = 0)
-      : blocks_(blocks), nrOfGhostLayers_(nrOfGhostLayers), initValue_(initValue), layout_(layout),
+      : blocks_(blocks), fSize_(fSize), nrOfGhostLayers_(nrOfGhostLayers), initValue_(initValue), layout_(layout),
         alignment_(alignment)
    {}
 
@@ -135,7 +135,7 @@ class GhostLayerFieldDataHandling : public field::BlockDataHandling< GhostLayerF
       WALBERLA_CHECK_NOT_NULLPTR(blocks, "Trying to access 'AlwaysInitializeBlockDataHandling' for a block "
                                          "storage object that doesn't exist anymore");
       GhostLayerField_T* field = new GhostLayerField_T(
-         blocks->getNumberOfXCells(*block), blocks->getNumberOfYCells(*block), blocks->getNumberOfZCells(*block),
+         blocks->getNumberOfXCells(*block), blocks->getNumberOfYCells(*block), blocks->getNumberOfZCells(*block), fSize_,
          nrOfGhostLayers_, initValue_, layout_, getAllocator< Value_T >(alignment_));
       return field;
    }
@@ -145,6 +145,7 @@ class GhostLayerFieldDataHandling : public field::BlockDataHandling< GhostLayerF
  private:
    weak_ptr< StructuredBlockStorage > blocks_;
 
+   uint_t fSize_;
    uint_t nrOfGhostLayers_;
    Value_T initValue_;
    Layout layout_;
@@ -207,14 +208,14 @@ void field_swapDataPointers(Field_T& f1, Field_T& f2)
 template< typename Field_T >
 py::object copyAdaptorToField(const Field_T& f)
 {
-   typedef GhostLayerField< typename Field_T::value_type, Field_T::F_SIZE > ResField;
-   auto res = make_shared< ResField >(f.xSize(), f.ySize(), f.zSize(), f.nrOfGhostLayers());
+   typedef GhostLayerField< typename Field_T::value_type > ResField;
+   auto res = make_shared< ResField >(f.xSize(), f.ySize(), f.zSize(), f.fSize(), f.nrOfGhostLayers());
 
    auto srcIt = f.beginWithGhostLayerXYZ();
    auto dstIt = res->beginWithGhostLayerXYZ();
    while (srcIt != f.end())
    {
-      for (cell_idx_t fCoord = 0; fCoord < cell_idx_c(Field_T::F_SIZE); ++fCoord)
+      for (cell_idx_t fCoord = 0; fCoord < cell_idx_c(f.fSize()); ++fCoord)
          dstIt.getF(fCoord) = srcIt.getF(fCoord);
 
       ++srcIt;
@@ -287,13 +288,12 @@ struct FieldExporter
    void operator()(python_coupling::NonCopyableWrap< FieldType >) const
    {
       typedef typename FieldType::value_type T;
-      const uint_t F_SIZE = FieldType::F_SIZE;
-      typedef GhostLayerField< T, F_SIZE > GlField_T;
-      typedef Field< T, F_SIZE > Field_T;
+      typedef GhostLayerField< T > GlField_T;
+      typedef Field< T > Field_T;
 
       std::string data_type_name = PythonFormatString<T>::get();
 
-      std::string class_name = "Field_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
+      std::string class_name = "Field_" + data_type_name;
 
       py::class_< Field_T, shared_ptr< Field_T > >(m_, class_name.c_str())
          .def_property_readonly("layout", &field_layout< Field_T >)
@@ -314,7 +314,7 @@ struct FieldExporter
          .def("__array__", &toNumpyArray< Field_T >);
 
       std::string class_nameGL =
-         "GhostLayerField_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
+         "GhostLayerField_" + data_type_name;
 
       py::class_< GlField_T, shared_ptr< GlField_T >, Field_T >(m_, class_nameGL.c_str())
          .def_property_readonly("sizeWithGhostLayer", &GlField_T::xSizeWithGhostLayer)
@@ -322,11 +322,11 @@ struct FieldExporter
          .def("__array__", &toNumpyArrayWithGhostLayers< GlField_T >);
 
       using field::communication::PackInfo;
-      std::string FieldPackInfo_name = "FieldPackInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
+      std::string FieldPackInfo_name = "FieldPackInfo_" + data_type_name;
       py::class_< PackInfo< GlField_T >, shared_ptr< PackInfo< GlField_T > >, walberla::communication::UniformPackInfo >(m_, FieldPackInfo_name.c_str());
 
       using field::communication::UniformMPIDatatypeInfo;
-      std::string FieldMPIDataTypeInfo_name = "FieldMPIDataTypeInfo_" + data_type_name + "_" + std::to_string(FieldType::F_SIZE);
+      std::string FieldMPIDataTypeInfo_name = "FieldMPIDataTypeInfo_" + data_type_name;
       py::class_< UniformMPIDatatypeInfo< GlField_T >, shared_ptr< UniformMPIDatatypeInfo< GlField_T > >, walberla::communication::UniformMPIDatatypeInfo >(
          m_, FieldMPIDataTypeInfo_name.c_str());
    }
@@ -368,13 +368,11 @@ class AddToStorageExporter
    {
       using namespace py;
       typedef typename FieldType::value_type T;
-      const uint_t F_SIZE = FieldType::F_SIZE;
 
-      if (F_SIZE != fs_) return;
       if(python_coupling::isCppEqualToPythonType<T>(py::cast<std::string>(dtype_.attr("__name__"))))
       {
-         typedef internal::GhostLayerFieldDataHandling< GhostLayerField< T, F_SIZE > > DataHandling;
-         auto dataHandling = walberla::make_shared< DataHandling >(blocks_, gl_, initValue_, layout_, alignment_);
+         typedef internal::GhostLayerFieldDataHandling< GhostLayerField< T > > DataHandling;
+         auto dataHandling = walberla::make_shared< DataHandling >(blocks_, fs_, gl_, initValue_, layout_, alignment_);
          blocks_->addBlockData(dataHandling, name_);
       }
       found_ = true;
@@ -406,7 +404,7 @@ void addToStorage(const shared_ptr< StructuredBlockForest >& blocks, const std::
 
    if (!exporter.successful())
    {
-      throw py::value_error("Adding GhostLayerField failed. Maybe the data type and/or the fsize is not exported to python yet");
+      throw py::value_error("Adding GhostLayerField failed. Maybe the data type is not exported to python yet");
    }
 }
 
@@ -423,7 +421,7 @@ inline void addFlagFieldToStorage(const shared_ptr< StructuredBlockStorage >& bl
       field::addFlagFieldToStorage< FlagField< uint64_t > >(blocks, name, gl);
    else
    {
-      throw py::value_error("Allowed values for number of bits are: 8,16,32,64");
+      throw py::value_error("Allowed values for number of bits are: 8, 16, 32, 64");
    }
 }
 
@@ -447,15 +445,11 @@ class CreateFieldExporter
    void operator() ( python_coupling::NonCopyableWrap<FieldType> ) const
    {
       typedef typename FieldType::value_type T;
-      const uint_t F_SIZE = FieldType::F_SIZE;
-
-      if( F_SIZE != fs_ )
-         return;
 
       if(python_coupling::isCppEqualToPythonType<T>(py::cast<std::string>(dtype_.attr("__name__"))))
       {
          T initVal = T();
-         *resultPointer_ = py::cast( make_shared< GhostLayerField<T, F_SIZE> >( xs_,ys_,zs_, gl_, initVal, layout_,
+         *resultPointer_ = py::cast( make_shared< GhostLayerField<T> >( xs_,ys_,zs_, fs_, gl_, initVal, layout_,
                                                                              getAllocator<T>(alignment_)));
       }
    }
@@ -649,7 +643,7 @@ void exportFields(py::module_& m)
        "blocks"_a, "name"_a, "nameInVtkOutput"_a="" );
 
 
-   #define UintFields Field<uint8_t,1 >, Field<uint16_t, 1>, Field<uint32_t, 1>, Field<uint64_t, 1>
+   #define UintFields Field<uint8_t>, Field<uint16_t>, Field<uint32_t>, Field<uint64_t>
    m2.def( "createBinarizationVTKWriter",
            [](const shared_ptr<StructuredBlockForest> & blocks, const std::string & name,
               uint_t mask, const std::string & nameInVtkOutput = ""){

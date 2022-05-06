@@ -29,7 +29,7 @@ namespace walberla {
 namespace field {
 
 
-   /// Provides an abstraction between Field<real_t,3> and Field<Vector3<real_t>, 1 >
+   /// Provides an abstraction between Field<real_t> and Field<Vector3<real_t> >
    template<typename VectorField_T, typename Enable=void >
    struct VectorFieldAccessor
    {

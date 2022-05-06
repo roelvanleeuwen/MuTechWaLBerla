@@ -67,6 +67,7 @@ class CurvedLinear : public Boundary< typename FlagField_T::flag_t >
    using PDFField_T = lbm::PdfField<LatticeModel_T>;
    using Stencil_T = typename LatticeModel_T::Stencil;
    using flag_t = typename FlagField_T::flag_t;
+
    using BodyField_T = Field<pe::BodyID, 1>;
 
 public:

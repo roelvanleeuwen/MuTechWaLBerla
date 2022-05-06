@@ -39,15 +39,15 @@ public:
    using PdfField_T = PdfField<LatticeModel_T>;
 
    DensityVTKWriter( const ConstBlockDataID & pdf, const std::string & id ) :
-      vtk::BlockCellDataWriter< OutputType >( id ), bdid_( pdf ), pdf_( nullptr ) {}
+      vtk::BlockCellDataWriter< OutputType >( id, 1 ), bdid_( pdf ), pdf_( nullptr ) {}
 
 protected:
 
-   void configure() override { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ); pdf_ = this->block_->template getData< PdfField_T >( bdid_ ); }
+   void configure() override { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ) pdf_ = this->block_->template getData< PdfField_T >( bdid_ ); }
 
    OutputType evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t /*f*/ ) override
    {
-      WALBERLA_ASSERT_NOT_NULLPTR( pdf_ );
+      WALBERLA_ASSERT_NOT_NULLPTR( pdf_ )
       return numeric_cast< OutputType >( pdf_->getDensity(x,y,z) );
    }
 
@@ -66,15 +66,15 @@ public:
    using PdfField_T = PdfField<LatticeModel_T>;
 
    DensitySIVTKWriter( const ConstBlockDataID & pdf, const real_t rho_SI, const std::string & id ) :
-      vtk::BlockCellDataWriter< OutputType >( id ), bdid_( pdf ), pdf_( NULL ), rho_SI_( rho_SI ) {}
+      vtk::BlockCellDataWriter< OutputType >( id ), bdid_( pdf ), pdf_( nullptr ), rho_SI_( rho_SI ) {}
 
 protected:
 
-   void configure() { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ); pdf_ = this->block_->template getData< PdfField_T >( bdid_ ); }
+   void configure() { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ) pdf_ = this->block_->template getData< PdfField_T >( bdid_ ); }
 
    OutputType evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t /*f*/ )
    {
-      WALBERLA_ASSERT_NOT_NULLPTR( pdf_ );
+      WALBERLA_ASSERT_NOT_NULLPTR( pdf_ )
       return numeric_cast< OutputType >( pdf_->getDensitySI( x, y, z, rho_SI_ ) );
    }
 

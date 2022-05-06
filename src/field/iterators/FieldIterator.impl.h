@@ -33,8 +33,8 @@ namespace field {
  * Iterator coordinates (f(),z(),y(),x() ) return coordinates inside that slice (they do not start at 0)
  *
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-FieldIterator<T,fs>::FieldIterator( const typename FieldIterator<T,fs>::FieldType * field,
+template <typename T>
+FieldIterator<T>::FieldIterator( const typename FieldIterator<T>::FieldType * field,
                                     cell_idx_t xBeg, cell_idx_t yBeg, cell_idx_t zBeg, cell_idx_t fBeg,
                                     uint_t sx, uint_t sy, uint_t sz, uint_t sf, bool forward )
    :  f_(field), xBegin_(xBeg), yBegin_(yBeg), zBegin_(zBeg), fBegin_(fBeg)
@@ -112,8 +112,8 @@ FieldIterator<T,fs>::FieldIterator( const typename FieldIterator<T,fs>::FieldTyp
 //**********************************************************************************************************************
 /*!\brief Constructs an end iterator, which is represented by NULL pointers
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-FieldIterator<T,fs>::FieldIterator()
+template <typename T>
+FieldIterator<T>::FieldIterator()
    : linePtr_(nullptr), lineEnd_(nullptr), f_(nullptr)
 {
 }
@@ -122,8 +122,8 @@ FieldIterator<T,fs>::FieldIterator()
 //**********************************************************************************************************************
 /*!\brief Copy Constructor. Required for pointer member cur*_
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-FieldIterator<T,fs>::FieldIterator( const FieldIterator<T,fs> & o )
+template <typename T>
+FieldIterator<T>::FieldIterator( const FieldIterator<T> & o )
    : lineBegin_     ( o.lineBegin_ ),
      linePtr_       ( o.linePtr_      ),
      lineEnd_       ( o.lineEnd_      ),
@@ -149,8 +149,8 @@ FieldIterator<T,fs>::FieldIterator( const FieldIterator<T,fs> & o )
 //**********************************************************************************************************************
 /*!\brief Assignment operator. Required for pointer member cur*_
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-FieldIterator<T,fs> & FieldIterator<T,fs>::operator= ( const FieldIterator<T,fs> & o )
+template <typename T>
+FieldIterator<T> & FieldIterator<T>::operator= ( const FieldIterator<T> & o )
 {
    if ( &o == this)
       return *this;
@@ -183,8 +183,8 @@ FieldIterator<T,fs> & FieldIterator<T,fs>::operator= ( const FieldIterator<T,fs>
 /*!\brief Initializes pointers required for the optimized x(),y(),z(),f() functions
  *        See documentation of fastestCoord_, curX_, curY_, curZ_ and curF_
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-void FieldIterator<T,fs>::initCoordinateAccessOptimizationPointers( )
+template <typename T>
+void FieldIterator<T>::initCoordinateAccessOptimizationPointers( )
 {
    if( f_->layout() == fzyx )
    {
@@ -207,10 +207,10 @@ void FieldIterator<T,fs>::initCoordinateAccessOptimizationPointers( )
 /*!\brief Increments the slower 3 coordinates, if innermost coordinate is at end
  *
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline void FieldIterator<T,fs>::incrementLine()
+template <typename T>
+inline void FieldIterator<T>::incrementLine()
 {
-   WALBERLA_ASSERT_EQUAL( linePtr_, lineEnd_ );
+   WALBERLA_ASSERT_EQUAL( linePtr_, lineEnd_ )
 
    linePtr_ += skips_[3];
    cur_[2]++;
@@ -243,10 +243,10 @@ inline void FieldIterator<T,fs>::incrementLine()
 /*!\brief Decrements the slower 3 coordinates, if innermost coordinate is at beginning
  *
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline void FieldIterator<T,fs>::decrementLine()
+template <typename T>
+inline void FieldIterator<T>::decrementLine()
 {
-   WALBERLA_ASSERT_EQUAL( linePtr_, lineBegin_-1 );
+   WALBERLA_ASSERT_EQUAL( linePtr_, lineBegin_-1 )
 
    linePtr_ -= skips_[3];
    cur_[2]--;
@@ -282,8 +282,8 @@ inline void FieldIterator<T,fs>::decrementLine()
  *
  * \return true if both iterators are equal
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline bool FieldIterator<T,fs>::operator==( const FieldIterator<T,fs>& it ) const
+template <typename T>
+inline bool FieldIterator<T>::operator==( const FieldIterator<T>& it ) const
 {
    return it.linePtr_ == this->linePtr_;
 }
@@ -293,8 +293,8 @@ inline bool FieldIterator<T,fs>::operator==( const FieldIterator<T,fs>& it ) con
 //**********************************************************************************************************************
 /*!\brief Unequal operator.
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline bool FieldIterator<T,fs>::operator!=( const FieldIterator<T,fs>& it ) const
+template <typename T>
+inline bool FieldIterator<T>::operator!=( const FieldIterator<T>& it ) const
 {
    return it.linePtr_ != this->linePtr_;
 }
@@ -306,8 +306,8 @@ inline bool FieldIterator<T,fs>::operator!=( const FieldIterator<T,fs>& it ) con
  * \param d Direction enumeration which defines deltas for x,y,z
  * \param cf Delta for f
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline T & FieldIterator<T,fs>::neighbor( stencil::Direction d, cell_idx_t cf ) const
+template <typename T>
+inline T & FieldIterator<T>::neighbor( stencil::Direction d, cell_idx_t cf ) const
 {
    using namespace stencil;
    return neighbor(cx[d],cy[d],cz[d],cf);
@@ -319,8 +319,8 @@ inline T & FieldIterator<T,fs>::neighbor( stencil::Direction d, cell_idx_t cf ) 
  * \param d Direction enumeration which defines deltas for x,y,z
  * \param cf Delta for f
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline T & FieldIterator<T,fs>::neighbor( stencil::Direction d, uint_t cf ) const
+template <typename T>
+inline T & FieldIterator<T>::neighbor( stencil::Direction d, uint_t cf ) const
 {
    return neighbor( d, cell_idx_c (cf) );
 }
@@ -333,8 +333,8 @@ inline T & FieldIterator<T,fs>::neighbor( stencil::Direction d, uint_t cf ) cons
  * \param cz Delta for z
  * \param cf Delta for f
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline T & FieldIterator<T,fs>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz, cell_idx_t cf ) const
+template <typename T>
+inline T & FieldIterator<T>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz, cell_idx_t cf ) const
 {
    T * res = linePtr_;
 
@@ -343,7 +343,7 @@ inline T & FieldIterator<T,fs>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx
           cz * f_->zfact_ +
           cf * f_->ffact_;
 
-   WALBERLA_ASSERT ( f_->addressInsideAllocedSpace( res ) );
+   WALBERLA_ASSERT ( f_->addressInsideAllocedSpace( res ) )
 
    return *res;
 }
@@ -357,8 +357,8 @@ inline T & FieldIterator<T,fs>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx
  * \param cz Delta for z
  * \param cf Delta for f
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline T & FieldIterator<T,fs>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz, uint_t cf ) const
+template <typename T>
+inline T & FieldIterator<T>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx_t cz, uint_t cf ) const
 {
    return neighbor ( cx, cy, cz, cell_idx_c( cf ) );
 }
@@ -370,11 +370,11 @@ inline T & FieldIterator<T,fs>::neighbor( cell_idx_t cx, cell_idx_t cy, cell_idx
  * Assumes that iterator stands at f==0
  * \param cf Delta for f
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline  T & FieldIterator<T,fs>::getF( cell_idx_t cf ) const
+template <typename T>
+inline  T & FieldIterator<T>::getF( cell_idx_t cf ) const
 {
-   WALBERLA_ASSERT_EQUAL( f(), 0 );
-   WALBERLA_ASSERT_LESS( cf, cell_idx_t ( f_->fSize() ) );
+   WALBERLA_ASSERT_EQUAL( f(), 0 )
+   WALBERLA_ASSERT_LESS( cf, cell_idx_t ( f_->fSize() ) )
    T * res = linePtr_;
    res += cf * f_->ffact_;
    return *res;
@@ -386,8 +386,8 @@ inline  T & FieldIterator<T,fs>::getF( cell_idx_t cf ) const
  *        Takes an uint_t instead a cell_idx_t, since stencil::toIndex() returns uint_t
  * \param cf Delta for f
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline  T & FieldIterator<T,fs>::getF( uint_t cf ) const
+template <typename T>
+inline  T & FieldIterator<T>::getF( uint_t cf ) const
 {
    return getF ( cell_idx_c ( cf ) );
 }
@@ -399,14 +399,14 @@ inline  T & FieldIterator<T,fs>::getF( uint_t cf ) const
 //
 //======================================================================================================================
 
-template <typename T, uint_t fs>
-inline void FieldIterator<T,fs>::print( std::ostream & os ) const
+template <typename T>
+inline void FieldIterator<T>::print( std::ostream & os ) const
 {
    os << "(" << x() << "," << y() << "," << z() << "/" << f() << ")";
 }
 
-template< typename T, uint_t fs>
-std::ostream & operator<< ( std::ostream & os, const FieldIterator<T,fs> & it ) {
+template< typename T>
+std::ostream & operator<< ( std::ostream & os, const FieldIterator<T> & it ) {
    it.print(os);
    return os;
 }
@@ -427,36 +427,36 @@ std::ostream & operator<< ( std::ostream & os, const FieldIterator<T,fs> & it ) 
  * curF_ is dereferenced.
  */
 
-template <typename T, uint_t fs>
-inline cell_idx_t FieldIterator<T,fs>::x() const
+template <typename T>
+inline cell_idx_t FieldIterator<T>::x() const
 {
    fastestCoord_ = cell_idx_c(linePtr_ - lineBegin_ );
    return xBegin_ + *curX_;
 }
 
-template <typename T, uint_t fs>
-inline cell_idx_t FieldIterator<T,fs>::y() const
+template <typename T>
+inline cell_idx_t FieldIterator<T>::y() const
 {
    // no fastestCoord_ update required here, since y is never fastest coordinate
    return yBegin_ + *curY_;
 }
 
-template <typename T, uint_t fs>
-inline cell_idx_t FieldIterator<T,fs>::z() const
+template <typename T>
+inline cell_idx_t FieldIterator<T>::z() const
 {
    // no fastestCoord_ update required here, since z is never fastest coordinate
    return zBegin_ + *curZ_;
 }
 
-template <typename T, uint_t fs>
-inline cell_idx_t FieldIterator<T,fs>::f() const
+template <typename T>
+inline cell_idx_t FieldIterator<T>::f() const
 {
    fastestCoord_ = cell_idx_c(linePtr_ - lineBegin_ );
    return fBegin_ + *curF_;
 }
 
-template <typename T, uint_t fs>
-inline Cell FieldIterator<T,fs>::cell() const
+template <typename T>
+inline Cell FieldIterator<T>::cell() const
 {
    fastestCoord_ = cell_idx_c( linePtr_ - lineBegin_ );
    return Cell ( xBegin_ + *curX_,
@@ -478,8 +478,8 @@ inline Cell FieldIterator<T,fs>::cell() const
  *
  * \return Reference to the incremented pointer iterator.
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline ForwardFieldIterator<T,fs>& ForwardFieldIterator<T,fs>::operator++()
+template <typename T>
+inline ForwardFieldIterator<T>& ForwardFieldIterator<T>::operator++()
 {
 
    ++Parent::linePtr_;
@@ -497,8 +497,8 @@ inline ForwardFieldIterator<T,fs>& ForwardFieldIterator<T,fs>::operator++()
  *
  * \return Reference to the decremented pointer iterator.
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline ForwardFieldIterator<T,fs>& ForwardFieldIterator<T,fs>::operator--()
+template <typename T>
+inline ForwardFieldIterator<T>& ForwardFieldIterator<T>::operator--()
 {
 
    --Parent::linePtr_;
@@ -524,45 +524,12 @@ inline ForwardFieldIterator<T,fs>& ForwardFieldIterator<T,fs>::operator--()
    }
   \endcode
  **********************************************************************************************************************/
-template <typename T,  uint_t fs>
-inline void ForwardFieldIterator<T,fs>::incrOuter()
+template <typename T>
+inline void ForwardFieldIterator<T>::incrOuter()
 {
    // incrementing line pointer was done in "inner" iterator
    Parent::incrementLine();
 }
-
-
-/*
-template <typename T, uint_t fs>
-void ForwardFieldIterator<T,fs>::setCoordinates( cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f )
-{
-   typedef typename Parent::NonConstT NonConstT;
-   Parent::linePtr_ = const_cast< NonConstT *>(& Parent::f_->get(x,y,z,f) );;
-
-   if ( Parent::f_->layout() == fzyx )
-      Parent::lineBegin_ = const_cast<NonConstT *>(& Parent::f_->get( Parent::xBegin_,y,z,f) );
-   else
-      Parent::lineBegin_ = const_cast<NonConstT *>(& Parent::f_->get(x,y,z,Parent::fBegin_) );
-
-   Parent::lineEnd_   = Parent::lineBegin_ + Parent::sizes_[3];
-
-   *Parent::curX_ = x - Parent::xBegin_;
-   *Parent::curY_ = y - Parent::yBegin_;
-   *Parent::curZ_ = z - Parent::zBegin_;
-   *Parent::curF_ = f - Parent::fBegin_;
-
-   WALBERLA_ASSERT_GREATER_EQUAL( *Parent::curX_, 0 );
-   WALBERLA_ASSERT_GREATER_EQUAL( *Parent::curY_, 0 );
-   WALBERLA_ASSERT_GREATER_EQUAL( *Parent::curZ_, 0 );
-   WALBERLA_ASSERT_GREATER_EQUAL( *Parent::curF_, 0 );
-   WALBERLA_ASSERT_GREATER_EQUAL( Parent::linePtr_, Parent::lineBegin_ );
-
-   WALBERLA_ASSERT_LESS( Parent::cur_[0], Parent::sizes_[0] );
-   WALBERLA_ASSERT_LESS( Parent::cur_[1], Parent::sizes_[1] );
-   WALBERLA_ASSERT_LESS( Parent::cur_[2], Parent::sizes_[2] );
-   WALBERLA_ASSERT_LESS( Parent::lineEnd_ - Parent::linePtr_, Parent::sizes_[3] );
-}*/
-
 
 //======================================================================================================================
 //
@@ -576,8 +543,8 @@ void ForwardFieldIterator<T,fs>::setCoordinates( cell_idx_t x, cell_idx_t y, cel
  *
  * \return Reference to the incremented pointer iterator.
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline ReverseFieldIterator<T,fs>& ReverseFieldIterator<T,fs>::operator--()
+template <typename T>
+inline ReverseFieldIterator<T>& ReverseFieldIterator<T>::operator--()
 {
 
    ++Parent::linePtr_;
@@ -596,8 +563,8 @@ inline ReverseFieldIterator<T,fs>& ReverseFieldIterator<T,fs>::operator--()
  *
  * \return Reference to the decremented pointer iterator.
  **********************************************************************************************************************/
-template <typename T, uint_t fs>
-inline ReverseFieldIterator<T,fs>& ReverseFieldIterator<T,fs>::operator++()
+template <typename T>
+inline ReverseFieldIterator<T>& ReverseFieldIterator<T>::operator++()
 {
    --Parent::linePtr_;
 

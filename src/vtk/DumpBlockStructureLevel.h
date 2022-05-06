@@ -37,7 +37,7 @@ public:
 
 protected:
 
-   void configure() override { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ); WALBERLA_ASSERT_NOT_NULLPTR( this->blockStorage_ ); level_ = uint8_c( this->blockStorage_->getLevel( *(this->block_) ) ); }
+   void configure() override { WALBERLA_ASSERT_NOT_NULLPTR( this->block_ ) WALBERLA_ASSERT_NOT_NULLPTR( this->blockStorage_ ) level_ = uint8_c( this->blockStorage_->getLevel( *(this->block_) ) ); }
 
    uint8_t evaluate( const cell_idx_t, const cell_idx_t, const cell_idx_t, const cell_idx_t ) override { return level_; }
 

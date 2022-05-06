@@ -176,11 +176,11 @@ private:
 
    /// For each value of a cell, either '0' or '1' is stored in the VTK file.
    /// If the value is non-finite (= infinite or NaN), '1' is written to file - otherwise '0'.
-   class FValueVTKWriter : public vtk::BlockCellDataWriter< uint8_t, Field_T::F_SIZE >
+   class FValueVTKWriter : public vtk::BlockCellDataWriter< uint8_t >
    {
    public:
 
-      FValueVTKWriter( BlockCellsMap & map, const std::string & id ) : vtk::BlockCellDataWriter< uint8_t, Field_T::F_SIZE >( id ), map_( map ) {}
+      FValueVTKWriter( BlockCellsMap & map, const std::string & id ) : vtk::BlockCellDataWriter< uint8_t >( id ), map_( map ) {}
 
    protected:
 
@@ -188,8 +188,8 @@ private:
 
       uint8_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
       {
-         WALBERLA_ASSERT( map_.find( this->block_ ) != map_.end() );
-         WALBERLA_ASSERT( map_[ this->block_ ].find( Cell(x,y,z) ) != map_[ this->block_ ].end() );
+         WALBERLA_ASSERT( map_.find( this->block_ ) != map_.end() )
+         WALBERLA_ASSERT( map_[ this->block_ ].find( Cell(x,y,z) ) != map_[ this->block_ ].end() )
 
          return ( map_[ this->block_ ][ Cell(x,y,z) ].find( f ) != map_[ this->block_ ][ Cell(x,y,z) ].end() ) ? uint8_t(1) : uint8_t(0);
       }
@@ -200,10 +200,10 @@ private:
    };
 
    /// For each cell, the corresponding block local cell coordinates are stored in the VTK file.
-   class LocalCoordVTKWriter : public vtk::BlockCellDataWriter< cell_idx_t, 3 >
+   class LocalCoordVTKWriter : public vtk::BlockCellDataWriter< cell_idx_t >
    {
    public:
-      LocalCoordVTKWriter( const std::string & id ) : vtk::BlockCellDataWriter< cell_idx_t, 3 >( id ) {}
+      LocalCoordVTKWriter( const std::string & id ) : vtk::BlockCellDataWriter< cell_idx_t >( id ) {}
    protected:
       void configure() override {}
       cell_idx_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
@@ -213,10 +213,10 @@ private:
    };
 
    /// For each cell, the corresponding global cell coordinates are stored in the VTK file.
-   class GlobalCoordVTKWriter : public vtk::BlockCellDataWriter< cell_idx_t, 3 >
+   class GlobalCoordVTKWriter : public vtk::BlockCellDataWriter< cell_idx_t >
    {
    public:
-      GlobalCoordVTKWriter( const std::string & id ) : vtk::BlockCellDataWriter< cell_idx_t, 3 >( id ) {}
+      GlobalCoordVTKWriter( const std::string & id ) : vtk::BlockCellDataWriter< cell_idx_t >( id ) {}
    protected:
       void configure() override {}
       cell_idx_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
@@ -339,7 +339,7 @@ void StabilityChecker< Field_T, Filter_T >::operator()()
       return;
 
    auto blocks = blocks_.lock();
-   WALBERLA_CHECK_NOT_NULLPTR( blocks, "Trying to access 'StabilityChecker' for a block storage object that doesn't exist anymore" );
+   WALBERLA_CHECK_NOT_NULLPTR( blocks, "Trying to access 'StabilityChecker' for a block storage object that doesn't exist anymore" )
 
    for( auto block = blocks->begin( requiredSelectors_, incompatibleSelectors_ ); block != blocks->end(); ++block )
       checkBlock( block.get() );
@@ -377,7 +377,7 @@ void StabilityChecker< Field_T, Filter_T >::operator()()
       }
 
       if( !failedCells_.empty() )
-         WALBERLA_LOG_WARNING( oss.str() );
+         WALBERLA_LOG_WARNING( oss.str() )
    }
 
    bool abort = !failedCells_.empty();
@@ -401,10 +401,10 @@ void StabilityChecker< Field_T, Filter_T >::operator()()
          vtkWriter->write();
       }
 
-      WALBERLA_LOG_WARNING_ON_ROOT( "Field stability check failed - aborting program ..." );
-      WALBERLA_MPI_WORLD_BARRIER();
+      WALBERLA_LOG_WARNING_ON_ROOT( "Field stability check failed - aborting program ..." )
+      WALBERLA_MPI_WORLD_BARRIER()
 
-      WALBERLA_ABORT_NO_DEBUG_INFO("");
+      WALBERLA_ABORT_NO_DEBUG_INFO("")
    }
 }
 
@@ -577,7 +577,7 @@ inline void stabilityCheckerConfigParser( const shared_ptr< Config > & config, c
                                           std::string & defaultVTKBaseFolder, std::string & defaultVTKExecutionFolder, std::string & defaultVTKIdentifier,
                                           bool & defaultVTKBinary, bool & defaultVTKLittleEndian, bool & defaultVTKMPIIO, bool & defaultVTKForcePVTU )
 {
-   if( !!config )
+   if(config)
       stabilityCheckerConfigParser( config->getGlobalBlock(), configBlockName, defaultCheckFrequency, defaultOutputToStream, defaultOutputVTK,
                                     defaultVTKBaseFolder, defaultVTKExecutionFolder, defaultVTKIdentifier,
                                     defaultVTKBinary, defaultVTKLittleEndian, defaultVTKMPIIO, defaultVTKForcePVTU );

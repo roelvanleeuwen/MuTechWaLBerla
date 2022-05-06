@@ -42,13 +42,13 @@ int main( int argc, char ** argv )
                                                        1.0,           // dx
                                                        oneBlockPerProcess
                                                        );
-   typedef GhostLayerField<cell_idx_t,3> MyField;
-   BlockDataID fieldID = field::addToStorage<MyField>( blocks, "Field" );
+   using Field_T = GhostLayerField<cell_idx_t>;
+   BlockDataID fieldID = field::addToStorage<Field_T>( blocks, "Field", 3 );
 
 
    for( auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt )
    {
-      MyField * field = blockIt->getData<MyField>( fieldID );
+      Field_T * field = blockIt->getData<Field_T>( fieldID );
 
       for( auto cellIt = field->beginXYZ(); cellIt != field->end(); ++cellIt )
       {
@@ -61,26 +61,26 @@ int main( int argc, char ** argv )
    }
 
 
-   MyField gatheredField(0,0,0,0);
+   Field_T gatheredField(0,0,0,0,0);
    CellInterval boundingBox = blocks->getDomainCellBB();
    boundingBox.min()[ 1 ] = 10;
    boundingBox.max()[ 1 ] = 29;
 
    auto targetRank = MPIManager::instance()->numProcesses() -1;
-   field::gather<MyField>( gatheredField, blocks, fieldID, boundingBox, targetRank );
+   field::gather<Field_T>( gatheredField, blocks, fieldID, boundingBox, targetRank );
 
    WALBERLA_EXCLUSIVE_WORLD_SECTION( targetRank )
    {
       for( auto cellIt = gatheredField.beginXYZ(); cellIt != gatheredField.end(); ++cellIt )
       {
-         WALBERLA_CHECK_EQUAL( cellIt.getF(0) - boundingBox.min()[0], cellIt.cell()[0] );
-         WALBERLA_CHECK_EQUAL( cellIt.getF(1) - boundingBox.min()[1], cellIt.cell()[1] );
-         WALBERLA_CHECK_EQUAL( cellIt.getF(2) - boundingBox.min()[2], cellIt.cell()[2] );
+         WALBERLA_CHECK_EQUAL( cellIt.getF(0) - boundingBox.min()[0], cellIt.cell()[0] )
+         WALBERLA_CHECK_EQUAL( cellIt.getF(1) - boundingBox.min()[1], cellIt.cell()[1] )
+         WALBERLA_CHECK_EQUAL( cellIt.getF(2) - boundingBox.min()[2], cellIt.cell()[2] )
       }
    }
 
 
-   return 0;
+   return EXIT_SUCCESS;
 }
 }
 

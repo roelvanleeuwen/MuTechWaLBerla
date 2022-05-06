@@ -45,6 +45,7 @@ delete_loop = """
     }}
 """
 
+
 # the target will enter the jinja filters as string. The reason for that is, that is not easy to work with the
 # enum in the template files.
 def translate_target(target):

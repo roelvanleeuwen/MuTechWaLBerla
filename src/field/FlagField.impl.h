@@ -56,7 +56,7 @@ namespace field {
     *******************************************************************************************************************/
    template<typename T>
    FlagField<T>::FlagField( uint_t xs, uint_t ys, uint_t zs, uint_t gl, const shared_ptr<FieldAllocator<T> > &alloc)
-      : GhostLayerField<T,1> (xs,ys,zs,gl,0, fzyx, alloc )
+      : GhostLayerField<T> (xs,ys,zs,1,gl,0, fzyx, alloc )
    {
       data_ = new RegistrationData();
    }
@@ -67,7 +67,7 @@ namespace field {
     *******************************************************************************************************************/
     template<typename T>
     FlagField<T>::FlagField(const FlagField<T> & other)
-       : GhostLayerField<T,1>::GhostLayerField(other),
+       : GhostLayerField<T>::GhostLayerField(other),
          data_(other.data_)
     {
     }
@@ -78,7 +78,7 @@ namespace field {
    template<typename T>
    FlagField<T>::~FlagField()
    {
-      uint_t refs = Field<T,1>::referenceCount();
+      uint_t refs = Field<T>::referenceCount();
       if( refs == 1 ) // last field that uses this data
          delete data_;
    }
@@ -93,7 +93,7 @@ namespace field {
    //===================================================================================================================
 
    template<typename T>
-   Field<T,1> * FlagField<T>::cloneShallowCopyInternal() const
+   Field<T> * FlagField<T>::cloneShallowCopyInternal() const
    {
       return new FlagField<T>(*this);
    }
@@ -101,7 +101,7 @@ namespace field {
    template<typename T>
    inline FlagField<T> * FlagField<T>::clone() const
    {
-      FlagField<T> * ff = dynamic_cast<FlagField<T>* > ( GhostLayerField<T,1>::clone() );
+      FlagField<T> * ff = dynamic_cast<FlagField<T>* > ( GhostLayerField<T>::clone() );
       // make a deep copy of Registration data, reference counting is done by FieldAllocator
       ff->data_ = new RegistrationData( *data_ );
       return ff;
@@ -110,7 +110,7 @@ namespace field {
    template<typename T>
    inline FlagField<T> * FlagField<T>::cloneUninitialized() const
    {
-      FlagField<T> * ff = dynamic_cast<FlagField<T>* > ( GhostLayerField<T,1>::cloneUninitialized() );
+      FlagField<T> * ff = dynamic_cast<FlagField<T>* > ( GhostLayerField<T>::cloneUninitialized() );
       // make a deep copy of Registration data, reference counting is done by FieldAllocator
       ff->data_ = new RegistrationData();
       return ff;
@@ -119,13 +119,13 @@ namespace field {
    template<typename T>
    inline FlagField<T> * FlagField<T>::cloneShallowCopy() const
    {
-      return dynamic_cast<FlagField<T>* > ( GhostLayerField<T,1>::cloneShallowCopy() );
+      return dynamic_cast<FlagField<T>* > ( GhostLayerField<T>::cloneShallowCopy() );
    }
 
    template<typename T>
    FlagField<T> * FlagField<T>::getSlicedField( const CellInterval & ci ) const
    {
-      return dynamic_cast<FlagField<T> * >( Field<T,1>::getSlicedField(ci) );
+      return dynamic_cast<FlagField<T> * >( Field<T>::getSlicedField(ci) );
    }
 
 
@@ -146,7 +146,7 @@ namespace field {
    void  FlagField<T>::getCellsWhereMaskIsSet(T mask, CellVector & cv) const
    {
       //check that mask contains only registered bits
-      WALBERLA_ASSERT( ! ( mask & (~ data_->usedMask) ));
+      WALBERLA_ASSERT( ! ( mask & (~ data_->usedMask) ))
 
       for( auto i = this->begin(); i != this->end(); ++i)
          if(*i & mask )
@@ -160,7 +160,7 @@ namespace field {
    template<typename T>
    bool FlagField<T>::isMaskSet (cell_idx_t x, cell_idx_t y, cell_idx_t z, flag_t m) const
    {
-      WALBERLA_ASSERT(isRegistered(m));
+      WALBERLA_ASSERT(isRegistered(m))
       return field::isMaskSet ( this->get(x,y,z), m );
    }
 
@@ -170,7 +170,7 @@ namespace field {
    template<typename T>
    bool FlagField<T>::isFlagSet (cell_idx_t x, cell_idx_t y, cell_idx_t z, flag_t f) const
    {
-      WALBERLA_ASSERT(isRegistered(f));
+      WALBERLA_ASSERT(isRegistered(f))
       return field::isFlagSet( this->get(x,y,z), f );
    }
 
@@ -181,7 +181,7 @@ namespace field {
    template<typename T>
    bool FlagField<T>::isPartOfMaskSet (cell_idx_t x, cell_idx_t y, cell_idx_t z, flag_t m) const
    {
-      WALBERLA_ASSERT(isRegistered(m));
+      WALBERLA_ASSERT(isRegistered(m))
       return field::isPartOfMaskSet( this->get(x,y,z), m );
    }
 
@@ -301,11 +301,11 @@ namespace field {
    template<typename T>
    const FlagUID & FlagField<T>::getFlagUID( const flag_t flag ) const
    {
-      WALBERLA_ASSERT( math::uintIsPowerOfTwo( flag ) );
+      WALBERLA_ASSERT( math::uintIsPowerOfTwo( flag ) )
 
       uint_t bitNr = math::uintMSBPosition( flag ) - uint_t(1);
 
-      WALBERLA_ASSERT_LESS( bitNr, data_->flagToUID.size() );
+      WALBERLA_ASSERT_LESS( bitNr, data_->flagToUID.size() )
 
       if( !flagExists( bitNr ) )
       {
@@ -356,7 +356,7 @@ namespace field {
    template<typename T>
    bool FlagField<T>::flagExists(uint_t bitNr) const
    {
-      WALBERLA_ASSERT_LESS( bitNr, sizeof(T)*8 );
+      WALBERLA_ASSERT_LESS( bitNr, sizeof(T)*8 )
       return (data_->usedMask & (T(1)<<bitNr) ) > T(0);
    }
 
@@ -434,49 +434,49 @@ namespace field {
     template<typename T, typename FieldPtrOrIterator>
     inline void addMask( const FieldPtrOrIterator & it, T mask )
     {
-       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(mask) );
+       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(mask) )
        addMask( *it, mask );
     }
 
     template<typename T, typename FieldPtrOrIterator>
     inline void addFlag( const FieldPtrOrIterator & it, T flag )
     {
-       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(flag) );
+       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(flag) )
        addMask( *it, flag );
     }
 
     template<class T, typename FieldPtrOrIterator>
     inline void removeMask( const FieldPtrOrIterator & it, T mask )
     {
-       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(mask) );
+       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(mask) )
        removeMask( *it, mask );
     }
 
     template<class T, typename FieldPtrOrIterator>
     inline void removeFlag( const FieldPtrOrIterator & it, T flag )
     {
-       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(flag) );
+       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(flag) )
        removeMask( *it, flag );
     }
 
     template<class T, typename FieldPtrOrIterator>
     inline bool isMaskSet( const FieldPtrOrIterator & it, T mask )
     {
-       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(mask) );
+       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(mask) )
        return isMaskSet( *it, mask );
     }
 
     template<class T, typename FieldPtrOrIterator>
     inline bool isFlagSet( const FieldPtrOrIterator & it, T flag )
     {
-       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(flag) );
+       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(flag) )
        return isMaskSet( *it, flag );
     }
 
     template<class T, typename FieldPtrOrIterator>
     inline bool isPartOfMaskSet( const FieldPtrOrIterator & it, T mask )
     {
-       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(mask) );
+       WALBERLA_ASSERT( dynamic_cast<const FlagField<T> * > ( it.getField() )->isRegistered(mask) )
        return isPartOfMaskSet( *it, mask );
     }
 

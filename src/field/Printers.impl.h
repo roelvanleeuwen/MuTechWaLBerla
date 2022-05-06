@@ -26,12 +26,12 @@ namespace walberla {
 namespace field {
 
 
-   template<typename T, uint_t fs>
-   std::ostream &  printSlice( std::ostream & os, const Field<T,fs> & field, int sliceCoord,
+   template<typename T>
+   std::ostream &  printSlice( std::ostream & os, const Field<T> & field, int sliceCoord,
                                cell_idx_t sliceValue, cell_idx_t f )
    {
       // If this field is a ghost-layer field call more specific variant of this function
-      const GhostLayerField<T,fs> * glField = dynamic_cast< const GhostLayerField<T,fs> * > ( &field );
+      const GhostLayerField<T> * glField = dynamic_cast< const GhostLayerField<T> * > ( &field );
       if ( glField )
          return printSlice ( os, *glField, sliceCoord, sliceValue, f );
 
@@ -39,7 +39,7 @@ namespace field {
       using std::endl;
       os << endl;
 
-      WALBERLA_ASSERT(sliceCoord >=0 && sliceCoord <3 );
+      WALBERLA_ASSERT(sliceCoord >=0 && sliceCoord <3 )
 
       CellInterval size = field.xyzSize();
 
@@ -52,7 +52,7 @@ namespace field {
       size.min()[uint_c(sliceCoord)] = sliceValue;
       size.max()[uint_c(sliceCoord)] = sliceValue;
 
-      auto sliced = shared_ptr<Field<T,fs> > ( field.getSlicedField( size ) );
+      auto sliced = shared_ptr<Field<T> > ( field.getSlicedField( size ) );
 
       // Headline
       os << coordNames[innerCoord] << " =       ||";
@@ -84,8 +84,8 @@ namespace field {
       return os;
    }
 
-   template<typename T, uint_t fs>
-   std::ostream &  printSlice( std::ostream & os, const GhostLayerField<T,fs> & field, int sliceCoord,
+   template<typename T>
+   std::ostream &  printSlice( std::ostream & os, const GhostLayerField<T> & field, int sliceCoord,
                                cell_idx_t sliceValue, cell_idx_t f )
    {
       // If this field is a FlagField  call more specific variant of this function
@@ -96,7 +96,7 @@ namespace field {
       using std::endl;
       os << endl;
 
-      WALBERLA_ASSERT(sliceCoord >=0 && sliceCoord <3 );
+      WALBERLA_ASSERT(sliceCoord >=0 && sliceCoord <3 )
       cell_idx_t glCellIdx = cell_idx_c ( field.nrOfGhostLayers() );
 
       const char * coordNames [3] = { "x", "y", "z" };
@@ -109,7 +109,7 @@ namespace field {
       sliceInterval.min()[uint_c(sliceCoord)] = sliceValue;
       sliceInterval.max()[uint_c(sliceCoord)] = sliceValue;
 
-      auto sliced = shared_ptr<GhostLayerField<T,fs> > ( field.getSlicedField( sliceInterval ) );
+      auto sliced = shared_ptr<GhostLayerField<T> > ( field.getSlicedField( sliceInterval ) );
       CellInterval size = field.xyzSizeWithGhostLayer();
       Cell coord = size.min();
       coord[uint_c(sliceCoord)] = 0;
@@ -168,7 +168,7 @@ namespace field {
    {
       using std::endl;
 
-      WALBERLA_ASSERT(sliceCoord >=0 && sliceCoord <3 );
+      WALBERLA_ASSERT(sliceCoord >=0 && sliceCoord <3 )
       cell_idx_t glCellIdx = cell_idx_c ( field.nrOfGhostLayers() );
 
       const char * coordNames [3] = { "x", "y", "z" };
@@ -216,7 +216,6 @@ namespace field {
 
       for ( ; coord[uint_c(outerCoord)] <= size.max()[uint_c(outerCoord)]; ++coord[uint_c(outerCoord)] )
       {
-
          if ( coord[uint_c(outerCoord)] == 0 || coord[uint_c(outerCoord)] == size.max()[uint_c(outerCoord)]-glCellIdx+1)
          {
             os << "----------------------";
@@ -237,10 +236,8 @@ namespace field {
 
             os << std::setw(10) << out;
          }
-
          os << endl;
       }
-
       os << endl;
       return os;
    }

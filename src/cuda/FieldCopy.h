@@ -75,13 +75,13 @@ namespace cuda {
 
 
 
-   template<typename T, uint_t fs>
-   void fieldCpy( cuda::GPUField<T> & dst, const field::Field<T,fs> & src );
+   template<typename T>
+   void fieldCpy( cuda::GPUField<T> & dst, const field::Field<T> & src );
 
 
 
-   template<typename T, uint_t fs>
-   void fieldCpy( field::Field<T,fs> & dst, const cuda::GPUField<T> & src );
+   template<typename T>
+   void fieldCpy( field::Field<T> & dst, const cuda::GPUField<T> & src );
 
 
 
@@ -95,15 +95,15 @@ namespace cuda {
 
 
 
-   template<typename T, uint_t fs>
-   void fieldCpy( cuda::GPUField<T> & dst, const field::Field<T,fs> & src )
+   template<typename T>
+   void fieldCpy( cuda::GPUField<T> & dst, const field::Field<T> & src )
    {
       cudaMemcpy3DParms p;
       memset( &p, 0, sizeof(p) );
 
 
       if ( dst.layout() != src.layout() ) {
-         WALBERLA_ABORT( "Cannot copy fields with different layout" );
+         WALBERLA_ABORT( "Cannot copy fields with different layout" )
       }
 
       bool canCopy = ( src.layout()     == fzyx &&
@@ -119,7 +119,7 @@ namespace cuda {
                         dst.fSize()      == src.fSize() );
 
       if ( !canCopy ) {
-         WALBERLA_ABORT("Field have to have the same size ");
+         WALBERLA_ABORT("Field have to have the same size ")
       }
 
       if ( dst.layout() == fzyx )
@@ -147,19 +147,19 @@ namespace cuda {
 
       p.dstPtr = dst.pitchedPtr();
       p.kind = cudaMemcpyHostToDevice;
-      WALBERLA_CUDA_CHECK( cudaMemcpy3D( &p ) );
+      WALBERLA_CUDA_CHECK( cudaMemcpy3D( &p ) )
    }
 
 
 
-   template<typename T, uint_t fs>
-   void fieldCpy( field::Field<T,fs> & dst, const cuda::GPUField<T> & src )
+   template<typename T>
+   void fieldCpy( field::Field<T> & dst, const cuda::GPUField<T> & src )
    {
       cudaMemcpy3DParms p;
       memset( &p, 0, sizeof(p) );
 
       if ( dst.layout() != src.layout() ) {
-         WALBERLA_ABORT( "Cannot copy fields with different layout" );
+         WALBERLA_ABORT( "Cannot copy fields with different layout" )
       }
 
       bool canCopy = ( src.layout()     == fzyx &&
@@ -175,7 +175,7 @@ namespace cuda {
                         dst.fSize()      == src.fSize() );
 
       if ( !canCopy ) {
-         WALBERLA_ABORT("Field have to have the same size ");
+         WALBERLA_ABORT("Field have to have the same size ")
       }
 
       if ( dst.layout() == fzyx )
@@ -203,7 +203,7 @@ namespace cuda {
 
       p.srcPtr = src.pitchedPtr();
       p.kind = cudaMemcpyDeviceToHost;
-      WALBERLA_CUDA_CHECK( cudaMemcpy3D( &p ) );
+      WALBERLA_CUDA_CHECK( cudaMemcpy3D( &p ) )
 
    }
 
