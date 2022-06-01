@@ -13,19 +13,24 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ParticleAndVolumeFractionMapping.cpp
+//! \file BodyAndVolumeFractionMapping.cpp
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //
 //======================================================================================================================
-
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/ParticleAndVolumeFractionMapping.h"
 
 #include "blockforest/Initialization.h"
 
 #include "core/DataTypes.h"
 #include "core/Environment.h"
 #include "core/debug/TestSubsystem.h"
+
+#include "cuda/AddGPUFieldToStorage.h"
+#include "cuda/FieldCopy.h"
+#include "cuda/FieldIndexing.h"
+#include "cuda/GPUField.h"
+#include "cuda/HostFieldAllocator.h"
+#include "cuda/Kernel.h"
 
 #include "field/AddToStorage.h"
 
@@ -41,9 +46,9 @@
 #include <functional>
 #include <memory>
 
-#include "../Utility.h"
+#include "ParticleAndVolumeFractionMappingKernel.h"
 
-namespace particle_volume_fraction_check
+namespace body_volume_fraction_check
 {
 
 ///////////
@@ -53,6 +58,56 @@ namespace particle_volume_fraction_check
 using namespace walberla;
 using walberla::uint_t;
 using namespace lbm_mesapd_coupling;
+
+typedef GhostLayerField< real_t, 1 > ScalarField;
+typedef cuda::GPUField< real_t > GPUField;
+
+//*******************************************************************************************************************
+/*!\brief Calculating the sum over all fraction values. This can be used as a sanity check since it has to be roughly
+ * equal to the volume of all particles.
+ *
+ */
+//*******************************************************************************************************************
+class FractionFieldSum
+{
+ public:
+   FractionFieldSum(const shared_ptr< StructuredBlockStorage >& blockStorage, BlockDataID bodyAndVolumeFractionFieldID)
+      : blockStorage_(blockStorage), bodyAndVolumeFractionFieldID_(bodyAndVolumeFractionFieldID)
+   {}
+
+   real_t operator()()
+   {
+      real_t sum = 0.0;
+
+      for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
+      {
+         ScalarField* bodyAndVolumeFractionField = blockIt->getData< ScalarField >(bodyAndVolumeFractionFieldID_);
+
+         const cell_idx_t xSize = cell_idx_c(bodyAndVolumeFractionField->xSize());
+         const cell_idx_t ySize = cell_idx_c(bodyAndVolumeFractionField->ySize());
+         const cell_idx_t zSize = cell_idx_c(bodyAndVolumeFractionField->zSize());
+
+         for (cell_idx_t z = 0; z < zSize; ++z)
+         {
+            for (cell_idx_t y = 0; y < ySize; ++y)
+            {
+               for (cell_idx_t x = 0; x < xSize; ++x)
+               {
+                  sum += bodyAndVolumeFractionField->get(x, y, z);
+               }
+            }
+         }
+      }
+
+      WALBERLA_MPI_SECTION() { mpi::allReduceInplace(sum, mpi::SUM); }
+
+      return sum;
+   }
+
+ private:
+   shared_ptr< StructuredBlockStorage > blockStorage_;
+   BlockDataID bodyAndVolumeFractionFieldID_;
+};
 
 ////////////////
 // Parameters //
@@ -76,12 +131,24 @@ struct Setup
    uint_t timesteps;
 };
 
+ScalarField* createField(IBlock* const block, StructuredBlockStorage* const storage)
+{
+   return new ScalarField(storage->getNumberOfXCells(*block), // number of cells in x direction per block
+                          storage->getNumberOfYCells(*block), // number of cells in y direction per block
+                          storage->getNumberOfZCells(*block), // number of cells in z direction per block
+                          1,                                  // one ghost layer
+                          double(0),                          // initial value
+                          field::fzyx,                        // layout
+                          make_shared< cuda::HostFieldAllocator< double > >() // allocator for host pinned memory
+   );
+}
+
 //////////
 // MAIN //
 //////////
 
 //*******************************************************************************************************************
-/*!\brief Testcase that checks if ParticleAndVolumeFractionMapping.h works as intended
+/*!\brief Testcase that checks if BodyAndVolumeFractionMapping.h works as intended
  *
  * A sphere particle is placed inside the domain and is moving with a constant velocity. The overlap fraction is
  * computed for all cells in each time step. If the mapping is correct, the sum over all fractions should be roughly
@@ -176,38 +243,56 @@ int main(int argc, char** argv)
    // ADD DATA TO BLOCKS //
    ////////////////////////
 
-   // add particle and volume fraction field (needed for the PSM)
-   BlockDataID particleAndVolumeFractionFieldID =
-      field::addToStorage< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
-         blocks, "particle and volume fraction field",
-         std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);
+   // add body and volume fraction field (needed for the PSM)
+   /*BlockDataID bodyAndVolumeFractionFieldID =
+      field::addToStorage< lbm_mesapd_coupling::psm::BodyAndVolumeFractionField_T >(
+         blocks, "body and volume fraction field", std::vector< lbm_mesapd_coupling::psm::BodyAndVolumeFraction_T >(),
+         field::zyxf, 0);*/
+   BlockDataID bodyAndVolumeFractionFieldID =
+      blocks->addStructuredBlockData< ScalarField >(&createField, "body and volume fraction field CPU");
+   BlockDataID gpuFieldID = cuda::addGPUFieldToStorage< ScalarField >(blocks, bodyAndVolumeFractionFieldID,
+                                                                      "body and volume fraction field GPU");
 
    // calculate fraction
-   lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(
-      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionFieldID, 4);
-   particleMapping();
+   /*lbm_mesapd_coupling::psm::BodyAndVolumeFractionMapping bodyMapping(
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), bodyAndVolumeFractionFieldID, 4);
+   bodyMapping();*/
 
-   FractionFieldSum fractionFieldSum(blocks, particleAndVolumeFractionFieldID);
+   FractionFieldSum fractionFieldSum(blocks, bodyAndVolumeFractionFieldID);
    auto selector = mesa_pd::kernel::SelectMaster();
    mesa_pd::kernel::SemiImplicitEuler particleIntegration(1.0);
 
    for (uint_t i = 0; i < setup.timesteps; ++i)
    {
+      // update fraction mapping
+      for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+      {
+         auto cudaField = blockIt->getData< cuda::GPUField< double > >(gpuFieldID);
+
+         auto myKernel = cuda::make_kernel(&particleAndVolumeFractionMappingKernel);
+         myKernel.addFieldIndexingParam(cuda::FieldIndexing< double >::xyz(*cudaField));
+         Vector3< real_t > blockStart = blockIt->getAABB().minCorner();
+         myKernel.addParam(double3{ position[0], position[1], position[2] });
+         myKernel.addParam(sphereRadius);
+         myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });
+         myKernel();
+
+         cuda::fieldCpySweepFunction< ScalarField, GPUField >(bodyAndVolumeFractionFieldID, gpuFieldID, &(*blockIt));
+      }
       // check that the sum over all fractions is roughly the volume of the sphere
       real_t sum = fractionFieldSum();
       WALBERLA_CHECK_LESS(std::fabs(4.0 / 3.0 * math::pi * sphereRadius * sphereRadius * sphereRadius - sum),
-                          real_c(1.0));
+                          real_c(30));
 
       // update position
       ps->forEachParticle(false, selector, *accessor, particleIntegration, *accessor);
       syncCall();
-      // update fraction mapping
-      particleMapping();
+      /*bodyMapping();*/
    }
 
    return EXIT_SUCCESS;
 }
 
-} // namespace particle_volume_fraction_check
+} // namespace body_volume_fraction_check
 
-int main(int argc, char** argv) { particle_volume_fraction_check::main(argc, argv); }
+int main(int argc, char** argv) { body_volume_fraction_check::main(argc, argv); }
