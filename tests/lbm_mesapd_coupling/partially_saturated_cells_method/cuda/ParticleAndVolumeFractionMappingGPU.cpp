@@ -270,7 +270,7 @@ int main(int argc, char** argv)
          auto cudaField = blockIt->getData< cuda::GPUField< real_t > >(gpuFieldID);
 
          auto myKernel = cuda::make_kernel(&particleAndVolumeFractionMappingKernel);
-         myKernel.addFieldIndexingParam(cuda::FieldIndexing< double >::xyz(*cudaField));
+         myKernel.addFieldIndexingParam(cuda::FieldIndexing< real_t >::xyz(*cudaField));
          Vector3< real_t > blockStart = blockIt->getAABB().minCorner();
          myKernel.addParam(double3{ position[0], position[1], position[2] });
          myKernel.addParam(sphereRadius);
