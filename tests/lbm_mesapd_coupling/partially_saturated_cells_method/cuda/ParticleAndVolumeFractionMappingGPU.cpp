@@ -185,7 +185,7 @@ int main(int argc, char** argv)
    const real_t sphereRadius = real_c(0.5) * setup.sphereDiam;
    const real_t dx           = real_c(1);
 
-   setup.timesteps = 100;
+   setup.timesteps = 1000;
 
    ///////////////////////////
    // BLOCK STRUCTURE SETUP //
@@ -264,20 +264,35 @@ int main(int argc, char** argv)
 
    for (uint_t i = 0; i < setup.timesteps; ++i)
    {
-      // update fraction mapping
+      // reset fields
       for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
       {
          auto cudaField = blockIt->getData< cuda::GPUField< real_t > >(gpuFieldID);
-
-         auto myKernel = cuda::make_kernel(&particleAndVolumeFractionMappingKernel);
+         auto myKernel  = cuda::make_kernel(&resetKernel);
          myKernel.addFieldIndexingParam(cuda::FieldIndexing< real_t >::xyz(*cudaField));
-         Vector3< real_t > blockStart = blockIt->getAABB().minCorner();
-         myKernel.addParam(double3{ position[0], position[1], position[2] });
-         myKernel.addParam(sphereRadius);
-         myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });
          myKernel();
+      }
 
-         cuda::fieldCpySweepFunction< ScalarField, GPUField >(bodyAndVolumeFractionFieldID, gpuFieldID, &(*blockIt));
+      // apply mapping
+      for (size_t idx = 0; idx < accessor->size(); ++idx)
+      {
+         Vector3< real_t > particlePosition = accessor->getPosition(idx);
+
+         // update fraction mapping
+         for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+         {
+            auto cudaField = blockIt->getData< cuda::GPUField< real_t > >(gpuFieldID);
+
+            auto myKernel = cuda::make_kernel(&particleAndVolumeFractionMappingKernel);
+            myKernel.addFieldIndexingParam(cuda::FieldIndexing< real_t >::xyz(*cudaField));
+            Vector3< real_t > blockStart = blockIt->getAABB().minCorner();
+            myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] });
+            myKernel.addParam(sphereRadius);
+            myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });
+            myKernel();
+
+            cuda::fieldCpySweepFunction< ScalarField, GPUField >(bodyAndVolumeFractionFieldID, gpuFieldID, &(*blockIt));
+         }
       }
       // check that the sum over all fractions is roughly the volume of the sphere
       real_t sum = fractionFieldSum();
