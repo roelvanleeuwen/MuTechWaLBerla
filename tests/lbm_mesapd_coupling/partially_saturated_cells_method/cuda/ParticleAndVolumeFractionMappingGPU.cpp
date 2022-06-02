@@ -34,6 +34,7 @@
 
 #include "field/AddToStorage.h"
 
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 
 #include "mesa_pd/data/ParticleAccessorWithShape.h"
@@ -45,8 +46,6 @@
 
 #include <functional>
 #include <memory>
-
-#include "ParticleAndVolumeFractionMappingKernel.h"
 
 namespace body_volume_fraction_check
 {
@@ -254,9 +253,9 @@ int main(int argc, char** argv)
                                                                       "body and volume fraction field GPU");
 
    // calculate fraction
-   /*lbm_mesapd_coupling::psm::BodyAndVolumeFractionMapping bodyMapping(
-      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), bodyAndVolumeFractionFieldID, 4);
-   bodyMapping();*/
+   lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMappingGPU particleMapping(
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), gpuFieldID, 4);
+   particleMapping();
 
    FractionFieldSum fractionFieldSum(blocks, bodyAndVolumeFractionFieldID);
    auto selector = mesa_pd::kernel::SelectMaster();
@@ -264,36 +263,12 @@ int main(int argc, char** argv)
 
    for (uint_t i = 0; i < setup.timesteps; ++i)
    {
-      // reset fields
+      // copy data back to perform the check on CPU
       for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
       {
-         auto cudaField = blockIt->getData< cuda::GPUField< real_t > >(gpuFieldID);
-         auto myKernel  = cuda::make_kernel(&resetKernel);
-         myKernel.addFieldIndexingParam(cuda::FieldIndexing< real_t >::xyz(*cudaField));
-         myKernel();
+         cuda::fieldCpySweepFunction< ScalarField, GPUField >(bodyAndVolumeFractionFieldID, gpuFieldID, &(*blockIt));
       }
 
-      // apply mapping
-      for (size_t idx = 0; idx < accessor->size(); ++idx)
-      {
-         Vector3< real_t > particlePosition = accessor->getPosition(idx);
-
-         // update fraction mapping
-         for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
-         {
-            auto cudaField = blockIt->getData< cuda::GPUField< real_t > >(gpuFieldID);
-
-            auto myKernel = cuda::make_kernel(&particleAndVolumeFractionMappingKernel);
-            myKernel.addFieldIndexingParam(cuda::FieldIndexing< real_t >::xyz(*cudaField));
-            Vector3< real_t > blockStart = blockIt->getAABB().minCorner();
-            myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] });
-            myKernel.addParam(sphereRadius);
-            myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });
-            myKernel();
-
-            cuda::fieldCpySweepFunction< ScalarField, GPUField >(bodyAndVolumeFractionFieldID, gpuFieldID, &(*blockIt));
-         }
-      }
       // check that the sum over all fractions is roughly the volume of the sphere
       real_t sum = fractionFieldSum();
       WALBERLA_CHECK_LESS(std::fabs(4.0 / 3.0 * math::pi * sphereRadius * sphereRadius * sphereRadius - sum),
@@ -302,7 +277,9 @@ int main(int argc, char** argv)
       // update position
       ps->forEachParticle(false, selector, *accessor, particleIntegration, *accessor);
       syncCall();
-      /*bodyMapping();*/
+
+      // map particles into field
+      particleMapping();
    }
 
    return EXIT_SUCCESS;
