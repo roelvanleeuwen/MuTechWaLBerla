@@ -30,7 +30,7 @@ __global__ void resetKernel(cuda::FieldAccessor< real_t > field)
 }
 
 __global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real_t > field, double3 spherePosition,
-                                                       double sphereRadius, double3 blockStart)
+                                                       real_t sphereRadius, double3 blockStart)
 {
    field.set(blockIdx, threadIdx);
    double3 point = { blockStart.x + threadIdx.x, blockStart.y + blockIdx.x, blockStart.z + blockIdx.y };
