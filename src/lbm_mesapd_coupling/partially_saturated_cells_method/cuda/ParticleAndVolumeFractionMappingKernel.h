@@ -31,6 +31,7 @@ namespace walberla
 
 __global__ void resetKernel(cuda::FieldAccessor< real_t > field);
 __global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real_t > field, double3 spherePosition,
-                                                       real_t sphereRadius, double3 blockStart);
+                                                       real_t sphereRadius, double3 blockStart, double3 dx,
+                                                       int3 nSamples);
 
 } // namespace walberla

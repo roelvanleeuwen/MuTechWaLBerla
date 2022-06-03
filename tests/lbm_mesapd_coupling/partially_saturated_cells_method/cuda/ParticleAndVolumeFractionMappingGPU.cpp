@@ -184,7 +184,7 @@ int main(int argc, char** argv)
    const real_t sphereRadius = real_c(0.5) * setup.sphereDiam;
    const real_t dx           = real_c(1);
 
-   setup.timesteps = 1000;
+   setup.timesteps = 100;
 
    ///////////////////////////
    // BLOCK STRUCTURE SETUP //

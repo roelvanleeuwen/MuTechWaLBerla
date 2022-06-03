@@ -30,10 +30,36 @@ __global__ void resetKernel(cuda::FieldAccessor< real_t > field)
 }
 
 __global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real_t > field, double3 spherePosition,
-                                                       real_t sphereRadius, double3 blockStart)
+                                                       real_t sphereRadius, double3 blockStart, double3 dx,
+                                                       int3 nSamples)
 {
    field.set(blockIdx, threadIdx);
-   double3 point = { blockStart.x + threadIdx.x, blockStart.y + blockIdx.x, blockStart.z + blockIdx.y };
+   double3 sampleDistance = { 1.0 / (nSamples.x + 1) * dx.x, 1.0 / (nSamples.y + 1) * dx.y,
+                              1.0 / (nSamples.z + 1) * dx.z };
+
+   for (uint_t x = 0; x < nSamples.x; x++)
+   {
+      for (uint_t y = 0; y < nSamples.y; y++)
+      {
+         for (uint_t z = 0; z < nSamples.z; z++)
+         {
+            double3 samplingPoint = { (blockStart.x + threadIdx.x) * dx.x + sampleDistance.x * x,
+                                      (blockStart.y + blockIdx.x) * dx.y + sampleDistance.y * y,
+                                      (blockStart.z + blockIdx.y) * dx.z + sampleDistance.z * z };
+            if ((samplingPoint.x - spherePosition.x) * (samplingPoint.x - spherePosition.x) +
+                   (samplingPoint.y - spherePosition.y) * (samplingPoint.y - spherePosition.y) +
+                   (samplingPoint.z - spherePosition.z) * (samplingPoint.z - spherePosition.z) <=
+                sphereRadius * sphereRadius)
+            {
+               field.get() += 1.0;
+            }
+         }
+      }
+   }
+
+   field.get() *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
+
+   /*double3 point = { blockStart.x + threadIdx.x, blockStart.y + blockIdx.x, blockStart.z + blockIdx.y };
 
    if ((point.x - spherePosition.x) * (point.x - spherePosition.x) +
           (point.y - spherePosition.y) * (point.y - spherePosition.y) +
@@ -42,7 +68,7 @@ __global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real
    {
       field.get() = 1.0;
    }
-   else { field.get() = 0.0; }
+   else { field.get() = 0.0; }*/
 }
 
 } // namespace walberla
