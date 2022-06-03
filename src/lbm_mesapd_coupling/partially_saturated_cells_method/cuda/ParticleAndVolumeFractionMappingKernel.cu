@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file BodyAndVolumeFractionMappingKernel.cu
+//! \file ParticleAndVolumeFractionMappingKernel.cu
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //
@@ -34,41 +34,36 @@ __global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real
                                                        int3 nSamples)
 {
    field.set(blockIdx, threadIdx);
-   double3 sampleDistance = { 1.0 / (nSamples.x + 1) * dx.x, 1.0 / (nSamples.y + 1) * dx.y,
-                              1.0 / (nSamples.z + 1) * dx.z };
+   double3 sampleDistance       = { 1.0 / (nSamples.x + 1) * dx.x, 1.0 / (nSamples.y + 1) * dx.y,
+                                    1.0 / (nSamples.z + 1) * dx.z };
+   double3 startSamplingPoint   = { (blockStart.x + threadIdx.x * dx.x + sampleDistance.x),
+                                    (blockStart.y + blockIdx.x * dx.y + sampleDistance.y),
+                                    (blockStart.z + blockIdx.y * dx.z + sampleDistance.z) };
+   double3 currentSamplingPoint = startSamplingPoint;
 
-   for (uint_t x = 0; x < nSamples.x; x++)
+   for (uint_t z = 0; z < nSamples.z; z++)
    {
+      currentSamplingPoint.y = startSamplingPoint.y;
       for (uint_t y = 0; y < nSamples.y; y++)
       {
-         for (uint_t z = 0; z < nSamples.z; z++)
+         currentSamplingPoint.x = startSamplingPoint.x;
+         for (uint_t x = 0; x < nSamples.x; x++)
          {
-            double3 samplingPoint = { (blockStart.x + threadIdx.x) * dx.x + sampleDistance.x * x,
-                                      (blockStart.y + blockIdx.x) * dx.y + sampleDistance.y * y,
-                                      (blockStart.z + blockIdx.y) * dx.z + sampleDistance.z * z };
-            if ((samplingPoint.x - spherePosition.x) * (samplingPoint.x - spherePosition.x) +
-                   (samplingPoint.y - spherePosition.y) * (samplingPoint.y - spherePosition.y) +
-                   (samplingPoint.z - spherePosition.z) * (samplingPoint.z - spherePosition.z) <=
+            if ((currentSamplingPoint.x - spherePosition.x) * (currentSamplingPoint.x - spherePosition.x) +
+                   (currentSamplingPoint.y - spherePosition.y) * (currentSamplingPoint.y - spherePosition.y) +
+                   (currentSamplingPoint.z - spherePosition.z) * (currentSamplingPoint.z - spherePosition.z) <=
                 sphereRadius * sphereRadius)
             {
                field.get() += 1.0;
             }
+            currentSamplingPoint.x += sampleDistance.x;
          }
+         currentSamplingPoint.y += sampleDistance.y;
       }
+      currentSamplingPoint.z += sampleDistance.z;
    }
 
    field.get() *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
-
-   /*double3 point = { blockStart.x + threadIdx.x, blockStart.y + blockIdx.x, blockStart.z + blockIdx.y };
-
-   if ((point.x - spherePosition.x) * (point.x - spherePosition.x) +
-          (point.y - spherePosition.y) * (point.y - spherePosition.y) +
-          (point.z - spherePosition.z) * (point.z - spherePosition.z) <=
-       sphereRadius * sphereRadius)
-   {
-      field.get() = 1.0;
-   }
-   else { field.get() = 0.0; }*/
 }
 
 } // namespace walberla

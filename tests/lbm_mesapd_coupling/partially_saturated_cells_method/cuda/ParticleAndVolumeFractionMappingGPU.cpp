@@ -272,7 +272,7 @@ int main(int argc, char** argv)
       // check that the sum over all fractions is roughly the volume of the sphere
       real_t sum = fractionFieldSum();
       WALBERLA_CHECK_LESS(std::fabs(4.0 / 3.0 * math::pi * sphereRadius * sphereRadius * sphereRadius - sum),
-                          real_c(30));
+                          real_c(2));
 
       // update position
       ps->forEachParticle(false, selector, *accessor, particleIntegration, *accessor);

@@ -59,10 +59,10 @@ class ParticleAndVolumeFractionMappingGPU
 {
  public:
    ParticleAndVolumeFractionMappingGPU(const shared_ptr< StructuredBlockStorage >& blockStorage,
-                                    const shared_ptr< ParticleAccessor_T >& ac,
-                                    const ParticleSelector_T& mappingParticleSelector,
-                                    const BlockDataID& particleAndVolumeFractionFieldID,
-                                    const uint_t superSamplingDepth = uint_t(4))
+                                       const shared_ptr< ParticleAccessor_T >& ac,
+                                       const ParticleSelector_T& mappingParticleSelector,
+                                       const BlockDataID& particleAndVolumeFractionFieldID,
+                                       const uint_t superSamplingDepth = uint_t(4))
       : blockStorage_(blockStorage), ac_(ac), mappingParticleSelector_(mappingParticleSelector),
         particleAndVolumeFractionFieldID_(particleAndVolumeFractionFieldID), superSamplingDepth_(superSamplingDepth)
    {
