@@ -41,29 +41,38 @@ __global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real
                                     (blockStart.z + blockIdx.y * dx.z + sampleDistance.z) };
    double3 currentSamplingPoint = startSamplingPoint;
 
-   for (uint_t z = 0; z < nSamples.z; z++)
+   double3 minCornerSphere = { spherePosition.x - sphereRadius, spherePosition.y - sphereRadius,
+                               spherePosition.z - sphereRadius };
+   double3 maxCornerSphere = { spherePosition.x + sphereRadius, spherePosition.y + sphereRadius,
+                               spherePosition.z + sphereRadius };
+
+   if (startSamplingPoint.x + dx.x > minCornerSphere.x && startSamplingPoint.x < maxCornerSphere.x &&
+       startSamplingPoint.y + dx.y > minCornerSphere.y && startSamplingPoint.y < maxCornerSphere.y &&
+       startSamplingPoint.z + dx.z > minCornerSphere.z && startSamplingPoint.z < maxCornerSphere.z)
    {
-      currentSamplingPoint.y = startSamplingPoint.y;
-      for (uint_t y = 0; y < nSamples.y; y++)
+      for (uint_t z = 0; z < nSamples.z; z++)
       {
-         currentSamplingPoint.x = startSamplingPoint.x;
-         for (uint_t x = 0; x < nSamples.x; x++)
+         currentSamplingPoint.y = startSamplingPoint.y;
+         for (uint_t y = 0; y < nSamples.y; y++)
          {
-            if ((currentSamplingPoint.x - spherePosition.x) * (currentSamplingPoint.x - spherePosition.x) +
-                   (currentSamplingPoint.y - spherePosition.y) * (currentSamplingPoint.y - spherePosition.y) +
-                   (currentSamplingPoint.z - spherePosition.z) * (currentSamplingPoint.z - spherePosition.z) <=
-                sphereRadius * sphereRadius)
+            currentSamplingPoint.x = startSamplingPoint.x;
+            for (uint_t x = 0; x < nSamples.x; x++)
             {
-               field.get() += 1.0;
+               if ((currentSamplingPoint.x - spherePosition.x) * (currentSamplingPoint.x - spherePosition.x) +
+                      (currentSamplingPoint.y - spherePosition.y) * (currentSamplingPoint.y - spherePosition.y) +
+                      (currentSamplingPoint.z - spherePosition.z) * (currentSamplingPoint.z - spherePosition.z) <=
+                   sphereRadius * sphereRadius)
+               {
+                  field.get() += 1.0;
+               }
+               currentSamplingPoint.x += sampleDistance.x;
             }
-            currentSamplingPoint.x += sampleDistance.x;
+            currentSamplingPoint.y += sampleDistance.y;
          }
-         currentSamplingPoint.y += sampleDistance.y;
+         currentSamplingPoint.z += sampleDistance.z;
       }
-      currentSamplingPoint.z += sampleDistance.z;
+
+      field.get() *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
    }
-
-   field.get() *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
 }
-
 } // namespace walberla
