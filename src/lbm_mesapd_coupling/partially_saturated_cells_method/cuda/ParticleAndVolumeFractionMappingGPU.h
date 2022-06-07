@@ -34,7 +34,8 @@
 
 #include "lbm_mesapd_coupling/DataTypes.h"
 #include "lbm_mesapd_coupling/mapping/ParticleBoundingBox.h"
-#include "lbm_mesapd_coupling/overlapping/OverlapFraction.h"
+#include "lbm_mesapd_coupling/overlapping/cuda/OverlapFraction.h"
+#include "lbm_mesapd_coupling/overlapping/cuda/ParticleAndVolumeFractionMappingKernel.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 
 #include "mesa_pd/data/ParticleAccessorWithShape.h"
@@ -44,8 +45,6 @@
 #include <functional>
 #include <mesa_pd/data/ParticleStorage.h>
 #include <mesa_pd/data/shape/Sphere.h>
-
-#include "ParticleAndVolumeFractionMappingKernel.h"
 
 namespace walberla
 {
@@ -90,22 +89,10 @@ class ParticleAndVolumeFractionMappingGPU
  private:
    void update(const size_t idx)
    {
-      Vector3< real_t > particlePosition = ac_->getPosition(idx);
-
       // update fraction mapping
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         auto cudaField = blockIt->getData< cuda::GPUField< real_t > >(particleAndVolumeFractionFieldID_);
-
-         auto myKernel = cuda::make_kernel(&particleAndVolumeFractionMappingKernel);
-         myKernel.addFieldIndexingParam(cuda::FieldIndexing< real_t >::xyz(*cudaField)); // FieldAccessor
-         Vector3< real_t > blockStart = blockIt->getAABB().minCorner();
-         myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] }); // spherePosition
-         myKernel.addParam(static_cast< mesa_pd::data::Sphere* >(ac_->getShape(idx))->getRadius());   // sphereRadius
-         myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                   // blockStart
-         myKernel.addParam(double3{ 1, 1, 1 });                                                       // dx
-         myKernel.addParam(int3{ 16, 16, 16 });                                                       // nSamples
-         myKernel();
+         singleCast_(idx, *ac_, overlapFractionFctr_, ac_, *blockIt, particleAndVolumeFractionFieldID_);
       }
    }
 

@@ -52,7 +52,7 @@ waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_BodyAndVolumeFractionMapping
 waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_BodyAndVolumeFractionMapping PROCESSES 27 )
 
 if( WALBERLA_BUILD_WITH_CUDA )
-    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_BodyAndVolumeFractionMappingGPU FILES partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.cpp ../../src/lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingKernel.cu DEPENDS blockforest boundary core cuda field lbm_mesapd_coupling stencil mesa_pd )
+    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_BodyAndVolumeFractionMappingGPU FILES partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.cpp DEPENDS blockforest boundary core cuda field lbm_mesapd_coupling stencil mesa_pd )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_BodyAndVolumeFractionMappingGPU PROCESSES 27 )
 endif()
 

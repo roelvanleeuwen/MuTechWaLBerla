@@ -26,6 +26,7 @@
 
 #include "cuda/FieldAccessor.h"
 
+// TODO: fix namespaces
 namespace walberla
 {
 

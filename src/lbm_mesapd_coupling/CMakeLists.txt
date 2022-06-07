@@ -14,6 +14,7 @@ target_sources( lbm_mesapd_coupling
 
 add_subdirectory( amr )
 add_subdirectory( momentum_exchange_method )
+add_subdirectory( overlapping )
 add_subdirectory( partially_saturated_cells_method )
 add_subdirectory( utility )
 add_subdirectory( mapping )
