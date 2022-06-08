@@ -54,6 +54,7 @@ namespace psm
 {
 namespace cuda
 {
+// TODO: use superSamplingDepth
 template< typename ParticleAccessor_T, typename ParticleSelector_T >
 class ParticleAndVolumeFractionMappingGPU
 {
@@ -62,10 +63,9 @@ class ParticleAndVolumeFractionMappingGPU
                                        const shared_ptr< ParticleAccessor_T >& ac,
                                        const ParticleSelector_T& mappingParticleSelector,
                                        const BlockDataID& particleAndVolumeFractionFieldID,
-                                       const BlockDataID& indexFieldID, const uint_t superSamplingDepth = uint_t(4))
+                                       const uint_t superSamplingDepth = uint_t(4))
       : blockStorage_(blockStorage), ac_(ac), mappingParticleSelector_(mappingParticleSelector),
-        particleAndVolumeFractionFieldID_(particleAndVolumeFractionFieldID), indexFieldID_(indexFieldID),
-        superSamplingDepth_(superSamplingDepth)
+        particleAndVolumeFractionFieldID_(particleAndVolumeFractionFieldID), superSamplingDepth_(superSamplingDepth)
    {
       static_assert(std::is_base_of< mesa_pd::data::IAccessor, ParticleAccessor_T >::value,
                     "Provide a valid accessor as template");
@@ -76,11 +76,9 @@ class ParticleAndVolumeFractionMappingGPU
       // clear the fields
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         auto cudaField = blockIt->getData< walberla::cuda::GPUField< real_t > >(particleAndVolumeFractionFieldID_);
-         auto cudaIndexField = blockIt->getData< walberla::cuda::GPUField< uint_t > >(indexFieldID_);
-         auto myKernel       = walberla::cuda::make_kernel(&resetKernel);
-         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*cudaField));
-         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*cudaIndexField));
+         auto cudaField = blockIt->getData< walberla::cuda::GPUField< PSMCell_T > >(particleAndVolumeFractionFieldID_);
+         auto myKernel  = walberla::cuda::make_kernel(&resetKernel);
+         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< PSMCell_T >::xyz(*cudaField));
          myKernel();
       }
 
@@ -96,7 +94,7 @@ class ParticleAndVolumeFractionMappingGPU
       // update fraction mapping
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         singleCast_(idx, *ac_, overlapFractionFctr_, ac_, *blockIt, particleAndVolumeFractionFieldID_, indexFieldID_);
+         singleCast_(idx, *ac_, overlapFractionFctr_, ac_, *blockIt, particleAndVolumeFractionFieldID_);
       }
    }
 
@@ -104,7 +102,6 @@ class ParticleAndVolumeFractionMappingGPU
    const shared_ptr< ParticleAccessor_T > ac_;
    ParticleSelector_T mappingParticleSelector_;
    const BlockDataID particleAndVolumeFractionFieldID_;
-   const BlockDataID indexFieldID_;
    const uint_t superSamplingDepth_;
 
    mesa_pd::kernel::SingleCast singleCast_;

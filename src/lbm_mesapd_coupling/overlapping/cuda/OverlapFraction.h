@@ -40,7 +40,7 @@ struct OverlapFractionFunctor
    template< typename ParticleAccessor_T, typename Shape_T >
    void operator()(const size_t /*particleIdx*/, const Shape_T& /*shape*/,
                    const shared_ptr< ParticleAccessor_T >& /*ac*/, const IBlock& /*blockIt*/,
-                   const BlockDataID& /*particleAndVolumeFractionFieldID*/, const BlockDataID& /*indexFieldID*/)
+                   const BlockDataID& /*particleAndVolumeFractionFieldID*/)
    {
       WALBERLA_ABORT("OverlapFraction not implemented!");
    }
@@ -48,18 +48,16 @@ struct OverlapFractionFunctor
    template< typename ParticleAccessor_T >
    void operator()(const size_t particleIdx, const mesa_pd::data::Sphere& /*sphere*/,
                    const shared_ptr< ParticleAccessor_T >& ac, const IBlock& blockIt,
-                   const BlockDataID& particleAndVolumeFractionFieldID, const BlockDataID& indexFieldID)
+                   const BlockDataID& particleAndVolumeFractionFieldID)
    {
       WALBERLA_STATIC_ASSERT((std::is_base_of< mesa_pd::data::IAccessor, ParticleAccessor_T >::value));
 
       Vector3< real_t > particlePosition = ac->getPosition(particleIdx);
 
-      auto cudaField      = blockIt.getData< walberla::cuda::GPUField< real_t > >(particleAndVolumeFractionFieldID);
-      auto cudaIndexField = blockIt.getData< walberla::cuda::GPUField< uint_t > >(indexFieldID);
+      auto cudaField = blockIt.getData< walberla::cuda::GPUField< PSMCell_T > >(particleAndVolumeFractionFieldID);
 
       auto myKernel = walberla::cuda::make_kernel(&particleAndVolumeFractionMappingKernel);
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*cudaField));      // FieldAccessor
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*cudaIndexField)); // FieldAccessor
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< PSMCell_T >::xyz(*cudaField)); // FieldAccessor
       Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
       myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] }); // spherePosition
       myKernel.addParam(static_cast< mesa_pd::data::Sphere* >(ac->getShape(particleIdx))->getRadius()); // sphereRadius

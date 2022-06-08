@@ -34,26 +34,22 @@ namespace psm
 namespace cuda
 {
 
-__global__ void resetKernel(walberla::cuda::FieldAccessor< real_t > field,
-                            walberla::cuda::FieldAccessor< uint_t > indexField)
+__global__ void resetKernel(walberla::cuda::FieldAccessor< PSMCell_T > field)
 {
    field.set(blockIdx, threadIdx);
-   indexField.set(blockIdx, threadIdx);
    // TODO: remove hard coding
    for (uint i = 0; i < MaxParticlesPerCell; i++)
    {
-      field.get(i) = 0.0;
+      field.get().overlapFractions[i] = 0.0;
    }
-   indexField.get() = 0;
+   field.get().index = 0;
 }
 
-__global__ void particleAndVolumeFractionMappingKernel(walberla::cuda::FieldAccessor< real_t > field,
-                                                       walberla::cuda::FieldAccessor< uint_t > indexField,
+__global__ void particleAndVolumeFractionMappingKernel(walberla::cuda::FieldAccessor< PSMCell_T > field,
                                                        double3 spherePosition, real_t sphereRadius, double3 blockStart,
                                                        double3 dx, int3 nSamples)
 {
    field.set(blockIdx, threadIdx);
-   indexField.set(blockIdx, threadIdx);
    double3 sampleDistance       = { 1.0 / (nSamples.x + 1) * dx.x, 1.0 / (nSamples.y + 1) * dx.y,
                                     1.0 / (nSamples.z + 1) * dx.z };
    double3 startSamplingPoint   = { (blockStart.x + threadIdx.x * dx.x + sampleDistance.x),
@@ -83,7 +79,7 @@ __global__ void particleAndVolumeFractionMappingKernel(walberla::cuda::FieldAcce
                       (currentSamplingPoint.z - spherePosition.z) * (currentSamplingPoint.z - spherePosition.z) <=
                    sphereRadius * sphereRadius)
                {
-                  field.get(indexField.get()) += 1.0;
+                  field.get().overlapFractions[field.get().index] += 1.0;
                }
                currentSamplingPoint.x += sampleDistance.x;
             }
@@ -92,9 +88,9 @@ __global__ void particleAndVolumeFractionMappingKernel(walberla::cuda::FieldAcce
          currentSamplingPoint.z += sampleDistance.z;
       }
 
-      field.get(indexField.get()) *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
-      if (field.get(indexField.get()) > 0) { indexField.get() += 1; }
-      assert(indexField.get() < 8);
+      field.get().overlapFractions[field.get().index] *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
+      if (field.get().overlapFractions[field.get().index] > 0) { field.get().index += 1; }
+      assert(field.get().index < 8);
    }
 }
 

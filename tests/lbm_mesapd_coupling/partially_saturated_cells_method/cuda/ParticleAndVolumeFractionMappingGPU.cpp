@@ -69,9 +69,8 @@ class FractionFieldSum
 {
  public:
    FractionFieldSum(const shared_ptr< StructuredBlockStorage >& blockStorage,
-                    BlockDataID particleAndVolumeFractionFieldID, BlockDataID indexFieldID)
-      : blockStorage_(blockStorage), particleAndVolumeFractionFieldID_(particleAndVolumeFractionFieldID),
-        indexFieldID_(indexFieldID)
+                    BlockDataID particleAndVolumeFractionFieldID)
+      : blockStorage_(blockStorage), particleAndVolumeFractionFieldID_(particleAndVolumeFractionFieldID)
    {}
 
    real_t operator()()
@@ -82,7 +81,6 @@ class FractionFieldSum
       {
          psm::cuda::ParticleAndVolumeFractionField_T* particleAndVolumeFractionField =
             blockIt->getData< psm::cuda::ParticleAndVolumeFractionField_T >(particleAndVolumeFractionFieldID_);
-         psm::cuda::IndexField_T* indexField = blockIt->getData< psm::cuda::IndexField_T >(indexFieldID_);
 
          const cell_idx_t xSize = cell_idx_c(particleAndVolumeFractionField->xSize());
          const cell_idx_t ySize = cell_idx_c(particleAndVolumeFractionField->ySize());
@@ -94,9 +92,9 @@ class FractionFieldSum
             {
                for (cell_idx_t x = 0; x < xSize; ++x)
                {
-                  for (uint_t n = 0; n < indexField->get(x, y, z); ++n)
+                  for (uint_t n = 0; n < particleAndVolumeFractionField->get(x, y, z).index; ++n)
                   {
-                     sum += particleAndVolumeFractionField->get(x, y, z, n);
+                     sum += particleAndVolumeFractionField->get(x, y, z).overlapFractions[n];
                   }
                }
             }
@@ -111,7 +109,6 @@ class FractionFieldSum
  private:
    shared_ptr< StructuredBlockStorage > blockStorage_;
    BlockDataID particleAndVolumeFractionFieldID_;
-   BlockDataID indexFieldID_;
 };
 
 ////////////////
@@ -139,26 +136,13 @@ struct Setup
 psm::cuda::ParticleAndVolumeFractionField_T* createField(IBlock* const block, StructuredBlockStorage* const storage)
 {
    return new psm::cuda::ParticleAndVolumeFractionField_T(
-      storage->getNumberOfXCells(*block),                 // number of cells in x direction per block
-      storage->getNumberOfYCells(*block),                 // number of cells in y direction per block
-      storage->getNumberOfZCells(*block),                 // number of cells in z direction per block
-      1,                                                  // one ghost layer
-      real_c(0),                                          // initial value
-      field::fzyx,                                        // layout
-      make_shared< cuda::HostFieldAllocator< real_t > >() // allocator for host pinned memory
-   );
-}
-
-psm::cuda::IndexField_T* createIndexField(IBlock* const block, StructuredBlockStorage* const storage)
-{
-   return new psm::cuda::IndexField_T(
-      storage->getNumberOfXCells(*block),                 // number of cells in x direction per block
-      storage->getNumberOfYCells(*block),                 // number of cells in y direction per block
-      storage->getNumberOfZCells(*block),                 // number of cells in z direction per block
-      1,                                                  // one ghost layer
-      uint_c(0),                                          // initial value
-      field::fzyx,                                        // layout
-      make_shared< cuda::HostFieldAllocator< uint_t > >() // allocator for host pinned memory
+      storage->getNumberOfXCells(*block),                               // number of cells in x direction per block
+      storage->getNumberOfYCells(*block),                               // number of cells in y direction per block
+      storage->getNumberOfZCells(*block),                               // number of cells in z direction per block
+      1,                                                                // one ghost layer
+      psm::cuda::PSMCell_T(),                                           // initial value
+      field::fzyx,                                                      // layout
+      make_shared< cuda::HostFieldAllocator< psm::cuda::PSMCell_T > >() // allocator for host pinned memory
    );
 }
 
@@ -241,7 +225,7 @@ int main(int argc, char** argv)
    // add the sphere in the center of the domain
    Vector3< real_t > position(real_c(setup.xlength) * real_c(0.5), real_c(setup.ylength) * real_c(0.5),
                               real_c(setup.zlength) * real_c(0.5));
-   Vector3< real_t > velocity(real_c(0.1), real_c(0.1), real_c(0.1));
+   Vector3< real_t > velocity(real_c(-0.1), real_c(-0.1), real_c(-0.1));
    auto sphereShape = ss->create< mesa_pd::data::Sphere >(sphereRadius);
 
    if (mesapdDomain->isContainedInProcessSubdomain(uint_c(walberla::mpi::MPIManager::instance()->rank()), position))
@@ -252,6 +236,21 @@ int main(int argc, char** argv)
       sphereParticle->setType(0);
       sphereParticle->setPosition(position);
       sphereParticle->setLinearVelocity(velocity);
+      sphereParticle->setOwner(walberla::MPIManager::instance()->rank());
+      sphereParticle->setInteractionRadius(sphereRadius);
+   }
+
+   Vector3< real_t > position2(real_c(0.0), real_c(0.0), real_c(0.0));
+   Vector3< real_t > velocity2(real_c(0.1), real_c(0.1), real_c(0.1));
+
+   if (mesapdDomain->isContainedInProcessSubdomain(uint_c(walberla::mpi::MPIManager::instance()->rank()), position2))
+   {
+      auto sphereParticle = ps->create();
+
+      sphereParticle->setShapeID(sphereShape);
+      sphereParticle->setType(0);
+      sphereParticle->setPosition(position2);
+      sphereParticle->setLinearVelocity(velocity2);
       sphereParticle->setOwner(walberla::MPIManager::instance()->rank());
       sphereParticle->setInteractionRadius(sphereRadius);
    }
@@ -268,17 +267,13 @@ int main(int argc, char** argv)
          &createField, "particle and volume fraction field CPU");
    BlockDataID gpuFieldID = cuda::addGPUFieldToStorage< psm::cuda::ParticleAndVolumeFractionField_T >(
       blocks, particleAndVolumeFractionFieldID, "particle and volume fraction field GPU");
-   BlockDataID indexFieldID =
-      blocks->addStructuredBlockData< psm::cuda::IndexField_T >(&createIndexField, "index field CPU");
-   BlockDataID gpuIndexFieldID =
-      cuda::addGPUFieldToStorage< psm::cuda::IndexField_T >(blocks, indexFieldID, "index field GPU");
 
    // calculate fraction
    psm::cuda::ParticleAndVolumeFractionMappingGPU particleMapping(
-      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), gpuFieldID, gpuIndexFieldID, 4);
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), gpuFieldID, 4);
    particleMapping();
 
-   FractionFieldSum fractionFieldSum(blocks, particleAndVolumeFractionFieldID, indexFieldID);
+   FractionFieldSum fractionFieldSum(blocks, particleAndVolumeFractionFieldID);
    auto selector = mesa_pd::kernel::SelectMaster();
    mesa_pd::kernel::SemiImplicitEuler particleIntegration(1.0);
 
@@ -290,14 +285,12 @@ int main(int argc, char** argv)
          cuda::fieldCpySweepFunction< psm::cuda::ParticleAndVolumeFractionField_T,
                                       psm::cuda::ParticleAndVolumeFractionFieldGPU_T >(particleAndVolumeFractionFieldID,
                                                                                        gpuFieldID, &(*blockIt));
-         cuda::fieldCpySweepFunction< psm::cuda::IndexField_T, psm::cuda::IndexFieldGPU_T >(
-            indexFieldID, gpuIndexFieldID, &(*blockIt));
       }
 
       // check that the sum over all fractions is roughly the volume of the sphere
       real_t sum = fractionFieldSum();
-      WALBERLA_CHECK_LESS(std::fabs(4.0 / 3.0 * math::pi * sphereRadius * sphereRadius * sphereRadius - sum),
-                          real_c(2));
+      WALBERLA_CHECK_LESS(std::fabs(4.0 / 3.0 * math::pi * sphereRadius * sphereRadius * sphereRadius * 2 - sum),
+                          real_c(3));
 
       // update position
       ps->forEachParticle(false, selector, *accessor, particleIntegration, *accessor);

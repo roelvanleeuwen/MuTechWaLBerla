@@ -45,11 +45,28 @@ using ParticleAndVolumeFractionField_T = GhostLayerField< std::vector< ParticleA
 
 namespace cuda
 {
-const uint MaxParticlesPerCell = 8;
-using ParticleAndVolumeFractionField_T    = GhostLayerField< real_t, MaxParticlesPerCell >;
-using IndexField_T                        = GhostLayerField< uint_t, 1 >;
-using ParticleAndVolumeFractionFieldGPU_T = walberla::cuda::GPUField< real_t >;
-using IndexFieldGPU_T                     = walberla::cuda::GPUField< uint_t >;
+const uint MaxParticlesPerCell            = 8;
+
+struct PSMCell_T
+{
+   uint_t index = 0;
+   real_t overlapFractions[MaxParticlesPerCell];
+   uid_t uids[MaxParticlesPerCell];
+
+   bool operator==(PSMCell_T const& cell) const
+   {
+      if (index != cell.index) { return false; }
+      for (uint_t i = 0; i < MaxParticlesPerCell; ++i)
+      {
+         if (realIsEqual(overlapFractions[i], cell.overlapFractions[i], 1e-4)) { return false; }
+         if (uids[i] != cell.uids[i]) { return false; }
+      }
+      return true;
+   };
+};
+
+using ParticleAndVolumeFractionField_T    = GhostLayerField< PSMCell_T, 1 >;
+using ParticleAndVolumeFractionFieldGPU_T = walberla::cuda::GPUField< PSMCell_T >;
 } // namespace cuda
 
 } // namespace psm
