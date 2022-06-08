@@ -26,14 +26,21 @@
 
 #include "cuda/FieldAccessor.h"
 
-// TODO: fix namespaces
 namespace walberla
 {
-
-__global__ void resetKernel(cuda::FieldAccessor< real_t > field, cuda::FieldAccessor< uint_t > indexField);
-__global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real_t > field,
-                                                       cuda::FieldAccessor< uint_t > indexField, double3 spherePosition,
-                                                       real_t sphereRadius, double3 blockStart, double3 dx,
-                                                       int3 nSamples);
-
+namespace lbm_mesapd_coupling
+{
+namespace psm
+{
+namespace cuda
+{
+__global__ void resetKernel(walberla::cuda::FieldAccessor< real_t > field,
+                            walberla::cuda::FieldAccessor< uint_t > indexField);
+__global__ void particleAndVolumeFractionMappingKernel(walberla::cuda::FieldAccessor< real_t > field,
+                                                       walberla::cuda::FieldAccessor< uint_t > indexField,
+                                                       double3 spherePosition, real_t sphereRadius, double3 blockStart,
+                                                       double3 dx, int3 nSamples);
+} // namespace cuda
+} // namespace psm
+} // namespace lbm_mesapd_coupling
 } // namespace walberla

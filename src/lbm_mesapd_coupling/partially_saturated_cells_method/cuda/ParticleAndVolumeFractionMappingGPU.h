@@ -52,7 +52,8 @@ namespace lbm_mesapd_coupling
 {
 namespace psm
 {
-
+namespace cuda
+{
 template< typename ParticleAccessor_T, typename ParticleSelector_T >
 class ParticleAndVolumeFractionMappingGPU
 {
@@ -75,11 +76,11 @@ class ParticleAndVolumeFractionMappingGPU
       // clear the fields
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         auto cudaField      = blockIt->getData< cuda::GPUField< real_t > >(particleAndVolumeFractionFieldID_);
-         auto cudaIndexField = blockIt->getData< cuda::GPUField< uint_t > >(indexFieldID_);
-         auto myKernel       = cuda::make_kernel(&resetKernel);
-         myKernel.addFieldIndexingParam(cuda::FieldIndexing< real_t >::xyz(*cudaField));
-         myKernel.addFieldIndexingParam(cuda::FieldIndexing< uint_t >::xyz(*cudaIndexField));
+         auto cudaField = blockIt->getData< walberla::cuda::GPUField< real_t > >(particleAndVolumeFractionFieldID_);
+         auto cudaIndexField = blockIt->getData< walberla::cuda::GPUField< uint_t > >(indexFieldID_);
+         auto myKernel       = walberla::cuda::make_kernel(&resetKernel);
+         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*cudaField));
+         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*cudaIndexField));
          myKernel();
       }
 
@@ -110,6 +111,7 @@ class ParticleAndVolumeFractionMappingGPU
    OverlapFractionFunctor overlapFractionFctr_;
 };
 
+} // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling
 } // namespace walberla

@@ -19,28 +19,38 @@
 //
 //======================================================================================================================
 
+#include "lbm_mesapd_coupling/DataTypes.h"
+
 #include <assert.h>
 
 #include "ParticleAndVolumeFractionMappingKernel.h"
 
 namespace walberla
 {
-__global__ void resetKernel(cuda::FieldAccessor< real_t > field, cuda::FieldAccessor< uint_t > indexField)
+namespace lbm_mesapd_coupling
+{
+namespace psm
+{
+namespace cuda
+{
+
+__global__ void resetKernel(walberla::cuda::FieldAccessor< real_t > field,
+                            walberla::cuda::FieldAccessor< uint_t > indexField)
 {
    field.set(blockIdx, threadIdx);
    indexField.set(blockIdx, threadIdx);
    // TODO: remove hard coding
-   for (uint i = 0; i < 8; i++)
+   for (uint i = 0; i < MaxParticlesPerCell; i++)
    {
       field.get(i) = 0.0;
    }
    indexField.get() = 0;
 }
 
-__global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real_t > field,
-                                                       cuda::FieldAccessor< uint_t > indexField, double3 spherePosition,
-                                                       real_t sphereRadius, double3 blockStart, double3 dx,
-                                                       int3 nSamples)
+__global__ void particleAndVolumeFractionMappingKernel(walberla::cuda::FieldAccessor< real_t > field,
+                                                       walberla::cuda::FieldAccessor< uint_t > indexField,
+                                                       double3 spherePosition, real_t sphereRadius, double3 blockStart,
+                                                       double3 dx, int3 nSamples)
 {
    field.set(blockIdx, threadIdx);
    indexField.set(blockIdx, threadIdx);
@@ -87,4 +97,8 @@ __global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real
       assert(indexField.get() < 8);
    }
 }
+
+} // namespace cuda
+} // namespace psm
+} // namespace lbm_mesapd_coupling
 } // namespace walberla

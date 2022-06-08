@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file BodyAndVolumeFractionMapping.cpp
+//! \file ParticleAndVolumeFractionMapping.cpp
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //
@@ -34,6 +34,7 @@
 
 #include "field/AddToStorage.h"
 
+#include "lbm_mesapd_coupling/DataTypes.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 
@@ -47,7 +48,7 @@
 #include <functional>
 #include <memory>
 
-namespace body_volume_fraction_check
+namespace particle_volume_fraction_check
 {
 
 ///////////
@@ -58,11 +59,6 @@ using namespace walberla;
 using walberla::uint_t;
 using namespace lbm_mesapd_coupling;
 
-typedef GhostLayerField< real_t, 8 > BodyAndVolumeFractionField;
-typedef GhostLayerField< uint_t, 1 > IndexField;
-typedef cuda::GPUField< real_t > GPUField;
-typedef cuda::GPUField< uint_t > GPUIndexField;
-
 //*******************************************************************************************************************
 /*!\brief Calculating the sum over all fraction values. This can be used as a sanity check since it has to be roughly
  * equal to the volume of all particles.
@@ -72,9 +68,9 @@ typedef cuda::GPUField< uint_t > GPUIndexField;
 class FractionFieldSum
 {
  public:
-   FractionFieldSum(const shared_ptr< StructuredBlockStorage >& blockStorage, BlockDataID bodyAndVolumeFractionFieldID,
-                    BlockDataID indexFieldID)
-      : blockStorage_(blockStorage), bodyAndVolumeFractionFieldID_(bodyAndVolumeFractionFieldID),
+   FractionFieldSum(const shared_ptr< StructuredBlockStorage >& blockStorage,
+                    BlockDataID particleAndVolumeFractionFieldID, BlockDataID indexFieldID)
+      : blockStorage_(blockStorage), particleAndVolumeFractionFieldID_(particleAndVolumeFractionFieldID),
         indexFieldID_(indexFieldID)
    {}
 
@@ -84,13 +80,13 @@ class FractionFieldSum
 
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         BodyAndVolumeFractionField* bodyAndVolumeFractionField =
-            blockIt->getData< BodyAndVolumeFractionField >(bodyAndVolumeFractionFieldID_);
-         IndexField* indexField = blockIt->getData< IndexField >(indexFieldID_);
+         psm::cuda::ParticleAndVolumeFractionField_T* particleAndVolumeFractionField =
+            blockIt->getData< psm::cuda::ParticleAndVolumeFractionField_T >(particleAndVolumeFractionFieldID_);
+         psm::cuda::IndexField_T* indexField = blockIt->getData< psm::cuda::IndexField_T >(indexFieldID_);
 
-         const cell_idx_t xSize = cell_idx_c(bodyAndVolumeFractionField->xSize());
-         const cell_idx_t ySize = cell_idx_c(bodyAndVolumeFractionField->ySize());
-         const cell_idx_t zSize = cell_idx_c(bodyAndVolumeFractionField->zSize());
+         const cell_idx_t xSize = cell_idx_c(particleAndVolumeFractionField->xSize());
+         const cell_idx_t ySize = cell_idx_c(particleAndVolumeFractionField->ySize());
+         const cell_idx_t zSize = cell_idx_c(particleAndVolumeFractionField->zSize());
 
          for (cell_idx_t z = 0; z < zSize; ++z)
          {
@@ -100,7 +96,7 @@ class FractionFieldSum
                {
                   for (uint_t n = 0; n < indexField->get(x, y, z); ++n)
                   {
-                     sum += bodyAndVolumeFractionField->get(x, y, z, n);
+                     sum += particleAndVolumeFractionField->get(x, y, z, n);
                   }
                }
             }
@@ -114,7 +110,7 @@ class FractionFieldSum
 
  private:
    shared_ptr< StructuredBlockStorage > blockStorage_;
-   BlockDataID bodyAndVolumeFractionFieldID_;
+   BlockDataID particleAndVolumeFractionFieldID_;
    BlockDataID indexFieldID_;
 };
 
@@ -140,9 +136,9 @@ struct Setup
    uint_t timesteps;
 };
 
-BodyAndVolumeFractionField* createField(IBlock* const block, StructuredBlockStorage* const storage)
+psm::cuda::ParticleAndVolumeFractionField_T* createField(IBlock* const block, StructuredBlockStorage* const storage)
 {
-   return new BodyAndVolumeFractionField(
+   return new psm::cuda::ParticleAndVolumeFractionField_T(
       storage->getNumberOfXCells(*block),                 // number of cells in x direction per block
       storage->getNumberOfYCells(*block),                 // number of cells in y direction per block
       storage->getNumberOfZCells(*block),                 // number of cells in z direction per block
@@ -153,15 +149,16 @@ BodyAndVolumeFractionField* createField(IBlock* const block, StructuredBlockStor
    );
 }
 
-IndexField* createIndexField(IBlock* const block, StructuredBlockStorage* const storage)
+psm::cuda::IndexField_T* createIndexField(IBlock* const block, StructuredBlockStorage* const storage)
 {
-   return new IndexField(storage->getNumberOfXCells(*block),                 // number of cells in x direction per block
-                         storage->getNumberOfYCells(*block),                 // number of cells in y direction per block
-                         storage->getNumberOfZCells(*block),                 // number of cells in z direction per block
-                         1,                                                  // one ghost layer
-                         uint_c(0),                                          // initial value
-                         field::fzyx,                                        // layout
-                         make_shared< cuda::HostFieldAllocator< uint_t > >() // allocator for host pinned memory
+   return new psm::cuda::IndexField_T(
+      storage->getNumberOfXCells(*block),                 // number of cells in x direction per block
+      storage->getNumberOfYCells(*block),                 // number of cells in y direction per block
+      storage->getNumberOfZCells(*block),                 // number of cells in z direction per block
+      1,                                                  // one ghost layer
+      uint_c(0),                                          // initial value
+      field::fzyx,                                        // layout
+      make_shared< cuda::HostFieldAllocator< uint_t > >() // allocator for host pinned memory
    );
 }
 
@@ -170,7 +167,7 @@ IndexField* createIndexField(IBlock* const block, StructuredBlockStorage* const 
 //////////
 
 //*******************************************************************************************************************
-/*!\brief Testcase that checks if BodyAndVolumeFractionMapping.h works as intended
+/*!\brief Testcase that checks if ParticleAndVolumeFractionMapping.h works as intended
  *
  * A sphere particle is placed inside the domain and is moving with a constant velocity. The overlap fraction is
  * computed for all cells in each time step. If the mapping is correct, the sum over all fractions should be roughly
@@ -265,24 +262,23 @@ int main(int argc, char** argv)
    // ADD DATA TO BLOCKS //
    ////////////////////////
 
-   // add body and volume fraction field (needed for the PSM)
-   /*BlockDataID bodyAndVolumeFractionFieldID =
-      field::addToStorage< lbm_mesapd_coupling::psm::BodyAndVolumeFractionField_T >(
-         blocks, "body and volume fraction field", std::vector< lbm_mesapd_coupling::psm::BodyAndVolumeFraction_T >(),
-         field::zyxf, 0);*/
-   BlockDataID bodyAndVolumeFractionFieldID =
-      blocks->addStructuredBlockData< BodyAndVolumeFractionField >(&createField, "body and volume fraction field CPU");
-   BlockDataID gpuFieldID = cuda::addGPUFieldToStorage< BodyAndVolumeFractionField >(
-      blocks, bodyAndVolumeFractionFieldID, "body and volume fraction field GPU");
-   BlockDataID indexFieldID    = blocks->addStructuredBlockData< IndexField >(&createIndexField, "index field CPU");
-   BlockDataID gpuIndexFieldID = cuda::addGPUFieldToStorage< IndexField >(blocks, indexFieldID, "index field GPU");
+   // add particle and volume fraction field (needed for the PSM)
+   BlockDataID particleAndVolumeFractionFieldID =
+      blocks->addStructuredBlockData< psm::cuda::ParticleAndVolumeFractionField_T >(
+         &createField, "particle and volume fraction field CPU");
+   BlockDataID gpuFieldID = cuda::addGPUFieldToStorage< psm::cuda::ParticleAndVolumeFractionField_T >(
+      blocks, particleAndVolumeFractionFieldID, "particle and volume fraction field GPU");
+   BlockDataID indexFieldID =
+      blocks->addStructuredBlockData< psm::cuda::IndexField_T >(&createIndexField, "index field CPU");
+   BlockDataID gpuIndexFieldID =
+      cuda::addGPUFieldToStorage< psm::cuda::IndexField_T >(blocks, indexFieldID, "index field GPU");
 
    // calculate fraction
-   lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMappingGPU particleMapping(
+   psm::cuda::ParticleAndVolumeFractionMappingGPU particleMapping(
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), gpuFieldID, gpuIndexFieldID, 4);
    particleMapping();
 
-   FractionFieldSum fractionFieldSum(blocks, bodyAndVolumeFractionFieldID, indexFieldID);
+   FractionFieldSum fractionFieldSum(blocks, particleAndVolumeFractionFieldID, indexFieldID);
    auto selector = mesa_pd::kernel::SelectMaster();
    mesa_pd::kernel::SemiImplicitEuler particleIntegration(1.0);
 
@@ -291,9 +287,11 @@ int main(int argc, char** argv)
       // copy data back to perform the check on CPU
       for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
       {
-         cuda::fieldCpySweepFunction< BodyAndVolumeFractionField, GPUField >(bodyAndVolumeFractionFieldID, gpuFieldID,
-                                                                             &(*blockIt));
-         cuda::fieldCpySweepFunction< IndexField, GPUIndexField >(indexFieldID, gpuIndexFieldID, &(*blockIt));
+         cuda::fieldCpySweepFunction< psm::cuda::ParticleAndVolumeFractionField_T,
+                                      psm::cuda::ParticleAndVolumeFractionFieldGPU_T >(particleAndVolumeFractionFieldID,
+                                                                                       gpuFieldID, &(*blockIt));
+         cuda::fieldCpySweepFunction< psm::cuda::IndexField_T, psm::cuda::IndexFieldGPU_T >(
+            indexFieldID, gpuIndexFieldID, &(*blockIt));
       }
 
       // check that the sum over all fractions is roughly the volume of the sphere
@@ -312,6 +310,6 @@ int main(int argc, char** argv)
    return EXIT_SUCCESS;
 }
 
-} // namespace body_volume_fraction_check
+} // namespace particle_volume_fraction_check
 
-int main(int argc, char** argv) { body_volume_fraction_check::main(argc, argv); }
+int main(int argc, char** argv) { particle_volume_fraction_check::main(argc, argv); }

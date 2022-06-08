@@ -23,6 +23,8 @@
 
 #include "core/DataTypes.h"
 
+#include "cuda/GPUField.h"
+
 #include "field/GhostLayerField.h"
 
 namespace walberla
@@ -40,6 +42,15 @@ namespace psm
 // store the particle uid together with the overlap fraction
 using ParticleAndVolumeFraction_T      = std::pair< id_t, real_t >;
 using ParticleAndVolumeFractionField_T = GhostLayerField< std::vector< ParticleAndVolumeFraction_T >, 1 >;
+
+namespace cuda
+{
+const uint MaxParticlesPerCell = 8;
+using ParticleAndVolumeFractionField_T    = GhostLayerField< real_t, MaxParticlesPerCell >;
+using IndexField_T                        = GhostLayerField< uint_t, 1 >;
+using ParticleAndVolumeFractionFieldGPU_T = walberla::cuda::GPUField< real_t >;
+using IndexFieldGPU_T                     = walberla::cuda::GPUField< uint_t >;
+} // namespace cuda
 
 } // namespace psm
 } // namespace lbm_mesapd_coupling

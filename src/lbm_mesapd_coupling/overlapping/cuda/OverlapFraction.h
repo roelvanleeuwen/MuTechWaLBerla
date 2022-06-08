@@ -22,12 +22,6 @@
 
 #pragma once
 
-#include "core/DataTypes.h"
-
-#include "geometry/bodies/BodyOverlapFunctions.h"
-
-#include "mesa_pd/common/Contains.h"
-#include "mesa_pd/data/DataTypes.h"
 #include "mesa_pd/data/shape/Sphere.h"
 
 #include "ParticleAndVolumeFractionMappingKernel.h"
@@ -37,6 +31,8 @@ namespace walberla
 namespace lbm_mesapd_coupling
 {
 namespace psm
+{
+namespace cuda
 {
 
 struct OverlapFractionFunctor
@@ -58,12 +54,12 @@ struct OverlapFractionFunctor
 
       Vector3< real_t > particlePosition = ac->getPosition(particleIdx);
 
-      auto cudaField      = blockIt.getData< cuda::GPUField< real_t > >(particleAndVolumeFractionFieldID);
-      auto cudaIndexField = blockIt.getData< cuda::GPUField< uint_t > >(indexFieldID);
+      auto cudaField      = blockIt.getData< walberla::cuda::GPUField< real_t > >(particleAndVolumeFractionFieldID);
+      auto cudaIndexField = blockIt.getData< walberla::cuda::GPUField< uint_t > >(indexFieldID);
 
-      auto myKernel = cuda::make_kernel(&particleAndVolumeFractionMappingKernel);
-      myKernel.addFieldIndexingParam(cuda::FieldIndexing< real_t >::xyz(*cudaField));      // FieldAccessor
-      myKernel.addFieldIndexingParam(cuda::FieldIndexing< uint_t >::xyz(*cudaIndexField)); // FieldAccessor
+      auto myKernel = walberla::cuda::make_kernel(&particleAndVolumeFractionMappingKernel);
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*cudaField));      // FieldAccessor
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*cudaIndexField)); // FieldAccessor
       Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
       myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] }); // spherePosition
       myKernel.addParam(static_cast< mesa_pd::data::Sphere* >(ac->getShape(particleIdx))->getRadius()); // sphereRadius
@@ -74,6 +70,7 @@ struct OverlapFractionFunctor
    }
 };
 
+} // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling
 } // namespace walberla
