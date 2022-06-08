@@ -19,21 +19,31 @@
 //
 //======================================================================================================================
 
+#include <assert.h>
+
 #include "ParticleAndVolumeFractionMappingKernel.h"
 
 namespace walberla
 {
-__global__ void resetKernel(cuda::FieldAccessor< real_t > field)
+__global__ void resetKernel(cuda::FieldAccessor< real_t > field, cuda::FieldAccessor< uint_t > indexField)
 {
    field.set(blockIdx, threadIdx);
-   field.get() = 0.0;
+   indexField.set(blockIdx, threadIdx);
+   // TODO: remove hard coding
+   for (uint i = 0; i < 8; i++)
+   {
+      field.get(i) = 0.0;
+   }
+   indexField.get() = 0;
 }
 
-__global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real_t > field, double3 spherePosition,
+__global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real_t > field,
+                                                       cuda::FieldAccessor< uint_t > indexField, double3 spherePosition,
                                                        real_t sphereRadius, double3 blockStart, double3 dx,
                                                        int3 nSamples)
 {
    field.set(blockIdx, threadIdx);
+   indexField.set(blockIdx, threadIdx);
    double3 sampleDistance       = { 1.0 / (nSamples.x + 1) * dx.x, 1.0 / (nSamples.y + 1) * dx.y,
                                     1.0 / (nSamples.z + 1) * dx.z };
    double3 startSamplingPoint   = { (blockStart.x + threadIdx.x * dx.x + sampleDistance.x),
@@ -63,7 +73,7 @@ __global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real
                       (currentSamplingPoint.z - spherePosition.z) * (currentSamplingPoint.z - spherePosition.z) <=
                    sphereRadius * sphereRadius)
                {
-                  field.get() += 1.0;
+                  field.get(indexField.get()) += 1.0;
                }
                currentSamplingPoint.x += sampleDistance.x;
             }
@@ -72,7 +82,9 @@ __global__ void particleAndVolumeFractionMappingKernel(cuda::FieldAccessor< real
          currentSamplingPoint.z += sampleDistance.z;
       }
 
-      field.get() *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
+      field.get(indexField.get()) *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
+      if (field.get(indexField.get()) > 0) { indexField.get() += 1; }
+      assert(indexField.get() < 8);
    }
 }
 } // namespace walberla

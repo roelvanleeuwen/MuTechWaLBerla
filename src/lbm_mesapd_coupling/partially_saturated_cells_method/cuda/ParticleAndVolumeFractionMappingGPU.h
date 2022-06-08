@@ -61,9 +61,10 @@ class ParticleAndVolumeFractionMappingGPU
                                        const shared_ptr< ParticleAccessor_T >& ac,
                                        const ParticleSelector_T& mappingParticleSelector,
                                        const BlockDataID& particleAndVolumeFractionFieldID,
-                                       const uint_t superSamplingDepth = uint_t(4))
+                                       const BlockDataID& indexFieldID, const uint_t superSamplingDepth = uint_t(4))
       : blockStorage_(blockStorage), ac_(ac), mappingParticleSelector_(mappingParticleSelector),
-        particleAndVolumeFractionFieldID_(particleAndVolumeFractionFieldID), superSamplingDepth_(superSamplingDepth)
+        particleAndVolumeFractionFieldID_(particleAndVolumeFractionFieldID), indexFieldID_(indexFieldID),
+        superSamplingDepth_(superSamplingDepth)
    {
       static_assert(std::is_base_of< mesa_pd::data::IAccessor, ParticleAccessor_T >::value,
                     "Provide a valid accessor as template");
@@ -71,12 +72,14 @@ class ParticleAndVolumeFractionMappingGPU
 
    void operator()()
    {
-      // clear the field
+      // clear the fields
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         auto cudaField = blockIt->getData< cuda::GPUField< real_t > >(particleAndVolumeFractionFieldID_);
-         auto myKernel  = cuda::make_kernel(&resetKernel);
+         auto cudaField      = blockIt->getData< cuda::GPUField< real_t > >(particleAndVolumeFractionFieldID_);
+         auto cudaIndexField = blockIt->getData< cuda::GPUField< uint_t > >(indexFieldID_);
+         auto myKernel       = cuda::make_kernel(&resetKernel);
          myKernel.addFieldIndexingParam(cuda::FieldIndexing< real_t >::xyz(*cudaField));
+         myKernel.addFieldIndexingParam(cuda::FieldIndexing< uint_t >::xyz(*cudaIndexField));
          myKernel();
       }
 
@@ -92,7 +95,7 @@ class ParticleAndVolumeFractionMappingGPU
       // update fraction mapping
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         singleCast_(idx, *ac_, overlapFractionFctr_, ac_, *blockIt, particleAndVolumeFractionFieldID_);
+         singleCast_(idx, *ac_, overlapFractionFctr_, ac_, *blockIt, particleAndVolumeFractionFieldID_, indexFieldID_);
       }
    }
 
@@ -100,6 +103,7 @@ class ParticleAndVolumeFractionMappingGPU
    const shared_ptr< ParticleAccessor_T > ac_;
    ParticleSelector_T mappingParticleSelector_;
    const BlockDataID particleAndVolumeFractionFieldID_;
+   const BlockDataID indexFieldID_;
    const uint_t superSamplingDepth_;
 
    mesa_pd::kernel::SingleCast singleCast_;
