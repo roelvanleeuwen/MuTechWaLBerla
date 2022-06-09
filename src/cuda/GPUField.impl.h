@@ -60,7 +60,7 @@ GPUField<T>::GPUField( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSiz
    }
    else
    {
-      pitchedPtr_ = make_cudaPitchedPtr( NULL, extent.width, extent.width, extent.height );
+      pitchedPtr_ = make_cudaPitchedPtr(nullptr, extent.width, extent.width, extent.height );
       WALBERLA_CUDA_CHECK ( cudaMalloc( &pitchedPtr_.ptr, extent.width * extent.height * extent.depth ) );
    }
 
