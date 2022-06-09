@@ -37,17 +37,17 @@ namespace cuda
 __global__ void resetKernel(walberla::cuda::FieldAccessor< PSMCell_T > field)
 {
    field.set(blockIdx, threadIdx);
-   // TODO: remove hard coding
    for (uint i = 0; i < MaxParticlesPerCell; i++)
    {
       field.get().overlapFractions[i] = 0.0;
+      field.get().uids[i]             = id_t(0);
    }
    field.get().index = 0;
 }
 
 __global__ void particleAndVolumeFractionMappingKernel(walberla::cuda::FieldAccessor< PSMCell_T > field,
                                                        double3 spherePosition, real_t sphereRadius, double3 blockStart,
-                                                       double3 dx, int3 nSamples)
+                                                       double3 dx, int3 nSamples, id_t uid)
 {
    field.set(blockIdx, threadIdx);
    double3 sampleDistance       = { 1.0 / (nSamples.x + 1) * dx.x, 1.0 / (nSamples.y + 1) * dx.y,
@@ -89,7 +89,11 @@ __global__ void particleAndVolumeFractionMappingKernel(walberla::cuda::FieldAcce
       }
 
       field.get().overlapFractions[field.get().index] *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
-      if (field.get().overlapFractions[field.get().index] > 0) { field.get().index += 1; }
+      if (field.get().overlapFractions[field.get().index] > 0)
+      {
+         field.get().uids[field.get().index] = uid;
+         field.get().index += 1;
+      }
       assert(field.get().index < 8);
    }
 }

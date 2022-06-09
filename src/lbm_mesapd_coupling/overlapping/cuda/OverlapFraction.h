@@ -64,6 +64,7 @@ struct OverlapFractionFunctor
       myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                        // blockStart
       myKernel.addParam(double3{ 1, 1, 1 });                                                            // dx
       myKernel.addParam(int3{ 16, 16, 16 });                                                            // nSamples
+      myKernel.addParam(ac->getUid(particleIdx));
       myKernel();
    }
 };
