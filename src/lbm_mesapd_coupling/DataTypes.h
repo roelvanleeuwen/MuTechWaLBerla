@@ -45,13 +45,16 @@ using ParticleAndVolumeFractionField_T = GhostLayerField< std::vector< ParticleA
 
 namespace cuda
 {
-const uint MaxParticlesPerCell = 8;
+const uint MaxParticlesPerCell = 7;
 
 struct PSMCell_T
 {
    uint_t index = 0;
    real_t overlapFractions[MaxParticlesPerCell];
-   uid_t uids[MaxParticlesPerCell];
+   id_t uids[MaxParticlesPerCell];
+   // TODO: find a better solution for the padding. This is used since the GPU field asserts that the pitch size is a
+   // multiple of the struct size, so the size of the struct is padded to 128 B
+   real_t padding[1];
 
    bool operator==(PSMCell_T const& cell) const
    {
