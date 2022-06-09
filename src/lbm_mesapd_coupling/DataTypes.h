@@ -45,7 +45,7 @@ using ParticleAndVolumeFractionField_T = GhostLayerField< std::vector< ParticleA
 
 namespace cuda
 {
-const uint MaxParticlesPerCell            = 8;
+const uint MaxParticlesPerCell = 8;
 
 struct PSMCell_T
 {
@@ -58,7 +58,7 @@ struct PSMCell_T
       if (index != cell.index) { return false; }
       for (uint_t i = 0; i < MaxParticlesPerCell; ++i)
       {
-         if (realIsEqual(overlapFractions[i], cell.overlapFractions[i], 1e-4)) { return false; }
+         if (!realIsEqual(overlapFractions[i], cell.overlapFractions[i], real_c(1e-4))) { return false; }
          if (uids[i] != cell.uids[i]) { return false; }
       }
       return true;
