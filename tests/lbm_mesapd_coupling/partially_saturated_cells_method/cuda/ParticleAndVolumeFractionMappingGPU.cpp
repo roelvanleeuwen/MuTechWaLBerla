@@ -265,8 +265,9 @@ int main(int argc, char** argv)
    BlockDataID particleAndVolumeFractionFieldID =
       blocks->addStructuredBlockData< psm::cuda::ParticleAndVolumeFractionField_T >(
          &createField, "particle and volume fraction field CPU");
+   // TODO: fix assertion error for usePitchedMem=True and use pitched memory
    BlockDataID gpuFieldID = cuda::addGPUFieldToStorage< psm::cuda::ParticleAndVolumeFractionField_T >(
-      blocks, particleAndVolumeFractionFieldID, "particle and volume fraction field GPU");
+      blocks, particleAndVolumeFractionFieldID, "particle and volume fraction field GPU", false);
 
    // calculate fraction
    psm::cuda::ParticleAndVolumeFractionMappingGPU particleMapping(

@@ -52,10 +52,6 @@ struct PSMCell_T
    uint_t index = 0;
    real_t overlapFractions[MaxParticlesPerCell];
    id_t uids[MaxParticlesPerCell];
-   // TODO: find a better solution for the padding of the struct size to 128 B. This is used since the GPU
-   // field asserts that the pitch size is a multiple of the struct size
-   real_t padding[(128 - (sizeof(uint_t) + sizeof(real_t[MaxParticlesPerCell]) + sizeof(id_t[MaxParticlesPerCell]))) /
-                  sizeof(real_t)];
 
    bool operator==(PSMCell_T const& cell) const
    {
