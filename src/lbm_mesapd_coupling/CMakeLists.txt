@@ -11,10 +11,12 @@ target_sources( lbm_mesapd_coupling
       PRIVATE
       DataTypes.h
       )
-target_sources( lbm_mesapd_coupling
-        PRIVATE
-        DataTypesGPU.h
-        )
+if( WALBERLA_BUILD_WITH_CUDA )
+    target_sources( lbm_mesapd_coupling
+            PRIVATE
+            DataTypesGPU.h
+            )
+endif()
 
 add_subdirectory( amr )
 add_subdirectory( momentum_exchange_method )

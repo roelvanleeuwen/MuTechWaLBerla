@@ -3,4 +3,6 @@ target_sources(lbm_mesapd_coupling
         OverlapFraction.h
         )
 
-add_subdirectory(cuda)
+if( WALBERLA_BUILD_WITH_CUDA )
+    add_subdirectory(cuda)
+endif()
