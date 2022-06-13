@@ -23,8 +23,6 @@
 
 #include "core/DataTypes.h"
 
-#include "cuda/GPUField.h"
-
 #include "field/GhostLayerField.h"
 
 namespace walberla
