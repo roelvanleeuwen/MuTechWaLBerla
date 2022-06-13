@@ -37,6 +37,7 @@ namespace cuda
 {
 const uint MaxParticlesPerCell = 7;
 
+// TODO: implement struct of arrays instead of array of structs
 struct PSMCell_T
 {
    uint_t index = 0;
