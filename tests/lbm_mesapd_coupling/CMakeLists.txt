@@ -47,13 +47,12 @@ waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_UTIL_HydForceMultBlocks_VVAvg CO
 waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_UTIL_HydForceMultBlocks_EulerNoAvg COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_UTIL_HydForceMultBlocks> --noForceAveraging PROCESSES 4 )
 waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_UTIL_HydForceMultBlocks_VVNoAvg COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_UTIL_HydForceMultBlocks> --noForceAveraging --useVV PROCESSES 4 )
 
-# TODO: modify names (body to particle)
-waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_BodyAndVolumeFractionMapping FILES partially_saturated_cells_method/ParticleAndVolumeFractionMapping.cpp DEPENDS blockforest boundary core field lbm_mesapd_coupling stencil mesa_pd )
-waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_BodyAndVolumeFractionMapping PROCESSES 27 )
+waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMapping FILES partially_saturated_cells_method/ParticleAndVolumeFractionMapping.cpp DEPENDS blockforest boundary core field lbm_mesapd_coupling stencil mesa_pd )
+waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMapping PROCESSES 27 )
 
 if( WALBERLA_BUILD_WITH_CUDA )
-    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_BodyAndVolumeFractionMappingGPU FILES partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.cpp DEPENDS blockforest boundary core cuda field lbm_mesapd_coupling stencil mesa_pd )
-    waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_BodyAndVolumeFractionMappingGPU PROCESSES 27 )
+    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMappingGPU FILES partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.cpp DEPENDS blockforest boundary core cuda field lbm_mesapd_coupling stencil mesa_pd )
+    waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMappingGPU PROCESSES 27 )
 endif()
 
 waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphere FILES partially_saturated_cells_method/DragForceSphere.cpp DEPENDS blockforest boundary core field lbm lbm_mesapd_coupling timeloop mesa_pd )
