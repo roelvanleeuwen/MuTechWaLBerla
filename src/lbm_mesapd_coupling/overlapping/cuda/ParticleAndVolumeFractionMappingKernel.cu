@@ -19,7 +19,7 @@
 //
 //======================================================================================================================
 
-#include "lbm_mesapd_coupling/DataTypes.h"
+#include "lbm_mesapd_coupling/DataTypesGPU.h"
 
 #include <assert.h>
 
@@ -45,6 +45,7 @@ __global__ void resetKernel(walberla::cuda::FieldAccessor< PSMCell_T > field)
    field.get().index = 0;
 }
 
+// TODO: look for better mapping method
 __global__ void particleAndVolumeFractionMappingKernel(walberla::cuda::FieldAccessor< PSMCell_T > field,
                                                        double3 spherePosition, real_t sphereRadius, double3 blockStart,
                                                        double3 dx, int3 nSamples, id_t uid)

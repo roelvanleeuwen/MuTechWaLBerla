@@ -32,7 +32,7 @@
 
 #include "field/GhostLayerField.h"
 
-#include "lbm_mesapd_coupling/DataTypes.h"
+#include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/mapping/ParticleBoundingBox.h"
 #include "lbm_mesapd_coupling/overlapping/cuda/OverlapFraction.h"
 #include "lbm_mesapd_coupling/overlapping/cuda/ParticleAndVolumeFractionMappingKernel.h"

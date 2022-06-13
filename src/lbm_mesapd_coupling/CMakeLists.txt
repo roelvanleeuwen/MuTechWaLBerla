@@ -11,6 +11,10 @@ target_sources( lbm_mesapd_coupling
       PRIVATE
       DataTypes.h
       )
+target_sources( lbm_mesapd_coupling
+        PRIVATE
+        DataTypesGPU.h
+        )
 
 add_subdirectory( amr )
 add_subdirectory( momentum_exchange_method )
