@@ -27,14 +27,11 @@
 
 #include "cuda/AddGPUFieldToStorage.h"
 #include "cuda/FieldCopy.h"
-#include "cuda/FieldIndexing.h"
 #include "cuda/GPUField.h"
 #include "cuda/HostFieldAllocator.h"
-#include "cuda/Kernel.h"
 
 #include "field/AddToStorage.h"
 
-#include "lbm_mesapd_coupling/DataTypes.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 
