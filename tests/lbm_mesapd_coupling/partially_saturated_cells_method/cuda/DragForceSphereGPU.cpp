@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file DragForceSphere.cpp
+//! \file DragForceSphereGPU.cpp
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
@@ -35,6 +35,10 @@
 #include "core/mpi/Reduce.h"
 #include "core/timing/RemainingTimeLogger.h"
 
+#include "cuda/AddGPUFieldToStorage.h"
+#include "cuda/GPUField.h"
+#include "cuda/communication/GPUPackInfo.h"
+
 #include "field/AddToStorage.h"
 
 #include "lbm/communication/PdfFieldPackInfo.h"
@@ -45,11 +49,12 @@
 #include "lbm/sweeps/SweepWrappers.h"
 
 #include "lbm_mesapd_coupling/DataTypes.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/MovingParticleMapping.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/boundary/SimpleBB.h"
+#include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMUtility.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/ParticleAndVolumeFractionMapping.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
 
@@ -63,8 +68,6 @@
 
 #include <iostream>
 #include <vector>
-
-#include "../Utility.h"
 
 namespace drag_force_sphere_psm
 {
@@ -227,6 +230,21 @@ class DragForceEvaluator
    real_t normalizedDragOld_;
    real_t normalizedDragNew_;
 };
+
+lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionField_T* createField(IBlock* const block,
+                                                                              StructuredBlockStorage* const storage)
+{
+   return new lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionField_T(
+      storage->getNumberOfXCells(*block),          // number of cells in x direction per block
+      storage->getNumberOfYCells(*block),          // number of cells in y direction per block
+      storage->getNumberOfZCells(*block),          // number of cells in z direction per block
+      1,                                           // one ghost layer
+      lbm_mesapd_coupling::psm::cuda::PSMCell_T(), // initial value
+      field::fzyx,                                 // layout
+      make_shared< cuda::HostFieldAllocator< lbm_mesapd_coupling::psm::cuda::PSMCell_T > >() // allocator for host
+                                                                                             // pinned memory
+   );
+}
 
 //////////
 // MAIN //
@@ -399,6 +417,7 @@ int main(int argc, char** argv)
    // add PDF field
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
       blocks, "pdf field (zyxf)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::zyxf);
+   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "GPU PDF Field");
 
    ///////////////
    // TIME LOOP //
@@ -409,40 +428,61 @@ int main(int argc, char** argv)
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
    blockforest::communication::UniformBufferedScheme< Stencil_T > optimizedPDFCommunicationScheme(blocks);
-   optimizedPDFCommunicationScheme.addPackInfo(
-      make_shared< lbm::PdfFieldPackInfo< LatticeModel_T > >(pdfFieldID)); // optimized sync
+   /*optimizedPDFCommunicationScheme.addPackInfo(
+      make_shared< lbm::PdfFieldPackInfo< LatticeModel_T > >(pdfFieldID)); // optimized sync*/
+   optimizedPDFCommunicationScheme.addDataToCommunicate(
+      make_shared< cuda::communication::GPUPackInfo< cuda::GPUField< real_t > > >(pdfFieldGPUID));
 
    // initially map particles into the LBM simulation
-   BlockDataID particleAndVolumeFractionFieldID =
+   /*BlockDataID particleAndVolumeFractionFieldID =
       field::addToStorage< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
          blocks, "particle and volume fraction field",
          std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);
    lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(
       blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionFieldID, 4);
-   particleMapping();
+   particleMapping();*/
 
-   lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
+   // add particle and volume fraction field (needed for the PSM)
+   BlockDataID particleAndVolumeFractionFieldCPUID =
+      blocks->addStructuredBlockData< lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionField_T >(
+         &createField, "particle and volume fraction field CPU");
+   // TODO: fix assertion error for usePitchedMem=True and use pitched memory
+   BlockDataID particleAndVolumeFractionFieldGPUID =
+      cuda::addGPUFieldToStorage< lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionField_T >(
+         blocks, particleAndVolumeFractionFieldCPUID, "particle and volume fraction field GPU", false);
+
+   // calculate fraction
+   lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
+      blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionFieldGPUID, 4);
+   particleMappingGPU();
+
+   /*lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
                                                                          particleAndVolumeFractionFieldID, *accessor);
 
    walberla::lbm_mesapd_coupling::FractionFieldSum fractionFieldSum(blocks, particleAndVolumeFractionFieldID);
    // check that the sum of all fractions is roughly the volume of the particle
    WALBERLA_CHECK_LESS(
-      std::fabs(4.0 / 3.0 * math::pi * setup.radius * setup.radius * setup.radius - fractionFieldSum()), real_c(1.0));
+      std::fabs(4.0 / 3.0 * math::pi * setup.radius * setup.radius * setup.radius - fractionFieldSum()), real_c(2.0));*/
 
    // since external forcing is applied, the evaluation of the velocity has to be carried out directly after the
    // streaming step however, the default sweep is a  stream - collide step, i.e. after the sweep, the velocity
    // evaluation is not correct solution: split the sweep explicitly into collide and stream
-   auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
-      pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);
+   /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
+      pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
+   auto sweepGPU = lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< cuda::GPUField< real_t > >(
+      pdfFieldGPUID, particleAndVolumeFractionFieldGPUID);
 
    // collision sweep
-   timeloop.add() << Sweep(lbm::makeCollideSweep(sweep), "cell-wise LB sweep (collide)");
+   /*timeloop.add() << Sweep(lbm::makeCollideSweep(sweep), "cell-wise LB sweep (collide)");*/
 
    // add LBM communication function and streaming & force evaluation
    using DragForceEval_T = DragForceEvaluator< ParticleAccessor_T >;
    auto forceEval        = make_shared< DragForceEval_T >(&timeloop, &setup, blocks, pdfFieldID, accessor, sphereID);
    timeloop.add() << BeforeFunction(optimizedPDFCommunicationScheme, "LBM Communication")
-                  << Sweep(lbm::makeStreamSweep(sweep), "cell-wise LB sweep (stream)")
+                  /*<< Sweep(lbm::makeStreamSweep(sweep), "cell-wise LB sweep (stream)")*/
+                  << Sweep(sweepGPU, "cell-wise PSM sweep");
+   timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
+                           "copy pdf from GPU to CPU")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");
 
    // resetting force
