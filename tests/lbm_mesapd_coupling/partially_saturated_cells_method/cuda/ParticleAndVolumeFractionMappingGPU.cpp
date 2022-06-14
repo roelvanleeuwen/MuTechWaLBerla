@@ -137,9 +137,9 @@ psm::cuda::ParticleAndVolumeFractionField_T* createField(IBlock* const block, St
       storage->getNumberOfYCells(*block),                               // number of cells in y direction per block
       storage->getNumberOfZCells(*block),                               // number of cells in z direction per block
       1,                                                                // one ghost layer
-      psm::cuda::PSMCell_T(),                                           // initial value
+      psm::cuda::PSMCellAoS_T(),                                           // initial value
       field::fzyx,                                                      // layout
-      make_shared< cuda::HostFieldAllocator< psm::cuda::PSMCell_T > >() // allocator for host pinned memory
+      make_shared< cuda::HostFieldAllocator< psm::cuda::PSMCellAoS_T > >() // allocator for host pinned memory
    );
 }
 

@@ -76,9 +76,9 @@ class ParticleAndVolumeFractionMappingGPU
       // clear the fields
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         auto cudaField = blockIt->getData< walberla::cuda::GPUField< PSMCell_T > >(particleAndVolumeFractionFieldID_);
-         auto myKernel  = walberla::cuda::make_kernel(&resetKernel);
-         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< PSMCell_T >::xyz(*cudaField));
+         auto cudaField = blockIt->getData< walberla::cuda::GPUField< PSMCellAoS_T > >(particleAndVolumeFractionFieldID_);
+         auto myKernel  = walberla::cuda::make_kernel(&resetKernelAoS);
+         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< PSMCellAoS_T >::xyz(*cudaField));
          myKernel();
       }
 

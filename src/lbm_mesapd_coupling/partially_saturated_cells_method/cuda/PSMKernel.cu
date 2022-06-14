@@ -34,7 +34,7 @@ namespace psm
 namespace cuda
 {
 __global__ void PSMKernel(walberla::cuda::FieldAccessor< real_t > pdfField,
-                          walberla::cuda::FieldAccessor< PSMCell_T > particleAndVolumeFractionField)
+                          walberla::cuda::FieldAccessor< PSMCellAoS_T > particleAndVolumeFractionField)
 {
    pdfField.set(blockIdx, threadIdx);
    particleAndVolumeFractionField.set(blockIdx, threadIdx);

@@ -54,10 +54,10 @@ struct OverlapFractionFunctor
 
       Vector3< real_t > particlePosition = ac->getPosition(particleIdx);
 
-      auto cudaField = blockIt.getData< walberla::cuda::GPUField< PSMCell_T > >(particleAndVolumeFractionFieldID);
+      auto cudaField = blockIt.getData< walberla::cuda::GPUField< PSMCellAoS_T > >(particleAndVolumeFractionFieldID);
 
-      auto myKernel = walberla::cuda::make_kernel(&particleAndVolumeFractionMappingKernel);
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< PSMCell_T >::xyz(*cudaField)); // FieldAccessor
+      auto myKernel = walberla::cuda::make_kernel(&particleAndVolumeFractionMappingKernelAoS);
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< PSMCellAoS_T >::xyz(*cudaField)); // FieldAccessor
       Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
       myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] }); // spherePosition
       myKernel.addParam(static_cast< mesa_pd::data::Sphere* >(ac->getShape(particleIdx))->getRadius()); // sphereRadius

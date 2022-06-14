@@ -239,9 +239,9 @@ lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionField_T* createField(IB
       storage->getNumberOfYCells(*block),          // number of cells in y direction per block
       storage->getNumberOfZCells(*block),          // number of cells in z direction per block
       1,                                           // one ghost layer
-      lbm_mesapd_coupling::psm::cuda::PSMCell_T(), // initial value
+      lbm_mesapd_coupling::psm::cuda::PSMCellAoS_T(), // initial value
       field::fzyx,                                 // layout
-      make_shared< cuda::HostFieldAllocator< lbm_mesapd_coupling::psm::cuda::PSMCell_T > >() // allocator for host
+      make_shared< cuda::HostFieldAllocator< lbm_mesapd_coupling::psm::cuda::PSMCellAoS_T > >() // allocator for host
                                                                                              // pinned memory
    );
 }

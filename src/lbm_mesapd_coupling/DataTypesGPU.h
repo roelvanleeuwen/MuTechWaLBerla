@@ -38,13 +38,13 @@ namespace cuda
 const uint MaxParticlesPerCell = 7;
 
 // TODO: implement struct of arrays instead of array of structs
-struct PSMCell_T
+struct PSMCellAoS_T
 {
    uint_t index = 0;
    real_t overlapFractions[MaxParticlesPerCell];
    id_t uids[MaxParticlesPerCell];
 
-   bool operator==(PSMCell_T const& cell) const
+   bool operator==(PSMCellAoS_T const& cell) const
    {
       if (index != cell.index) { return false; }
       for (uint_t i = 0; i < MaxParticlesPerCell; ++i)
@@ -56,8 +56,8 @@ struct PSMCell_T
    };
 };
 
-using ParticleAndVolumeFractionField_T    = GhostLayerField< PSMCell_T, 1 >;
-using ParticleAndVolumeFractionFieldGPU_T = walberla::cuda::GPUField< PSMCell_T >;
+using ParticleAndVolumeFractionField_T    = GhostLayerField< PSMCellAoS_T, 1 >;
+using ParticleAndVolumeFractionFieldGPU_T = walberla::cuda::GPUField< PSMCellAoS_T >;
 } // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling

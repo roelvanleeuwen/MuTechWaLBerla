@@ -34,10 +34,10 @@ namespace psm
 {
 namespace cuda
 {
-__global__ void resetKernel(walberla::cuda::FieldAccessor< PSMCell_T > field);
-__global__ void particleAndVolumeFractionMappingKernel(walberla::cuda::FieldAccessor< PSMCell_T > field,
-                                                       double3 spherePosition, real_t sphereRadius, double3 blockStart,
-                                                       double3 dx, int3 nSamples, id_t uid);
+__global__ void resetKernelAoS(walberla::cuda::FieldAccessor< PSMCellAoS_T > field);
+__global__ void particleAndVolumeFractionMappingKernelAoS(walberla::cuda::FieldAccessor< PSMCellAoS_T > field,
+                                                          double3 spherePosition, real_t sphereRadius,
+                                                          double3 blockStart, double3 dx, int3 nSamples, id_t uid);
 } // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling
