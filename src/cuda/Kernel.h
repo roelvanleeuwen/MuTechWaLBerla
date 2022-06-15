@@ -147,6 +147,8 @@ namespace cuda {
       CHECK_PARAMETER_FUNC(5)
       CHECK_PARAMETER_FUNC(6)
       CHECK_PARAMETER_FUNC(7)
+      CHECK_PARAMETER_FUNC(8)
+      CHECK_PARAMETER_FUNC(9)
 
       #undef CHECK_PARAMETER_FUNC
 
@@ -258,6 +260,8 @@ namespace cuda {
          case 5: return checkParameter5<T>();
          case 6: return checkParameter6<T>();
          case 7: return checkParameter7<T>();
+         case 8: return checkParameter8<T>();
+         case 9: return checkParameter9<T>();
          default:
             WALBERLA_ABORT("Too many parameters passed to kernel");
       }
