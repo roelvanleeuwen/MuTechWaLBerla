@@ -78,6 +78,7 @@ namespace drag_force_sphere_psm
 
 using namespace walberla;
 using walberla::uint_t;
+using namespace lbm_mesapd_coupling::psm::cuda;
 
 using ForceModel_T   = lbm::force_model::LuoConstant;
 using LatticeModel_T = lbm::D3Q19< lbm::collision_model::TRT, false, ForceModel_T >;
@@ -230,21 +231,6 @@ class DragForceEvaluator
    real_t normalizedDragOld_;
    real_t normalizedDragNew_;
 };
-
-lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionField_T* createField(IBlock* const block,
-                                                                              StructuredBlockStorage* const storage)
-{
-   return new lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionField_T(
-      storage->getNumberOfXCells(*block),          // number of cells in x direction per block
-      storage->getNumberOfYCells(*block),          // number of cells in y direction per block
-      storage->getNumberOfZCells(*block),          // number of cells in z direction per block
-      1,                                           // one ghost layer
-      lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionAoS_T(), // initial value
-      field::fzyx,                                 // layout
-      make_shared< cuda::HostFieldAllocator< lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionAoS_T > >() // allocator for host
-                                                                                             // pinned memory
-   );
-}
 
 //////////
 // MAIN //
@@ -442,18 +428,12 @@ int main(int argc, char** argv)
       blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionFieldID, 4);
    particleMapping();*/
 
-   // add particle and volume fraction field (needed for the PSM)
-   BlockDataID particleAndVolumeFractionFieldCPUID =
-      blocks->addStructuredBlockData< lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionField_T >(
-         &createField, "particle and volume fraction field CPU");
-   // TODO: fix assertion error for usePitchedMem=True and use pitched memory
-   BlockDataID particleAndVolumeFractionFieldGPUID =
-      cuda::addGPUFieldToStorage< lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionField_T >(
-         blocks, particleAndVolumeFractionFieldCPUID, "particle and volume fraction field GPU", false);
+   // add particle and volume fraction fields (needed for the PSM)
+   ParticleAndVolumeFractionSoA_T particleAndVolumeFractionSoA(blocks);
 
    // calculate fraction
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
-      blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionFieldGPUID, 4);
+      blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionSoA, 4);
    particleMappingGPU();
 
    /*lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
@@ -470,7 +450,7 @@ int main(int argc, char** argv)
    /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
       pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
    auto sweepGPU = lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< cuda::GPUField< real_t > >(
-      pdfFieldGPUID, particleAndVolumeFractionFieldGPUID);
+      pdfFieldGPUID, particleAndVolumeFractionSoA);
 
    // collision sweep
    /*timeloop.add() << Sweep(lbm::makeCollideSweep(sweep), "cell-wise LB sweep (collide)");*/

@@ -33,12 +33,18 @@ namespace psm
 {
 namespace cuda
 {
+
 __global__ void PSMKernel(walberla::cuda::FieldAccessor< real_t > pdfField,
-                          walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > particleAndVolumeFractionField)
+                          walberla::cuda::FieldAccessor< uint_t > indicesField,
+                          walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
+                          walberla::cuda::FieldAccessor< id_t > uidsField)
 {
    pdfField.set(blockIdx, threadIdx);
-   particleAndVolumeFractionField.set(blockIdx, threadIdx);
+   indicesField.set(blockIdx, threadIdx);
+   overlapFractionsField.set(blockIdx, threadIdx);
+   uidsField.set(blockIdx, threadIdx);
 }
+
 } // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling

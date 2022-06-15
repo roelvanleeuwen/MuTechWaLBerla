@@ -31,8 +31,12 @@ namespace psm
 {
 namespace cuda
 {
+
 __global__ void PSMKernel(walberla::cuda::FieldAccessor< real_t > pdfField,
-                          walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > particleAndVolumeFractionField);
+                          walberla::cuda::FieldAccessor< uint_t > indicesField,
+                          walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
+                          walberla::cuda::FieldAccessor< id_t > uidsField);
+
 } // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling

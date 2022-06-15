@@ -49,29 +49,35 @@ namespace psm
 {
 namespace cuda
 {
+
 template< typename GPUField_T >
 class PSMSweepCUDA : public walberla::cuda::GPUSweepBase< GPUField_T >
 {
  public:
-   PSMSweepCUDA(BlockDataID pdfFieldID, BlockDataID particleAndVolumeFractionFieldID)
-      : pdfFieldID_(pdfFieldID), particleAndVolumeFractionFieldID_(particleAndVolumeFractionFieldID)
+   PSMSweepCUDA(BlockDataID& pdfFieldID, const ParticleAndVolumeFractionSoA_T& particleAndVolumeFractionSoA)
+      : pdfFieldID_(pdfFieldID), particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA)
    {}
    void operator()(IBlock* block)
    {
-      auto pdfField = block->getData< GPUField_T >(pdfFieldID_);
-      auto particleAndVolumeFractionField =
-         block->getData< walberla::cuda::GPUField< ParticleAndVolumeFractionAoS_T > >(particleAndVolumeFractionFieldID_);
+      auto pdfField     = block->getData< GPUField_T >(pdfFieldID_);
+      auto indicesField = block->getData< indicesFieldGPU_T >(particleAndVolumeFractionSoA_.indicesFieldID);
+      auto overlapFractionsField =
+         block->getData< overlapFractionsFieldGPU_T >(particleAndVolumeFractionSoA_.overlapFractionsFieldID);
+      auto uidsField = block->getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA_.uidsFieldID);
 
       auto myKernel = walberla::cuda::make_kernel(&PSMKernel);
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*pdfField));
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< ParticleAndVolumeFractionAoS_T >::xyz(*particleAndVolumeFractionField));
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*indicesField));
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*overlapFractionsField));
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
       myKernel();
    }
 
  private:
    BlockDataID pdfFieldID_;
-   BlockDataID particleAndVolumeFractionFieldID_;
+   ParticleAndVolumeFractionSoA_T particleAndVolumeFractionSoA_;
 };
+
 } // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling

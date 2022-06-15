@@ -34,6 +34,7 @@ namespace psm
 {
 namespace cuda
 {
+
 __global__ void resetKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > field);
 __global__ void
    particleAndVolumeFractionMappingKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > field,
@@ -48,6 +49,7 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(walberla::cuda::FieldA
                                                           walberla::cuda::FieldAccessor< id_t > uidsField,
                                                           double3 spherePosition, real_t sphereRadius,
                                                           double3 blockStart, double3 dx, int3 nSamples, id_t uid);
+
 } // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling

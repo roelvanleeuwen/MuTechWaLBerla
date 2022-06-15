@@ -243,7 +243,8 @@ int main(int argc, char** argv)
    // ADD DATA TO BLOCKS //
    ////////////////////////
 
-   // add particle and volume fraction field (needed for the PSM)
+   // add particle and volume fraction fields (needed for the PSM)
+   // TODO: do we need to add a cuda::HostFieldAllocator as in the cuda tutorial?
    BlockDataID indicesFieldID = field::addToStorage< indicesField_T >(blocks, "indices field CPU", 0, field::fzyx, 0);
    BlockDataID overlapFractionsFieldID =
       field::addToStorage< overlapFractionsField_T >(blocks, "overlapFractions field CPU", 0, field::fzyx, 0);
