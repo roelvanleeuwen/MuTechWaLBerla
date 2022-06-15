@@ -35,10 +35,17 @@ namespace psm
 namespace cuda
 {
 __global__ void resetKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > field);
-__global__ void particleAndVolumeFractionMappingKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > field,
-                                                          double3 spherePosition, real_t sphereRadius,
-                                                          double3 blockStart, double3 dx, int3 nSamples, id_t uid);
+__global__ void
+   particleAndVolumeFractionMappingKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > field,
+                                             double3 spherePosition, real_t sphereRadius, double3 blockStart,
+                                             double3 dx, int3 nSamples, id_t uid);
 
+__global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > indicesField,
+                               walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
+                               walberla::cuda::FieldAccessor< id_t > uidsField);
+__global__ void particleAndVolumeFractionMappingKernelSoA(walberla::cuda::FieldAccessor< uint_t > indicesField,
+                                                          walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
+                                                          walberla::cuda::FieldAccessor< id_t > uidsField,
                                                           double3 spherePosition, real_t sphereRadius,
                                                           double3 blockStart, double3 dx, int3 nSamples, id_t uid);
 } // namespace cuda

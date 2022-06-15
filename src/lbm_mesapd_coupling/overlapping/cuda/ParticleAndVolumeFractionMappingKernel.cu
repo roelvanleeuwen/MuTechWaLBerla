@@ -46,9 +46,10 @@ __global__ void resetKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeF
 }
 
 // TODO: look for better mapping method
-__global__ void particleAndVolumeFractionMappingKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > field,
-                                                          double3 spherePosition, real_t sphereRadius,
-                                                          double3 blockStart, double3 dx, int3 nSamples, id_t uid)
+__global__ void
+   particleAndVolumeFractionMappingKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > field,
+                                             double3 spherePosition, real_t sphereRadius, double3 blockStart,
+                                             double3 dx, int3 nSamples, id_t uid)
 {
    field.set(blockIdx, threadIdx);
    double3 sampleDistance       = { 1.0 / (nSamples.x + 1) * dx.x, 1.0 / (nSamples.y + 1) * dx.y,
@@ -95,7 +96,80 @@ __global__ void particleAndVolumeFractionMappingKernelAoS(walberla::cuda::FieldA
          field.get().uids[field.get().index] = uid;
          field.get().index += 1;
       }
-      assert(field.get().index < 8);
+      assert(field.get().index < MaxParticlesPerCell);
+   }
+}
+
+__global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > indicesField,
+                               walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
+                               walberla::cuda::FieldAccessor< id_t > uidsField)
+{
+   indicesField.set(blockIdx, threadIdx);
+   overlapFractionsField.set(blockIdx, threadIdx);
+   uidsField.set(blockIdx, threadIdx);
+   for (uint i = 0; i < MaxParticlesPerCell; i++)
+   {
+      overlapFractionsField.get(i) = 0.0;
+      uidsField.get(i)             = id_t(0);
+   }
+   indicesField.get() = 0;
+}
+
+// TODO: look for better mapping method
+__global__ void particleAndVolumeFractionMappingKernelSoA(walberla::cuda::FieldAccessor< uint_t > indicesField,
+                                                          walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
+                                                          walberla::cuda::FieldAccessor< id_t > uidsField,
+                                                          double3 spherePosition, real_t sphereRadius,
+                                                          double3 blockStart, double3 dx, int3 nSamples, id_t uid)
+{
+   indicesField.set(blockIdx, threadIdx);
+   overlapFractionsField.set(blockIdx, threadIdx);
+   uidsField.set(blockIdx, threadIdx);
+   double3 sampleDistance       = { 1.0 / (nSamples.x + 1) * dx.x, 1.0 / (nSamples.y + 1) * dx.y,
+                                    1.0 / (nSamples.z + 1) * dx.z };
+   double3 startSamplingPoint   = { (blockStart.x + threadIdx.x * dx.x + sampleDistance.x),
+                                    (blockStart.y + blockIdx.x * dx.y + sampleDistance.y),
+                                    (blockStart.z + blockIdx.y * dx.z + sampleDistance.z) };
+   double3 currentSamplingPoint = startSamplingPoint;
+
+   double3 minCornerSphere = { spherePosition.x - sphereRadius, spherePosition.y - sphereRadius,
+                               spherePosition.z - sphereRadius };
+   double3 maxCornerSphere = { spherePosition.x + sphereRadius, spherePosition.y + sphereRadius,
+                               spherePosition.z + sphereRadius };
+
+   if (startSamplingPoint.x + dx.x > minCornerSphere.x && startSamplingPoint.x < maxCornerSphere.x &&
+       startSamplingPoint.y + dx.y > minCornerSphere.y && startSamplingPoint.y < maxCornerSphere.y &&
+       startSamplingPoint.z + dx.z > minCornerSphere.z && startSamplingPoint.z < maxCornerSphere.z)
+   {
+      for (uint_t z = 0; z < nSamples.z; z++)
+      {
+         currentSamplingPoint.y = startSamplingPoint.y;
+         for (uint_t y = 0; y < nSamples.y; y++)
+         {
+            currentSamplingPoint.x = startSamplingPoint.x;
+            for (uint_t x = 0; x < nSamples.x; x++)
+            {
+               if ((currentSamplingPoint.x - spherePosition.x) * (currentSamplingPoint.x - spherePosition.x) +
+                      (currentSamplingPoint.y - spherePosition.y) * (currentSamplingPoint.y - spherePosition.y) +
+                      (currentSamplingPoint.z - spherePosition.z) * (currentSamplingPoint.z - spherePosition.z) <=
+                   sphereRadius * sphereRadius)
+               {
+                  overlapFractionsField.get(indicesField.get()) += 1.0;
+               }
+               currentSamplingPoint.x += sampleDistance.x;
+            }
+            currentSamplingPoint.y += sampleDistance.y;
+         }
+         currentSamplingPoint.z += sampleDistance.z;
+      }
+
+      overlapFractionsField.get(indicesField.get()) *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
+      if (overlapFractionsField.get(indicesField.get()) > 0)
+      {
+         uidsField.get(indicesField.get()) = uid;
+         indicesField.get() += 1;
+      }
+      assert(indicesField.get() < MaxParticlesPerCell);
    }
 }
 

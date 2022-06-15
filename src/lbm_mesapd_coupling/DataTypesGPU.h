@@ -36,6 +36,7 @@ namespace psm
 {
 namespace cuda
 {
+
 const uint MaxParticlesPerCell = 7;
 
 struct ParticleAndVolumeFractionAoS_T
@@ -58,6 +59,41 @@ struct ParticleAndVolumeFractionAoS_T
 
 using ParticleAndVolumeFractionField_T    = GhostLayerField< ParticleAndVolumeFractionAoS_T, 1 >;
 using ParticleAndVolumeFractionFieldGPU_T = walberla::cuda::GPUField< ParticleAndVolumeFractionAoS_T >;
+
+using indicesField_T             = GhostLayerField< uint_t, 1 >;
+using indicesFieldGPU_T          = walberla::cuda::GPUField< uint_t >;
+using overlapFractionsField_T    = GhostLayerField< real_t, MaxParticlesPerCell >;
+using overlapFractionsFieldGPU_T = walberla::cuda::GPUField< real_t >;
+using uidsField_T                = GhostLayerField< id_t, MaxParticlesPerCell >;
+using uidsFieldGPU_T             = walberla::cuda::GPUField< id_t >;
+
+struct ParticleAndVolumeFractionSoA_T
+{
+   BlockDataID indicesFieldID;
+   BlockDataID overlapFractionsFieldID;
+   BlockDataID uidsFieldID;
+
+   ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs, const BlockDataID& indicesFieldCPUID,
+                                  const BlockDataID& overlapFractionsFieldCPUID, const BlockDataID& uidsFieldCPUID)
+   {
+      indicesFieldID =
+         walberla::cuda::addGPUFieldToStorage< indicesField_T >(bs, indicesFieldCPUID, "indices field GPU");
+      overlapFractionsFieldID = walberla::cuda::addGPUFieldToStorage< overlapFractionsField_T >(
+         bs, overlapFractionsFieldCPUID, "overlapFractions field GPU");
+      uidsFieldID = walberla::cuda::addGPUFieldToStorage< uidsField_T >(bs, uidsFieldCPUID, "uids field GPU");
+   }
+
+   ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs)
+   {
+      indicesFieldID = walberla::cuda::addGPUFieldToStorage< indicesFieldGPU_T >(bs, "indices field GPU", uint_t(1),
+                                                                                 field::fzyx, uint_t(0), true);
+      overlapFractionsFieldID = walberla::cuda::addGPUFieldToStorage< overlapFractionsFieldGPU_T >(
+         bs, "overlapFractions field GPU", MaxParticlesPerCell, field::fzyx, uint_t(0), true);
+      uidsFieldID = walberla::cuda::addGPUFieldToStorage< uidsFieldGPU_T >(bs, "uids field GPU", MaxParticlesPerCell,
+                                                                           field::fzyx, uint_t(0), true);
+   }
+};
+
 } // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling

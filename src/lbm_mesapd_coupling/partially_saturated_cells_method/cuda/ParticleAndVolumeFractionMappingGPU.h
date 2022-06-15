@@ -54,11 +54,27 @@ namespace psm
 {
 namespace cuda
 {
+
 void clearAllFields(const IBlock& blockIt, const BlockDataID& particleAndVolumeFractionField)
 {
-   auto cudaField = blockIt.getData< walberla::cuda::GPUField< ParticleAndVolumeFractionAoS_T > >(particleAndVolumeFractionField);
-   auto myKernel  = walberla::cuda::make_kernel(&resetKernelAoS);
+   auto cudaField =
+      blockIt.getData< walberla::cuda::GPUField< ParticleAndVolumeFractionAoS_T > >(particleAndVolumeFractionField);
+   auto myKernel = walberla::cuda::make_kernel(&resetKernelAoS);
    myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< ParticleAndVolumeFractionAoS_T >::xyz(*cudaField));
+   myKernel();
+}
+
+void clearField(const IBlock& blockIt, const ParticleAndVolumeFractionSoA_T& particleAndVolumeFractionSoA)
+{
+   auto indicesField = blockIt.getData< indicesFieldGPU_T >(particleAndVolumeFractionSoA.indicesFieldID);
+   auto overlapFractionsField =
+      blockIt.getData< overlapFractionsFieldGPU_T >(particleAndVolumeFractionSoA.overlapFractionsFieldID);
+   auto uidsField = blockIt.getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA.uidsFieldID);
+
+   auto myKernel = walberla::cuda::make_kernel(&resetKernelSoA);
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*indicesField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*overlapFractionsField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
    myKernel();
 }
 
@@ -84,7 +100,7 @@ class ParticleAndVolumeFractionMappingGPU
       // clear the fields
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         clearAllFields(*blockIt, particleAndVolumeFractionField_);
+         clearField(*blockIt, particleAndVolumeFractionField_);
       }
 
       for (size_t idx = 0; idx < ac_->size(); ++idx)
