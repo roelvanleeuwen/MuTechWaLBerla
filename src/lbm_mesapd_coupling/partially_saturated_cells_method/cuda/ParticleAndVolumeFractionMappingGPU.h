@@ -55,7 +55,7 @@ namespace psm
 namespace cuda
 {
 
-void clearAllFields(const IBlock& blockIt, const BlockDataID& particleAndVolumeFractionField)
+void clearField(const IBlock& blockIt, const BlockDataID& particleAndVolumeFractionField)
 {
    auto cudaField =
       blockIt.getData< walberla::cuda::GPUField< ParticleAndVolumeFractionAoS_T > >(particleAndVolumeFractionField);
