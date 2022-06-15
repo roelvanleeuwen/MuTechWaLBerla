@@ -34,7 +34,7 @@ namespace psm
 namespace cuda
 {
 
-__global__ void resetKernelAoS(walberla::cuda::FieldAccessor< PSMCellAoS_T > field)
+__global__ void resetKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > field)
 {
    field.set(blockIdx, threadIdx);
    for (uint i = 0; i < MaxParticlesPerCell; i++)
@@ -46,7 +46,7 @@ __global__ void resetKernelAoS(walberla::cuda::FieldAccessor< PSMCellAoS_T > fie
 }
 
 // TODO: look for better mapping method
-__global__ void particleAndVolumeFractionMappingKernelAoS(walberla::cuda::FieldAccessor< PSMCellAoS_T > field,
+__global__ void particleAndVolumeFractionMappingKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > field,
                                                           double3 spherePosition, real_t sphereRadius,
                                                           double3 blockStart, double3 dx, int3 nSamples, id_t uid)
 {

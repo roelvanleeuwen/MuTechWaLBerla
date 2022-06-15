@@ -23,6 +23,7 @@
 
 #include "core/DataTypes.h"
 
+#include "cuda/AddGPUFieldToStorage.h"
 #include "cuda/GPUField.h"
 
 #include "field/GhostLayerField.h"
@@ -37,14 +38,13 @@ namespace cuda
 {
 const uint MaxParticlesPerCell = 7;
 
-// TODO: implement struct of arrays instead of array of structs
-struct PSMCellAoS_T
+struct ParticleAndVolumeFractionAoS_T
 {
    uint_t index = 0;
    real_t overlapFractions[MaxParticlesPerCell];
    id_t uids[MaxParticlesPerCell];
 
-   bool operator==(PSMCellAoS_T const& cell) const
+   bool operator==(ParticleAndVolumeFractionAoS_T const& cell) const
    {
       if (index != cell.index) { return false; }
       for (uint_t i = 0; i < MaxParticlesPerCell; ++i)
@@ -56,8 +56,8 @@ struct PSMCellAoS_T
    };
 };
 
-using ParticleAndVolumeFractionField_T    = GhostLayerField< PSMCellAoS_T, 1 >;
-using ParticleAndVolumeFractionFieldGPU_T = walberla::cuda::GPUField< PSMCellAoS_T >;
+using ParticleAndVolumeFractionField_T    = GhostLayerField< ParticleAndVolumeFractionAoS_T, 1 >;
+using ParticleAndVolumeFractionFieldGPU_T = walberla::cuda::GPUField< ParticleAndVolumeFractionAoS_T >;
 } // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling

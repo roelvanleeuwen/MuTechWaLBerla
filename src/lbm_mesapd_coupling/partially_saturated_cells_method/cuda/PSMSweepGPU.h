@@ -60,11 +60,11 @@ class PSMSweepCUDA : public walberla::cuda::GPUSweepBase< GPUField_T >
    {
       auto pdfField = block->getData< GPUField_T >(pdfFieldID_);
       auto particleAndVolumeFractionField =
-         block->getData< walberla::cuda::GPUField< PSMCellAoS_T > >(particleAndVolumeFractionFieldID_);
+         block->getData< walberla::cuda::GPUField< ParticleAndVolumeFractionAoS_T > >(particleAndVolumeFractionFieldID_);
 
       auto myKernel = walberla::cuda::make_kernel(&PSMKernel);
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*pdfField));
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< PSMCellAoS_T >::xyz(*particleAndVolumeFractionField));
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< ParticleAndVolumeFractionAoS_T >::xyz(*particleAndVolumeFractionField));
       myKernel();
    }
 
