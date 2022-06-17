@@ -38,6 +38,7 @@
 #include "lbm_mesapd_coupling/overlapping/cuda/ParticleAndVolumeFractionMappingKernel.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 
+#include "mesa_pd/common/AABBConversion.h"
 #include "mesa_pd/data/ParticleAccessorWithShape.h"
 #include "mesa_pd/data/ParticleStorage.h"
 #include "mesa_pd/kernel/SingleCast.h"
@@ -115,7 +116,11 @@ class ParticleAndVolumeFractionMappingGPU
       // update fraction mapping
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         singleCast_(idx, *ac_, overlapFractionFctr_, ac_, *blockIt, particleAndVolumeFractionField_);
+         // apply mapping only if block intersects with particle
+         if (blockIt->getAABB().intersects(walberla::mesa_pd::getParticleAABB(idx, *ac_)))
+         {
+            singleCast_(idx, *ac_, overlapFractionFctr_, ac_, *blockIt, particleAndVolumeFractionField_);
+         }
       }
    }
 
