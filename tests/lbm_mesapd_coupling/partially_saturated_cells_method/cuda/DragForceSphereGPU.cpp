@@ -53,6 +53,7 @@
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMUtility.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/ParticleAndVolumeFractionMapping.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/HydrodynamicForcesSweepGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
@@ -451,6 +452,10 @@ int main(int argc, char** argv)
       pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
    auto sweepGPU = lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< cuda::GPUField< real_t > >(
       pdfFieldGPUID, particleAndVolumeFractionSoA);
+   auto hydrodynamicForces =
+      lbm_mesapd_coupling::psm::cuda::HydrodynamicForcesSweepCUDA< LatticeModel_T, ParticleAccessor_T,
+                                                                   lbm_mesapd_coupling::GlobalParticlesSelector >(
+         blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), pdfFieldGPUID, particleAndVolumeFractionSoA);
 
    // collision sweep
    /*timeloop.add() << Sweep(lbm::makeCollideSweep(sweep), "cell-wise LB sweep (collide)");*/
@@ -461,6 +466,7 @@ int main(int argc, char** argv)
    timeloop.add() << BeforeFunction(optimizedPDFCommunicationScheme, "LBM Communication")
                   /*<< Sweep(lbm::makeStreamSweep(sweep), "cell-wise LB sweep (stream)")*/
                   << Sweep(sweepGPU, "cell-wise PSM sweep");
+   timeloop.add() << Sweep(hydrodynamicForces, "add hydrodynamic forces");
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");

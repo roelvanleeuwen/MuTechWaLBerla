@@ -32,6 +32,14 @@ namespace psm
 namespace cuda
 {
 
+__global__ void addHydrodynamicForcesKernel(walberla::cuda::FieldAccessor< uint_t > indicesField,
+                                            walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
+                                            walberla::cuda::FieldAccessor< id_t > uidsField,
+                                            walberla::cuda::FieldAccessor< real_t > pdfs,
+                                            double3* /*hydrodynamicForces*/, double3* /*linearVelocities*/,
+                                            double3* /*angularVelocities*/, double3* /*positions*/,
+                                            uint_t /*stencilSize*/, real_t* /*w*/);
+
 __global__ void PSMKernel(walberla::cuda::FieldAccessor< real_t > pdfField,
                           walberla::cuda::FieldAccessor< uint_t > indicesField,
                           walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
