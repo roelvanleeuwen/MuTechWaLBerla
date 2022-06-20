@@ -119,7 +119,7 @@ class HydrodynamicForcesSweepCUDA
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*bnField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*omegaNField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*pdfField));
-      myKernel.addParam(2.0 / 3.0);
+      myKernel.addParam(real_t(2.0 / 3.0));
       myKernel.addParam(hydrodynamicForces);
       myKernel.addParam(linearVelocities);
       myKernel.addParam(angularVelocities);
