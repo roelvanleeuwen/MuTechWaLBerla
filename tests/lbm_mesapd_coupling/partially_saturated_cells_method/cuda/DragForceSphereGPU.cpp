@@ -430,7 +430,7 @@ int main(int argc, char** argv)
    particleMapping();*/
 
    // add particle and volume fraction fields (needed for the PSM)
-   ParticleAndVolumeFractionSoA_T particleAndVolumeFractionSoA(blocks);
+   ParticleAndVolumeFractionSoA_T< Stencil_T ::Size > particleAndVolumeFractionSoA(blocks);
 
    // calculate fraction
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
@@ -450,7 +450,7 @@ int main(int argc, char** argv)
    // evaluation is not correct solution: split the sweep explicitly into collide and stream
    /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
       pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
-   auto sweepGPU = lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< cuda::GPUField< real_t > >(
+   auto sweepGPU = lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< cuda::GPUField< real_t >, Stencil_T::Size >(
       pdfFieldGPUID, particleAndVolumeFractionSoA);
    auto hydrodynamicForces =
       lbm_mesapd_coupling::psm::cuda::HydrodynamicForcesSweepCUDA< LatticeModel_T, ParticleAccessor_T,

@@ -67,6 +67,7 @@ using overlapFractionsFieldGPU_T = walberla::cuda::GPUField< real_t >;
 using uidsField_T                = GhostLayerField< id_t, MaxParticlesPerCell >;
 using uidsFieldGPU_T             = walberla::cuda::GPUField< id_t >;
 
+template< uint_t StencilSize >
 struct ParticleAndVolumeFractionSoA_T
 {
    BlockDataID indicesFieldID;
