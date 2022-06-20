@@ -79,8 +79,12 @@ waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereSC3W2FuncTest   
 waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereSC3W2SingleTest   COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_TorqueSphere> --SC3W2              PROCESSES 1 LABELS longrun     CONFIGURATIONS Release RelWithDbgInfo )
 
 
-if( WALBERLA_BUILD_WITH_CUDA )
-    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/cuda/DragForceSphereGPU.cpp DEPENDS blockforest boundary core cuda field lbm lbm_mesapd_coupling timeloop mesa_pd )
+if( WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN )
+    walberla_generate_target_from_python( NAME DragForceSphereCodegenPython
+            FILE partially_saturated_cells_method/cuda/DragForceSphereCodegen.py
+            OUT_FILES   SRTSweep.cu SRTSweep.h
+            SRTPackInfo.cu SRTPackInfo.h )
+    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/cuda/DragForceSphereGPU.cpp DEPENDS blockforest boundary core cuda field lbm lbm_mesapd_coupling timeloop mesa_pd DragForceSphereCodegenPython )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU> --funcTest PROCESSES 8 )
     # TODO: add longrun test
 endif()

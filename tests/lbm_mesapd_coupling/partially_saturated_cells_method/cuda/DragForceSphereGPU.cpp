@@ -38,6 +38,7 @@
 #include "cuda/AddGPUFieldToStorage.h"
 #include "cuda/GPUField.h"
 #include "cuda/communication/GPUPackInfo.h"
+#include "cuda/communication/UniformGPUScheme.h"
 
 #include "field/AddToStorage.h"
 
@@ -70,6 +71,10 @@
 #include <iostream>
 #include <vector>
 
+// codegen
+#include "SRTPackInfo.h"
+#include "SRTSweep.h"
+
 namespace drag_force_sphere_psm
 {
 
@@ -86,6 +91,8 @@ using LatticeModel_T = lbm::D3Q19< lbm::collision_model::TRT, false, ForceModel_
 
 using Stencil_T  = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField< LatticeModel_T >;
+
+typedef pystencils::SRTPackInfo PackInfo_T;
 
 ////////////////
 // PARAMETERS //
@@ -403,7 +410,7 @@ int main(int argc, char** argv)
 
    // add PDF field
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
-      blocks, "pdf field (zyxf)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::zyxf);
+      blocks, "pdf field (zyxf)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "GPU PDF Field");
 
    ///////////////
@@ -414,11 +421,12 @@ int main(int argc, char** argv)
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   blockforest::communication::UniformBufferedScheme< Stencil_T > optimizedPDFCommunicationScheme(blocks);
-   /*optimizedPDFCommunicationScheme.addPackInfo(
+   /*blockforest::communication::UniformBufferedScheme< Stencil_T > optimizedPDFCommunicationScheme(blocks);
+   optimizedPDFCommunicationScheme.addPackInfo(
       make_shared< lbm::PdfFieldPackInfo< LatticeModel_T > >(pdfFieldID)); // optimized sync*/
-   optimizedPDFCommunicationScheme.addDataToCommunicate(
-      make_shared< cuda::communication::GPUPackInfo< cuda::GPUField< real_t > > >(pdfFieldGPUID));
+   cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);
+   com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
+   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
    // initially map particles into the LBM simulation
    /*BlockDataID particleAndVolumeFractionFieldID =
@@ -450,8 +458,7 @@ int main(int argc, char** argv)
    // evaluation is not correct solution: split the sweep explicitly into collide and stream
    /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
       pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
-   auto sweepGPU = lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< cuda::GPUField< real_t >, Stencil_T::Size >(
-      pdfFieldGPUID, particleAndVolumeFractionSoA);
+   pystencils::SRTSweep SRTSweep(pdfFieldGPUID, omega);
    auto hydrodynamicForces =
       lbm_mesapd_coupling::psm::cuda::HydrodynamicForcesSweepCUDA< LatticeModel_T, ParticleAccessor_T,
                                                                    lbm_mesapd_coupling::GlobalParticlesSelector >(
@@ -463,10 +470,11 @@ int main(int argc, char** argv)
    // add LBM communication function and streaming & force evaluation
    using DragForceEval_T = DragForceEvaluator< ParticleAccessor_T >;
    auto forceEval        = make_shared< DragForceEval_T >(&timeloop, &setup, blocks, pdfFieldID, accessor, sphereID);
-   timeloop.add() << BeforeFunction(optimizedPDFCommunicationScheme, "LBM Communication")
-                  /*<< Sweep(lbm::makeStreamSweep(sweep), "cell-wise LB sweep (stream)")*/
-                  << Sweep(sweepGPU, "cell-wise PSM sweep");
+   // TODO: change order so that hydrodynamic force calculation is between stream and collide
    timeloop.add() << Sweep(hydrodynamicForces, "add hydrodynamic forces");
+   timeloop.add() << BeforeFunction(communication, "LBM Communication")
+                  /*<< Sweep(lbm::makeStreamSweep(SRTSweep), "cell-wise LB sweep (stream)")*/
+                  << Sweep(SRTSweep, "cell-wise SRT sweep");
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");
