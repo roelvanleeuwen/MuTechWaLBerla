@@ -56,14 +56,14 @@ namespace psm
 namespace cuda
 {
 
-void clearField(const IBlock& blockIt, const BlockDataID& particleAndVolumeFractionField)
+/*void clearField(const IBlock& blockIt, const BlockDataID& particleAndVolumeFractionField)
 {
    auto cudaField =
       blockIt.getData< walberla::cuda::GPUField< ParticleAndVolumeFractionAoS_T > >(particleAndVolumeFractionField);
    auto myKernel = walberla::cuda::make_kernel(&resetKernelAoS);
    myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< ParticleAndVolumeFractionAoS_T >::xyz(*cudaField));
    myKernel();
-}
+}*/
 
 void clearField(const IBlock& blockIt, const ParticleAndVolumeFractionSoA_T& particleAndVolumeFractionSoA)
 {

@@ -34,7 +34,7 @@ namespace psm
 namespace cuda
 {
 
-__global__ void resetKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > field)
+/*__global__ void resetKernelAoS(walberla::cuda::FieldAccessor< ParticleAndVolumeFractionAoS_T > field)
 {
    field.set(blockIdx, threadIdx);
    for (uint i = 0; i < MaxParticlesPerCell; i++)
@@ -98,7 +98,7 @@ __global__ void
       }
       assert(field.get().index < MaxParticlesPerCell);
    }
-}
+}*/
 
 __global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > indicesField,
                                walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
