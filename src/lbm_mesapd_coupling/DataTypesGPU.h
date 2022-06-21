@@ -69,14 +69,12 @@ using uidsFieldGPU_T             = walberla::cuda::GPUField< id_t >;
 using bnFieldGPU_T               = walberla::cuda::GPUField< real_t >;
 using omegaNFieldGPU_T           = walberla::cuda::GPUField< real_t >;
 
-template< uint_t StencilSize >
 struct ParticleAndVolumeFractionSoA_T
 {
    BlockDataID indicesFieldID;
    BlockDataID overlapFractionsFieldID;
    BlockDataID uidsFieldID;
    BlockDataID bnFieldID;
-   BlockDataID omegaNFieldID;
 
    ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs, const BlockDataID& indicesFieldCPUID,
                                   const BlockDataID& overlapFractionsFieldCPUID, const BlockDataID& uidsFieldCPUID)
@@ -88,8 +86,6 @@ struct ParticleAndVolumeFractionSoA_T
       uidsFieldID = walberla::cuda::addGPUFieldToStorage< uidsField_T >(bs, uidsFieldCPUID, "uids field GPU");
       bnFieldID =
          walberla::cuda::addGPUFieldToStorage< bnFieldGPU_T >(bs, "bn field GPU", 1, field::fzyx, uint_t(0), true);
-      omegaNFieldID = walberla::cuda::addGPUFieldToStorage< omegaNFieldGPU_T >(bs, "omegaN field GPU", StencilSize,
-                                                                               field::fzyx, uint_t(0), true);
    }
 
    ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs)
@@ -102,8 +98,6 @@ struct ParticleAndVolumeFractionSoA_T
                                                                            field::fzyx, uint_t(0), true);
       bnFieldID =
          walberla::cuda::addGPUFieldToStorage< bnFieldGPU_T >(bs, "bn field GPU", 1, field::fzyx, uint_t(0), true);
-      omegaNFieldID = walberla::cuda::addGPUFieldToStorage< omegaNFieldGPU_T >(bs, "omegaN field GPU", StencilSize,
-                                                                               field::fzyx, uint_t(0), true);
    }
 };
 

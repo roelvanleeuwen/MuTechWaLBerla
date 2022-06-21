@@ -54,10 +54,10 @@ template< typename LatticeModel_T, typename ParticleAccessor_T, typename Particl
 class HydrodynamicForcesSweepCUDA
 {
  public:
-   HydrodynamicForcesSweepCUDA(
-      const shared_ptr< StructuredBlockStorage >& bs, const shared_ptr< ParticleAccessor_T >& ac,
-      const ParticleSelector_T& mappingParticleSelector, BlockDataID& pdfFieldID,
-      const ParticleAndVolumeFractionSoA_T< LatticeModel_T::Stencil::Size >& particleAndVolumeFractionSoA)
+   HydrodynamicForcesSweepCUDA(const shared_ptr< StructuredBlockStorage >& bs,
+                               const shared_ptr< ParticleAccessor_T >& ac,
+                               const ParticleSelector_T& mappingParticleSelector, BlockDataID& pdfFieldID,
+                               const ParticleAndVolumeFractionSoA_T& particleAndVolumeFractionSoA)
       : bs_(bs), ac_(ac), mappingParticleSelector_(mappingParticleSelector), pdfFieldID_(pdfFieldID),
         particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA)
    {}
@@ -107,17 +107,15 @@ class HydrodynamicForcesSweepCUDA
       auto indicesField = block->getData< indicesFieldGPU_T >(particleAndVolumeFractionSoA_.indicesFieldID);
       auto overlapFractionsField =
          block->getData< overlapFractionsFieldGPU_T >(particleAndVolumeFractionSoA_.overlapFractionsFieldID);
-      auto uidsField   = block->getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA_.uidsFieldID);
-      auto bnField     = block->getData< bnFieldGPU_T >(particleAndVolumeFractionSoA_.bnFieldID);
-      auto omegaNField = block->getData< omegaNFieldGPU_T >(particleAndVolumeFractionSoA_.omegaNFieldID);
-      auto pdfField    = block->getData< walberla::cuda::GPUField< real_t > >(pdfFieldID_);
+      auto uidsField = block->getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA_.uidsFieldID);
+      auto bnField   = block->getData< bnFieldGPU_T >(particleAndVolumeFractionSoA_.bnFieldID);
+      auto pdfField  = block->getData< walberla::cuda::GPUField< real_t > >(pdfFieldID_);
 
       auto myKernel = walberla::cuda::make_kernel(&addHydrodynamicForcesKernel);
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*indicesField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*overlapFractionsField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*bnField));
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*omegaNField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*pdfField));
       myKernel.addParam(real_t(2.0 / 3.0));
       myKernel.addParam(hydrodynamicForces);
@@ -142,7 +140,7 @@ class HydrodynamicForcesSweepCUDA
    const shared_ptr< ParticleAccessor_T > ac_;
    ParticleSelector_T mappingParticleSelector_;
    BlockDataID pdfFieldID_;
-   ParticleAndVolumeFractionSoA_T< LatticeModel_T::Stencil::Size > particleAndVolumeFractionSoA_;
+   ParticleAndVolumeFractionSoA_T particleAndVolumeFractionSoA_;
 };
 
 } // namespace cuda

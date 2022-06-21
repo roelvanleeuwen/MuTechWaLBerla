@@ -51,25 +51,22 @@ __device__ void calculateWeighting< 2 >(real_t* weighting, const real_t& epsilon
    *weighting = epsilon * (tau - real_t(0.5)) / ((real_t(1) - epsilon) + (tau - real_t(0.5)));
 }
 
-__global__ void addHydrodynamicForcesKernel(
-   walberla::cuda::FieldAccessor< uint_t > indicesField, walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
-   walberla::cuda::FieldAccessor< id_t > uidsField, walberla::cuda::FieldAccessor< real_t > bnField,
-   walberla::cuda::FieldAccessor< real_t > omegaNField, walberla::cuda::FieldAccessor< real_t > pdfs, real_t omega,
-   double3* /*hydrodynamicForces*/, double3* /*linearVelocities*/, double3* /*angularVelocities*/,
-   double3* /*positions*/, uint_t stencilSize, real_t* /*w*/)
+__global__ void addHydrodynamicForcesKernel(walberla::cuda::FieldAccessor< uint_t > indicesField,
+                                            walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
+                                            walberla::cuda::FieldAccessor< id_t > uidsField,
+                                            walberla::cuda::FieldAccessor< real_t > bnField,
+                                            walberla::cuda::FieldAccessor< real_t > pdfs, real_t omega,
+                                            double3* /*hydrodynamicForces*/, double3* /*linearVelocities*/,
+                                            double3* /*angularVelocities*/, double3* /*positions*/, uint_t stencilSize,
+                                            real_t* /*w*/)
 {
    indicesField.set(blockIdx, threadIdx);
    overlapFractionsField.set(blockIdx, threadIdx);
    uidsField.set(blockIdx, threadIdx);
    bnField.set(blockIdx, threadIdx);
-   omegaNField.set(blockIdx, threadIdx);
    pdfs.set(blockIdx, threadIdx);
 
    bnField.get() = 0.0;
-   for (uint_t i = 0; i < stencilSize; i++)
-   {
-      omegaNField.get() = 0.0;
-   }
    for (uint_t i = 0; i < indicesField.get(); i++)
    {
       real_t Bs;

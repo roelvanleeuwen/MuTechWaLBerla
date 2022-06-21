@@ -438,7 +438,7 @@ int main(int argc, char** argv)
    particleMapping();*/
 
    // add particle and volume fraction fields (needed for the PSM)
-   ParticleAndVolumeFractionSoA_T< Stencil_T ::Size > particleAndVolumeFractionSoA(blocks);
+   ParticleAndVolumeFractionSoA_T particleAndVolumeFractionSoA(blocks);
 
    // calculate fraction
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(

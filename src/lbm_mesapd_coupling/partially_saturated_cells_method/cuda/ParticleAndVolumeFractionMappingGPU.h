@@ -65,9 +65,7 @@ namespace cuda
    myKernel();
 }*/
 
-template< uint_t StencilSize >
-void clearField(const IBlock& blockIt,
-                const ParticleAndVolumeFractionSoA_T< StencilSize >& particleAndVolumeFractionSoA)
+void clearField(const IBlock& blockIt, const ParticleAndVolumeFractionSoA_T& particleAndVolumeFractionSoA)
 {
    auto indicesField = blockIt.getData< indicesFieldGPU_T >(particleAndVolumeFractionSoA.indicesFieldID);
    auto overlapFractionsField =
@@ -82,15 +80,15 @@ void clearField(const IBlock& blockIt,
 }
 
 // TODO: use superSamplingDepth
-template< typename ParticleAccessor_T, typename ParticleSelector_T, uint_t StencilSize >
+template< typename ParticleAccessor_T, typename ParticleSelector_T >
 class ParticleAndVolumeFractionMappingGPU
 {
  public:
-   ParticleAndVolumeFractionMappingGPU(
-      const shared_ptr< StructuredBlockStorage >& blockStorage, const shared_ptr< ParticleAccessor_T >& ac,
-      const ParticleSelector_T& mappingParticleSelector,
-      const ParticleAndVolumeFractionSoA_T< StencilSize >& particleAndVolumeFractionField,
-      const uint_t superSamplingDepth = uint_t(4))
+   ParticleAndVolumeFractionMappingGPU(const shared_ptr< StructuredBlockStorage >& blockStorage,
+                                       const shared_ptr< ParticleAccessor_T >& ac,
+                                       const ParticleSelector_T& mappingParticleSelector,
+                                       const ParticleAndVolumeFractionSoA_T& particleAndVolumeFractionField,
+                                       const uint_t superSamplingDepth = uint_t(4))
       : blockStorage_(blockStorage), ac_(ac), mappingParticleSelector_(mappingParticleSelector),
         particleAndVolumeFractionField_(particleAndVolumeFractionField), superSamplingDepth_(superSamplingDepth)
    {
@@ -129,7 +127,7 @@ class ParticleAndVolumeFractionMappingGPU
    shared_ptr< StructuredBlockStorage > blockStorage_;
    const shared_ptr< ParticleAccessor_T > ac_;
    ParticleSelector_T mappingParticleSelector_;
-   const ParticleAndVolumeFractionSoA_T< StencilSize > particleAndVolumeFractionField_;
+   const ParticleAndVolumeFractionSoA_T particleAndVolumeFractionField_;
    const uint_t superSamplingDepth_;
 
    mesa_pd::kernel::SingleCast singleCast_;
