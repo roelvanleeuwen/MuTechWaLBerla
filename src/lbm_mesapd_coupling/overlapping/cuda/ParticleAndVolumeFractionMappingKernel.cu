@@ -100,31 +100,55 @@ __global__ void
    }
 }*/
 
+// functions to calculate Bs
+template< int Weighting_T >
+__device__ void calculateWeighting(real_t* weighting, const real_t& /*epsilon*/, const real_t& /*tau*/)
+{
+   WALBERLA_STATIC_ASSERT(Weighting_T == 1 || Weighting_T == 2);
+}
+template<>
+__device__ void calculateWeighting< 1 >(real_t* weighting, const real_t& epsilon, const real_t& /*tau*/)
+{
+   *weighting = epsilon;
+}
+template<>
+__device__ void calculateWeighting< 2 >(real_t* weighting, const real_t& epsilon, const real_t& tau)
+{
+   *weighting = epsilon * (tau - real_t(0.5)) / ((real_t(1) - epsilon) + (tau - real_t(0.5)));
+}
+
 __global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > indicesField,
                                walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
-                               walberla::cuda::FieldAccessor< id_t > uidsField)
+                               walberla::cuda::FieldAccessor< id_t > uidsField,
+                               walberla::cuda::FieldAccessor< real_t > bnField)
 {
    indicesField.set(blockIdx, threadIdx);
    overlapFractionsField.set(blockIdx, threadIdx);
    uidsField.set(blockIdx, threadIdx);
+   bnField.set(blockIdx, threadIdx);
+
    for (uint i = 0; i < MaxParticlesPerCell; i++)
    {
       overlapFractionsField.get(i) = 0.0;
       uidsField.get(i)             = id_t(0);
    }
    indicesField.get() = 0;
+   bnField.get()      = 0.0;
 }
 
 // TODO: look for better mapping method
 __global__ void particleAndVolumeFractionMappingKernelSoA(walberla::cuda::FieldAccessor< uint_t > indicesField,
                                                           walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
                                                           walberla::cuda::FieldAccessor< id_t > uidsField,
+                                                          walberla::cuda::FieldAccessor< real_t > bnField, real_t omega,
                                                           double3 spherePosition, real_t sphereRadius,
                                                           double3 blockStart, double3 dx, int3 nSamples, id_t uid)
 {
    indicesField.set(blockIdx, threadIdx);
    overlapFractionsField.set(blockIdx, threadIdx);
    uidsField.set(blockIdx, threadIdx);
+   bnField.set(blockIdx, threadIdx);
+
    double3 sampleDistance       = { 1.0 / (nSamples.x + 1) * dx.x, 1.0 / (nSamples.y + 1) * dx.y,
                                     1.0 / (nSamples.z + 1) * dx.z };
    double3 startSamplingPoint   = { (blockStart.x + threadIdx.x * dx.x + sampleDistance.x),
@@ -168,6 +192,9 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(walberla::cuda::FieldA
       {
          uidsField.get(indicesField.get()) = uid;
          indicesField.get() += 1;
+         real_t Bs;
+         calculateWeighting< 1 >(&Bs, overlapFractionsField.get(indicesField.get()), 1.0 / omega);
+         bnField.get() += Bs;
       }
       assert(indicesField.get() < MaxParticlesPerCell);
    }

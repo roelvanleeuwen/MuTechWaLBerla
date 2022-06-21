@@ -34,28 +34,11 @@ namespace psm
 namespace cuda
 {
 
-// functions to calculate the cell coverage weighting B
-template< int Weighting_T >
-__device__ void calculateWeighting(real_t* weighting, const real_t& /*epsilon*/, const real_t& /*tau*/)
-{
-   WALBERLA_STATIC_ASSERT(Weighting_T == 1 || Weighting_T == 2);
-}
-template<>
-__device__ void calculateWeighting< 1 >(real_t* weighting, const real_t& epsilon, const real_t& /*tau*/)
-{
-   *weighting = epsilon;
-}
-template<>
-__device__ void calculateWeighting< 2 >(real_t* weighting, const real_t& epsilon, const real_t& tau)
-{
-   *weighting = epsilon * (tau - real_t(0.5)) / ((real_t(1) - epsilon) + (tau - real_t(0.5)));
-}
-
 __global__ void addHydrodynamicForcesKernel(walberla::cuda::FieldAccessor< uint_t > indicesField,
                                             walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
                                             walberla::cuda::FieldAccessor< id_t > uidsField,
                                             walberla::cuda::FieldAccessor< real_t > bnField,
-                                            walberla::cuda::FieldAccessor< real_t > pdfs, real_t omega,
+                                            walberla::cuda::FieldAccessor< real_t > pdfs, real_t /*omega*/,
                                             double3* /*hydrodynamicForces*/, double3* /*linearVelocities*/,
                                             double3* /*angularVelocities*/, double3* /*positions*/, uint_t stencilSize,
                                             real_t* /*w*/)
@@ -65,14 +48,6 @@ __global__ void addHydrodynamicForcesKernel(walberla::cuda::FieldAccessor< uint_
    uidsField.set(blockIdx, threadIdx);
    bnField.set(blockIdx, threadIdx);
    pdfs.set(blockIdx, threadIdx);
-
-   bnField.get() = 0.0;
-   for (uint_t i = 0; i < indicesField.get(); i++)
-   {
-      real_t Bs;
-      calculateWeighting< 1 >(&Bs, overlapFractionsField.get(i), 1.0 / omega);
-      bnField.get() += Bs;
-   }
 }
 
 __global__ void PSMKernel(walberla::cuda::FieldAccessor< real_t > pdfField,

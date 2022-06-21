@@ -71,11 +71,13 @@ void clearField(const IBlock& blockIt, const ParticleAndVolumeFractionSoA_T& par
    auto overlapFractionsField =
       blockIt.getData< overlapFractionsFieldGPU_T >(particleAndVolumeFractionSoA.overlapFractionsFieldID);
    auto uidsField = blockIt.getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA.uidsFieldID);
+   auto bnField   = blockIt.getData< bnFieldGPU_T >(particleAndVolumeFractionSoA.bnFieldID);
 
    auto myKernel = walberla::cuda::make_kernel(&resetKernelSoA);
    myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*indicesField));
    myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*overlapFractionsField));
    myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*bnField));
    myKernel();
 }
 

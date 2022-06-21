@@ -43,10 +43,12 @@ __global__ void
 
 __global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > indicesField,
                                walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
-                               walberla::cuda::FieldAccessor< id_t > uidsField);
+                               walberla::cuda::FieldAccessor< id_t > uidsField,
+                               walberla::cuda::FieldAccessor< real_t > bnField);
 __global__ void particleAndVolumeFractionMappingKernelSoA(walberla::cuda::FieldAccessor< uint_t > indicesField,
                                                           walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
                                                           walberla::cuda::FieldAccessor< id_t > uidsField,
+                                                          walberla::cuda::FieldAccessor< real_t > bnField, real_t omega,
                                                           double3 spherePosition, real_t sphereRadius,
                                                           double3 blockStart, double3 dx, int3 nSamples, id_t uid);
 

@@ -95,12 +95,15 @@ myKernel();
       auto overlapFractionsField =
          blockIt.getData< overlapFractionsFieldGPU_T >(particleAndVolumeFractionSoA.overlapFractionsFieldID);
       auto uidsField = blockIt.getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA.uidsFieldID);
+      auto bnField   = blockIt.getData< bnFieldGPU_T >(particleAndVolumeFractionSoA.bnFieldID);
 
       auto myKernel = walberla::cuda::make_kernel(&particleAndVolumeFractionMappingKernelSoA);
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*indicesField)); // FieldAccessor
       myKernel.addFieldIndexingParam(
          walberla::cuda::FieldIndexing< real_t >::xyz(*overlapFractionsField));               // FieldAccessor
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField)); // FieldAccessor
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*bnField)); // FieldAccessor
+      myKernel.addParam(real_t(2.0 / 3.0));
       Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
       myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] }); // spherePosition
       myKernel.addParam(static_cast< mesa_pd::data::Sphere* >(ac->getShape(particleIdx))->getRadius()); // sphereRadius
