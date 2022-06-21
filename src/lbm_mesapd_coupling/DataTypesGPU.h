@@ -69,15 +69,19 @@ using uidsFieldGPU_T             = walberla::cuda::GPUField< id_t >;
 using bnFieldGPU_T               = walberla::cuda::GPUField< real_t >;
 using omegaNFieldGPU_T           = walberla::cuda::GPUField< real_t >;
 
+template< int Weighting_T >
 struct ParticleAndVolumeFractionSoA_T
 {
    BlockDataID indicesFieldID;
    BlockDataID overlapFractionsFieldID;
    BlockDataID uidsFieldID;
    BlockDataID bnFieldID;
+   // relaxation rate omega is used for Weighting_T != 1
+   real_t omega_;
 
    ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs, const BlockDataID& indicesFieldCPUID,
-                                  const BlockDataID& overlapFractionsFieldCPUID, const BlockDataID& uidsFieldCPUID)
+                                  const BlockDataID& overlapFractionsFieldCPUID, const BlockDataID& uidsFieldCPUID,
+                                  const real_t omega)
    {
       indicesFieldID =
          walberla::cuda::addGPUFieldToStorage< indicesField_T >(bs, indicesFieldCPUID, "indices field GPU");
@@ -86,9 +90,10 @@ struct ParticleAndVolumeFractionSoA_T
       uidsFieldID = walberla::cuda::addGPUFieldToStorage< uidsField_T >(bs, uidsFieldCPUID, "uids field GPU");
       bnFieldID =
          walberla::cuda::addGPUFieldToStorage< bnFieldGPU_T >(bs, "bn field GPU", 1, field::fzyx, uint_t(0), true);
+      omega_ = omega;
    }
 
-   ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs)
+   ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs, const real_t omega)
    {
       indicesFieldID = walberla::cuda::addGPUFieldToStorage< indicesFieldGPU_T >(bs, "indices field GPU", uint_t(1),
                                                                                  field::fzyx, uint_t(0), true);
@@ -98,6 +103,7 @@ struct ParticleAndVolumeFractionSoA_T
                                                                            field::fzyx, uint_t(0), true);
       bnFieldID =
          walberla::cuda::addGPUFieldToStorage< bnFieldGPU_T >(bs, "bn field GPU", 1, field::fzyx, uint_t(0), true);
+      omega_ = omega;
    }
 };
 

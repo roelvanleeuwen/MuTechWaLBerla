@@ -137,6 +137,7 @@ __global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > indicesFi
 }
 
 // TODO: look for better mapping method
+template< int Weighting_T >
 __global__ void particleAndVolumeFractionMappingKernelSoA(walberla::cuda::FieldAccessor< uint_t > indicesField,
                                                           walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
                                                           walberla::cuda::FieldAccessor< id_t > uidsField,
@@ -188,17 +189,21 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(walberla::cuda::FieldA
       }
 
       overlapFractionsField.get(indicesField.get()) *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
+      calculateWeighting< Weighting_T >(&overlapFractionsField.get(indicesField.get()),
+                                        overlapFractionsField.get(indicesField.get()), real_t(1.0) / omega);
       if (overlapFractionsField.get(indicesField.get()) > 0)
       {
          uidsField.get(indicesField.get()) = uid;
          indicesField.get() += 1;
-         real_t Bs;
-         calculateWeighting< 1 >(&Bs, overlapFractionsField.get(indicesField.get()), 1.0 / omega);
-         bnField.get() += Bs;
+         bnField.get() += overlapFractionsField.get(indicesField.get());
       }
       assert(indicesField.get() < MaxParticlesPerCell);
    }
 }
+
+// TODO: find better solution for template kernels
+auto instance_with_weighting_1 = particleAndVolumeFractionMappingKernelSoA< 1 >;
+auto instance_with_weighting_2 = particleAndVolumeFractionMappingKernelSoA< 2 >;
 
 } // namespace cuda
 } // namespace psm

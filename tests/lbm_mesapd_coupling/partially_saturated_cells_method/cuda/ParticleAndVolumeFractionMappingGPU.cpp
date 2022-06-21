@@ -250,8 +250,10 @@ int main(int argc, char** argv)
       field::addToStorage< overlapFractionsField_T >(blocks, "overlapFractions field CPU", 0, field::fzyx, 0);
    BlockDataID uidsFieldID = field::addToStorage< uidsField_T >(blocks, "uids field CPU", 0, field::fzyx, 0);
 
-   ParticleAndVolumeFractionSoA_T particleAndVolumeFractionSoA(blocks, indicesFieldID, overlapFractionsFieldID,
-                                                               uidsFieldID);
+   // dummy value for omega since it is not use because Weighting_T == 1
+   real_t omega = real_t(42.0);
+   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, indicesFieldID, overlapFractionsFieldID,
+                                                                    uidsFieldID, omega);
 
    // calculate fraction
    ParticleAndVolumeFractionMappingGPU particleMapping(

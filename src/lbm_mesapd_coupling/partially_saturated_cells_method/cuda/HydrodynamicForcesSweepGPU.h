@@ -50,14 +50,14 @@ namespace psm
 namespace cuda
 {
 
-template< typename LatticeModel_T, typename ParticleAccessor_T, typename ParticleSelector_T >
+template< typename LatticeModel_T, typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
 class HydrodynamicForcesSweepCUDA
 {
  public:
    HydrodynamicForcesSweepCUDA(const shared_ptr< StructuredBlockStorage >& bs,
                                const shared_ptr< ParticleAccessor_T >& ac,
                                const ParticleSelector_T& mappingParticleSelector, BlockDataID& pdfFieldID,
-                               const ParticleAndVolumeFractionSoA_T& particleAndVolumeFractionSoA)
+                               const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
       : bs_(bs), ac_(ac), mappingParticleSelector_(mappingParticleSelector), pdfFieldID_(pdfFieldID),
         particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA)
    {}
@@ -140,7 +140,7 @@ class HydrodynamicForcesSweepCUDA
    const shared_ptr< ParticleAccessor_T > ac_;
    ParticleSelector_T mappingParticleSelector_;
    BlockDataID pdfFieldID_;
-   ParticleAndVolumeFractionSoA_T particleAndVolumeFractionSoA_;
+   ParticleAndVolumeFractionSoA_T< Weighting_T > particleAndVolumeFractionSoA_;
 };
 
 } // namespace cuda

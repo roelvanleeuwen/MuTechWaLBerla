@@ -48,10 +48,11 @@ const BlockDataID& */
 WALBERLA_ABORT("OverlapFraction not implemented!");
 }*/
 
-   template< typename ParticleAccessor_T, typename Shape_T >
+   template< typename ParticleAccessor_T, typename Shape_T, int Weighting_T >
    void operator()(const size_t /*particleIdx*/, const Shape_T& /*shape*/,
                    const shared_ptr< ParticleAccessor_T >& /*ac*/, const IBlock& /*blockIt*/,
-                   const ParticleAndVolumeFractionSoA_T& /*particleAndVolumeFractionSoA*/)
+                   const ParticleAndVolumeFractionSoA_T< Weighting_T >& /*particleAndVolumeFractionSoA*/,
+                   const real_t /*omega*/)
    {
       WALBERLA_ABORT("OverlapFraction not implemented!");
    }
@@ -82,10 +83,11 @@ myKernel.addParam(ac->getUid(particleIdx));
 myKernel();
 }*/
 
-   template< typename ParticleAccessor_T >
+   template< typename ParticleAccessor_T, int Weighting_T >
    void operator()(const size_t particleIdx, const mesa_pd::data::Sphere& /*sphere*/,
                    const shared_ptr< ParticleAccessor_T >& ac, const IBlock& blockIt,
-                   const ParticleAndVolumeFractionSoA_T& particleAndVolumeFractionSoA)
+                   const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
+                   const real_t omega)
    {
       WALBERLA_STATIC_ASSERT((std::is_base_of< mesa_pd::data::IAccessor, ParticleAccessor_T >::value));
 
@@ -97,13 +99,13 @@ myKernel();
       auto uidsField = blockIt.getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA.uidsFieldID);
       auto bnField   = blockIt.getData< bnFieldGPU_T >(particleAndVolumeFractionSoA.bnFieldID);
 
-      auto myKernel = walberla::cuda::make_kernel(&particleAndVolumeFractionMappingKernelSoA);
+      auto myKernel = walberla::cuda::make_kernel(&(particleAndVolumeFractionMappingKernelSoA< Weighting_T >) );
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*indicesField)); // FieldAccessor
       myKernel.addFieldIndexingParam(
          walberla::cuda::FieldIndexing< real_t >::xyz(*overlapFractionsField));               // FieldAccessor
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField)); // FieldAccessor
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*bnField)); // FieldAccessor
-      myKernel.addParam(real_t(2.0 / 3.0));
+      myKernel.addParam(omega);
       Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
       myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] }); // spherePosition
       myKernel.addParam(static_cast< mesa_pd::data::Sphere* >(ac->getShape(particleIdx))->getRadius()); // sphereRadius

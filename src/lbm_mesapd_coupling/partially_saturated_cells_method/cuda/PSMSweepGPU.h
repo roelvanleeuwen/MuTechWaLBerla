@@ -50,11 +50,12 @@ namespace psm
 namespace cuda
 {
 
-template< typename GPUField_T >
+template< typename GPUField_T, int Weighting_T >
 class PSMSweepCUDA : public walberla::cuda::GPUSweepBase< GPUField_T >
 {
  public:
-   PSMSweepCUDA(BlockDataID& pdfFieldID, const ParticleAndVolumeFractionSoA_T& particleAndVolumeFractionSoA)
+   PSMSweepCUDA(BlockDataID& pdfFieldID,
+                const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
       : pdfFieldID_(pdfFieldID), particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA)
    {}
    void operator()(IBlock* block)
@@ -75,7 +76,7 @@ class PSMSweepCUDA : public walberla::cuda::GPUSweepBase< GPUField_T >
 
  private:
    BlockDataID pdfFieldID_;
-   ParticleAndVolumeFractionSoA_T particleAndVolumeFractionSoA_;
+   ParticleAndVolumeFractionSoA_T< Weighting_T > particleAndVolumeFractionSoA_;
 };
 
 } // namespace cuda

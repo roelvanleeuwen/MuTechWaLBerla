@@ -438,7 +438,7 @@ int main(int argc, char** argv)
    particleMapping();*/
 
    // add particle and volume fraction fields (needed for the PSM)
-   ParticleAndVolumeFractionSoA_T particleAndVolumeFractionSoA(blocks);
+   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
 
    // calculate fraction
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
@@ -461,7 +461,7 @@ int main(int argc, char** argv)
    pystencils::SRTSweep SRTSweep(pdfFieldGPUID, omega);
    auto hydrodynamicForces =
       lbm_mesapd_coupling::psm::cuda::HydrodynamicForcesSweepCUDA< LatticeModel_T, ParticleAccessor_T,
-                                                                   lbm_mesapd_coupling::GlobalParticlesSelector >(
+                                                                   lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
          blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), pdfFieldGPUID, particleAndVolumeFractionSoA);
 
    // collision sweep
