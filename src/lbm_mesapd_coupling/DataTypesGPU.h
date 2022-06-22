@@ -79,6 +79,7 @@ struct ParticleAndVolumeFractionSoA_T
    // relaxation rate omega is used for Weighting_T != 1
    real_t omega_;
 
+   // TODO: set nrOfGhostLayers to 0 (requires changes of the generated kernels)
    ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs, const BlockDataID& indicesFieldCPUID,
                                   const BlockDataID& overlapFractionsFieldCPUID, const BlockDataID& uidsFieldCPUID,
                                   const real_t omega)
@@ -89,20 +90,20 @@ struct ParticleAndVolumeFractionSoA_T
          bs, overlapFractionsFieldCPUID, "overlapFractions field GPU");
       uidsFieldID = walberla::cuda::addGPUFieldToStorage< uidsField_T >(bs, uidsFieldCPUID, "uids field GPU");
       bnFieldID =
-         walberla::cuda::addGPUFieldToStorage< bnFieldGPU_T >(bs, "bn field GPU", 1, field::fzyx, uint_t(0), true);
+         walberla::cuda::addGPUFieldToStorage< bnFieldGPU_T >(bs, "bn field GPU", 1, field::fzyx, uint_t(1), true);
       omega_ = omega;
    }
 
    ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs, const real_t omega)
    {
       indicesFieldID = walberla::cuda::addGPUFieldToStorage< indicesFieldGPU_T >(bs, "indices field GPU", uint_t(1),
-                                                                                 field::fzyx, uint_t(0), true);
+                                                                                 field::fzyx, uint_t(1), true);
       overlapFractionsFieldID = walberla::cuda::addGPUFieldToStorage< overlapFractionsFieldGPU_T >(
-         bs, "overlapFractions field GPU", MaxParticlesPerCell, field::fzyx, uint_t(0), true);
+         bs, "overlapFractions field GPU", MaxParticlesPerCell, field::fzyx, uint_t(1), true);
       uidsFieldID = walberla::cuda::addGPUFieldToStorage< uidsFieldGPU_T >(bs, "uids field GPU", MaxParticlesPerCell,
-                                                                           field::fzyx, uint_t(0), true);
+                                                                           field::fzyx, uint_t(1), true);
       bnFieldID =
-         walberla::cuda::addGPUFieldToStorage< bnFieldGPU_T >(bs, "bn field GPU", 1, field::fzyx, uint_t(0), true);
+         walberla::cuda::addGPUFieldToStorage< bnFieldGPU_T >(bs, "bn field GPU", 1, field::fzyx, uint_t(1), true);
       omega_ = omega;
    }
 };

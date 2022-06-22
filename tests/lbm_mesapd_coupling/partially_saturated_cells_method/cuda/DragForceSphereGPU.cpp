@@ -457,11 +457,11 @@ int main(int argc, char** argv)
    // evaluation is not correct solution: split the sweep explicitly into collide and stream
    /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
       pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
-   pystencils::SRTSweep SRTSweep(pdfFieldGPUID, omega);
-   auto hydrodynamicForces =
-      lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< LatticeModel_T, ParticleAccessor_T,
-                                                                   lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
-         blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), pdfFieldGPUID, particleAndVolumeFractionSoA);
+   pystencils::SRTSweep SRTSweep(particleAndVolumeFractionSoA.bnFieldID, pdfFieldGPUID, setup.extForce, 0.0, 0.0,
+                                 omega);
+   auto PSMSweep = lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< LatticeModel_T, ParticleAccessor_T,
+                                                                 lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
+      blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), pdfFieldGPUID, particleAndVolumeFractionSoA);
 
    // collision sweep
    /*timeloop.add() << Sweep(lbm::makeCollideSweep(sweep), "cell-wise LB sweep (collide)");*/
@@ -470,10 +470,10 @@ int main(int argc, char** argv)
    using DragForceEval_T = DragForceEvaluator< ParticleAccessor_T >;
    auto forceEval        = make_shared< DragForceEval_T >(&timeloop, &setup, blocks, pdfFieldID, accessor, sphereID);
    // TODO: change order so that hydrodynamic force calculation is between stream and collide
-   timeloop.add() << Sweep(hydrodynamicForces, "add hydrodynamic forces");
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
                   /*<< Sweep(lbm::makeStreamSweep(SRTSweep), "cell-wise LB sweep (stream)")*/
                   << Sweep(SRTSweep, "cell-wise SRT sweep");
+   timeloop.add() << Sweep(PSMSweep, "PSM sweep");
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");
