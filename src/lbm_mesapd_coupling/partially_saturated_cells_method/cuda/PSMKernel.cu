@@ -36,17 +36,18 @@ namespace cuda
 
 __device__ void getEquilibriumDistribution(real_t* equilibrium, double3& velocity, const real_t rho) {}
 
-__global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > indicesField,
-                          walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
+template< int StencilSize >
+__global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
+                          walberla::cuda::FieldAccessor< real_t > BsField,
                           walberla::cuda::FieldAccessor< id_t > uidsField,
-                          walberla::cuda::FieldAccessor< real_t > bnField, walberla::cuda::FieldAccessor< real_t > pdfs,
+                          walberla::cuda::FieldAccessor< real_t > BField, walberla::cuda::FieldAccessor< real_t > pdfs,
                           real_t /*omega*/, double3* /*hydrodynamicForces*/, double3* /*linearVelocities*/,
-                          double3* /*angularVelocities*/, double3* /*positions*/, uint_t stencilSize, real_t* /*w*/)
+                          double3* /*angularVelocities*/, double3* /*positions*/, real_t* /*w*/)
 {
-   indicesField.set(blockIdx, threadIdx);
-   overlapFractionsField.set(blockIdx, threadIdx);
+   nOverlappingParticles.set(blockIdx, threadIdx);
+   BsField.set(blockIdx, threadIdx);
    uidsField.set(blockIdx, threadIdx);
-   bnField.set(blockIdx, threadIdx);
+   BField.set(blockIdx, threadIdx);
    pdfs.set(blockIdx, threadIdx);
 }
 
