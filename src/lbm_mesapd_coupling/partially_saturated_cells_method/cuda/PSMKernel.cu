@@ -51,6 +51,9 @@ __global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingPa
    pdfs.set(blockIdx, threadIdx);
 }
 
+// TODO: find better solution for template kernels
+auto instance_with_stencil_19 = PSMKernel< 19 >;
+
 } // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling
