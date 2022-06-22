@@ -69,17 +69,17 @@ template< int Weighting_T >
 void clearField(const IBlock& blockIt,
                 const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
 {
-   auto indicesField = blockIt.getData< indicesFieldGPU_T >(particleAndVolumeFractionSoA.indicesFieldID);
-   auto overlapFractionsField =
-      blockIt.getData< overlapFractionsFieldGPU_T >(particleAndVolumeFractionSoA.overlapFractionsFieldID);
+   auto nOverlappingParticlesField =
+      blockIt.getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA.nOverlappingParticlesFieldID);
+   auto BsField   = blockIt.getData< BsFieldGPU_T >(particleAndVolumeFractionSoA.BsFieldID);
    auto uidsField = blockIt.getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA.uidsFieldID);
-   auto bnField   = blockIt.getData< bnFieldGPU_T >(particleAndVolumeFractionSoA.bnFieldID);
+   auto BField    = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
 
    auto myKernel = walberla::cuda::make_kernel(&resetKernelSoA);
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*indicesField));
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*overlapFractionsField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField));
    myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*bnField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
    myKernel();
 }
 

@@ -457,8 +457,7 @@ int main(int argc, char** argv)
    // evaluation is not correct solution: split the sweep explicitly into collide and stream
    /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
       pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
-   pystencils::SRTSweep SRTSweep(particleAndVolumeFractionSoA.bnFieldID, pdfFieldGPUID, setup.extForce, 0.0, 0.0,
-                                 omega);
+   pystencils::SRTSweep SRTSweep(particleAndVolumeFractionSoA.BFieldID, pdfFieldGPUID, setup.extForce, 0.0, 0.0, omega);
    auto PSMSweep = lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< LatticeModel_T, ParticleAccessor_T,
                                                                  lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
       blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), pdfFieldGPUID, particleAndVolumeFractionSoA);

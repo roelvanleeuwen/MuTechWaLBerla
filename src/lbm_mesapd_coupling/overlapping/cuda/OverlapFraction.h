@@ -93,18 +93,18 @@ myKernel();
 
       Vector3< real_t > particlePosition = ac->getPosition(particleIdx);
 
-      auto indicesField = blockIt.getData< indicesFieldGPU_T >(particleAndVolumeFractionSoA.indicesFieldID);
-      auto overlapFractionsField =
-         blockIt.getData< overlapFractionsFieldGPU_T >(particleAndVolumeFractionSoA.overlapFractionsFieldID);
+      auto nOverlappingParticlesField =
+         blockIt.getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA.nOverlappingParticlesFieldID);
+      auto BsField   = blockIt.getData< BsFieldGPU_T >(particleAndVolumeFractionSoA.BsFieldID);
       auto uidsField = blockIt.getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA.uidsFieldID);
-      auto bnField   = blockIt.getData< bnFieldGPU_T >(particleAndVolumeFractionSoA.bnFieldID);
+      auto BField    = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
 
       auto myKernel = walberla::cuda::make_kernel(&(particleAndVolumeFractionMappingKernelSoA< Weighting_T >) );
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*indicesField)); // FieldAccessor
       myKernel.addFieldIndexingParam(
-         walberla::cuda::FieldIndexing< real_t >::xyz(*overlapFractionsField));               // FieldAccessor
+         walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));          // FieldAccessor
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField)); // FieldAccessor
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField)); // FieldAccessor
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*bnField)); // FieldAccessor
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));  // FieldAccessor
       myKernel.addParam(omega);
       Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
       myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] }); // spherePosition

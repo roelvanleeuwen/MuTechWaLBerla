@@ -103,25 +103,24 @@ class PSMSweepCUDA
          w[i] = LatticeModel_T::w[i];
       }
 
-      auto indicesField = block->getData< indicesFieldGPU_T >(particleAndVolumeFractionSoA_.indicesFieldID);
-      auto overlapFractionsField =
-         block->getData< overlapFractionsFieldGPU_T >(particleAndVolumeFractionSoA_.overlapFractionsFieldID);
+      auto nOverlappingParticlesField =
+         block->getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA_.nOverlappingParticlesFieldID);
+      auto BsField   = block->getData< BsFieldGPU_T >(particleAndVolumeFractionSoA_.BsFieldID);
       auto uidsField = block->getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA_.uidsFieldID);
-      auto bnField   = block->getData< bnFieldGPU_T >(particleAndVolumeFractionSoA_.bnFieldID);
+      auto BField    = block->getData< BFieldGPU_T >(particleAndVolumeFractionSoA_.BFieldID);
       auto pdfField  = block->getData< walberla::cuda::GPUField< real_t > >(pdfFieldID_);
 
-      auto myKernel = walberla::cuda::make_kernel(&PSMKernel);
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*indicesField));
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*overlapFractionsField));
+      auto myKernel = walberla::cuda::make_kernel(&(PSMKernel< LatticeModel_T::Stencil::Size >) );
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*bnField));
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*pdfField));
       myKernel.addParam(particleAndVolumeFractionSoA_.omega_);
       myKernel.addParam(hydrodynamicForces);
       myKernel.addParam(linearVelocities);
       myKernel.addParam(angularVelocities);
       myKernel.addParam(positions);
-      myKernel.addParam(stencilSize);
       myKernel.addParam(w);
       myKernel();
 

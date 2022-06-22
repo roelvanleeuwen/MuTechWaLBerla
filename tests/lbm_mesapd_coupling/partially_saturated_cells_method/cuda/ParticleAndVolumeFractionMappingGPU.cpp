@@ -62,9 +62,9 @@ using namespace walberla::lbm_mesapd_coupling::psm::cuda;
 class FractionFieldSum
 {
  public:
-   FractionFieldSum(const shared_ptr< StructuredBlockStorage >& blockStorage, const BlockDataID& indicesFieldID,
-                    const BlockDataID& overlapFractionsFieldID)
-      : blockStorage_(blockStorage), indicesFieldID_(indicesFieldID), overlapFractionsFieldID_(overlapFractionsFieldID)
+   FractionFieldSum(const shared_ptr< StructuredBlockStorage >& blockStorage,
+                    const BlockDataID& nOverlappingParticlesFieldID, const BlockDataID& BsFieldID)
+      : blockStorage_(blockStorage), nOverlappingParticlesFieldID_(nOverlappingParticlesFieldID), BsFieldID_(BsFieldID)
    {}
 
    real_t operator()()
@@ -73,12 +73,13 @@ class FractionFieldSum
 
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         auto indicesField          = blockIt->getData< indicesField_T >(indicesFieldID_);
-         auto overlapFractionsField = blockIt->getData< overlapFractionsField_T >(overlapFractionsFieldID_);
+         auto nOverlappingParticlesField =
+            blockIt->getData< nOverlappingParticlesField_T >(nOverlappingParticlesFieldID_);
+         auto BsField = blockIt->getData< BsField_T >(BsFieldID_);
 
-         const cell_idx_t xSize = cell_idx_c(overlapFractionsField->xSize());
-         const cell_idx_t ySize = cell_idx_c(overlapFractionsField->ySize());
-         const cell_idx_t zSize = cell_idx_c(overlapFractionsField->zSize());
+         const cell_idx_t xSize = cell_idx_c(BsField->xSize());
+         const cell_idx_t ySize = cell_idx_c(BsField->ySize());
+         const cell_idx_t zSize = cell_idx_c(BsField->zSize());
 
          for (cell_idx_t z = 0; z < zSize; ++z)
          {
@@ -86,9 +87,9 @@ class FractionFieldSum
             {
                for (cell_idx_t x = 0; x < xSize; ++x)
                {
-                  for (uint_t n = 0; n < indicesField->get(x, y, z); ++n)
+                  for (uint_t n = 0; n < nOverlappingParticlesField->get(x, y, z); ++n)
                   {
-                     sum += overlapFractionsField->get(x, y, z, n);
+                     sum += BsField->get(x, y, z, n);
                   }
                }
             }
@@ -102,8 +103,8 @@ class FractionFieldSum
 
  private:
    shared_ptr< StructuredBlockStorage > blockStorage_;
-   BlockDataID indicesFieldID_;
-   BlockDataID overlapFractionsFieldID_;
+   BlockDataID nOverlappingParticlesFieldID_;
+   BlockDataID BsFieldID_;
 };
 
 ////////////////
@@ -245,14 +246,14 @@ int main(int argc, char** argv)
 
    // add particle and volume fraction fields (needed for the PSM)
    // TODO: do we need to add a cuda::HostFieldAllocator as in the cuda tutorial?
-   BlockDataID indicesFieldID = field::addToStorage< indicesField_T >(blocks, "indices field CPU", 0, field::fzyx, 0);
-   BlockDataID overlapFractionsFieldID =
-      field::addToStorage< overlapFractionsField_T >(blocks, "overlapFractions field CPU", 0, field::fzyx, 0);
+   BlockDataID nOverlappingParticlesFieldID =
+      field::addToStorage< nOverlappingParticlesField_T >(blocks, "indices field CPU", 0, field::fzyx, 0);
+   BlockDataID BsFieldID   = field::addToStorage< BsField_T >(blocks, "Bs field CPU", 0, field::fzyx, 0);
    BlockDataID uidsFieldID = field::addToStorage< uidsField_T >(blocks, "uids field CPU", 0, field::fzyx, 0);
 
    // dummy value for omega since it is not use because Weighting_T == 1
    real_t omega = real_t(42.0);
-   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, indicesFieldID, overlapFractionsFieldID,
+   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, nOverlappingParticlesFieldID, BsFieldID,
                                                                     uidsFieldID, omega);
 
    // calculate fraction
@@ -260,7 +261,7 @@ int main(int argc, char** argv)
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA, 4);
    particleMapping();
 
-   FractionFieldSum fractionFieldSum(blocks, indicesFieldID, overlapFractionsFieldID);
+   FractionFieldSum fractionFieldSum(blocks, nOverlappingParticlesFieldID, BsFieldID);
    auto selector = mesa_pd::kernel::SelectMaster();
    mesa_pd::kernel::SemiImplicitEuler particleIntegration(1.0);
 
@@ -269,10 +270,10 @@ int main(int argc, char** argv)
       // copy data back to perform the check on CPU
       for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
       {
-         cuda::fieldCpySweepFunction< indicesField_T, indicesFieldGPU_T >(
-            indicesFieldID, particleAndVolumeFractionSoA.indicesFieldID, &(*blockIt));
-         cuda::fieldCpySweepFunction< overlapFractionsField_T, overlapFractionsFieldGPU_T >(
-            overlapFractionsFieldID, particleAndVolumeFractionSoA.overlapFractionsFieldID, &(*blockIt));
+         cuda::fieldCpySweepFunction< nOverlappingParticlesField_T, nOverlappingParticlesFieldGPU_T >(
+            nOverlappingParticlesFieldID, particleAndVolumeFractionSoA.nOverlappingParticlesFieldID, &(*blockIt));
+         cuda::fieldCpySweepFunction< BsField_T, BsFieldGPU_T >(BsFieldID, particleAndVolumeFractionSoA.BsFieldID,
+                                                                &(*blockIt));
       }
 
       // check that the sum over all fractions is roughly the volume of the sphere

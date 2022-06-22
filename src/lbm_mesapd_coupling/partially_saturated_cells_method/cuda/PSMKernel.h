@@ -32,12 +32,13 @@ namespace psm
 namespace cuda
 {
 
-__global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > indicesField,
-                          walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
+template< int StencilSize >
+__global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
+                          walberla::cuda::FieldAccessor< real_t > BsField,
                           walberla::cuda::FieldAccessor< id_t > uidsField,
-                          walberla::cuda::FieldAccessor< real_t > bnField, walberla::cuda::FieldAccessor< real_t > pdfs,
+                          walberla::cuda::FieldAccessor< real_t > BField, walberla::cuda::FieldAccessor< real_t > pdfs,
                           real_t /*omega*/, double3* /*hydrodynamicForces*/, double3* /*linearVelocities*/,
-                          double3* /*angularVelocities*/, double3* /*positions*/, uint_t stencilSize, real_t* /*w*/);
+                          double3* /*angularVelocities*/, double3* /*positions*/, real_t* /*w*/);
 
 } // namespace cuda
 } // namespace psm
