@@ -34,31 +34,20 @@ namespace psm
 namespace cuda
 {
 
-__global__ void addHydrodynamicForcesKernel(walberla::cuda::FieldAccessor< uint_t > indicesField,
-                                            walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
-                                            walberla::cuda::FieldAccessor< id_t > uidsField,
-                                            walberla::cuda::FieldAccessor< real_t > bnField,
-                                            walberla::cuda::FieldAccessor< real_t > pdfs, real_t /*omega*/,
-                                            double3* /*hydrodynamicForces*/, double3* /*linearVelocities*/,
-                                            double3* /*angularVelocities*/, double3* /*positions*/, uint_t stencilSize,
-                                            real_t* /*w*/)
+__device__ void getEquilibriumDistribution(real_t* equilibrium, double3& velocity, const real_t rho) {}
+
+__global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > indicesField,
+                          walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
+                          walberla::cuda::FieldAccessor< id_t > uidsField,
+                          walberla::cuda::FieldAccessor< real_t > bnField, walberla::cuda::FieldAccessor< real_t > pdfs,
+                          real_t /*omega*/, double3* /*hydrodynamicForces*/, double3* /*linearVelocities*/,
+                          double3* /*angularVelocities*/, double3* /*positions*/, uint_t stencilSize, real_t* /*w*/)
 {
    indicesField.set(blockIdx, threadIdx);
    overlapFractionsField.set(blockIdx, threadIdx);
    uidsField.set(blockIdx, threadIdx);
    bnField.set(blockIdx, threadIdx);
    pdfs.set(blockIdx, threadIdx);
-}
-
-__global__ void PSMKernel(walberla::cuda::FieldAccessor< real_t > pdfField,
-                          walberla::cuda::FieldAccessor< uint_t > indicesField,
-                          walberla::cuda::FieldAccessor< real_t > overlapFractionsField,
-                          walberla::cuda::FieldAccessor< id_t > uidsField)
-{
-   pdfField.set(blockIdx, threadIdx);
-   indicesField.set(blockIdx, threadIdx);
-   overlapFractionsField.set(blockIdx, threadIdx);
-   uidsField.set(blockIdx, threadIdx);
 }
 
 } // namespace cuda

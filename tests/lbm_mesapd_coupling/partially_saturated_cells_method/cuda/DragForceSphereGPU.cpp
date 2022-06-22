@@ -54,7 +54,6 @@
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMUtility.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/ParticleAndVolumeFractionMapping.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/HydrodynamicForcesSweepGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
@@ -460,7 +459,7 @@ int main(int argc, char** argv)
       pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
    pystencils::SRTSweep SRTSweep(pdfFieldGPUID, omega);
    auto hydrodynamicForces =
-      lbm_mesapd_coupling::psm::cuda::HydrodynamicForcesSweepCUDA< LatticeModel_T, ParticleAccessor_T,
+      lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< LatticeModel_T, ParticleAccessor_T,
                                                                    lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
          blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), pdfFieldGPUID, particleAndVolumeFractionSoA);
 
