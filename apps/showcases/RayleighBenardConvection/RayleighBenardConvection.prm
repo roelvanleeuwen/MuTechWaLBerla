@@ -1,0 +1,71 @@
+
+Parameters 
+{
+	omega           1.8;
+	initialVelocity < 0.0, 0, 0 >;
+	//timesteps       10000;
+	timesteps       1;
+
+	remainingTimeLoggerFrequency 3; // in seconds
+}
+
+DomainSetup
+{
+   blocks        <  1,    1, 1 >;
+   //cellsPerBlock <  300, 80, 1 >;
+   //periodic      <  1,    0, 1 >;
+   cellsPerBlock <  2,    2, 1 >;
+   periodic      <  1,    1, 1 >;
+}
+
+StabilityChecker
+{
+   checkFrequency 1;
+   streamOutput   false;
+   vtkOutput      true;
+}
+
+Boundaries
+{
+//	Border { direction S,N;  walldistance -1;  NoSlip    {} }
+}
+
+
+VTK 
+{
+   // for parameter documentation see src/vtk/Initialization.cpp
+   fluid_field
+   {
+      writeFrequency 100;
+      ghostLayers    1;
+      
+      before_functions {
+         PDFGhostLayerSync;
+      }
+      
+      inclusion_filters {
+         DomainFilter;
+      }
+      
+      writers {
+         Velocity;
+         Density;
+      }
+   }
+   
+   flag_field
+   {
+      writeFrequency 10000000; // write only once
+   // ghostLayers    1;
+      
+      writers {
+         FlagField;
+      }
+   }
+   
+   domain_decomposition
+   {
+      writeFrequency 10000000; // write only once
+      outputDomainDecomposition true;
+   }
+}
