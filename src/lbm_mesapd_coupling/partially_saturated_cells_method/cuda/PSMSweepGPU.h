@@ -62,28 +62,38 @@ class PSMSweepCUDA
    {}
    void operator()(IBlock* block)
    {
+      const real_t dxCurrentLevel      = bs_->dx(bs_->getLevel(*block));
+      const real_t lengthScalingFactor = dxCurrentLevel;
+      const real_t forceScalingFactor  = lengthScalingFactor * lengthScalingFactor;
+
       size_t numMappedParticles = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
          if (mappingParticleSelector_(idx, *ac_)) { numMappedParticles++; }
       }
+      size_t arraySizes = numMappedParticles * sizeof(double3);
 
-      // TODO: add torques
+      // Allocate unified memory for the reduction of the particle forces and torques on the GPU
       double3* hydrodynamicForces;
-      cudaMallocManaged(&hydrodynamicForces, numMappedParticles * sizeof(hydrodynamicForces));
-      cudaMemset(hydrodynamicForces, 0, numMappedParticles * sizeof(hydrodynamicForces));
+      cudaMallocManaged(&hydrodynamicForces, arraySizes);
+      cudaMemset(hydrodynamicForces, 0, arraySizes);
+      double3* hydrodynamicTorques;
+      cudaMallocManaged(&hydrodynamicTorques, arraySizes);
+      cudaMemset(hydrodynamicTorques, 0, arraySizes);
 
+      // Allocate unified memory for the particle information needed for the velocity of the solid collision operator
       double3* linearVelocities;
-      cudaMallocManaged(&linearVelocities, numMappedParticles * sizeof(linearVelocities));
-      cudaMemset(linearVelocities, 0, numMappedParticles * sizeof(linearVelocities));
+      cudaMallocManaged(&linearVelocities, arraySizes);
+      cudaMemset(linearVelocities, 0, arraySizes);
       double3* angularVelocities;
-      cudaMallocManaged(&angularVelocities, numMappedParticles * sizeof(angularVelocities));
-      cudaMemset(angularVelocities, 0, numMappedParticles * sizeof(angularVelocities));
+      cudaMallocManaged(&angularVelocities, arraySizes);
+      cudaMemset(angularVelocities, 0, arraySizes);
       double3* positions;
-      cudaMallocManaged(&positions, numMappedParticles * sizeof(positions));
-      cudaMemset(positions, 0, numMappedParticles * sizeof(positions));
+      cudaMallocManaged(&positions, arraySizes);
+      cudaMemset(positions, 0, arraySizes);
 
-      for (size_t idx = 0; idx < ac_->size(); ++idx)
+      // Store particle information inside unified memory
+      for (size_t idx = 0; idx < ac_->size();)
       {
          if (mappingParticleSelector_(idx, *ac_))
          {
@@ -92,15 +102,8 @@ class PSMSweepCUDA
             angularVelocities[idx] = { ac_->getAngularVelocity(idx)[0], ac_->getAngularVelocity(idx)[1],
                                        ac_->getAngularVelocity(idx)[2] };
             positions[idx]         = { ac_->getPosition(idx)[0], ac_->getPosition(idx)[1], ac_->getPosition(idx)[2] };
+            ++idx;
          }
-      }
-
-      uint_t stencilSize = LatticeModel_T::Stencil::Size;
-      real_t* w;
-      cudaMallocManaged(&w, stencilSize * sizeof(real_t));
-      for (uint_t i = 0; i < stencilSize; i++)
-      {
-         w[i] = LatticeModel_T::w[i];
       }
 
       auto nOverlappingParticlesField =
@@ -108,29 +111,54 @@ class PSMSweepCUDA
       auto BsField   = block->getData< BsFieldGPU_T >(particleAndVolumeFractionSoA_.BsFieldID);
       auto uidsField = block->getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA_.uidsFieldID);
       auto BField    = block->getData< BFieldGPU_T >(particleAndVolumeFractionSoA_.BFieldID);
-      auto pdfField  = block->getData< walberla::cuda::GPUField< real_t > >(pdfFieldID_);
+      auto solidCollisionField =
+         block->getData< solidCollisionFieldGPU_T >(particleAndVolumeFractionSoA_.solidCollisionFieldID);
+      auto pdfField = block->getData< walberla::cuda::GPUField< real_t > >(pdfFieldID_);
 
       auto myKernel = walberla::cuda::make_kernel(&(PSMKernel< LatticeModel_T::Stencil::Size >) );
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*solidCollisionField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*pdfField));
-      myKernel.addParam(particleAndVolumeFractionSoA_.omega_);
       myKernel.addParam(hydrodynamicForces);
+      myKernel.addParam(hydrodynamicTorques);
       myKernel.addParam(linearVelocities);
       myKernel.addParam(angularVelocities);
       myKernel.addParam(positions);
-      myKernel.addParam(w);
+      Vector3< real_t > blockStart = block->getAABB().minCorner();
+      myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });
+      myKernel.addParam(block->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));
+      myKernel.addParam(forceScalingFactor);
       myKernel();
 
-      // TODO: add forces and torques on particles
+      // Copy forces and torques of particles from GPU to CPU
+      for (size_t idx = 0; idx < ac_->size();)
+      {
+         if (mappingParticleSelector_(idx, *ac_))
+         {
+            linearVelocities[idx]  = { ac_->getLinearVelocity(idx)[0], ac_->getLinearVelocity(idx)[1],
+                                       ac_->getLinearVelocity(idx)[2] };
+            angularVelocities[idx] = { ac_->getAngularVelocity(idx)[0], ac_->getAngularVelocity(idx)[1],
+                                       ac_->getAngularVelocity(idx)[2] };
+            positions[idx]         = { ac_->getPosition(idx)[0], ac_->getPosition(idx)[1], ac_->getPosition(idx)[2] };
+            ac_->getHydrodynamicForceRef(idx)[0] += hydrodynamicForces[idx].x;
+            ac_->getHydrodynamicForceRef(idx)[1] += hydrodynamicForces[idx].y;
+            ac_->getHydrodynamicForceRef(idx)[2] += hydrodynamicForces[idx].z;
+
+            ac_->getHydrodynamicTorqueRef(idx)[0] += hydrodynamicTorques[idx].x;
+            ac_->getHydrodynamicTorqueRef(idx)[1] += hydrodynamicTorques[idx].y;
+            ac_->getHydrodynamicTorqueRef(idx)[2] += hydrodynamicTorques[idx].z;
+            ++idx;
+         }
+      }
 
       cudaFree(hydrodynamicForces);
+      cudaFree(hydrodynamicTorques);
       cudaFree(linearVelocities);
       cudaFree(angularVelocities);
       cudaFree(positions);
-      cudaFree(w);
    }
 
  private:

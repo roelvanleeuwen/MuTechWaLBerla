@@ -37,12 +37,14 @@ namespace cuda
 __device__ void getEquilibriumDistribution(real_t* equilibrium, double3& velocity, const real_t rho) {}
 
 template< int StencilSize >
-__global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
-                          walberla::cuda::FieldAccessor< real_t > BsField,
-                          walberla::cuda::FieldAccessor< id_t > uidsField,
-                          walberla::cuda::FieldAccessor< real_t > BField, walberla::cuda::FieldAccessor< real_t > pdfs,
-                          real_t /*omega*/, double3* /*hydrodynamicForces*/, double3* /*linearVelocities*/,
-                          double3* /*angularVelocities*/, double3* /*positions*/, real_t* /*w*/)
+__global__ void
+   PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
+             walberla::cuda::FieldAccessor< real_t > BsField, walberla::cuda::FieldAccessor< id_t > uidsField,
+             walberla::cuda::FieldAccessor< real_t > BField,
+             walberla::cuda::FieldAccessor< real_t > solidCollisionField, walberla::cuda::FieldAccessor< real_t > pdfs,
+             double3* const hydrodynamicForces, double3* const hydrodynamicTorques, double3* const linearVelocities,
+             double3* const angularVelocities, double3* const positions, const double3 blockStart, const real_t dx,
+             const real_t forceScalingFactor)
 {
    nOverlappingParticles.set(blockIdx, threadIdx);
    BsField.set(blockIdx, threadIdx);

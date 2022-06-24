@@ -122,6 +122,7 @@ for eq in equilibriumFluid:
 
 # Assemble right-hand side of collision assignments
 # TODO: use f_inv und equilibriumSolid_inv
+# TODO: add more solid collision operators
 collision_rhs = []
 for eqFluid, eqSolid, f in zip(
     equilibriumFluid, equilibriumSolid, method.pre_collision_pdf_symbols

@@ -254,7 +254,7 @@ int main(int argc, char** argv)
    // dummy value for omega since it is not use because Weighting_T == 1
    real_t omega = real_t(42.0);
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, nOverlappingParticlesFieldID, BsFieldID,
-                                                                    uidsFieldID, omega);
+                                                                    uidsFieldID, omega, 0);
 
    // calculate fraction
    ParticleAndVolumeFractionMappingGPU particleMapping(

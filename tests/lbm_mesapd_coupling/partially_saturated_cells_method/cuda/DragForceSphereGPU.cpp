@@ -73,6 +73,7 @@
 // codegen
 #include "SRTPackInfo.h"
 #include "SRTSweep.h"
+#include "SolidKernel.cuh"
 
 namespace drag_force_sphere_psm
 {
@@ -437,7 +438,7 @@ int main(int argc, char** argv)
    particleMapping();*/
 
    // add particle and volume fraction fields (needed for the PSM)
-   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
+   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega, Stencil_T::Size);
 
    // calculate fraction
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
@@ -472,7 +473,7 @@ int main(int argc, char** argv)
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
                   /*<< Sweep(lbm::makeStreamSweep(SRTSweep), "cell-wise LB sweep (stream)")*/
                   << Sweep(SRTSweep, "cell-wise SRT sweep");
-   timeloop.add() << Sweep(PSMSweep, "PSM sweep");
+   timeloop.add() << Sweep(PSMSweep, "cell-wise PSM sweep");
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");
