@@ -66,16 +66,17 @@ __device__ void addHydrodynamicForceAtWFPosAtomic(const size_t p_idx, double3* _
                                                   double3* __restrict__ const particleTorques, const double3& f,
                                                   const double3& pos, const double3& wf_pt)
 {
-   atomicAdd(&particleForces[p_idx].x, f.x);
+   // TODO: uncomment atomicAdds and find solution to set CMAKE_CUDA_ARCHITECTURES in .gitlab-ci.yml (maybe using nvidia-smi --query-gpu=compute_cap --format=csv,noheader)
+   /*atomicAdd(&particleForces[p_idx].x, f.x);
    atomicAdd(&particleForces[p_idx].y, f.y);
-   atomicAdd(&particleForces[p_idx].z, f.z);
+   atomicAdd(&particleForces[p_idx].z, f.z);*/
 
    double3 t;
    cross(&t, { wf_pt.x - pos.x, wf_pt.y - pos.y, wf_pt.z - pos.z }, f);
 
-   atomicAdd(&particleTorques[p_idx].x, t.x);
+   /*atomicAdd(&particleTorques[p_idx].x, t.x);
    atomicAdd(&particleTorques[p_idx].y, t.y);
-   atomicAdd(&particleTorques[p_idx].z, t.z);
+   atomicAdd(&particleTorques[p_idx].z, t.z);*/
 }
 
 } // namespace cuda
