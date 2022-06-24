@@ -62,7 +62,7 @@ using ParticleAndVolumeFractionFieldGPU_T = walberla::cuda::GPUField< ParticleAn
 
 // B denotes the local weighting factor and is calculated by taking the sum of all local particle
 // weighting factor Bs. The naming of the variables is based on the following paper:
-// https://www.sciencedirect.com/science/article/abs/pii/S0045793017302086?via%3Dihub
+// https://doi.org/10.1016/j.compfluid.2017.05.033
 
 using nOverlappingParticlesField_T    = GhostLayerField< uint_t, 1 >;
 using nOverlappingParticlesFieldGPU_T = walberla::cuda::GPUField< uint_t >;

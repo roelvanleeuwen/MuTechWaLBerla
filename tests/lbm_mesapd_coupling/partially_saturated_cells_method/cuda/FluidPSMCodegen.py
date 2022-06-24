@@ -11,38 +11,30 @@ from pystencils_walberla import (
     generate_pack_info_from_kernel,
 )
 
-#   =====================
-#      Code Generation
-#   =====================
+# Based on the following paper: https://doi.org/10.1016/j.compfluid.2017.05.033
 
 with CodeGeneration() as ctx:
-    #   ========================
-    #      General Parameters
-    #   ========================
+    # =====================
+    # Code generation for the modified SRT sweep
+    # =====================
     data_type = "float64" if ctx.double_accuracy else "float32"
     stencil = LBStencil(Stencil.D3Q19)
     omega = sp.Symbol("omega")
     layout = "fzyx"
 
-    #   PDF Fields
     pdfs, pdfs_tmp = ps.fields(
         f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {data_type}[3D]", layout=layout
     )
 
-    #   Fraction Field
+    # Solid fraction field
     B = ps.fields(f"b({1}): {data_type}[3D]", layout=layout)
 
-    # LBM Optimisation
     lbm_opt = LBMOptimisation(
         cse_global=True,
         symbolic_field=pdfs,
         symbolic_temporary_field=pdfs_tmp,
         field_layout=layout,
     )
-
-    #   ==================
-    #      Method Setup
-    #   ==================
 
     lbm_config = LBMConfig(
         stencil=stencil,
@@ -55,32 +47,36 @@ with CodeGeneration() as ctx:
 
     method = create_lb_method(lbm_config=lbm_config)
 
+    # SRT collision operator with (1 - solid_fraction) as prefactor
     equilibrium = method.get_equilibrium_terms()
-    psm = []
+    srt_collision_op_psm = []
     for eq, f in zip(equilibrium, method.pre_collision_pdf_symbols):
-        psm.append((1 - B.center) * sp.Symbol("omega") * (f - eq))
+        srt_collision_op_psm.append((1.0 - B.center) * sp.Symbol("omega") * (f - eq))
 
-    Fq = method.force_model(method)
-    Fq_psm = []
-    for fq in Fq:
-        Fq_psm.append(fq * (1 - B.center))
+    # Given forcing operator with (1 - solid_fraction) as prefactor
+    fq = method.force_model(method)
+    fq_psm = []
+    for f in fq:
+        fq_psm.append((1 - B.center) * f)
 
-    # TODO: check formulas (- and +)
-    collision_psm = []
-    for f, c, fo in zip(method.pre_collision_pdf_symbols, psm, Fq_psm):
-        collision_psm.append(f - c - fo)
+    # Assemble right-hand side of collision assignments
+    collision_rhs = []
+    for f, c, fo in zip(method.pre_collision_pdf_symbols, srt_collision_op_psm, fq_psm):
+        collision_rhs.append(f - c + fo)
 
-    gjd = []
-    for d, c in zip(method.post_collision_pdf_symbols, collision_psm):
-        gjd.append(ps.Assignment(d, c))
+    # Assemble collision assignments
+    collision_assignments = []
+    for d, c in zip(method.post_collision_pdf_symbols, collision_rhs):
+        collision_assignments.append(ps.Assignment(d, c))
 
+    # Define quantities to compute the equilibrium as functions of the pdfs
     cqc = method.conserved_quantity_computation.equilibrium_input_equations_from_pdfs(
         method.pre_collision_pdf_symbols, False
     )
 
-    collision_total = cqc.all_assignments + collision_psm
-
-    up = ps.AssignmentCollection(gjd, subexpressions=cqc.all_assignments)
+    up = ps.AssignmentCollection(
+        collision_assignments, subexpressions=cqc.all_assignments
+    )
     up.method = method
 
     lbm_update_rule = create_lb_update_rule(
@@ -92,10 +88,9 @@ with CodeGeneration() as ctx:
     else:
         target = ps.Target.CPU
 
-    #   LBM Sweep
+    # Generate files
     generate_sweep(
         ctx, "SRTSweep", lbm_update_rule, field_swaps=[(pdfs, pdfs_tmp)], target=target
     )
 
-    #   Pack Info
     generate_pack_info_from_kernel(ctx, "SRTPackInfo", lbm_update_rule, target=target)
