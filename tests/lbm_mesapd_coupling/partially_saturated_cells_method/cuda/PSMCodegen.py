@@ -29,14 +29,14 @@ with CodeGeneration() as ctx:
     # Solid fraction field
     B = ps.fields(f"b({1}): {data_type}[3D]", layout=layout)
 
-    lbm_opt = LBMOptimisation(
+    psm_opt = LBMOptimisation(
         cse_global=True,
         symbolic_field=pdfs,
         symbolic_temporary_field=pdfs_tmp,
         field_layout=layout,
     )
 
-    lbm_config = LBMConfig(
+    srt_psm_config = LBMConfig(
         stencil=stencil,
         method=Method.SRT,
         relaxation_rate=omega,
@@ -45,7 +45,7 @@ with CodeGeneration() as ctx:
         compressible=False,
     )
 
-    method = create_lb_method(lbm_config=lbm_config)
+    method = create_lb_method(lbm_config=srt_psm_config)
 
     # SRT collision operator with (1 - solid_fraction) as prefactor
     equilibrium = method.get_equilibrium_terms()
@@ -80,7 +80,7 @@ with CodeGeneration() as ctx:
     up.method = method
 
     lbm_update_rule = create_lb_update_rule(
-        collision_rule=up, lbm_config=lbm_config, lbm_optimisation=lbm_opt
+        collision_rule=up, lbm_config=srt_psm_config, lbm_optimisation=psm_opt
     )
 
     if ctx.cuda:
@@ -94,3 +94,64 @@ with CodeGeneration() as ctx:
     )
 
     generate_pack_info_from_kernel(ctx, "SRTPackInfo", lbm_update_rule, target=target)
+
+
+# =====================
+# Code generation for the solid collision kernel
+# =====================
+
+solid_psm_config = LBMConfig(
+    stencil=stencil, method=Method.SRT, compressible=False, kernel_type="collide_only"
+)
+
+method = create_lb_method(lbm_config=solid_psm_config)
+
+# Assemble equilibrium for the particle velocity using the fluid equilibrium
+equilibriumFluid = method.get_equilibrium_terms()
+equilibriumSolid = []
+for eq in equilibriumFluid:
+    equilibriumSolid.append(
+        eq.subs(
+            [
+                (sp.Symbol("u_0"), sp.Symbol("u_solid_0")),
+                (sp.Symbol("u_1"), sp.Symbol("u_solid_1")),
+                (sp.Symbol("u_2"), sp.Symbol("u_solid_2")),
+            ]
+        )
+    )
+
+# Assemble right-hand side of collision assignments
+# TODO: use f_inv und equilibriumSolid_inv
+collision_rhs = []
+for eqFluid, eqSolid, f in zip(
+    equilibriumFluid, equilibriumSolid, method.pre_collision_pdf_symbols
+):
+    collision_rhs.append((f - eqFluid) - (f - eqSolid))
+
+# Assemble collision assignments
+collision_assignments = []
+for d, c in zip(method.post_collision_pdf_symbols, collision_rhs):
+    collision_assignments.append(ps.Assignment(d, c))
+
+# Define quantities to compute the fluid equilibrium as functions of the pdfs.
+# The velocity for the solid equilibrium is a function parameter.
+cqc = method.conserved_quantity_computation.equilibrium_input_equations_from_pdfs(
+    method.pre_collision_pdf_symbols, False
+)
+
+up = ps.AssignmentCollection(collision_assignments, subexpressions=cqc.all_assignments)
+up.method = method
+
+lbm_update_rule = create_lb_update_rule(
+    collision_rule=up, lbm_config=solid_psm_config, lbm_optimisation=psm_opt
+)
+
+if ctx.cuda:
+    target = ps.Target.GPU
+else:
+    target = ps.Target.CPU
+
+ast = ps.create_kernel(lbm_update_rule)
+
+f = open("SolidKernel.cuh", "w+")
+f.write(ps.get_code_str(ast))
