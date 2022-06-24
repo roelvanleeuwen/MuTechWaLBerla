@@ -73,7 +73,6 @@
 // codegen
 #include "SRTPackInfo.h"
 #include "SRTSweep.h"
-#include "SolidKernel.cuh"
 
 namespace drag_force_sphere_psm
 {
