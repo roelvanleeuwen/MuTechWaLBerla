@@ -21,9 +21,8 @@
 //
 //======================================================================================================================
 
-#include "lbm_mesapd_coupling/DataTypesGPU.h"
-
 #include "PSMKernel.h"
+#include "PSMUtilityGPU.cuh"
 
 namespace walberla
 {
@@ -33,8 +32,6 @@ namespace psm
 {
 namespace cuda
 {
-
-__device__ void getEquilibriumDistribution(real_t* equilibrium, double3& velocity, const real_t rho) {}
 
 template< int StencilSize >
 __global__ void
@@ -50,7 +47,43 @@ __global__ void
    BsField.set(blockIdx, threadIdx);
    uidsField.set(blockIdx, threadIdx);
    BField.set(blockIdx, threadIdx);
+   solidCollisionField.set(blockIdx, threadIdx);
    pdfs.set(blockIdx, threadIdx);
+
+   // Cell center is needed in order to compute the particle velocity at this WF point
+   double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
+                          (blockStart.z + (blockIdx.y + 0.5) * dx) };
+
+   // for all overlapping particles
+   for (uint_t p = 0; p < nOverlappingParticles.get(); p++)
+   {
+      // Compute the particle velocity at this WF point
+      double3 particleVelocityAtWFPoint{ 0.0, 0.0, 0.0 };
+      getVelocityAtWFPoint< StencilSize >(&particleVelocityAtWFPoint, linearVelocities[p], angularVelocities[p],
+                                          positions[p], cellCenter);
+
+      // TODO: call solid collision kernel
+
+      double3 forceOnParticle{ 0.0, 0.0, 0.0 };
+      // for all stencil directions
+      for (uint_t d = 0; d < StencilSize; d++)
+      {
+         // add result of solid collision kernel to pdfs
+         real_t BsOmegaS = BsField.get(p) * solidCollisionField.get(d);
+         pdfs.get(d) += BsOmegaS;
+
+         // reduce forces and torques
+         forceOnParticle.x -= BsOmegaS * cx[d];
+         forceOnParticle.y -= BsOmegaS * cy[d];
+         forceOnParticle.z -= BsOmegaS * cz[d];
+      }
+
+      forceOnParticle.x *= forceScalingFactor;
+      forceOnParticle.y *= forceScalingFactor;
+      forceOnParticle.z *= forceScalingFactor;
+      addHydrodynamicForceAtWFPosAtomic(p, hydrodynamicForces, hydrodynamicTorques, forceOnParticle, positions[p],
+                                        cellCenter);
+   }
 }
 
 // TODO: find better solution for template kernels
