@@ -50,7 +50,7 @@ template< int Weighting_T >
 __global__ void particleAndVolumeFractionMappingKernelSoA(
    walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField, walberla::cuda::FieldAccessor< real_t > BsField,
    walberla::cuda::FieldAccessor< id_t > uidsField, walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
-   double3 spherePosition, real_t sphereRadius, double3 blockStart, double3 dx, int3 nSamples, id_t uid);
+   double3 spherePosition, real_t sphereRadius, double3 blockStart, real_t dx, int3 nSamples, id_t uid);
 
 } // namespace cuda
 } // namespace psm

@@ -141,18 +141,17 @@ template< int Weighting_T >
 __global__ void particleAndVolumeFractionMappingKernelSoA(
    walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField, walberla::cuda::FieldAccessor< real_t > BsField,
    walberla::cuda::FieldAccessor< id_t > uidsField, walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
-   double3 spherePosition, real_t sphereRadius, double3 blockStart, double3 dx, int3 nSamples, id_t uid)
+   double3 spherePosition, real_t sphereRadius, double3 blockStart, real_t dx, int3 nSamples, id_t uid)
 {
    nOverlappingParticlesField.set(blockIdx, threadIdx);
    BsField.set(blockIdx, threadIdx);
    uidsField.set(blockIdx, threadIdx);
    BField.set(blockIdx, threadIdx);
 
-   double3 sampleDistance       = { 1.0 / (nSamples.x + 1) * dx.x, 1.0 / (nSamples.y + 1) * dx.y,
-                                    1.0 / (nSamples.z + 1) * dx.z };
-   double3 startSamplingPoint   = { (blockStart.x + threadIdx.x * dx.x + sampleDistance.x),
-                                    (blockStart.y + blockIdx.x * dx.y + sampleDistance.y),
-                                    (blockStart.z + blockIdx.y * dx.z + sampleDistance.z) };
+   double3 sampleDistance = { 1.0 / (nSamples.x + 1) * dx, 1.0 / (nSamples.y + 1) * dx, 1.0 / (nSamples.z + 1) * dx };
+   double3 startSamplingPoint   = { (blockStart.x + threadIdx.x * dx + sampleDistance.x),
+                                    (blockStart.y + blockIdx.x * dx + sampleDistance.y),
+                                    (blockStart.z + blockIdx.y * dx + sampleDistance.z) };
    double3 currentSamplingPoint = startSamplingPoint;
 
    double3 minCornerSphere = { spherePosition.x - sphereRadius, spherePosition.y - sphereRadius,
@@ -160,9 +159,9 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(
    double3 maxCornerSphere = { spherePosition.x + sphereRadius, spherePosition.y + sphereRadius,
                                spherePosition.z + sphereRadius };
 
-   if (startSamplingPoint.x + dx.x > minCornerSphere.x && startSamplingPoint.x < maxCornerSphere.x &&
-       startSamplingPoint.y + dx.y > minCornerSphere.y && startSamplingPoint.y < maxCornerSphere.y &&
-       startSamplingPoint.z + dx.z > minCornerSphere.z && startSamplingPoint.z < maxCornerSphere.z)
+   if (startSamplingPoint.x + dx > minCornerSphere.x && startSamplingPoint.x < maxCornerSphere.x &&
+       startSamplingPoint.y + dx > minCornerSphere.y && startSamplingPoint.y < maxCornerSphere.y &&
+       startSamplingPoint.z + dx > minCornerSphere.z && startSamplingPoint.z < maxCornerSphere.z)
    {
       for (uint_t z = 0; z < nSamples.z; z++)
       {

@@ -110,8 +110,8 @@ myKernel();
       myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] }); // spherePosition
       myKernel.addParam(static_cast< mesa_pd::data::Sphere* >(ac->getShape(particleIdx))->getRadius()); // sphereRadius
       myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                        // blockStart
-      myKernel.addParam(double3{ 1, 1, 1 });                                                            // dx
-      myKernel.addParam(int3{ 16, 16, 16 });                                                            // nSamples
+      myKernel.addParam(blockIt.getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));       // dx
+      myKernel.addParam(int3{ 16, 16, 16 }); // nSamples
       myKernel.addParam(ac->getUid(particleIdx));
       myKernel();
    }
