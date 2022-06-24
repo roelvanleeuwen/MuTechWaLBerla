@@ -147,11 +147,6 @@ lbm_update_rule = create_lb_update_rule(
     collision_rule=up, lbm_config=solid_psm_config, lbm_optimisation=psm_opt
 )
 
-if ctx.cuda:
-    target = ps.Target.GPU
-else:
-    target = ps.Target.CPU
-
 ast = ps.create_kernel(lbm_update_rule)
 
 f = open("SolidKernel.cuh", "w+")

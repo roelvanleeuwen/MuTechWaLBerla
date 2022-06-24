@@ -96,7 +96,7 @@ struct ParticleAndVolumeFractionSoA_T
       BFieldID =
          walberla::cuda::addGPUFieldToStorage< BFieldGPU_T >(bs, "B field GPU", 1, field::fzyx, uint_t(1), true);
       solidCollisionFieldID = walberla::cuda::addGPUFieldToStorage< solidCollisionFieldGPU_T >(
-         bs, "solidCollision field GPU", stencilSize, field::fzyx, uint_t(1), true);
+         bs, "solidCollision field GPU", uint_t(stencilSize), field::fzyx, uint_t(1), true);
       omega_ = omega;
    }
 
@@ -112,7 +112,7 @@ struct ParticleAndVolumeFractionSoA_T
       BFieldID =
          walberla::cuda::addGPUFieldToStorage< BFieldGPU_T >(bs, "B field GPU", 1, field::fzyx, uint_t(1), true);
       solidCollisionFieldID = walberla::cuda::addGPUFieldToStorage< solidCollisionFieldGPU_T >(
-         bs, "solidCollision field GPU", stencilSize, field::fzyx, uint_t(1), true);
+         bs, "solidCollision field GPU", uint_t(stencilSize), field::fzyx, uint_t(1), true);
       omega_ = omega;
    }
 };

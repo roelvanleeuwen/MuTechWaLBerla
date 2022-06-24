@@ -143,13 +143,13 @@ class PSMSweepCUDA
             angularVelocities[idx] = { ac_->getAngularVelocity(idx)[0], ac_->getAngularVelocity(idx)[1],
                                        ac_->getAngularVelocity(idx)[2] };
             positions[idx]         = { ac_->getPosition(idx)[0], ac_->getPosition(idx)[1], ac_->getPosition(idx)[2] };
-            ac_->getHydrodynamicForceRef(idx)[0] += hydrodynamicForces[idx].x;
-            ac_->getHydrodynamicForceRef(idx)[1] += hydrodynamicForces[idx].y;
-            ac_->getHydrodynamicForceRef(idx)[2] += hydrodynamicForces[idx].z;
+            ac_->getHydrodynamicForceRef(idx)[0] += real_t(hydrodynamicForces[idx].x);
+            ac_->getHydrodynamicForceRef(idx)[1] += real_t(hydrodynamicForces[idx].y);
+            ac_->getHydrodynamicForceRef(idx)[2] += real_t(hydrodynamicForces[idx].z);
 
-            ac_->getHydrodynamicTorqueRef(idx)[0] += hydrodynamicTorques[idx].x;
-            ac_->getHydrodynamicTorqueRef(idx)[1] += hydrodynamicTorques[idx].y;
-            ac_->getHydrodynamicTorqueRef(idx)[2] += hydrodynamicTorques[idx].z;
+            ac_->getHydrodynamicTorqueRef(idx)[0] += real_t(hydrodynamicTorques[idx].x);
+            ac_->getHydrodynamicTorqueRef(idx)[1] += real_t(hydrodynamicTorques[idx].y);
+            ac_->getHydrodynamicTorqueRef(idx)[2] += real_t(hydrodynamicTorques[idx].z);
             ++idx;
          }
       }
