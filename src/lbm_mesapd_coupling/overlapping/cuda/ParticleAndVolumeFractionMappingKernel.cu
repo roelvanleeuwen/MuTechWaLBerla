@@ -102,17 +102,19 @@ __global__ void
 
 // functions to calculate Bs
 template< int Weighting_T >
-__device__ void calculateWeighting(real_t* weighting, const real_t& /*epsilon*/, const real_t& /*tau*/)
+__device__ void calculateWeighting(real_t* __restrict__ const weighting, const real_t& /*epsilon*/,
+                                   const real_t& /*tau*/)
 {
    WALBERLA_STATIC_ASSERT(Weighting_T == 1 || Weighting_T == 2);
 }
 template<>
-__device__ void calculateWeighting< 1 >(real_t* weighting, const real_t& epsilon, const real_t& /*tau*/)
+__device__ void calculateWeighting< 1 >(real_t* __restrict__ const weighting, const real_t& epsilon,
+                                        const real_t& /*tau*/)
 {
    *weighting = epsilon;
 }
 template<>
-__device__ void calculateWeighting< 2 >(real_t* weighting, const real_t& epsilon, const real_t& tau)
+__device__ void calculateWeighting< 2 >(real_t* __restrict__ const weighting, const real_t& epsilon, const real_t& tau)
 {
    *weighting = epsilon * (tau - real_t(0.5)) / ((real_t(1) - epsilon) + (tau - real_t(0.5)));
 }

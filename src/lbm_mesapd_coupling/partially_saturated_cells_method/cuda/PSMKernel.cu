@@ -34,14 +34,15 @@ namespace cuda
 {
 
 template< int StencilSize >
-__global__ void
-   PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
-             walberla::cuda::FieldAccessor< real_t > BsField, walberla::cuda::FieldAccessor< id_t > uidsField,
-             walberla::cuda::FieldAccessor< real_t > BField,
-             walberla::cuda::FieldAccessor< real_t > solidCollisionField, walberla::cuda::FieldAccessor< real_t > pdfs,
-             double3* const hydrodynamicForces, double3* const hydrodynamicTorques, double3* const linearVelocities,
-             double3* const angularVelocities, double3* const positions, const double3 blockStart, const real_t dx,
-             const real_t forceScalingFactor)
+__global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
+                          walberla::cuda::FieldAccessor< real_t > BsField,
+                          walberla::cuda::FieldAccessor< id_t > uidsField,
+                          walberla::cuda::FieldAccessor< real_t > BField,
+                          walberla::cuda::FieldAccessor< real_t > solidCollisionField,
+                          walberla::cuda::FieldAccessor< real_t > pdfs, double3* __restrict__ const hydrodynamicForces,
+                          double3* __restrict__ const hydrodynamicTorques, double3* __restrict__ const linearVelocities,
+                          double3* __restrict__ const angularVelocities, double3* __restrict__ const positions,
+                          const double3 blockStart, const real_t dx, const real_t forceScalingFactor)
 {
    nOverlappingParticles.set(blockIdx, threadIdx);
    BsField.set(blockIdx, threadIdx);

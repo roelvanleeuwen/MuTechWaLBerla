@@ -47,13 +47,13 @@ __device__ const int cz[27] = {
    0, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0, 1, 1, 1, 1, -1, -1, -1, -1, 1, 1, 1, 1, -1, -1, -1, -1
 };
 
-__device__ void cross(double3* crossResult, const double3& lhs, const double3& rhs)
+__device__ void cross(double3* __restrict__ const crossResult, const double3& lhs, const double3& rhs)
 {
    *crossResult = { lhs.y * rhs.z - lhs.z * rhs.y, lhs.z * rhs.x - lhs.x * rhs.z, lhs.x * rhs.y - lhs.y * rhs.x };
 }
 
 template< int StencilSize >
-__device__ void getVelocityAtWFPoint(double3* velocityAtWFPoint, const double3& linearVelocity,
+__device__ void getVelocityAtWFPoint(double3* __restrict__ const velocityAtWFPoint, const double3& linearVelocity,
                                      const double3& angularVelocity, const double3& position, const double3& wf_pt)
 {
    double3 crossResult;
@@ -62,8 +62,9 @@ __device__ void getVelocityAtWFPoint(double3* velocityAtWFPoint, const double3& 
                           linearVelocity.z + crossResult.z };
 }
 
-__device__ void addHydrodynamicForceAtWFPosAtomic(const size_t p_idx, double3* particleForces, double3* particleTorques,
-                                                  const double3& f, const double3& pos, const double3& wf_pt)
+__device__ void addHydrodynamicForceAtWFPosAtomic(const size_t p_idx, double3* __restrict__ const particleForces,
+                                                  double3* __restrict__ const particleTorques, const double3& f,
+                                                  const double3& pos, const double3& wf_pt)
 {
    atomicAdd(&particleForces[p_idx].x, f.x);
    atomicAdd(&particleForces[p_idx].y, f.y);
