@@ -1,3 +1,10 @@
+if( WALBERLA_BUILD_WITH_CUDA )
+    target_sources(lbm_mesapd_coupling
+            PRIVATE
+            ParticleAndVolumeFractionMappingGPU.h
+            )
+endif()
+
 if( WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN )
     walberla_generate_target_from_python( NAME PSMSolidCodegenPython
             FILE PSMSolidCodegen.py
@@ -5,7 +12,6 @@ if( WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN )
 
     target_sources(lbm_mesapd_coupling
             PRIVATE
-            ParticleAndVolumeFractionMappingGPU.h
             PSMKernel.cu
             PSMKernel.h
             PSMSweepGPU.h
