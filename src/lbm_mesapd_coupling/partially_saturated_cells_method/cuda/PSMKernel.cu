@@ -21,8 +21,12 @@
 //
 //======================================================================================================================
 
+#define FUNC_PREFIX __device__
+#define RESTRICT __restrict__
+
 #include "PSMKernel.h"
 #include "PSMUtilityGPU.cuh"
+#include "SolidKernel.cuh"
 
 namespace walberla
 {

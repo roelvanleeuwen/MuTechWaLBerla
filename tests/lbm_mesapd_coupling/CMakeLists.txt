@@ -80,11 +80,11 @@ waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereSC3W2SingleTest 
 
 
 if( WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN )
-    walberla_generate_target_from_python( NAME FluidPSMCodegenPython
-            FILE partially_saturated_cells_method/cuda/PSMCodegen.py
+    walberla_generate_target_from_python( NAME PSMFluidCodegenPython
+            FILE partially_saturated_cells_method/cuda/PSMFluidCodegen.py
             OUT_FILES   SRTSweep.cu SRTSweep.h
             SRTPackInfo.cu SRTPackInfo.h )
-    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/cuda/DragForceSphereGPU.cpp DEPENDS blockforest boundary core cuda field lbm lbm_mesapd_coupling timeloop mesa_pd FluidPSMCodegenPython )
+    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/cuda/DragForceSphereGPU.cpp DEPENDS blockforest boundary core cuda field lbm lbm_mesapd_coupling timeloop mesa_pd PSMFluidCodegenPython )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU> --funcTest PROCESSES 8 )
     # TODO: add longrun test
 endif()
