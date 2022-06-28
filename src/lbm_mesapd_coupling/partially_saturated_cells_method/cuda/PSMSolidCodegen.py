@@ -5,10 +5,15 @@ from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil
 
 from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method
 
+from pystencils_walberla import (
+    CodeGeneration,
+)
 
 # Based on the following paper: https://doi.org/10.1016/j.compfluid.2017.05.033
 
-data_type = "float64"
+ctx = CodeGeneration()
+data_type = "float64" if ctx.context.double_accuracy else "float32"
+
 stencil = LBStencil(Stencil.D3Q19)
 layout = "fzyx"
 

@@ -122,7 +122,7 @@ class PSMSweepCUDA
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*pdfField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*solidCollisionField));
-      double* solidCollisionFieldData = solidCollisionField->dataAt(-1, -1, -1, 0);
+      real_t* solidCollisionFieldData = solidCollisionField->dataAt(-1, -1, -1, 0);
       myKernel.addParam(solidCollisionFieldData);
       __device__ ulong3 size =
          ulong3{ uint_t(solidCollisionField->xSize() + 2), uint_t(solidCollisionField->ySize() + 2),

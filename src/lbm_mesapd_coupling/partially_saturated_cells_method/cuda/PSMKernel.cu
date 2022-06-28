@@ -43,7 +43,7 @@ __global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingPa
                           walberla::cuda::FieldAccessor< id_t > uidsField,
                           walberla::cuda::FieldAccessor< real_t > BField, walberla::cuda::FieldAccessor< real_t > pdfs,
                           walberla::cuda::FieldAccessor< real_t > solidCollisionField,
-                          double* __restrict__ const solidCollisionFieldData, ulong3* __restrict__ const size,
+                          real_t* __restrict__ const solidCollisionFieldData, ulong3* __restrict__ const size,
                           int4* __restrict__ const stride, double3* __restrict__ const hydrodynamicForces,
                           double3* __restrict__ const hydrodynamicTorques, double3* __restrict__ const linearVelocities,
                           double3* __restrict__ const angularVelocities, double3* __restrict__ const positions,
