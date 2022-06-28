@@ -111,17 +111,26 @@ class PSMSweepCUDA
       auto BsField   = block->getData< BsFieldGPU_T >(particleAndVolumeFractionSoA_.BsFieldID);
       auto uidsField = block->getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA_.uidsFieldID);
       auto BField    = block->getData< BFieldGPU_T >(particleAndVolumeFractionSoA_.BFieldID);
+      auto pdfField  = block->getData< walberla::cuda::GPUField< real_t > >(pdfFieldID_);
       auto solidCollisionField =
          block->getData< solidCollisionFieldGPU_T >(particleAndVolumeFractionSoA_.solidCollisionFieldID);
-      auto pdfField = block->getData< walberla::cuda::GPUField< real_t > >(pdfFieldID_);
 
       auto myKernel = walberla::cuda::make_kernel(&(PSMKernel< LatticeModel_T::Stencil::Size >) );
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*solidCollisionField));
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*pdfField));
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*solidCollisionField));
+      double* solidCollisionFieldData = solidCollisionField->dataAt(-1, -1, -1, 0);
+      myKernel.addParam(solidCollisionFieldData);
+      __device__ ulong3 size =
+         ulong3{ uint_t(solidCollisionField->xSize() + 2), uint_t(solidCollisionField->ySize() + 2),
+                 uint_t(solidCollisionField->zSize() + 2) };
+      myKernel.addParam(&size);
+      __device__ int4 stride = int4{ solidCollisionField->xStride(), solidCollisionField->yStride(),
+                                     solidCollisionField->zStride(), solidCollisionField->fStride() };
+      myKernel.addParam(&stride);
       myKernel.addParam(hydrodynamicForces);
       myKernel.addParam(hydrodynamicTorques);
       myKernel.addParam(linearVelocities);

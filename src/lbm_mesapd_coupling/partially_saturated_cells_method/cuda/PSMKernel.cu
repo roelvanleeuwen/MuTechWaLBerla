@@ -41,9 +41,10 @@ template< int StencilSize >
 __global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
                           walberla::cuda::FieldAccessor< real_t > BsField,
                           walberla::cuda::FieldAccessor< id_t > uidsField,
-                          walberla::cuda::FieldAccessor< real_t > BField,
+                          walberla::cuda::FieldAccessor< real_t > BField, walberla::cuda::FieldAccessor< real_t > pdfs,
                           walberla::cuda::FieldAccessor< real_t > solidCollisionField,
-                          walberla::cuda::FieldAccessor< real_t > pdfs, double3* __restrict__ const hydrodynamicForces,
+                          double* __restrict__ const solidCollisionFieldData, ulong3* __restrict__ const size,
+                          int4* __restrict__ const stride, double3* __restrict__ const hydrodynamicForces,
                           double3* __restrict__ const hydrodynamicTorques, double3* __restrict__ const linearVelocities,
                           double3* __restrict__ const angularVelocities, double3* __restrict__ const positions,
                           const double3 blockStart, const real_t dx, const real_t forceScalingFactor)
@@ -52,8 +53,8 @@ __global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingPa
    BsField.set(blockIdx, threadIdx);
    uidsField.set(blockIdx, threadIdx);
    BField.set(blockIdx, threadIdx);
-   solidCollisionField.set(blockIdx, threadIdx);
    pdfs.set(blockIdx, threadIdx);
+   solidCollisionField.set(blockIdx, threadIdx);
 
    // Cell center is needed in order to compute the particle velocity at this WF point
    double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
@@ -67,7 +68,10 @@ __global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingPa
       getVelocityAtWFPoint< StencilSize >(&particleVelocityAtWFPoint, linearVelocities[p], angularVelocities[p],
                                           positions[p], cellCenter);
 
-      // TODO: call solid collision kernel
+      // TODO: why does the generated code use pdfs->dataAt(-1, -1, -1, 0);
+      // TODO: why do we get an illegal memory access
+      /*kernel(solidCollisionFieldData, size->x, size->y, size->z, stride->x, stride->y, stride->z, stride->w,
+             particleVelocityAtWFPoint.x, particleVelocityAtWFPoint.y, particleVelocityAtWFPoint.z);*/
 
       double3 forceOnParticle{ 0.0, 0.0, 0.0 };
       // for all stencil directions
