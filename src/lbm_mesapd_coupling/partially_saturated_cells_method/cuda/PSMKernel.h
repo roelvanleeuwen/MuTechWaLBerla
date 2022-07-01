@@ -32,14 +32,12 @@ namespace psm
 namespace cuda
 {
 
-template< int StencilSize >
 __global__ void SetParticleVelocities(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
                                       walberla::cuda::FieldAccessor< real_t > particleVelocitiesField,
                                       double3* __restrict__ const linearVelocities,
                                       double3* __restrict__ const angularVelocities,
                                       double3* __restrict__ const positions, const double3 blockStart, const real_t dx);
 
-template< int StencilSize >
 __global__ void ReduceParticleForces(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
                                      walberla::cuda::FieldAccessor< id_t > uidsField,
                                      walberla::cuda::FieldAccessor< real_t > particleForcesField,

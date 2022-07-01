@@ -39,6 +39,8 @@
 
 #include "mesa_pd/common/ParticleFunctions.h"
 
+#include <cassert>
+
 #include "PSMKernel.h"
 
 namespace walberla
@@ -63,6 +65,7 @@ class PSMWrapperSweepCUDA
    {}
    void operator()(IBlock* block)
    {
+      assert(LatticeModel_T::Stencil::D == 3);
       const real_t dxCurrentLevel      = bs_->dx(bs_->getLevel(*block));
       const real_t lengthScalingFactor = dxCurrentLevel;
       const real_t forceScalingFactor  = lengthScalingFactor * lengthScalingFactor;
@@ -115,7 +118,7 @@ class PSMWrapperSweepCUDA
       auto particleForcesField =
          block->getData< particleForcesGPU_T >(particleAndVolumeFractionSoA_.particleForcesFieldID);
 
-      auto velocitiesKernel = walberla::cuda::make_kernel(&(SetParticleVelocities< LatticeModel_T::Stencil::Size >) );
+      auto velocitiesKernel = walberla::cuda::make_kernel(&(SetParticleVelocities));
       velocitiesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
       velocitiesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*particleVelocitiesField));
       velocitiesKernel.addParam(linearVelocities);
@@ -129,7 +132,7 @@ class PSMWrapperSweepCUDA
 
       sweep_(block);
 
-      auto forcesKernel = walberla::cuda::make_kernel(&(ReduceParticleForces< LatticeModel_T::Stencil::Size >) );
+      auto forcesKernel = walberla::cuda::make_kernel(&(ReduceParticleForces));
       forcesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
       forcesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
       forcesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*particleForcesField));
