@@ -10,6 +10,6 @@ if( WALBERLA_BUILD_WITH_CUDA )
             PRIVATE
             PSMKernel.cu
             PSMKernel.h
-            PSMSweepGPU.h
+            PSMWrapperSweepGPU.h
             )
 endif()

@@ -54,7 +54,7 @@
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMUtility.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/ParticleAndVolumeFractionMapping.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
@@ -71,8 +71,8 @@
 #include <vector>
 
 // codegen
-#include "SRTPackInfo.h"
-#include "SRTSweep.h"
+#include "PSMPackInfo.h"
+#include "PSMSweep.h"
 
 namespace drag_force_sphere_psm
 {
@@ -91,7 +91,7 @@ using LatticeModel_T = lbm::D3Q19< lbm::collision_model::TRT, false, ForceModel_
 using Stencil_T  = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField< LatticeModel_T >;
 
-typedef pystencils::SRTPackInfo PackInfo_T;
+typedef pystencils::PSMPackInfo PackInfo_T;
 
 ////////////////
 // PARAMETERS //
@@ -457,13 +457,13 @@ int main(int argc, char** argv)
    // evaluation is not correct solution: split the sweep explicitly into collide and stream
    /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
       pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
-   pystencils::SRTSweep SRTSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+   pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, setup.extForce,
                                  0.0, 0.0, omega);
-   auto PSMSweep =
-      lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< LatticeModel_T, ParticleAccessor_T, pystencils::SRTSweep,
-                                                    lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
-         blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), SRTSweep, pdfFieldGPUID,
+   auto PSMWrapperSweep =
+      lbm_mesapd_coupling::psm::cuda::PSMWrapperSweepCUDA< LatticeModel_T, ParticleAccessor_T, pystencils::PSMSweep,
+                                                           lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
+         blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), PSMSweep, pdfFieldGPUID,
          particleAndVolumeFractionSoA);
 
    // collision sweep
@@ -475,7 +475,7 @@ int main(int argc, char** argv)
    // TODO: change order so that hydrodynamic force calculation is between stream and collide
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
                   /*<< Sweep(lbm::makeStreamSweep(SRTSweep), "cell-wise LB sweep (stream)")*/
-                  << Sweep(PSMSweep, "cell-wise PSM sweep");
+                  << Sweep(PSMWrapperSweep, "cell-wise PSM sweep");
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");

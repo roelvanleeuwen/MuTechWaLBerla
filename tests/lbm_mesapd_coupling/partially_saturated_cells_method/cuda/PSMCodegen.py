@@ -139,7 +139,7 @@ with CodeGeneration() as ctx:
 
     # Generate files
     generate_sweep(
-        ctx, "SRTSweep", lbm_update_rule, field_swaps=[(pdfs, pdfs_tmp)], target=target
+        ctx, "PSMSweep", lbm_update_rule, field_swaps=[(pdfs, pdfs_tmp)], target=target
     )
 
-    generate_pack_info_from_kernel(ctx, "SRTPackInfo", lbm_update_rule, target=target)
+    generate_pack_info_from_kernel(ctx, "PSMPackInfo", lbm_update_rule, target=target)

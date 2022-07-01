@@ -52,12 +52,12 @@ namespace cuda
 
 template< typename LatticeModel_T, typename ParticleAccessor_T, typename Sweep_T, typename ParticleSelector_T,
           int Weighting_T >
-class PSMSweepCUDA
+class PSMWrapperSweepCUDA
 {
  public:
-   PSMSweepCUDA(const shared_ptr< StructuredBlockStorage >& bs, const shared_ptr< ParticleAccessor_T >& ac,
-                const ParticleSelector_T& mappingParticleSelector, const Sweep_T& sweep, BlockDataID& pdfFieldID,
-                const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
+   PSMWrapperSweepCUDA(const shared_ptr< StructuredBlockStorage >& bs, const shared_ptr< ParticleAccessor_T >& ac,
+                       const ParticleSelector_T& mappingParticleSelector, const Sweep_T& sweep, BlockDataID& pdfFieldID,
+                       const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
       : bs_(bs), sweep_(sweep), ac_(ac), mappingParticleSelector_(mappingParticleSelector), pdfFieldID_(pdfFieldID),
         particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA)
    {}
