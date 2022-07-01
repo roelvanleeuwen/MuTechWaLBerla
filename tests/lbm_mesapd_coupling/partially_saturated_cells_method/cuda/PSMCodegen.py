@@ -102,7 +102,6 @@ with CodeGeneration() as ctx:
             )
 
         # Assemble right-hand side of collision assignments
-        # TODO: use f_inv and equilibriumSolid_inv
         # TODO: add more solid collision operators
         # Add solid collision part to collision right-hand side and forces right-hand side
         for i, (eqFluid, eqSolid, f, offset) in enumerate(
@@ -113,7 +112,16 @@ with CodeGeneration() as ctx:
                 stencil,
             )
         ):
-            solid_collision = Bs.center(p) * ((f - eqFluid) - (f - eqSolid))
+            inverse_direction_index = stencil.stencil_entries.index(
+                stencil.inverse_stencil_entries[i]
+            )
+            solid_collision = Bs.center(p) * (
+                (
+                    method.pre_collision_pdf_symbols[inverse_direction_index]
+                    - equilibriumFluid[inverse_direction_index]
+                )
+                - (f - eqSolid)
+            )
             collision_rhs[i] += solid_collision
             for j in range(stencil.D):
                 forces_rhs[p * stencil.D + j] += solid_collision * int(offset[j])
