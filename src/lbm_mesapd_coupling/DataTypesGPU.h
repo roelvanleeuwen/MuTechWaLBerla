@@ -37,7 +37,7 @@ namespace psm
 namespace cuda
 {
 
-const uint MaxParticlesPerCell = 7;
+const uint MaxParticlesPerCell = 2;
 
 struct ParticleAndVolumeFractionAoS_T
 {

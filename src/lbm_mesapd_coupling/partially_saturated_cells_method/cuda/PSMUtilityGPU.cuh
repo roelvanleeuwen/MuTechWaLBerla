@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file PSMUtility.cuh
+//! \file PSMUtilityGPU.cuh
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //
@@ -32,27 +32,11 @@ namespace psm
 namespace cuda
 {
 
-__device__ const int cx[27] = {
-   // C   N   S   W   E   T   B  NW  NE  SW  SE  TN  TS  TW  TE  BN  BS  BW  BE TNE TNW TSE TSW BNE BNW BSE BSW
-   0, 0, 0, -1, 1, 0, 0, -1, 1, -1, 1, 0, 0, -1, 1, 0, 0, -1, 1, 1, -1, 1, -1, 1, -1, 1, -1
-};
-
-__device__ const int cy[27] = {
-   // C   N   S   W   E   T   B  NW  NE  SW  SE  TN  TS  TW  TE  BN  BS  BW  BE TNE TNW TSE TSW BNE BNW BSE BSW
-   0, 1, -1, 0, 0, 0, 0, 1, 1, -1, -1, 1, -1, 0, 0, 1, -1, 0, 0, 1, 1, -1, -1, 1, 1, -1, -1
-};
-
-__device__ const int cz[27] = {
-   // C   N   S   W   E   T   B  NW  NE  SW  SE  TN  TS  TW  TE  BN  BS  BW  BE TNE TNW TSE TSW BNE BNW BSE BSW
-   0, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0, 1, 1, 1, 1, -1, -1, -1, -1, 1, 1, 1, 1, -1, -1, -1, -1
-};
-
 __device__ void cross(double3* __restrict__ const crossResult, const double3& lhs, const double3& rhs)
 {
    *crossResult = { lhs.y * rhs.z - lhs.z * rhs.y, lhs.z * rhs.x - lhs.x * rhs.z, lhs.x * rhs.y - lhs.y * rhs.x };
 }
 
-template< int StencilSize >
 __device__ void getVelocityAtWFPoint(double3* __restrict__ const velocityAtWFPoint, const double3& linearVelocity,
                                      const double3& angularVelocity, const double3& position, const double3& wf_pt)
 {
@@ -66,7 +50,8 @@ __device__ void addHydrodynamicForceAtWFPosAtomic(const size_t p_idx, double3* _
                                                   double3* __restrict__ const particleTorques, const double3& f,
                                                   const double3& pos, const double3& wf_pt)
 {
-   // TODO: uncomment atomicAdds and find solution to set CMAKE_CUDA_ARCHITECTURES in .gitlab-ci.yml (maybe using nvidia-smi --query-gpu=compute_cap --format=csv,noheader)
+   // TODO: uncomment atomicAdds and find solution to set CMAKE_CUDA_ARCHITECTURES in .gitlab-ci.yml (maybe using
+   // nvidia-smi --query-gpu=compute_cap --format=csv,noheader)
    /*atomicAdd(&particleForces[p_idx].x, f.x);
    atomicAdd(&particleForces[p_idx].y, f.y);
    atomicAdd(&particleForces[p_idx].z, f.z);*/

@@ -32,19 +32,6 @@ namespace psm
 namespace cuda
 {
 
-/*template< int StencilSize >
-__global__ void PSMKernel(
-   walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles, walberla::cuda::FieldAccessor< real_t > BsField,
-   walberla::cuda::FieldAccessor< id_t > uidsField, walberla::cuda::FieldAccessor< real_t > BField,
-   walberla::cuda::FieldAccessor< real_t > pdfs, walberla::cuda::FieldAccessor< real_t > particleVelocitiesField,
-   walberla::cuda::FieldAccessor< real_t > particleForcesField, real_t* __restrict__ const BsFieldData,
-   real_t* __restrict__ const BFieldData, real_t* __restrict__ const particleVelocitiesFieldData,
-   real_t* __restrict__ const particleForcesFieldData, ulong3* __restrict__ const size, int4* __restrict__ const stride,
-   double3* __restrict__ const hydrodynamicForces, double3* __restrict__ const hydrodynamicTorques,
-   double3* __restrict__ const linearVelocities, double3* __restrict__ const angularVelocities,
-   double3* __restrict__ const positions, const double3 blockStart, const real_t dx, const real_t forceScalingFactor,
-   const double3 forces, const real_t omega);*/
-
 template< int StencilSize >
 __global__ void SetParticleVelocities(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
                                       walberla::cuda::FieldAccessor< real_t > particleVelocitiesField,

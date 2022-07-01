@@ -14,19 +14,18 @@ from pystencils_walberla import (
 # Based on the following paper: https://doi.org/10.1016/j.compfluid.2017.05.033
 
 with CodeGeneration() as ctx:
-    # TODO: check why sp.Symbols stay double precision
     data_type = data_type = "float64" if ctx.double_accuracy else "float32"
     stencil = LBStencil(Stencil.D3Q19)
     omega = sp.Symbol("omega")
     layout = "fzyx"
-    MAX_PARTICLE = 2
+    MaxParticlesPerCell = 2
 
     pdfs, pdfs_tmp = ps.fields(
         f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {data_type}[3D]", layout=layout
     )
 
     particle_velocities, particle_forces, Bs = ps.fields(
-        f"particle_velocities({MAX_PARTICLE * stencil.D}), particle_forces({MAX_PARTICLE * stencil.D}), Bs({MAX_PARTICLE}): {data_type}[3D]",
+        f"particle_velocities({MaxParticlesPerCell * stencil.D}), particle_forces({MaxParticlesPerCell * stencil.D}), Bs({MaxParticlesPerCell}): {data_type}[3D]",
         layout=layout,
     )
 
@@ -76,8 +75,8 @@ with CodeGeneration() as ctx:
     # Code generation for the solid collision kernel
     # =====================
 
-    forces_rhs = [0] * MAX_PARTICLE * stencil.D
-    for p in range(MAX_PARTICLE):
+    forces_rhs = [0] * MaxParticlesPerCell * stencil.D
+    for p in range(MaxParticlesPerCell):
         equilibriumFluid = method.get_equilibrium_terms()
         equilibriumSolid = []
         for eq in equilibriumFluid:
@@ -124,7 +123,7 @@ with CodeGeneration() as ctx:
         collision_assignments.append(ps.Assignment(d, c))
 
     # Add force calculations to collision assignments
-    for p in range(MAX_PARTICLE):
+    for p in range(MaxParticlesPerCell):
         for i in range(stencil.D):
             collision_assignments.append(
                 ps.Assignment(
