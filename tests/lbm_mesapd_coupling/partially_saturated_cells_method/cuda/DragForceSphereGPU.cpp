@@ -458,6 +458,7 @@ int main(int argc, char** argv)
    /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
       pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
    pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+                                 particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, setup.extForce,
                                  0.0, 0.0, omega);
    auto PSMWrapperSweep =

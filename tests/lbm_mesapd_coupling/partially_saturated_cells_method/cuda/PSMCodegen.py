@@ -76,6 +76,7 @@ with CodeGeneration() as ctx:
     # Code generation for the solid collision kernel
     # =====================
 
+    forces_rhs = [0] * MAX_PARTICLE * stencil.D
     for p in range(MAX_PARTICLE):
         equilibriumFluid = method.get_equilibrium_terms()
         equilibriumSolid = []
@@ -83,6 +84,7 @@ with CodeGeneration() as ctx:
             equilibriumSolid.append(
                 eq.subs(
                     [
+                        # TODO: do not hardcode stencil dimension
                         (
                             sp.Symbol("u_0"),
                             particle_velocities.center(p * stencil.D + 0),
@@ -102,12 +104,19 @@ with CodeGeneration() as ctx:
         # Assemble right-hand side of collision assignments
         # TODO: use f_inv and equilibriumSolid_inv
         # TODO: add more solid collision operators
-        # Add solid collision part to collision right-hand side
-        for i, (eqFluid, eqSolid, f) in enumerate(
-            zip(equilibriumFluid, equilibriumSolid, method.pre_collision_pdf_symbols)
+        # Add solid collision part to collision right-hand side and forces right-hand side
+        for i, (eqFluid, eqSolid, f, offset) in enumerate(
+            zip(
+                equilibriumFluid,
+                equilibriumSolid,
+                method.pre_collision_pdf_symbols,
+                stencil,
+            )
         ):
-            collision_rhs[i] += Bs.center(p) * ((f - eqFluid) - (f - eqSolid))
-        # TODO: add forces
+            solid_collision = Bs.center(p) * ((f - eqFluid) - (f - eqSolid))
+            collision_rhs[i] += solid_collision
+            for j in range(stencil.D):
+                forces_rhs[p * stencil.D + j] += solid_collision * int(offset[j])
 
     # =====================
     # Assemble update rule
@@ -117,6 +126,16 @@ with CodeGeneration() as ctx:
     collision_assignments = []
     for d, c in zip(method.post_collision_pdf_symbols, collision_rhs):
         collision_assignments.append(ps.Assignment(d, c))
+
+    # Add force calculations to collision assignments
+    for p in range(MAX_PARTICLE):
+        for i in range(stencil.D):
+            collision_assignments.append(
+                ps.Assignment(
+                    particle_forces.center(p * stencil.D + i),
+                    forces_rhs[p * stencil.D + i],
+                )
+            )
 
     # Define quantities to compute the equilibrium as functions of the pdfs
     cqc = method.conserved_quantity_computation.equilibrium_input_equations_from_pdfs(
