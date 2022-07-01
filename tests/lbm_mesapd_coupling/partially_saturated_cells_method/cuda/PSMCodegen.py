@@ -81,25 +81,13 @@ with CodeGeneration() as ctx:
         equilibriumFluid = method.get_equilibrium_terms()
         equilibriumSolid = []
         for eq in equilibriumFluid:
-            equilibriumSolid.append(
-                eq.subs(
-                    [
-                        # TODO: do not hardcode stencil dimension
-                        (
-                            sp.Symbol("u_0"),
-                            particle_velocities.center(p * stencil.D + 0),
-                        ),
-                        (
-                            sp.Symbol("u_1"),
-                            particle_velocities.center(p * stencil.D + 1),
-                        ),
-                        (
-                            sp.Symbol("u_2"),
-                            particle_velocities.center(p * stencil.D + 2),
-                        ),
-                    ]
+            eq_sol = eq
+            for i in range(stencil.D):
+                eq_sol = eq_sol.subs(
+                    sp.Symbol("u_" + str(i)),
+                    particle_velocities.center(p * stencil.D + i),
                 )
-            )
+            equilibriumSolid.append(eq_sol)
 
         # Assemble right-hand side of collision assignments
         # TODO: add more solid collision operators
