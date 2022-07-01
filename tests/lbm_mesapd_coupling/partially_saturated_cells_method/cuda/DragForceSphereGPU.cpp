@@ -437,7 +437,7 @@ int main(int argc, char** argv)
    particleMapping();*/
 
    // add particle and volume fraction fields (needed for the PSM)
-   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega, Stencil_T::Size);
+   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
 
    // calculate fraction
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
@@ -457,10 +457,14 @@ int main(int argc, char** argv)
    // evaluation is not correct solution: split the sweep explicitly into collide and stream
    /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
       pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
-   pystencils::SRTSweep SRTSweep(particleAndVolumeFractionSoA.BFieldID, pdfFieldGPUID, setup.extForce, 0.0, 0.0, omega);
-   auto PSMSweep = lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< LatticeModel_T, ParticleAccessor_T,
-                                                                 lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
-      blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), pdfFieldGPUID, particleAndVolumeFractionSoA);
+   pystencils::SRTSweep SRTSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, setup.extForce,
+                                 0.0, 0.0, omega);
+   auto PSMSweep =
+      lbm_mesapd_coupling::psm::cuda::PSMSweepCUDA< LatticeModel_T, ParticleAccessor_T, pystencils::SRTSweep,
+                                                    lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
+         blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), SRTSweep, pdfFieldGPUID,
+         particleAndVolumeFractionSoA);
 
    // collision sweep
    /*timeloop.add() << Sweep(lbm::makeCollideSweep(sweep), "cell-wise LB sweep (collide)");*/
@@ -471,8 +475,7 @@ int main(int argc, char** argv)
    // TODO: change order so that hydrodynamic force calculation is between stream and collide
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
                   /*<< Sweep(lbm::makeStreamSweep(SRTSweep), "cell-wise LB sweep (stream)")*/
-                  << Sweep(SRTSweep, "cell-wise SRT sweep");
-   timeloop.add() << Sweep(PSMSweep, "cell-wise PSM sweep");
+                  << Sweep(PSMSweep, "cell-wise PSM sweep");
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");

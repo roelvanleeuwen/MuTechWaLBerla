@@ -26,7 +26,6 @@
 
 #include "PSMKernel.h"
 #include "PSMUtilityGPU.cuh"
-#include "SolidKernel.cuh"
 
 namespace walberla
 {
@@ -37,66 +36,126 @@ namespace psm
 namespace cuda
 {
 
-template< int StencilSize >
-__global__ void PSMKernel(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
-                          walberla::cuda::FieldAccessor< real_t > BsField,
-                          walberla::cuda::FieldAccessor< id_t > uidsField,
-                          walberla::cuda::FieldAccessor< real_t > BField, walberla::cuda::FieldAccessor< real_t > pdfs,
-                          walberla::cuda::FieldAccessor< real_t > solidCollisionField,
-                          real_t* __restrict__ const solidCollisionFieldData, ulong3* __restrict__ const size,
-                          int4* __restrict__ const stride, double3* __restrict__ const hydrodynamicForces,
-                          double3* __restrict__ const hydrodynamicTorques, double3* __restrict__ const linearVelocities,
-                          double3* __restrict__ const angularVelocities, double3* __restrict__ const positions,
-                          const double3 blockStart, const real_t dx, const real_t forceScalingFactor)
+/*template< int StencilSize >
+__global__ void PSMKernel(
+   walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles, walberla::cuda::FieldAccessor< real_t > BsField,
+   walberla::cuda::FieldAccessor< id_t > uidsField, walberla::cuda::FieldAccessor< real_t > BField,
+   walberla::cuda::FieldAccessor< real_t > pdfs, walberla::cuda::FieldAccessor< real_t > particleVelocitiesField,
+   walberla::cuda::FieldAccessor< real_t > particleForcesField, real_t* __restrict__ const BsFieldData,
+   real_t* __restrict__ const BFieldData, real_t* __restrict__ const particleVelocitiesFieldData,
+   real_t* __restrict__ const particleForcesFieldData, ulong3* __restrict__ const size, int4* __restrict__ const stride,
+   double3* __restrict__ const hydrodynamicForces, double3* __restrict__ const hydrodynamicTorques,
+   double3* __restrict__ const linearVelocities, double3* __restrict__ const angularVelocities,
+   double3* __restrict__ const positions, const double3 blockStart, const real_t dx, const real_t forceScalingFactor,
+   const double3 forces, const real_t omega)
 {
    nOverlappingParticles.set(blockIdx, threadIdx);
    BsField.set(blockIdx, threadIdx);
    uidsField.set(blockIdx, threadIdx);
    BField.set(blockIdx, threadIdx);
    pdfs.set(blockIdx, threadIdx);
-   solidCollisionField.set(blockIdx, threadIdx);
+   particleVelocitiesField.set(blockIdx, threadIdx);
+   particleForcesField.set(blockIdx, threadIdx);
 
    // Cell center is needed in order to compute the particle velocity at this WF point
    double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
                           (blockStart.z + (blockIdx.y + 0.5) * dx) };
 
-   // for all overlapping particles
+   // Compute the particle velocity at this WF point for all overlapping particles
    for (uint_t p = 0; p < nOverlappingParticles.get(); p++)
    {
-      // Compute the particle velocity at this WF point
       double3 particleVelocityAtWFPoint{ 0.0, 0.0, 0.0 };
       getVelocityAtWFPoint< StencilSize >(&particleVelocityAtWFPoint, linearVelocities[p], angularVelocities[p],
                                           positions[p], cellCenter);
+      // TODO: change hard coded 3 into dimension
+      particleVelocitiesField.get(p * 3 + 0) = particleVelocityAtWFPoint.x;
+      particleVelocitiesField.get(p * 3 + 1) = particleVelocityAtWFPoint.y;
+      particleVelocitiesField.get(p * 3 + 2) = particleVelocityAtWFPoint.z;
+   }
 
-      // TODO: why does the generated code use pdfs->dataAt(-1, -1, -1, 0);
-      // TODO: why do we get an illegal memory access
-      /*kernel(solidCollisionFieldData, size->x, size->y, size->z, stride->x, stride->y, stride->z, stride->w,
-             particleVelocityAtWFPoint.x, particleVelocityAtWFPoint.y, particleVelocityAtWFPoint.z);*/
+   // Call PSM kernel
+   // TODO: why does the generated code use pdfs->dataAt(-1, -1, -1, 0);
+   // TODO: why do we get an illegal memory access
+   *//*kernel(solidCollisionFieldData, size->x, size->y, size->z, stride->x, stride->y, stride->z, stride->w,
+          particleVelocityAtWFPoint.x, particleVelocityAtWFPoint.y, particleVelocityAtWFPoint.z);*//*
 
-      double3 forceOnParticle{ 0.0, 0.0, 0.0 };
-      // for all stencil directions
-      for (uint_t d = 0; d < StencilSize; d++)
-      {
-         // add result of solid collision kernel to pdfs
-         real_t BsOmegaS = BsField.get(p) * solidCollisionField.get(d);
-         pdfs.get(d) += BsOmegaS;
-
-         // reduce forces and torques
-         forceOnParticle.x -= BsOmegaS * cx[d];
-         forceOnParticle.y -= BsOmegaS * cy[d];
-         forceOnParticle.z -= BsOmegaS * cz[d];
-      }
-
+   // Reduce the forces for all overlapping particles
+   for (uint_t p = 0; p < nOverlappingParticles.get(); p++)
+   {
+      // TODO: change hard coded 3 into dimension
+      double3 forceOnParticle = { particleForcesField.get(p * 3 + 0), particleForcesField.get(p * 3 + 1),
+                                  particleForcesField.get(p * 3 + 2) };
       forceOnParticle.x *= forceScalingFactor;
       forceOnParticle.y *= forceScalingFactor;
       forceOnParticle.z *= forceScalingFactor;
       addHydrodynamicForceAtWFPosAtomic(p, hydrodynamicForces, hydrodynamicTorques, forceOnParticle, positions[p],
                                         cellCenter);
    }
+}*/
+
+template< int StencilSize >
+__global__ void SetParticleVelocities(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
+                                      walberla::cuda::FieldAccessor< real_t > particleVelocitiesField,
+                                      double3* __restrict__ const linearVelocities,
+                                      double3* __restrict__ const angularVelocities,
+                                      double3* __restrict__ const positions, const double3 blockStart, const real_t dx)
+{
+   nOverlappingParticles.set(blockIdx, threadIdx);
+   particleVelocitiesField.set(blockIdx, threadIdx);
+
+   // Cell center is needed in order to compute the particle velocity at this WF point
+   double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
+                          (blockStart.z + (blockIdx.y + 0.5) * dx) };
+
+   // Compute the particle velocity at this WF point for all overlapping particles
+   for (uint_t p = 0; p < nOverlappingParticles.get(); p++)
+   {
+      double3 particleVelocityAtWFPoint{ 0.0, 0.0, 0.0 };
+      getVelocityAtWFPoint< StencilSize >(&particleVelocityAtWFPoint, linearVelocities[p], angularVelocities[p],
+                                          positions[p], cellCenter);
+      // TODO: change hard coded 3 into dimension
+      particleVelocitiesField.get(p * 3 + 0) = particleVelocityAtWFPoint.x;
+      particleVelocitiesField.get(p * 3 + 1) = particleVelocityAtWFPoint.y;
+      particleVelocitiesField.get(p * 3 + 2) = particleVelocityAtWFPoint.z;
+   }
+}
+
+template< int StencilSize >
+__global__ void ReduceParticleForces(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
+                                     walberla::cuda::FieldAccessor< id_t > uidsField,
+                                     walberla::cuda::FieldAccessor< real_t > particleForcesField,
+                                     double3* __restrict__ const hydrodynamicForces,
+                                     double3* __restrict__ const hydrodynamicTorques,
+                                     double3* __restrict__ const positions, const double3 blockStart, const real_t dx,
+                                     const real_t forceScalingFactor)
+{
+   nOverlappingParticles.set(blockIdx, threadIdx);
+   uidsField.set(blockIdx, threadIdx);
+   particleForcesField.set(blockIdx, threadIdx);
+
+   // Cell center is needed in order to compute the particle velocity at this WF point
+   double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
+                          (blockStart.z + (blockIdx.y + 0.5) * dx) };
+
+   // Reduce the forces for all overlapping particles
+   for (uint_t p = 0; p < nOverlappingParticles.get(); p++)
+   {
+      // TODO: change hard coded 3 into dimension
+      double3 forceOnParticle = { particleForcesField.get(p * 3 + 0), particleForcesField.get(p * 3 + 1),
+                                  particleForcesField.get(p * 3 + 2) };
+      forceOnParticle.x *= forceScalingFactor;
+      forceOnParticle.y *= forceScalingFactor;
+      forceOnParticle.z *= forceScalingFactor;
+      // TODO: use index for hydrodynamicForces and hydrodynamicTorques?
+      addHydrodynamicForceAtWFPosAtomic(p, hydrodynamicForces, hydrodynamicTorques, forceOnParticle, positions[p],
+                                        cellCenter);
+   }
 }
 
 // TODO: find better solution for template kernels
-auto instance_with_stencil_19 = PSMKernel< 19 >;
+/*auto instance_with_stencil_19  = PSMKernel< 19 >;*/
+auto instance1_with_stencil_19 = SetParticleVelocities< 19 >;
+auto instance2_with_stencil_19 = ReduceParticleForces< 19 >;
 
 } // namespace cuda
 } // namespace psm

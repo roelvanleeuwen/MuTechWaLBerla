@@ -71,7 +71,8 @@ using BsFieldGPU_T                    = walberla::cuda::GPUField< real_t >;
 using uidsField_T                     = GhostLayerField< id_t, MaxParticlesPerCell >;
 using uidsFieldGPU_T                  = walberla::cuda::GPUField< id_t >;
 using BFieldGPU_T                     = walberla::cuda::GPUField< real_t >;
-using solidCollisionFieldGPU_T        = walberla::cuda::GPUField< real_t >;
+using particleVelocitiesFieldGPU_T    = walberla::cuda::GPUField< real_t >;
+using particleForcesGPU_T             = walberla::cuda::GPUField< real_t >;
 
 template< int Weighting_T >
 struct ParticleAndVolumeFractionSoA_T
@@ -80,14 +81,15 @@ struct ParticleAndVolumeFractionSoA_T
    BlockDataID BsFieldID;
    BlockDataID uidsFieldID;
    BlockDataID BFieldID;
-   BlockDataID solidCollisionFieldID;
+   BlockDataID particleVelocitiesFieldID;
+   BlockDataID particleForcesFieldID;
    // relaxation rate omega is used for Weighting_T != 1
    real_t omega_;
 
    // TODO: set nrOfGhostLayers to 0 (requires changes of the generated kernels)
    ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs,
                                   const BlockDataID& nOverlappingParticlesFieldCPUID, const BlockDataID& BsFieldCPUID,
-                                  const BlockDataID& uidsFieldCPUID, const real_t omega, const int stencilSize)
+                                  const BlockDataID& uidsFieldCPUID, const real_t omega)
    {
       nOverlappingParticlesFieldID = walberla::cuda::addGPUFieldToStorage< nOverlappingParticlesField_T >(
          bs, nOverlappingParticlesFieldCPUID, "indices field GPU");
@@ -95,13 +97,16 @@ struct ParticleAndVolumeFractionSoA_T
       uidsFieldID = walberla::cuda::addGPUFieldToStorage< uidsField_T >(bs, uidsFieldCPUID, "uids field GPU");
       BFieldID =
          walberla::cuda::addGPUFieldToStorage< BFieldGPU_T >(bs, "B field GPU", 1, field::fzyx, uint_t(1), true);
-      solidCollisionFieldID = walberla::cuda::addGPUFieldToStorage< solidCollisionFieldGPU_T >(
-         bs, "solidCollision field GPU", uint_t(stencilSize), field::fzyx, uint_t(1), true);
+      // TODO: change hard coded 3 into dimension
+      // TODO: reset those values somewhere to 0
+      particleVelocitiesFieldID = walberla::cuda::addGPUFieldToStorage< particleVelocitiesFieldGPU_T >(
+         bs, "particleVelocities field GPU", uint_t(MaxParticlesPerCell * 3), field::fzyx, uint_t(1), true);
+      particleForcesFieldID = walberla::cuda::addGPUFieldToStorage< particleForcesGPU_T >(
+         bs, "particleForces field GPU", uint_t(MaxParticlesPerCell * 3), field::fzyx, uint_t(1), true);
       omega_ = omega;
    }
 
-   ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs, const real_t omega,
-                                  const int stencilSize)
+   ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs, const real_t omega)
    {
       nOverlappingParticlesFieldID = walberla::cuda::addGPUFieldToStorage< nOverlappingParticlesFieldGPU_T >(
          bs, "indices field GPU", uint_t(1), field::fzyx, uint_t(1), true);
@@ -111,8 +116,10 @@ struct ParticleAndVolumeFractionSoA_T
                                                                            field::fzyx, uint_t(1), true);
       BFieldID =
          walberla::cuda::addGPUFieldToStorage< BFieldGPU_T >(bs, "B field GPU", 1, field::fzyx, uint_t(1), true);
-      solidCollisionFieldID = walberla::cuda::addGPUFieldToStorage< solidCollisionFieldGPU_T >(
-         bs, "solidCollision field GPU", uint_t(stencilSize), field::fzyx, uint_t(1), true);
+      particleVelocitiesFieldID = walberla::cuda::addGPUFieldToStorage< particleVelocitiesFieldGPU_T >(
+         bs, "particleVelocities field GPU", uint_t(MaxParticlesPerCell * 3), field::fzyx, uint_t(1), true);
+      particleForcesFieldID = walberla::cuda::addGPUFieldToStorage< particleForcesGPU_T >(
+         bs, "particleForces field GPU", uint_t(MaxParticlesPerCell * 3), field::fzyx, uint_t(1), true);
       omega_ = omega;
    }
 };

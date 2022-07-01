@@ -50,14 +50,15 @@ namespace psm
 namespace cuda
 {
 
-template< typename LatticeModel_T, typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
+template< typename LatticeModel_T, typename ParticleAccessor_T, typename Sweep_T, typename ParticleSelector_T,
+          int Weighting_T >
 class PSMSweepCUDA
 {
  public:
    PSMSweepCUDA(const shared_ptr< StructuredBlockStorage >& bs, const shared_ptr< ParticleAccessor_T >& ac,
-                const ParticleSelector_T& mappingParticleSelector, BlockDataID& pdfFieldID,
+                const ParticleSelector_T& mappingParticleSelector, const Sweep_T& sweep, BlockDataID& pdfFieldID,
                 const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
-      : bs_(bs), ac_(ac), mappingParticleSelector_(mappingParticleSelector), pdfFieldID_(pdfFieldID),
+      : bs_(bs), sweep_(sweep), ac_(ac), mappingParticleSelector_(mappingParticleSelector), pdfFieldID_(pdfFieldID),
         particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA)
    {}
    void operator()(IBlock* block)
@@ -108,39 +109,38 @@ class PSMSweepCUDA
 
       auto nOverlappingParticlesField =
          block->getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA_.nOverlappingParticlesFieldID);
-      auto BsField   = block->getData< BsFieldGPU_T >(particleAndVolumeFractionSoA_.BsFieldID);
       auto uidsField = block->getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA_.uidsFieldID);
-      auto BField    = block->getData< BFieldGPU_T >(particleAndVolumeFractionSoA_.BFieldID);
-      auto pdfField  = block->getData< walberla::cuda::GPUField< real_t > >(pdfFieldID_);
-      auto solidCollisionField =
-         block->getData< solidCollisionFieldGPU_T >(particleAndVolumeFractionSoA_.solidCollisionFieldID);
+      auto particleVelocitiesField =
+         block->getData< particleVelocitiesFieldGPU_T >(particleAndVolumeFractionSoA_.particleVelocitiesFieldID);
+      auto particleForcesField =
+         block->getData< particleForcesGPU_T >(particleAndVolumeFractionSoA_.particleForcesFieldID);
 
-      auto myKernel = walberla::cuda::make_kernel(&(PSMKernel< LatticeModel_T::Stencil::Size >) );
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField));
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*pdfField));
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*solidCollisionField));
-      real_t* solidCollisionFieldData = solidCollisionField->dataAt(-1, -1, -1, 0);
-      myKernel.addParam(solidCollisionFieldData);
-      __device__ ulong3 size =
-         ulong3{ uint_t(solidCollisionField->xSize() + 2), uint_t(solidCollisionField->ySize() + 2),
-                 uint_t(solidCollisionField->zSize() + 2) };
-      myKernel.addParam(&size);
-      __device__ int4 stride = int4{ solidCollisionField->xStride(), solidCollisionField->yStride(),
-                                     solidCollisionField->zStride(), solidCollisionField->fStride() };
-      myKernel.addParam(&stride);
-      myKernel.addParam(hydrodynamicForces);
-      myKernel.addParam(hydrodynamicTorques);
-      myKernel.addParam(linearVelocities);
-      myKernel.addParam(angularVelocities);
-      myKernel.addParam(positions);
+      auto velocitiesKernel = walberla::cuda::make_kernel(&(SetParticleVelocities< LatticeModel_T::Stencil::Size >) );
+      velocitiesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
+      velocitiesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*particleVelocitiesField));
+      velocitiesKernel.addParam(linearVelocities);
+      velocitiesKernel.addParam(angularVelocities);
+      velocitiesKernel.addParam(positions);
       Vector3< real_t > blockStart = block->getAABB().minCorner();
-      myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });
-      myKernel.addParam(block->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));
-      myKernel.addParam(forceScalingFactor);
-      myKernel();
+      // TODO: why does this work? Why is the data on the GPU?
+      velocitiesKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });
+      velocitiesKernel.addParam(block->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));
+      velocitiesKernel();
+
+      sweep_(block);
+
+      auto forcesKernel = walberla::cuda::make_kernel(&(ReduceParticleForces< LatticeModel_T::Stencil::Size >) );
+      forcesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
+      forcesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
+      forcesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*particleForcesField));
+      forcesKernel.addParam(hydrodynamicForces);
+      forcesKernel.addParam(hydrodynamicTorques);
+      forcesKernel.addParam(positions);
+      //  TODO: why does this work? Why is the data on the GPU?
+      forcesKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });
+      forcesKernel.addParam(block->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));
+      forcesKernel.addParam(forceScalingFactor);
+      forcesKernel();
 
       // Copy forces and torques of particles from GPU to CPU
       for (size_t idx = 0; idx < ac_->size();)
@@ -172,6 +172,7 @@ class PSMSweepCUDA
 
  private:
    shared_ptr< StructuredBlockStorage > bs_;
+   Sweep_T sweep_;
    const shared_ptr< ParticleAccessor_T > ac_;
    ParticleSelector_T mappingParticleSelector_;
    BlockDataID pdfFieldID_;
