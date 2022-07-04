@@ -68,8 +68,8 @@ using nOverlappingParticlesField_T    = GhostLayerField< uint_t, 1 >;
 using nOverlappingParticlesFieldGPU_T = walberla::cuda::GPUField< uint_t >;
 using BsField_T                       = GhostLayerField< real_t, MaxParticlesPerCell >;
 using BsFieldGPU_T                    = walberla::cuda::GPUField< real_t >;
-using uidsField_T                     = GhostLayerField< id_t, MaxParticlesPerCell >;
-using uidsFieldGPU_T                  = walberla::cuda::GPUField< id_t >;
+using idxField_T                      = GhostLayerField< size_t, MaxParticlesPerCell >;
+using idxFieldGPU_T                   = walberla::cuda::GPUField< size_t >;
 using BFieldGPU_T                     = walberla::cuda::GPUField< real_t >;
 using particleVelocitiesFieldGPU_T    = walberla::cuda::GPUField< real_t >;
 using particleForcesGPU_T             = walberla::cuda::GPUField< real_t >;
@@ -79,22 +79,25 @@ struct ParticleAndVolumeFractionSoA_T
 {
    BlockDataID nOverlappingParticlesFieldID;
    BlockDataID BsFieldID;
-   BlockDataID uidsFieldID;
+   BlockDataID idxFieldID;
    BlockDataID BFieldID;
    BlockDataID particleVelocitiesFieldID;
    BlockDataID particleForcesFieldID;
    // relaxation rate omega is used for Weighting_T != 1
    real_t omega_;
+   // UIDs of the particles are stored during mapping and it is checked that they are the same during the PSM kernel.
+   // This prevents running into troubles due to changed indices
+   std::vector< walberla::id_t > mappingUIDs;
 
    // TODO: set nrOfGhostLayers to 0 (requires changes of the generated kernels)
    ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs,
                                   const BlockDataID& nOverlappingParticlesFieldCPUID, const BlockDataID& BsFieldCPUID,
-                                  const BlockDataID& uidsFieldCPUID, const real_t omega)
+                                  const BlockDataID& idxFieldCPUID, const real_t omega)
    {
       nOverlappingParticlesFieldID = walberla::cuda::addGPUFieldToStorage< nOverlappingParticlesField_T >(
          bs, nOverlappingParticlesFieldCPUID, "indices field GPU");
-      BsFieldID   = walberla::cuda::addGPUFieldToStorage< BsField_T >(bs, BsFieldCPUID, "Bs field GPU");
-      uidsFieldID = walberla::cuda::addGPUFieldToStorage< uidsField_T >(bs, uidsFieldCPUID, "uids field GPU");
+      BsFieldID  = walberla::cuda::addGPUFieldToStorage< BsField_T >(bs, BsFieldCPUID, "Bs field GPU");
+      idxFieldID = walberla::cuda::addGPUFieldToStorage< idxField_T >(bs, idxFieldCPUID, "uids field GPU");
       BFieldID =
          walberla::cuda::addGPUFieldToStorage< BFieldGPU_T >(bs, "B field GPU", 1, field::fzyx, uint_t(1), true);
       // TODO: change hard coded 3 into dimension
@@ -110,10 +113,10 @@ struct ParticleAndVolumeFractionSoA_T
    {
       nOverlappingParticlesFieldID = walberla::cuda::addGPUFieldToStorage< nOverlappingParticlesFieldGPU_T >(
          bs, "indices field GPU", uint_t(1), field::fzyx, uint_t(1), true);
-      BsFieldID   = walberla::cuda::addGPUFieldToStorage< BsFieldGPU_T >(bs, "Bs field GPU", MaxParticlesPerCell,
+      BsFieldID  = walberla::cuda::addGPUFieldToStorage< BsFieldGPU_T >(bs, "Bs field GPU", MaxParticlesPerCell,
                                                                        field::fzyx, uint_t(1), true);
-      uidsFieldID = walberla::cuda::addGPUFieldToStorage< uidsFieldGPU_T >(bs, "uids field GPU", MaxParticlesPerCell,
-                                                                           field::fzyx, uint_t(1), true);
+      idxFieldID = walberla::cuda::addGPUFieldToStorage< idxFieldGPU_T >(bs, "idx field GPU", MaxParticlesPerCell,
+                                                                         field::fzyx, uint_t(1), true);
       BFieldID =
          walberla::cuda::addGPUFieldToStorage< BFieldGPU_T >(bs, "B field GPU", 1, field::fzyx, uint_t(1), true);
       particleVelocitiesFieldID = walberla::cuda::addGPUFieldToStorage< particleVelocitiesFieldGPU_T >(

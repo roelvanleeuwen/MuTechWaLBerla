@@ -248,13 +248,13 @@ int main(int argc, char** argv)
    // TODO: do we need to add a cuda::HostFieldAllocator as in the cuda tutorial?
    BlockDataID nOverlappingParticlesFieldID =
       field::addToStorage< nOverlappingParticlesField_T >(blocks, "indices field CPU", 0, field::fzyx, 0);
-   BlockDataID BsFieldID   = field::addToStorage< BsField_T >(blocks, "Bs field CPU", 0, field::fzyx, 0);
-   BlockDataID uidsFieldID = field::addToStorage< uidsField_T >(blocks, "uids field CPU", 0, field::fzyx, 0);
+   BlockDataID BsFieldID  = field::addToStorage< BsField_T >(blocks, "Bs field CPU", 0, field::fzyx, 0);
+   BlockDataID idxFieldID = field::addToStorage< idxField_T >(blocks, "uids field CPU", 0, field::fzyx, 0);
 
    // dummy value for omega since it is not use because Weighting_T == 1
    real_t omega = real_t(42.0);
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, nOverlappingParticlesFieldID, BsFieldID,
-                                                                    uidsFieldID, omega);
+                                                                    idxFieldID, omega);
 
    // calculate fraction
    ParticleAndVolumeFractionMappingGPU particleMapping(

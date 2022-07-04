@@ -71,14 +71,14 @@ void clearField(const IBlock& blockIt,
 {
    auto nOverlappingParticlesField =
       blockIt.getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA.nOverlappingParticlesFieldID);
-   auto BsField   = blockIt.getData< BsFieldGPU_T >(particleAndVolumeFractionSoA.BsFieldID);
-   auto uidsField = blockIt.getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA.uidsFieldID);
-   auto BField    = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
+   auto BsField  = blockIt.getData< BsFieldGPU_T >(particleAndVolumeFractionSoA.BsFieldID);
+   auto idxField = blockIt.getData< idxFieldGPU_T >(particleAndVolumeFractionSoA.idxFieldID);
+   auto BField   = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
 
    auto myKernel = walberla::cuda::make_kernel(&resetKernelSoA);
    myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
    myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField));
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));
    myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
    myKernel();
 }
@@ -88,11 +88,11 @@ template< typename ParticleAccessor_T, typename ParticleSelector_T, int Weightin
 class ParticleAndVolumeFractionMappingGPU
 {
  public:
-   ParticleAndVolumeFractionMappingGPU(
-      const shared_ptr< StructuredBlockStorage >& blockStorage, const shared_ptr< ParticleAccessor_T >& ac,
-      const ParticleSelector_T& mappingParticleSelector,
-      const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionField,
-      const uint_t superSamplingDepth = uint_t(4))
+   ParticleAndVolumeFractionMappingGPU(const shared_ptr< StructuredBlockStorage >& blockStorage,
+                                       const shared_ptr< ParticleAccessor_T >& ac,
+                                       const ParticleSelector_T& mappingParticleSelector,
+                                       ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionField,
+                                       const uint_t superSamplingDepth = uint_t(4))
       : blockStorage_(blockStorage), ac_(ac), mappingParticleSelector_(mappingParticleSelector),
         particleAndVolumeFractionField_(particleAndVolumeFractionField), superSamplingDepth_(superSamplingDepth)
    {
@@ -108,9 +108,16 @@ class ParticleAndVolumeFractionMappingGPU
          clearField(*blockIt, particleAndVolumeFractionField_);
       }
 
+      // Store uids to check later on if the particles have changed
+      particleAndVolumeFractionField_.mappingUIDs.clear();
+
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
-         if (mappingParticleSelector_(idx, *ac_)) { update(idx); }
+         if (mappingParticleSelector_(idx, *ac_))
+         {
+            update(idx);
+            particleAndVolumeFractionField_.mappingUIDs.push_back(ac_->getUid(idx));
+         }
       }
    }
 
@@ -131,8 +138,8 @@ class ParticleAndVolumeFractionMappingGPU
 
    shared_ptr< StructuredBlockStorage > blockStorage_;
    const shared_ptr< ParticleAccessor_T > ac_;
-   ParticleSelector_T mappingParticleSelector_;
-   const ParticleAndVolumeFractionSoA_T< Weighting_T > particleAndVolumeFractionField_;
+   const ParticleSelector_T& mappingParticleSelector_;
+   ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionField_;
    const uint_t superSamplingDepth_;
 
    mesa_pd::kernel::SingleCast singleCast_;

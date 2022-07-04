@@ -95,15 +95,15 @@ myKernel();
 
       auto nOverlappingParticlesField =
          blockIt.getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA.nOverlappingParticlesFieldID);
-      auto BsField   = blockIt.getData< BsFieldGPU_T >(particleAndVolumeFractionSoA.BsFieldID);
-      auto uidsField = blockIt.getData< uidsFieldGPU_T >(particleAndVolumeFractionSoA.uidsFieldID);
-      auto BField    = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
+      auto BsField  = blockIt.getData< BsFieldGPU_T >(particleAndVolumeFractionSoA.BsFieldID);
+      auto idxField = blockIt.getData< idxFieldGPU_T >(particleAndVolumeFractionSoA.idxFieldID);
+      auto BField   = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
 
       auto myKernel = walberla::cuda::make_kernel(&(particleAndVolumeFractionMappingKernelSoA< Weighting_T >) );
       myKernel.addFieldIndexingParam(
          walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));          // FieldAccessor
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField)); // FieldAccessor
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*uidsField)); // FieldAccessor
+      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));  // FieldAccessor
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));  // FieldAccessor
       myKernel.addParam(omega);
       Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
@@ -111,9 +111,9 @@ myKernel();
       myKernel.addParam(static_cast< mesa_pd::data::Sphere* >(ac->getShape(particleIdx))->getRadius()); // sphereRadius
       myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                        // blockStart
       myKernel.addParam(blockIt.getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));       // dx
-      myKernel.addParam(int3{ 16, 16, 16 }); // nSamples
+      myKernel.addParam(int3{ 16, 16, 16 });                                                            // nSamples
       // TODO: store particle index in field or think about better solution
-      myKernel.addParam(ac->getUid(particleIdx));
+      myKernel.addParam(particleIdx);
       myKernel();
    }
 };

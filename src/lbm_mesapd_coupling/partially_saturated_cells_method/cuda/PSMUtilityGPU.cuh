@@ -46,22 +46,21 @@ __device__ void getVelocityAtWFPoint(double3* __restrict__ const velocityAtWFPoi
                           linearVelocity.z + crossResult.z };
 }
 
-__device__ void addHydrodynamicForceAtWFPosAtomic(const size_t p_idx, double3* __restrict__ const particleForces,
-                                                  double3* __restrict__ const particleTorques, const double3& f,
-                                                  const double3& pos, const double3& wf_pt)
+__device__ void addHydrodynamicForceAtWFPosAtomic(const size_t p_idx, double3& particleForce, double3& particleTorque,
+                                                  const double3& f, const double3& pos, const double3& wf_pt)
 {
    // TODO: uncomment atomicAdds and find solution to set CMAKE_CUDA_ARCHITECTURES in .gitlab-ci.yml (maybe using
    // nvidia-smi --query-gpu=compute_cap --format=csv,noheader)
-   /*atomicAdd(&particleForces[p_idx].x, f.x);
-   atomicAdd(&particleForces[p_idx].y, f.y);
-   atomicAdd(&particleForces[p_idx].z, f.z);*/
+   /*atomicAdd(&(particleForce.x), f.x);
+   atomicAdd(&(particleForce.y), f.y);
+   atomicAdd(&(particleForce.z), f.z);*/
 
-   double3 t;
-   cross(&t, { wf_pt.x - pos.x, wf_pt.y - pos.y, wf_pt.z - pos.z }, f);
+   double3 torque;
+   cross(&torque, { wf_pt.x - pos.x, wf_pt.y - pos.y, wf_pt.z - pos.z }, f);
 
-   /*atomicAdd(&particleTorques[p_idx].x, t.x);
-   atomicAdd(&particleTorques[p_idx].y, t.y);
-   atomicAdd(&particleTorques[p_idx].z, t.z);*/
+   /*atomicAdd(&(particleTorque.x), torque.x);
+   atomicAdd(&(particleTorque.y), torque.y);
+   atomicAdd(&(particleTorque.z), torque.z);*/
 }
 
 } // namespace cuda

@@ -121,18 +121,18 @@ __device__ void calculateWeighting< 2 >(real_t* __restrict__ const weighting, co
 
 __global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
                                walberla::cuda::FieldAccessor< real_t > BsField,
-                               walberla::cuda::FieldAccessor< id_t > uidsField,
+                               walberla::cuda::FieldAccessor< id_t > idxField,
                                walberla::cuda::FieldAccessor< real_t > BField)
 {
    nOverlappingParticlesField.set(blockIdx, threadIdx);
    BsField.set(blockIdx, threadIdx);
-   uidsField.set(blockIdx, threadIdx);
+   idxField.set(blockIdx, threadIdx);
    BField.set(blockIdx, threadIdx);
 
    for (uint i = 0; i < MaxParticlesPerCell; i++)
    {
-      BsField.get(i)   = 0.0;
-      uidsField.get(i) = id_t(0);
+      BsField.get(i)  = 0.0;
+      idxField.get(i) = id_t(0);
    }
    nOverlappingParticlesField.get() = 0;
    BField.get()                     = 0.0;
@@ -142,12 +142,12 @@ __global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > nOverlapp
 template< int Weighting_T >
 __global__ void particleAndVolumeFractionMappingKernelSoA(
    walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField, walberla::cuda::FieldAccessor< real_t > BsField,
-   walberla::cuda::FieldAccessor< id_t > uidsField, walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
-   double3 spherePosition, real_t sphereRadius, double3 blockStart, real_t dx, int3 nSamples, id_t uid)
+   walberla::cuda::FieldAccessor< id_t > idxField, walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
+   double3 spherePosition, real_t sphereRadius, double3 blockStart, real_t dx, int3 nSamples, size_t idx)
 {
    nOverlappingParticlesField.set(blockIdx, threadIdx);
    BsField.set(blockIdx, threadIdx);
-   uidsField.set(blockIdx, threadIdx);
+   idxField.set(blockIdx, threadIdx);
    BField.set(blockIdx, threadIdx);
 
    double3 sampleDistance = { 1.0 / (nSamples.x + 1) * dx, 1.0 / (nSamples.y + 1) * dx, 1.0 / (nSamples.z + 1) * dx };
@@ -192,7 +192,7 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(
                                         BsField.get(nOverlappingParticlesField.get()), real_t(1.0) / omega);
       if (BsField.get(nOverlappingParticlesField.get()) > 0)
       {
-         uidsField.get(nOverlappingParticlesField.get()) = uid;
+         idxField.get(nOverlappingParticlesField.get()) = idx;
          nOverlappingParticlesField.get() += 1;
          BField.get() += BsField.get(nOverlappingParticlesField.get());
       }

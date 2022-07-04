@@ -32,25 +32,27 @@ namespace psm
 namespace cuda
 {
 
-__global__ void SetParticleVelocities(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
+__global__ void SetParticleVelocities(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
+                                      walberla::cuda::FieldAccessor< uint_t > idxField,
                                       walberla::cuda::FieldAccessor< real_t > particleVelocitiesField,
                                       double3* __restrict__ const linearVelocities,
                                       double3* __restrict__ const angularVelocities,
                                       double3* __restrict__ const positions, const double3 blockStart, const real_t dx)
 {
-   nOverlappingParticles.set(blockIdx, threadIdx);
+   nOverlappingParticlesField.set(blockIdx, threadIdx);
+   idxField.set(blockIdx, threadIdx);
    particleVelocitiesField.set(blockIdx, threadIdx);
 
    // Cell center is needed in order to compute the particle velocity at this WF point
    double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
                           (blockStart.z + (blockIdx.y + 0.5) * dx) };
 
-   // Compute the particle velocity at this WF point for all overlapping particles
-   for (uint_t p = 0; p < nOverlappingParticles.get(); p++)
+   // Compute the particle velocity at the cell center for all overlapping particles
+   for (uint_t p = 0; p < nOverlappingParticlesField.get(); p++)
    {
       double3 particleVelocityAtWFPoint{ 0.0, 0.0, 0.0 };
-      getVelocityAtWFPoint(&particleVelocityAtWFPoint, linearVelocities[p], angularVelocities[p], positions[p],
-                           cellCenter);
+      getVelocityAtWFPoint(&particleVelocityAtWFPoint, linearVelocities[idxField.get(p)],
+                           angularVelocities[idxField.get(p)], positions[idxField.get(p)], cellCenter);
       // TODO: change hard coded 3 into dimension
       particleVelocitiesField.get(p * 3 + 0) = particleVelocityAtWFPoint.x;
       particleVelocitiesField.get(p * 3 + 1) = particleVelocityAtWFPoint.y;
@@ -58,16 +60,16 @@ __global__ void SetParticleVelocities(walberla::cuda::FieldAccessor< uint_t > nO
    }
 }
 
-__global__ void ReduceParticleForces(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticles,
-                                     walberla::cuda::FieldAccessor< id_t > uidsField,
+__global__ void ReduceParticleForces(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
+                                     walberla::cuda::FieldAccessor< id_t > idxField,
                                      walberla::cuda::FieldAccessor< real_t > particleForcesField,
                                      double3* __restrict__ const hydrodynamicForces,
                                      double3* __restrict__ const hydrodynamicTorques,
                                      double3* __restrict__ const positions, const double3 blockStart, const real_t dx,
                                      const real_t forceScalingFactor)
 {
-   nOverlappingParticles.set(blockIdx, threadIdx);
-   uidsField.set(blockIdx, threadIdx);
+   nOverlappingParticlesField.set(blockIdx, threadIdx);
+   idxField.set(blockIdx, threadIdx);
    particleForcesField.set(blockIdx, threadIdx);
 
    // Cell center is needed in order to compute the particle velocity at this WF point
@@ -75,7 +77,7 @@ __global__ void ReduceParticleForces(walberla::cuda::FieldAccessor< uint_t > nOv
                           (blockStart.z + (blockIdx.y + 0.5) * dx) };
 
    // Reduce the forces for all overlapping particles
-   for (uint_t p = 0; p < nOverlappingParticles.get(); p++)
+   for (uint_t p = 0; p < nOverlappingParticlesField.get(); p++)
    {
       // TODO: change hard coded 3 into dimension
       double3 forceOnParticle = { particleForcesField.get(p * 3 + 0), particleForcesField.get(p * 3 + 1),
@@ -83,9 +85,9 @@ __global__ void ReduceParticleForces(walberla::cuda::FieldAccessor< uint_t > nOv
       forceOnParticle.x *= forceScalingFactor;
       forceOnParticle.y *= forceScalingFactor;
       forceOnParticle.z *= forceScalingFactor;
-      // TODO: use index for hydrodynamicForces and hydrodynamicTorques?
-      addHydrodynamicForceAtWFPosAtomic(p, hydrodynamicForces, hydrodynamicTorques, forceOnParticle, positions[p],
-                                        cellCenter);
+      addHydrodynamicForceAtWFPosAtomic(idxField.get(p), hydrodynamicForces[idxField.get(p)],
+                                        hydrodynamicTorques[idxField.get(p)], forceOnParticle,
+                                        positions[idxField.get(p)], cellCenter);
    }
 }
 
