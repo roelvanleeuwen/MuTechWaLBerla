@@ -46,8 +46,8 @@ __device__ void getVelocityAtWFPoint(double3* __restrict__ const velocityAtWFPoi
                           linearVelocity.z + crossResult.z };
 }
 
-__device__ void addHydrodynamicForceAtWFPosAtomic(const size_t p_idx, double3& particleForce, double3& particleTorque,
-                                                  const double3& f, const double3& pos, const double3& wf_pt)
+__device__ void addHydrodynamicForceAtWFPosAtomic(double3& particleForce, double3& particleTorque, const double3& f,
+                                                  const double3& pos, const double3& wf_pt)
 {
    // TODO: uncomment atomicAdds and find solution to set CMAKE_CUDA_ARCHITECTURES in .gitlab-ci.yml (maybe using
    // nvidia-smi --query-gpu=compute_cap --format=csv,noheader)

@@ -138,7 +138,6 @@ __global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > nOverlapp
    BField.get()                     = 0.0;
 }
 
-// TODO: look for better mapping method
 template< int Weighting_T >
 __global__ void particleAndVolumeFractionMappingKernelSoA(
    walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField, walberla::cuda::FieldAccessor< real_t > BsField,
@@ -200,9 +199,52 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(
    }
 }
 
+// Based on the following paper: https://doi.org/10.1108/EC-02-2016-0052
+// TODO: why does the paper say: "requires only a single addition operation to estimate the intersection volume"
+template< int Weighting_T >
+__global__ void
+   linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
+                       walberla::cuda::FieldAccessor< real_t > BsField, walberla::cuda::FieldAccessor< id_t > idxField,
+                       walberla::cuda::FieldAccessor< real_t > BField, real_t omega, double3 spherePosition,
+                       real_t sphereRadius, real_t f_r, double3 blockStart, real_t dx, size_t idx)
+{
+   nOverlappingParticlesField.set(blockIdx, threadIdx);
+   BsField.set(blockIdx, threadIdx);
+   idxField.set(blockIdx, threadIdx);
+   BField.set(blockIdx, threadIdx);
+
+   const double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
+                                (blockStart.z + (blockIdx.y + 0.5) * dx) };
+
+   const double3 cellSphereVector = { spherePosition.x - cellCenter.x, spherePosition.y - cellCenter.y,
+                                      spherePosition.z - cellCenter.z };
+
+   const real_t D = sqrt(cellSphereVector.x * cellSphereVector.x + cellSphereVector.y * cellSphereVector.y +
+                         cellSphereVector.z * cellSphereVector.z) -
+                    sphereRadius;
+
+   real_t epsilon = -D + f_r;
+   epsilon        = max(epsilon, 0.0);
+   epsilon        = min(epsilon, 1.0);
+
+   BsField.get(nOverlappingParticlesField.get()) = epsilon;
+
+   calculateWeighting< Weighting_T >(&BsField.get(nOverlappingParticlesField.get()),
+                                     BsField.get(nOverlappingParticlesField.get()), real_t(1.0) / omega);
+   if (BsField.get(nOverlappingParticlesField.get()) > 0)
+   {
+      idxField.get(nOverlappingParticlesField.get()) = idx;
+      nOverlappingParticlesField.get() += 1;
+      BField.get() += BsField.get(nOverlappingParticlesField.get());
+   }
+   assert(nOverlappingParticlesField.get() <= MaxParticlesPerCell);
+}
+
 // TODO: find better solution for template kernels
-auto instance_with_weighting_1 = particleAndVolumeFractionMappingKernelSoA< 1 >;
-auto instance_with_weighting_2 = particleAndVolumeFractionMappingKernelSoA< 2 >;
+auto instance0_with_weighting_1 = particleAndVolumeFractionMappingKernelSoA< 1 >;
+auto instance1_with_weighting_2 = particleAndVolumeFractionMappingKernelSoA< 2 >;
+auto instance2_with_weighting_1 = linearApproximation< 1 >;
+auto instance3_with_weighting_2 = linearApproximation< 2 >;
 
 } // namespace cuda
 } // namespace psm

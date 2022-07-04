@@ -24,6 +24,8 @@
 
 #include "mesa_pd/data/shape/Sphere.h"
 
+#include <cmath>
+
 #include "ParticleAndVolumeFractionMappingKernel.h"
 
 namespace walberla
@@ -99,7 +101,7 @@ myKernel();
       auto idxField = blockIt.getData< idxFieldGPU_T >(particleAndVolumeFractionSoA.idxFieldID);
       auto BField   = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
 
-      auto myKernel = walberla::cuda::make_kernel(&(particleAndVolumeFractionMappingKernelSoA< Weighting_T >) );
+      auto myKernel = walberla::cuda::make_kernel(&(linearApproximation< Weighting_T >) );
       myKernel.addFieldIndexingParam(
          walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));          // FieldAccessor
       myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField)); // FieldAccessor
@@ -108,11 +110,17 @@ myKernel();
       myKernel.addParam(omega);
       Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
       myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] }); // spherePosition
-      myKernel.addParam(static_cast< mesa_pd::data::Sphere* >(ac->getShape(particleIdx))->getRadius()); // sphereRadius
-      myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                        // blockStart
-      myKernel.addParam(blockIt.getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));       // dx
-      myKernel.addParam(int3{ 16, 16, 16 });                                                            // nSamples
-      // TODO: store particle index in field or think about better solution
+      real_t radius = static_cast< mesa_pd::data::Sphere* >(ac->getShape(particleIdx))->getRadius();
+      myKernel.addParam(radius); // sphereRadius
+      real_t Va =
+         real_t((1.0 / 12.0 - radius * radius) * atan((0.5 * sqrt(radius * radius - 0.5)) / (0.5 - radius * radius)) +
+                1.0 / 3.0 * sqrt(radius * radius - 0.5) +
+                (radius * radius - 1.0 / 12.0) * atan(0.5 / sqrt(radius * radius - 0.5)) -
+                4.0 / 3.0 * radius * radius * radius * atan(0.25 / (radius * sqrt(radius * radius - 0.5))));
+      myKernel.addParam(Va - radius + real_t(0.5));
+      myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                  // blockStart
+      myKernel.addParam(blockIt.getAABB().xSize() / real_t(nOverlappingParticlesField->xSize())); // dx
+      // myKernel.addParam(int3{ 16, 16, 16 });                                                            // nSamples
       myKernel.addParam(particleIdx);
       myKernel();
    }

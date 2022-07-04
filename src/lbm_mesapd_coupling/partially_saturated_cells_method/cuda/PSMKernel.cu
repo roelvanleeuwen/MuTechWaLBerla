@@ -44,8 +44,8 @@ __global__ void SetParticleVelocities(walberla::cuda::FieldAccessor< uint_t > nO
    particleVelocitiesField.set(blockIdx, threadIdx);
 
    // Cell center is needed in order to compute the particle velocity at this WF point
-   double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
-                          (blockStart.z + (blockIdx.y + 0.5) * dx) };
+   const double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
+                                (blockStart.z + (blockIdx.y + 0.5) * dx) };
 
    // Compute the particle velocity at the cell center for all overlapping particles
    for (uint_t p = 0; p < nOverlappingParticlesField.get(); p++)
@@ -73,8 +73,8 @@ __global__ void ReduceParticleForces(walberla::cuda::FieldAccessor< uint_t > nOv
    particleForcesField.set(blockIdx, threadIdx);
 
    // Cell center is needed in order to compute the particle velocity at this WF point
-   double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
-                          (blockStart.z + (blockIdx.y + 0.5) * dx) };
+   const double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
+                                (blockStart.z + (blockIdx.y + 0.5) * dx) };
 
    // Reduce the forces for all overlapping particles
    for (uint_t p = 0; p < nOverlappingParticlesField.get(); p++)
@@ -85,9 +85,8 @@ __global__ void ReduceParticleForces(walberla::cuda::FieldAccessor< uint_t > nOv
       forceOnParticle.x *= forceScalingFactor;
       forceOnParticle.y *= forceScalingFactor;
       forceOnParticle.z *= forceScalingFactor;
-      addHydrodynamicForceAtWFPosAtomic(idxField.get(p), hydrodynamicForces[idxField.get(p)],
-                                        hydrodynamicTorques[idxField.get(p)], forceOnParticle,
-                                        positions[idxField.get(p)], cellCenter);
+      addHydrodynamicForceAtWFPosAtomic(hydrodynamicForces[idxField.get(p)], hydrodynamicTorques[idxField.get(p)],
+                                        forceOnParticle, positions[idxField.get(p)], cellCenter);
    }
 }
 
