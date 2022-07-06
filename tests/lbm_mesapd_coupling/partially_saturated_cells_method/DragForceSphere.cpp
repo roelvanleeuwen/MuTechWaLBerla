@@ -36,6 +36,7 @@
 #include "core/timing/RemainingTimeLogger.h"
 
 #include "field/AddToStorage.h"
+#include "field/vtk/VTKWriter.h"
 
 #include "lbm/communication/PdfFieldPackInfo.h"
 #include "lbm/field/AddToStorage.h"
@@ -43,6 +44,7 @@
 #include "lbm/lattice_model/D3Q19.h"
 #include "lbm/lattice_model/ForceModel.h"
 #include "lbm/sweeps/SweepWrappers.h"
+#include "lbm/vtk/Velocity.h"
 
 #include "lbm_mesapd_coupling/DataTypes.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h"
@@ -276,11 +278,12 @@ int main(int argc, char** argv)
    // Customization //
    ///////////////////
 
-   bool shortrun = false;
-   bool funcTest = false;
-   bool logging  = false;
-   real_t tau    = real_c(1.5);
-   uint_t length = uint_c(32);
+   bool shortrun       = false;
+   bool funcTest       = false;
+   bool logging        = false;
+   uint_t vtkFrequency = uint_c(0);
+   real_t tau          = real_c(1.5);
+   uint_t length       = uint_c(32);
 
    for (int i = 1; i < argc; ++i)
    {
@@ -307,6 +310,11 @@ int main(int argc, char** argv)
       if (std::strcmp(argv[i], "--length") == 0)
       {
          length = uint_c(std::atof(argv[++i]));
+         continue;
+      }
+      if (std::strcmp(argv[i], "--vtkFrequency") == 0)
+      {
+         vtkFrequency = uint_c(std::atof(argv[++i]));
          continue;
       }
       WALBERLA_ABORT("Unrecognized command line argument found: " << argv[i]);
@@ -452,7 +460,17 @@ int main(int argc, char** argv)
       "reset force on sphere");
 
    timeloop.addFuncAfterTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
+   if (vtkFrequency > 0)
+   {
+      const std::string path = "vtk_out/dragForceSphere";
+      auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "psm_velocity_field", vtkFrequency, 0, false, path,
+                                                      "simulation_step", false, true, true, false, 0);
 
+      auto velWriter = make_shared< walberla::lbm::VelocityVTKWriter< LatticeModel_T > >(pdfFieldID, "Velocity");
+      vtkOutput->addCellDataWriter(velWriter);
+
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+   }
    ////////////////////////
    // EXECUTE SIMULATION //
    ////////////////////////

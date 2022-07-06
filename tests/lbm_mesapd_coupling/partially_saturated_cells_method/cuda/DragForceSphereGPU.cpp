@@ -41,6 +41,7 @@
 #include "cuda/communication/UniformGPUScheme.h"
 
 #include "field/AddToStorage.h"
+#include "field/vtk/VTKWriter.h"
 
 #include "lbm/communication/PdfFieldPackInfo.h"
 #include "lbm/field/AddToStorage.h"
@@ -71,6 +72,7 @@
 #include <vector>
 
 // codegen
+#include "InitialPDFsSetter.h"
 #include "PSMPackInfo.h"
 #include "PSMSweep.h"
 
@@ -289,11 +291,12 @@ int main(int argc, char** argv)
    // Customization //
    ///////////////////
 
-   bool shortrun = false;
-   bool funcTest = false;
-   bool logging  = false;
-   real_t tau    = real_c(1.5);
-   uint_t length = uint_c(32);
+   bool shortrun       = false;
+   bool funcTest       = false;
+   bool logging        = false;
+   uint_t vtkFrequency = uint_c(0);
+   real_t tau          = real_c(1.5);
+   uint_t length       = uint_c(32);
 
    for (int i = 1; i < argc; ++i)
    {
@@ -320,6 +323,11 @@ int main(int argc, char** argv)
       if (std::strcmp(argv[i], "--length") == 0)
       {
          length = uint_c(std::atof(argv[++i]));
+         continue;
+      }
+      if (std::strcmp(argv[i], "--vtkFrequency") == 0)
+      {
+         vtkFrequency = uint_c(std::atof(argv[++i]));
          continue;
       }
       WALBERLA_ABORT("Unrecognized command line argument found: " << argv[i]);
@@ -411,6 +419,17 @@ int main(int argc, char** argv)
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
       blocks, "pdf field (zyxf)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "GPU PDF Field");
+   typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
+   BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_c(0.0), field::fzyx);
+   BlockDataID velocityFieldIdGPU =
+      cuda::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity on GPU", true);
+
+   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(setup.extForce), real_t(0), real_t(0));
+
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      pdfSetter(&(*blockIt));
+   }
 
    ///////////////
    // TIME LOOP //
@@ -459,8 +478,8 @@ int main(int argc, char** argv)
       pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
    pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
-                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, setup.extForce,
-                                 0.0, 0.0, omega);
+                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
+                                 velocityFieldIdGPU, setup.extForce, real_t(0.0), real_t(0.0), omega);
    auto PSMWrapperSweep =
       lbm_mesapd_coupling::psm::cuda::PSMWrapperSweepCUDA< LatticeModel_T, ParticleAccessor_T, pystencils::PSMSweep,
                                                            lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
@@ -490,6 +509,25 @@ int main(int argc, char** argv)
       "reset force on sphere");
 
    timeloop.addFuncAfterTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
+
+   if (vtkFrequency > 0)
+   {
+      const std::string path = "vtk_out/dragForceSphereGPU";
+      auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "psm_velocity_fieldGPU", vtkFrequency, 0, false, path,
+                                                      "simulation_step", false, true, true, false, 0);
+
+#if defined(WALBERLA_BUILD_WITH_CUDA)
+      // Copy velocity data to CPU before output
+      vtkOutput->addBeforeFunction([&]() {
+         cuda::fieldCpy< VectorField_T, cuda::GPUField< real_t > >(blocks, velocityFieldId, velocityFieldIdGPU);
+      });
+#endif
+
+      auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
+      vtkOutput->addCellDataWriter(velWriter);
+
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+   }
 
    ////////////////////////
    // EXECUTE SIMULATION //

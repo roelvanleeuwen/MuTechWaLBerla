@@ -4,6 +4,7 @@ import pystencils as ps
 from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil, ForceModel
 
 from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method
+from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
 
 from pystencils_walberla import (
     CodeGeneration,
@@ -17,12 +18,18 @@ with CodeGeneration() as ctx:
     data_type = data_type = "float64" if ctx.double_accuracy else "float32"
     stencil = LBStencil(Stencil.D3Q19)
     omega = sp.Symbol("omega")
+    init_density = 2.0
+    init_velocity = (0, 0, 0)
     layout = "fzyx"
     MaxParticlesPerCell = 2
 
     pdfs, pdfs_tmp = ps.fields(
         f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {data_type}[3D]", layout=layout
     )
+
+    # Output
+    velocity = ps.fields(f"velocity({stencil.D}): {data_type}[3D]", layout=layout)
+    output = {"velocity": velocity}
 
     particle_velocities, particle_forces, Bs = ps.fields(
         f"particle_velocities({MaxParticlesPerCell * stencil.D}), particle_forces({MaxParticlesPerCell * stencil.D}), Bs({MaxParticlesPerCell}): {data_type}[3D]",
@@ -46,6 +53,7 @@ with CodeGeneration() as ctx:
         force=sp.symbols("F_:3"),
         force_model=ForceModel.LUO,
         compressible=False,
+        output=output,
     )
 
     # =====================
@@ -140,10 +148,19 @@ with CodeGeneration() as ctx:
     up = ps.AssignmentCollection(
         collision_assignments, subexpressions=cqc.all_assignments
     )
+    output_eqs = method.conserved_quantity_computation.output_equations_from_pdfs(
+        method.pre_collision_pdf_symbols, srt_psm_config.output
+    )
+    up = up.new_merged(output_eqs)
     up.method = method
 
     lbm_update_rule = create_lb_update_rule(
         collision_rule=up, lbm_config=srt_psm_config, lbm_optimisation=psm_opt
+    )
+
+    # TODO: what is delta_rho and why do we have to set density to 2.0?
+    pdfs_setter = macroscopic_values_setter(
+        method, init_density, init_velocity, pdfs.center_vector
     )
 
     if ctx.cuda:
@@ -157,3 +174,5 @@ with CodeGeneration() as ctx:
     )
 
     generate_pack_info_from_kernel(ctx, "PSMPackInfo", lbm_update_rule, target=target)
+
+    generate_sweep(ctx, "InitialPDFsSetter", pdfs_setter, target=target)
