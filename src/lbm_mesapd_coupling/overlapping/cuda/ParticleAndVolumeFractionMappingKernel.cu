@@ -192,8 +192,8 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(
       if (BsField.get(nOverlappingParticlesField.get()) > 0)
       {
          idxField.get(nOverlappingParticlesField.get()) = idx;
-         nOverlappingParticlesField.get() += 1;
          BField.get() += BsField.get(nOverlappingParticlesField.get());
+         nOverlappingParticlesField.get() += 1;
       }
       assert(nOverlappingParticlesField.get() <= MaxParticlesPerCell);
    }
@@ -234,8 +234,8 @@ __global__ void
    if (BsField.get(nOverlappingParticlesField.get()) > 0)
    {
       idxField.get(nOverlappingParticlesField.get()) = idx;
-      nOverlappingParticlesField.get() += 1;
       BField.get() += BsField.get(nOverlappingParticlesField.get());
+      nOverlappingParticlesField.get() += 1;
    }
    assert(nOverlappingParticlesField.get() <= MaxParticlesPerCell);
 }
