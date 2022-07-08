@@ -84,7 +84,10 @@ if( WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCH
             FILE partially_saturated_cells_method/cuda/PSMCodegen.py
             OUT_FILES PSMSweep.cu PSMSweep.h
             PSMPackInfo.cu PSMPackInfo.h InitialPDFsSetter.cu InitialPDFsSetter.h )
-    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/cuda/DragForceSphereGPU.cpp DEPENDS blockforest boundary core cuda field lbm lbm_mesapd_coupling timeloop mesa_pd PSMCodegenPython )
+    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/cuda/DragForceSphereGPU.cpp DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd timeloop PSMCodegenPython )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU> --funcTest PROCESSES 8 )
-    # TODO: add longrun test
+
+    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU FILES partially_saturated_cells_method/cuda/TorqueSphereGPU.cpp DEPENDS blockforest boundary core cuda field lbm lbm_mesapd_coupling timeloop mesa_pd PSMCodegenPython )
+    waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU> --funcTest PROCESSES 8 )
+    # TODO: add longrun tests
 endif()

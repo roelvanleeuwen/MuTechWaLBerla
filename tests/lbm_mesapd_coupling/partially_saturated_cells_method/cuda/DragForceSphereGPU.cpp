@@ -23,7 +23,6 @@
 
 #include "blockforest/Initialization.h"
 
-#include "core/DataTypes.h"
 #include "core/Environment.h"
 #include "core/SharedFunctor.h"
 #include "core/debug/TestSubsystem.h"
@@ -44,11 +43,9 @@
 #include "lbm/lattice_model/D3Q19.h"
 #include "lbm/lattice_model/ForceModel.h"
 
-#include "lbm_mesapd_coupling/DataTypes.h"
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
-#include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
 
 #include "mesa_pd/data/ParticleAccessorWithShape.h"
