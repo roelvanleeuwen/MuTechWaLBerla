@@ -119,7 +119,7 @@ with CodeGeneration() as ctx:
             )
             collision_rhs[i] += solid_collision
             for j in range(stencil.D):
-                forces_rhs[p * stencil.D + j] += solid_collision * int(offset[j])
+                forces_rhs[p * stencil.D + j] -= solid_collision * int(offset[j])
 
     # =====================
     # Assemble update rule
