@@ -18,7 +18,7 @@ with CodeGeneration() as ctx:
     data_type = data_type = "float64" if ctx.double_accuracy else "float32"
     stencil = LBStencil(Stencil.D3Q19)
     omega = sp.Symbol("omega")
-    init_density = 2.0
+    init_density = 1.0
     init_velocity = (0, 0, 0)
     layout = "fzyx"
     MaxParticlesPerCell = 2
