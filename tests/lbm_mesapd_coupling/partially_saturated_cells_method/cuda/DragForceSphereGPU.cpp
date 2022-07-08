@@ -17,14 +17,11 @@
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
-//! \brief Modification of momentum_exchange_method/DragForceSphere.cpp
+//! \brief Modification of partially_saturated_cells_method/DragForceSphere.cpp
 //
 //======================================================================================================================
 
 #include "blockforest/Initialization.h"
-#include "blockforest/communication/UniformBufferedScheme.h"
-
-#include "boundary/all.h"
 
 #include "core/DataTypes.h"
 #include "core/Environment.h"
@@ -37,24 +34,18 @@
 
 #include "cuda/AddGPUFieldToStorage.h"
 #include "cuda/GPUField.h"
-#include "cuda/communication/GPUPackInfo.h"
 #include "cuda/communication/UniformGPUScheme.h"
 
 #include "field/AddToStorage.h"
 #include "field/vtk/VTKWriter.h"
 
-#include "lbm/communication/PdfFieldPackInfo.h"
 #include "lbm/field/AddToStorage.h"
 #include "lbm/field/PdfField.h"
 #include "lbm/lattice_model/D3Q19.h"
 #include "lbm/lattice_model/ForceModel.h"
-#include "lbm/sweeps/SweepWrappers.h"
 
 #include "lbm_mesapd_coupling/DataTypes.h"
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMUtility.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/ParticleAndVolumeFractionMapping.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
@@ -492,7 +483,6 @@ int main(int argc, char** argv)
    // add LBM communication function and streaming & force evaluation
    using DragForceEval_T = DragForceEvaluator< ParticleAccessor_T >;
    auto forceEval        = make_shared< DragForceEval_T >(&timeloop, &setup, blocks, pdfFieldID, accessor, sphereID);
-   // TODO: change order so that hydrodynamic force calculation is between stream and collide
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
                   /*<< Sweep(lbm::makeStreamSweep(SRTSweep), "cell-wise LB sweep (stream)")*/
                   << Sweep(PSMWrapperSweep, "cell-wise PSM sweep");

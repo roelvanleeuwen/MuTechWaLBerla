@@ -158,7 +158,6 @@ with CodeGeneration() as ctx:
         collision_rule=up, lbm_config=srt_psm_config, lbm_optimisation=psm_opt
     )
 
-    # TODO: what is delta_rho and why do we have to set density to 2.0?
     pdfs_setter = macroscopic_values_setter(
         method, init_density, init_velocity, pdfs.center_vector
     )

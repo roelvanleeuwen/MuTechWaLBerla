@@ -3,13 +3,13 @@ if( WALBERLA_BUILD_WITH_CUDA )
             PRIVATE
             ParticleAndVolumeFractionMappingGPU.h
             )
-endif()
-
-if( WALBERLA_BUILD_WITH_CUDA )
-    target_sources(lbm_mesapd_coupling
-            PRIVATE
-            PSMKernel.cu
-            PSMKernel.h
-            PSMWrapperSweepGPU.h
-            )
+    if( CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60 )
+        target_sources(lbm_mesapd_coupling
+                PRIVATE
+                PSMKernel.cu
+                PSMKernel.h
+                PSMUtilityGPU.cuh
+                PSMWrapperSweepGPU.h
+                )
+    endif()
 endif()
