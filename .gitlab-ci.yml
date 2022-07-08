@@ -516,6 +516,7 @@ gcc_9_serial:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -538,6 +539,7 @@ gcc_9_mpionly:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -559,6 +561,7 @@ gcc_9_hybrid:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -584,6 +587,7 @@ gcc_9_serial_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -607,6 +611,7 @@ gcc_9_mpionly_dbg:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -629,6 +634,7 @@ gcc_9_hybrid_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -654,6 +660,7 @@ gcc_9_hybrid_dbg_sp:
       WALBERLA_BUILD_WITH_METIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -678,6 +685,7 @@ gcc_10_serial:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -700,6 +708,7 @@ gcc_10_mpionly:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -721,6 +730,7 @@ gcc_10_hybrid:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -746,6 +756,7 @@ gcc_10_serial_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -769,6 +780,7 @@ gcc_10_mpionly_dbg:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -791,6 +803,7 @@ gcc_10_hybrid_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -816,6 +829,7 @@ gcc_10_hybrid_dbg_sp:
       WALBERLA_BUILD_WITH_METIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -840,6 +854,7 @@ gcc_11_serial:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -862,6 +877,7 @@ gcc_11_mpionly:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -884,6 +900,7 @@ gcc_11_hybrid:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    tags:
       - cuda11
       - docker
@@ -906,6 +923,7 @@ gcc_11_serial_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    tags:
       - cuda11
       - docker
@@ -926,6 +944,7 @@ gcc_11_mpionly_dbg:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    tags:
       - cuda11
       - docker
@@ -945,6 +964,7 @@ gcc_11_hybrid_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    tags:
       - cuda11
       - docker
@@ -967,6 +987,7 @@ gcc_11_hybrid_dbg_sp:
       WALBERLA_BUILD_WITH_METIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    tags:
       - cuda11
       - docker
@@ -1480,6 +1501,7 @@ clang_11.0_serial:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1502,6 +1524,7 @@ clang_11.0_mpionly:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1523,6 +1546,7 @@ clang_11.0_hybrid:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1548,6 +1572,7 @@ clang_11.0_serial_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1571,6 +1596,7 @@ clang_11.0_mpionly_dbg:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1593,6 +1619,7 @@ clang_11.0_hybrid_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1618,6 +1645,7 @@ clang_11.0_hybrid_dbg_sp:
       WALBERLA_BUILD_WITH_METIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1642,6 +1670,7 @@ clang_12.0_serial:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1664,6 +1693,7 @@ clang_12.0_mpionly:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1685,6 +1715,7 @@ clang_12.0_hybrid:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1710,6 +1741,7 @@ clang_12.0_serial_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1733,6 +1765,7 @@ clang_12.0_mpionly_dbg:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1755,6 +1788,7 @@ clang_12.0_hybrid_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1780,6 +1814,7 @@ clang_12.0_hybrid_dbg_sp:
       WALBERLA_BUILD_WITH_METIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1804,6 +1839,7 @@ clang_13.0_serial:
       WALBERLA_BUILD_WITH_PARMETIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1826,6 +1862,7 @@ clang_13.0_mpionly:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
@@ -1847,6 +1884,7 @@ clang_13.0_hybrid:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    tags:
       - cuda11
       - docker
@@ -1869,6 +1907,7 @@ clang_13.0_serial_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    tags:
       - cuda11
       - docker
@@ -1889,6 +1928,7 @@ clang_13.0_mpionly_dbg:
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    tags:
       - cuda11
       - docker
@@ -1908,6 +1948,7 @@ clang_13.0_hybrid_dbg:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    tags:
       - cuda11
       - docker
@@ -1931,6 +1972,7 @@ clang_13.0_hybrid_dbg_sp:
       WALBERLA_BUILD_WITH_METIS: "OFF"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
       WALBERLA_BUILD_WITH_PYTHON: "ON"
+      CMAKE_CUDA_ARCHITECTURES: "60"
    tags:
       - cuda11
       - docker
