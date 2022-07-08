@@ -158,6 +158,8 @@ class PSMWrapperSweepCUDA
       forcesKernel.addParam(forceScalingFactor);
       forcesKernel();
 
+      cudaDeviceSynchronize();
+
       // Copy forces and torques of particles from GPU to CPU
       idxMapped = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
