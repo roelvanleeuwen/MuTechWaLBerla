@@ -415,7 +415,8 @@ int main(int argc, char** argv)
    BlockDataID velocityFieldIdGPU =
       cuda::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity on GPU", true);
 
-   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(setup.extForce), real_t(0), real_t(0));
+   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(setup.extForce), real_t(0), real_t(0), real_t(1.0),
+                                           real_t(0), real_t(0), real_t(0));
 
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {

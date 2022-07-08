@@ -15,11 +15,11 @@ from pystencils_walberla import (
 # Based on the following paper: https://doi.org/10.1016/j.compfluid.2017.05.033
 
 with CodeGeneration() as ctx:
-    data_type = data_type = "float64" if ctx.double_accuracy else "float32"
+    data_type = "float64" if ctx.double_accuracy else "float32"
     stencil = LBStencil(Stencil.D3Q19)
     omega = sp.Symbol("omega")
-    init_density = 1.0
-    init_velocity = (0, 0, 0)
+    init_density = sp.Symbol("init_density")
+    init_velocity = sp.symbols("init_velocity_:3")
     layout = "fzyx"
     MaxParticlesPerCell = 2
 
