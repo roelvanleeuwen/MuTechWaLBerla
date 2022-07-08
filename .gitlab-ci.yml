@@ -904,6 +904,7 @@ gcc_11_hybrid:
       - pip3 list
       - cd ..
       - CC=gcc CXX=g++ pip3 install pycuda
+      - echo $CMAKE_CUDA_ARCHITECTURES
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
