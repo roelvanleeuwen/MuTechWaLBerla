@@ -32,7 +32,6 @@
 #include "core/timing/RemainingTimeLogger.h"
 
 #include "cuda/AddGPUFieldToStorage.h"
-#include "cuda/GPUField.h"
 #include "cuda/communication/UniformGPUScheme.h"
 
 #include "field/AddToStorage.h"

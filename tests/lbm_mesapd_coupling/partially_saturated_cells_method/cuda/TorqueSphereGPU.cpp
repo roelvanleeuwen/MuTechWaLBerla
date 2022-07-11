@@ -22,11 +22,7 @@
 //======================================================================================================================
 
 #include "blockforest/Initialization.h"
-#include "blockforest/communication/UniformBufferedScheme.h"
 
-#include "boundary/all.h"
-
-#include "core/DataTypes.h"
 #include "core/Environment.h"
 #include "core/SharedFunctor.h"
 #include "core/debug/TestSubsystem.h"
@@ -35,20 +31,19 @@
 #include "core/mpi/Reduce.h"
 #include "core/timing/RemainingTimeLogger.h"
 
-#include "domain_decomposition/SharedSweep.h"
+#include "cuda/AddGPUFieldToStorage.h"
+#include "cuda/communication/UniformGPUScheme.h"
 
 #include "field/AddToStorage.h"
-#include "field/communication/PackInfo.h"
 
 #include "lbm/field/AddToStorage.h"
 #include "lbm/field/PdfField.h"
 #include "lbm/lattice_model/D3Q19.h"
 #include "lbm/lattice_model/ForceModel.h"
 
-#include "lbm_mesapd_coupling/DataTypes.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMUtility.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/ParticleAndVolumeFractionMapping.h"
+#include "lbm_mesapd_coupling/DataTypesGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
 
 #include "mesa_pd/data/ParticleAccessorWithShape.h"
@@ -57,12 +52,15 @@
 #include "mesa_pd/domain/BlockForestDomain.h"
 #include "mesa_pd/mpi/SyncNextNeighbors.h"
 
-#include "stencil/D3Q27.h"
-
 #include "timeloop/SweepTimeloop.h"
 
 #include <iostream>
 #include <vector>
+
+// codegen
+#include "InitialPDFsSetter.h"
+#include "PSMPackInfo.h"
+#include "PSMSweep.h"
 
 namespace torque_sphere_psm
 {
@@ -73,6 +71,7 @@ namespace torque_sphere_psm
 
 using namespace walberla;
 using walberla::uint_t;
+using namespace lbm_mesapd_coupling::psm::cuda;
 
 // PDF field, flag field & particle field
 typedef lbm::D3Q19< lbm::collision_model::SRT, false > LatticeModel_T;
@@ -82,6 +81,8 @@ using PdfField_T = lbm::PdfField< LatticeModel_T >;
 
 using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
+
+typedef pystencils::PSMPackInfo PackInfo_T;
 
 ///////////
 // FLAGS //
@@ -129,7 +130,7 @@ class TorqueEval
       if (fileIO_)
       {
          std::ofstream file;
-         filename_ = "TorqueSpherePSM.txt";
+         filename_ = "TorqueSpherePSMGPU.txt";
          WALBERLA_ROOT_SECTION()
          {
             file.open(filename_.c_str());
@@ -370,17 +371,35 @@ int main(int argc, char** argv)
    // add PDF field ( uInit = <0,0,0>, rhoInit = 1 )
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
       blocks, "pdf field (zyxf)", latticeModel, Vector3< real_t >(real_c(0), real_c(0), real_c(0)), real_c(1),
-      uint_t(1), field::zyxf);
+      uint_t(1), field::fzyx);
+   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "GPU PDF Field");
+   typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
+   BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_c(0.0), field::fzyx);
+   BlockDataID velocityFieldIdGPU =
+      cuda::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity on GPU", true);
+
+   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), real_t(0),
+                                           real_t(0), real_t(0));
+
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      pdfSetter(&(*blockIt));
+   }
 
    // add particle and volume fraction field
-   BlockDataID particleAndVolumeFractionFieldID =
+   /*BlockDataID particleAndVolumeFractionFieldID =
       field::addToStorage< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
          blocks, "particle and volume fraction field",
-         std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);
+         std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);*/
+
+   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
    // map bodies and calculate solid volume fraction initially
-   lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(
+   /*lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionFieldID, 4);
-   particleMapping();
+   particleMapping();*/
+   lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA, 4);
+   particleMappingGPU();
 
    ///////////////
    // TIME LOOP //
@@ -390,20 +409,34 @@ int main(int argc, char** argv)
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   std::function< void() > commFunction;
+   /*std::function< void() > commFunction;
 
    blockforest::communication::UniformBufferedScheme< stencil::D3Q27 > scheme(blocks);
    scheme.addPackInfo(make_shared< field::communication::PackInfo< PdfField_T > >(pdfFieldID));
-   commFunction = scheme;
+   commFunction = scheme;*/
+   cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);
+   com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
+   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
    using TorqueEval_T                    = TorqueEval< ParticleAccessor_T >;
    shared_ptr< TorqueEval_T > torqueEval = make_shared< TorqueEval_T >(&timeloop, &setup, blocks, accessor, fileIO);
 
-   auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
-      pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);
+   /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
+      pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
+   pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+                                 particleAndVolumeFractionSoA.particleForcesFieldID,
+                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
+                                 velocityFieldIdGPU, real_t(0.0), real_t(0.0), real_t(0.0), omega);
+   auto PSMWrapperSweep =
+      lbm_mesapd_coupling::psm::cuda::PSMWrapperSweepCUDA< LatticeModel_T, ParticleAccessor_T, pystencils::PSMSweep,
+                                                           lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
+         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), PSMSweep, pdfFieldGPUID,
+         particleAndVolumeFractionSoA);
+
    // communication, streaming and force evaluation
-   timeloop.add() << BeforeFunction(commFunction, "LBM Communication")
-                  << Sweep(makeSharedSweep(sweep), "cell-wise LB sweep")
+   timeloop.add() << BeforeFunction(communication, "LBM Communication") << Sweep(PSMWrapperSweep, "cell-wise LB sweep");
+   timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
+                           "copy pdf from GPU to CPU")
                   << AfterFunction(SharedFunctor< TorqueEval_T >(torqueEval), "torque evaluation");
 
    lbm_mesapd_coupling::ResetHydrodynamicForceTorqueKernel resetHydrodynamicForceTorque;
