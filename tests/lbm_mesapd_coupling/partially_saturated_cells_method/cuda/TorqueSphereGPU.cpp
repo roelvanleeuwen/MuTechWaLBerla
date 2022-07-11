@@ -255,13 +255,8 @@ int main(int argc, char** argv)
    bool shortrun = false;
    bool funcTest = false;
    bool fileIO   = false;
-   bool SC1W1    = false;
-   bool SC2W1    = false;
-   bool SC3W1    = false;
-   bool SC1W2    = false;
-   bool SC2W2    = false;
-   bool SC3W2    = false;
 
+   // TODO: support different SC_W_ options
    for (int i = 1; i < argc; ++i)
    {
       if (std::strcmp(argv[i], "--shortrun") == 0)
@@ -279,43 +274,7 @@ int main(int argc, char** argv)
          fileIO = true;
          continue;
       }
-      if (std::strcmp(argv[i], "--SC1W1") == 0)
-      {
-         SC1W1 = true;
-         continue;
-      }
-      if (std::strcmp(argv[i], "--SC2W1") == 0)
-      {
-         SC2W1 = true;
-         continue;
-      }
-      if (std::strcmp(argv[i], "--SC3W1") == 0)
-      {
-         SC3W1 = true;
-         continue;
-      }
-      if (std::strcmp(argv[i], "--SC1W2") == 0)
-      {
-         SC1W2 = true;
-         continue;
-      }
-      if (std::strcmp(argv[i], "--SC2W2") == 0)
-      {
-         SC2W2 = true;
-         continue;
-      }
-      if (std::strcmp(argv[i], "--SC3W2") == 0)
-      {
-         SC3W2 = true;
-         continue;
-      }
       WALBERLA_ABORT("Unrecognized command line argument found: " << argv[i]);
-   }
-
-   if (!SC1W1 && !SC2W1 && !SC3W1 && !SC1W2 && !SC2W2 && !SC3W2)
-   {
-      std::cerr << "Specify the model (--SC_W_) you want to use for the partially saturated cells method!" << std::endl;
-      return EXIT_FAILURE;
    }
 
    ///////////////////////////
@@ -423,18 +382,6 @@ int main(int argc, char** argv)
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionFieldID, 4);
    particleMapping();
 
-   // initialize the PDF field for PSM
-   if (SC1W1 || SC2W1 || SC3W1)
-   {
-      lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(
-         *blocks, pdfFieldID, particleAndVolumeFractionFieldID, *accessor);
-   }
-   else
-   {
-      lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 2 >(
-         *blocks, pdfFieldID, particleAndVolumeFractionFieldID, *accessor);
-   }
-
    ///////////////
    // TIME LOOP //
    ///////////////
@@ -452,60 +399,12 @@ int main(int argc, char** argv)
    using TorqueEval_T                    = TorqueEval< ParticleAccessor_T >;
    shared_ptr< TorqueEval_T > torqueEval = make_shared< TorqueEval_T >(&timeloop, &setup, blocks, accessor, fileIO);
 
-   if (SC1W1)
-   {
-      auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
-         pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);
-      // communication, streaming and force evaluation
-      timeloop.add() << BeforeFunction(commFunction, "LBM Communication")
-                     << Sweep(makeSharedSweep(sweep), "cell-wise LB sweep")
-                     << AfterFunction(SharedFunctor< TorqueEval_T >(torqueEval), "torque evaluation");
-   }
-   else if (SC2W1)
-   {
-      auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 2, 1 >(
-         pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);
-      // communication, streaming and force evaluation
-      timeloop.add() << BeforeFunction(commFunction, "LBM Communication")
-                     << Sweep(makeSharedSweep(sweep), "cell-wise LB sweep")
-                     << AfterFunction(SharedFunctor< TorqueEval_T >(torqueEval), "torque evaluation");
-   }
-   else if (SC3W1)
-   {
-      auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 3, 1 >(
-         pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);
-      // communication, streaming and force evaluation
-      timeloop.add() << BeforeFunction(commFunction, "LBM Communication")
-                     << Sweep(makeSharedSweep(sweep), "cell-wise LB sweep")
-                     << AfterFunction(SharedFunctor< TorqueEval_T >(torqueEval), "torque evaluation");
-   }
-   else if (SC1W2)
-   {
-      auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 2 >(
-         pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);
-      // communication, streaming and force evaluation
-      timeloop.add() << BeforeFunction(commFunction, "LBM Communication")
-                     << Sweep(makeSharedSweep(sweep), "cell-wise LB sweep")
-                     << AfterFunction(SharedFunctor< TorqueEval_T >(torqueEval), "torque evaluation");
-   }
-   else if (SC2W2)
-   {
-      auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 2, 2 >(
-         pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);
-      // communication, streaming and force evaluation
-      timeloop.add() << BeforeFunction(commFunction, "LBM Communication")
-                     << Sweep(makeSharedSweep(sweep), "cell-wise LB sweep")
-                     << AfterFunction(SharedFunctor< TorqueEval_T >(torqueEval), "torque evaluation");
-   }
-   else if (SC3W2)
-   {
-      auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 3, 2 >(
-         pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);
-      // communication, streaming and force evaluation
-      timeloop.add() << BeforeFunction(commFunction, "LBM Communication")
-                     << Sweep(makeSharedSweep(sweep), "cell-wise LB sweep")
-                     << AfterFunction(SharedFunctor< TorqueEval_T >(torqueEval), "torque evaluation");
-   }
+   auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
+      pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);
+   // communication, streaming and force evaluation
+   timeloop.add() << BeforeFunction(commFunction, "LBM Communication")
+                  << Sweep(makeSharedSweep(sweep), "cell-wise LB sweep")
+                  << AfterFunction(SharedFunctor< TorqueEval_T >(torqueEval), "torque evaluation");
 
    lbm_mesapd_coupling::ResetHydrodynamicForceTorqueKernel resetHydrodynamicForceTorque;
 
@@ -550,7 +449,7 @@ int main(int argc, char** argv)
          }
       }
       // the relative error has to be below 10% (25% for SC2)
-      WALBERLA_CHECK_LESS(relErr, (SC2W1 || SC2W2) ? real_c(0.25) : real_c(0.1));
+      WALBERLA_CHECK_LESS(relErr, real_c(0.1));
    }
 
    return 0;
