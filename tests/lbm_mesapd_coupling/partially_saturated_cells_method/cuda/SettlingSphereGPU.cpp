@@ -703,30 +703,12 @@ int main(int argc, char** argv)
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(pdfFieldVTK), "VTK (fluid field data)");
    }
 
-   bool useStreamCollide = true;
+   // add LBM communication function and boundary handling sweep (does the hydro force calculations and the no-slip
+   // treatment)
+   timeloop.add() << BeforeFunction(commFunction, "LBM Communication") << Sweep(bhSweep, "Boundary Handling");
 
-   if (useStreamCollide)
-   {
-      // add LBM communication function and boundary handling sweep (does the hydro force calculations and the no-slip
-      // treatment)
-      timeloop.add() << BeforeFunction(commFunction, "LBM Communication") << Sweep(bhSweep, "Boundary Handling");
-
-      // stream + collide LBM step
-      timeloop.add() << Sweep(makeSharedSweep(lbmSweep), "cell-wise LB sweep");
-   }
-   else
-   {
-      // collide LBM step
-      timeloop.add() << Sweep(makeCollideSweep(lbmSweep), "cell-wise collide LB sweep");
-
-      // add LBM communication function and boundary handling sweep (does the hydro force calculations and the no-slip
-      // treatment)
-      timeloop.add() << BeforeFunction(commFunction, "LBM Communication")
-                     << Sweep(BoundaryHandling_T::getBlockSweep(boundaryHandlingID), "Boundary Handling");
-
-      // stream LBM step
-      timeloop.add() << Sweep(makeStreamSweep(lbmSweep), "cell-wise stream LB sweep");
-   }
+   // stream + collide LBM step
+   timeloop.add() << Sweep(makeSharedSweep(lbmSweep), "cell-wise LB sweep");
 
    // evaluation functionality
    std::string loggingFileName(baseFolder + "/LoggingSettlingSphere_");
