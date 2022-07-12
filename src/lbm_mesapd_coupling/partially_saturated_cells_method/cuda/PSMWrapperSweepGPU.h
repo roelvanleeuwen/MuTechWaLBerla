@@ -83,25 +83,25 @@ class PSMWrapperSweepCUDA
       {
          if (mappingParticleSelector_(idx, *ac_)) { numMappedParticles++; }
       }
-      size_t arraySizes = numMappedParticles * sizeof(double3);
+      size_t arraySizes = numMappedParticles * sizeof(real_t) * 3;
 
       // Allocate unified memory for the reduction of the particle forces and torques on the GPU
-      double3* hydrodynamicForces;
+      real_t* hydrodynamicForces;
       cudaMallocManaged(&hydrodynamicForces, arraySizes);
       cudaMemset(hydrodynamicForces, 0, arraySizes);
-      double3* hydrodynamicTorques;
+      real_t* hydrodynamicTorques;
       cudaMallocManaged(&hydrodynamicTorques, arraySizes);
       cudaMemset(hydrodynamicTorques, 0, arraySizes);
 
       // Allocate unified memory for the particle information needed for computing the velocity at a WF point (needed by
       // the solid collision operator)
-      double3* linearVelocities;
+      real_t* linearVelocities;
       cudaMallocManaged(&linearVelocities, arraySizes);
       cudaMemset(linearVelocities, 0, arraySizes);
-      double3* angularVelocities;
+      real_t* angularVelocities;
       cudaMallocManaged(&angularVelocities, arraySizes);
       cudaMemset(angularVelocities, 0, arraySizes);
-      double3* positions;
+      real_t* positions;
       cudaMallocManaged(&positions, arraySizes);
       cudaMemset(positions, 0, arraySizes);
 
@@ -111,11 +111,12 @@ class PSMWrapperSweepCUDA
       {
          if (mappingParticleSelector_(idx, *ac_))
          {
-            linearVelocities[idxMapped]  = { ac_->getLinearVelocity(idx)[0], ac_->getLinearVelocity(idx)[1],
-                                             ac_->getLinearVelocity(idx)[2] };
-            angularVelocities[idxMapped] = { ac_->getAngularVelocity(idx)[0], ac_->getAngularVelocity(idx)[1],
-                                             ac_->getAngularVelocity(idx)[2] };
-            positions[idxMapped] = { ac_->getPosition(idx)[0], ac_->getPosition(idx)[1], ac_->getPosition(idx)[2] };
+            for (size_t d = 0; d < 3; ++d)
+            {
+               linearVelocities[idxMapped * 3 + d]  = ac_->getLinearVelocity(idx)[d];
+               angularVelocities[idxMapped * 3 + d] = ac_->getAngularVelocity(idx)[d];
+               positions[idxMapped * 3 + d]         = ac_->getPosition(idx)[d];
+            }
             idxMapped++;
          }
       }
@@ -166,13 +167,11 @@ class PSMWrapperSweepCUDA
       {
          if (mappingParticleSelector_(idx, *ac_))
          {
-            ac_->getHydrodynamicForceRef(idx)[0] += real_t(hydrodynamicForces[idxMapped].x);
-            ac_->getHydrodynamicForceRef(idx)[1] += real_t(hydrodynamicForces[idxMapped].y);
-            ac_->getHydrodynamicForceRef(idx)[2] += real_t(hydrodynamicForces[idxMapped].z);
-
-            ac_->getHydrodynamicTorqueRef(idx)[0] += real_t(hydrodynamicTorques[idxMapped].x);
-            ac_->getHydrodynamicTorqueRef(idx)[1] += real_t(hydrodynamicTorques[idxMapped].y);
-            ac_->getHydrodynamicTorqueRef(idx)[2] += real_t(hydrodynamicTorques[idxMapped].z);
+            for (size_t d = 0; d < 3; ++d)
+            {
+               ac_->getHydrodynamicForceRef(idx)[d] += hydrodynamicForces[idxMapped * 3 + d];
+               ac_->getHydrodynamicTorqueRef(idx)[d] += hydrodynamicTorques[idxMapped * 3 + d];
+            }
             idxMapped++;
          }
       }

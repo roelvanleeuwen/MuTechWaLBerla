@@ -35,16 +35,16 @@ namespace cuda
 __global__ void SetParticleVelocities(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
                                       walberla::cuda::FieldAccessor< uint_t > idxField,
                                       walberla::cuda::FieldAccessor< real_t > particleVelocitiesField,
-                                      double3* __restrict__ const linearVelocities,
-                                      double3* __restrict__ const angularVelocities,
-                                      double3* __restrict__ const positions, const double3 blockStart, const real_t dx);
+                                      real_t* __restrict__ const linearVelocities,
+                                      real_t* __restrict__ const angularVelocities,
+                                      real_t* __restrict__ const positions, const double3 blockStart, const real_t dx);
 
 __global__ void ReduceParticleForces(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
                                      walberla::cuda::FieldAccessor< id_t > idxField,
                                      walberla::cuda::FieldAccessor< real_t > particleForcesField,
-                                     double3* __restrict__ const hydrodynamicForces,
-                                     double3* __restrict__ const hydrodynamicTorques,
-                                     double3* __restrict__ const positions, const double3 blockStart, const real_t dx,
+                                     real_t* __restrict__ const hydrodynamicForces,
+                                     real_t* __restrict__ const hydrodynamicTorques,
+                                     real_t* __restrict__ const positions, const double3 blockStart, const real_t dx,
                                      const real_t forceScalingFactor);
 
 } // namespace cuda

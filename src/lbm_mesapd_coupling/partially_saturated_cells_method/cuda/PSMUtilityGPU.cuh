@@ -32,35 +32,45 @@ namespace psm
 namespace cuda
 {
 
-__device__ void cross(double3* __restrict__ const crossResult, const double3& lhs, const double3& rhs)
+__device__ void cross(real_t* __restrict__ const crossResult, const real_t* __restrict__ lhs,
+                      const real_t* __restrict__ rhs)
 {
-   *crossResult = { lhs.y * rhs.z - lhs.z * rhs.y, lhs.z * rhs.x - lhs.x * rhs.z, lhs.x * rhs.y - lhs.y * rhs.x };
+   crossResult[0] = lhs[1] * rhs[2] - lhs[2] * rhs[1];
+   crossResult[1] = lhs[2] * rhs[0] - lhs[0] * rhs[2];
+   crossResult[2] = lhs[0] * rhs[1] - lhs[1] * rhs[0];
 }
 
-__device__ void getVelocityAtWFPoint(double3* __restrict__ const velocityAtWFPoint, const double3& linearVelocity,
-                                     const double3& angularVelocity, const double3& position, const double3& wf_pt)
+__device__ void getVelocityAtWFPoint(real_t* __restrict__ const velocityAtWFPoint,
+                                     const real_t* __restrict__ linearVelocity,
+                                     const real_t* __restrict__ angularVelocity, const real_t* __restrict__ position,
+                                     const real_t* __restrict__ wf_pt)
 {
-   double3 crossResult;
-   cross(&crossResult, angularVelocity, double3{ wf_pt.x - position.x, wf_pt.y - position.y, wf_pt.z - position.z });
-   *velocityAtWFPoint = { linearVelocity.x + crossResult.x, linearVelocity.y + crossResult.y,
-                          linearVelocity.z + crossResult.z };
+   real_t crossResult[3];
+   real_t rhs[] = { wf_pt[0] - position[0], wf_pt[1] - position[1], wf_pt[2] - position[2] };
+   cross(crossResult, angularVelocity, rhs);
+   velocityAtWFPoint[0] = linearVelocity[0] + crossResult[0];
+   velocityAtWFPoint[1] = linearVelocity[1] + crossResult[1];
+   velocityAtWFPoint[2] = linearVelocity[2] + crossResult[2];
 }
 
-__device__ void addHydrodynamicForceAtWFPosAtomic(double3& particleForce, double3& particleTorque, const double3& f,
-                                                  const double3& pos, const double3& wf_pt)
+__device__ void addHydrodynamicForceAtWFPosAtomic(real_t* __restrict__ const particleForce,
+                                                  real_t* __restrict__ const particleTorque,
+                                                  const real_t* __restrict__ f, const real_t* __restrict__ pos,
+                                                  const real_t* __restrict__ wf_pt)
 {
    // TODO: uncomment atomicAdds and find solution to set CMAKE_CUDA_ARCHITECTURES in .gitlab-ci.yml (maybe using
    // nvidia-smi --query-gpu=compute_cap --format=csv,noheader)
-   atomicAdd(&(particleForce.x), f.x);
-   atomicAdd(&(particleForce.y), f.y);
-   atomicAdd(&(particleForce.z), f.z);
+   atomicAdd(&(particleForce[0]), f[0]);
+   atomicAdd(&(particleForce[1]), f[1]);
+   atomicAdd(&(particleForce[2]), f[2]);
 
-   double3 torque;
-   cross(&torque, { wf_pt.x - pos.x, wf_pt.y - pos.y, wf_pt.z - pos.z }, f);
+   real_t torque[] = { 0.0, 0.0, 0.0 };
+   real_t lhs[]    = { wf_pt[0] - pos[0], wf_pt[1] - pos[1], wf_pt[2] - pos[2] };
+   cross(torque, lhs, f);
 
-   atomicAdd(&(particleTorque.x), torque.x);
-   atomicAdd(&(particleTorque.y), torque.y);
-   atomicAdd(&(particleTorque.z), torque.z);
+   atomicAdd(&(particleTorque[0]), torque[0]);
+   atomicAdd(&(particleTorque[1]), torque[1]);
+   atomicAdd(&(particleTorque[2]), torque[2]);
 }
 
 } // namespace cuda
