@@ -54,7 +54,7 @@ WALBERLA_ABORT("OverlapFraction not implemented!");
    void operator()(const size_t /*particleIdx*/, const Shape_T& /*shape*/,
                    const shared_ptr< ParticleAccessor_T >& /*ac*/, const IBlock& /*blockIt*/,
                    const ParticleAndVolumeFractionSoA_T< Weighting_T >& /*particleAndVolumeFractionSoA*/,
-                   const real_t /*omega*/)
+                   const real_t /*omega*/, const size_t /*particleIdxMapped*/)
    {
       WALBERLA_ABORT("OverlapFraction not implemented!");
    }
@@ -89,7 +89,7 @@ myKernel();
    void operator()(const size_t particleIdx, const mesa_pd::data::Sphere& /*sphere*/,
                    const shared_ptr< ParticleAccessor_T >& ac, const IBlock& blockIt,
                    const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
-                   const real_t omega)
+                   const real_t omega, const size_t particleIdxMapped)
    {
       WALBERLA_STATIC_ASSERT((std::is_base_of< mesa_pd::data::IAccessor, ParticleAccessor_T >::value));
 

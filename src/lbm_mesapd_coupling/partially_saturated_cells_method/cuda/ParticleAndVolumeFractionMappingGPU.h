@@ -111,18 +111,21 @@ class ParticleAndVolumeFractionMappingGPU
       // Store uids to check later on if the particles have changed
       particleAndVolumeFractionField_.mappingUIDs.clear();
 
+      // TODO: simplify idx/idxMapped
+      size_t idxMapped = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
          if (mappingParticleSelector_(idx, *ac_))
          {
-            update(idx);
+            update(idx, idxMapped);
             particleAndVolumeFractionField_.mappingUIDs.push_back(ac_->getUid(idx));
+            idxMapped++;
          }
       }
    }
 
  private:
-   void update(const size_t idx)
+   void update(const size_t idx, const size_t idxMapped)
    {
       // update fraction mapping
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
@@ -131,7 +134,7 @@ class ParticleAndVolumeFractionMappingGPU
          if (blockIt->getAABB().intersects(walberla::mesa_pd::getParticleAABB(idx, *ac_)))
          {
             singleCast_(idx, *ac_, overlapFractionFctr_, ac_, *blockIt, particleAndVolumeFractionField_,
-                        particleAndVolumeFractionField_.omega_);
+                        particleAndVolumeFractionField_.omega_, idxMapped);
          }
       }
    }
