@@ -92,8 +92,7 @@ if( WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCH
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU> --funcTest PROCESSES 8 )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU> PROCESSES 8 LABELS longrun CONFIGURATIONS Release RelWithDbgInfo )
 
-    # TODO: check depends
-    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU FILES partially_saturated_cells_method/cuda/SettlingSphereGPU.cpp DEPENDS blockforest boundary core cuda field lbm lbm_mesapd_coupling timeloop mesa_pd PSMCodegenPython )
+    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU FILES partially_saturated_cells_method/cuda/SettlingSphereGPU.cpp DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd timeloop vtk PSMCodegenPython )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> --funcTest PROCESSES 8 )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> PROCESSES 8 LABELS longrun CONFIGURATIONS Release RelWithDbgInfo )
 endif()
