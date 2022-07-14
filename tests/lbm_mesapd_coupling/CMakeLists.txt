@@ -83,7 +83,7 @@ if( WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCH
     walberla_generate_target_from_python( NAME PSMCodegenPython
             FILE partially_saturated_cells_method/cuda/PSMCodegen.py
             OUT_FILES PSMSweep.cu PSMSweep.h
-            PSMPackInfo.cu PSMPackInfo.h InitialPDFsSetter.cu InitialPDFsSetter.h )
+            PSMPackInfo.cu PSMPackInfo.h InitialPDFsSetter.cu InitialPDFsSetter.h PSM_NoSlip.cu PSM_NoSlip.h )
     waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/cuda/DragForceSphereGPU.cpp DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd timeloop PSMCodegenPython )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU> --funcTest PROCESSES 8 )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU> PROCESSES 8 LABELS longrun CONFIGURATIONS Release RelWithDbgInfo)

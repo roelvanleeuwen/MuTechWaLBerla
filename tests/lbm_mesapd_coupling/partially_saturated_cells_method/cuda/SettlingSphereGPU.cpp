@@ -22,11 +22,7 @@
 //======================================================================================================================
 
 #include "blockforest/Initialization.h"
-#include "blockforest/communication/UniformBufferedScheme.h"
 
-#include "boundary/all.h"
-
-#include "core/DataTypes.h"
 #include "core/Environment.h"
 #include "core/debug/Debug.h"
 #include "core/debug/TestSubsystem.h"
@@ -34,25 +30,22 @@
 #include "core/math/all.h"
 #include "core/timing/RemainingTimeLogger.h"
 
-#include "domain_decomposition/SharedSweep.h"
+#include "cuda/AddGPUFieldToStorage.h"
+#include "cuda/communication/UniformGPUScheme.h"
 
 #include "field/AddToStorage.h"
-#include "field/communication/PackInfo.h"
 #include "field/vtk/all.h"
 
 #include "lbm/boundary/all.h"
-#include "lbm/communication/PdfFieldPackInfo.h"
 #include "lbm/field/AddToStorage.h"
 #include "lbm/field/PdfField.h"
 #include "lbm/lattice_model/D3Q19.h"
-#include "lbm/sweeps/SweepWrappers.h"
 #include "lbm/vtk/all.h"
 
-#include "lbm_mesapd_coupling/DataTypes.h"
+#include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/mapping/ParticleMapping.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMUtility.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/ParticleAndVolumeFractionMapping.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/AddForceOnParticlesKernel.h"
 #include "lbm_mesapd_coupling/utility/AddHydrodynamicInteractionKernel.h"
 #include "lbm_mesapd_coupling/utility/AverageHydrodynamicForceTorqueKernel.h"
@@ -87,7 +80,10 @@
 
 #include <functional>
 
-#include "../Utility.h"
+#include "InitialPDFsSetter.h"
+#include "PSMPackInfo.h"
+#include "PSMSweep.h"
+#include "PSM_NoSlip.h"
 
 namespace settling_sphere
 {
@@ -98,6 +94,7 @@ namespace settling_sphere
 
 using namespace walberla;
 using walberla::uint_t;
+using namespace lbm_mesapd_coupling::psm::cuda;
 
 using LatticeModel_T = lbm::D3Q19< lbm::collision_model::TRT >;
 
@@ -106,6 +103,8 @@ using PdfField_T = lbm::PdfField< LatticeModel_T >;
 
 using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
+
+typedef pystencils::PSMPackInfo PackInfo_T;
 
 const uint_t FieldGhostLayers = 1;
 
@@ -589,7 +588,21 @@ int main(int argc, char** argv)
 
    // add PDF field
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
-      blocks, "pdf field (zyxf)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::zyxf);
+      blocks, "pdf field (fzyx)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::fzyx);
+   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "GPU PDF Field");
+   typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
+   BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_c(0.0), field::fzyx);
+   BlockDataID velocityFieldIdGPU =
+      cuda::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity on GPU", true);
+
+   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), real_t(0),
+                                           real_t(0), real_t(0));
+
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      pdfSetter(&(*blockIt));
+   }
+
    // add flag field
    BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
 
@@ -625,6 +638,8 @@ int main(int argc, char** argv)
    lbm_mesapd_coupling::LubricationCorrectionKernel lubricationCorrectionKernel(
       viscosity, [](real_t r) { return real_t(0.0016) * r; });
    lbm_mesapd_coupling::ParticleMappingKernel< BoundaryHandling_T > particleMappingKernel(blocks, boundaryHandlingID);
+   lbm::PSM_NoSlip noSlip(blocks, pdfFieldGPUID);
+   noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, FlagUID("NoSlip"), NoSlip_Flag);
 
    ///////////////
    // TIME LOOP //
@@ -635,36 +650,55 @@ int main(int argc, char** argv)
                        *accessor, NoSlip_Flag);
 
    // map particles into the LBM simulation
-   BlockDataID particleAndVolumeFractionFieldID =
+   // TODO: remove all commented code
+   /*BlockDataID particleAndVolumeFractionFieldID =
       field::addToStorage< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
          blocks, "particle and volume fraction field",
          std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);
    lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(blocks, accessor, sphereSelector,
                                                                               particleAndVolumeFractionFieldID, 4);
-   particleMapping();
+   particleMapping();*/
+   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(
+      blocks, lbm::collision_model::omegaFromViscosity(viscosity));
+   lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
+      blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, 4);
+   particleMappingGPU();
 
-   lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
-                                                                         particleAndVolumeFractionFieldID, *accessor);
+   /*   lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
+                                                                            particleAndVolumeFractionFieldID,
+      *accessor);*/
 
-   walberla::lbm_mesapd_coupling::FractionFieldSum fractionFieldSum(blocks, particleAndVolumeFractionFieldID);
+   /*walberla::lbm_mesapd_coupling::FractionFieldSum fractionFieldSum(blocks, particleAndVolumeFractionFieldID);
    // check that the sum of all fractions is roughly the volume of the particle
    real_t particleRadius = diameter * real_t(0.5);
    WALBERLA_CHECK_LESS(
       std::fabs(4.0 / 3.0 * math::pi * particleRadius * particleRadius * particleRadius - fractionFieldSum()),
-      real_c(1.0));
+      real_c(1.0));*/
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   std::function< void() > commFunction;
+   /*std::function< void() > commFunction;
    blockforest::communication::UniformBufferedScheme< Stencil_T > scheme(blocks);
    scheme.addPackInfo(make_shared< lbm::PdfFieldPackInfo< LatticeModel_T > >(pdfFieldID));
-   commFunction = scheme;
+   commFunction = scheme;*/
+   cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);
+   com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
+   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
    // create the timeloop
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
-   auto bhSweep  = BoundaryHandling_T::getBlockSweep(boundaryHandlingID);
+   /*auto bhSweep = BoundaryHandling_T::getBlockSweep(boundaryHandlingID);
    auto lbmSweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, FlagField_T, 1, 1 >(
-      pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor, flagFieldID, Fluid_Flag);
+      pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor, flagFieldID, Fluid_Flag);*/
+   pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+                                 particleAndVolumeFractionSoA.particleForcesFieldID,
+                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
+                                 velocityFieldIdGPU, real_t(0.0), real_t(0.0), real_t(0.0),
+                                 lbm::collision_model::omegaFromViscosity(viscosity));
+   auto PSMWrapperSweep =
+      lbm_mesapd_coupling::psm::cuda::PSMWrapperSweepCUDA< LatticeModel_T, ParticleAccessor_T, pystencils::PSMSweep,
+                                                           lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
+         blocks, accessor, sphereSelector, PSMSweep, pdfFieldGPUID, particleAndVolumeFractionSoA);
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 
@@ -705,13 +739,16 @@ int main(int argc, char** argv)
 
    // add LBM communication function and boundary handling sweep (does the hydro force calculations and the no-slip
    // treatment)
-   timeloop.add() << BeforeFunction(commFunction, "LBM Communication") << Sweep(bhSweep, "Boundary Handling");
+   timeloop.add() << BeforeFunction(communication, "LBM Communication")
+                  << Sweep(noSlip.getSweep(), "Boundary Handling");
 
    // stream + collide LBM step
-   timeloop.add() << Sweep(makeSharedSweep(lbmSweep), "cell-wise LB sweep");
+   timeloop.add() << Sweep(PSMWrapperSweep, "cell-wise LB sweep");
+   timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
+                           "copy pdf from GPU to CPU");
 
    // evaluation functionality
-   std::string loggingFileName(baseFolder + "/LoggingSettlingSphere_");
+   std::string loggingFileName(baseFolder + "/LoggingSettlingSphereGPU_");
    loggingFileName += std::to_string(fluidType);
    loggingFileName += ".txt";
    if (fileIO) { WALBERLA_LOG_INFO_ON_ROOT(" - writing logging output to file \"" << loggingFileName << "\""); }
@@ -812,10 +849,10 @@ int main(int argc, char** argv)
             ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, explEulerIntegrator, *accessor);
 
          syncCall();
-         particleMapping();
-         WALBERLA_CHECK_LESS(
+         particleMappingGPU();
+         /*WALBERLA_CHECK_LESS(
             std::fabs(4.0 / 3.0 * math::pi * particleRadius * particleRadius * particleRadius - fractionFieldSum()),
-            real_c(1.0));
+            real_c(1.0));*/
       }
 
       timeloopTiming["RPD"].end();

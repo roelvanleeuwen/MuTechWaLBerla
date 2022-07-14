@@ -3,6 +3,7 @@ import pystencils as ps
 
 from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil, ForceModel
 
+from lbmpy.boundaries import NoSlip
 from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
 
@@ -11,6 +12,8 @@ from pystencils_walberla import (
     generate_sweep,
     generate_pack_info_from_kernel,
 )
+
+from lbmpy_walberla import generate_boundary
 
 # Based on the following paper: https://doi.org/10.1016/j.compfluid.2017.05.033
 
@@ -175,3 +178,14 @@ with CodeGeneration() as ctx:
     generate_pack_info_from_kernel(ctx, "PSMPackInfo", lbm_update_rule, target=target)
 
     generate_sweep(ctx, "InitialPDFsSetter", pdfs_setter, target=target)
+
+    # TODO: check if boundary condition is correct for settling sphere
+    generate_boundary(
+        ctx,
+        "PSM_NoSlip",
+        NoSlip(),
+        method,
+        field_name=pdfs.name,
+        streaming_pattern="pull",
+        target=ps.Target.GPU,
+    )

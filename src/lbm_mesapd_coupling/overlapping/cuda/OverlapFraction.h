@@ -121,7 +121,7 @@ myKernel();
       myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                  // blockStart
       myKernel.addParam(blockIt.getAABB().xSize() / real_t(nOverlappingParticlesField->xSize())); // dx
       // myKernel.addParam(int3{ 16, 16, 16 });                                                            // nSamples
-      myKernel.addParam(particleIdx);
+      myKernel.addParam(particleIdxMapped);
       myKernel();
    }
 };
