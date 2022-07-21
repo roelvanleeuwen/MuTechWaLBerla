@@ -707,6 +707,9 @@ int main(int argc, char** argv)
    {
       // spheres
       auto particleVtkOutput = make_shared< mesa_pd::vtk::ParticleVtkOutput >(ps);
+      particleVtkOutput->setParticleSelector([sphereShape](const mesa_pd::data::ParticleStorage::iterator& pIt) {
+         return pIt->getShapeID() == sphereShape;
+      });
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleOwner >("owner");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleLinearVelocity >("velocity");
       auto particleVtkWriter =
