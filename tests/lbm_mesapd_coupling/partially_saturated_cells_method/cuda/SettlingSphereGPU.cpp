@@ -735,6 +735,27 @@ int main(int argc, char** argv)
          make_shared< lbm::DensityVTKWriter< LatticeModel_T, float > >(pdfFieldID, "DensityFromPDF"));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(pdfFieldVTK), "VTK (fluid field data)");
+
+      // fraction mapping field
+      auto fractionFieldVTK = vtk::createVTKOutput_BlockData(blocks, "fraction_field", vtkIOFreq, 0, false, baseFolder);
+
+      BlockDataID BFieldID =
+         field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "B field CPU", 0, field::fzyx, 1);
+      fractionFieldVTK->addBeforeFunction([&]() {
+         cuda::fieldCpy< GhostLayerField< real_t, 1 >, BFieldGPU_T >(blocks, BFieldID,
+                                                                     particleAndVolumeFractionSoA.BFieldID);
+      });
+      fractionFieldVTK->addCellDataWriter(
+         make_shared< field::VTKWriter< GhostLayerField< real_t, 1 > > >(BFieldID, "Fraction mapping field B"));
+
+      BlockDataID BsFieldID = field::addToStorage< BsField_T >(blocks, "Bs field CPU", 0, field::fzyx, 1);
+      fractionFieldVTK->addBeforeFunction([&]() {
+         cuda::fieldCpy< BsField_T, BsFieldGPU_T >(blocks, BsFieldID, particleAndVolumeFractionSoA.BsFieldID);
+      });
+      fractionFieldVTK->addCellDataWriter(
+         make_shared< field::VTKWriter< BsField_T > >(BsFieldID, "Fraction mapping field Bs"));
+
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(fractionFieldVTK), "VTK (fraction field data");
    }
 
    // add LBM communication function and boundary handling sweep (does the hydro force calculations and the no-slip
