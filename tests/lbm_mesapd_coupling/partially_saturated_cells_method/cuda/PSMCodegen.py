@@ -187,5 +187,5 @@ with CodeGeneration() as ctx:
         method,
         field_name=pdfs.name,
         streaming_pattern="pull",
-        target=ps.Target.GPU,
+        target=target,
     )

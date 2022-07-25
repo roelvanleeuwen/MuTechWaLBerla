@@ -521,7 +521,8 @@ int main(int argc, char** argv)
    // BLOCK STRUCTURE SETUP //
    ///////////////////////////
 
-   Vector3< uint_t > numberOfBlocksPerDirection(uint_t(1), uint_t(1), uint_t(4));
+   // TODO: check why we get incorrect results for number of blocks > number of processes
+   Vector3< uint_t > numberOfBlocksPerDirection(uint_t(1), uint_t(1), uint_t(MPIManager::instance()->numProcesses()));
    Vector3< uint_t > cellsPerBlockPerDirection(domainSize[0] / numberOfBlocksPerDirection[0],
                                                domainSize[1] / numberOfBlocksPerDirection[1],
                                                domainSize[2] / numberOfBlocksPerDirection[2]);
