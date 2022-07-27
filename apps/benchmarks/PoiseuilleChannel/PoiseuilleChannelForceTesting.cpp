@@ -37,7 +37,6 @@ const uint_t FieldGhostLayers( 1 );
 
 //#define USE_SRT
 #define USE_TRT
-//#define USE_MRT   // does not work -> no CellwiseSweep implementation for this collision model
 
 #define USE_GuoConstant
 //#define USE_SimpleConstant
@@ -57,9 +56,6 @@ const uint_t FieldGhostLayers( 1 );
 #elif defined(USE_TRT)
    using CollisionModel_T = lbm::collision_model::TRT;
    using LatticeModel_T = lbm::D2Q9<CollisionModel_T , true, ForceModel_T>;
-#elif defined(USE_MRT)
-   using CollisionModel_T = lbm::collision_model::D3Q19MRT;
-   using LatticeModel_T = lbm::D3Q19<CollisionModel_T , true, ForceModel_T>;
 #endif
 
 using Stencil_T = LatticeModel_T::Stencil;
