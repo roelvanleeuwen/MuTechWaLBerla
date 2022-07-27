@@ -33,7 +33,7 @@
 
 namespace walberla {
 
-const uint_t FieldGhostLayers( 1 );
+//const uint_t FieldGhostLayers( 1 );
 
 //#define USE_SRT
 #define USE_TRT
