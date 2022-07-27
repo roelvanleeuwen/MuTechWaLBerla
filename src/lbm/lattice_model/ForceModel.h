@@ -526,26 +526,19 @@ public:
          const real_t common = (commonTerms * ( tensorProduct(c,c) - Matrix3<real_t>::makeDiagonalMatrix(one_third) )).trace();
          return real_t(3.0) * w * ( bodyForce_ * c + real_t(1.5) * common);
       }
-      else if (std::is_same< typename LatticeModel_T::CollisionModel::tag, collision_model::TRT_tag >::value)
-      {
-         real_t uf = velocity * bodyForce_;
-         real_t uq = c * velocity;
-         real_t Fq = c * bodyForce_;
-         real_t common_plus = real_t(3) * (real_t(1) - real_t(0.5) * omega);
-         real_t common_minus = real_t(3) * (real_t(1) - real_t(0.5) * omega_odd);
-         real_t Sq_plus = common_plus * w * (real_t(3) * uq * Fq - uf);
-         real_t Sq_minus = common_minus * w * Fq;
-         real_t Sq = Sq_plus + Sq_minus;
-         return Sq;
-
-
-         //return real_t(3.0) * w * ( ( real_t(1) - real_t(0.5) * omega ) *
+      // else if (std::is_same< typename LatticeModel_T::CollisionModel::tag, collision_model::TRT_tag >::value)
+      // {
+         // return real_t(3.0) * w * ( ( real_t(1) - real_t(0.5) * omega ) *
          //                           ( ( real_t(3) * ( c * velocity ) * c - velocity ) * bodyForce_ ) +
          //                           ( real_t(1) - real_t(0.5) * omega_odd ) * (c * bodyForce_) );
-                                    //( omega - omega_odd ) * real_t(0.5) * (c * bodyForce_) );
-      }
+         //                           ( omega - omega_odd ) * real_t(0.5) * (c * bodyForce_) );
+      // }
       else
       {
+         if (std::is_same < typename LatticeModel_T::CollisionModel::tag, collision_model::TRT_tag >::value )
+            WALBERLA_LOG_WARNING("waLBerla intern TRT operator in combination with the GuoConstant force model is "
+                                 "using the SRT force term, as a consequence the second relaxation rate (which has a minor "
+                                 "impact on the forcing term) is neglected during the evaluation of the forcing term!")
          return real_t(3.0) * w * ( real_t(1) - real_t(0.5) * omega ) *
                                   ( ( c - velocity + ( real_t(3) * ( c * velocity ) * c ) ) * bodyForce_ );
       }
@@ -631,14 +624,18 @@ public:
          const real_t common = (commonTerms * ( tensorProduct(c,c) - Matrix3<real_t>::makeDiagonalMatrix(one_third) )).trace();
          return real_t(3.0) * w * ( force(x,y,z) * c + real_t(1.5) * common);
       }
-      else if (std::is_same< typename LatticeModel_T::CollisionModel::tag, collision_model::TRT_tag >::value)
-      {
-         return real_t(3.0) * w * ( ( real_t(1) - real_t(0.5) * omega ) *
-                                    ( ( c - velocity + ( real_t(3) * ( c * velocity ) * c ) ) * force(x,y,z) ) +
-                                    ( omega - omega_odd ) * real_t(0.5) * (c * force(x,y,z)) );
-      }
+      // else if (std::is_same< typename LatticeModel_T::CollisionModel::tag, collision_model::TRT_tag >::value)
+      // {
+      //    return real_t(3.0) * w * ( ( real_t(1) - real_t(0.5) * omega ) *
+      //                               ( ( c - velocity + ( real_t(3) * ( c * velocity ) * c ) ) * force(x,y,z) ) +
+      //                               ( omega - omega_odd ) * real_t(0.5) * (c * force(x,y,z)) );
+      // }
       else
       {
+         if (std::is_same < typename LatticeModel_T::CollisionModel::tag, collision_model::TRT_tag >::value )
+            WALBERLA_LOG_WARNING("waLBerla intern TRT operator in combination with the GuoField force model is "
+                                 "using the SRT force term, as a consequence the second relaxation rate (which has a minor "
+                                 "impact on the forcing term) is neglected during the evaluation of the forcing term!")
          return real_t(3.0) * w * ( real_t(1) - real_t(0.5) * omega ) *
                                   ( ( c - velocity + ( real_t(3) * ( c * velocity ) * c ) ) * force(x,y,z) );
       }
