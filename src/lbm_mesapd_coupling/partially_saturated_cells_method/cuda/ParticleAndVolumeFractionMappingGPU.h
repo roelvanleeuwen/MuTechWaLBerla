@@ -83,7 +83,7 @@ void clearField(const IBlock& blockIt,
    myKernel();
 }
 
-// TODO: use superSamplingDepth
+// TODO: use or remove superSamplingDepth
 template< typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
 class ParticleAndVolumeFractionMappingGPU
 {

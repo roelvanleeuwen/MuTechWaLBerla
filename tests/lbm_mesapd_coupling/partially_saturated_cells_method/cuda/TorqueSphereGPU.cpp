@@ -79,6 +79,8 @@ typedef lbm::D3Q19< lbm::collision_model::SRT, false > LatticeModel_T;
 using Stencil_T  = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField< LatticeModel_T >;
 
+using VelocityField_T = field::GhostLayerField< real_t, Stencil_T::D >;
+
 using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
 
@@ -352,7 +354,7 @@ int main(int argc, char** argv)
       sphereParticle->setInteractionRadius(setup.radius);
    }
 
-   // synchronize often enough for large bodies
+   // synchronize often enough for large particles
    std::function< void(void) > syncCall = [&]() {
       // const real_t overlap = real_t(1.5) * dx;
       mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
@@ -372,11 +374,10 @@ int main(int argc, char** argv)
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
       blocks, "pdf field (zyxf)", latticeModel, Vector3< real_t >(real_c(0), real_c(0), real_c(0)), real_c(1),
       uint_t(1), field::fzyx);
-   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "GPU PDF Field");
-   typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
-   BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_c(0.0), field::fzyx);
+   BlockDataID pdfFieldGPUID   = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU", true);
+   BlockDataID velocityFieldId = field::addToStorage< VelocityField_T >(blocks, "velocity", real_c(0.0), field::fzyx);
    BlockDataID velocityFieldIdGPU =
-      cuda::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity on GPU", true);
+      cuda::addGPUFieldToStorage< VelocityField_T >(blocks, velocityFieldId, "velocity on GPU", true);
 
    pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), real_t(0),
                                            real_t(0), real_t(0));
@@ -386,17 +387,9 @@ int main(int argc, char** argv)
       pdfSetter(&(*blockIt));
    }
 
-   // add particle and volume fraction field
-   /*BlockDataID particleAndVolumeFractionFieldID =
-      field::addToStorage< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
-         blocks, "particle and volume fraction field",
-         std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);*/
-
+   // add particle and volume fraction data structures
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
-   // map bodies and calculate solid volume fraction initially
-   /*lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(
-      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionFieldID, 4);
-   particleMapping();*/
+   // map particles and calculate solid volume fraction initially
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA, 4);
    particleMappingGPU();
@@ -409,11 +402,6 @@ int main(int argc, char** argv)
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   /*std::function< void() > commFunction;
-
-   blockforest::communication::UniformBufferedScheme< stencil::D3Q27 > scheme(blocks);
-   scheme.addPackInfo(make_shared< field::communication::PackInfo< PdfField_T > >(pdfFieldID));
-   commFunction = scheme;*/
    cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
@@ -421,8 +409,6 @@ int main(int argc, char** argv)
    using TorqueEval_T                    = TorqueEval< ParticleAccessor_T >;
    shared_ptr< TorqueEval_T > torqueEval = make_shared< TorqueEval_T >(&timeloop, &setup, blocks, accessor, fileIO);
 
-   /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
-      pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
    pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,

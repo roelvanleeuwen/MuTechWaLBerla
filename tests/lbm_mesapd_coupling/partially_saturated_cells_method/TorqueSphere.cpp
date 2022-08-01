@@ -392,7 +392,7 @@ int main(int argc, char** argv)
       sphereParticle->setInteractionRadius(setup.radius);
    }
 
-   // synchronize often enough for large bodies
+   // synchronize often enough for large particles
    std::function< void(void) > syncCall = [&]() {
       // const real_t overlap = real_t(1.5) * dx;
       mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
@@ -418,7 +418,7 @@ int main(int argc, char** argv)
       field::addToStorage< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
          blocks, "particle and volume fraction field",
          std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);
-   // map bodies and calculate solid volume fraction initially
+   // map particles and calculate solid volume fraction initially
    lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionFieldID, 4);
    particleMapping();
@@ -445,7 +445,7 @@ int main(int argc, char** argv)
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
    std::function< void() > commFunction;
 
-   blockforest::communication::UniformBufferedScheme< stencil::D3Q27 > scheme(blocks);
+   blockforest::communication::UniformBufferedScheme< Stencil_T > scheme(blocks);
    scheme.addPackInfo(make_shared< field::communication::PackInfo< PdfField_T > >(pdfFieldID));
    commFunction = scheme;
 

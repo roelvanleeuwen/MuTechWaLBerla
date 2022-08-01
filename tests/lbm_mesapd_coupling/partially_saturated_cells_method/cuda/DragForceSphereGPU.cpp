@@ -77,6 +77,8 @@ using namespace lbm_mesapd_coupling::psm::cuda;
 using ForceModel_T   = lbm::force_model::LuoConstant;
 using LatticeModel_T = lbm::D3Q19< lbm::collision_model::TRT, false, ForceModel_T >;
 
+using VelocityField_T = field::GhostLayerField< real_t, LatticeModel_T::Stencil::D >;
+
 using Stencil_T  = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField< LatticeModel_T >;
 
@@ -405,11 +407,11 @@ int main(int argc, char** argv)
    // add PDF field
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
       blocks, "pdf field (zyxf)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::fzyx);
-   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "GPU PDF Field");
-   typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
-   BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_c(0.0), field::fzyx);
+   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
+   BlockDataID velocityFieldId =
+      field::addToStorage< VelocityField_T >(blocks, "velocity field", real_c(0.0), field::fzyx);
    BlockDataID velocityFieldIdGPU =
-      cuda::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity on GPU", true);
+      cuda::addGPUFieldToStorage< VelocityField_T >(blocks, velocityFieldId, "velocity field GPU", true);
 
    pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(setup.extForce), real_t(0), real_t(0), real_t(1.0),
                                            real_t(0), real_t(0), real_t(0));
@@ -427,43 +429,21 @@ int main(int argc, char** argv)
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   /*blockforest::communication::UniformBufferedScheme< Stencil_T > optimizedPDFCommunicationScheme(blocks);
-   optimizedPDFCommunicationScheme.addPackInfo(
-      make_shared< lbm::PdfFieldPackInfo< LatticeModel_T > >(pdfFieldID)); // optimized sync*/
    cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
-   // initially map particles into the LBM simulation
-   /*BlockDataID particleAndVolumeFractionFieldID =
-      field::addToStorage< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
-         blocks, "particle and volume fraction field",
-         std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);
-   lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(
-      blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionFieldID, 4);
-   particleMapping();*/
-
-   // add particle and volume fraction fields (needed for the PSM)
+   // add particle and volume fraction data structures
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
 
-   // calculate fraction
+   // map particles and calculate solid volume fraction initially
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
       blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionSoA, 4);
    particleMappingGPU();
 
-   /*lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
-                                                                         particleAndVolumeFractionFieldID, *accessor);
-
-   walberla::lbm_mesapd_coupling::FractionFieldSum fractionFieldSum(blocks, particleAndVolumeFractionFieldID);
-   // check that the sum of all fractions is roughly the volume of the particle
-   WALBERLA_CHECK_LESS(
-      std::fabs(4.0 / 3.0 * math::pi * setup.radius * setup.radius * setup.radius - fractionFieldSum()), real_c(2.0));*/
-
    // since external forcing is applied, the evaluation of the velocity has to be carried out directly after the
    // streaming step however, the default sweep is a  stream - collide step, i.e. after the sweep, the velocity
    // evaluation is not correct solution: split the sweep explicitly into collide and stream
-   /*auto sweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, 1, 1 >(
-      pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor);*/
    pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
@@ -474,14 +454,10 @@ int main(int argc, char** argv)
          blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), PSMSweep, pdfFieldGPUID,
          particleAndVolumeFractionSoA);
 
-   // collision sweep
-   /*timeloop.add() << Sweep(lbm::makeCollideSweep(sweep), "cell-wise LB sweep (collide)");*/
-
    // add LBM communication function and streaming & force evaluation
    using DragForceEval_T = DragForceEvaluator< ParticleAccessor_T >;
    auto forceEval        = make_shared< DragForceEval_T >(&timeloop, &setup, blocks, pdfFieldID, accessor, sphereID);
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
-                  /*<< Sweep(lbm::makeStreamSweep(SRTSweep), "cell-wise LB sweep (stream)")*/
                   << Sweep(PSMWrapperSweep, "cell-wise PSM sweep");
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU")
@@ -506,11 +482,11 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_CUDA)
       // Copy velocity data to CPU before output
       vtkOutput->addBeforeFunction([&]() {
-         cuda::fieldCpy< VectorField_T, cuda::GPUField< real_t > >(blocks, velocityFieldId, velocityFieldIdGPU);
+         cuda::fieldCpy< VelocityField_T, cuda::GPUField< real_t > >(blocks, velocityFieldId, velocityFieldIdGPU);
       });
 #endif
 
-      auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
+      auto velWriter = make_shared< field::VTKWriter< VelocityField_T > >(velocityFieldId, "Velocity");
       vtkOutput->addCellDataWriter(velWriter);
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
