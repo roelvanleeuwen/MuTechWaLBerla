@@ -15,7 +15,9 @@
 //
 //! \file FluidizedBed.cpp
 //! \ingroup lbm_mesapd_coupling
+//! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
+//! \brief Modification of showcases/FluidizedBed/FluidizedBed.cpp
 //
 //======================================================================================================================
 
@@ -43,16 +45,14 @@
 #include "lbm/field/AddToStorage.h"
 #include "lbm/field/PdfField.h"
 #include "lbm/lattice_model/D3Q19.h"
-#include "lbm/sweeps/CellwiseSweep.h"
 
 #include "lbm_mesapd_coupling/mapping/ParticleMapping.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/MovingParticleMapping.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/boundary/CurvedLinear.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/reconstruction/Reconstructor.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/reconstruction/PdfReconstructionManager.h"
 #include "lbm_mesapd_coupling/utility/AddForceOnParticlesKernel.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 #include "lbm_mesapd_coupling/DataTypes.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/ParticleAndVolumeFractionMapping.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMUtility.h"
 #include "lbm_mesapd_coupling/utility/AverageHydrodynamicForceTorqueKernel.h"
 #include "lbm_mesapd_coupling/utility/AddHydrodynamicInteractionKernel.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
@@ -114,8 +114,6 @@ const uint_t FieldGhostLayers = 1;
 
 const FlagUID Fluid_Flag( "fluid" );
 const FlagUID NoSlip_Flag( "no slip" );
-const FlagUID MO_Flag( "moving obstacle" );
-const FlagUID FormerMO_Flag( "former moving obstacle" );
 const FlagUID Inflow_Flag("inflow");
 const FlagUID Outflow_Flag("outflow");
 
@@ -128,15 +126,13 @@ class MyBoundaryHandling
 public:
 
    using NoSlip_T = lbm::NoSlip< LatticeModel_T, flag_t >;
-   using MO_T = lbm_mesapd_coupling::CurvedLinear< LatticeModel_T, FlagField_T, ParticleAccessor_T >;
    using Inflow_T = lbm::SimpleUBB< LatticeModel_T, flag_t >;
    using Outflow_T = lbm::SimplePressure< LatticeModel_T, flag_t >;
-   using Type = BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T, MO_T, Inflow_T, Outflow_T >;
+   using Type = BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T, Inflow_T, Outflow_T >;
 
-   MyBoundaryHandling( const BlockDataID & flagFieldID, const BlockDataID & pdfFieldID,
-                       const BlockDataID & particleFieldID, const shared_ptr<ParticleAccessor_T>& ac,
+   MyBoundaryHandling( const BlockDataID & flagFieldID, const BlockDataID & pdfFieldID, const shared_ptr<ParticleAccessor_T>& ac,
                        Vector3<real_t> inflowVelocity, bool periodicInX, bool periodicInY) :
-         flagFieldID_( flagFieldID ), pdfFieldID_( pdfFieldID ), particleFieldID_( particleFieldID ), ac_( ac ),
+         flagFieldID_( flagFieldID ), pdfFieldID_( pdfFieldID ), ac_( ac ),
          inflowVelocity_(inflowVelocity), periodicInX_(periodicInX), periodicInY_(periodicInY) {}
 
    Type * operator()( IBlock* const block, const StructuredBlockStorage* const storage ) const
@@ -146,13 +142,11 @@ public:
 
       auto * flagField     = block->getData< FlagField_T >( flagFieldID_ );
       auto *  pdfField     = block->getData< PdfField_T > ( pdfFieldID_ );
-      auto * particleField = block->getData< lbm_mesapd_coupling::ParticleField_T > ( particleFieldID_ );
 
       const auto fluid = flagField->flagExists( Fluid_Flag ) ? flagField->getFlag( Fluid_Flag ) : flagField->registerFlag( Fluid_Flag );
 
       Type * handling = new Type( "moving obstacle boundary handling", flagField, fluid,
                                   NoSlip_T( "NoSlip", NoSlip_Flag, pdfField ),
-                                  MO_T( "MO", MO_Flag, pdfField, flagField, particleField, ac_, fluid, *storage, *block ),
                                   Inflow_T( "Inflow", Inflow_Flag, pdfField, inflowVelocity_),
                                   Outflow_T( "Outflow", Outflow_Flag, pdfField, real_t(1) ) );
 
@@ -215,7 +209,6 @@ private:
 
    const BlockDataID flagFieldID_;
    const BlockDataID pdfFieldID_;
-   const BlockDataID particleFieldID_;
 
    shared_ptr<ParticleAccessor_T> ac_;
 
@@ -567,12 +560,9 @@ int main( int argc, char **argv )
    // add flag field
    BlockDataID flagFieldID = field::addFlagFieldToStorage<FlagField_T>( blocks, "flag field" );
 
-   // add particle field
-   BlockDataID particleFieldID = field::addToStorage<lbm_mesapd_coupling::ParticleField_T>( blocks, "particle field", accessor->getInvalidUid(), field::zyxf, FieldGhostLayers );
-
    // add boundary handling
    using BoundaryHandling_T = MyBoundaryHandling<ParticleAccessor_T>::Type;
-   BlockDataID boundaryHandlingID = blocks->addStructuredBlockData< BoundaryHandling_T >(MyBoundaryHandling<ParticleAccessor_T>( flagFieldID, pdfFieldID, particleFieldID, accessor, inflowVec, periodicInX, periodicInY), "boundary handling" );
+   BlockDataID boundaryHandlingID = blocks->addStructuredBlockData< BoundaryHandling_T >(MyBoundaryHandling<ParticleAccessor_T>( flagFieldID, pdfFieldID, accessor, inflowVec, periodicInX, periodicInY), "boundary handling" );
 
    // set up RPD functionality
    std::function<void(void)> syncCall = [&ps,&rpdDomain](){
@@ -598,7 +588,6 @@ int main( int argc, char **argv )
    lbm_mesapd_coupling::AverageHydrodynamicForceTorqueKernel averageHydrodynamicForceTorque;
    lbm_mesapd_coupling::LubricationCorrectionKernel lubricationCorrectionKernel(viscosity, [](real_t r){return (real_t(0.001 + real_t(0.00007)*r))*r;});
    lbm_mesapd_coupling::ParticleMappingKernel<BoundaryHandling_T> particleMappingKernel(blocks, boundaryHandlingID);
-   lbm_mesapd_coupling::MovingParticleMappingKernel<BoundaryHandling_T> movingParticleMappingKernel(blocks, boundaryHandlingID, particleFieldID);
 
    ///////////////
    // TIME LOOP //
@@ -607,7 +596,16 @@ int main( int argc, char **argv )
    // map particles into the LBM simulation
    // note: planes are not mapped and are thus only visible to the particles, not to the fluid
    // instead, the respective boundary conditions for the fluid are explicitly set, see the boundary handling
-   ps->forEachParticle(false, lbm_mesapd_coupling::RegularParticlesSelector(), *accessor, movingParticleMappingKernel, *accessor, MO_Flag);
+   BlockDataID particleAndVolumeFractionFieldID =
+      field::addToStorage< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
+         blocks, "particle and volume fraction field",
+         std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);
+   lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
+                                                                              particleAndVolumeFractionFieldID, 4);
+   particleMapping();
+
+   lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
+                                                                         particleAndVolumeFractionFieldID, *accessor);
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
    blockforest::communication::UniformBufferedScheme< Stencil_T > optimizedPDFCommunicationScheme( blocks );
@@ -673,24 +671,8 @@ int main( int argc, char **argv )
                   << Sweep( BoundaryHandling_T::getBlockSweep( boundaryHandlingID ), "Boundary Handling" );
 
    // stream + collide LBM step
-   auto lbmSweep = lbm::makeCellwiseSweep< LatticeModel_T, FlagField_T >( pdfFieldID, flagFieldID, Fluid_Flag );
+   auto lbmSweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, FlagField_T, 1, 1 >( pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor, flagFieldID, Fluid_Flag );
    timeloop.add() << Sweep( makeSharedSweep( lbmSweep ), "LBM stream / collide" );
-
-
-   // this is carried out after the particle integration, it corrects the flag field and restores missing PDF information
-   // then, the checkpointing file can be written, as otherwise some cells are invalid and can not be recovered
-   SweepTimeloop timeloopAfterParticles( blocks->getBlockStorage(), numTimeSteps );
-
-   // sweep for updating the particle mapping into the LBM simulation
-   bool strictlyConserveMomentum = false;
-   timeloopAfterParticles.add() << Sweep( lbm_mesapd_coupling::makeMovingParticleMapping<PdfField_T,BoundaryHandling_T>(blocks, pdfFieldID,boundaryHandlingID, particleFieldID, accessor, MO_Flag, FormerMO_Flag, lbm_mesapd_coupling::RegularParticlesSelector(), strictlyConserveMomentum), "Particle Mapping" );
-
-   // sweep for restoring PDFs in cells previously occupied by particles
-   bool reconstruction_recomputeTargetDensity = false;
-   bool reconstruction_useCentralDifferences = true;
-   auto gradReconstructor = lbm_mesapd_coupling::makeGradsMomentApproximationReconstructor<BoundaryHandling_T>(blocks, boundaryHandlingID, omega, reconstruction_recomputeTargetDensity,reconstruction_useCentralDifferences);
-   timeloopAfterParticles.add() << BeforeFunction( fullPDFCommunicationScheme, "PDF Communication" )
-                                << Sweep( makeSharedSweep(lbm_mesapd_coupling::makePdfReconstructionManager<PdfField_T,BoundaryHandling_T>(blocks, pdfFieldID, boundaryHandlingID, particleFieldID, accessor, FormerMO_Flag, Fluid_Flag, gradReconstructor, strictlyConserveMomentum) ), "PDF Restore" );
 
    ////////////////////////
    // EXECUTE SIMULATION //
@@ -783,7 +765,7 @@ int main( int argc, char **argv )
       ps->forEachParticle( useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor );
 
       // update particle mapping
-      timeloopAfterParticles.singleStep(timeloopTiming);
+      particleMapping();
 
 
       if(timeStep % infoSpacing == 0)
