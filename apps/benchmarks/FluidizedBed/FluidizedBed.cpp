@@ -601,7 +601,7 @@ int main( int argc, char **argv )
          blocks, "particle and volume fraction field",
          std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);
    lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
-                                                                              particleAndVolumeFractionFieldID, 4);
+                                                                              particleAndVolumeFractionFieldID, 2);
    particleMapping();
 
    lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
