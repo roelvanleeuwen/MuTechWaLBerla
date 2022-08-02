@@ -96,6 +96,7 @@ using namespace walberla;
 using walberla::uint_t;
 using namespace lbm_mesapd_coupling::psm::cuda;
 
+// TODO: use TRT in generated code
 using LatticeModel_T = lbm::D3Q19< lbm::collision_model::TRT >;
 
 using Stencil_T  = LatticeModel_T::Stencil;
@@ -747,7 +748,7 @@ int main(int argc, char** argv)
    // stream + collide LBM step
    timeloop.add() << Sweep(PSMWrapperSweep, "cell-wise LB sweep");
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
-                           "copy pdf from GPU to CPU");
+                           "Copy pdf from GPU to CPU");
 
    // evaluation functionality
    std::string loggingFileName(baseFolder + "/LoggingSettlingSphereGPU_");
