@@ -659,6 +659,30 @@ int main( int argc, char **argv )
 
       timeloop.addFuncBeforeTimeStep( vtk::writeFiles( pdfFieldVTK ), "VTK (fluid field data)" );
 
+      // fraction mapping field, only a slice
+      auto fractionFieldVTK = vtk::createVTKOutput_BlockData(blocks, "fraction_field", vtkSpacingFluid, 0, false, vtkFolder);
+
+      BlockDataID BFieldID =
+         field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "B field", 0, field::zyxf, 1);
+
+      for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+      {
+         lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T* particleAndVolumeFractionField =
+            blockIt->getData< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(particleAndVolumeFractionFieldID);
+         GhostLayerField< real_t, 1>* BField = blockIt->getData< GhostLayerField< real_t, 1 > >(BFieldID);
+
+         WALBERLA_FOR_ALL_CELLS_XYZ(particleAndVolumeFractionField,
+                                    for (auto& e : particleAndVolumeFractionField->get(x, y, z))
+                                       BField->get(x, y, z) += e.second;)
+      }
+
+      fractionFieldVTK->addCellInclusionFilter( combinedSliceFilter );
+
+      fractionFieldVTK->addCellDataWriter(
+         make_shared< field::VTKWriter< GhostLayerField< real_t, 1 > > >(BFieldID, "Fraction mapping field B"));
+
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(fractionFieldVTK), "VTK (fraction field data");
+
    }
 
    if( vtkSpacingFluid != uint_t(0) || vtkSpacingParticles != uint_t(0) )
