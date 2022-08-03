@@ -665,16 +665,20 @@ int main( int argc, char **argv )
       BlockDataID BFieldID =
          field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "B field", 0, field::zyxf, 1);
 
-      for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
-      {
-         lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T* particleAndVolumeFractionField =
-            blockIt->getData< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(particleAndVolumeFractionFieldID);
-         GhostLayerField< real_t, 1>* BField = blockIt->getData< GhostLayerField< real_t, 1 > >(BFieldID);
+      fractionFieldVTK->addBeforeFunction([&]() {
+         for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+         {
+            lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T* particleAndVolumeFractionField =
+               blockIt->getData< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
+                  particleAndVolumeFractionFieldID);
+            GhostLayerField< real_t, 1 >* BField = blockIt->getData< GhostLayerField< real_t, 1 > >(BFieldID);
 
-         WALBERLA_FOR_ALL_CELLS_XYZ(particleAndVolumeFractionField,
-                                    for (auto& e : particleAndVolumeFractionField->get(x, y, z))
-                                       BField->get(x, y, z) += e.second;)
-      }
+            WALBERLA_FOR_ALL_CELLS_XYZ(particleAndVolumeFractionField,
+                                       for (auto& e
+                                            : particleAndVolumeFractionField->get(x, y, z)) BField->get(x, y, z) +=
+                                       e.second;)
+         }
+      });
 
       fractionFieldVTK->addCellInclusionFilter( combinedSliceFilter );
 
