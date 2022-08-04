@@ -674,6 +674,7 @@ int main( int argc, char **argv )
             GhostLayerField< real_t, 1 >* BField = blockIt->getData< GhostLayerField< real_t, 1 > >(BFieldID);
 
             WALBERLA_FOR_ALL_CELLS_XYZ(particleAndVolumeFractionField,
+                                       BField->get(x, y, z) = 0.0;
                                        for (auto& e
                                             : particleAndVolumeFractionField->get(x, y, z)) BField->get(x, y, z) +=
                                        e.second;)
