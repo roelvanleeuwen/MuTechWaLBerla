@@ -516,7 +516,7 @@ public:
    template< typename LatticeModel_T >
    real_t forceTerm( const cell_idx_t /*x*/, const cell_idx_t /*y*/, const cell_idx_t /*z*/, const Vector3<real_t> & velocity, const real_t /*rho*/,
                      const DirectionIndependentTerms_T & commonTerms, const real_t w,
-                     const real_t cx, const real_t cy, const real_t cz, const real_t omega, const real_t /*omega_bulk*/, const real_t omega_odd ) const
+                     const real_t cx, const real_t cy, const real_t cz, const real_t omega, const real_t /*omega_bulk*/, const real_t /*omega_odd*/ ) const
    {
       const Vector3<real_t> c( cx, cy, cz );
       if (std::is_same< typename LatticeModel_T::CollisionModel::tag, collision_model::MRT_tag >::value)
@@ -614,7 +614,7 @@ public:
    template< typename LatticeModel_T >
    real_t forceTerm( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const Vector3<real_t> & velocity, const real_t /*rho*/,
                      const DirectionIndependentTerms_T & commonTerms, const real_t w,
-                     const real_t cx, const real_t cy, const real_t cz, const real_t omega, const real_t /*omega_bulk*/, const real_t omega_odd ) const
+                     const real_t cx, const real_t cy, const real_t cz, const real_t omega, const real_t /*omega_bulk*/, const real_t /*omega_odd*/ ) const
    {
       const Vector3<real_t> c( cx, cy, cz );
       if (std::is_same< typename LatticeModel_T::CollisionModel::tag, collision_model::MRT_tag >::value)
