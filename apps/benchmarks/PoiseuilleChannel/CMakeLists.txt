@@ -3,6 +3,7 @@ waLBerla_link_files_to_builddir( "*.dat" )
 waLBerla_link_files_to_builddir( "*.prm" )
 
 waLBerla_add_executable( NAME PoiseuilleChannel
+                         FILES PoiseuilleChannel.cpp
                          DEPENDS blockforest boundary core field lbm postprocessing stencil timeloop vtk sqlite )
 
 waLBerla_add_executable( NAME PoiseuilleChannelForceTesting
