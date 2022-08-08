@@ -22,6 +22,7 @@
 #pragma once
 
 #include "core/DataTypes.h"
+#include "core/logging/Logging.h"
 #include "core/math/Vector3.h"
 #include "core/math/Matrix3.h"
 #include "core/mpi/BufferSizeTrait.h"
@@ -538,7 +539,7 @@ public:
          if (std::is_same < typename LatticeModel_T::CollisionModel::tag, collision_model::TRT_tag >::value )
             WALBERLA_LOG_WARNING("waLBerla intern TRT operator in combination with the GuoConstant force model is "
                                  "using the SRT force term, as a consequence the second relaxation rate (which has a minor "
-                                 "impact on the forcing term) is neglected during the evaluation of the forcing term!")
+                                 "impact on the forcing term) is neglected during the evaluation of the forcing term!");
          return real_t(3.0) * w * ( real_t(1) - real_t(0.5) * omega ) *
                                   ( ( c - velocity + ( real_t(3) * ( c * velocity ) * c ) ) * bodyForce_ );
       }
@@ -635,7 +636,7 @@ public:
          if (std::is_same < typename LatticeModel_T::CollisionModel::tag, collision_model::TRT_tag >::value )
             WALBERLA_LOG_WARNING("waLBerla intern TRT operator in combination with the GuoField force model is "
                                  "using the SRT force term, as a consequence the second relaxation rate (which has a minor "
-                                 "impact on the forcing term) is neglected during the evaluation of the forcing term!")
+                                 "impact on the forcing term) is neglected during the evaluation of the forcing term!");
          return real_t(3.0) * w * ( real_t(1) - real_t(0.5) * omega ) *
                                   ( ( c - velocity + ( real_t(3) * ( c * velocity ) * c ) ) * force(x,y,z) );
       }
