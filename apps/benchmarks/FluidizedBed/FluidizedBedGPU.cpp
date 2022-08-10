@@ -13,11 +13,11 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file FluidizedBed.cpp
+//! \file FluidizedBedGPU.cpp
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
-//! \brief Modification of showcases/FluidizedBed/FluidizedBed.cpp
+//! \brief Modification of benchmarks/FluidizedBed/FluidizedBed.cpp
 //
 //======================================================================================================================
 
@@ -562,7 +562,7 @@ int main(int argc, char** argv)
 
    // add PDF field
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(blocks, "pdf field", latticeModel, inflowVec,
-                                                                        densityFluid, uint_t(1), field::zyxf);
+                                                                        densityFluid, uint_t(1), field::fzyx);
 
    // add flag field
    BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
@@ -609,7 +609,7 @@ int main(int argc, char** argv)
    BlockDataID particleAndVolumeFractionFieldID =
       field::addToStorage< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
          blocks, "particle and volume fraction field",
-         std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);
+         std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::fzyx, 0);
    lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionFieldID, 2);
 
@@ -675,7 +675,7 @@ int main(int argc, char** argv)
       auto fractionFieldVTK =
          vtk::createVTKOutput_BlockData(blocks, "fraction_field", vtkSpacingFluid, 0, false, vtkFolder);
 
-      BlockDataID BFieldID = field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "B field", 0, field::zyxf, 1);
+      BlockDataID BFieldID = field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "B field", 0, field::fzyx, 1);
 
       fractionFieldVTK->addBeforeFunction([&]() {
          for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
