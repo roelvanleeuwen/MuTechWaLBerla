@@ -587,7 +587,6 @@ int main( int argc, char **argv )
    lbm_mesapd_coupling::ResetHydrodynamicForceTorqueKernel resetHydrodynamicForceTorque;
    lbm_mesapd_coupling::AverageHydrodynamicForceTorqueKernel averageHydrodynamicForceTorque;
    lbm_mesapd_coupling::LubricationCorrectionKernel lubricationCorrectionKernel(viscosity, [](real_t r){return (real_t(0.001 + real_t(0.00007)*r))*r;});
-   lbm_mesapd_coupling::ParticleMappingKernel<BoundaryHandling_T> particleMappingKernel(blocks, boundaryHandlingID);
 
    ///////////////
    // TIME LOOP //
@@ -610,11 +609,7 @@ int main( int argc, char **argv )
    blockforest::communication::UniformBufferedScheme< Stencil_T > optimizedPDFCommunicationScheme( blocks );
    optimizedPDFCommunicationScheme.addPackInfo( make_shared< lbm::PdfFieldPackInfo< LatticeModel_T > >( pdfFieldID ) ); // optimized sync
 
-   blockforest::communication::UniformBufferedScheme< Stencil_T > fullPDFCommunicationScheme( blocks );
-   fullPDFCommunicationScheme.addPackInfo( make_shared< field::communication::PackInfo< PdfField_T > >( pdfFieldID ) ); // full sync
-
    // create the timeloop
-
    SweepTimeloop timeloop( blocks->getBlockStorage(), numTimeSteps );
 
    timeloop.addFuncBeforeTimeStep( RemainingTimeLogger( timeloop.getNrOfTimeSteps() ), "Remaining Time Logger" );
@@ -638,7 +633,7 @@ int main( int argc, char **argv )
       // velocity field, only a slice
       auto pdfFieldVTK = vtk::createVTKOutput_BlockData( blocks, "fluid", vtkSpacingFluid, 0, false, vtkFolder );
 
-      pdfFieldVTK->addBeforeFunction( fullPDFCommunicationScheme );
+      pdfFieldVTK->addBeforeFunction( optimizedPDFCommunicationScheme );
 
       AABB sliceAABB( real_t(0), real_c(domainSize[1])*real_t(0.5)-real_t(1), real_t(0),
                       real_c(domainSize[0]), real_c(domainSize[1])*real_t(0.5)+real_t(1), real_c(domainSize[2]) );
