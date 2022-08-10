@@ -602,7 +602,6 @@ int main( int argc, char **argv )
          std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::zyxf, 0);
    lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
                                                                               particleAndVolumeFractionFieldID, 2);
-   particleMapping();
 
    lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
                                                                          particleAndVolumeFractionFieldID, *accessor);
@@ -701,7 +700,9 @@ int main( int argc, char **argv )
 
    // stream + collide LBM step
    auto lbmSweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, FlagField_T, 1, 1 >( pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor, flagFieldID, Fluid_Flag );
-   timeloop.add() << Sweep( makeSharedSweep( lbmSweep ), "LBM stream / collide" );
+   // update particle mapping before PSM sweep
+   timeloop.add() << BeforeFunction(particleMapping, "particle mapping")
+                  << Sweep(makeSharedSweep(lbmSweep), "LBM stream / collide");
 
    ////////////////////////
    // EXECUTE SIMULATION //
@@ -792,10 +793,6 @@ int main( int argc, char **argv )
       }
 
       ps->forEachParticle( useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor );
-
-      // update particle mapping
-      particleMapping();
-
 
       if(timeStep % infoSpacing == 0)
       {
