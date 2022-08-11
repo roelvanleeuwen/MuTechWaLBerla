@@ -29,11 +29,15 @@
 #include "lbm/all.h"
 #include "timeloop/all.h"
 
+#ifdef WALBERLA_BUILD_WITH_CODEGEN
+   #include "GeneratedLBM.h"
+#endif
 
 
 namespace walberla {
 
 //const uint_t FieldGhostLayers( 1 );
+#define CODEGEN
 
 //#define USE_SRT
 #define USE_TRT
@@ -42,19 +46,25 @@ namespace walberla {
 //#define USE_SimpleConstant
 //#define USE_GuoField
 
-#if defined(USE_GuoConstant)
-   using ForceModel_T = lbm::force_model::GuoConstant;
-#elif defined(USE_SimpleConstant)
-   using ForceModel_T = lbm::force_model::SimpleConstant;
+#ifdef CODEGEN
+#else
+   #if defined(USE_GuoConstant)
+      using ForceModel_T = lbm::force_model::GuoConstant;
+   #elif defined(USE_SimpleConstant)
+      using ForceModel_T = lbm::force_model::SimpleConstant;
+   #endif
 #endif
 
 //using Vec3Field_T = field::GhostLayerField<Vector3<real_t>, 1>;
 //using ForceModel_T = lbm::force_model::GuoField<Vec3Field_T>;
-#if defined(USE_SRT)
-   using CollisionModel_T = lbm::collision_model::SRT;
-   using LatticeModel_T = lbm::D2Q9<CollisionModel_T , true, ForceModel_T>;
-#elif defined(USE_TRT)
-   using CollisionModel_T = lbm::collision_model::TRT;
+#ifdef CODEGEN
+   using LatticeModel_T = lbm::GeneratedLBM;
+#else
+   #ifdef USE_SRT
+      using CollisionModel_T = lbm::collision_model::SRT;
+   #elif defined(USE_TRT)
+      using CollisionModel_T = lbm::collision_model::TRT;
+   #endif
    using LatticeModel_T = lbm::D2Q9<CollisionModel_T , true, ForceModel_T>;
 #endif
 
@@ -65,7 +75,6 @@ using PdfField_T = lbm::PdfField<LatticeModel_T>;
 
 using flag_t = walberla::uint8_t;
 using FlagField_T = FlagField<flag_t>;
-
 
 
 int main( int argc, char ** argv )
@@ -82,27 +91,38 @@ int main( int argc, char ** argv )
    const uint_t          timesteps       = parameters.getParameter< uint_t >         ( "timesteps",       uint_c( 10 )  );
 
    const double remainingTimeLoggerFrequency = parameters.getParameter< double >( "remainingTimeLoggerFrequency", 3.0 ); // in seconds
-   const Vector3<real_t> bodyForce(real_t(1e-6), real_t(0), real_t(0));
+   const Vector3<real_t> bodyForce(real_t(1e-5), real_t(0), real_t(0));
 
    // create fields
    //> BlockDataID forceFieldID = field::addToStorage< Vec3Field_T >( blocks, "force field", Vector3<real_t>(real_t(0)), field::zyxf, FieldGhostLayers );
-
-#if defined(USE_SRT)
-   LatticeModel_T latticeModel = LatticeModel_T(CollisionModel_T(omega),ForceModel_T(bodyForce));
-#elif defined(USE_TRT)
-   real_t lambda_e = lbm::collision_model::TRT::lambda_e( omega );
-   real_t lambda_d = lbm::collision_model::TRT::lambda_d( omega, lbm::collision_model::TRT::threeSixteenth );
-   std::cout << "   lambda_e = " << lambda_e << " | lambda_d = " << lambda_d << std::endl;
-   LatticeModel_T latticeModel =
-      LatticeModel_T(CollisionModel_T(lambda_e, lambda_d), ForceModel_T(bodyForce));
-   auto viscosity = lbm::collision_model::viscosityFromOmega(omega);
-   std::cout << "   omega = " << omega << " | viscosity = " << viscosity << std::endl;
-#elif defined(USE_MRT)
-   LatticeModel_T latticeModel = LatticeModel_T(CollisionModel_T(omega, omega, omega, omega, omega, omega),
-                                                ForceModel_T(bodyForce));
+#ifdef CODEGEN
+   #ifdef USE_SRT
+      LatticeModel_T  latticeModel = LatticeModel_T (bodyForce[0], bodyForce[1], omega);
+   #elif defined(USE_TRT)
+      real_t lambda_e = lbm::collision_model::TRT::lambda_e( omega );
+      real_t lambda_d = lbm::collision_model::TRT::lambda_d( omega, lbm::collision_model::TRT::threeSixteenth );
+      std::cout << "   lambda_e = " << lambda_e << " | lambda_d = " << lambda_d << std::endl;
+      LatticeModel_T  latticeModel = LatticeModel_T (bodyForce[0], bodyForce[1], lambda_e, lambda_d);
+   #endif
+#else
+   #if defined(USE_SRT)
+      LatticeModel_T latticeModel = LatticeModel_T(CollisionModel_T(omega),ForceModel_T(bodyForce));
+   #elif defined(USE_TRT)
+      real_t lambda_e = lbm::collision_model::TRT::lambda_e( omega );
+      real_t lambda_d = lbm::collision_model::TRT::lambda_d( omega, lbm::collision_model::TRT::threeSixteenth );
+      std::cout << "   lambda_e = " << lambda_e << " | lambda_d = " << lambda_d << std::endl;
+      LatticeModel_T latticeModel =
+         LatticeModel_T(CollisionModel_T(lambda_e, lambda_d), ForceModel_T(bodyForce));
+      auto viscosity = lbm::collision_model::viscosityFromOmega(omega);
+      std::cout << "   omega = " << omega << " | viscosity = " << viscosity << std::endl;
+   #elif defined(USE_MRT)
+      LatticeModel_T latticeModel = LatticeModel_T(CollisionModel_T(omega, omega, omega, omega, omega, omega),
+                                                   ForceModel_T(bodyForce));
+   #endif
 #endif
+
    //> LatticeModel_T latticeModel = LatticeModel_T( lbm::collision_model::SRT( omega ), ForceModel_T( forceFieldID ));
-   BlockDataID pdfFieldId = lbm::addPdfFieldToStorage( blocks, "pdf field", latticeModel, initialVelocity, real_t(1) );
+   BlockDataID pdfFieldId = lbm::addPdfFieldToStorage( blocks, "pdf field", latticeModel, initialVelocity, real_t(1), field::fzyx );
    //> BlockDataID pdfFieldId = lbm::addPdfFieldToStorage( blocks, "pdf field (zyxf)", latticeModel, initialVelocity, real_t(1), FieldGhostLayers, field::zyxf );
    BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >( blocks, "flag field" );
 
@@ -132,7 +152,13 @@ int main( int argc, char ** argv )
    // add LBM sweep and communication to time loop
    timeloop.add() << BeforeFunction( communication, "communication" )
                   << Sweep( BHFactory::BoundaryHandling::getBlockSweep( boundaryHandlingId ), "boundary handling" );
-   timeloop.add() << Sweep( makeSharedSweep( lbm::makeCellwiseSweep< LatticeModel_T, FlagField_T >( pdfFieldId, flagFieldId, fluidFlagUID ) ), "LB stream & collide" );
+#ifdef CODEGEN
+   auto lbmSweep = LatticeModel_T::Sweep(pdfFieldId);
+   timeloop.add() << Sweep( lbmSweep, "LB Sweep" );
+#else
+   auto lbmSweep = lbm::makeCellwiseSweep< LatticeModel_T, FlagField_T >( pdfFieldId, flagFieldId, fluidFlagUID );
+   timeloop.add() << Sweep( makeSharedSweep( lbmSweep ), "LB stream & collide" );
+#endif
 
    // LBM stability check
    timeloop.addFuncAfterTimeStep( makeSharedFunctor( field::makeStabilityChecker< PdfField_T, FlagField_T >( walberlaEnv.config(), blocks, pdfFieldId,

@@ -3,8 +3,8 @@ Parameters
 {
 	omega           1.8;
 	initialVelocity < 0.0, 0, 0 >;
-	//timesteps       10000;
-	timesteps       1;
+	timesteps       10000;
+	//timesteps       1;
 
 	remainingTimeLoggerFrequency 3; // in seconds
 }
@@ -12,10 +12,10 @@ Parameters
 DomainSetup
 {
    blocks        <  1,    1, 1 >;
-   //cellsPerBlock <  300, 80, 1 >;
-   //periodic      <  1,    0, 1 >;
-   cellsPerBlock <  2,    2, 1 >;
-   periodic      <  1,    1, 1 >;
+   cellsPerBlock <  300, 80, 1 >;
+   periodic      <  1,    0, 1 >;
+   //cellsPerBlock <  2,    2, 1 >;
+   //periodic      <  1,    1, 1 >;
 }
 
 StabilityChecker
@@ -27,7 +27,7 @@ StabilityChecker
 
 Boundaries
 {
-//	Border { direction S,N;  walldistance -1;  NoSlip    {} }
+	Border { direction S,N;  walldistance -1;  NoSlip    {} }
 }
 
 
