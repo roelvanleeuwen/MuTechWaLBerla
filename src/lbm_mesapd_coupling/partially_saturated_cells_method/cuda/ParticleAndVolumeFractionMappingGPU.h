@@ -144,6 +144,10 @@ class ParticleAndVolumeFractionMappingGPU
       {
          normalizeFractionField(*blockIt, particleAndVolumeFractionField_);
       }
+      // This visualization is necessary so that the timeloop shows the correct time
+      // TODO: maybe remove this synchronization when the particle mapping is no longer the bottleneck (then also remove
+      // it from timeloop)
+      cudaDeviceSynchronize();
    }
 
  private:
