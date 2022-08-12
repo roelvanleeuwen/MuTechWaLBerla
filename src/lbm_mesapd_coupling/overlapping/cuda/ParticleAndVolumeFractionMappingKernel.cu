@@ -100,6 +100,24 @@ __global__ void
    }
 }*/
 
+__global__ void normalizeFractionFieldKernelSoA(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
+                                                walberla::cuda::FieldAccessor< real_t > BsField,
+                                                walberla::cuda::FieldAccessor< real_t > BField)
+{
+   nOverlappingParticlesField.set(blockIdx, threadIdx);
+   BsField.set(blockIdx, threadIdx);
+   BField.set(blockIdx, threadIdx);
+
+   if (BField.get() > 1)
+   {
+      for (uint i = 0; i < nOverlappingParticlesField.get(); i++)
+      {
+         BsField.get(i) /= BField.get();
+      }
+      BField.get() = 1.0;
+   }
+}
+
 // functions to calculate Bs
 template< int Weighting_T >
 __device__ void calculateWeighting(real_t* __restrict__ const weighting, const real_t& /*epsilon*/,

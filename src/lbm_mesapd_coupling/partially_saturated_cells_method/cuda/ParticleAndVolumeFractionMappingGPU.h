@@ -66,6 +66,22 @@ namespace cuda
 }*/
 
 template< int Weighting_T >
+void normalizeFractionField(const IBlock& blockIt,
+                            const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
+{
+   auto nOverlappingParticlesField =
+      blockIt.getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA.nOverlappingParticlesFieldID);
+   auto BsField = blockIt.getData< BsFieldGPU_T >(particleAndVolumeFractionSoA.BsFieldID);
+   auto BField  = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
+
+   auto myKernel = walberla::cuda::make_kernel(&normalizeFractionFieldKernelSoA);
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
+   myKernel();
+}
+
+template< int Weighting_T >
 void clearField(const IBlock& blockIt,
                 const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
 {
@@ -121,6 +137,12 @@ class ParticleAndVolumeFractionMappingGPU
             particleAndVolumeFractionField_.mappingUIDs.push_back(ac_->getUid(idx));
             idxMapped++;
          }
+      }
+
+      // normalize fraction field (Bs) if sum over all fractions (B) > 1
+      for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
+      {
+         normalizeFractionField(*blockIt, particleAndVolumeFractionField_);
       }
    }
 

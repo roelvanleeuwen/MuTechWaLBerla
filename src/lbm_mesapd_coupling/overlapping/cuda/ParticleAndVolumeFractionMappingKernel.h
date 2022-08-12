@@ -41,6 +41,10 @@ __global__ void
                                              double3 spherePosition, real_t sphereRadius, double3 blockStart,
                                              double3 dx, int3 nSamples, id_t uid);*/
 
+__global__ void normalizeFractionFieldKernelSoA(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
+                                                walberla::cuda::FieldAccessor< real_t > BsField,
+                                                walberla::cuda::FieldAccessor< real_t > BField);
+
 __global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
                                walberla::cuda::FieldAccessor< real_t > BsField,
                                walberla::cuda::FieldAccessor< id_t > idxField,
