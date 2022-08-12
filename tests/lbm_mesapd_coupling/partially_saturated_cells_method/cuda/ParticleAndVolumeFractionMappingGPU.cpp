@@ -208,7 +208,7 @@ int main(int argc, char** argv)
    // add the sphere in the center of the domain
    Vector3< real_t > position(real_c(setup.xlength) * real_c(0.5), real_c(setup.ylength) * real_c(0.5),
                               real_c(setup.zlength) * real_c(0.5));
-   Vector3< real_t > velocity(real_c(-0.1), real_c(-0.1), real_c(-0.1));
+   Vector3< real_t > velocity(real_c(0.1), real_c(0.1), real_c(0.1));
    auto sphereShape = ss->create< mesa_pd::data::Sphere >(sphereRadius);
 
    if (mesapdDomain->isContainedInProcessSubdomain(uint_c(walberla::mpi::MPIManager::instance()->rank()), position))
