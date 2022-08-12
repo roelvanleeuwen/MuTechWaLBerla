@@ -160,6 +160,8 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(
    double3 maxCornerSphere = { spherePosition.x + sphereRadius, spherePosition.y + sphereRadius,
                                spherePosition.z + sphereRadius };
 
+   double overlapFraction = 0.0;
+
    if (startSamplingPoint.x + dx > minCornerSphere.x && startSamplingPoint.x < maxCornerSphere.x &&
        startSamplingPoint.y + dx > minCornerSphere.y && startSamplingPoint.y < maxCornerSphere.y &&
        startSamplingPoint.z + dx > minCornerSphere.z && startSamplingPoint.z < maxCornerSphere.z)
@@ -177,7 +179,7 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(
                       (currentSamplingPoint.z - spherePosition.z) * (currentSamplingPoint.z - spherePosition.z) <=
                    sphereRadius * sphereRadius)
                {
-                  BsField.get(nOverlappingParticlesField.get()) += 1.0;
+                  overlapFraction += 1.0;
                }
                currentSamplingPoint.x += sampleDistance.x;
             }
@@ -186,16 +188,18 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(
          currentSamplingPoint.z += sampleDistance.z;
       }
 
-      BsField.get(nOverlappingParticlesField.get()) *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
-      calculateWeighting< Weighting_T >(&BsField.get(nOverlappingParticlesField.get()),
-                                        BsField.get(nOverlappingParticlesField.get()), real_t(1.0) / omega);
-      if (BsField.get(nOverlappingParticlesField.get()) > 0)
+      // store overlap fraction only if there is an intersection
+      if (overlapFraction > 0.0)
       {
+         assert(nOverlappingParticlesField.get() < MaxParticlesPerCell);
+         BsField.get(nOverlappingParticlesField.get()) = overlapFraction;
+         BsField.get(nOverlappingParticlesField.get()) *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
+         calculateWeighting< Weighting_T >(&BsField.get(nOverlappingParticlesField.get()),
+                                           BsField.get(nOverlappingParticlesField.get()), real_t(1.0) / omega);
          idxField.get(nOverlappingParticlesField.get()) = idx;
          BField.get() += BsField.get(nOverlappingParticlesField.get());
          nOverlappingParticlesField.get() += 1;
       }
-      assert(nOverlappingParticlesField.get() <= MaxParticlesPerCell);
    }
 }
 
@@ -227,17 +231,17 @@ __global__ void
    epsilon        = max(epsilon, 0.0);
    epsilon        = min(epsilon, 1.0);
 
-   BsField.get(nOverlappingParticlesField.get()) = epsilon;
-
-   calculateWeighting< Weighting_T >(&BsField.get(nOverlappingParticlesField.get()),
-                                     BsField.get(nOverlappingParticlesField.get()), real_t(1.0) / omega);
-   if (BsField.get(nOverlappingParticlesField.get()) > 0)
+   // store overlap fraction only if there is an intersection
+   if (epsilon > 0.0)
    {
+      assert(nOverlappingParticlesField.get() < MaxParticlesPerCell);
+      BsField.get(nOverlappingParticlesField.get()) = epsilon;
+      calculateWeighting< Weighting_T >(&BsField.get(nOverlappingParticlesField.get()),
+                                        BsField.get(nOverlappingParticlesField.get()), real_t(1.0) / omega);
       idxField.get(nOverlappingParticlesField.get()) = idx;
       BField.get() += BsField.get(nOverlappingParticlesField.get());
       nOverlappingParticlesField.get() += 1;
    }
-   assert(nOverlappingParticlesField.get() <= MaxParticlesPerCell);
 }
 
 // TODO: find better solution for template kernels
