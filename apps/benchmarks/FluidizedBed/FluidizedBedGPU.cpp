@@ -22,7 +22,6 @@
 //======================================================================================================================
 
 #include "blockforest/Initialization.h"
-#include "blockforest/communication/UniformBufferedScheme.h"
 
 #include "boundary/all.h"
 
@@ -35,23 +34,21 @@
 #include "core/mpi/Broadcast.h"
 #include "core/timing/RemainingTimeLogger.h"
 
-#include "domain_decomposition/SharedSweep.h"
+#include "cuda/AddGPUFieldToStorage.h"
+#include "cuda/communication/UniformGPUScheme.h"
 
 #include "field/AddToStorage.h"
 #include "field/vtk/all.h"
 
 #include "lbm/boundary/all.h"
-#include "lbm/communication/PdfFieldPackInfo.h"
 #include "lbm/field/AddToStorage.h"
 #include "lbm/field/PdfField.h"
 #include "lbm/lattice_model/D3Q19.h"
 #include "lbm/vtk/all.h"
 
-#include "lbm_mesapd_coupling/DataTypes.h"
-#include "lbm_mesapd_coupling/mapping/ParticleMapping.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/PSMUtility.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/ParticleAndVolumeFractionMapping.h"
+#include "lbm_mesapd_coupling/DataTypesGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/AddForceOnParticlesKernel.h"
 #include "lbm_mesapd_coupling/utility/AddHydrodynamicInteractionKernel.h"
 #include "lbm_mesapd_coupling/utility/AverageHydrodynamicForceTorqueKernel.h"
@@ -85,6 +82,13 @@
 
 #include "vtk/all.h"
 
+#include "InitialPDFsSetter.h"
+#include "PSMPackInfo.h"
+#include "PSMSweep.h"
+#include "PSM_Density.h"
+#include "PSM_NoSlip.h"
+#include "PSM_UBB.h"
+
 namespace fluidized_bed
 {
 
@@ -106,6 +110,9 @@ using FlagField_T = FlagField< flag_t >;
 using ScalarField_T = GhostLayerField< real_t, 1 >;
 
 const uint_t FieldGhostLayers = 1;
+
+using namespace lbm_mesapd_coupling::psm::cuda;
+typedef pystencils::PSMPackInfo PackInfo_T;
 
 ///////////
 // FLAGS //
@@ -419,12 +426,16 @@ int main(int argc, char** argv)
    const real_t coefficientOfRestitution     = physicalSetup.getParameter< real_t >("coefficientOfRestitution");
    const real_t particleGenerationSpacing_SI = physicalSetup.getParameter< real_t >("particleGenerationSpacing");
 
-   Config::BlockHandle numericalSetup     = cfgFile->getBlock("NumericalSetup");
-   const real_t dx_SI                     = numericalSetup.getParameter< real_t >("dx");
-   const real_t uInflow                   = numericalSetup.getParameter< real_t >("uInflow");
-   const uint_t numXBlocks                = numericalSetup.getParameter< uint_t >("numXBlocks");
-   const uint_t numYBlocks                = numericalSetup.getParameter< uint_t >("numYBlocks");
-   const uint_t numZBlocks                = numericalSetup.getParameter< uint_t >("numZBlocks");
+   Config::BlockHandle numericalSetup = cfgFile->getBlock("NumericalSetup");
+   const real_t dx_SI                 = numericalSetup.getParameter< real_t >("dx");
+   const real_t uInflow               = numericalSetup.getParameter< real_t >("uInflow");
+   const uint_t numXBlocks            = numericalSetup.getParameter< uint_t >("numXBlocks");
+   const uint_t numYBlocks            = numericalSetup.getParameter< uint_t >("numYBlocks");
+   const uint_t numZBlocks            = numericalSetup.getParameter< uint_t >("numZBlocks");
+   WALBERLA_CHECK_EQUAL(numXBlocks * numYBlocks * numZBlocks, uint_t(MPIManager::instance()->numProcesses()),
+                        "When using GPUs, the number of blocks("
+                           << numXBlocks * numYBlocks * numZBlocks << ") has to match the number of MPI processes("
+                           << uint_t(MPIManager::instance()->numProcesses()) << ")");
    const bool useLubricationForces        = numericalSetup.getParameter< bool >("useLubricationForces");
    const uint_t numberOfParticleSubCycles = numericalSetup.getParameter< uint_t >("numberOfParticleSubCycles");
 
@@ -561,8 +572,22 @@ int main(int argc, char** argv)
    LatticeModel_T latticeModel = LatticeModel_T(omega);
 
    // add PDF field
-   BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(blocks, "pdf field", latticeModel, inflowVec,
+   BlockDataID pdfFieldID    = lbm::addPdfFieldToStorage< LatticeModel_T >(blocks, "pdf field", latticeModel, inflowVec,
                                                                         densityFluid, uint_t(1), field::fzyx);
+   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field gpu");
+   typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
+   BlockDataID velocityFieldId =
+      field::addToStorage< VectorField_T >(blocks, "velocity field", real_c(0.0), field::fzyx);
+   BlockDataID velocityFieldIdGPU =
+      cuda::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity field GPU", true);
+
+   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), real_t(0),
+                                           real_t(0), real_t(0));
+
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      pdfSetter(&(*blockIt));
+   }
 
    // add flag field
    BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
@@ -598,6 +623,12 @@ int main(int argc, char** argv)
    lbm_mesapd_coupling::AverageHydrodynamicForceTorqueKernel averageHydrodynamicForceTorque;
    lbm_mesapd_coupling::LubricationCorrectionKernel lubricationCorrectionKernel(
       viscosity, [](real_t r) { return (real_t(0.001 + real_t(0.00007) * r)) * r; });
+   lbm::PSM_NoSlip noSlip(blocks, pdfFieldGPUID);
+   noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, FlagUID("no slip"), Fluid_Flag);
+   lbm::PSM_UBB ubb(blocks, pdfFieldGPUID, inflowVec[0], inflowVec[1], inflowVec[2]);
+   ubb.fillFromFlagField< FlagField_T >(blocks, flagFieldID, FlagUID("inflow"), Fluid_Flag);
+   lbm::PSM_Density density_bc(blocks, pdfFieldGPUID, real_t(1));
+   density_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, FlagUID("outflow"), Fluid_Flag);
 
    ///////////////
    // TIME LOOP //
@@ -606,20 +637,15 @@ int main(int argc, char** argv)
    // map particles into the LBM simulation
    // note: planes are not mapped and are thus only visible to the particles, not to the fluid
    // instead, the respective boundary conditions for the fluid are explicitly set, see the boundary handling
-   BlockDataID particleAndVolumeFractionFieldID =
-      field::addToStorage< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
-         blocks, "particle and volume fraction field",
-         std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::fzyx, 0);
-   lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(
-      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionFieldID, 2);
-
-   lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
-                                                                         particleAndVolumeFractionFieldID, *accessor);
+   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
+   lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA, 2);
+   particleMappingGPU();
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   blockforest::communication::UniformBufferedScheme< Stencil_T > optimizedPDFCommunicationScheme(blocks);
-   optimizedPDFCommunicationScheme.addPackInfo(
-      make_shared< lbm::PdfFieldPackInfo< LatticeModel_T > >(pdfFieldID)); // optimized sync
+   cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);
+   com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
+   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
    // create the timeloop
    SweepTimeloop timeloop(blocks->getBlockStorage(), numTimeSteps);
@@ -649,7 +675,10 @@ int main(int argc, char** argv)
       // velocity field, only a slice
       auto pdfFieldVTK = vtk::createVTKOutput_BlockData(blocks, "fluid", vtkSpacingFluid, 0, false, vtkFolder);
 
-      pdfFieldVTK->addBeforeFunction(optimizedPDFCommunicationScheme);
+      pdfFieldVTK->addBeforeFunction(communication);
+
+      pdfFieldVTK->addBeforeFunction(
+         [&]() { cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID); });
 
       AABB sliceAABB(real_t(0), real_c(domainSize[1]) * real_t(0.5) - real_t(1), real_t(0), real_c(domainSize[0]),
                      real_c(domainSize[1]) * real_t(0.5) + real_t(1), real_c(domainSize[2]));
@@ -678,18 +707,8 @@ int main(int argc, char** argv)
       BlockDataID BFieldID = field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "B field", 0, field::fzyx, 1);
 
       fractionFieldVTK->addBeforeFunction([&]() {
-         for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
-         {
-            lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T* particleAndVolumeFractionField =
-               blockIt->getData< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
-                  particleAndVolumeFractionFieldID);
-            GhostLayerField< real_t, 1 >* BField = blockIt->getData< GhostLayerField< real_t, 1 > >(BFieldID);
-
-            WALBERLA_FOR_ALL_CELLS_XYZ(particleAndVolumeFractionField, BField->get(x, y, z) = 0.0;
-                                       for (auto& e
-                                            : particleAndVolumeFractionField->get(x, y, z)) BField->get(x, y, z) +=
-                                       e.second;)
-         }
+         cuda::fieldCpy< GhostLayerField< real_t, 1 >, BFieldGPU_T >(blocks, BFieldID,
+                                                                     particleAndVolumeFractionSoA.BFieldID);
       });
 
       fractionFieldVTK->addCellInclusionFilter(combinedSliceFilter);
@@ -707,15 +726,24 @@ int main(int argc, char** argv)
 
    // add LBM communication function and boundary handling sweep (does the hydro force calculations and the no-slip
    // treatment)
-   timeloop.add() << BeforeFunction(optimizedPDFCommunicationScheme, "LBM Communication")
-                  << Sweep(BoundaryHandling_T::getBlockSweep(boundaryHandlingID), "Boundary Handling");
+   timeloop.add() << BeforeFunction(communication, "LBM Communication")
+                  << Sweep(ubb.getSweep(), "Boundary Handling (UBB)");
+   timeloop.add() << Sweep(density_bc.getSweep(), "Boundary Handling (Density)");
+   timeloop.add() << Sweep(noSlip.getSweep(), "Boundary Handling (NoSlip)");
 
    // stream + collide LBM step
-   auto lbmSweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, FlagField_T, 1, 1 >(
-      pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor, flagFieldID, Fluid_Flag);
+   pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+                                 particleAndVolumeFractionSoA.particleForcesFieldID,
+                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
+                                 velocityFieldIdGPU, real_t(0.0), real_t(0.0), real_t(0.0), omega);
+   auto PSMWrapperSweep =
+      lbm_mesapd_coupling::psm::cuda::PSMWrapperSweepCUDA< LatticeModel_T, ParticleAccessor_T, pystencils::PSMSweep,
+                                                           lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
+         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), PSMSweep, pdfFieldGPUID,
+         particleAndVolumeFractionSoA);
    // update particle mapping before PSM sweep
-   timeloop.add() << BeforeFunction(particleMapping, "particle mapping")
-                  << Sweep(makeSharedSweep(lbmSweep), "LBM stream / collide");
+   timeloop.add() << BeforeFunction(particleMappingGPU, "particle mapping")
+                  << Sweep(PSMWrapperSweep, "LBM stream / collide");
 
    ////////////////////////
    // EXECUTE SIMULATION //
