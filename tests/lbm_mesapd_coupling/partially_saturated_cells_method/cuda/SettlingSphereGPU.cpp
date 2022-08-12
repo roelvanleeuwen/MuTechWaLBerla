@@ -643,7 +643,6 @@ int main(int argc, char** argv)
       viscosity, [](real_t r) { return real_t(0.0016) * r; });
    lbm_mesapd_coupling::ParticleMappingKernel< BoundaryHandling_T > particleMappingKernel(blocks, boundaryHandlingID);
    lbm::PSM_NoSlip noSlip(blocks, pdfFieldGPUID);
-   noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, FlagUID("NoSlip"), NoSlip_Flag);
 
    ///////////////
    // TIME LOOP //
@@ -652,6 +651,7 @@ int main(int argc, char** argv)
    // map planes into the LBM simulation -> act as no-slip boundaries
    ps->forEachParticle(false, lbm_mesapd_coupling::GlobalParticlesSelector(), *accessor, particleMappingKernel,
                        *accessor, NoSlip_Flag);
+   noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, FlagUID("NoSlip"), Fluid_Flag);
 
    // add particle and volume fraction data structures
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(
