@@ -3,7 +3,7 @@ import pystencils as ps
 
 from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil, ForceModel
 
-from lbmpy.boundaries import NoSlip
+from lbmpy.boundaries import NoSlip, UBB, FixedDensity
 from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
 
@@ -184,6 +184,28 @@ with CodeGeneration() as ctx:
         ctx,
         "PSM_NoSlip",
         NoSlip(),
+        method,
+        field_name=pdfs.name,
+        streaming_pattern="pull",
+        target=target,
+    )
+
+    bc_velocity = sp.symbols("bc_velocity_:3")
+    generate_boundary(
+        ctx,
+        "PSM_UBB",
+        UBB(bc_velocity),
+        method,
+        field_name=pdfs.name,
+        streaming_pattern="pull",
+        target=target,
+    )
+
+    bc_density = sp.Symbol("bc_density")
+    generate_boundary(
+        ctx,
+        "PSM_Density",
+        FixedDensity(bc_density),
         method,
         field_name=pdfs.name,
         streaming_pattern="pull",
