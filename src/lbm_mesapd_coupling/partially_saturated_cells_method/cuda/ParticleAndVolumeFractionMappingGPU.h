@@ -124,16 +124,87 @@ class ParticleAndVolumeFractionMappingGPU
          clearField(*blockIt, particleAndVolumeFractionField_);
       }
 
-      // Store uids to check later on if the particles have changed
-      particleAndVolumeFractionField_.mappingUIDs.clear();
+      size_t numMappedParticles = 0;
+      for (size_t idx = 0; idx < ac_->size(); ++idx)
+      {
+         if (mappingParticleSelector_(idx, *ac_)) { numMappedParticles++; }
+      }
+      const size_t scalarArraySize = numMappedParticles * sizeof(real_t);
 
-      // TODO: simplify idx/idxMapped
+      // Allocate unified memory for the particle information needed for computing the overlap fraction
+      real_t* positions;
+      cudaMallocManaged(&positions, 3 * scalarArraySize);
+      cudaMemset(positions, 0, 3 * scalarArraySize);
+      real_t* radii;
+      cudaMallocManaged(&radii, scalarArraySize);
+      cudaMemset(radii, 0, scalarArraySize);
+      real_t* f_r;
+      cudaMallocManaged(&f_r, scalarArraySize);
+      cudaMemset(f_r, 0, scalarArraySize);
+
+      // Store particle information inside unified memory to communicate information to the GPU
       size_t idxMapped = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
          if (mappingParticleSelector_(idx, *ac_))
          {
-            update(idx, idxMapped);
+            for (size_t d = 0; d < 3; ++d)
+            {
+               positions[idxMapped * 3 + d] = ac_->getPosition(idx)[d];
+            }
+            const real_t radius = static_cast< mesa_pd::data::Sphere* >(ac_->getShape(idx))->getRadius();
+            radii[idxMapped]    = radius;
+            real_t Va           = real_t(
+               (1.0 / 12.0 - radius * radius) * atan((0.5 * sqrt(radius * radius - 0.5)) / (0.5 - radius * radius)) +
+               1.0 / 3.0 * sqrt(radius * radius - 0.5) +
+               (radius * radius - 1.0 / 12.0) * atan(0.5 / sqrt(radius * radius - 0.5)) -
+               4.0 / 3.0 * radius * radius * radius * atan(0.25 / (radius * sqrt(radius * radius - 0.5))));
+            f_r[idxMapped] = Va - radius + real_t(0.5);
+            idxMapped++;
+         }
+      }
+
+      // Store uids to check later on if the particles have changed
+      particleAndVolumeFractionField_.mappingUIDs.clear();
+
+      // TODO: simplify idx/idxMapped
+      // update fraction mapping
+      for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
+      {
+         auto nOverlappingParticlesField = blockIt->getData< nOverlappingParticlesFieldGPU_T >(
+            particleAndVolumeFractionField_.nOverlappingParticlesFieldID);
+         auto BsField  = blockIt->getData< BsFieldGPU_T >(particleAndVolumeFractionField_.BsFieldID);
+         auto idxField = blockIt->getData< idxFieldGPU_T >(particleAndVolumeFractionField_.idxFieldID);
+         auto BField   = blockIt->getData< BFieldGPU_T >(particleAndVolumeFractionField_.BFieldID);
+
+         auto myKernel = walberla::cuda::make_kernel(&(linearApproximation< Weighting_T >) );
+         myKernel.addFieldIndexingParam(
+            walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));          // FieldAccessor
+         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField)); // FieldAccessor
+         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));  // FieldAccessor
+         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));  // FieldAccessor
+         myKernel.addParam(particleAndVolumeFractionField_.omega_);                              // omega
+         myKernel.addParam(positions);                                                           // spherePositions
+         myKernel.addParam(radii);                                                               // sphereRadii
+         myKernel.addParam(f_r);                                                                 // f_rs
+         Vector3< real_t > blockStart = blockIt->getAABB().minCorner();
+         myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                   // blockStart
+         myKernel.addParam(blockIt->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize())); // dx
+         // myKernel.addParam(int3{ 16, 16, 16 }); // nSamples
+         myKernel.addParam(numMappedParticles); // numParticles
+         myKernel();
+      }
+
+      cudaFree(positions);
+      cudaFree(radii);
+      cudaFree(f_r);
+
+      idxMapped = 0;
+      for (size_t idx = 0; idx < ac_->size(); ++idx)
+      {
+         if (mappingParticleSelector_(idx, *ac_))
+         {
+            /*update(idx, idxMapped);*/
             particleAndVolumeFractionField_.mappingUIDs.push_back(ac_->getUid(idx));
             idxMapped++;
          }

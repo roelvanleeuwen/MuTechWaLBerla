@@ -224,11 +224,12 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(
 // Based on the following paper: https://doi.org/10.1108/EC-02-2016-0052
 // TODO: why does the paper say: "requires only a single addition operation to estimate the intersection volume"
 template< int Weighting_T >
-__global__ void
-   linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
-                       walberla::cuda::FieldAccessor< real_t > BsField, walberla::cuda::FieldAccessor< id_t > idxField,
-                       walberla::cuda::FieldAccessor< real_t > BField, real_t omega, double3 spherePosition,
-                       real_t sphereRadius, real_t f_r, double3 blockStart, real_t dx, size_t idx)
+__global__ void linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
+                                    walberla::cuda::FieldAccessor< real_t > BsField,
+                                    walberla::cuda::FieldAccessor< id_t > idxField,
+                                    walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
+                                    real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
+                                    real_t* __restrict__ const f_rs, double3 blockStart, real_t dx, size_t numParticles)
 {
    nOverlappingParticlesField.set(blockIdx, threadIdx);
    BsField.set(blockIdx, threadIdx);
@@ -238,27 +239,42 @@ __global__ void
    const double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
                                 (blockStart.z + (blockIdx.y + 0.5) * dx) };
 
-   const double3 cellSphereVector = { spherePosition.x - cellCenter.x, spherePosition.y - cellCenter.y,
-                                      spherePosition.z - cellCenter.z };
-
-   const real_t D = sqrt(cellSphereVector.x * cellSphereVector.x + cellSphereVector.y * cellSphereVector.y +
-                         cellSphereVector.z * cellSphereVector.z) -
-                    sphereRadius;
-
-   real_t epsilon = -D + f_r;
-   epsilon        = max(epsilon, 0.0);
-   epsilon        = min(epsilon, 1.0);
-
-   // store overlap fraction only if there is an intersection
-   if (epsilon > 0.0)
+   for (int idxMapped = 0; idxMapped < numParticles; idxMapped++)
    {
-      assert(nOverlappingParticlesField.get() < MaxParticlesPerCell);
-      BsField.get(nOverlappingParticlesField.get()) = epsilon;
-      calculateWeighting< Weighting_T >(&BsField.get(nOverlappingParticlesField.get()),
-                                        BsField.get(nOverlappingParticlesField.get()), real_t(1.0) / omega);
-      idxField.get(nOverlappingParticlesField.get()) = idx;
-      BField.get() += BsField.get(nOverlappingParticlesField.get());
-      nOverlappingParticlesField.get() += 1;
+      double3 minCornerSphere = { spherePositions[idxMapped * 3] - sphereRadii[idxMapped],
+                                  spherePositions[idxMapped * 3 + 1] - sphereRadii[idxMapped],
+                                  spherePositions[idxMapped * 3 + 2] - sphereRadii[idxMapped] };
+      double3 maxCornerSphere = { spherePositions[idxMapped * 3] + sphereRadii[idxMapped],
+                                  spherePositions[idxMapped * 3 + 1] + sphereRadii[idxMapped],
+                                  spherePositions[idxMapped * 3 + 2] + sphereRadii[idxMapped] };
+      if (cellCenter.x + dx > minCornerSphere.x && cellCenter.x - dx < maxCornerSphere.x &&
+          cellCenter.y + dx > minCornerSphere.y && cellCenter.y - dx < maxCornerSphere.y &&
+          cellCenter.z + dx > minCornerSphere.z && cellCenter.z - dx < maxCornerSphere.z)
+      {
+         const double3 cellSphereVector = { spherePositions[idxMapped * 3] - cellCenter.x,
+                                            spherePositions[idxMapped * 3 + 1] - cellCenter.y,
+                                            spherePositions[idxMapped * 3 + 2] - cellCenter.z };
+
+         const real_t D = sqrt(cellSphereVector.x * cellSphereVector.x + cellSphereVector.y * cellSphereVector.y +
+                               cellSphereVector.z * cellSphereVector.z) -
+                          sphereRadii[idxMapped];
+
+         real_t epsilon = -D + f_rs[idxMapped];
+         epsilon        = max(epsilon, 0.0);
+         epsilon        = min(epsilon, 1.0);
+
+         // store overlap fraction only if there is an intersection
+         if (epsilon > 0.0)
+         {
+            assert(nOverlappingParticlesField.get() < MaxParticlesPerCell);
+            BsField.get(nOverlappingParticlesField.get()) = epsilon;
+            calculateWeighting< Weighting_T >(&BsField.get(nOverlappingParticlesField.get()),
+                                              BsField.get(nOverlappingParticlesField.get()), real_t(1.0) / omega);
+            idxField.get(nOverlappingParticlesField.get()) = idxMapped;
+            BField.get() += BsField.get(nOverlappingParticlesField.get());
+            nOverlappingParticlesField.get() += 1;
+         }
+      }
    }
 }
 

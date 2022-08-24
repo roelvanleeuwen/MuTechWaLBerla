@@ -60,8 +60,9 @@ template< int Weighting_T >
 __global__ void
    linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
                        walberla::cuda::FieldAccessor< real_t > BsField, walberla::cuda::FieldAccessor< id_t > idxField,
-                       walberla::cuda::FieldAccessor< real_t > BField, real_t omega, double3 spherePosition,
-                       real_t sphereRadius, real_t f_r, double3 blockStart, real_t dx, size_t idx);
+                       walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
+                       real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
+                       real_t* __restrict__ const f_rs, double3 blockStart, real_t dx, size_t numParticles);
 
 } // namespace cuda
 } // namespace psm
