@@ -59,6 +59,7 @@
 
 #include "mesa_pd/collision_detection/AnalyticContactDetection.h"
 #include "mesa_pd/data/DataTypes.h"
+#include "mesa_pd/data/LinkedCells.h"
 #include "mesa_pd/data/ParticleAccessorWithShape.h"
 #include "mesa_pd/data/ParticleStorage.h"
 #include "mesa_pd/data/ShapeStorage.h"
@@ -67,6 +68,7 @@
 #include "mesa_pd/domain/BlockForestDataHandling.h"
 #include "mesa_pd/domain/BlockForestDomain.h"
 #include "mesa_pd/kernel/DoubleCast.h"
+#include "mesa_pd/kernel/InsertParticleIntoLinkedCells.h"
 #include "mesa_pd/kernel/LinearSpringDashpot.h"
 #include "mesa_pd/kernel/ParticleSelector.h"
 #include "mesa_pd/kernel/VelocityVerlet.h"
@@ -751,6 +753,11 @@ int main(int argc, char** argv)
    WcTimingPool timeloopTiming;
    const bool useOpenMP = false;
 
+   real_t linkedCellWidth = 1.01_r * diameter;
+   mesa_pd::data::LinkedCells linkedCells(rpdDomain->getUnionOfLocalAABBs().getExtended(linkedCellWidth),
+                                          linkedCellWidth);
+   mesa_pd::kernel::InsertParticleIntoLinkedCells ipilc;
+
    // time loop
    for (uint_t timeStep = 0; timeStep < numTimeSteps; ++timeStep)
    {
@@ -776,10 +783,13 @@ int main(int argc, char** argv)
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPreForce, *accessor);
          syncCall();
 
+         linkedCells.clear();
+         ps->forEachParticle(false, mesa_pd::kernel::SelectAll(), *accessor, ipilc, *accessor, linkedCells);
+
          if (useLubricationForces)
          {
             // lubrication correction
-            ps->forEachParticlePairHalf(
+            linkedCells.forEachParticlePairHalf(
                useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
                [&lubricationCorrectionKernel, &rpdDomain](const size_t idx1, const size_t idx2, auto& ac) {
                   mesa_pd::collision_detection::AnalyticContactDetection acd;
@@ -799,7 +809,7 @@ int main(int argc, char** argv)
          }
 
          // collision response
-         ps->forEachParticlePairHalf(
+         linkedCells.forEachParticlePairHalf(
             useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
             [&collisionResponse, &rpdDomain, timeStepSizeRPD, coefficientOfRestitution, particleCollisionTime,
              kappa](const size_t idx1, const size_t idx2, auto& ac) {
