@@ -39,17 +39,6 @@ namespace cuda
 
 struct OverlapFractionFunctor
 {
-   /*   template< typename ParticleAccessor_T, typename Shape_T >
-      void operator()(const size_t */
-   /*particleIdx*/ /*, const Shape_T& */ /*shape*/ /*,
-const shared_ptr< ParticleAccessor_T >& */
-   /*ac*/ /*, const IBlock& */ /*blockIt*/         /*,
-const BlockDataID& */
-   /*particleAndVolumeFractionFieldID*/            /*)
-{
-WALBERLA_ABORT("OverlapFraction not implemented!");
-}*/
-
    template< typename ParticleAccessor_T, typename Shape_T, int Weighting_T >
    void operator()(const size_t /*particleIdx*/, const Shape_T& /*shape*/,
                    const shared_ptr< ParticleAccessor_T >& /*ac*/, const IBlock& /*blockIt*/,
@@ -58,32 +47,6 @@ WALBERLA_ABORT("OverlapFraction not implemented!");
    {
       WALBERLA_ABORT("OverlapFraction not implemented!");
    }
-
-   /*   template< typename ParticleAccessor_T >
-      void operator()(const size_t particleIdx, const mesa_pd::data::Sphere& */
-   /*sphere*/ /*,
-const shared_ptr< ParticleAccessor_T >& ac, const IBlock& blockIt,
-const BlockDataID& particleAndVolumeFractionFieldID)
-{
-WALBERLA_STATIC_ASSERT((std::is_base_of< mesa_pd::data::IAccessor, ParticleAccessor_T >::value));
-
-Vector3< real_t > particlePosition = ac->getPosition(particleIdx);
-
-auto cudaField = blockIt.getData< walberla::cuda::GPUField< ParticleAndVolumeFractionAoS_T > >(
-particleAndVolumeFractionFieldID);
-
-auto myKernel = walberla::cuda::make_kernel(&particleAndVolumeFractionMappingKernelAoS);
-myKernel.addFieldIndexingParam(
-walberla::cuda::FieldIndexing< ParticleAndVolumeFractionAoS_T >::xyz(*cudaField)); // FieldAccessor
-Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
-myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] }); // spherePosition
-myKernel.addParam(static_cast< mesa_pd::data::Sphere* >(ac->getShape(particleIdx))->getRadius()); // sphereRadius
-myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                        // blockStart
-myKernel.addParam(double3{ 1, 1, 1 });                                                            // dx
-myKernel.addParam(int3{ 16, 16, 16 });                                                            // nSamples
-myKernel.addParam(ac->getUid(particleIdx));
-myKernel();
-}*/
 
    template< typename ParticleAccessor_T, int Weighting_T >
    void operator()(const size_t particleIdx, const mesa_pd::data::Sphere& /*sphere*/,
