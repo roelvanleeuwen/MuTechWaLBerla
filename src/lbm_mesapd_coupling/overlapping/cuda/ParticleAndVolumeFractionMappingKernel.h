@@ -51,12 +51,14 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(
    double3 spherePosition, real_t sphereRadius, double3 blockStart, real_t dx, int3 nSamples, id_t uid);
 
 template< int Weighting_T >
-__global__ void
-   linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
-                       walberla::cuda::FieldAccessor< real_t > BsField, walberla::cuda::FieldAccessor< id_t > idxField,
-                       walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
-                       real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
-                       real_t* __restrict__ const f_rs, double3 blockStart, real_t dx, size_t numParticles);
+__global__ void linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
+                                    walberla::cuda::FieldAccessor< real_t > BsField,
+                                    walberla::cuda::FieldAccessor< id_t > idxField,
+                                    walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
+                                    real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
+                                    real_t* __restrict__ const f_rs, double3 blockStart, real_t dx,
+                                    size_t* __restrict__ const numParticlesSubBlocks,
+                                    size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim);
 
 } // namespace cuda
 } // namespace psm

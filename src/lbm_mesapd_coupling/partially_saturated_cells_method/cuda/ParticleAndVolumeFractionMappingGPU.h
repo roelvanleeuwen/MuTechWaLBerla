@@ -90,7 +90,6 @@ void clearField(const IBlock& blockIt,
    myKernel();
 }
 
-// TODO: use or remove superSamplingDepth
 template< typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
 class ParticleAndVolumeFractionMappingGPU
 {
@@ -99,12 +98,21 @@ class ParticleAndVolumeFractionMappingGPU
                                        const shared_ptr< ParticleAccessor_T >& ac,
                                        const ParticleSelector_T& mappingParticleSelector,
                                        ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionField,
-                                       const uint_t superSamplingDepth = uint_t(4))
+                                       const size_t subBlocksPerDim)
       : blockStorage_(blockStorage), ac_(ac), mappingParticleSelector_(mappingParticleSelector),
-        particleAndVolumeFractionField_(particleAndVolumeFractionField), superSamplingDepth_(superSamplingDepth)
+        particleAndVolumeFractionField_(particleAndVolumeFractionField), subBlocksPerDim_(subBlocksPerDim)
    {
       static_assert(std::is_base_of< mesa_pd::data::IAccessor, ParticleAccessor_T >::value,
                     "Provide a valid accessor as template");
+      for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
+      {
+         auto aabb = blockIt->getAABB();
+         if (size_t(aabb.xSize()) % subBlocksPerDim_ != 0 || size_t(aabb.ySize()) % subBlocksPerDim_ != 0 ||
+             size_t(aabb.zSize()) % subBlocksPerDim_ != 0)
+         {
+            WALBERLA_ABORT("Number of cells per block is not divisible by subBlocksPerDim.")
+         }
+      }
    }
 
    void operator()()
@@ -118,22 +126,24 @@ class ParticleAndVolumeFractionMappingGPU
       size_t numMappedParticles = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
-         if (mappingParticleSelector_(idx, *ac_)) { numMappedParticles++; }
+         if (mappingParticleSelector_(idx, *ac_))
+         {
+            WALBERLA_ASSERT(dynamic_cast< mesa_pd::data::Sphere* >(ac_->getShape(idx)) != nullptr);
+            numMappedParticles++;
+         }
       }
+
+      // Allocate unified memory storing the particle information needed for the overlap fraction computations
       const size_t scalarArraySize = numMappedParticles * sizeof(real_t);
 
-      // Allocate unified memory for the particle information needed for computing the overlap fraction
       real_t* positions;
       cudaMallocManaged(&positions, 3 * scalarArraySize);
-      cudaMemset(positions, 0, 3 * scalarArraySize);
       real_t* radii;
       cudaMallocManaged(&radii, scalarArraySize);
-      cudaMemset(radii, 0, scalarArraySize);
-      real_t* f_r;
+      real_t* f_r; // f_r is described in https://doi.org/10.1108/EC-02-2016-0052
       cudaMallocManaged(&f_r, scalarArraySize);
-      cudaMemset(f_r, 0, scalarArraySize);
 
-      // Store particle information inside unified memory to communicate information to the GPU
+      // Store particle information inside the unified memory (can be accessed by both CPU and GPU)
       size_t idxMapped = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
@@ -155,13 +165,74 @@ class ParticleAndVolumeFractionMappingGPU
          }
       }
 
-      // Store uids to check later on if the particles have changed
-      particleAndVolumeFractionField_.mappingUIDs.clear();
-
       // TODO: simplify idx/idxMapped
       // update fraction mapping
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
+         // Split the block into sub-blocks and sort the particle IDs into each overlapping sub-block. This way, in the
+         // particle mapping, each CUDA thread only has to check the potentially overlapping particles.
+         auto blockAABB            = blockIt->getAABB();
+         const size_t numSubBlocks = subBlocksPerDim_ * subBlocksPerDim_ * subBlocksPerDim_;
+         std::vector< std::vector< size_t > > subBlocks(numSubBlocks);
+
+         idxMapped = 0;
+         for (size_t idx = 0; idx < ac_->size(); ++idx)
+         {
+            if (mappingParticleSelector_(idx, *ac_))
+            {
+               auto sphereAABB = mesa_pd::getParticleAABB(idx, *ac_);
+               if (blockAABB.intersects(sphereAABB))
+               {
+                  auto intersectionAABB = blockAABB.getIntersection(sphereAABB);
+                  intersectionAABB.translate(-blockAABB.minCorner());
+                  mesa_pd::Vec3 blockScaling = real_t(subBlocksPerDim_) / blockAABB.sizes();
+
+                  for (size_t z = size_t(intersectionAABB.zMin() * blockScaling[2]);
+                       z < size_t(ceil(intersectionAABB.zMax() * blockScaling[2])); ++z)
+                  {
+                     for (size_t y = size_t(intersectionAABB.yMin() * blockScaling[1]);
+                          y < size_t(ceil(intersectionAABB.yMax() * blockScaling[1])); ++y)
+                     {
+                        for (size_t x = size_t(intersectionAABB.xMin() * blockScaling[0]);
+                             x < size_t(ceil(intersectionAABB.xMax() * blockScaling[0])); ++x)
+                        {
+                           size_t index = z * subBlocksPerDim_ * subBlocksPerDim_ + y * subBlocksPerDim_ + x;
+                           subBlocks[index].push_back(idxMapped);
+                        }
+                     }
+                  }
+               }
+               idxMapped++;
+            }
+         }
+
+         size_t maxParticlesPerSubBlock = 0;
+         std::for_each(subBlocks.begin(), subBlocks.end(), [&maxParticlesPerSubBlock](std::vector< size_t >& subBlock) {
+            maxParticlesPerSubBlock = std::max(maxParticlesPerSubBlock, subBlock.size());
+         });
+
+         size_t* numParticlesSubBlocks;
+         cudaMallocManaged(&numParticlesSubBlocks, numSubBlocks * sizeof(size_t));
+         size_t* particleIDsSubBlocks;
+         cudaMallocManaged(&particleIDsSubBlocks, numSubBlocks * maxParticlesPerSubBlock * sizeof(size_t));
+
+         // Copy data from std::vector to unified memory
+         for (size_t z = 0; z < subBlocksPerDim_; ++z)
+         {
+            for (size_t y = 0; y < subBlocksPerDim_; ++y)
+            {
+               for (size_t x = 0; x < subBlocksPerDim_; ++x)
+               {
+                  size_t index                 = z * subBlocksPerDim_ * subBlocksPerDim_ + y * subBlocksPerDim_ + x;
+                  numParticlesSubBlocks[index] = subBlocks[index].size();
+                  for (size_t k = 0; k < subBlocks[index].size(); k++)
+                  {
+                     particleIDsSubBlocks[index + k * numSubBlocks] = subBlocks[index][k];
+                  }
+               }
+            }
+         }
+
          auto nOverlappingParticlesField = blockIt->getData< nOverlappingParticlesFieldGPU_T >(
             particleAndVolumeFractionField_.nOverlappingParticlesFieldID);
          auto BsField  = blockIt->getData< BsFieldGPU_T >(particleAndVolumeFractionField_.BsFieldID);
@@ -182,13 +253,21 @@ class ParticleAndVolumeFractionMappingGPU
          myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                   // blockStart
          myKernel.addParam(blockIt->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize())); // dx
          // myKernel.addParam(int3{ 16, 16, 16 }); // nSamples
-         myKernel.addParam(numMappedParticles); // numParticles
+         myKernel.addParam(numParticlesSubBlocks); // numParticlesSubBlocks
+         myKernel.addParam(particleIDsSubBlocks);  // particleIDsSubBlocks
+         myKernel.addParam(subBlocksPerDim_);      // subBlocksPerDim
          myKernel();
+
+         cudaFree(numParticlesSubBlocks);
+         cudaFree(particleIDsSubBlocks);
       }
 
       cudaFree(positions);
       cudaFree(radii);
       cudaFree(f_r);
+
+      // Store uids to check later on if the particles have changed
+      particleAndVolumeFractionField_.mappingUIDs.clear();
 
       idxMapped = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
@@ -231,7 +310,7 @@ class ParticleAndVolumeFractionMappingGPU
    const shared_ptr< ParticleAccessor_T > ac_;
    const ParticleSelector_T& mappingParticleSelector_;
    ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionField_;
-   const uint_t superSamplingDepth_;
+   const uint_t subBlocksPerDim_;
 
    mesa_pd::kernel::SingleCast singleCast_;
    OverlapFractionFunctor overlapFractionFctr_;

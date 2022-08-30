@@ -163,18 +163,27 @@ __global__ void linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOve
                                     walberla::cuda::FieldAccessor< id_t > idxField,
                                     walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
                                     real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
-                                    real_t* __restrict__ const f_rs, double3 blockStart, real_t dx, size_t numParticles)
+                                    real_t* __restrict__ const f_rs, double3 blockStart, real_t dx,
+                                    size_t* __restrict__ const numParticlesSubBlocks,
+                                    size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim)
 {
    nOverlappingParticlesField.set(blockIdx, threadIdx);
    BsField.set(blockIdx, threadIdx);
    idxField.set(blockIdx, threadIdx);
    BField.set(blockIdx, threadIdx);
 
-   const double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
-                                (blockStart.z + (blockIdx.y + 0.5) * dx) };
+   const double3 cellCenter   = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
+                                  (blockStart.z + (blockIdx.y + 0.5) * dx) };
+   const ulong3 subBlockIndex = { size_t(real_t(threadIdx.x) / blockDim.x * subBlocksPerDim),
+                                  size_t(real_t(blockIdx.x) / gridDim.x * subBlocksPerDim),
+                                  size_t(real_t(blockIdx.y) / gridDim.y * subBlocksPerDim) };
+   size_t linearizedSubBlockIndex =
+      subBlockIndex.z * subBlocksPerDim * subBlocksPerDim + subBlockIndex.y * subBlocksPerDim + subBlockIndex.x;
 
-   for (int idxMapped = 0; idxMapped < numParticles; idxMapped++)
+   for (int i = 0; i < numParticlesSubBlocks[linearizedSubBlockIndex]; i++)
    {
+      int idxMapped =
+         particleIDsSubBlocks[linearizedSubBlockIndex + i * subBlocksPerDim * subBlocksPerDim * subBlocksPerDim];
       double3 minCornerSphere = { spherePositions[idxMapped * 3] - sphereRadii[idxMapped],
                                   spherePositions[idxMapped * 3 + 1] - sphereRadii[idxMapped],
                                   spherePositions[idxMapped * 3 + 2] - sphereRadii[idxMapped] };

@@ -642,7 +642,7 @@ int main(int argc, char** argv)
    // instead, the respective boundary conditions for the fluid are explicitly set, see the boundary handling
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
-      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA, 2);
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA, 5);
    particleMappingGPU();
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks

@@ -658,7 +658,7 @@ int main(int argc, char** argv)
       blocks, lbm::collision_model::omegaFromViscosity(viscosity));
    // map particles and calculate solid volume fraction initially
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
-      blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, 4);
+      blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, 1);
    particleMappingGPU();
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
