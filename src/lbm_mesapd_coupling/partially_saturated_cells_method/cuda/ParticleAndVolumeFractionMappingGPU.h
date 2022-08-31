@@ -90,6 +90,39 @@ void clearField(const IBlock& blockIt,
    myKernel();
 }
 
+template< int Weighting_T >
+void mapParticles(const IBlock& blockIt,
+                  const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
+                  real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
+                  real_t* __restrict__ const f_rs, size_t* __restrict__ const numParticlesSubBlocks,
+                  size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim)
+{
+   auto nOverlappingParticlesField =
+      blockIt.getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA.nOverlappingParticlesFieldID);
+   auto BsField  = blockIt.getData< BsFieldGPU_T >(particleAndVolumeFractionSoA.BsFieldID);
+   auto idxField = blockIt.getData< idxFieldGPU_T >(particleAndVolumeFractionSoA.idxFieldID);
+   auto BField   = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
+
+   auto myKernel = walberla::cuda::make_kernel(&(linearApproximation< Weighting_T >) );
+   myKernel.addFieldIndexingParam(
+      walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));          // FieldAccessor
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField)); // FieldAccessor
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));  // FieldAccessor
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));  // FieldAccessor
+   myKernel.addParam(particleAndVolumeFractionSoA.omega_);                                 // omega
+   myKernel.addParam(spherePositions);                                                     // spherePositions
+   myKernel.addParam(sphereRadii);                                                         // sphereRadii
+   myKernel.addParam(f_rs);                                                                // f_rs
+   Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
+   myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                  // blockStart
+   myKernel.addParam(blockIt.getAABB().xSize() / real_t(nOverlappingParticlesField->xSize())); // dx
+   // myKernel.addParam(int3{ 16, 16, 16 }); // nSamples
+   myKernel.addParam(numParticlesSubBlocks); // numParticlesSubBlocks
+   myKernel.addParam(particleIDsSubBlocks);  // particleIDsSubBlocks
+   myKernel.addParam(subBlocksPerDim);       // subBlocksPerDim
+   myKernel();
+}
+
 template< typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
 class ParticleAndVolumeFractionMappingGPU
 {
@@ -233,30 +266,8 @@ class ParticleAndVolumeFractionMappingGPU
             }
          }
 
-         auto nOverlappingParticlesField = blockIt->getData< nOverlappingParticlesFieldGPU_T >(
-            particleAndVolumeFractionField_.nOverlappingParticlesFieldID);
-         auto BsField  = blockIt->getData< BsFieldGPU_T >(particleAndVolumeFractionField_.BsFieldID);
-         auto idxField = blockIt->getData< idxFieldGPU_T >(particleAndVolumeFractionField_.idxFieldID);
-         auto BField   = blockIt->getData< BFieldGPU_T >(particleAndVolumeFractionField_.BFieldID);
-
-         auto myKernel = walberla::cuda::make_kernel(&(linearApproximation< Weighting_T >) );
-         myKernel.addFieldIndexingParam(
-            walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));          // FieldAccessor
-         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField)); // FieldAccessor
-         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));  // FieldAccessor
-         myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));  // FieldAccessor
-         myKernel.addParam(particleAndVolumeFractionField_.omega_);                              // omega
-         myKernel.addParam(positions);                                                           // spherePositions
-         myKernel.addParam(radii);                                                               // sphereRadii
-         myKernel.addParam(f_r);                                                                 // f_rs
-         Vector3< real_t > blockStart = blockIt->getAABB().minCorner();
-         myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                   // blockStart
-         myKernel.addParam(blockIt->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize())); // dx
-         // myKernel.addParam(int3{ 16, 16, 16 }); // nSamples
-         myKernel.addParam(numParticlesSubBlocks); // numParticlesSubBlocks
-         myKernel.addParam(particleIDsSubBlocks);  // particleIDsSubBlocks
-         myKernel.addParam(subBlocksPerDim_);      // subBlocksPerDim
-         myKernel();
+         mapParticles(*blockIt, particleAndVolumeFractionField_, positions, radii, f_r, numParticlesSubBlocks,
+                      particleIDsSubBlocks, subBlocksPerDim_);
 
          cudaFree(numParticlesSubBlocks);
          cudaFree(particleIDsSubBlocks);
