@@ -34,24 +34,6 @@ namespace psm
 namespace cuda
 {
 
-__global__ void normalizeFractionFieldKernelSoA(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
-                                                walberla::cuda::FieldAccessor< real_t > BsField,
-                                                walberla::cuda::FieldAccessor< real_t > BField)
-{
-   nOverlappingParticlesField.set(blockIdx, threadIdx);
-   BsField.set(blockIdx, threadIdx);
-   BField.set(blockIdx, threadIdx);
-
-   if (BField.get() > 1)
-   {
-      for (uint i = 0; i < nOverlappingParticlesField.get(); i++)
-      {
-         BsField.get(i) /= BField.get();
-      }
-      BField.get() = 1.0;
-   }
-}
-
 // functions to calculate Bs
 template< int Weighting_T >
 __device__ void calculateWeighting(real_t* __restrict__ const weighting, const real_t& /*epsilon*/,
@@ -71,25 +53,7 @@ __device__ void calculateWeighting< 2 >(real_t* __restrict__ const weighting, co
    *weighting = epsilon * (tau - real_t(0.5)) / ((real_t(1) - epsilon) + (tau - real_t(0.5)));
 }
 
-__global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
-                               walberla::cuda::FieldAccessor< real_t > BsField,
-                               walberla::cuda::FieldAccessor< id_t > idxField,
-                               walberla::cuda::FieldAccessor< real_t > BField)
-{
-   nOverlappingParticlesField.set(blockIdx, threadIdx);
-   BsField.set(blockIdx, threadIdx);
-   idxField.set(blockIdx, threadIdx);
-   BField.set(blockIdx, threadIdx);
-
-   for (uint i = 0; i < MaxParticlesPerCell; i++)
-   {
-      BsField.get(i)  = 0.0;
-      idxField.get(i) = id_t(0);
-   }
-   nOverlappingParticlesField.get() = 0;
-   BField.get()                     = 0.0;
-}
-
+// TODO: this kernel is not up to date
 template< int Weighting_T >
 __global__ void particleAndVolumeFractionMappingKernelSoA(
    walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField, walberla::cuda::FieldAccessor< real_t > BsField,
@@ -156,7 +120,6 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(
 }
 
 // Based on the following paper: https://doi.org/10.1108/EC-02-2016-0052
-// TODO: why does the paper say: "requires only a single addition operation to estimate the intersection volume"
 template< int Weighting_T >
 __global__ void linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
                                     walberla::cuda::FieldAccessor< real_t > BsField,
@@ -171,6 +134,15 @@ __global__ void linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOve
    BsField.set(blockIdx, threadIdx);
    idxField.set(blockIdx, threadIdx);
    BField.set(blockIdx, threadIdx);
+
+   // Clear the fields
+   for (uint i = 0; i < MaxParticlesPerCell; i++)
+   {
+      BsField.get(i)  = 0.0;
+      idxField.get(i) = id_t(0);
+   }
+   nOverlappingParticlesField.get() = 0;
+   BField.get()                     = 0.0;
 
    const double3 cellCenter   = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
                                   (blockStart.z + (blockIdx.y + 0.5) * dx) };
@@ -206,7 +178,7 @@ __global__ void linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOve
          epsilon        = max(epsilon, 0.0);
          epsilon        = min(epsilon, 1.0);
 
-         // store overlap fraction only if there is an intersection
+         // Store overlap fraction only if there is an intersection
          if (epsilon > 0.0)
          {
             assert(nOverlappingParticlesField.get() < MaxParticlesPerCell);
@@ -218,6 +190,16 @@ __global__ void linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOve
             nOverlappingParticlesField.get() += 1;
          }
       }
+   }
+
+   // Normalize fraction field (Bs) if sum over all fractions (B) > 1
+   if (BField.get() > 1)
+   {
+      for (uint i = 0; i < nOverlappingParticlesField.get(); i++)
+      {
+         BsField.get(i) /= BField.get();
+      }
+      BField.get() = 1.0;
    }
 }
 

@@ -57,40 +57,6 @@ namespace cuda
 {
 
 template< int Weighting_T >
-void normalizeFractionField(const IBlock& blockIt,
-                            const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
-{
-   auto nOverlappingParticlesField =
-      blockIt.getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA.nOverlappingParticlesFieldID);
-   auto BsField = blockIt.getData< BsFieldGPU_T >(particleAndVolumeFractionSoA.BsFieldID);
-   auto BField  = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
-
-   auto myKernel = walberla::cuda::make_kernel(&normalizeFractionFieldKernelSoA);
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField));
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
-   myKernel();
-}
-
-template< int Weighting_T >
-void clearField(const IBlock& blockIt,
-                const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
-{
-   auto nOverlappingParticlesField =
-      blockIt.getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA.nOverlappingParticlesFieldID);
-   auto BsField  = blockIt.getData< BsFieldGPU_T >(particleAndVolumeFractionSoA.BsFieldID);
-   auto idxField = blockIt.getData< idxFieldGPU_T >(particleAndVolumeFractionSoA.idxFieldID);
-   auto BField   = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
-
-   auto myKernel = walberla::cuda::make_kernel(&resetKernelSoA);
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField));
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
-   myKernel();
-}
-
-template< int Weighting_T >
 void mapParticles(const IBlock& blockIt,
                   const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
                   real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
@@ -150,12 +116,6 @@ class ParticleAndVolumeFractionMappingGPU
 
    void operator()()
    {
-      // clear the fields
-      for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
-      {
-         clearField(*blockIt, particleAndVolumeFractionField_);
-      }
-
       size_t numMappedParticles = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
@@ -199,7 +159,7 @@ class ParticleAndVolumeFractionMappingGPU
       }
 
       // TODO: simplify idx/idxMapped
-      // update fraction mapping
+      // Update fraction mapping
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
          // Split the block into sub-blocks and sort the particle IDs into each overlapping sub-block. This way, in the
@@ -291,14 +251,7 @@ class ParticleAndVolumeFractionMappingGPU
          }
       }
 
-      // normalize fraction field (Bs) if sum over all fractions (B) > 1
-      for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
-      {
-         normalizeFractionField(*blockIt, particleAndVolumeFractionField_);
-      }
-      // This visualization is necessary so that the timeloop shows the correct time
-      // TODO: maybe remove this synchronization when the particle mapping is no longer the bottleneck (then also remove
-      // it from timeloop)
+      // This synchronization is necessary so that the timeloop shows the correct time
       cudaDeviceSynchronize();
    }
 

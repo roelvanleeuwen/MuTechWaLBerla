@@ -35,15 +35,6 @@ namespace psm
 namespace cuda
 {
 
-__global__ void normalizeFractionFieldKernelSoA(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
-                                                walberla::cuda::FieldAccessor< real_t > BsField,
-                                                walberla::cuda::FieldAccessor< real_t > BField);
-
-__global__ void resetKernelSoA(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
-                               walberla::cuda::FieldAccessor< real_t > BsField,
-                               walberla::cuda::FieldAccessor< id_t > idxField,
-                               walberla::cuda::FieldAccessor< real_t > BField);
-
 template< int Weighting_T >
 __global__ void particleAndVolumeFractionMappingKernelSoA(
    walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField, walberla::cuda::FieldAccessor< real_t > BsField,
