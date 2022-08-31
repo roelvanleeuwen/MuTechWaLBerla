@@ -59,9 +59,8 @@ namespace cuda
 template< int Weighting_T >
 void mapParticles(const IBlock& blockIt,
                   const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
-                  real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
-                  real_t* __restrict__ const f_rs, size_t* __restrict__ const numParticlesSubBlocks,
-                  size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim)
+                  real_t* spherePositions, real_t* sphereRadii, real_t* f_rs, size_t* numParticlesSubBlocks,
+                  size_t* particleIDsSubBlocks, const size_t subBlocksPerDim)
 {
    auto nOverlappingParticlesField =
       blockIt.getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA.nOverlappingParticlesFieldID);
@@ -82,10 +81,9 @@ void mapParticles(const IBlock& blockIt,
    Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
    myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                  // blockStart
    myKernel.addParam(blockIt.getAABB().xSize() / real_t(nOverlappingParticlesField->xSize())); // dx
-   // myKernel.addParam(int3{ 16, 16, 16 }); // nSamples
-   myKernel.addParam(numParticlesSubBlocks); // numParticlesSubBlocks
-   myKernel.addParam(particleIDsSubBlocks);  // particleIDsSubBlocks
-   myKernel.addParam(subBlocksPerDim);       // subBlocksPerDim
+   myKernel.addParam(numParticlesSubBlocks);                                                   // numParticlesSubBlocks
+   myKernel.addParam(particleIDsSubBlocks);                                                    // particleIDsSubBlocks
+   myKernel.addParam(subBlocksPerDim);                                                         // subBlocksPerDim
    myKernel();
 }
 
@@ -136,12 +134,17 @@ class ParticleAndVolumeFractionMappingGPU
       real_t* f_r; // f_r is described in https://doi.org/10.1108/EC-02-2016-0052
       cudaMallocManaged(&f_r, scalarArraySize);
 
+      particleAndVolumeFractionField_.mappingUIDs.clear();
+
       // Store particle information inside the unified memory (can be accessed by both CPU and GPU)
       size_t idxMapped = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
          if (mappingParticleSelector_(idx, *ac_))
          {
+            // Store uids to make sure that the particles have not changed between the mapping and the PSM sweep
+            particleAndVolumeFractionField_.mappingUIDs.push_back(ac_->getUid(idx));
+
             for (size_t d = 0; d < 3; ++d)
             {
                positions[idxMapped * 3 + d] = ac_->getPosition(idx)[d];
@@ -237,37 +240,8 @@ class ParticleAndVolumeFractionMappingGPU
       cudaFree(radii);
       cudaFree(f_r);
 
-      // Store uids to check later on if the particles have changed
-      particleAndVolumeFractionField_.mappingUIDs.clear();
-
-      idxMapped = 0;
-      for (size_t idx = 0; idx < ac_->size(); ++idx)
-      {
-         if (mappingParticleSelector_(idx, *ac_))
-         {
-            /*update(idx, idxMapped);*/
-            particleAndVolumeFractionField_.mappingUIDs.push_back(ac_->getUid(idx));
-            idxMapped++;
-         }
-      }
-
       // This synchronization is necessary so that the timeloop shows the correct time
       cudaDeviceSynchronize();
-   }
-
- private:
-   void update(const size_t idx, const size_t idxMapped)
-   {
-      // update fraction mapping
-      for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
-      {
-         // apply mapping only if block intersects with particle
-         if (blockIt->getAABB().intersects(walberla::mesa_pd::getParticleAABB(idx, *ac_)))
-         {
-            singleCast_(idx, *ac_, overlapFractionFctr_, ac_, *blockIt, particleAndVolumeFractionField_,
-                        particleAndVolumeFractionField_.omega_, idxMapped);
-         }
-      }
    }
 
    shared_ptr< StructuredBlockStorage > blockStorage_;
@@ -275,9 +249,6 @@ class ParticleAndVolumeFractionMappingGPU
    const ParticleSelector_T& mappingParticleSelector_;
    ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionField_;
    const uint_t subBlocksPerDim_;
-
-   mesa_pd::kernel::SingleCast singleCast_;
-   OverlapFractionFunctor overlapFractionFctr_;
 };
 
 } // namespace cuda
