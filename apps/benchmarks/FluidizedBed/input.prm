@@ -47,4 +47,6 @@ Output
     vtkSpacingParticles 0.1; // in s
     vtkSpacingFluid 0.1; // in s
     vtkFolder vtk_out;
+
+    performanceLogFrequency 1000;
 }

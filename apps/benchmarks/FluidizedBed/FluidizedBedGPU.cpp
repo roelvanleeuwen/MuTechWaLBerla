@@ -40,6 +40,7 @@
 #include "field/AddToStorage.h"
 #include "field/vtk/all.h"
 
+#include "lbm/PerformanceLogger.h"
 #include "lbm/boundary/all.h"
 #include "lbm/field/AddToStorage.h"
 #include "lbm/field/PdfField.h"
@@ -444,11 +445,12 @@ int main(int argc, char** argv)
       numericalSetup.getParameter< uint_t >("numberOfParticleSubBlocksPerDim");
    const real_t linkedCellWidthRation = numericalSetup.getParameter< real_t >("linkedCellWidthRation");
 
-   Config::BlockHandle outputSetup     = cfgFile->getBlock("Output");
-   const real_t infoSpacing_SI         = outputSetup.getParameter< real_t >("infoSpacing");
-   const real_t vtkSpacingParticles_SI = outputSetup.getParameter< real_t >("vtkSpacingParticles");
-   const real_t vtkSpacingFluid_SI     = outputSetup.getParameter< real_t >("vtkSpacingFluid");
-   const std::string vtkFolder         = outputSetup.getParameter< std::string >("vtkFolder");
+   Config::BlockHandle outputSetup      = cfgFile->getBlock("Output");
+   const real_t infoSpacing_SI          = outputSetup.getParameter< real_t >("infoSpacing");
+   const real_t vtkSpacingParticles_SI  = outputSetup.getParameter< real_t >("vtkSpacingParticles");
+   const real_t vtkSpacingFluid_SI      = outputSetup.getParameter< real_t >("vtkSpacingFluid");
+   const std::string vtkFolder          = outputSetup.getParameter< std::string >("vtkFolder");
+   const uint_t performanceLogFrequency = outputSetup.getParameter< uint_t >("performanceLogFrequency");
 
    // convert SI units to simulation (LBM) units and check setup
 
@@ -728,6 +730,11 @@ int main(int argc, char** argv)
    {
       vtk::writeDomainDecomposition(blocks, "domain_decomposition", vtkFolder);
    }
+
+   // add performance logging
+   const lbm::PerformanceLogger< FlagField_T > performanceLogger(blocks, flagFieldID, Fluid_Flag,
+                                                                 performanceLogFrequency);
+   timeloop.addFuncAfterTimeStep(performanceLogger, "Evaluate performance logging");
 
    // add LBM communication function and boundary handling sweep (does the hydro force calculations and the no-slip
    // treatment)
