@@ -440,6 +440,9 @@ int main(int argc, char** argv)
                            << uint_t(MPIManager::instance()->numProcesses()) << ")");
    const bool useLubricationForces        = numericalSetup.getParameter< bool >("useLubricationForces");
    const uint_t numberOfParticleSubCycles = numericalSetup.getParameter< uint_t >("numberOfParticleSubCycles");
+   const uint_t numberOfParticleSubBlocksPerDim =
+      numericalSetup.getParameter< uint_t >("numberOfParticleSubBlocksPerDim");
+   const real_t linkedCellWidthRation = numericalSetup.getParameter< real_t >("linkedCellWidthRation");
 
    Config::BlockHandle outputSetup     = cfgFile->getBlock("Output");
    const real_t infoSpacing_SI         = outputSetup.getParameter< real_t >("infoSpacing");
@@ -642,7 +645,8 @@ int main(int argc, char** argv)
    // instead, the respective boundary conditions for the fluid are explicitly set, see the boundary handling
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
-      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA, 5);
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA,
+      numberOfParticleSubBlocksPerDim);
    particleMappingGPU();
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
@@ -753,7 +757,7 @@ int main(int argc, char** argv)
    WcTimingPool timeloopTiming;
    const bool useOpenMP = false;
 
-   real_t linkedCellWidth = 1.01_r * diameter;
+   real_t linkedCellWidth = linkedCellWidthRation * diameter;
    mesa_pd::data::LinkedCells linkedCells(rpdDomain->getUnionOfLocalAABBs().getExtended(linkedCellWidth),
                                           linkedCellWidth);
    mesa_pd::kernel::InsertParticleIntoLinkedCells ipilc;

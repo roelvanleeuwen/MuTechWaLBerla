@@ -35,6 +35,9 @@ NumericalSetup
 
     useLubricationForces true;
     numberOfParticleSubCycles 10;
+
+    numberOfParticleSubBlocksPerDim 5;
+    linkedCellWidthRation 1.01;
 }
 
 Output
