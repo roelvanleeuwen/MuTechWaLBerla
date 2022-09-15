@@ -436,9 +436,13 @@ int main(int argc, char** argv)
    const uint_t numYBlocks            = numericalSetup.getParameter< uint_t >("numYBlocks");
    const uint_t numZBlocks            = numericalSetup.getParameter< uint_t >("numZBlocks");
    WALBERLA_CHECK_EQUAL(numXBlocks * numYBlocks * numZBlocks, uint_t(MPIManager::instance()->numProcesses()),
-                        "When using GPUs, the number of blocks("
-                           << numXBlocks * numYBlocks * numZBlocks << ") has to match the number of MPI processes("
+                        "When using GPUs, the number of blocks ("
+                           << numXBlocks * numYBlocks * numZBlocks << ") has to match the number of MPI processes ("
                            << uint_t(MPIManager::instance()->numProcesses()) << ")");
+   if ((periodicInX && numXBlocks == 1) || (periodicInY && numYBlocks == 1))
+   {
+      WALBERLA_ABORT("The number of blocks must be greater than 1 in periodic dimensions.")
+   }
    const bool useLubricationForces        = numericalSetup.getParameter< bool >("useLubricationForces");
    const uint_t numberOfParticleSubCycles = numericalSetup.getParameter< uint_t >("numberOfParticleSubCycles");
    const uint_t numberOfParticleSubBlocksPerDim =
