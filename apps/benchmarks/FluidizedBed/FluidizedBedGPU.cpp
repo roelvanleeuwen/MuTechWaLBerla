@@ -593,8 +593,8 @@ int main(int argc, char** argv)
       cuda::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity field GPU", true);
    BlockDataID BFieldID = field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "B field", 0, field::fzyx, 1);
 
-   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), real_t(0),
-                                           real_t(0), real_t(0));
+   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), inflowVec[0],
+                                           inflowVec[1], inflowVec[2]);
 
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
