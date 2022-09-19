@@ -740,12 +740,11 @@ int main(int argc, char** argv)
                                                                  performanceLogFrequency);
    timeloop.addFuncAfterTimeStep(performanceLogger, "Evaluate performance logging");
 
-   // add LBM communication function and boundary handling sweep (does the hydro force calculations and the no-slip
-   // treatment)
+   // add LBM communication function and boundary handling sweep
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
-                  << Sweep(ubb.getSweep(), "Boundary Handling (UBB)");
-   timeloop.add() << Sweep(density_bc.getSweep(), "Boundary Handling (Density)");
-   timeloop.add() << Sweep(noSlip.getSweep(), "Boundary Handling (NoSlip)");
+                  << Sweep(deviceSyncWrapper(ubb.getSweep()), "Boundary Handling (UBB)");
+   timeloop.add() << Sweep(deviceSyncWrapper(density_bc.getSweep()), "Boundary Handling (Density)");
+   timeloop.add() << Sweep(deviceSyncWrapper(noSlip.getSweep()), "Boundary Handling (NoSlip)");
 
    // stream + collide LBM step
    pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,

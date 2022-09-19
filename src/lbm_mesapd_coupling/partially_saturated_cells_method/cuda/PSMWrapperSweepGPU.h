@@ -52,6 +52,15 @@ namespace psm
 namespace cuda
 {
 
+// The deviceSyncWrapper can be used so that the timeloop measures the correct device runtime
+// TODO: check if the cudaDeviceSynchronize penalty is acceptable
+auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
+   return [sweep](IBlock* b) {
+      sweep(b);
+      cudaDeviceSynchronize();
+   };
+};
+
 template< typename LatticeModel_T, typename ParticleAccessor_T, typename Sweep_T, typename ParticleSelector_T,
           int Weighting_T >
 class PSMWrapperSweepCUDA
