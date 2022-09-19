@@ -9,7 +9,7 @@ if( WALBERLA_BUILD_WITH_CUDA )
                 PSMKernel.cu
                 PSMKernel.h
                 PSMUtilityGPU.cuh
-                PSMWrapperSweepGPU.h
+                PSMWrapperSweepsGPU.h
                 )
     endif()
 endif()

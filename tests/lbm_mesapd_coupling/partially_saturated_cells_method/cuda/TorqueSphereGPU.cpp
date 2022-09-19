@@ -42,7 +42,7 @@
 #include "lbm/lattice_model/ForceModel.h"
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepsGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
 
@@ -413,14 +413,22 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
                                  velocityFieldIdGPU, real_t(0.0), real_t(0.0), real_t(0.0), omega);
-   auto PSMWrapperSweep =
-      lbm_mesapd_coupling::psm::cuda::PSMWrapperSweepCUDA< LatticeModel_T, ParticleAccessor_T, pystencils::PSMSweep,
-                                                           lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
-         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), PSMSweep, pdfFieldGPUID,
+   auto setParticleVelocitiesSweep =
+      lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep< LatticeModel_T, ParticleAccessor_T,
+                                                                  lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
+         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
+         particleAndVolumeFractionSoA);
+   auto reduceParticleForcesSweep =
+      lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep< LatticeModel_T, ParticleAccessor_T,
+                                                                 lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
+         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
          particleAndVolumeFractionSoA);
 
    // communication, streaming and force evaluation
-   timeloop.add() << BeforeFunction(communication, "LBM Communication") << Sweep(PSMWrapperSweep, "cell-wise LB sweep");
+   timeloop.add() << BeforeFunction(communication, "LBM Communication")
+                  << Sweep(deviceSyncWrapper(setParticleVelocitiesSweep), "setParticleVelocitiesSweep");
+   timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "cell-wise LB sweep");
+   timeloop.add() << Sweep(deviceSyncWrapper(reduceParticleForcesSweep), "Reduce particle forces");
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU")
                   << AfterFunction(SharedFunctor< TorqueEval_T >(torqueEval), "torque evaluation");

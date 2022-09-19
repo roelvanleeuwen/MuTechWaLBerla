@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file PSMWrapperSweepGPU.h
+//! \file PSMWrapperSweepsGPU.h
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //
@@ -406,9 +406,9 @@ class ReduceParticleForcesSweep
 };
 
 template< typename Mapping, typename VelocitiesSweep, typename PSMSweep, typename ForcesSweep >
-void addPSMSweepsToTimeloop(SweepTimeloop& timeloop, Mapping particleMapping,
-                            VelocitiesSweep setParticleVelocitiesSweep, PSMSweep psmSweep,
-                            ForcesSweep reduceParticleForcesSweep, bool synchronize = true)
+void addPSMSweepsToTimeloop(SweepTimeloop& timeloop, Mapping& particleMapping,
+                            VelocitiesSweep& setParticleVelocitiesSweep, PSMSweep& psmSweep,
+                            ForcesSweep& reduceParticleForcesSweep, bool synchronize = true)
 {
    if (synchronize)
    {

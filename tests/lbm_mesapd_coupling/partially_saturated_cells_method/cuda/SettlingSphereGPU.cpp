@@ -44,7 +44,7 @@
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/mapping/ParticleMapping.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepsGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
 #include "lbm_mesapd_coupling/utility/AddForceOnParticlesKernel.h"
 #include "lbm_mesapd_coupling/utility/AddHydrodynamicInteractionKernel.h"
@@ -674,10 +674,16 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
                                  velocityFieldIdGPU, real_t(0.0), real_t(0.0), real_t(0.0),
                                  lbm::collision_model::omegaFromViscosity(viscosity));
-   auto PSMWrapperSweep =
-      lbm_mesapd_coupling::psm::cuda::PSMWrapperSweepCUDA< LatticeModel_T, ParticleAccessor_T, pystencils::PSMSweep,
-                                                           lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
-         blocks, accessor, sphereSelector, PSMSweep, pdfFieldGPUID, particleAndVolumeFractionSoA);
+   auto setParticleVelocitiesSweep =
+      lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep< LatticeModel_T, ParticleAccessor_T,
+                                                                  lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
+         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
+         particleAndVolumeFractionSoA);
+   auto reduceParticleForcesSweep =
+      lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep< LatticeModel_T, ParticleAccessor_T,
+                                                                 lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
+         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
+         particleAndVolumeFractionSoA);
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 
@@ -746,7 +752,8 @@ int main(int argc, char** argv)
                   << Sweep(noSlip.getSweep(), "Boundary Handling");
 
    // stream + collide LBM step
-   timeloop.add() << Sweep(PSMWrapperSweep, "cell-wise LB sweep");
+   addPSMSweepsToTimeloop(timeloop, particleMappingGPU, setParticleVelocitiesSweep, PSMSweep,
+                          reduceParticleForcesSweep);
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "Copy pdf from GPU to CPU");
 
@@ -852,7 +859,6 @@ int main(int argc, char** argv)
             ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, explEulerIntegrator, *accessor);
 
          syncCall();
-         particleMappingGPU();
       }
 
       timeloopTiming["RPD"].end();
