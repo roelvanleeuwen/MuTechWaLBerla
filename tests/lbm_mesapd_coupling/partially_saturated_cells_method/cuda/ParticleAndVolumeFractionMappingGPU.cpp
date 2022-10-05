@@ -25,6 +25,7 @@
 #include "core/Environment.h"
 #include "core/debug/TestSubsystem.h"
 
+#include "cuda/DeviceSelectMPI.h"
 #include "cuda/FieldCopy.h"
 #include "cuda/GPUField.h"
 
@@ -148,6 +149,7 @@ int main(int argc, char** argv)
    debug::enterTestMode();
 
    mpi::Environment env(argc, argv);
+   cuda::selectDeviceBasedOnMpiRank();
 
    auto processes = MPIManager::instance()->numProcesses();
 

@@ -35,6 +35,7 @@
 #include "core/timing/RemainingTimeLogger.h"
 
 #include "cuda/AddGPUFieldToStorage.h"
+#include "cuda/DeviceSelectMPI.h"
 #include "cuda/communication/UniformGPUScheme.h"
 
 #include "field/AddToStorage.h"
@@ -404,6 +405,7 @@ FluidInfo evaluateFluidInfo(const shared_ptr< StructuredBlockStorage >& blocks, 
 int main(int argc, char** argv)
 {
    Environment env(argc, argv);
+   cuda::selectDeviceBasedOnMpiRank();
 
    auto cfgFile = env.config();
    if (!cfgFile) { WALBERLA_ABORT("Usage: " << argv[0] << " path-to-configuration-file \n"); }

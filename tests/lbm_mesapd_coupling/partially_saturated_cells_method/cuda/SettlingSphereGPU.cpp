@@ -31,6 +31,7 @@
 #include "core/timing/RemainingTimeLogger.h"
 
 #include "cuda/AddGPUFieldToStorage.h"
+#include "cuda/DeviceSelectMPI.h"
 #include "cuda/communication/UniformGPUScheme.h"
 
 #include "field/AddToStorage.h"
@@ -336,6 +337,7 @@ int main(int argc, char** argv)
    debug::enterTestMode();
 
    mpi::Environment env(argc, argv);
+   cuda::selectDeviceBasedOnMpiRank();
 
    ///////////////////
    // Customization //
