@@ -117,9 +117,10 @@ class CenterOfMassComputer
       }
 
       mpi::allReduceInplace< uint_t >(cellCount, mpi::SUM);
-      mpi::allReduceInplace< cell_idx_t >(cellSum[0], mpi::SUM);
-      mpi::allReduceInplace< cell_idx_t >(cellSum[1], mpi::SUM);
-      mpi::allReduceInplace< cell_idx_t >(cellSum[2], mpi::SUM);
+
+      Vector3< cell_idx_t > cellSumVector =
+         Vector3< cell_idx_t >(cellSum[0], cellSum[1], cellSum[2]); // use Vector3 to limit calls to MPI-reduce to one
+      mpi::allReduceInplace< cell_idx_t >(cellSumVector, mpi::SUM);
 
       (*centerOfMass_)[0] = real_c(cellSum[0]) / real_c(cellCount);
       (*centerOfMass_)[1] = real_c(cellSum[1]) / real_c(cellCount);
@@ -324,8 +325,8 @@ int main(int argc, char** argv)
    std::shared_ptr< bubble_model::BubbleModelBase > bubbleModel = nullptr;
    if (enableBubbleModel)
    {
-      const std::shared_ptr< bubble_model::BubbleModel< CommunicationStencil_T > > bubbleModelDerived =
-         std::make_shared< bubble_model::BubbleModel< CommunicationStencil_T > >(blockForest, enableBubbleSplits);
+      const std::shared_ptr< bubble_model::BubbleModel< LatticeModelStencil_T > > bubbleModelDerived =
+         std::make_shared< bubble_model::BubbleModel< LatticeModelStencil_T > >(blockForest, enableBubbleSplits);
       bubbleModelDerived->initFromFillLevelField(fillFieldID);
 
       bubbleModel = std::static_pointer_cast< bubble_model::BubbleModelBase >(bubbleModelDerived);

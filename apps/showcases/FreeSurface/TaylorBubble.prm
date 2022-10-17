@@ -8,7 +8,7 @@ BlockForestParameters
 
 DomainParameters
 {
-   tubeDiameter      32;
+   tubeDiameter      16;
    bubbleDiameter    0.75;             // value multiplied with tubeDiameter
    bubbleHeight      3;                // value multiplied with tubeDiameter
    bubbleBottomEnd   < 0.5, 0.5, 1 >;  // initial cylindrical bubble's bottom end center (values multiplied with tubeDiameter)
@@ -98,7 +98,8 @@ VTK
 
       before_functions
       {
-         //ghost_layer_synchronization; // only needed if writing the ghost layer
+         //ghost_layer_synchronization;   // only needed if writing the ghost layer
+         gas_cell_zero_setter;            // sets velocity=0 and density=1 all gas cells before writing VTK output
       }
    }
    domain_decomposition
