@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ParticleAndVolumeFractionMappingKernel.cu
+//! \file ParticleAndVolumeFractionMappingKernels.cu
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //
@@ -23,7 +23,7 @@
 
 #include <assert.h>
 
-#include "ParticleAndVolumeFractionMappingKernel.h"
+#include "ParticleAndVolumeFractionMappingKernels.h"
 
 namespace walberla
 {
@@ -34,7 +34,7 @@ namespace psm
 namespace cuda
 {
 
-// functions to calculate Bs
+// Functions to calculate Bs
 template< int Weighting_T >
 __device__ void calculateWeighting(real_t* __restrict__ const weighting, const real_t& /*epsilon*/,
                                    const real_t& /*tau*/)
@@ -138,11 +138,11 @@ __global__ void linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOve
    // Clear the fields
    for (uint i = 0; i < MaxParticlesPerCell; i++)
    {
-      BsField.get(i)  = 0.0;
-      idxField.get(i) = id_t(0);
+      BsField.get(i)  = real_t(0.0);
+      idxField.get(i) = size_t(0);
    }
-   nOverlappingParticlesField.get() = 0;
-   BField.get()                     = 0.0;
+   nOverlappingParticlesField.get() = uint_t(0);
+   BField.get()                     = real_t(0.0);
 
    const double3 cellCenter   = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
                                   (blockStart.z + (blockIdx.y + 0.5) * dx) };
@@ -203,7 +203,6 @@ __global__ void linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOve
    }
 }
 
-// TODO: find better solution for template kernels
 auto instance0_with_weighting_1 = particleAndVolumeFractionMappingKernelSoA< 1 >;
 auto instance1_with_weighting_2 = particleAndVolumeFractionMappingKernelSoA< 2 >;
 auto instance2_with_weighting_1 = linearApproximation< 1 >;

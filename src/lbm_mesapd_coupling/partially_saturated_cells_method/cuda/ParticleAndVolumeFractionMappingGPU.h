@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ParticleAndVolumeFractionMapping.h
+//! \file ParticleAndVolumeFractionMappingGPU.h
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //
@@ -34,8 +34,7 @@
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/mapping/ParticleBoundingBox.h"
-#include "lbm_mesapd_coupling/overlapping/cuda/OverlapFraction.h"
-#include "lbm_mesapd_coupling/overlapping/cuda/ParticleAndVolumeFractionMappingKernel.h"
+#include "lbm_mesapd_coupling/overlapping/cuda/ParticleAndVolumeFractionMappingKernels.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 
 #include "mesa_pd/common/AABBConversion.h"
@@ -69,21 +68,20 @@ void mapParticles(const IBlock& blockIt,
    auto BField   = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
 
    auto myKernel = walberla::cuda::make_kernel(&(linearApproximation< Weighting_T >) );
-   myKernel.addFieldIndexingParam(
-      walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));          // FieldAccessor
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField)); // FieldAccessor
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));  // FieldAccessor
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));  // FieldAccessor
-   myKernel.addParam(particleAndVolumeFractionSoA.omega_);                                 // omega
-   myKernel.addParam(spherePositions);                                                     // spherePositions
-   myKernel.addParam(sphereRadii);                                                         // sphereRadii
-   myKernel.addParam(f_rs);                                                                // f_rs
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));
+   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
+   myKernel.addParam(particleAndVolumeFractionSoA.omega_);
+   myKernel.addParam(spherePositions);
+   myKernel.addParam(sphereRadii);
+   myKernel.addParam(f_rs);
    Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
-   myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });                  // blockStart
-   myKernel.addParam(blockIt.getAABB().xSize() / real_t(nOverlappingParticlesField->xSize())); // dx
-   myKernel.addParam(numParticlesSubBlocks);                                                   // numParticlesSubBlocks
-   myKernel.addParam(particleIDsSubBlocks);                                                    // particleIDsSubBlocks
-   myKernel.addParam(subBlocksPerDim);                                                         // subBlocksPerDim
+   myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });
+   myKernel.addParam(blockIt.getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));
+   myKernel.addParam(numParticlesSubBlocks);
+   myKernel.addParam(particleIDsSubBlocks);
+   myKernel.addParam(subBlocksPerDim);
    myKernel();
 }
 
@@ -161,12 +159,11 @@ class ParticleAndVolumeFractionMappingGPU
          }
       }
 
-      // TODO: simplify idx/idxMapped
       // Update fraction mapping
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
-         // Split the block into sub-blocks and sort the particle IDs into each overlapping sub-block. This way, in the
-         // particle mapping, each CUDA thread only has to check the potentially overlapping particles.
+         // Split the block into sub-blocks and sort the particle indices into each overlapping sub-block. This way, in
+         // the particle mapping, each CUDA thread only has to check the potentially overlapping particles.
          auto blockAABB            = blockIt->getAABB();
          const size_t numSubBlocks = subBlocksPerDim_ * subBlocksPerDim_ * subBlocksPerDim_;
          std::vector< std::vector< size_t > > subBlocks(numSubBlocks);
@@ -207,8 +204,8 @@ class ParticleAndVolumeFractionMappingGPU
             maxParticlesPerSubBlock = std::max(maxParticlesPerSubBlock, subBlock.size());
          });
 
-         size_t* numParticlesSubBlocks;
-         cudaMallocManaged(&numParticlesSubBlocks, numSubBlocks * sizeof(size_t));
+         size_t* numParticlesPerSubBlock;
+         cudaMallocManaged(&numParticlesPerSubBlock, numSubBlocks * sizeof(size_t));
          size_t* particleIDsSubBlocks;
          cudaMallocManaged(&particleIDsSubBlocks, numSubBlocks * maxParticlesPerSubBlock * sizeof(size_t));
 
@@ -219,8 +216,8 @@ class ParticleAndVolumeFractionMappingGPU
             {
                for (size_t x = 0; x < subBlocksPerDim_; ++x)
                {
-                  size_t index                 = z * subBlocksPerDim_ * subBlocksPerDim_ + y * subBlocksPerDim_ + x;
-                  numParticlesSubBlocks[index] = subBlocks[index].size();
+                  size_t index                   = z * subBlocksPerDim_ * subBlocksPerDim_ + y * subBlocksPerDim_ + x;
+                  numParticlesPerSubBlock[index] = subBlocks[index].size();
                   for (size_t k = 0; k < subBlocks[index].size(); k++)
                   {
                      particleIDsSubBlocks[index + k * numSubBlocks] = subBlocks[index][k];
@@ -229,10 +226,10 @@ class ParticleAndVolumeFractionMappingGPU
             }
          }
 
-         mapParticles(*blockIt, particleAndVolumeFractionField_, positions, radii, f_r, numParticlesSubBlocks,
+         mapParticles(*blockIt, particleAndVolumeFractionField_, positions, radii, f_r, numParticlesPerSubBlock,
                       particleIDsSubBlocks, subBlocksPerDim_);
 
-         cudaFree(numParticlesSubBlocks);
+         cudaFree(numParticlesPerSubBlock);
          cudaFree(particleIDsSubBlocks);
       }
 

@@ -6,8 +6,8 @@ if( WALBERLA_BUILD_WITH_CUDA )
     if( CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60 )
         target_sources(lbm_mesapd_coupling
                 PRIVATE
-                PSMKernel.cu
-                PSMKernel.h
+                PSMWrapperKernels.cu
+                PSMWrapperKernels.h
                 PSMUtilityGPU.cuh
                 PSMWrapperSweepsGPU.h
                 )

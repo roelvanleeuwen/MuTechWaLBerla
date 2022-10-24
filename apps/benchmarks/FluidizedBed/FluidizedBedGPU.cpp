@@ -764,6 +764,7 @@ int main(int argc, char** argv)
                                                                  lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
          blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
          particleAndVolumeFractionSoA);
+   // TODO: check if the cudaDeviceSynchronize penalty is acceptable
    addPSMSweepsToTimeloop(timeloop, particleMappingGPU, setParticleVelocitiesSweep, PSMSweep,
                           reduceParticleForcesSweep);
 

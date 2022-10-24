@@ -43,7 +43,7 @@
 
 #include <cassert>
 
-#include "PSMKernel.h"
+#include "PSMWrapperKernels.h"
 
 namespace walberla
 {
@@ -55,7 +55,6 @@ namespace cuda
 {
 
 // The deviceSyncWrapper can be used so that the timeloop measures the correct device runtime
-// TODO: check if the cudaDeviceSynchronize penalty is acceptable
 auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
    return [sweep](IBlock* b) {
       sweep(b);
@@ -76,7 +75,7 @@ class SetParticleVelocitiesSweep
    {}
    void operator()(IBlock* block)
    {
-      assert(LatticeModel_T::Stencil::D == 3);
+      WALBERLA_ASSERT(LatticeModel_T::Stencil::D == 3, "Only 3D is supported.");
       // Check that uids have not changed since the last mapping to avoid incorrect indices
       std::vector< walberla::id_t > currentUIDs;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
@@ -92,7 +91,7 @@ class SetParticleVelocitiesSweep
       }
       size_t arraySizes = numMappedParticles * sizeof(real_t) * 3;
 
-      // Allocate unified memory for the particle information needed for computing the velocity at a WF point (needed by
+      // Allocate unified memory for the particle information required for computing the velocity at a WF point (used in
       // the solid collision operator)
       real_t* linearVelocities;
       cudaMallocManaged(&linearVelocities, arraySizes);
@@ -126,7 +125,7 @@ class SetParticleVelocitiesSweep
       auto particleVelocitiesField =
          block->getData< particleVelocitiesFieldGPU_T >(particleAndVolumeFractionSoA_.particleVelocitiesFieldID);
 
-      // For every cell, set the particle velocities of the overlapping particles at the cell center
+      // For every cell, compute the particle velocities of the overlapping particles evaluated at the cell center
       auto velocitiesKernel = walberla::cuda::make_kernel(&(SetParticleVelocities));
       velocitiesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
       velocitiesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));
@@ -165,7 +164,7 @@ class ReduceParticleForcesSweep
    {}
    void operator()(IBlock* block)
    {
-      assert(LatticeModel_T::Stencil::D == 3);
+      WALBERLA_ASSERT(LatticeModel_T::Stencil::D == 3, "Only 3D is supported.");
       // Check that uids have not changed since the last mapping to avoid incorrect indices
       std::vector< walberla::id_t > currentUIDs;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
@@ -195,6 +194,7 @@ class ReduceParticleForcesSweep
 
       // Allocate unified memory for the particle information needed for computing the velocity at a WF point (needed by
       // the solid collision operator)
+      // TODO: reuse the position of the setParticleVelocitiesSweep
       real_t* positions;
       cudaMallocManaged(&positions, arraySizes);
       cudaMemset(positions, 0, arraySizes);
@@ -217,7 +217,7 @@ class ReduceParticleForcesSweep
          block->getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA_.nOverlappingParticlesFieldID);
       auto idxField = block->getData< idxFieldGPU_T >(particleAndVolumeFractionSoA_.idxFieldID);
       auto particleForcesField =
-         block->getData< particleForcesGPU_T >(particleAndVolumeFractionSoA_.particleForcesFieldID);
+         block->getData< particleForcesFieldGPU_T >(particleAndVolumeFractionSoA_.particleForcesFieldID);
 
       __device__ double3 blockStart = { block->getAABB().minCorner()[0], block->getAABB().minCorner()[1],
                                         block->getAABB().minCorner()[2] };

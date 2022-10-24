@@ -26,7 +26,7 @@
 
 #include <cmath>
 
-#include "ParticleAndVolumeFractionMappingKernel.h"
+#include "ParticleAndVolumeFractionMappingKernels.h"
 
 namespace walberla
 {
@@ -37,19 +37,20 @@ namespace psm
 namespace cuda
 {
 
-struct OverlapFractionFunctor
+// Deprecated
+/*struct OverlapFractionFunctor
 {
    template< typename ParticleAccessor_T, typename Shape_T, int Weighting_T >
-   void operator()(const size_t /*particleIdx*/, const Shape_T& /*shape*/,
-                   const shared_ptr< ParticleAccessor_T >& /*ac*/, const IBlock& /*blockIt*/,
-                   const ParticleAndVolumeFractionSoA_T< Weighting_T >& /*particleAndVolumeFractionSoA*/,
-                   const real_t /*omega*/, const size_t /*particleIdxMapped*/)
+   void operator()(const size_t *//*particleIdx*//*, const Shape_T& *//*shape*//*,
+                   const shared_ptr< ParticleAccessor_T >& *//*ac*//*, const IBlock& *//*blockIt*//*,
+                   const ParticleAndVolumeFractionSoA_T< Weighting_T >& *//*particleAndVolumeFractionSoA*//*,
+                   const real_t *//*omega*//*, const size_t *//*particleIdxMapped*//*)
    {
       WALBERLA_ABORT("OverlapFraction not implemented!");
    }
 
    template< typename ParticleAccessor_T, int Weighting_T >
-   void operator()(const size_t particleIdx, const mesa_pd::data::Sphere& /*sphere*/,
+   void operator()(const size_t particleIdx, const mesa_pd::data::Sphere& *//*sphere*//*,
                    const shared_ptr< ParticleAccessor_T >& ac, const IBlock& blockIt,
                    const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
                    const real_t omega, const size_t particleIdxMapped)
@@ -87,7 +88,7 @@ struct OverlapFractionFunctor
       myKernel.addParam(particleIdxMapped);
       myKernel();
    }
-};
+};*/
 
 } // namespace cuda
 } // namespace psm

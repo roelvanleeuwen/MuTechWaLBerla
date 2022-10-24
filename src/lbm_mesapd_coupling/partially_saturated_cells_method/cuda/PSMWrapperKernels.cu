@@ -13,15 +13,15 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file PSMKernel.cu
+//! \file PSMWrapperKernels.cu
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
-//! \brief Provide two kernels that need to be called before and after the PSM sweep
+//! \brief Provide two kernels that need to be called before and after the PSM kernel
 //
 //======================================================================================================================
 
-#include "PSMKernel.h"
 #include "PSMUtilityGPU.cuh"
+#include "PSMWrapperKernels.h"
 
 namespace walberla
 {
@@ -32,6 +32,7 @@ namespace psm
 namespace cuda
 {
 
+// TODO: check correct usage of const
 __global__ void SetParticleVelocities(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
                                       walberla::cuda::FieldAccessor< uint_t > idxField,
                                       walberla::cuda::FieldAccessor< real_t > particleVelocitiesField,
@@ -53,7 +54,6 @@ __global__ void SetParticleVelocities(walberla::cuda::FieldAccessor< uint_t > nO
       real_t particleVelocityAtWFPoint[] = { 0.0, 0.0, 0.0 };
       getVelocityAtWFPoint(particleVelocityAtWFPoint, &linearVelocities[idxField.get(p) * 3],
                            &angularVelocities[idxField.get(p) * 3], &positions[idxField.get(p) * 3], cellCenter);
-      // TODO: change hard coded 3 into dimension
       particleVelocitiesField.get(p * 3 + 0) = particleVelocityAtWFPoint[0];
       particleVelocitiesField.get(p * 3 + 1) = particleVelocityAtWFPoint[1];
       particleVelocitiesField.get(p * 3 + 2) = particleVelocityAtWFPoint[2];
@@ -79,7 +79,6 @@ __global__ void ReduceParticleForces(walberla::cuda::FieldAccessor< uint_t > nOv
    // Reduce the forces for all overlapping particles
    for (uint_t p = 0; p < nOverlappingParticlesField.get(); p++)
    {
-      // TODO: change hard coded 3 into dimension
       real_t forceOnParticle[] = { particleForcesField.get(p * 3 + 0), particleForcesField.get(p * 3 + 1),
                                    particleForcesField.get(p * 3 + 2) };
       forceOnParticle[0] *= forceScalingFactor;

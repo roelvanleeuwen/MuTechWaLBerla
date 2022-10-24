@@ -58,8 +58,6 @@ __device__ void addHydrodynamicForceAtWFPosAtomic(real_t* __restrict__ const par
                                                   const real_t* __restrict__ f, const real_t* __restrict__ pos,
                                                   const real_t* __restrict__ wf_pt)
 {
-   // TODO: uncomment atomicAdds and find solution to set CMAKE_CUDA_ARCHITECTURES in .gitlab-ci.yml (maybe using
-   // nvidia-smi --query-gpu=compute_cap --format=csv,noheader)
    atomicAdd(&(particleForce[0]), f[0]);
    atomicAdd(&(particleForce[1]), f[1]);
    atomicAdd(&(particleForce[2]), f[2]);
