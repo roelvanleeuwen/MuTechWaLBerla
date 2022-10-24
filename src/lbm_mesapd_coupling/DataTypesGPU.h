@@ -75,6 +75,9 @@ struct ParticleAndVolumeFractionSoA_T
    // UIDs of the particles are stored during mapping, and it is checked that they are the same during the PSM kernel.
    // This prevents running into troubles due to changed indices
    std::vector< walberla::id_t > mappingUIDs;
+   // Used to avoid copying the particle positions in both the SetParticleVelocitiesSweep and the
+   // ReduceParticleForcesSweep
+   real_t* positions;
 
    // TODO: set nrOfGhostLayers to 0 (requires changes of the generated kernels)
    ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs, const real_t omega)

@@ -69,7 +69,7 @@ class SetParticleVelocitiesSweep
    SetParticleVelocitiesSweep(const shared_ptr< StructuredBlockStorage >& bs,
                               const shared_ptr< ParticleAccessor_T >& ac,
                               const ParticleSelector_T& mappingParticleSelector, BlockDataID& pdfFieldID,
-                              const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
+                              ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
       : bs_(bs), ac_(ac), mappingParticleSelector_(mappingParticleSelector), pdfFieldID_(pdfFieldID),
         particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA)
    {}
@@ -99,9 +99,8 @@ class SetParticleVelocitiesSweep
       real_t* angularVelocities;
       cudaMallocManaged(&angularVelocities, arraySizes);
       cudaMemset(angularVelocities, 0, arraySizes);
-      real_t* positions;
-      cudaMallocManaged(&positions, arraySizes);
-      cudaMemset(positions, 0, arraySizes);
+      cudaMallocManaged(&(particleAndVolumeFractionSoA_.positions), arraySizes);
+      cudaMemset(particleAndVolumeFractionSoA_.positions, 0, arraySizes);
 
       // Store particle information inside unified memory to communicate information to the GPU
       size_t idxMapped = 0;
@@ -111,9 +110,9 @@ class SetParticleVelocitiesSweep
          {
             for (size_t d = 0; d < 3; ++d)
             {
-               linearVelocities[idxMapped * 3 + d]  = ac_->getLinearVelocity(idx)[d];
-               angularVelocities[idxMapped * 3 + d] = ac_->getAngularVelocity(idx)[d];
-               positions[idxMapped * 3 + d]         = ac_->getPosition(idx)[d];
+               linearVelocities[idxMapped * 3 + d]                        = ac_->getLinearVelocity(idx)[d];
+               angularVelocities[idxMapped * 3 + d]                       = ac_->getAngularVelocity(idx)[d];
+               particleAndVolumeFractionSoA_.positions[idxMapped * 3 + d] = ac_->getPosition(idx)[d];
             }
             idxMapped++;
          }
@@ -132,7 +131,7 @@ class SetParticleVelocitiesSweep
       velocitiesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*particleVelocitiesField));
       velocitiesKernel.addParam(linearVelocities);
       velocitiesKernel.addParam(angularVelocities);
-      velocitiesKernel.addParam(positions);
+      velocitiesKernel.addParam(particleAndVolumeFractionSoA_.positions);
       __device__ double3 blockStart = { block->getAABB().minCorner()[0], block->getAABB().minCorner()[1],
                                         block->getAABB().minCorner()[2] };
       velocitiesKernel.addParam(blockStart);
@@ -141,7 +140,6 @@ class SetParticleVelocitiesSweep
 
       cudaFree(linearVelocities);
       cudaFree(angularVelocities);
-      cudaFree(positions);
    }
 
  private:
@@ -149,7 +147,7 @@ class SetParticleVelocitiesSweep
    const shared_ptr< ParticleAccessor_T > ac_;
    const ParticleSelector_T& mappingParticleSelector_;
    BlockDataID pdfFieldID_;
-   const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA_;
+   ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA_;
 };
 
 template< typename LatticeModel_T, typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
@@ -192,27 +190,6 @@ class ReduceParticleForcesSweep
       cudaMallocManaged(&hydrodynamicTorques, arraySizes);
       cudaMemset(hydrodynamicTorques, 0, arraySizes);
 
-      // Allocate unified memory for the particle information needed for computing the velocity at a WF point (needed by
-      // the solid collision operator)
-      // TODO: reuse the position of the setParticleVelocitiesSweep
-      real_t* positions;
-      cudaMallocManaged(&positions, arraySizes);
-      cudaMemset(positions, 0, arraySizes);
-
-      // Store particle information inside unified memory to communicate information to the GPU
-      size_t idxMapped = 0;
-      for (size_t idx = 0; idx < ac_->size(); ++idx)
-      {
-         if (mappingParticleSelector_(idx, *ac_))
-         {
-            for (size_t d = 0; d < 3; ++d)
-            {
-               positions[idxMapped * 3 + d] = ac_->getPosition(idx)[d];
-            }
-            idxMapped++;
-         }
-      }
-
       auto nOverlappingParticlesField =
          block->getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA_.nOverlappingParticlesFieldID);
       auto idxField = block->getData< idxFieldGPU_T >(particleAndVolumeFractionSoA_.idxFieldID);
@@ -229,7 +206,7 @@ class ReduceParticleForcesSweep
       forcesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*particleForcesField));
       forcesKernel.addParam(hydrodynamicForces);
       forcesKernel.addParam(hydrodynamicTorques);
-      forcesKernel.addParam(positions);
+      forcesKernel.addParam(particleAndVolumeFractionSoA_.positions);
       forcesKernel.addParam(blockStart);
       forcesKernel.addParam(block->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));
       forcesKernel.addParam(forceScalingFactor);
@@ -238,7 +215,7 @@ class ReduceParticleForcesSweep
       cudaDeviceSynchronize();
 
       // Copy forces and torques of particles from GPU to CPU
-      idxMapped = 0;
+      size_t idxMapped = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
          if (mappingParticleSelector_(idx, *ac_))
@@ -254,7 +231,7 @@ class ReduceParticleForcesSweep
 
       cudaFree(hydrodynamicForces);
       cudaFree(hydrodynamicTorques);
-      cudaFree(positions);
+      cudaFree(particleAndVolumeFractionSoA_.positions);
    }
 
  private:
