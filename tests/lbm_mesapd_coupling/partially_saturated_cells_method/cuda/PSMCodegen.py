@@ -120,10 +120,7 @@ with CodeGeneration() as ctx:
                 )
                 - (f - eqSolid)
             )
-            # TODO: check if Conditional fits better than Piecewise
-            collision_rhs[i] += sp.Piecewise(
-                (solid_collision, Bs.center(p) > 0.0), (0.0, True)
-            )
+            collision_rhs[i] += solid_collision
             for j in range(stencil.D):
                 forces_rhs[p * stencil.D + j] -= solid_collision * int(offset[j])
 
@@ -142,9 +139,7 @@ with CodeGeneration() as ctx:
             collision_assignments.append(
                 ps.Assignment(
                     particle_forces.center(p * stencil.D + i),
-                    sp.Piecewise(
-                        (forces_rhs[p * stencil.D + i], Bs.center(p) > 0.0), (0.0, True)
-                    ),
+                    forces_rhs[p * stencil.D + i],
                 )
             )
 
