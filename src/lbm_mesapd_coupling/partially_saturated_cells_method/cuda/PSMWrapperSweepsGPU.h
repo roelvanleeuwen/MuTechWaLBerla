@@ -82,7 +82,7 @@ class SetParticleVelocitiesSweep
       {
          if (mappingParticleSelector_(idx, *ac_)) { currentUIDs.push_back(ac_->getUid(idx)); }
       }
-      assert(particleAndVolumeFractionSoA_.mappingUIDs == currentUIDs);
+      WALBERLA_ASSERT(particleAndVolumeFractionSoA_.mappingUIDs == currentUIDs);
 
       size_t numMappedParticles = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
@@ -99,8 +99,6 @@ class SetParticleVelocitiesSweep
       real_t* angularVelocities;
       cudaMallocManaged(&angularVelocities, arraySizes);
       cudaMemset(angularVelocities, 0, arraySizes);
-      cudaMallocManaged(&(particleAndVolumeFractionSoA_.positions), arraySizes);
-      cudaMemset(particleAndVolumeFractionSoA_.positions, 0, arraySizes);
 
       // Store particle information inside unified memory to communicate information to the GPU
       size_t idxMapped = 0;
@@ -110,9 +108,8 @@ class SetParticleVelocitiesSweep
          {
             for (size_t d = 0; d < 3; ++d)
             {
-               linearVelocities[idxMapped * 3 + d]                        = ac_->getLinearVelocity(idx)[d];
-               angularVelocities[idxMapped * 3 + d]                       = ac_->getAngularVelocity(idx)[d];
-               particleAndVolumeFractionSoA_.positions[idxMapped * 3 + d] = ac_->getPosition(idx)[d];
+               linearVelocities[idxMapped * 3 + d]  = ac_->getLinearVelocity(idx)[d];
+               angularVelocities[idxMapped * 3 + d] = ac_->getAngularVelocity(idx)[d];
             }
             idxMapped++;
          }
@@ -169,7 +166,7 @@ class ReduceParticleForcesSweep
       {
          if (mappingParticleSelector_(idx, *ac_)) { currentUIDs.push_back(ac_->getUid(idx)); }
       }
-      assert(particleAndVolumeFractionSoA_.mappingUIDs == currentUIDs);
+      WALBERLA_ASSERT(particleAndVolumeFractionSoA_.mappingUIDs == currentUIDs);
 
       const real_t dxCurrentLevel      = bs_->dx(bs_->getLevel(*block));
       const real_t lengthScalingFactor = dxCurrentLevel;
@@ -231,7 +228,6 @@ class ReduceParticleForcesSweep
 
       cudaFree(hydrodynamicForces);
       cudaFree(hydrodynamicTorques);
-      cudaFree(particleAndVolumeFractionSoA_.positions);
    }
 
  private:

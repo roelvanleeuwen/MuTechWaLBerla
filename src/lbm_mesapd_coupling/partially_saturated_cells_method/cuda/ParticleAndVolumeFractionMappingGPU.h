@@ -92,10 +92,10 @@ class ParticleAndVolumeFractionMappingGPU
    ParticleAndVolumeFractionMappingGPU(const shared_ptr< StructuredBlockStorage >& blockStorage,
                                        const shared_ptr< ParticleAccessor_T >& ac,
                                        const ParticleSelector_T& mappingParticleSelector,
-                                       ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionField,
+                                       ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
                                        const size_t subBlocksPerDim)
       : blockStorage_(blockStorage), ac_(ac), mappingParticleSelector_(mappingParticleSelector),
-        particleAndVolumeFractionField_(particleAndVolumeFractionField), subBlocksPerDim_(subBlocksPerDim)
+        particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA), subBlocksPerDim_(subBlocksPerDim)
    {
       static_assert(std::is_base_of< mesa_pd::data::IAccessor, ParticleAccessor_T >::value,
                     "Provide a valid accessor as template");
@@ -125,14 +125,14 @@ class ParticleAndVolumeFractionMappingGPU
       // Allocate unified memory storing the particle information needed for the overlap fraction computations
       const size_t scalarArraySize = numMappedParticles * sizeof(real_t);
 
-      real_t* positions;
-      cudaMallocManaged(&positions, 3 * scalarArraySize);
+      if (particleAndVolumeFractionSoA_.positions != nullptr) { cudaFree(particleAndVolumeFractionSoA_.positions); }
+      cudaMallocManaged(&(particleAndVolumeFractionSoA_.positions), 3 * scalarArraySize);
       real_t* radii;
       cudaMallocManaged(&radii, scalarArraySize);
       real_t* f_r; // f_r is described in https://doi.org/10.1108/EC-02-2016-0052
       cudaMallocManaged(&f_r, scalarArraySize);
 
-      particleAndVolumeFractionField_.mappingUIDs.clear();
+      particleAndVolumeFractionSoA_.mappingUIDs.clear();
 
       // Store particle information inside the unified memory (can be accessed by both CPU and GPU)
       size_t idxMapped = 0;
@@ -141,11 +141,11 @@ class ParticleAndVolumeFractionMappingGPU
          if (mappingParticleSelector_(idx, *ac_))
          {
             // Store uids to make sure that the particles have not changed between the mapping and the PSM sweep
-            particleAndVolumeFractionField_.mappingUIDs.push_back(ac_->getUid(idx));
+            particleAndVolumeFractionSoA_.mappingUIDs.push_back(ac_->getUid(idx));
 
             for (size_t d = 0; d < 3; ++d)
             {
-               positions[idxMapped * 3 + d] = ac_->getPosition(idx)[d];
+               particleAndVolumeFractionSoA_.positions[idxMapped * 3 + d] = ac_->getPosition(idx)[d];
             }
             const real_t radius = static_cast< mesa_pd::data::Sphere* >(ac_->getShape(idx))->getRadius();
             radii[idxMapped]    = radius;
@@ -226,14 +226,13 @@ class ParticleAndVolumeFractionMappingGPU
             }
          }
 
-         mapParticles(*blockIt, particleAndVolumeFractionField_, positions, radii, f_r, numParticlesPerSubBlock,
-                      particleIDsSubBlocks, subBlocksPerDim_);
+         mapParticles(*blockIt, particleAndVolumeFractionSoA_, particleAndVolumeFractionSoA_.positions, radii, f_r,
+                      numParticlesPerSubBlock, particleIDsSubBlocks, subBlocksPerDim_);
 
          cudaFree(numParticlesPerSubBlock);
          cudaFree(particleIDsSubBlocks);
       }
 
-      cudaFree(positions);
       cudaFree(radii);
       cudaFree(f_r);
 
@@ -244,7 +243,7 @@ class ParticleAndVolumeFractionMappingGPU
    shared_ptr< StructuredBlockStorage > blockStorage_;
    const shared_ptr< ParticleAccessor_T > ac_;
    const ParticleSelector_T& mappingParticleSelector_;
-   ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionField_;
+   ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA_;
    const uint_t subBlocksPerDim_;
 };
 
