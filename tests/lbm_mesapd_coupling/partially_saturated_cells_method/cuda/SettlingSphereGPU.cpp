@@ -526,11 +526,16 @@ int main(int argc, char** argv)
    // BLOCK STRUCTURE SETUP //
    ///////////////////////////
 
-   // TODO: check why we get incorrect results for number of blocks > number of processes
    Vector3< uint_t > numberOfBlocksPerDirection(uint_t(1), uint_t(1), uint_t(MPIManager::instance()->numProcesses()));
    Vector3< uint_t > cellsPerBlockPerDirection(domainSize[0] / numberOfBlocksPerDirection[0],
                                                domainSize[1] / numberOfBlocksPerDirection[1],
                                                domainSize[2] / numberOfBlocksPerDirection[2]);
+   WALBERLA_CHECK_EQUAL(
+      numberOfBlocksPerDirection[0] * numberOfBlocksPerDirection[1] * numberOfBlocksPerDirection[2],
+      uint_t(MPIManager::instance()->numProcesses()),
+      "When using GPUs, the number of blocks ("
+         << numberOfBlocksPerDirection[0] * numberOfBlocksPerDirection[1] * numberOfBlocksPerDirection[2]
+         << ") has to match the number of MPI processes (" << uint_t(MPIManager::instance()->numProcesses()) << ")");
 
    for (uint_t i = 0; i < 3; ++i)
    {
