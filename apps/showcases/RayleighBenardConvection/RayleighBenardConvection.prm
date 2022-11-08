@@ -1,21 +1,18 @@
 
 Parameters 
 {
-	omega           1.8;
+	omega           1.95;
 	initialVelocity < 0.0, 0, 0 >;
-	//timesteps       10000;
-	timesteps       1;
+	timesteps       10000;
 
 	remainingTimeLoggerFrequency 3; // in seconds
 }
 
 DomainSetup
 {
-   blocks        <  1,    1, 1 >;
-   //cellsPerBlock <  300, 80, 1 >;
-   //periodic      <  1,    0, 1 >;
-   cellsPerBlock <  2,    2, 1 >;
-   periodic      <  1,    1, 1 >;
+   blocks        <  4,    1, 1 >;
+   cellsPerBlock <  25,    1, 50 >;
+   periodic      <  1,    1, 0 >;
 }
 
 StabilityChecker
@@ -27,7 +24,18 @@ StabilityChecker
 
 Boundaries
 {
-//	Border { direction S,N;  walldistance -1;  NoSlip    {} }
+   // X
+   //Border { direction W;  walldistance -1; NoSlip{} }
+   //Border { direction E;  walldistance -1; NoSlip{} }
+
+   // Y
+   //Border { direction N;  walldistance -1; NoSlip{} }
+   //Border { direction S;  walldistance -1; NoSlip{} }
+
+   // Z
+   Border { direction T;  walldistance -1; NoSlip{} }
+   Border { direction B;  walldistance -1; NoSlip{} }
+
 }
 
 
@@ -36,7 +44,7 @@ VTK
    // for parameter documentation see src/vtk/Initialization.cpp
    fluid_field
    {
-      writeFrequency 100;
+      writeFrequency 1000;
       ghostLayers    1;
       
       before_functions {
@@ -56,7 +64,7 @@ VTK
    flag_field
    {
       writeFrequency 10000000; // write only once
-   // ghostLayers    1;
+      ghostLayers    1;
       
       writers {
          FlagField;
