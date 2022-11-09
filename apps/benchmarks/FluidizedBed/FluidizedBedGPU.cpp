@@ -806,7 +806,7 @@ int main(int argc, char** argv)
          syncCall();
 
          linkedCells.clear();
-         ps->forEachParticle(false, mesa_pd::kernel::SelectAll(), *accessor, ipilc, *accessor, linkedCells);
+         ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, ipilc, *accessor, linkedCells);
 
          if (useLubricationForces)
          {
