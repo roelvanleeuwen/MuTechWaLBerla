@@ -1,11 +1,16 @@
+import copy
 import sympy as sp
 import pystencils as ps
+from sympy.core.add import Add
+from sympy.core.mul import Mul
 
 from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil, ForceModel
 
 from lbmpy.boundaries import NoSlip, UBB, FixedDensity
 from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
+from pystencils.astnodes import Conditional, SympyAssignment, Block
+from pystencils.node_collection import NodeCollection
 
 from pystencils_walberla import (
     CodeGeneration,
@@ -83,7 +88,7 @@ with CodeGeneration() as ctx:
         collision_rhs.append(f - c + fo)
 
     # =====================
-    # Code generation for the solid collision kernel
+    # Code generation for the solid parts
     # =====================
 
     forces_rhs = [0] * MaxParticlesPerCell * stencil.D
@@ -157,9 +162,63 @@ with CodeGeneration() as ctx:
     up = up.new_merged(output_eqs)
     up.method = method
 
+    # Create assignment collection for the complete update rule
     lbm_update_rule = create_lb_update_rule(
         collision_rule=up, lbm_config=srt_psm_config, lbm_optimisation=psm_opt
     )
+
+    # =====================
+    # Add conditionals for the solid parts
+    # =====================
+
+    # Transform the assignment collection into a node collection to be able to add conditionals
+    node_collection = NodeCollection.from_assignment_collection(lbm_update_rule)
+
+    for p in range(MaxParticlesPerCell):
+        # One conditional for every potentially overlapping particle
+        conditional_assignments = []
+
+        # Move force computations to conditional
+        for i in range(stencil.D):
+            for node in node_collection.all_assignments:
+                if type(node) == SympyAssignment and node.lhs == particle_forces.center(
+                    p * stencil.D + i
+                ):
+                    conditional_assignments.append(node)
+                    node_collection.all_assignments.remove(node)
+
+        # Move solid collisions to conditional
+        for node in node_collection.all_assignments:
+            if type(node) == SympyAssignment and type(node.rhs) == Add:
+                rhs = node.rhs.args
+                # Maximum one solid collision for each potentially overlapping particle per assignment
+                solid_collision = next(
+                    (
+                        summand
+                        for summand in rhs
+                        if type(summand) == Mul and Bs.center(p) in summand.args
+                    ),
+                    None,
+                )
+                if solid_collision is not None:
+                    conditional_assignments.append(
+                        SympyAssignment(
+                            copy.deepcopy(node.lhs),
+                            Add(solid_collision, copy.deepcopy(node.lhs)),
+                        )
+                    )
+                    node.rhs = Add(
+                        *[
+                            summand
+                            for summand in rhs
+                            if not (
+                                type(summand) == Mul and Bs.center(p) in summand.args
+                            )
+                        ]
+                    )
+
+        conditional = Conditional(Bs.center(p) > 0.0, Block(conditional_assignments))
+        node_collection.all_assignments.append(conditional)
 
     pdfs_setter = macroscopic_values_setter(
         method, init_density, init_velocity, pdfs.center_vector
@@ -172,7 +231,7 @@ with CodeGeneration() as ctx:
 
     # Generate files
     generate_sweep(
-        ctx, "PSMSweep", lbm_update_rule, field_swaps=[(pdfs, pdfs_tmp)], target=target
+        ctx, "PSMSweep", node_collection, field_swaps=[(pdfs, pdfs_tmp)], target=target
     )
 
     generate_pack_info_from_kernel(ctx, "PSMPackInfo", lbm_update_rule, target=target)
