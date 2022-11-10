@@ -358,9 +358,8 @@ int main(int argc, char** argv)
 
    // synchronize often enough for large particles
    std::function< void(void) > syncCall = [&]() {
-      // const real_t overlap = real_t(1.5) * dx;
       mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
-      syncNextNeighborFunc(*ps, *mesapdDomain, overlap);
+      syncNextNeighborFunc(*ps, *mesapdDomain);
    };
 
    syncCall();
