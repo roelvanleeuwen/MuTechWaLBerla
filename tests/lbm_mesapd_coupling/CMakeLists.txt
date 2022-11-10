@@ -82,7 +82,7 @@ waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereSC3W2SingleTest 
 if( WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60 )
     walberla_generate_target_from_python( NAME PSMCodegenPython
             FILE partially_saturated_cells_method/cuda/PSMCodegen.py
-            OUT_FILES PSMSweep.cu PSMSweep.h
+            OUT_FILES PSMSweep.cu PSMSweep.h PSMSweepSplit.cu PSMSweepSplit.h
             PSMPackInfo.cu PSMPackInfo.h InitialPDFsSetter.cu InitialPDFsSetter.h PSM_NoSlip.cu PSM_NoSlip.h PSM_UBB.cu PSM_UBB.h PSM_Density.cu PSM_Density.h )
     waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/cuda/DragForceSphereGPU.cpp DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd timeloop PSMCodegenPython )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU> PROCESSES 1 )

@@ -236,6 +236,14 @@ with CodeGeneration() as ctx:
         node_collection,
         field_swaps=[(pdfs, pdfs_tmp)],
         target=target,
+    )
+
+    generate_sweep(
+        ctx,
+        "PSMSweepSplit",
+        node_collection,
+        field_swaps=[(pdfs, pdfs_tmp)],
+        target=target,
         inner_outer_split=True,
     )
 

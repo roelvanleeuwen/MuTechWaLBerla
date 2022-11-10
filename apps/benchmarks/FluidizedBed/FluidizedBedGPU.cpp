@@ -69,6 +69,7 @@
 #include "mesa_pd/data/shape/Sphere.h"
 #include "mesa_pd/domain/BlockForestDataHandling.h"
 #include "mesa_pd/domain/BlockForestDomain.h"
+#include "mesa_pd/kernel/AssocToBlock.h"
 #include "mesa_pd/kernel/DoubleCast.h"
 #include "mesa_pd/kernel/InsertParticleIntoLinkedCells.h"
 #include "mesa_pd/kernel/LinearSpringDashpot.h"
@@ -82,13 +83,11 @@
 #include "mesa_pd/mpi/notifications/HydrodynamicForceTorqueNotification.h"
 #include "mesa_pd/vtk/ParticleVtkOutput.h"
 
-#include "timeloop/SweepTimeloop.h"
-
 #include "vtk/all.h"
 
 #include "InitialPDFsSetter.h"
 #include "PSMPackInfo.h"
-#include "PSMSweep.h"
+#include "PSMSweepSplit.h"
 #include "PSM_Density.h"
 #include "PSM_NoSlip.h"
 #include "PSM_UBB.h"
@@ -614,6 +613,7 @@ int main(int argc, char** argv)
       "boundary handling");
 
    // set up RPD functionality
+   // TODO: remove overlap
    std::function< void(void) > syncCall = [&ps, &rpdDomain]() {
       const real_t overlap = real_t(1.5);
       mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
@@ -627,6 +627,7 @@ int main(int argc, char** argv)
    mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(timeStepSizeRPD);
    mesa_pd::kernel::LinearSpringDashpot collisionResponse(1);
    collisionResponse.setFrictionCoefficientDynamic(0, 0, dynamicFrictionCoefficient);
+   mesa_pd::kernel::AssocToBlock assoc(blocks->getBlockForestPointer());
    mesa_pd::mpi::ReduceProperty reduceProperty;
    mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
 
@@ -750,10 +751,10 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(deviceSyncWrapper(noSlip.getSweep()), "Boundary Handling (NoSlip)");
 
    // stream + collide LBM step
-   pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
-                                 particleAndVolumeFractionSoA.particleForcesFieldID,
-                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
-                                 velocityFieldIdGPU, real_t(0.0), real_t(0.0), real_t(0.0), omega);
+   pystencils::PSMSweepSplit PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+                                      particleAndVolumeFractionSoA.particleForcesFieldID,
+                                      particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
+                                      velocityFieldIdGPU, real_t(0.0), real_t(0.0), real_t(0.0), omega);
    auto setParticleVelocitiesSweep =
       lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep< LatticeModel_T, ParticleAccessor_T,
                                                                   lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
@@ -787,6 +788,7 @@ int main(int argc, char** argv)
       commTimeloop.singleStep(timeloopTiming);
       timeloop.singleStep(timeloopTiming);
 
+      ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, assoc, *accessor);
       reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*ps);
 
       if (timeStep == 0)
@@ -804,7 +806,9 @@ int main(int argc, char** argv)
          timeloopTiming["RPD total"].start();
 
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPreForce, *accessor);
+         timeloopTiming["RPD syncCall"].start();
          syncCall();
+         timeloopTiming["RPD syncCall"].end();
 
          linkedCells.clear();
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, ipilc, *accessor, linkedCells);

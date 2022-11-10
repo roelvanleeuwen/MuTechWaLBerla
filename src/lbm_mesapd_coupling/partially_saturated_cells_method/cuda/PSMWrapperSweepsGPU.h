@@ -274,7 +274,7 @@ void addPSMSweepsToTimeloops(SweepTimeloop& commTimeloop, SweepTimeloop& timeloo
                                "Particle mapping")
                          << Sweep(deviceSyncWrapper(setParticleVelocitiesSweep), "Set particle velocities");
       commTimeloop.add() << Sweep(deviceSyncWrapper([&](IBlock* block) { psmSweep.inner(block); }), "PSM inner sweep")
-                         << AfterFunction([&]() { comm.wait(); }, "Wait for communication");
+                         << AfterFunction([&]() { comm.wait(); }, "LBM Communication (wait)");
       timeloop.add() << Sweep(deviceSyncWrapper([&](IBlock* block) { psmSweep.outer(block); }), "PSM outer sweep");
       timeloop.add() << Sweep(deviceSyncWrapper(reduceParticleForcesSweep), "Reduce particle forces");
    }
@@ -288,7 +288,7 @@ void addPSMSweepsToTimeloops(SweepTimeloop& commTimeloop, SweepTimeloop& timeloo
                                "Particle mapping")
                          << Sweep(setParticleVelocitiesSweep, "Set particle velocities");
       commTimeloop.add() << Sweep([&](IBlock* block) { psmSweep.inner(block); }, "PSM inner sweep")
-                         << AfterFunction([&]() { comm.wait(); }, "Wait for communication");
+                         << AfterFunction([&]() { comm.wait(); }, "LBM Communication (wait)");
       timeloop.add() << Sweep([&](IBlock* block) { psmSweep.outer(block); }, "PSM outer sweep");
       timeloop.add() << Sweep(reduceParticleForcesSweep, "Reduce particle forces");
    };
