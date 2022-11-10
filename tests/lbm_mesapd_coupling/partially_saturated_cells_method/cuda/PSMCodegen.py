@@ -231,7 +231,12 @@ with CodeGeneration() as ctx:
 
     # Generate files
     generate_sweep(
-        ctx, "PSMSweep", node_collection, field_swaps=[(pdfs, pdfs_tmp)], target=target
+        ctx,
+        "PSMSweep",
+        node_collection,
+        field_swaps=[(pdfs, pdfs_tmp)],
+        target=target,
+        inner_outer_split=True,
     )
 
     generate_pack_info_from_kernel(ctx, "PSMPackInfo", lbm_update_rule, target=target)

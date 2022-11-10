@@ -664,6 +664,7 @@ int main(int argc, char** argv)
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
    // create the timeloop
+   SweepTimeloop commTimeloop(blocks->getBlockStorage(), numTimeSteps);
    SweepTimeloop timeloop(blocks->getBlockStorage(), numTimeSteps);
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
@@ -744,8 +745,7 @@ int main(int argc, char** argv)
    timeloop.addFuncAfterTimeStep(performanceLogger, "Evaluate performance logging");
 
    // add LBM communication function and boundary handling sweep
-   timeloop.add() << BeforeFunction(communication, "LBM Communication")
-                  << Sweep(deviceSyncWrapper(ubb.getSweep()), "Boundary Handling (UBB)");
+   timeloop.add() << Sweep(deviceSyncWrapper(ubb.getSweep()), "Boundary Handling (UBB)");
    timeloop.add() << Sweep(deviceSyncWrapper(density_bc.getSweep()), "Boundary Handling (Density)");
    timeloop.add() << Sweep(deviceSyncWrapper(noSlip.getSweep()), "Boundary Handling (NoSlip)");
 
@@ -765,8 +765,8 @@ int main(int argc, char** argv)
          blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
          particleAndVolumeFractionSoA);
    // TODO: check if the cudaDeviceSynchronize penalty is acceptable
-   addPSMSweepsToTimeloop(timeloop, particleMappingGPU, setParticleVelocitiesSweep, PSMSweep,
-                          reduceParticleForcesSweep);
+   addPSMSweepsToTimeloops(commTimeloop, timeloop, com, particleMappingGPU, setParticleVelocitiesSweep, PSMSweep,
+                           reduceParticleForcesSweep);
 
    ////////////////////////
    // EXECUTE SIMULATION //
@@ -784,6 +784,7 @@ int main(int argc, char** argv)
    for (uint_t timeStep = 0; timeStep < numTimeSteps; ++timeStep)
    {
       // perform a single simulation step -> this contains LBM and setting of the hydrodynamic interactions
+      commTimeloop.singleStep(timeloopTiming);
       timeloop.singleStep(timeloopTiming);
 
       reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*ps);
