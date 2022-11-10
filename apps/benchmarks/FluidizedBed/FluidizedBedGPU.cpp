@@ -800,7 +800,7 @@ int main(int argc, char** argv)
 
       for (auto subCycle = uint_t(0); subCycle < numberOfParticleSubCycles; ++subCycle)
       {
-         timeloopTiming["RPD"].start();
+         timeloopTiming["RPD total"].start();
 
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPreForce, *accessor);
          syncCall();
@@ -808,6 +808,7 @@ int main(int argc, char** argv)
          linkedCells.clear();
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, ipilc, *accessor, linkedCells);
 
+         timeloopTiming["RPD interactions"].start();
          if (useLubricationForces)
          {
             // lubrication correction
@@ -853,6 +854,7 @@ int main(int argc, char** argv)
             *accessor);
 
          reduceAndSwapContactHistory(*ps);
+         timeloopTiming["RPD interactions"].end();
 
          // add hydrodynamic force
          lbm_mesapd_coupling::AddHydrodynamicInteractionKernel addHydrodynamicInteraction;
@@ -861,12 +863,16 @@ int main(int argc, char** argv)
 
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addGravitationalForce, *accessor);
 
+         timeloopTiming["RPD reduceProperty"].start();
          reduceProperty.operator()< mesa_pd::ForceTorqueNotification >(*ps);
+         timeloopTiming["RPD reduceProperty"].end();
 
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPostForce, *accessor);
+         timeloopTiming["RPD syncCall"].start();
          syncCall();
+         timeloopTiming["RPD syncCall"].end();
 
-         timeloopTiming["RPD"].end();
+         timeloopTiming["RPD total"].end();
       }
 
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor);
