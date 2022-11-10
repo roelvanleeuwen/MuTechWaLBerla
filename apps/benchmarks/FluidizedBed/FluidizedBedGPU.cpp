@@ -659,7 +659,7 @@ int main(int argc, char** argv)
    particleMappingGPU();
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);
+   cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, true);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
