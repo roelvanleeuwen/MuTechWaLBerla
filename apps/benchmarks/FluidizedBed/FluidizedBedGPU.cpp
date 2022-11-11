@@ -787,6 +787,7 @@ int main(int argc, char** argv)
       commTimeloop.singleStep(timeloopTiming);
       timeloop.singleStep(timeloopTiming);
 
+      timeloopTiming["RPD total"].start();
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, assoc, *accessor);
       reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*ps);
 
@@ -802,8 +803,6 @@ int main(int argc, char** argv)
 
       for (auto subCycle = uint_t(0); subCycle < numberOfParticleSubCycles; ++subCycle)
       {
-         timeloopTiming["RPD total"].start();
-
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPreForce, *accessor);
          timeloopTiming["RPD syncCall"].start();
          syncCall();
@@ -875,11 +874,10 @@ int main(int argc, char** argv)
          timeloopTiming["RPD syncCall"].start();
          syncCall();
          timeloopTiming["RPD syncCall"].end();
-
-         timeloopTiming["RPD total"].end();
       }
 
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor);
+      timeloopTiming["RPD total"].end();
 
       if (timeStep % infoSpacing == 0)
       {
