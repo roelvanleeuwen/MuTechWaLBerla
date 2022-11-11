@@ -787,31 +787,44 @@ int main(int argc, char** argv)
       commTimeloop.singleStep(timeloopTiming);
       timeloop.singleStep(timeloopTiming);
 
-      timeloopTiming["RPD total"].start();
+      timeloopTiming["RPD forEachParticle"].start();
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, assoc, *accessor);
+      timeloopTiming["RPD forEachParticle"].end();
+      timeloopTiming["RPD reduceProperty"].start();
       reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*ps);
+      timeloopTiming["RPD reduceProperty"].end();
 
       if (timeStep == 0)
       {
          lbm_mesapd_coupling::InitializeHydrodynamicForceTorqueForAveragingKernel
             initializeHydrodynamicForceTorqueForAveragingKernel;
+         timeloopTiming["RPD forEachParticle"].start();
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor,
                              initializeHydrodynamicForceTorqueForAveragingKernel, *accessor);
+         timeloopTiming["RPD forEachParticle"].end();
       }
+      timeloopTiming["RPD forEachParticle"].start();
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, averageHydrodynamicForceTorque,
                           *accessor);
+      timeloopTiming["RPD forEachParticle"].end();
 
       for (auto subCycle = uint_t(0); subCycle < numberOfParticleSubCycles; ++subCycle)
       {
+         timeloopTiming["RPD forEachParticle"].start();
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPreForce, *accessor);
+         timeloopTiming["RPD forEachParticle"].end();
          timeloopTiming["RPD syncCall"].start();
          syncCall();
          timeloopTiming["RPD syncCall"].end();
 
+         timeloopTiming["RPD linkedCells.clear"].start();
          linkedCells.clear();
+         timeloopTiming["RPD linkedCells.clear"].end();
+         timeloopTiming["RPD forEachParticle"].start();
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, ipilc, *accessor, linkedCells);
+         timeloopTiming["RPD forEachParticle"].end();
 
-         timeloopTiming["RPD interactions"].start();
+         timeloopTiming["RPD forEachParticlePairHalf"].start();
          if (useLubricationForces)
          {
             // lubrication correction
@@ -855,29 +868,35 @@ int main(int argc, char** argv)
                }
             },
             *accessor);
-
+         timeloopTiming["RPD forEachParticlePairHalf"].end();
+         timeloopTiming["RPD reduceProperty"].start();
          reduceAndSwapContactHistory(*ps);
-         timeloopTiming["RPD interactions"].end();
+         timeloopTiming["RPD reduceProperty"].end();
 
          // add hydrodynamic force
          lbm_mesapd_coupling::AddHydrodynamicInteractionKernel addHydrodynamicInteraction;
+         timeloopTiming["RPD forEachParticle"].start();
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addHydrodynamicInteraction,
                              *accessor);
 
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addGravitationalForce, *accessor);
+         timeloopTiming["RPD forEachParticle"].end();
 
          timeloopTiming["RPD reduceProperty"].start();
          reduceProperty.operator()< mesa_pd::ForceTorqueNotification >(*ps);
          timeloopTiming["RPD reduceProperty"].end();
 
+         timeloopTiming["RPD forEachParticle"].start();
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPostForce, *accessor);
+         timeloopTiming["RPD forEachParticle"].end();
          timeloopTiming["RPD syncCall"].start();
          syncCall();
          timeloopTiming["RPD syncCall"].end();
       }
 
+      timeloopTiming["RPD forEachParticle"].start();
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor);
-      timeloopTiming["RPD total"].end();
+      timeloopTiming["RPD forEachParticle"].end();
 
       if (timeStep % infoSpacing == 0)
       {
