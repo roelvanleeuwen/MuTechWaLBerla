@@ -27,16 +27,17 @@
 #include "core/DataTypes.h"
 #include "core/Environment.h"
 #include "core/debug/Debug.h"
-#include "core/math/all.h"
-#include "core/timing/RemainingTimeLogger.h"
-#include "core/logging/all.h"
-#include "core/mpi/Broadcast.h"
 #include "core/grid_generator/SCIterator.h"
+#include "core/logging/all.h"
+#include "core/math/all.h"
+#include "core/mpi/Broadcast.h"
+#include "core/timing/RemainingTimeLogger.h"
 
 #include "domain_decomposition/SharedSweep.h"
 
 #include "field/AddToStorage.h"
 #include "field/communication/PackInfo.h"
+#include "field/vtk/all.h"
 
 #include "lbm/boundary/all.h"
 #include "lbm/communication/PdfFieldPackInfo.h"
@@ -44,38 +45,39 @@
 #include "lbm/field/PdfField.h"
 #include "lbm/lattice_model/D3Q19.h"
 #include "lbm/sweeps/CellwiseSweep.h"
+#include "lbm/vtk/all.h"
 
+#include "lbm_mesapd_coupling/DataTypes.h"
 #include "lbm_mesapd_coupling/mapping/ParticleMapping.h"
 #include "lbm_mesapd_coupling/momentum_exchange_method/MovingParticleMapping.h"
 #include "lbm_mesapd_coupling/momentum_exchange_method/boundary/CurvedLinear.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/reconstruction/Reconstructor.h"
 #include "lbm_mesapd_coupling/momentum_exchange_method/reconstruction/PdfReconstructionManager.h"
+#include "lbm_mesapd_coupling/momentum_exchange_method/reconstruction/Reconstructor.h"
 #include "lbm_mesapd_coupling/utility/AddForceOnParticlesKernel.h"
-#include "lbm_mesapd_coupling/utility/ParticleSelector.h"
-#include "lbm_mesapd_coupling/DataTypes.h"
-#include "lbm_mesapd_coupling/utility/AverageHydrodynamicForceTorqueKernel.h"
 #include "lbm_mesapd_coupling/utility/AddHydrodynamicInteractionKernel.h"
-#include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
-#include "lbm_mesapd_coupling/utility/LubricationCorrectionKernel.h"
+#include "lbm_mesapd_coupling/utility/AverageHydrodynamicForceTorqueKernel.h"
 #include "lbm_mesapd_coupling/utility/InitializeHydrodynamicForceTorqueForAveragingKernel.h"
+#include "lbm_mesapd_coupling/utility/LubricationCorrectionKernel.h"
+#include "lbm_mesapd_coupling/utility/ParticleSelector.h"
+#include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
 
 #include "mesa_pd/collision_detection/AnalyticContactDetection.h"
+#include "mesa_pd/data/DataTypes.h"
 #include "mesa_pd/data/ParticleAccessorWithShape.h"
 #include "mesa_pd/data/ParticleStorage.h"
 #include "mesa_pd/data/ShapeStorage.h"
-#include "mesa_pd/data/DataTypes.h"
 #include "mesa_pd/data/shape/HalfSpace.h"
 #include "mesa_pd/data/shape/Sphere.h"
-#include "mesa_pd/domain/BlockForestDomain.h"
 #include "mesa_pd/domain/BlockForestDataHandling.h"
+#include "mesa_pd/domain/BlockForestDomain.h"
 #include "mesa_pd/kernel/DoubleCast.h"
 #include "mesa_pd/kernel/LinearSpringDashpot.h"
 #include "mesa_pd/kernel/ParticleSelector.h"
 #include "mesa_pd/kernel/VelocityVerlet.h"
-#include "mesa_pd/mpi/SyncNextNeighbors.h"
-#include "mesa_pd/mpi/ReduceProperty.h"
-#include "mesa_pd/mpi/ReduceContactHistory.h"
 #include "mesa_pd/mpi/ContactFilter.h"
+#include "mesa_pd/mpi/ReduceContactHistory.h"
+#include "mesa_pd/mpi/ReduceProperty.h"
+#include "mesa_pd/mpi/SyncNextNeighbors.h"
 #include "mesa_pd/mpi/notifications/ForceTorqueNotification.h"
 #include "mesa_pd/mpi/notifications/HydrodynamicForceTorqueNotification.h"
 #include "mesa_pd/vtk/ParticleVtkOutput.h"
@@ -83,8 +85,6 @@
 #include "timeloop/SweepTimeloop.h"
 
 #include "vtk/all.h"
-#include "field/vtk/all.h"
-#include "lbm/vtk/all.h"
 
 namespace fluidized_bed
 {
@@ -133,11 +133,11 @@ class MyBoundaryHandling
    using Outflow_T = lbm::SimplePressure< LatticeModel_T, flag_t >;
    using Type = BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T, MO_T, Inflow_T, Outflow_T >;
 
-   MyBoundaryHandling( const BlockDataID & flagFieldID, const BlockDataID & pdfFieldID,
-                      const BlockDataID & particleFieldID, const shared_ptr<ParticleAccessor_T>& ac,
-                      Vector3<real_t> inflowVelocity, bool periodicInX, bool periodicInY) :
-                                                                                              flagFieldID_( flagFieldID ), pdfFieldID_( pdfFieldID ), particleFieldID_( particleFieldID ), ac_( ac ),
-                                                                                              inflowVelocity_(inflowVelocity), periodicInX_(periodicInX), periodicInY_(periodicInY) {}
+   MyBoundaryHandling(const BlockDataID& flagFieldID, const BlockDataID& pdfFieldID, const BlockDataID& particleFieldID,
+                      const shared_ptr< ParticleAccessor_T >& ac, Vector3< real_t > inflowVelocity)
+      : flagFieldID_(flagFieldID), pdfFieldID_(pdfFieldID), particleFieldID_(particleFieldID), ac_(ac),
+        inflowVelocity_(inflowVelocity)
+   {}
 
    Type * operator()( IBlock* const block, const StructuredBlockStorage* const storage ) const
    {
@@ -182,31 +182,19 @@ class MyBoundaryHandling
       storage->transformGlobalToBlockLocalCellInterval( top, *block );
       handling->forceBoundary( outflow, top );
 
-      if (!periodicInX_) {
-         // left
-         CellInterval left(domainBB.xMin(), domainBB.yMin(), domainBB.zMin(), domainBB.xMin(), domainBB.yMax(), domainBB.zMax());
-         storage->transformGlobalToBlockLocalCellInterval(left, *block);
-         handling->forceBoundary(noslip, left);
+      // left
+      CellInterval left(domainBB.xMin(), domainBB.yMin(), domainBB.zMin(), domainBB.xMin(), domainBB.yMax(),
+                        domainBB.zMax());
+      storage->transformGlobalToBlockLocalCellInterval(left, *block);
+      handling->forceBoundary(noslip, left);
 
-         // right
-         CellInterval right(domainBB.xMax(), domainBB.yMin(), domainBB.zMin(), domainBB.xMax(), domainBB.yMax(), domainBB.zMax());
-         storage->transformGlobalToBlockLocalCellInterval(right, *block);
-         handling->forceBoundary(noslip, right);
-      }
+      // right
+      CellInterval right(domainBB.xMax(), domainBB.yMin(), domainBB.zMin(), domainBB.xMax(), domainBB.yMax(),
+                         domainBB.zMax());
+      storage->transformGlobalToBlockLocalCellInterval(right, *block);
+      handling->forceBoundary(noslip, right);
 
-      if (!periodicInY_) {
-         // front
-         CellInterval front(domainBB.xMin(), domainBB.yMin(), domainBB.zMin(), domainBB.xMax(), domainBB.yMin(), domainBB.zMax());
-         storage->transformGlobalToBlockLocalCellInterval(front, *block);
-         handling->forceBoundary(noslip, front);
-
-         // back
-         CellInterval back(domainBB.xMin(), domainBB.yMax(), domainBB.zMin(), domainBB.xMax(), domainBB.yMax(), domainBB.zMax());
-         storage->transformGlobalToBlockLocalCellInterval(back, *block);
-         handling->forceBoundary(noslip, back);
-      }
-
-      handling->fillWithDomain( FieldGhostLayers );
+      handling->fillWithDomain(FieldGhostLayers);
 
       return handling;
    }
@@ -220,8 +208,6 @@ class MyBoundaryHandling
    shared_ptr<ParticleAccessor_T> ac_;
 
    Vector3<real_t> inflowVelocity_;
-   bool periodicInX_;
-   bool periodicInY_;
 };
 //*******************************************************************************************************************
 
@@ -238,23 +224,90 @@ void createPlane(const shared_ptr<mesa_pd::data::ParticleStorage> & ps, const sh
    mesa_pd::data::particle_flags::set(p0.getFlagsRef(), mesa_pd::data::particle_flags::FIXED);
 }
 
-void createPlaneSetup(const shared_ptr<mesa_pd::data::ParticleStorage> & ps, const shared_ptr<mesa_pd::data::ShapeStorage> & ss,
-                      const math::AABB & simulationDomain, bool periodicInX, bool periodicInY, real_t offsetAtInflow, real_t offsetAtOutflow )
+void createPlaneSetup(const shared_ptr< mesa_pd::data::ParticleStorage >& ps,
+                      const shared_ptr< mesa_pd::data::ShapeStorage >& ss, const math::AABB& simulationDomain,
+                      real_t offsetAtInflow, real_t offsetAtOutflow)
 {
-   createPlane(ps, ss, simulationDomain.minCorner() + Vector3<real_t>(0,0,offsetAtInflow), Vector3<real_t>(0,0,1));
-   createPlane(ps, ss, simulationDomain.maxCorner() + Vector3<real_t>(0,0,offsetAtOutflow), Vector3<real_t>(0,0,-1));
+   createPlane(ps, ss, simulationDomain.minCorner() + Vector3< real_t >(0, 0, offsetAtInflow),
+               Vector3< real_t >(0, 0, 1));
+   createPlane(ps, ss, simulationDomain.maxCorner() + Vector3< real_t >(0, 0, offsetAtOutflow),
+               Vector3< real_t >(0, 0, -1));
+   createPlane(ps, ss, simulationDomain.minCorner(), Vector3< real_t >(1, 0, 0));
+   createPlane(ps, ss, simulationDomain.maxCorner(), Vector3< real_t >(-1, 0, 0));
+}
 
-   if(!periodicInX)
+void initSpheresFromFile(const std::string& filename, walberla::mesa_pd::data::ParticleStorage& ps, size_t sphereShape,
+                         const walberla::mesa_pd::domain::IDomain& domain, walberla::real_t /*density*/,
+                         const Vector3< uint_t >& domainSize, math::AABB simulationDomain, uint_t& numParticles, real_t planeOffset)
+{
+   using namespace walberla;
+   using namespace walberla::mesa_pd;
+   using namespace walberla::mesa_pd::data;
+
+   auto rank = walberla::mpi::MPIManager::instance()->rank();
+
+   std::string textFile;
+
+   WALBERLA_ROOT_SECTION()
    {
-      createPlane(ps, ss, simulationDomain.minCorner(), Vector3<real_t>(1,0,0));
-      createPlane(ps, ss, simulationDomain.maxCorner(), Vector3<real_t>(-1,0,0));
+      std::ifstream t(filename.c_str());
+      if (!t) { WALBERLA_ABORT("Invalid input file " << filename << "\n"); }
+      std::stringstream buffer;
+      buffer << t.rdbuf();
+      textFile = buffer.str();
    }
 
-   if(!periodicInY)
+   walberla::mpi::broadcastObject(textFile);
+
+   std::istringstream fileIss(textFile);
+   std::string line;
+
+   // first line contains generation domain sizes
+   std::getline(fileIss, line);
+   Vector3< real_t > generationDomainSize_SI(0_r);
+   std::istringstream firstLine(line);
+   firstLine >> generationDomainSize_SI[0] >> generationDomainSize_SI[1] >> generationDomainSize_SI[2];
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(generationDomainSize_SI)
+
+   const real_t scalingFactor = real_t(domainSize[0]) / generationDomainSize_SI[0];
+   numParticles               = 0;
+
+   while (std::getline(fileIss, line))
    {
-      createPlane(ps, ss, simulationDomain.minCorner(), Vector3<real_t>(0,1,0));
-      createPlane(ps, ss, simulationDomain.maxCorner(), Vector3<real_t>(0,-1,0));
+      std::istringstream iss(line);
+
+      data::ParticleStorage::uid_type uID;
+      data::ParticleStorage::position_type pos;
+      walberla::real_t radius;
+      iss >> uID >> pos[0] >> pos[1] >> pos[2] >> radius;
+      radius *= scalingFactor;
+
+      auto particlePos = pos;
+
+      particlePos *= scalingFactor;
+
+      WALBERLA_CHECK(simulationDomain.contains(particlePos),
+                     "Particle read from file is not contained in simulation domain");
+
+      if (!domain.isContainedInProcessSubdomain(uint_c(rank), particlePos)) continue;
+      uint cut = 10;
+      if(particlePos[0] < planeOffset * cut || particlePos[2] < planeOffset * cut ||
+          real_t(domainSize[0]) - particlePos[0]  < planeOffset * cut || real_t(domainSize[2]) - particlePos[2] < planeOffset * cut) continue;
+
+      auto pIt = ps.create();
+      pIt->setPosition(particlePos);
+      pIt->setShapeID(sphereShape);
+      /*pIt->getBaseShapeRef() = std::make_shared< data::Sphere >(radius);
+      pIt->getBaseShapeRef()->updateMassAndInertia(density);*/
+      pIt->setInteractionRadius(radius);
+      pIt->setOwner(rank);
+      pIt->setType(0);
+
+      numParticles++;
+
+      WALBERLA_CHECK_EQUAL(iss.tellg(), -1);
    }
+   walberla::mpi::allReduceInplace(numParticles, walberla::mpi::SUM);
 }
 
 struct ParticleInfo
@@ -408,22 +461,18 @@ int main( int argc, char **argv )
 
    // read all parameters from the config file
 
-   Config::BlockHandle physicalSetup = cfgFile->getBlock( "PhysicalSetup" );
-   const real_t xSize_SI = physicalSetup.getParameter<real_t>("xSize");
-   const real_t ySize_SI = physicalSetup.getParameter<real_t>("ySize");
-   const real_t zSize_SI = physicalSetup.getParameter<real_t>("zSize");
-   const bool periodicInX = physicalSetup.getParameter<bool>("periodicInX");
-   const bool periodicInY = physicalSetup.getParameter<bool>("periodicInY");
-   const real_t runtime_SI = physicalSetup.getParameter<real_t>("runtime");
-   const real_t uInflow_SI = physicalSetup.getParameter<real_t>("uInflow");
-   const real_t gravitationalAcceleration_SI = physicalSetup.getParameter<real_t>("gravitationalAcceleration");
-   const real_t kinematicViscosityFluid_SI = physicalSetup.getParameter<real_t>("kinematicViscosityFluid");
-   const real_t densityFluid_SI = physicalSetup.getParameter<real_t>("densityFluid");
-   const real_t particleDiameter_SI = physicalSetup.getParameter<real_t>("particleDiameter");
-   const real_t densityParticle_SI = physicalSetup.getParameter<real_t>("densityParticle");
-   const real_t dynamicFrictionCoefficient = physicalSetup.getParameter<real_t>("dynamicFrictionCoefficient");
-   const real_t coefficientOfRestitution = physicalSetup.getParameter<real_t>("coefficientOfRestitution");
-   const real_t particleGenerationSpacing_SI = physicalSetup.getParameter<real_t>("particleGenerationSpacing");
+   Config::BlockHandle physicalSetup         = cfgFile->getBlock("PhysicalSetup");
+   const real_t xSize_SI                     = physicalSetup.getParameter< real_t >("xSize");
+   const real_t ySize_SI                     = physicalSetup.getParameter< real_t >("ySize");
+   const real_t zSize_SI                     = physicalSetup.getParameter< real_t >("zSize");
+   const real_t runtime_SI                   = physicalSetup.getParameter< real_t >("runtime");
+   const real_t uInflow_SI                   = physicalSetup.getParameter< real_t >("uInflow");
+   const real_t gravitationalAcceleration_SI = physicalSetup.getParameter< real_t >("gravitationalAcceleration");
+   const real_t kinematicViscosityFluid_SI   = physicalSetup.getParameter< real_t >("kinematicViscosityFluid");
+   const real_t dynamicFrictionCoefficient   = physicalSetup.getParameter< real_t >("dynamicFrictionCoefficient");
+   const real_t coefficientOfRestitution     = physicalSetup.getParameter< real_t >("coefficientOfRestitution");
+   const std::string particleInFileName      = physicalSetup.getParameter< std::string >("inFileName");
+   const real_t particleDensityRatio         = physicalSetup.getParameter< real_t >("densityRatio");
 
    Config::BlockHandle numericalSetup = cfgFile->getBlock( "NumericalSetup" );
    const real_t dx_SI = numericalSetup.getParameter<real_t>("dx");
@@ -457,24 +506,15 @@ int main( int argc, char **argv )
    WALBERLA_CHECK_EQUAL(domainSize[1], cellsPerBlockPerDirection[1] * numYBlocks, "number of cells in y of " << domainSize[1] << " is not divisible by given number of blocks in y direction");
    WALBERLA_CHECK_EQUAL(domainSize[2], cellsPerBlockPerDirection[2] * numZBlocks, "number of cells in z of " << domainSize[2] << " is not divisible by given number of blocks in z direction");
 
-   WALBERLA_CHECK_GREATER(particleDiameter_SI / dx_SI, 5_r, "Your numerical resolution is below 5 cells per diameter and thus too small for such simulations!");
-
-   const real_t densityRatio = densityParticle_SI / densityFluid_SI;
-   const real_t ReynoldsNumberParticle = uInflow_SI * particleDiameter_SI / kinematicViscosityFluid_SI;
-   const real_t GalileiNumber = std::sqrt((densityRatio-1_r)*particleDiameter_SI*gravitationalAcceleration_SI) * particleDiameter_SI / kinematicViscosityFluid_SI;
-
    // in simulation units: dt = 1, dx = 1, densityFluid = 1
 
    const real_t dt_SI = uInflow / uInflow_SI * dx_SI;
-   const real_t diameter = particleDiameter_SI / dx_SI;
-   const real_t particleGenerationSpacing = particleGenerationSpacing_SI / dx_SI;
    const real_t viscosity =  kinematicViscosityFluid_SI * dt_SI / ( dx_SI * dx_SI );
    const real_t omega = lbm::collision_model::omegaFromViscosity(viscosity);
    const real_t gravitationalAcceleration = gravitationalAcceleration_SI * dt_SI * dt_SI / dx_SI;
-   const real_t particleVolume = math::pi / 6_r * diameter * diameter * diameter;
+   const real_t particleVolume = math::pi / 6_r * 0.0029 * 0.0029 * 0.0029; // average diameter from bed generation TODO: remove hard coded diameter
 
    const real_t densityFluid = real_t(1);
-   const real_t densityParticle = densityRatio;
    const real_t dx = real_t(1);
 
    const uint_t numTimeSteps = uint_c(std::ceil(runtime_SI / dt_SI));
@@ -486,20 +526,16 @@ int main( int argc, char **argv )
 
    const real_t poissonsRatio = real_t(0.22);
    const real_t kappa = real_t(2) * ( real_t(1) - poissonsRatio ) / ( real_t(2) - poissonsRatio ) ;
-   const real_t particleCollisionTime = 4_r * diameter;
+   const real_t particleCollisionTime = 4_r * 0.0029; // average diameter from bed generation TODO: remove hard coded diameter
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation setup:");
-   WALBERLA_LOG_INFO_ON_ROOT(" - particles: diameter = " << diameter << ", densityRatio = " << densityRatio);
    WALBERLA_LOG_INFO_ON_ROOT(" - fluid: kin. visc = " << viscosity << ", relaxation rate = " << omega );
    WALBERLA_LOG_INFO_ON_ROOT(" - grav. acceleration = " << gravitationalAcceleration );
-   WALBERLA_LOG_INFO_ON_ROOT(" - Galileo number = " << GalileiNumber );
-   WALBERLA_LOG_INFO_ON_ROOT(" - particle Reynolds number = " << ReynoldsNumberParticle );
    WALBERLA_LOG_INFO_ON_ROOT(" - domain size = " << domainSize);
    WALBERLA_LOG_INFO_ON_ROOT(" - cells per blocks per direction = " << cellsPerBlockPerDirection);
    WALBERLA_LOG_INFO_ON_ROOT(" - dx = " << dx_SI << " m");
    WALBERLA_LOG_INFO_ON_ROOT(" - dt = " << dt_SI << " s");
    WALBERLA_LOG_INFO_ON_ROOT(" - total time steps = " << numTimeSteps);
-   WALBERLA_LOG_INFO_ON_ROOT(" - particle generation spacing = " << particleGenerationSpacing);
    WALBERLA_LOG_INFO_ON_ROOT(" - info spacing = " << infoSpacing );
    WALBERLA_LOG_INFO_ON_ROOT(" - vtk spacing particles = " << vtkSpacingParticles << ", fluid slice = " << vtkSpacingFluid);
 
@@ -507,12 +543,10 @@ int main( int argc, char **argv )
    // BLOCK STRUCTURE SETUP //
    ///////////////////////////
 
-   const bool periodicInZ = false;
-   shared_ptr< StructuredBlockForest > blocks  = blockforest::createUniformBlockGrid( numXBlocks, numYBlocks, numZBlocks,
-                                                                                    cellsPerBlockPerDirection[0], cellsPerBlockPerDirection[1], cellsPerBlockPerDirection[2], dx,
-                                                                                    0, false, false,
-                                                                                    periodicInX, periodicInY, periodicInZ, //periodicity
-                                                                                    false );
+   shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid(
+      numXBlocks, numYBlocks, numZBlocks, cellsPerBlockPerDirection[0], cellsPerBlockPerDirection[1],
+      cellsPerBlockPerDirection[2], dx, 0, false, false, false, true, false, // periodicity
+      false);
 
    auto simulationDomain = blocks->getDomain();
 
@@ -531,14 +565,14 @@ int main( int argc, char **argv )
    // prevent particles from interfering with inflow and outflow by putting the bounding planes slightly in front
    const real_t planeOffsetFromInflow = dx;
    const real_t planeOffsetFromOutflow = dx;
-   createPlaneSetup(ps, ss, simulationDomain, periodicInX, periodicInY, planeOffsetFromInflow, planeOffsetFromOutflow);
+   createPlaneSetup(ps, ss, simulationDomain, planeOffsetFromInflow, planeOffsetFromOutflow);
 
-   auto sphereShape = ss->create<mesa_pd::data::Sphere>( diameter * real_t(0.5) );
-   ss->shapes[sphereShape]->updateMassAndInertia(densityParticle);
+   auto sphereShape = ss->create<mesa_pd::data::Sphere>( 10 * real_t(0.5) ); // average diameter from bed generation TODO: remove hard coded diameter
+   ss->shapes[sphereShape]->updateMassAndInertia(particleDensityRatio);
 
    // create spheres
-   auto generationDomain = simulationDomain.getExtended(-particleGenerationSpacing*0.5_r);
-   for (auto pt : grid_generator::SCGrid( generationDomain, generationDomain.center(), particleGenerationSpacing))
+   /*auto generationDomain = simulationDomain.getExtended(-20*0.5_r);
+   for (auto pt : grid_generator::SCGrid( generationDomain, generationDomain.center(), 20))
    {
       if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt)) {
          mesa_pd::data::Particle &&p = *ps->create();
@@ -549,8 +583,13 @@ int main( int argc, char **argv )
          p.setType(0);
          p.setLinearVelocity(0.1_r * Vector3<real_t>(math::realRandom(-uInflow, uInflow))); // set small initial velocity to break symmetries
       }
-   }
+   }*/
+   auto simulationDomainAABB = blocks->getDomain();
+   uint_t numParticles       = 0;
+   initSpheresFromFile(particleInFileName, *ps, sphereShape, *rpdDomain, particleDensityRatio, domainSize, simulationDomainAABB,
+                       numParticles, planeOffsetFromInflow);
 
+   WALBERLA_LOG_INFO_ON_ROOT(" - numParticles = " << numParticles );
 
    ///////////////////////
    // ADD DATA TO BLOCKS //
@@ -572,7 +611,7 @@ int main( int argc, char **argv )
 
    // add boundary handling
    using BoundaryHandling_T = MyBoundaryHandling<ParticleAccessor_T>::Type;
-   BlockDataID boundaryHandlingID = blocks->addStructuredBlockData< BoundaryHandling_T >(MyBoundaryHandling<ParticleAccessor_T>( flagFieldID, pdfFieldID, particleFieldID, accessor, inflowVec, periodicInX, periodicInY), "boundary handling" );
+   BlockDataID boundaryHandlingID = blocks->addStructuredBlockData< BoundaryHandling_T >(MyBoundaryHandling<ParticleAccessor_T>( flagFieldID, pdfFieldID, particleFieldID, accessor, inflowVec), "boundary handling" );
 
    // set up RPD functionality
    std::function<void(void)> syncCall = [&ps,&rpdDomain](){
@@ -592,7 +631,7 @@ int main( int argc, char **argv )
    mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
 
    // set up coupling functionality
-   Vector3<real_t> gravitationalForce( real_t(0), real_t(0), -(densityParticle - densityFluid) * gravitationalAcceleration * particleVolume );
+   Vector3< real_t > gravitationalForce(real_t(0), real_t(0), -(particleDensityRatio - densityFluid) * gravitationalAcceleration * particleVolume);
    lbm_mesapd_coupling::AddForceOnParticlesKernel addGravitationalForce(gravitationalForce);
    lbm_mesapd_coupling::ResetHydrodynamicForceTorqueKernel resetHydrodynamicForceTorque;
    lbm_mesapd_coupling::AverageHydrodynamicForceTorqueKernel averageHydrodynamicForceTorque;

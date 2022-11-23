@@ -1,11 +1,8 @@
 PhysicalSetup // all to be specified in SI units!
 {
     xSize 0.05; // = width
-    ySize 0.02; // = depth
-    zSize 0.10; // = height
-
-    periodicInX true;
-    periodicInY true;
+    ySize 0.010; // = depth
+    zSize 0.05; // = height
 
     runtime 10.0;
 
@@ -15,12 +12,11 @@ PhysicalSetup // all to be specified in SI units!
     kinematicViscosityFluid 1e-5;
     densityFluid 1000.;
 
-    particleDiameter 0.002;
-    densityParticle 1100.;
     dynamicFrictionCoefficient 0.15;
     coefficientOfRestitution 0.6;
 
-    particleGenerationSpacing 0.00401;
+    inFileName spheres_out.dat;
+    densityRatio 1.1;
 }
 
 NumericalSetup
@@ -31,7 +27,7 @@ NumericalSetup
     // product of number of blocks should be equal to number of used processes
     numXBlocks 2;
     numYBlocks 2;
-    numZBlocks 2;
+    numZBlocks 1;
 
     useLubricationForces true;
     numberOfParticleSubCycles 10;
