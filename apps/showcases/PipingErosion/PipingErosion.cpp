@@ -129,14 +129,14 @@ class MyBoundaryHandling
 
    using NoSlip_T = lbm::NoSlip< LatticeModel_T, flag_t >;
    using MO_T = lbm_mesapd_coupling::CurvedLinear< LatticeModel_T, FlagField_T, ParticleAccessor_T >;
-   using Inflow_T = lbm::SimpleUBB< LatticeModel_T, flag_t >;
-   using Outflow_T = lbm::SimplePressure< LatticeModel_T, flag_t >;
+   using Inflow_T = lbm::SimplePressure< LatticeModel_T, flag_t >;
+   using Outflow_T = lbm::SimpleUBB< LatticeModel_T, flag_t >;
    using Type = BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T, MO_T, Inflow_T, Outflow_T >;
 
    MyBoundaryHandling(const BlockDataID& flagFieldID, const BlockDataID& pdfFieldID, const BlockDataID& particleFieldID,
-                      const shared_ptr< ParticleAccessor_T >& ac, Vector3< real_t > inflowVelocity)
+                      const shared_ptr< ParticleAccessor_T >& ac, Vector3< real_t > outflowVelocity)
       : flagFieldID_(flagFieldID), pdfFieldID_(pdfFieldID), particleFieldID_(particleFieldID), ac_(ac),
-        inflowVelocity_(inflowVelocity)
+        outflowVelocity_(outflowVelocity)
    {}
 
    Type * operator()( IBlock* const block, const StructuredBlockStorage* const storage ) const
@@ -153,8 +153,8 @@ class MyBoundaryHandling
       Type * handling = new Type( "moving obstacle boundary handling", flagField, fluid,
                                 NoSlip_T( "NoSlip", NoSlip_Flag, pdfField ),
                                 MO_T( "MO", MO_Flag, pdfField, flagField, particleField, ac_, fluid, *storage, *block ),
-                                Inflow_T( "Inflow", Inflow_Flag, pdfField, inflowVelocity_),
-                                Outflow_T( "Outflow", Outflow_Flag, pdfField, real_t(1) ) );
+                                Inflow_T( "Inflow", Inflow_Flag, pdfField, real_t(1)),
+                                Outflow_T( "Outflow", Outflow_Flag, pdfField, outflowVelocity_) );
 
 
       const auto inflow  = flagField->getFlag( Inflow_Flag );
@@ -175,12 +175,17 @@ class MyBoundaryHandling
       // inflow at bottom
       CellInterval bottom( domainBB.xMin(), domainBB.yMin(), domainBB.zMin(), domainBB.xMax(), domainBB.yMax(), domainBB.zMin() );
       storage->transformGlobalToBlockLocalCellInterval( bottom, *block );
-      handling->forceBoundary( inflow, bottom );
+      handling->forceBoundary( noslip, bottom );
 
       // outflow at top
-      CellInterval top( domainBB.xMin(), domainBB.yMin(), domainBB.zMax(), domainBB.xMax(), domainBB.yMax(), domainBB.zMax() );
-      storage->transformGlobalToBlockLocalCellInterval( top, *block );
-      handling->forceBoundary( outflow, top );
+      CellInterval top_inflow(domainBB.xMin(), domainBB.yMin(), domainBB.zMax(), uint(domainBB.xMax() / 2_r),
+                              domainBB.yMax(), domainBB.zMax());
+      CellInterval top_outflow(uint(domainBB.xMax() / 2_r), domainBB.yMin(), domainBB.zMax(), domainBB.xMax(),
+                               domainBB.yMax(), domainBB.zMax());
+      storage->transformGlobalToBlockLocalCellInterval(top_inflow, *block);
+      handling->forceBoundary(inflow, top_inflow);
+      storage->transformGlobalToBlockLocalCellInterval(top_outflow, *block);
+      handling->forceBoundary(outflow, top_outflow);
 
       // left
       CellInterval left(domainBB.xMin(), domainBB.yMin(), domainBB.zMin(), domainBB.xMin(), domainBB.yMax(),
@@ -218,7 +223,7 @@ class MyBoundaryHandling
 
    shared_ptr<ParticleAccessor_T> ac_;
 
-   Vector3<real_t> inflowVelocity_;
+   Vector3<real_t> outflowVelocity_;
 };
 //*******************************************************************************************************************
 
@@ -505,7 +510,7 @@ int main( int argc, char **argv )
    const real_t ySize_SI                     = physicalSetup.getParameter< real_t >("ySize");
    const real_t zSize_SI                     = physicalSetup.getParameter< real_t >("zSize");
    const real_t runtime_SI                   = physicalSetup.getParameter< real_t >("runtime");
-   const real_t uInflow_SI                   = physicalSetup.getParameter< real_t >("uInflow");
+   const real_t uOutflow_SI                  = physicalSetup.getParameter< real_t >("uOutflow");
    const real_t gravitationalAcceleration_SI = physicalSetup.getParameter< real_t >("gravitationalAcceleration");
    const real_t kinematicViscosityFluid_SI   = physicalSetup.getParameter< real_t >("kinematicViscosityFluid");
    const real_t dynamicFrictionCoefficient   = physicalSetup.getParameter< real_t >("dynamicFrictionCoefficient");
@@ -515,7 +520,7 @@ int main( int argc, char **argv )
 
    Config::BlockHandle numericalSetup = cfgFile->getBlock( "NumericalSetup" );
    const real_t dx_SI = numericalSetup.getParameter<real_t>("dx");
-   const real_t uInflow = numericalSetup.getParameter<real_t>("uInflow");
+   const real_t uOutflow                  = numericalSetup.getParameter<real_t>("uInflow");
    const uint_t numXBlocks = numericalSetup.getParameter<uint_t>("numXBlocks");
    const uint_t numYBlocks = numericalSetup.getParameter<uint_t>("numYBlocks");
    const uint_t numZBlocks = numericalSetup.getParameter<uint_t>("numZBlocks");
@@ -547,7 +552,7 @@ int main( int argc, char **argv )
 
    // in simulation units: dt = 1, dx = 1, densityFluid = 1
 
-   const real_t dt_SI = uInflow / uInflow_SI * dx_SI;
+   const real_t dt_SI = uOutflow / uOutflow_SI * dx_SI;
    const real_t viscosity =  kinematicViscosityFluid_SI * dt_SI / ( dx_SI * dx_SI );
    const real_t omega = lbm::collision_model::omegaFromViscosity(viscosity);
    const real_t gravitationalAcceleration = gravitationalAcceleration_SI * dt_SI * dt_SI / dx_SI;
@@ -561,7 +566,7 @@ int main( int argc, char **argv )
    const uint_t vtkSpacingParticles = uint_c(std::ceil(vtkSpacingParticles_SI / dt_SI));
    const uint_t vtkSpacingFluid = uint_c(std::ceil(vtkSpacingFluid_SI / dt_SI));
 
-   const Vector3<real_t> inflowVec(0_r, 0_r, uInflow);
+   const Vector3<real_t> outflowVec(0_r, 0_r, uOutflow);
 
    const real_t poissonsRatio = real_t(0.22);
    const real_t kappa = real_t(2) * ( real_t(1) - poissonsRatio ) / ( real_t(2) - poissonsRatio ) ;
@@ -648,8 +653,7 @@ int main( int argc, char **argv )
    LatticeModel_T latticeModel = LatticeModel_T(omega);
 
    // add PDF field
-   BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >( blocks, "pdf field", latticeModel,
-                                                                        inflowVec, densityFluid,
+   BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >( blocks, "pdf field", latticeModel, Vector3(0.0), densityFluid,
                                                                         uint_t(1), field::zyxf );
 
 
@@ -661,7 +665,7 @@ int main( int argc, char **argv )
 
    // add boundary handling
    using BoundaryHandling_T = MyBoundaryHandling<ParticleAccessor_T>::Type;
-   BlockDataID boundaryHandlingID = blocks->addStructuredBlockData< BoundaryHandling_T >(MyBoundaryHandling<ParticleAccessor_T>( flagFieldID, pdfFieldID, particleFieldID, accessor, inflowVec), "boundary handling" );
+   BlockDataID boundaryHandlingID = blocks->addStructuredBlockData< BoundaryHandling_T >(MyBoundaryHandling<ParticleAccessor_T>( flagFieldID, pdfFieldID, particleFieldID, accessor, outflowVec), "boundary handling" );
 
    // set up RPD functionality
    std::function<void(void)> syncCall = [&ps,&rpdDomain](){

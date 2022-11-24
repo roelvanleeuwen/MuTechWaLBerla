@@ -6,7 +6,7 @@ PhysicalSetup // all to be specified in SI units!
 
     runtime 10.0;
 
-    uInflow 0.01;
+    uOutflow 0.01;
     gravitationalAcceleration 9.81;
 
     kinematicViscosityFluid 1e-5;
