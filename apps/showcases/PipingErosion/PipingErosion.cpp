@@ -341,6 +341,7 @@ void initSpheresFromFile(const std::string& filename, walberla::mesa_pd::data::P
       auto pIt = ps.create();
       pIt->setPosition(particlePos);
       pIt->setShapeID(sphereShape);
+      // TODO: check why polydispersity does not work
       /*pIt->getBaseShapeRef() = std::make_shared< data::Sphere >(radius);
       pIt->getBaseShapeRef()->updateMassAndInertia(density);*/
       pIt->setInteractionRadius(radius);
@@ -626,23 +627,34 @@ int main( int argc, char **argv )
    ss->shapes[sphereShape]->updateMassAndInertia(particleDensityRatio);
 
    // create spheres
-   /*auto generationDomain = simulationDomain.getExtended(-20*0.5_r);
-   for (auto pt : grid_generator::SCGrid( generationDomain, generationDomain.center(), 20))
+   auto generationDomain = simulationDomain.getExtended(-20*0.5_r);
+   for (auto pt : grid_generator::SCGrid( generationDomain, generationDomain.center(), 11))
    {
-      if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt)) {
+      if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt) && pt[2] < real_t(domainSize[2]) * 0.5_r) {
          mesa_pd::data::Particle &&p = *ps->create();
          p.setPosition(pt);
-         p.setInteractionRadius(diameter * real_t(0.5));
+         p.setInteractionRadius(10 * real_t(0.5));
          p.setOwner(mpi::MPIManager::instance()->rank());
          p.setShapeID(sphereShape);
-         p.setType(0);
-         p.setLinearVelocity(0.1_r * Vector3<real_t>(math::realRandom(-uInflow, uInflow))); // set small initial velocity to break symmetries
+         p.setType(1);
+         p.setLinearVelocity(0.1_r * Vector3<real_t>(math::realRandom(-uOutflow, uOutflow))); // set small initial velocity to break symmetries
       }
-   }*/
-   auto simulationDomainAABB = blocks->getDomain();
+   }
+   //auto simulationDomainAABB = blocks->getDomain();
    uint_t numParticles       = 0;
-   initSpheresFromFile(particleInFileName, *ps, sphereShape, *rpdDomain, particleDensityRatio, domainSize, simulationDomainAABB,
-                       numParticles, planeOffsetFromInflow);
+   /*Vector3< real_t > spherePosition(real_t(domainSize[0]) * 0.75, real_t(domainSize[1]) * 0.5,
+                                 real_t(domainSize[2]) * 0.98);
+   if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), spherePosition)) {
+      mesa_pd::data::Particle &&p = *ps->create();
+      p.setPosition(spherePosition);
+      p.setInteractionRadius(10 * real_t(0.5));
+      p.setOwner(mpi::MPIManager::instance()->rank());
+      p.setShapeID(sphereShape);
+      p.setType(1);
+      p.setLinearVelocity(0.1_r * Vector3<real_t>(math::realRandom(-uInflow, uInflow))); // set small initial velocity to break symmetries
+   }*/
+   //initSpheresFromFile(particleInFileName, *ps, sphereShape, *rpdDomain, particleDensityRatio, domainSize, simulationDomainAABB,
+                       //numParticles, planeOffsetFromInflow);
 
    WALBERLA_LOG_INFO_ON_ROOT(" - numParticles = " << numParticles );
 
@@ -828,6 +840,7 @@ int main( int argc, char **argv )
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPreForce, *accessor);
          syncCall();
 
+         // TODO: activate and test the lubrication forces
          if(useLubricationForces)
          {
             // lubrication correction
@@ -878,7 +891,8 @@ int main( int argc, char **argv )
          lbm_mesapd_coupling::AddHydrodynamicInteractionKernel addHydrodynamicInteraction;
          ps->forEachParticle( useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addHydrodynamicInteraction, *accessor );
 
-         ps->forEachParticle( useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addGravitationalForce, *accessor );
+         // TODO: activate the gravity again
+         //ps->forEachParticle( useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addGravitationalForce, *accessor );
 
          reduceProperty.operator()<mesa_pd::ForceTorqueNotification>(*ps);
 

@@ -29,7 +29,7 @@ NumericalSetup
     numYBlocks 2;
     numZBlocks 1;
 
-    useLubricationForces true;
+    useLubricationForces false;
     numberOfParticleSubCycles 10;
 }
 
