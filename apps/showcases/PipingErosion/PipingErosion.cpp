@@ -194,6 +194,17 @@ class MyBoundaryHandling
       storage->transformGlobalToBlockLocalCellInterval(right, *block);
       handling->forceBoundary(noslip, right);
 
+      // TODO: check why we get NANs for periodic y direction
+      // front
+      CellInterval front(domainBB.xMin(), domainBB.yMin(), domainBB.zMin(), domainBB.xMax(), domainBB.yMin(), domainBB.zMax());
+      storage->transformGlobalToBlockLocalCellInterval(front, *block);
+      handling->forceBoundary(noslip, front);
+
+      // back
+      CellInterval back(domainBB.xMin(), domainBB.yMax(), domainBB.zMin(), domainBB.xMax(), domainBB.yMax(), domainBB.zMax());
+      storage->transformGlobalToBlockLocalCellInterval(back, *block);
+      handling->forceBoundary(noslip, back);
+
       handling->fillWithDomain(FieldGhostLayers);
 
       return handling;
@@ -232,8 +243,12 @@ void createPlaneSetup(const shared_ptr< mesa_pd::data::ParticleStorage >& ps,
                Vector3< real_t >(0, 0, 1));
    createPlane(ps, ss, simulationDomain.maxCorner() + Vector3< real_t >(0, 0, offsetAtOutflow),
                Vector3< real_t >(0, 0, -1));
+
    createPlane(ps, ss, simulationDomain.minCorner(), Vector3< real_t >(1, 0, 0));
    createPlane(ps, ss, simulationDomain.maxCorner(), Vector3< real_t >(-1, 0, 0));
+
+   createPlane(ps, ss, simulationDomain.minCorner(), Vector3<real_t>(0,1,0));
+   createPlane(ps, ss, simulationDomain.maxCorner(), Vector3<real_t>(0,-1,0));
 }
 
 void initSpheresFromFile(const std::string& filename, walberla::mesa_pd::data::ParticleStorage& ps, size_t sphereShape,
@@ -545,7 +560,7 @@ int main( int argc, char **argv )
 
    shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid(
       numXBlocks, numYBlocks, numZBlocks, cellsPerBlockPerDirection[0], cellsPerBlockPerDirection[1],
-      cellsPerBlockPerDirection[2], dx, 0, false, false, false, true, false, // periodicity
+      cellsPerBlockPerDirection[2], dx, 0, false, false, false, false, false, // periodicity
       false);
 
    auto simulationDomain = blocks->getDomain();
