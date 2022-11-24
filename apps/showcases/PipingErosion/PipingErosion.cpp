@@ -251,6 +251,30 @@ void createPlaneSetup(const shared_ptr< mesa_pd::data::ParticleStorage >& ps,
    createPlane(ps, ss, simulationDomain.maxCorner(), Vector3<real_t>(0,-1,0));
 }
 
+class ExcludeGlobalGlobal
+{
+ public:
+   template <typename Accessor>
+   bool operator()(const size_t idx, const size_t jdx, Accessor& ac) const
+   {
+      using namespace walberla::mesa_pd::data::particle_flags;
+      if (isSet(ac.getFlags(idx), GLOBAL) && isSet(ac.getFlags(jdx), GLOBAL)) return false;
+      return true;
+   }
+};
+
+void createBox(const shared_ptr< mesa_pd::data::ParticleStorage >& ps, const mesa_pd::Vec3& position, size_t boxShape, real_t interactionRadius)
+{
+   auto p0              = ps->create(true);
+   p0->getPositionRef() = position;
+   p0->getShapeIDRef()  = boxShape;
+   p0->getOwnerRef()    = walberla::mpi::MPIManager::instance()->rank();
+   p0->getTypeRef()     = 0;
+   p0->setInteractionRadius(interactionRadius);
+   mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::NON_COMMUNICATING);
+   mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::FIXED);
+}
+
 void initSpheresFromFile(const std::string& filename, walberla::mesa_pd::data::ParticleStorage& ps, size_t sphereShape,
                          const walberla::mesa_pd::domain::IDomain& domain, walberla::real_t /*density*/,
                          const Vector3< uint_t >& domainSize, math::AABB simulationDomain, uint_t& numParticles, real_t planeOffset)
@@ -316,7 +340,7 @@ void initSpheresFromFile(const std::string& filename, walberla::mesa_pd::data::P
       pIt->getBaseShapeRef()->updateMassAndInertia(density);*/
       pIt->setInteractionRadius(radius);
       pIt->setOwner(rank);
-      pIt->setType(0);
+      pIt->setType(1);
 
       numParticles++;
 
@@ -582,6 +606,17 @@ int main( int argc, char **argv )
    const real_t planeOffsetFromOutflow = dx;
    createPlaneSetup(ps, ss, simulationDomain, planeOffsetFromInflow, planeOffsetFromOutflow);
 
+   // add box
+   Vector3< real_t > boxPosition(real_t(domainSize[0]) * 0.5, real_t(domainSize[1]) * 0.5,
+                                 real_t(domainSize[2]) * 0.75);
+   const Vector3< real_t > boxEdgeLengths(real_t(domainSize[0]) * 0.2, real_t(domainSize[1]),
+                                          real_t(domainSize[2]) * 0.5);
+   WALBERLA_LOG_INFO_ON_ROOT("Creating box at position " << boxPosition)
+   WALBERLA_LOG_INFO_ON_ROOT("Creating box of size " << boxEdgeLengths)
+   auto boxShape = ss->create< mesa_pd::data::Box >(boxEdgeLengths);
+   ss->shapes[boxShape]->updateMassAndInertia(particleDensityRatio);
+   createBox(ps, boxPosition, boxShape, boxEdgeLengths.max() / 2);
+
    auto sphereShape = ss->create<mesa_pd::data::Sphere>( 10 * real_t(0.5) ); // average diameter from bed generation TODO: remove hard coded diameter
    ss->shapes[sphereShape]->updateMassAndInertia(particleDensityRatio);
 
@@ -640,8 +675,9 @@ int main( int argc, char **argv )
    real_t timeStepSizeRPD = real_t(1)/real_t(numberOfParticleSubCycles);
    mesa_pd::kernel::VelocityVerletPreForceUpdate  vvIntegratorPreForce(timeStepSizeRPD);
    mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(timeStepSizeRPD);
-   mesa_pd::kernel::LinearSpringDashpot collisionResponse(1);
-   collisionResponse.setFrictionCoefficientDynamic(0,0,dynamicFrictionCoefficient);
+   mesa_pd::kernel::LinearSpringDashpot collisionResponse(2);
+   collisionResponse.setFrictionCoefficientDynamic(0,1,dynamicFrictionCoefficient);
+   collisionResponse.setFrictionCoefficientDynamic(1,1,dynamicFrictionCoefficient);
    mesa_pd::mpi::ReduceProperty reduceProperty;
    mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
 
@@ -662,6 +698,11 @@ int main( int argc, char **argv )
    // note: planes are not mapped and are thus only visible to the particles, not to the fluid
    // instead, the respective boundary conditions for the fluid are explicitly set, see the boundary handling
    ps->forEachParticle(false, lbm_mesapd_coupling::RegularParticlesSelector(), *accessor, movingParticleMappingKernel, *accessor, MO_Flag);
+
+   // map box into the LBM simulation
+   ps->forEachParticle(false, [boxShape](const size_t particleIdx, const ParticleAccessor_T & ac) {
+         return ac.getShapeID(particleIdx) == boxShape;
+      }, *accessor, particleMappingKernel, *accessor, NoSlip_Flag);
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
    blockforest::communication::UniformBufferedScheme< Stencil_T > optimizedPDFCommunicationScheme( blocks );
@@ -688,6 +729,13 @@ int main( int argc, char **argv )
                                                                                                                          !(mesa_pd::data::particle_flags::isSet(pIt->getFlags(), mesa_pd::data::particle_flags::GHOST)); });
       auto particleVtkWriter = vtk::createVTKOutput_PointData( particleVtkOutput, "particles", vtkSpacingParticles, vtkFolder );
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(particleVtkWriter), "VTK (sphere data)");
+
+      // box
+      auto boxVtkOutput = make_shared<mesa_pd::vtk::ParticleVtkOutput>(ps);
+      boxVtkOutput->addOutput<mesa_pd::data::SelectParticleLinearVelocity>("velocity");
+      boxVtkOutput->setParticleSelector( [boxShape](const mesa_pd::data::ParticleStorage::iterator& pIt) {return pIt->getShapeID() == boxShape;} ); //limit output to boxes
+      auto boxVtkWriter = walberla::vtk::createVTKOutput_PointData(boxVtkOutput, "box", vtkSpacingParticles, vtkFolder);
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(boxVtkWriter), "VTK (box data)");
    }
 
    if( vtkSpacingFluid != uint_t(0) )
@@ -799,8 +847,8 @@ int main( int argc, char **argv )
 
 
          // collision response
-         ps->forEachParticlePairHalf(useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
-            [&collisionResponse, &rpdDomain, timeStepSizeRPD, coefficientOfRestitution, particleCollisionTime, kappa]
+         ps->forEachParticlePairHalf(useOpenMP, ExcludeGlobalGlobal(), *accessor,
+            [&collisionResponse, &rpdDomain, timeStepSizeRPD, coefficientOfRestitution, particleCollisionTime, kappa, particleVolume, particleDensityRatio]
             (const size_t idx1, const size_t idx2, auto& ac)
             {
                mesa_pd::collision_detection::AnalyticContactDetection acd;
@@ -810,8 +858,10 @@ int main( int argc, char **argv )
                {
                   if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *rpdDomain))
                   {
-                     auto meff = real_t(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
-                     collisionResponse.setStiffnessAndDamping(0,0,coefficientOfRestitution, particleCollisionTime, kappa, meff);
+                     auto meff_sphere_wall = particleVolume * particleDensityRatio;
+                     auto meff_sphere_sphere = real_t(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
+                     collisionResponse.setStiffnessAndDamping(0,1,coefficientOfRestitution, particleCollisionTime, kappa, meff_sphere_wall);
+                     collisionResponse.setStiffnessAndDamping(1,1,coefficientOfRestitution, particleCollisionTime, kappa, meff_sphere_sphere);
                      collisionResponse(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), acd.getContactNormal(), acd.getPenetrationDepth(), timeStepSizeRPD);
                   }
                }
