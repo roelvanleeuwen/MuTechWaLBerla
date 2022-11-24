@@ -512,7 +512,7 @@ int main( int argc, char **argv )
    const real_t viscosity =  kinematicViscosityFluid_SI * dt_SI / ( dx_SI * dx_SI );
    const real_t omega = lbm::collision_model::omegaFromViscosity(viscosity);
    const real_t gravitationalAcceleration = gravitationalAcceleration_SI * dt_SI * dt_SI / dx_SI;
-   const real_t particleVolume = math::pi / 6_r * 0.0029 * 0.0029 * 0.0029; // average diameter from bed generation TODO: remove hard coded diameter
+   const real_t particleVolume = math::pi / 6_r * 10 * 10 * 10; // average diameter from bed generation TODO: remove hard coded diameter
 
    const real_t densityFluid = real_t(1);
    const real_t dx = real_t(1);
@@ -526,7 +526,7 @@ int main( int argc, char **argv )
 
    const real_t poissonsRatio = real_t(0.22);
    const real_t kappa = real_t(2) * ( real_t(1) - poissonsRatio ) / ( real_t(2) - poissonsRatio ) ;
-   const real_t particleCollisionTime = 4_r * 0.0029; // average diameter from bed generation TODO: remove hard coded diameter
+   const real_t particleCollisionTime = 4_r * 10; // average diameter from bed generation TODO: remove hard coded diameter
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation setup:");
    WALBERLA_LOG_INFO_ON_ROOT(" - fluid: kin. visc = " << viscosity << ", relaxation rate = " << omega );
