@@ -617,9 +617,9 @@ int main( int argc, char **argv )
 
    // add box
    Vector3< real_t > boxPosition(real_t(domainSize[0]) * 0.5, real_t(domainSize[1]) * 0.5,
-                                 real_t(domainSize[2]) * 0.75);
+                                 real_t(domainSize[2]) * 0.65);
    const Vector3< real_t > boxEdgeLengths(real_t(domainSize[0]) * 0.2, real_t(domainSize[1]),
-                                          real_t(domainSize[2]) * 0.5);
+                                          real_t(domainSize[2]) * 0.7);
    WALBERLA_LOG_INFO_ON_ROOT("Creating box at position " << boxPosition)
    WALBERLA_LOG_INFO_ON_ROOT("Creating box of size " << boxEdgeLengths)
    auto boxShape = ss->create< mesa_pd::data::Box >(boxEdgeLengths);
@@ -846,11 +846,11 @@ int main( int argc, char **argv )
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPreForce, *accessor);
          syncCall();
 
-         // TODO: activate and test the lubrication forces
          if(useLubricationForces)
          {
             // lubrication correction
-            ps->forEachParticlePairHalf(useOpenMP, ExcludeGlobalGlobal(), *accessor,
+            // Exclude box interactions in lubrication correction
+            ps->forEachParticlePairHalf(useOpenMP, [boxShape, sphereShape](const size_t idx, const size_t jdx, ParticleAccessor_T& ac){return (ac.getShapeID(idx) == sphereShape) && !(ac.getShapeID(jdx) == boxShape) || !(ac.getShapeID(idx) == boxShape) && (ac.getShapeID(jdx) == sphereShape);}, *accessor,
                [&lubricationCorrectionKernel,&rpdDomain](const size_t idx1, const size_t idx2, auto& ac)
                {
                   mesa_pd::collision_detection::AnalyticContactDetection acd;
