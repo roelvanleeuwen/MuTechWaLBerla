@@ -282,7 +282,7 @@ void createBox(const shared_ptr< mesa_pd::data::ParticleStorage >& ps, const mes
 
 void initSpheresFromFile(const std::string& filename, walberla::mesa_pd::data::ParticleStorage& ps, size_t sphereShape,
                          const walberla::mesa_pd::domain::IDomain& domain, walberla::real_t /*density*/,
-                         const Vector3< uint_t >& domainSize, math::AABB simulationDomain, uint_t& numParticles, real_t planeOffset)
+                         const Vector3< uint_t >& domainSize, math::AABB simulationDomain, uint_t& numParticles, real_t planeOffset, walberla::math::GenericAABB<real_t> boxAABB, uint diameter)
 {
    using namespace walberla;
    using namespace walberla::mesa_pd;
@@ -337,6 +337,8 @@ void initSpheresFromFile(const std::string& filename, walberla::mesa_pd::data::P
       uint cut = 10;
       if(particlePos[0] < planeOffset * cut || particlePos[2] < planeOffset * cut ||
           real_t(domainSize[0]) - particlePos[0]  < planeOffset * cut || real_t(domainSize[2]) - particlePos[2] < planeOffset * cut) continue;
+      walberla::math::GenericAABB sphereAABB(particlePos - Vector3(diameter / 2), particlePos + Vector3(diameter / 2));
+      if (boxAABB.intersects(sphereAABB)) continue;
 
       auto pIt = ps.create();
       pIt->setPosition(particlePos);
@@ -621,6 +623,7 @@ int main( int argc, char **argv )
    WALBERLA_LOG_INFO_ON_ROOT("Creating box at position " << boxPosition)
    WALBERLA_LOG_INFO_ON_ROOT("Creating box of size " << boxEdgeLengths)
    auto boxShape = ss->create< mesa_pd::data::Box >(boxEdgeLengths);
+   walberla::math::GenericAABB boxAABB(boxPosition - boxEdgeLengths / 2, boxPosition + boxEdgeLengths / 2);
    ss->shapes[boxShape]->updateMassAndInertia(particleDensityRatio);
    createBox(ps, boxPosition, boxShape, boxEdgeLengths.max() / 2);
 
@@ -628,11 +631,10 @@ int main( int argc, char **argv )
    ss->shapes[sphereShape]->updateMassAndInertia(particleDensityRatio);
 
    // create spheres
-   auto generationDomain = simulationDomain.getExtended(-20*0.5_r);
+   /*auto generationDomain = simulationDomain.getExtended(-20*0.5_r);
    for (auto pt : grid_generator::SCGrid( generationDomain, generationDomain.center(), 11))
    {
       if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt) && pt[2] < real_t(domainSize[2]) * 0.75_r) {
-         walberla::math::GenericAABB boxAABB(boxPosition - boxEdgeLengths / 2, boxPosition + boxEdgeLengths / 2);
          walberla::math::GenericAABB sphereAABB(pt - Vector3(diameter / 2), pt + Vector3(diameter / 2));
          if (boxAABB.intersects(sphereAABB)) continue;
          mesa_pd::data::Particle &&p = *ps->create();
@@ -643,8 +645,8 @@ int main( int argc, char **argv )
          p.setType(1);
          p.setLinearVelocity(0.1_r * Vector3<real_t>(math::realRandom(-uOutflow, uOutflow))); // set small initial velocity to break symmetries
       }
-   }
-   //auto simulationDomainAABB = blocks->getDomain();
+   }*/
+   auto simulationDomainAABB = blocks->getDomain();
    uint_t numParticles       = 0;
    /*Vector3< real_t > spherePosition(real_t(domainSize[0]) * 0.75, real_t(domainSize[1]) * 0.5,
                                  real_t(domainSize[2]) * 0.98);
@@ -657,8 +659,8 @@ int main( int argc, char **argv )
       p.setType(1);
       p.setLinearVelocity(0.1_r * Vector3<real_t>(math::realRandom(-uInflow, uInflow))); // set small initial velocity to break symmetries
    }*/
-   //initSpheresFromFile(particleInFileName, *ps, sphereShape, *rpdDomain, particleDensityRatio, domainSize, simulationDomainAABB,
-                       //numParticles, planeOffsetFromInflow);
+   initSpheresFromFile(particleInFileName, *ps, sphereShape, *rpdDomain, particleDensityRatio, domainSize,
+                       simulationDomainAABB, numParticles, planeOffsetFromInflow, boxAABB, diameter);
 
    WALBERLA_LOG_INFO_ON_ROOT(" - numParticles = " << numParticles );
 
