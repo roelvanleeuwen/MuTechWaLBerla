@@ -92,7 +92,7 @@ namespace fluidized_bed
 ///////////
 // USING //
 ///////////
-
+// git test
 using namespace walberla;
 using walberla::uint_t;
 
