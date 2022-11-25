@@ -554,10 +554,11 @@ int main( int argc, char **argv )
    // in simulation units: dt = 1, dx = 1, densityFluid = 1
 
    const real_t dt_SI = uOutflow / uOutflow_SI * dx_SI;
+   const real_t diameter = 10; // average diameter from bed generation TODO: remove hard coded diameter
    const real_t viscosity =  kinematicViscosityFluid_SI * dt_SI / ( dx_SI * dx_SI );
    const real_t omega = lbm::collision_model::omegaFromViscosity(viscosity);
    const real_t gravitationalAcceleration = gravitationalAcceleration_SI * dt_SI * dt_SI / dx_SI;
-   const real_t particleVolume = math::pi / 6_r * 10 * 10 * 10; // average diameter from bed generation TODO: remove hard coded diameter
+   const real_t particleVolume = math::pi / 6_r * diameter * diameter * diameter;
 
    const real_t densityFluid = real_t(1);
    const real_t dx = real_t(1);
@@ -571,7 +572,7 @@ int main( int argc, char **argv )
 
    const real_t poissonsRatio = real_t(0.22);
    const real_t kappa = real_t(2) * ( real_t(1) - poissonsRatio ) / ( real_t(2) - poissonsRatio ) ;
-   const real_t particleCollisionTime = 4_r * 10; // average diameter from bed generation TODO: remove hard coded diameter
+   const real_t particleCollisionTime = 4_r * diameter;
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation setup:");
    WALBERLA_LOG_INFO_ON_ROOT(" - fluid: kin. visc = " << viscosity << ", relaxation rate = " << omega );
@@ -623,17 +624,20 @@ int main( int argc, char **argv )
    ss->shapes[boxShape]->updateMassAndInertia(particleDensityRatio);
    createBox(ps, boxPosition, boxShape, boxEdgeLengths.max() / 2);
 
-   auto sphereShape = ss->create<mesa_pd::data::Sphere>( 10 * real_t(0.5) ); // average diameter from bed generation TODO: remove hard coded diameter
+   auto sphereShape = ss->create<mesa_pd::data::Sphere>( diameter * real_t(0.5) );
    ss->shapes[sphereShape]->updateMassAndInertia(particleDensityRatio);
 
    // create spheres
    auto generationDomain = simulationDomain.getExtended(-20*0.5_r);
    for (auto pt : grid_generator::SCGrid( generationDomain, generationDomain.center(), 11))
    {
-      if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt) && pt[2] < real_t(domainSize[2]) * 0.5_r) {
+      if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt) && pt[2] < real_t(domainSize[2]) * 0.75_r) {
+         walberla::math::GenericAABB boxAABB(boxPosition - boxEdgeLengths / 2, boxPosition + boxEdgeLengths / 2);
+         walberla::math::GenericAABB sphereAABB(pt - Vector3(diameter / 2), pt + Vector3(diameter / 2));
+         if (boxAABB.intersects(sphereAABB)) continue;
          mesa_pd::data::Particle &&p = *ps->create();
          p.setPosition(pt);
-         p.setInteractionRadius(10 * real_t(0.5));
+         p.setInteractionRadius(diameter * real_t(0.5));
          p.setOwner(mpi::MPIManager::instance()->rank());
          p.setShapeID(sphereShape);
          p.setType(1);
@@ -647,7 +651,7 @@ int main( int argc, char **argv )
    if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), spherePosition)) {
       mesa_pd::data::Particle &&p = *ps->create();
       p.setPosition(spherePosition);
-      p.setInteractionRadius(10 * real_t(0.5));
+      p.setInteractionRadius(diameter * real_t(0.5));
       p.setOwner(mpi::MPIManager::instance()->rank());
       p.setShapeID(sphereShape);
       p.setType(1);
