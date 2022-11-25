@@ -29,7 +29,7 @@ NumericalSetup
     numYBlocks 2;
     numZBlocks 1;
 
-    useLubricationForces false;
+    useLubricationForces true;
     numberOfParticleSubCycles 10;
 }
 
@@ -37,7 +37,7 @@ Output
 {
     infoSpacing 0.01; // in s
 
-    vtkSpacingParticles 0.1; // in s
-    vtkSpacingFluid 0.1; // in s
+    vtkSpacingParticles 0.01; // in s
+    vtkSpacingFluid 0.01; // in s
     vtkFolder vtk_out;
 }

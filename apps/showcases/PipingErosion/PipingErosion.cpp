@@ -848,7 +848,7 @@ int main( int argc, char **argv )
          if(useLubricationForces)
          {
             // lubrication correction
-            ps->forEachParticlePairHalf(useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
+            ps->forEachParticlePairHalf(useOpenMP, ExcludeGlobalGlobal(), *accessor,
                [&lubricationCorrectionKernel,&rpdDomain](const size_t idx1, const size_t idx2, auto& ac)
                {
                   mesa_pd::collision_detection::AnalyticContactDetection acd;
@@ -895,8 +895,7 @@ int main( int argc, char **argv )
          lbm_mesapd_coupling::AddHydrodynamicInteractionKernel addHydrodynamicInteraction;
          ps->forEachParticle( useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addHydrodynamicInteraction, *accessor );
 
-         // TODO: activate the gravity again
-         //ps->forEachParticle( useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addGravitationalForce, *accessor );
+         ps->forEachParticle( useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addGravitationalForce, *accessor );
 
          reduceProperty.operator()<mesa_pd::ForceTorqueNotification>(*ps);
 
