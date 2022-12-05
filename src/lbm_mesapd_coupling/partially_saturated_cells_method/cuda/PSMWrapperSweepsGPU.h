@@ -175,6 +175,7 @@ class ReduceParticleForcesSweep
       }
       size_t arraySizes = numMappedParticles * sizeof(real_t) * 3;
 
+      // TODO: for multiple blocks per process, this data is transferred multiple times per time step (unnecessarily)
       // Allocate unified memory for the reduction of the particle forces and torques on the GPU
       real_t* hydrodynamicForces;
       cudaMallocManaged(&hydrodynamicForces, arraySizes);
@@ -240,15 +241,15 @@ void addPSMSweepsToTimeloop(SweepTimeloop& timeloop, Mapping& particleMapping,
 {
    if (synchronize)
    {
-      timeloop.add() << BeforeFunction(particleMapping, "Particle mapping")
-                     << Sweep(deviceSyncWrapper(setParticleVelocitiesSweep), "Set particle velocities");
+      timeloop.add() << Sweep(particleMapping, "Particle mapping");
+      timeloop.add() << Sweep(deviceSyncWrapper(setParticleVelocitiesSweep), "Set particle velocities");
       timeloop.add() << Sweep(deviceSyncWrapper(psmSweep), "PSM sweep");
       timeloop.add() << Sweep(deviceSyncWrapper(reduceParticleForcesSweep), "Reduce particle forces");
    }
    else
    {
-      timeloop.add() << BeforeFunction(particleMapping, "Particle mapping")
-                     << Sweep(setParticleVelocitiesSweep, "Set particle velocities");
+      timeloop.add() << Sweep(particleMapping, "Particle mapping");
+      timeloop.add() << Sweep(setParticleVelocitiesSweep, "Set particle velocities");
       timeloop.add() << Sweep(psmSweep, "PSM sweep");
       timeloop.add() << Sweep(reduceParticleForcesSweep, "Reduce particle forces");
    };
@@ -261,13 +262,9 @@ void addPSMSweepsToTimeloops(SweepTimeloop& commTimeloop, SweepTimeloop& timeloo
 {
    if (synchronize)
    {
-      commTimeloop.add() << BeforeFunction(
-                               [&]() {
-                                  comm.startCommunication();
-                                  particleMapping();
-                               },
-                               "Particle mapping")
-                         << Sweep(deviceSyncWrapper(setParticleVelocitiesSweep), "Set particle velocities");
+      commTimeloop.add() << BeforeFunction([&]() { comm.startCommunication(); })
+                         << Sweep(deviceSyncWrapper(particleMapping), "Particle mapping");
+      commTimeloop.add() << Sweep(deviceSyncWrapper(setParticleVelocitiesSweep), "Set particle velocities");
       commTimeloop.add() << Sweep(deviceSyncWrapper([&](IBlock* block) { psmSweep.inner(block); }), "PSM inner sweep")
                          << AfterFunction([&]() { comm.wait(); }, "LBM Communication (wait)");
       timeloop.add() << Sweep(deviceSyncWrapper([&](IBlock* block) { psmSweep.outer(block); }), "PSM outer sweep");
@@ -275,13 +272,9 @@ void addPSMSweepsToTimeloops(SweepTimeloop& commTimeloop, SweepTimeloop& timeloo
    }
    else
    {
-      commTimeloop.add() << BeforeFunction(
-                               [&]() {
-                                  comm.startCommunication();
-                                  particleMapping();
-                               },
-                               "Particle mapping")
-                         << Sweep(setParticleVelocitiesSweep, "Set particle velocities");
+      commTimeloop.add() << BeforeFunction([&]() { comm.startCommunication(); })
+                         << Sweep(particleMapping, "Particle mapping");
+      commTimeloop.add() << Sweep(setParticleVelocitiesSweep, "Set particle velocities");
       commTimeloop.add() << Sweep([&](IBlock* block) { psmSweep.inner(block); }, "PSM inner sweep")
                          << AfterFunction([&]() { comm.wait(); }, "LBM Communication (wait)");
       timeloop.add() << Sweep([&](IBlock* block) { psmSweep.outer(block); }, "PSM outer sweep");

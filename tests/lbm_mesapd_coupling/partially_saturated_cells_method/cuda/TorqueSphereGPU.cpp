@@ -386,7 +386,10 @@ int main(int argc, char** argv)
    // map particles and calculate solid volume fraction initially
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA, 4);
-   particleMappingGPU();
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      particleMappingGPU(&(*blockIt));
+   }
 
    ///////////////
    // TIME LOOP //

@@ -258,7 +258,10 @@ int main(int argc, char** argv)
    // calculate fraction
    ParticleAndVolumeFractionMappingGPU particleMapping(
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA, 4);
-   particleMapping();
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      particleMapping(&(*blockIt));
+   }
 
    FractionFieldSum fractionFieldSum(blocks, nOverlappingParticlesFieldID, BsFieldID);
    auto selector = mesa_pd::kernel::SelectMaster();
@@ -285,7 +288,10 @@ int main(int argc, char** argv)
       syncCall();
 
       // map particles into field
-      particleMapping();
+      for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+      {
+         particleMapping(&(*blockIt));
+      }
    }
 
    return EXIT_SUCCESS;

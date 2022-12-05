@@ -657,7 +657,10 @@ int main(int argc, char** argv)
    // map particles and calculate solid volume fraction initially
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
       blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, 1);
-   particleMappingGPU();
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      particleMappingGPU(&(*blockIt));
+   }
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
    cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);

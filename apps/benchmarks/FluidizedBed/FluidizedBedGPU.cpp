@@ -653,7 +653,10 @@ int main(int argc, char** argv)
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA,
       numberOfParticleSubBlocksPerDim);
-   particleMappingGPU();
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      particleMappingGPU(&(*blockIt));
+   }
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
    cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, true);
@@ -755,7 +758,6 @@ int main(int argc, char** argv)
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA);
    auto reduceParticleForcesSweep = lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep(
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA);
-   // TODO: check if the cudaDeviceSynchronize penalty is acceptable
    addPSMSweepsToTimeloops(commTimeloop, timeloop, com, particleMappingGPU, setParticleVelocitiesSweep, PSMSweep,
                            reduceParticleForcesSweep);
 

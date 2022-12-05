@@ -110,7 +110,7 @@ class ParticleAndVolumeFractionMappingGPU
       }
    }
 
-   void operator()()
+   void operator()(IBlock* block)
    {
       size_t numMappedParticles = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
@@ -160,84 +160,78 @@ class ParticleAndVolumeFractionMappingGPU
       }
 
       // Update fraction mapping
-      for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
+      // Split the block into sub-blocks and sort the particle indices into each overlapping sub-block. This way, in
+      // the particle mapping, each CUDA thread only has to check the potentially overlapping particles.
+      auto blockAABB            = block->getAABB();
+      const size_t numSubBlocks = subBlocksPerDim_ * subBlocksPerDim_ * subBlocksPerDim_;
+      std::vector< std::vector< size_t > > subBlocks(numSubBlocks);
+
+      idxMapped = 0;
+      for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
-         // Split the block into sub-blocks and sort the particle indices into each overlapping sub-block. This way, in
-         // the particle mapping, each CUDA thread only has to check the potentially overlapping particles.
-         auto blockAABB            = blockIt->getAABB();
-         const size_t numSubBlocks = subBlocksPerDim_ * subBlocksPerDim_ * subBlocksPerDim_;
-         std::vector< std::vector< size_t > > subBlocks(numSubBlocks);
-
-         idxMapped = 0;
-         for (size_t idx = 0; idx < ac_->size(); ++idx)
+         if (mappingParticleSelector_(idx, *ac_))
          {
-            if (mappingParticleSelector_(idx, *ac_))
+            auto sphereAABB = mesa_pd::getParticleAABB(idx, *ac_);
+            if (blockAABB.intersects(sphereAABB))
             {
-               auto sphereAABB = mesa_pd::getParticleAABB(idx, *ac_);
-               if (blockAABB.intersects(sphereAABB))
-               {
-                  auto intersectionAABB = blockAABB.getIntersection(sphereAABB);
-                  intersectionAABB.translate(-blockAABB.minCorner());
-                  mesa_pd::Vec3 blockScaling = real_t(subBlocksPerDim_) / blockAABB.sizes();
+               auto intersectionAABB = blockAABB.getIntersection(sphereAABB);
+               intersectionAABB.translate(-blockAABB.minCorner());
+               mesa_pd::Vec3 blockScaling = real_t(subBlocksPerDim_) / blockAABB.sizes();
 
-                  for (size_t z = size_t(intersectionAABB.zMin() * blockScaling[2]);
-                       z < size_t(ceil(intersectionAABB.zMax() * blockScaling[2])); ++z)
+               for (size_t z = size_t(intersectionAABB.zMin() * blockScaling[2]);
+                    z < size_t(ceil(intersectionAABB.zMax() * blockScaling[2])); ++z)
+               {
+                  for (size_t y = size_t(intersectionAABB.yMin() * blockScaling[1]);
+                       y < size_t(ceil(intersectionAABB.yMax() * blockScaling[1])); ++y)
                   {
-                     for (size_t y = size_t(intersectionAABB.yMin() * blockScaling[1]);
-                          y < size_t(ceil(intersectionAABB.yMax() * blockScaling[1])); ++y)
+                     for (size_t x = size_t(intersectionAABB.xMin() * blockScaling[0]);
+                          x < size_t(ceil(intersectionAABB.xMax() * blockScaling[0])); ++x)
                      {
-                        for (size_t x = size_t(intersectionAABB.xMin() * blockScaling[0]);
-                             x < size_t(ceil(intersectionAABB.xMax() * blockScaling[0])); ++x)
-                        {
-                           size_t index = z * subBlocksPerDim_ * subBlocksPerDim_ + y * subBlocksPerDim_ + x;
-                           subBlocks[index].push_back(idxMapped);
-                        }
+                        size_t index = z * subBlocksPerDim_ * subBlocksPerDim_ + y * subBlocksPerDim_ + x;
+                        subBlocks[index].push_back(idxMapped);
                      }
                   }
                }
-               idxMapped++;
             }
+            idxMapped++;
          }
+      }
 
-         size_t maxParticlesPerSubBlock = 0;
-         std::for_each(subBlocks.begin(), subBlocks.end(), [&maxParticlesPerSubBlock](std::vector< size_t >& subBlock) {
-            maxParticlesPerSubBlock = std::max(maxParticlesPerSubBlock, subBlock.size());
-         });
+      size_t maxParticlesPerSubBlock = 0;
+      std::for_each(subBlocks.begin(), subBlocks.end(), [&maxParticlesPerSubBlock](std::vector< size_t >& subBlock) {
+         maxParticlesPerSubBlock = std::max(maxParticlesPerSubBlock, subBlock.size());
+      });
 
-         size_t* numParticlesPerSubBlock;
-         cudaMallocManaged(&numParticlesPerSubBlock, numSubBlocks * sizeof(size_t));
-         size_t* particleIDsSubBlocks;
-         cudaMallocManaged(&particleIDsSubBlocks, numSubBlocks * maxParticlesPerSubBlock * sizeof(size_t));
+      size_t* numParticlesPerSubBlock;
+      cudaMallocManaged(&numParticlesPerSubBlock, numSubBlocks * sizeof(size_t));
+      size_t* particleIDsSubBlocks;
+      cudaMallocManaged(&particleIDsSubBlocks, numSubBlocks * maxParticlesPerSubBlock * sizeof(size_t));
 
-         // Copy data from std::vector to unified memory
-         for (size_t z = 0; z < subBlocksPerDim_; ++z)
+      // Copy data from std::vector to unified memory
+      for (size_t z = 0; z < subBlocksPerDim_; ++z)
+      {
+         for (size_t y = 0; y < subBlocksPerDim_; ++y)
          {
-            for (size_t y = 0; y < subBlocksPerDim_; ++y)
+            for (size_t x = 0; x < subBlocksPerDim_; ++x)
             {
-               for (size_t x = 0; x < subBlocksPerDim_; ++x)
+               size_t index                   = z * subBlocksPerDim_ * subBlocksPerDim_ + y * subBlocksPerDim_ + x;
+               numParticlesPerSubBlock[index] = subBlocks[index].size();
+               for (size_t k = 0; k < subBlocks[index].size(); k++)
                {
-                  size_t index                   = z * subBlocksPerDim_ * subBlocksPerDim_ + y * subBlocksPerDim_ + x;
-                  numParticlesPerSubBlock[index] = subBlocks[index].size();
-                  for (size_t k = 0; k < subBlocks[index].size(); k++)
-                  {
-                     particleIDsSubBlocks[index + k * numSubBlocks] = subBlocks[index][k];
-                  }
+                  particleIDsSubBlocks[index + k * numSubBlocks] = subBlocks[index][k];
                }
             }
          }
-
-         mapParticles(*blockIt, particleAndVolumeFractionSoA_, particleAndVolumeFractionSoA_.positions, radii, f_r,
-                      numParticlesPerSubBlock, particleIDsSubBlocks, subBlocksPerDim_);
-
-         cudaFree(numParticlesPerSubBlock);
-         cudaFree(particleIDsSubBlocks);
       }
+
+      mapParticles(*block, particleAndVolumeFractionSoA_, particleAndVolumeFractionSoA_.positions, radii, f_r,
+                   numParticlesPerSubBlock, particleIDsSubBlocks, subBlocksPerDim_);
+
+      cudaFree(numParticlesPerSubBlock);
+      cudaFree(particleIDsSubBlocks);
 
       cudaFree(radii);
       cudaFree(f_r);
-
-      // This synchronization is necessary so that the timeloop shows the correct time
-      cudaDeviceSynchronize();
    }
 
    shared_ptr< StructuredBlockStorage > blockStorage_;

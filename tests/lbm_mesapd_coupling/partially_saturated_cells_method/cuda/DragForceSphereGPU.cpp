@@ -433,7 +433,10 @@ int main(int argc, char** argv)
    // map particles and calculate solid volume fraction initially
    lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
       blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionSoA, 4);
-   particleMappingGPU();
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      particleMappingGPU(&(*blockIt));
+   }
 
    // since external forcing is applied, the evaluation of the velocity has to be carried out directly after the
    // streaming step however, the default sweep is a  stream - collide step, i.e. after the sweep, the velocity
