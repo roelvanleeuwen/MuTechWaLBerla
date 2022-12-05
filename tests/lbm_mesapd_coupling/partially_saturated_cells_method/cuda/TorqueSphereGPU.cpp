@@ -407,16 +407,10 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
                                  real_t(0.0), real_t(0.0), omega);
-   auto setParticleVelocitiesSweep =
-      lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep< LatticeModel_T, ParticleAccessor_T,
-                                                                  lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
-         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
-         particleAndVolumeFractionSoA);
-   auto reduceParticleForcesSweep =
-      lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep< LatticeModel_T, ParticleAccessor_T,
-                                                                 lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
-         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
-         particleAndVolumeFractionSoA);
+   auto setParticleVelocitiesSweep = lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep(
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA);
+   auto reduceParticleForcesSweep = lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep(
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA);
 
    // communication, streaming and force evaluation
    timeloop.add() << BeforeFunction(communication, "LBM Communication")

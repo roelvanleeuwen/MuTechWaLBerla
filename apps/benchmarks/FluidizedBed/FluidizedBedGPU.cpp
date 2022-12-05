@@ -589,9 +589,10 @@ int main(int argc, char** argv)
                                                                         densityFluid, uint_t(1), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field gpu");
 
-   BlockDataID BFieldID = field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "B field", 0, field::fzyx, 1);
+   BlockDataID BFieldID =
+      field::addToStorage< lbm_mesapd_coupling::psm::cuda::BField_T >(blocks, "B field", 0, field::fzyx, 1);
 
-   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), inflowVec[0],
+   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), densityFluid, inflowVec[0],
                                            inflowVec[1], inflowVec[2]);
 
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
@@ -750,16 +751,10 @@ int main(int argc, char** argv)
                                       particleAndVolumeFractionSoA.particleForcesFieldID,
                                       particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
                                       real_t(0.0), real_t(0.0), real_t(0.0), omega);
-   auto setParticleVelocitiesSweep =
-      lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep< LatticeModel_T, ParticleAccessor_T,
-                                                                  lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
-         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
-         particleAndVolumeFractionSoA);
-   auto reduceParticleForcesSweep =
-      lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep< LatticeModel_T, ParticleAccessor_T,
-                                                                 lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
-         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
-         particleAndVolumeFractionSoA);
+   auto setParticleVelocitiesSweep = lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep(
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA);
+   auto reduceParticleForcesSweep = lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep(
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA);
    // TODO: check if the cudaDeviceSynchronize penalty is acceptable
    addPSMSweepsToTimeloops(commTimeloop, timeloop, com, particleMappingGPU, setParticleVelocitiesSweep, PSMSweep,
                            reduceParticleForcesSweep);

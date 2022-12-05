@@ -247,9 +247,9 @@ int main(int argc, char** argv)
 
    // add particle and volume fraction fields (needed for the PSM)
    // TODO: do we need to add a cuda::HostFieldAllocator as in the cuda tutorial?
-   BlockDataID nOverlappingParticlesFieldID =
-      field::addToStorage< nOverlappingParticlesField_T >(blocks, "number of overlapping particles field CPU", 0, field::fzyx, 1);
-   BlockDataID BsFieldID  = field::addToStorage< BsField_T >(blocks, "Bs field CPU", 0, field::fzyx, 1);
+   BlockDataID nOverlappingParticlesFieldID = field::addToStorage< nOverlappingParticlesField_T >(
+      blocks, "number of overlapping particles field CPU", 0, field::fzyx, 1);
+   BlockDataID BsFieldID = field::addToStorage< BsField_T >(blocks, "Bs field CPU", 0, field::fzyx, 1);
 
    // dummy value for omega since it is not use because Weighting_T == 1
    real_t omega = real_t(42.0);

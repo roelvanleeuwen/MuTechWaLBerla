@@ -30,7 +30,6 @@
 
 #include "field/GhostLayerField.h"
 
-#include "lbm/lattice_model/all.h"
 #include "lbm/sweeps/StreamPull.h"
 #include "lbm/sweeps/SweepBase.h"
 
@@ -62,20 +61,19 @@ auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
    };
 };
 
-template< typename LatticeModel_T, typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
+template< typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
 class SetParticleVelocitiesSweep
 {
  public:
    SetParticleVelocitiesSweep(const shared_ptr< StructuredBlockStorage >& bs,
                               const shared_ptr< ParticleAccessor_T >& ac,
-                              const ParticleSelector_T& mappingParticleSelector, BlockDataID& pdfFieldID,
+                              const ParticleSelector_T& mappingParticleSelector,
                               ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
-      : bs_(bs), ac_(ac), mappingParticleSelector_(mappingParticleSelector), pdfFieldID_(pdfFieldID),
+      : bs_(bs), ac_(ac), mappingParticleSelector_(mappingParticleSelector),
         particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA)
    {}
    void operator()(IBlock* block)
    {
-      WALBERLA_ASSERT(LatticeModel_T::Stencil::D == 3, "Only 3D is supported.");
       // Check that uids have not changed since the last mapping to avoid incorrect indices
       std::vector< walberla::id_t > currentUIDs;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
@@ -143,23 +141,21 @@ class SetParticleVelocitiesSweep
    shared_ptr< StructuredBlockStorage > bs_;
    const shared_ptr< ParticleAccessor_T > ac_;
    const ParticleSelector_T& mappingParticleSelector_;
-   BlockDataID pdfFieldID_;
    ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA_;
 };
 
-template< typename LatticeModel_T, typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
+template< typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
 class ReduceParticleForcesSweep
 {
  public:
    ReduceParticleForcesSweep(const shared_ptr< StructuredBlockStorage >& bs, const shared_ptr< ParticleAccessor_T >& ac,
-                             const ParticleSelector_T& mappingParticleSelector, BlockDataID& pdfFieldID,
+                             const ParticleSelector_T& mappingParticleSelector,
                              const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
-      : bs_(bs), ac_(ac), mappingParticleSelector_(mappingParticleSelector), pdfFieldID_(pdfFieldID),
+      : bs_(bs), ac_(ac), mappingParticleSelector_(mappingParticleSelector),
         particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA)
    {}
    void operator()(IBlock* block)
    {
-      WALBERLA_ASSERT(LatticeModel_T::Stencil::D == 3, "Only 3D is supported.");
       // Check that uids have not changed since the last mapping to avoid incorrect indices
       std::vector< walberla::id_t > currentUIDs;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
@@ -234,7 +230,6 @@ class ReduceParticleForcesSweep
    shared_ptr< StructuredBlockStorage > bs_;
    const shared_ptr< ParticleAccessor_T > ac_;
    const ParticleSelector_T& mappingParticleSelector_;
-   BlockDataID pdfFieldID_;
    const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA_;
 };
 

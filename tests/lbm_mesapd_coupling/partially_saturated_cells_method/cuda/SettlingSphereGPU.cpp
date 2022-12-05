@@ -671,16 +671,10 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
                                  real_t(0.0), real_t(0.0), lbm::collision_model::omegaFromViscosity(viscosity));
-   auto setParticleVelocitiesSweep =
-      lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep< LatticeModel_T, ParticleAccessor_T,
-                                                                  lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
-         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
-         particleAndVolumeFractionSoA);
-   auto reduceParticleForcesSweep =
-      lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep< LatticeModel_T, ParticleAccessor_T,
-                                                                 lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
-         blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), pdfFieldGPUID,
-         particleAndVolumeFractionSoA);
+   auto setParticleVelocitiesSweep = lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep(
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA);
+   auto reduceParticleForcesSweep = lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep(
+      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA);
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 

@@ -442,14 +442,10 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, setup.extForce,
                                  real_t(0.0), real_t(0.0), omega);
-   auto setParticleVelocitiesSweep =
-      lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep< LatticeModel_T, ParticleAccessor_T,
-                                                                  lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
-         blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), pdfFieldGPUID, particleAndVolumeFractionSoA);
-   auto reduceParticleForcesSweep =
-      lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep< LatticeModel_T, ParticleAccessor_T,
-                                                                 lbm_mesapd_coupling::GlobalParticlesSelector, 1 >(
-         blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), pdfFieldGPUID, particleAndVolumeFractionSoA);
+   auto setParticleVelocitiesSweep = lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep(
+      blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionSoA);
+   auto reduceParticleForcesSweep = lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep(
+      blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionSoA);
 
    // add LBM communication function and streaming & force evaluation
    using DragForceEval_T = DragForceEvaluator< ParticleAccessor_T >;
