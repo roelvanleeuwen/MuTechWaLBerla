@@ -53,8 +53,6 @@
 #include "mesa_pd/domain/BlockForestDomain.h"
 #include "mesa_pd/mpi/SyncNextNeighbors.h"
 
-#include "timeloop/SweepTimeloop.h"
-
 #include <iostream>
 #include <vector>
 
@@ -79,8 +77,6 @@ typedef lbm::D3Q19< lbm::collision_model::SRT, false > LatticeModel_T;
 
 using Stencil_T  = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField< LatticeModel_T >;
-
-using VelocityField_T = field::GhostLayerField< real_t, Stencil_T::D >;
 
 using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
@@ -375,10 +371,7 @@ int main(int argc, char** argv)
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
       blocks, "pdf field (zyxf)", latticeModel, Vector3< real_t >(real_c(0), real_c(0), real_c(0)), real_c(1),
       uint_t(1), field::fzyx);
-   BlockDataID pdfFieldGPUID   = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU", true);
-   BlockDataID velocityFieldId = field::addToStorage< VelocityField_T >(blocks, "velocity", real_c(0.0), field::fzyx);
-   BlockDataID velocityFieldIdGPU =
-      cuda::addGPUFieldToStorage< VelocityField_T >(blocks, velocityFieldId, "velocity on GPU", true);
+   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU", true);
 
    pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), real_t(0),
                                            real_t(0), real_t(0));
@@ -412,8 +405,8 @@ int main(int argc, char** argv)
 
    pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
-                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
-                                 velocityFieldIdGPU, real_t(0.0), real_t(0.0), real_t(0.0), omega);
+                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
+                                 real_t(0.0), real_t(0.0), omega);
    auto setParticleVelocitiesSweep =
       lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep< LatticeModel_T, ParticleAccessor_T,
                                                                   lbm_mesapd_coupling::RegularParticlesSelector, 1 >(

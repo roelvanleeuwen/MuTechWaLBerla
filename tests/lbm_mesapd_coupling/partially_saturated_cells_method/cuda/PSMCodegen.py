@@ -35,10 +35,6 @@ with CodeGeneration() as ctx:
         f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {data_type}[3D]", layout=layout
     )
 
-    # Output
-    velocity = ps.fields(f"velocity({stencil.D}): {data_type}[3D]", layout=layout)
-    output = {"velocity": velocity}
-
     particle_velocities, particle_forces, Bs = ps.fields(
         f"particle_velocities({MaxParticlesPerCell * stencil.D}), particle_forces({MaxParticlesPerCell * stencil.D}), Bs({MaxParticlesPerCell}): {data_type}[3D]",
         layout=layout,
@@ -61,7 +57,6 @@ with CodeGeneration() as ctx:
         force=sp.symbols("F_:3"),
         force_model=ForceModel.LUO,
         compressible=False,
-        output=output,
     )
 
     # =====================

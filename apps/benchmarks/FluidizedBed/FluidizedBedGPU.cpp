@@ -588,11 +588,7 @@ int main(int argc, char** argv)
    BlockDataID pdfFieldID    = lbm::addPdfFieldToStorage< LatticeModel_T >(blocks, "pdf field", latticeModel, inflowVec,
                                                                         densityFluid, uint_t(1), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field gpu");
-   typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
-   BlockDataID velocityFieldId =
-      field::addToStorage< VectorField_T >(blocks, "velocity field", real_c(0.0), field::fzyx);
-   BlockDataID velocityFieldIdGPU =
-      cuda::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity field GPU", true);
+
    BlockDataID BFieldID = field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "B field", 0, field::fzyx, 1);
 
    pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), inflowVec[0],
@@ -753,7 +749,7 @@ int main(int argc, char** argv)
    pystencils::PSMSweepSplit PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
                                       particleAndVolumeFractionSoA.particleForcesFieldID,
                                       particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
-                                      velocityFieldIdGPU, real_t(0.0), real_t(0.0), real_t(0.0), omega);
+                                      real_t(0.0), real_t(0.0), real_t(0.0), omega);
    auto setParticleVelocitiesSweep =
       lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep< LatticeModel_T, ParticleAccessor_T,
                                                                   lbm_mesapd_coupling::RegularParticlesSelector, 1 >(

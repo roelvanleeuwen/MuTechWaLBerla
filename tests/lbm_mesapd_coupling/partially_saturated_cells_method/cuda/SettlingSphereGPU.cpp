@@ -75,8 +75,6 @@
 #include "mesa_pd/mpi/notifications/HydrodynamicForceTorqueNotification.h"
 #include "mesa_pd/vtk/ParticleVtkOutput.h"
 
-#include "timeloop/SweepTimeloop.h"
-
 #include "vtk/all.h"
 
 #include <functional>
@@ -102,8 +100,6 @@ using LatticeModel_T = lbm::D3Q19< lbm::collision_model::TRT >;
 
 using Stencil_T  = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField< LatticeModel_T >;
-
-using VelocityField_T = field::GhostLayerField< real_t, Stencil_T::D >;
 
 using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
@@ -601,10 +597,6 @@ int main(int argc, char** argv)
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
       blocks, "pdf field (fzyx)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
-   BlockDataID velocityFieldId =
-      field::addToStorage< VelocityField_T >(blocks, "velocity field", real_c(0.0), field::fzyx);
-   BlockDataID velocityFieldIdGPU =
-      cuda::addGPUFieldToStorage< VelocityField_T >(blocks, velocityFieldId, "velocity field GPU", true);
 
    pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), real_t(0),
                                            real_t(0), real_t(0));
@@ -677,9 +669,8 @@ int main(int argc, char** argv)
 
    pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
-                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID,
-                                 velocityFieldIdGPU, real_t(0.0), real_t(0.0), real_t(0.0),
-                                 lbm::collision_model::omegaFromViscosity(viscosity));
+                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
+                                 real_t(0.0), real_t(0.0), lbm::collision_model::omegaFromViscosity(viscosity));
    auto setParticleVelocitiesSweep =
       lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep< LatticeModel_T, ParticleAccessor_T,
                                                                   lbm_mesapd_coupling::RegularParticlesSelector, 1 >(
