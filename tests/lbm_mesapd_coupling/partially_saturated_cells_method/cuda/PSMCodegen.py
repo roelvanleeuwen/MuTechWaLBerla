@@ -169,6 +169,7 @@ with CodeGeneration() as ctx:
     # Transform the assignment collection into a node collection to be able to add conditionals
     node_collection = NodeCollection.from_assignment_collection(lbm_update_rule)
 
+    conditionals = []
     for p in range(MaxParticlesPerCell):
         # One conditional for every potentially overlapping particle
         conditional_assignments = []
@@ -213,7 +214,15 @@ with CodeGeneration() as ctx:
                     )
 
         conditional = Conditional(Bs.center(p) > 0.0, Block(conditional_assignments))
-        node_collection.all_assignments.append(conditional)
+
+        conditionals.append(conditional)
+        # Append conditional at the end of previous conditional
+        # because n+1 particles can only overlap if at least n particles overlap
+        if p > 0:
+            conditionals[-2].true_block.append(conditional)
+
+    # Add first conditional to node collection, the other conditionals are nested inside the first one
+    node_collection.all_assignments.append(conditionals[0])
 
     pdfs_setter = macroscopic_values_setter(
         method, init_density, init_velocity, pdfs.center_vector
