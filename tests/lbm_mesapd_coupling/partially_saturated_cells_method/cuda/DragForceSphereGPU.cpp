@@ -44,8 +44,7 @@
 #include "lbm/vtk/Velocity.h"
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepsGPU.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
 
 #include "mesa_pd/data/ParticleAccessorWithShape.h"
@@ -431,11 +430,11 @@ int main(int argc, char** argv)
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
 
    // map particles and calculate solid volume fraction initially
-   lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
-      blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionSoA, 4);
+   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(),
+                                            particleAndVolumeFractionSoA, 4);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
-      particleMappingGPU(&(*blockIt));
+      psmSweepCollection.particleMappingSweep(&(*blockIt));
    }
 
    // since external forcing is applied, the evaluation of the velocity has to be carried out directly after the
@@ -445,18 +444,14 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, setup.extForce,
                                  real_t(0.0), real_t(0.0), omega);
-   auto setParticleVelocitiesSweep = lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep(
-      blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionSoA);
-   auto reduceParticleForcesSweep = lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep(
-      blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(), particleAndVolumeFractionSoA);
 
    // add LBM communication function and streaming & force evaluation
    using DragForceEval_T = DragForceEvaluator< ParticleAccessor_T >;
    auto forceEval        = make_shared< DragForceEval_T >(&timeloop, &setup, blocks, pdfFieldID, accessor, sphereID);
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
-                  << Sweep(deviceSyncWrapper(setParticleVelocitiesSweep), "Set particle velocities");
+                  << Sweep(deviceSyncWrapper(psmSweepCollection.setParticleVelocitiesSweep), "Set particle velocities");
    timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "cell-wise PSM sweep");
-   timeloop.add() << Sweep(deviceSyncWrapper(reduceParticleForcesSweep), "Reduce particle forces");
+   timeloop.add() << Sweep(deviceSyncWrapper(psmSweepCollection.reduceParticleForcesSweep), "Reduce particle forces");
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");

@@ -31,7 +31,7 @@
 
 #include "field/AddToStorage.h"
 
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 
 #include "mesa_pd/data/ParticleAccessorWithShape.h"
@@ -256,11 +256,11 @@ int main(int argc, char** argv)
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
 
    // calculate fraction
-   ParticleAndVolumeFractionMappingGPU particleMapping(
-      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA, 4);
+   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
+                                            particleAndVolumeFractionSoA, 4);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
-      particleMapping(&(*blockIt));
+      psmSweepCollection.particleMappingSweep(&(*blockIt));
    }
 
    FractionFieldSum fractionFieldSum(blocks, nOverlappingParticlesFieldID, BsFieldID);
@@ -290,7 +290,7 @@ int main(int argc, char** argv)
       // map particles into field
       for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
       {
-         particleMapping(&(*blockIt));
+         psmSweepCollection.particleMappingSweep(&(*blockIt));
       }
    }
 

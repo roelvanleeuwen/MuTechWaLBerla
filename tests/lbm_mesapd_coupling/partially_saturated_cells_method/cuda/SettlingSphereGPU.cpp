@@ -45,8 +45,7 @@
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/mapping/ParticleMapping.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepsGPU.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/AddForceOnParticlesKernel.h"
 #include "lbm_mesapd_coupling/utility/AddHydrodynamicInteractionKernel.h"
 #include "lbm_mesapd_coupling/utility/AverageHydrodynamicForceTorqueKernel.h"
@@ -655,11 +654,10 @@ int main(int argc, char** argv)
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(
       blocks, lbm::collision_model::omegaFromViscosity(viscosity));
    // map particles and calculate solid volume fraction initially
-   lbm_mesapd_coupling::psm::cuda::ParticleAndVolumeFractionMappingGPU particleMappingGPU(
-      blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, 1);
+   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, 1);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
-      particleMappingGPU(&(*blockIt));
+      psmSweepCollection.particleMappingSweep(&(*blockIt));
    }
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
@@ -674,10 +672,6 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
                                  real_t(0.0), real_t(0.0), lbm::collision_model::omegaFromViscosity(viscosity));
-   auto setParticleVelocitiesSweep = lbm_mesapd_coupling::psm::cuda::SetParticleVelocitiesSweep(
-      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA);
-   auto reduceParticleForcesSweep = lbm_mesapd_coupling::psm::cuda::ReduceParticleForcesSweep(
-      blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionSoA);
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 
@@ -746,8 +740,7 @@ int main(int argc, char** argv)
                   << Sweep(noSlip.getSweep(), "Boundary Handling");
 
    // stream + collide LBM step
-   addPSMSweepsToTimeloop(timeloop, particleMappingGPU, setParticleVelocitiesSweep, PSMSweep,
-                          reduceParticleForcesSweep);
+   addPSMSweepsToTimeloop(timeloop, psmSweepCollection, PSMSweep);
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "Copy pdf from GPU to CPU");
 

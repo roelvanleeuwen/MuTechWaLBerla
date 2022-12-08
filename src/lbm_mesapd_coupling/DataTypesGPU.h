@@ -78,7 +78,8 @@ struct ParticleAndVolumeFractionSoA_T
    // Store positions globally to avoid copying them from CPU to GPU in multiple sweeps
    real_t* positions = nullptr;
 
-   // TODO: set nrOfGhostLayers to 0 (requires changes of the generated kernels)
+   // nrOfGhostLayers is also 1 for the fields that do not need a ghost layer since the generated sweeps can only handle
+   // fields with the same number of ghost layerserated kernels)
    ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs, const real_t omega)
    {
       nOverlappingParticlesFieldID = walberla::cuda::addGPUFieldToStorage< nOverlappingParticlesFieldGPU_T >(

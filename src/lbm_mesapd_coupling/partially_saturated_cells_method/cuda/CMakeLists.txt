@@ -2,6 +2,7 @@ if( WALBERLA_BUILD_WITH_CUDA )
     target_sources(lbm_mesapd_coupling
             PRIVATE
             ParticleAndVolumeFractionMappingGPU.h
+            PSMSweepCollectionGPU.h
             )
     if( CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60 )
         target_sources(lbm_mesapd_coupling

@@ -234,54 +234,6 @@ class ReduceParticleForcesSweep
    const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA_;
 };
 
-template< typename Mapping, typename VelocitiesSweep, typename PSMSweep, typename ForcesSweep >
-void addPSMSweepsToTimeloop(SweepTimeloop& timeloop, Mapping& particleMapping,
-                            VelocitiesSweep& setParticleVelocitiesSweep, PSMSweep& psmSweep,
-                            ForcesSweep& reduceParticleForcesSweep, bool synchronize = true)
-{
-   if (synchronize)
-   {
-      timeloop.add() << Sweep(particleMapping, "Particle mapping");
-      timeloop.add() << Sweep(deviceSyncWrapper(setParticleVelocitiesSweep), "Set particle velocities");
-      timeloop.add() << Sweep(deviceSyncWrapper(psmSweep), "PSM sweep");
-      timeloop.add() << Sweep(deviceSyncWrapper(reduceParticleForcesSweep), "Reduce particle forces");
-   }
-   else
-   {
-      timeloop.add() << Sweep(particleMapping, "Particle mapping");
-      timeloop.add() << Sweep(setParticleVelocitiesSweep, "Set particle velocities");
-      timeloop.add() << Sweep(psmSweep, "PSM sweep");
-      timeloop.add() << Sweep(reduceParticleForcesSweep, "Reduce particle forces");
-   };
-}
-
-template< typename Mapping, typename VelocitiesSweep, typename PSMSweep, typename ForcesSweep, typename Communication >
-void addPSMSweepsToTimeloops(SweepTimeloop& commTimeloop, SweepTimeloop& timeloop, Communication& comm,
-                             Mapping& particleMapping, VelocitiesSweep& setParticleVelocitiesSweep, PSMSweep& psmSweep,
-                             ForcesSweep& reduceParticleForcesSweep, bool synchronize = true)
-{
-   if (synchronize)
-   {
-      commTimeloop.add() << BeforeFunction([&]() { comm.startCommunication(); })
-                         << Sweep(deviceSyncWrapper(particleMapping), "Particle mapping");
-      commTimeloop.add() << Sweep(deviceSyncWrapper(setParticleVelocitiesSweep), "Set particle velocities");
-      commTimeloop.add() << Sweep(deviceSyncWrapper([&](IBlock* block) { psmSweep.inner(block); }), "PSM inner sweep")
-                         << AfterFunction([&]() { comm.wait(); }, "LBM Communication (wait)");
-      timeloop.add() << Sweep(deviceSyncWrapper([&](IBlock* block) { psmSweep.outer(block); }), "PSM outer sweep");
-      timeloop.add() << Sweep(deviceSyncWrapper(reduceParticleForcesSweep), "Reduce particle forces");
-   }
-   else
-   {
-      commTimeloop.add() << BeforeFunction([&]() { comm.startCommunication(); })
-                         << Sweep(particleMapping, "Particle mapping");
-      commTimeloop.add() << Sweep(setParticleVelocitiesSweep, "Set particle velocities");
-      commTimeloop.add() << Sweep([&](IBlock* block) { psmSweep.inner(block); }, "PSM inner sweep")
-                         << AfterFunction([&]() { comm.wait(); }, "LBM Communication (wait)");
-      timeloop.add() << Sweep([&](IBlock* block) { psmSweep.outer(block); }, "PSM outer sweep");
-      timeloop.add() << Sweep(reduceParticleForcesSweep, "Reduce particle forces");
-   };
-}
-
 } // namespace cuda
 } // namespace psm
 } // namespace lbm_mesapd_coupling
