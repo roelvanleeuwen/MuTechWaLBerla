@@ -109,8 +109,6 @@ using PdfField_T = lbm::PdfField< LatticeModel_T >;
 using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
 
-using ScalarField_T = GhostLayerField< real_t, 1 >;
-
 const uint_t FieldGhostLayers = 1;
 
 using namespace lbm_mesapd_coupling::psm::cuda;
