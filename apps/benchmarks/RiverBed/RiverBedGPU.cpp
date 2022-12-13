@@ -173,17 +173,17 @@ class MyBoundaryHandling
       domainBB.yMin() -= cell_idx_c(FieldGhostLayers);
       domainBB.yMax() += cell_idx_c(FieldGhostLayers);
 
-      // inflow at bottom
+      // noslip at bottom
       CellInterval bottom(domainBB.xMin(), domainBB.yMin(), domainBB.zMin(), domainBB.xMax(), domainBB.yMax(),
                           domainBB.zMin());
       storage->transformGlobalToBlockLocalCellInterval(bottom, *block);
-      handling->forceBoundary(inflow, bottom);
+      handling->forceBoundary(noslip, bottom);
 
-      // outflow at top
+      // noslip at top
       CellInterval top(domainBB.xMin(), domainBB.yMin(), domainBB.zMax(), domainBB.xMax(), domainBB.yMax(),
                        domainBB.zMax());
       storage->transformGlobalToBlockLocalCellInterval(top, *block);
-      handling->forceBoundary(outflow, top);
+      handling->forceBoundary(noslip, top);
 
       if (!periodicInX_)
       {
@@ -191,13 +191,13 @@ class MyBoundaryHandling
          CellInterval left(domainBB.xMin(), domainBB.yMin(), domainBB.zMin(), domainBB.xMin(), domainBB.yMax(),
                            domainBB.zMax());
          storage->transformGlobalToBlockLocalCellInterval(left, *block);
-         handling->forceBoundary(noslip, left);
+         handling->forceBoundary(inflow, left);
 
          // right
          CellInterval right(domainBB.xMax(), domainBB.yMin(), domainBB.zMin(), domainBB.xMax(), domainBB.yMax(),
                             domainBB.zMax());
          storage->transformGlobalToBlockLocalCellInterval(right, *block);
-         handling->forceBoundary(noslip, right);
+         handling->forceBoundary(outflow, right);
       }
 
       if (!periodicInY_)
@@ -250,15 +250,15 @@ void createPlaneSetup(const shared_ptr< mesa_pd::data::ParticleStorage >& ps,
                       const shared_ptr< mesa_pd::data::ShapeStorage >& ss, const math::AABB& simulationDomain,
                       bool periodicInX, bool periodicInY, real_t offsetAtInflow, real_t offsetAtOutflow)
 {
-   createPlane(ps, ss, simulationDomain.minCorner() + Vector3< real_t >(0, 0, offsetAtInflow),
-               Vector3< real_t >(0, 0, 1));
-   createPlane(ps, ss, simulationDomain.maxCorner() + Vector3< real_t >(0, 0, offsetAtOutflow),
-               Vector3< real_t >(0, 0, -1));
+   createPlane(ps, ss, simulationDomain.minCorner(), Vector3< real_t >(0, 0, 1));
+   createPlane(ps, ss, simulationDomain.maxCorner(), Vector3< real_t >(0, 0, -1));
 
    if (!periodicInX)
    {
-      createPlane(ps, ss, simulationDomain.minCorner(), Vector3< real_t >(1, 0, 0));
-      createPlane(ps, ss, simulationDomain.maxCorner(), Vector3< real_t >(-1, 0, 0));
+      createPlane(ps, ss, simulationDomain.minCorner() + Vector3< real_t >(offsetAtInflow, 0, 0),
+                  Vector3< real_t >(1, 0, 0));
+      createPlane(ps, ss, simulationDomain.maxCorner() - Vector3< real_t >(offsetAtOutflow, 0, 0),
+                  Vector3< real_t >(-1, 0, 0));
    }
 
    if (!periodicInY)
@@ -504,11 +504,11 @@ int main(int argc, char** argv)
    const uint_t vtkSpacingParticles = uint_c(std::ceil(vtkSpacingParticles_SI / dt_SI));
    const uint_t vtkSpacingFluid     = uint_c(std::ceil(vtkSpacingFluid_SI / dt_SI));
 
-   const Vector3< real_t > inflowVec(0_r, 0_r, uInflow);
+   const Vector3< real_t > inflowVec(uInflow, 0_r, 0_r);
 
    const real_t poissonsRatio         = real_t(0.22);
    const real_t kappa                 = real_t(2) * (real_t(1) - poissonsRatio) / (real_t(2) - poissonsRatio);
-   const real_t particleCollisionTime = 4_r * diameter;
+   const real_t particleCollisionTime = 1_r * diameter;
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation setup:");
    WALBERLA_LOG_INFO_ON_ROOT(" - particles: diameter = " << diameter << ", densityRatio = " << densityRatio);
@@ -559,19 +559,28 @@ int main(int argc, char** argv)
    ss->shapes[sphereShape]->updateMassAndInertia(densityParticle);
 
    // create spheres
-   auto generationDomain = simulationDomain.getExtended(-particleGenerationSpacing * 0.5_r);
-   for (auto pt : grid_generator::SCGrid(generationDomain, generationDomain.center(), particleGenerationSpacing))
+   math::AABB generationDomain = { simulationDomain.xMin() + particleGenerationSpacing * real_t(0.5),
+                                   simulationDomain.yMin() + particleGenerationSpacing * real_t(0.5),
+                                   simulationDomain.zMin() + particleGenerationSpacing * real_t(0.5),
+                                   simulationDomain.xMax() - particleGenerationSpacing * real_t(0.5),
+                                   simulationDomain.yMax() - particleGenerationSpacing * real_t(0.5),
+                                   (simulationDomain.zMax() - particleGenerationSpacing * real_t(0.5)) * real_t(0.9) };
+   for (auto pt : grid_generator::SCGrid(
+           generationDomain,
+           Vector3(particleGenerationSpacing, particleGenerationSpacing, particleGenerationSpacing * real_t(0.5)),
+           particleGenerationSpacing))
    {
       if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt))
       {
          mesa_pd::data::Particle&& p = *ps->create();
-         p.setPosition(pt);
+         p.setPosition(pt + Vector3< real_t >(math::realRandom(-real_t(0.1) * particleGenerationSpacing,
+                                                               real_t(0.1) * particleGenerationSpacing),
+                                              real_t(0), real_t(0)));
          p.setInteractionRadius(diameter * real_t(0.5));
          p.setOwner(mpi::MPIManager::instance()->rank());
          p.setShapeID(sphereShape);
          p.setType(0);
-         p.setLinearVelocity(0.1_r * Vector3< real_t >(math::realRandom(
-                                        -uInflow, uInflow))); // set small initial velocity to break symmetries
+         p.setLinearVelocity(Vector3< real_t >(real_t(0.0)));
       }
    }
 

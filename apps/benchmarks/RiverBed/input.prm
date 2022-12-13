@@ -1,8 +1,8 @@
 PhysicalSetup // all to be specified in SI units!
 {
-    xSize 0.05; // = width
+    xSize 0.1; // = width
     ySize 0.02; // = depth
-    zSize 0.10; // = height
+    zSize 0.05; // = height
 
     periodicInX true;
     periodicInY true;
@@ -16,11 +16,11 @@ PhysicalSetup // all to be specified in SI units!
     densityFluid 1000.;
 
     particleDiameter 0.002;
-    densityParticle 1100.;
+    densityParticle 2500.;
     dynamicFrictionCoefficient 0.15;
-    coefficientOfRestitution 0.6;
+    coefficientOfRestitution 0.97;
 
-    particleGenerationSpacing 0.00401;
+    particleGenerationSpacing 0.002;
 }
 
 NumericalSetup
