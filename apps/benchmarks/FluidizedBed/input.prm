@@ -19,6 +19,7 @@ PhysicalSetup // all to be specified in SI units!
     densityParticle 1100.;
     dynamicFrictionCoefficient 0.15;
     coefficientOfRestitution 0.6;
+    collisionTimeFactor 4.0;
 
     particleGenerationSpacing 0.00401;
 }

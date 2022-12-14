@@ -426,6 +426,7 @@ int main(int argc, char** argv)
    const real_t densityParticle_SI           = physicalSetup.getParameter< real_t >("densityParticle");
    const real_t dynamicFrictionCoefficient   = physicalSetup.getParameter< real_t >("dynamicFrictionCoefficient");
    const real_t coefficientOfRestitution     = physicalSetup.getParameter< real_t >("coefficientOfRestitution");
+   const real_t collisionTimeFactor          = physicalSetup.getParameter< real_t >("collisionTimeFactor");
    const real_t particleGenerationSpacing_SI = physicalSetup.getParameter< real_t >("particleGenerationSpacing");
 
    Config::BlockHandle numericalSetup = cfgFile->getBlock("NumericalSetup");
@@ -508,7 +509,7 @@ int main(int argc, char** argv)
 
    const real_t poissonsRatio         = real_t(0.22);
    const real_t kappa                 = real_t(2) * (real_t(1) - poissonsRatio) / (real_t(2) - poissonsRatio);
-   const real_t particleCollisionTime = 4_r * diameter;
+   const real_t particleCollisionTime = collisionTimeFactor * diameter;
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation setup:");
    WALBERLA_LOG_INFO_ON_ROOT(" - particles: diameter = " << diameter << ", densityRatio = " << densityRatio);
