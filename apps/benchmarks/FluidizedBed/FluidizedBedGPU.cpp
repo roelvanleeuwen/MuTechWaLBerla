@@ -843,8 +843,7 @@ int main(int argc, char** argv)
          // collision response
          linkedCells.forEachParticlePairHalf(
             useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
-            [&collisionResponse, &rpdDomain, timeStepSizeRPD, coefficientOfRestitution, particleCollisionTime,
-             kappa](const size_t idx1, const size_t idx2, auto& ac) {
+            [&collisionResponse, &rpdDomain, timeStepSizeRPD](const size_t idx1, const size_t idx2, auto& ac) {
                mesa_pd::collision_detection::AnalyticContactDetection acd;
                mesa_pd::kernel::DoubleCast double_cast;
                mesa_pd::mpi::ContactFilter contact_filter;
