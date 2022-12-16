@@ -570,7 +570,7 @@ int main(int argc, char** argv)
          p.setInteractionRadius(diameter * real_t(0.5));
          p.setOwner(mpi::MPIManager::instance()->rank());
          p.setShapeID(sphereShape);
-         p.setType(0);
+         p.setType(1);
          p.setLinearVelocity(0.1_r * Vector3< real_t >(math::realRandom(
                                         -uInflow, uInflow))); // set small initial velocity to break symmetries
       }
@@ -619,8 +619,16 @@ int main(int argc, char** argv)
    real_t timeStepSizeRPD = real_t(1) / real_t(numberOfParticleSubCycles);
    mesa_pd::kernel::VelocityVerletPreForceUpdate vvIntegratorPreForce(timeStepSizeRPD);
    mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(timeStepSizeRPD);
-   mesa_pd::kernel::LinearSpringDashpot collisionResponse(1);
-   collisionResponse.setFrictionCoefficientDynamic(0, 0, dynamicFrictionCoefficient);
+   mesa_pd::kernel::LinearSpringDashpot collisionResponse(2);
+   collisionResponse.setFrictionCoefficientDynamic(0, 1, dynamicFrictionCoefficient);
+   collisionResponse.setFrictionCoefficientDynamic(1, 1, dynamicFrictionCoefficient);
+   real_t massSphere       = densityParticle * particleVolume;
+   real_t meffSpherePlane  = massSphere;
+   real_t meffSphereSphere = massSphere * massSphere / (real_t(2) * massSphere);
+   collisionResponse.setStiffnessAndDamping(0, 1, coefficientOfRestitution, particleCollisionTime, kappa,
+                                            meffSpherePlane);
+   collisionResponse.setStiffnessAndDamping(1, 1, coefficientOfRestitution, particleCollisionTime, kappa,
+                                            meffSphereSphere);
    mesa_pd::kernel::AssocToBlock assoc(blocks->getBlockForestPointer());
    mesa_pd::mpi::ReduceProperty reduceProperty;
    mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
@@ -844,9 +852,6 @@ int main(int argc, char** argv)
                {
                   if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *rpdDomain))
                   {
-                     auto meff = real_t(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
-                     collisionResponse.setStiffnessAndDamping(0, 0, coefficientOfRestitution, particleCollisionTime,
-                                                              kappa, meff);
                      collisionResponse(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), acd.getContactNormal(),
                                        acd.getPenetrationDepth(), timeStepSizeRPD);
                   }
