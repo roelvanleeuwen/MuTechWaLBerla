@@ -887,7 +887,7 @@ int main(int argc, char** argv)
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor);
       timeloopTiming["RPD forEachParticle"].end();
 
-      if (timeStep % infoSpacing == 0)
+      if (infoSpacing != 0 && timeStep % infoSpacing == 0)
       {
          timeloopTiming["Evaluate infos"].start();
 
