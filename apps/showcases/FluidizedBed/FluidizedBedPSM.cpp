@@ -13,11 +13,11 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file FluidizedBed.cpp
+//! \file FluidizedBedPSM.cpp
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
-//! \brief Modification of showcases/FluidizedBed/FluidizedBed.cpp
+//! \brief Modification of showcases/FluidizedBed/FluidizedBedMEM.cpp
 //
 //======================================================================================================================
 
