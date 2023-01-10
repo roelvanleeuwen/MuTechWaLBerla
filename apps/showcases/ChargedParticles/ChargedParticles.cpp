@@ -86,7 +86,9 @@
 
 #include "vtk/all.h"
 
-namespace fluidized_bed
+#include "Utility.h"
+
+namespace charged_particles
 {
 
 ///////////
@@ -615,6 +617,11 @@ int main(int argc, char** argv)
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionFieldID, 2);
    particleMapping();
 
+   BlockDataID chargeDensityFieldID =
+      field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "charge density field", 0, field::fzyx, 1);
+   BlockDataID electrostaticForceFieldID =
+      field::addToStorage< GhostLayerField< real_t, 3 > >(blocks, "electrostatic force field", 0, field::fzyx, 1);
+
    lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
                                                                          particleAndVolumeFractionFieldID, *accessor);
 
@@ -700,6 +707,28 @@ int main(int argc, char** argv)
          make_shared< field::VTKWriter< GhostLayerField< real_t, 1 > > >(BFieldID, "Fraction mapping field B"));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(fractionFieldVTK), "VTK (fraction field data");
+
+      // charge density field
+      auto chargeDensityFieldVTK =
+         vtk::createVTKOutput_BlockData(blocks, "charge_density_field", vtkSpacingFluid, 0, false, vtkFolder);
+
+      chargeDensityFieldVTK->addCellInclusionFilter(combinedSliceFilter);
+
+      chargeDensityFieldVTK->addCellDataWriter(
+         make_shared< field::VTKWriter< GhostLayerField< real_t, 1 > > >(chargeDensityFieldID, "Charge density field"));
+
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(chargeDensityFieldVTK), "VTK (charge density data");
+
+      // electrostatic force field
+      auto electrostaticForceFieldVTK =
+         vtk::createVTKOutput_BlockData(blocks, "electrostatic_force_field", vtkSpacingFluid, 0, false, vtkFolder);
+
+      electrostaticForceFieldVTK->addCellInclusionFilter(combinedSliceFilter);
+
+      electrostaticForceFieldVTK->addCellDataWriter(make_shared< field::VTKWriter< GhostLayerField< real_t, 3 > > >(
+         electrostaticForceFieldID, "Electrostatic force field"));
+
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(electrostaticForceFieldVTK), "VTK (electrostatic force data");
    }
 
    if (vtkSpacingFluid != uint_t(0) || vtkSpacingParticles != uint_t(0))
@@ -733,6 +762,12 @@ int main(int argc, char** argv)
       timeloop.singleStep(timeloopTiming);
 
       reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*ps);
+
+      // TODO: add charge and electrostatic force/torque variables to particles and add ElectrostaticForceTorqueNotification, see python/mesa_pd.py
+      walberla::charged_particles::computeChargeDensity(blocks, particleAndVolumeFractionFieldID, chargeDensityFieldID);
+      // TODO: solve poisson equation to obtain electrostatic force field
+      // TODO: reduce electrostatic force field components into corresponding particles, see src/lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h for how to reduce a force field into the corresponding particles
+      // TODO: add ElectrostaticForceTorqueNotification for reduction between the blocks, see above
 
       if (timeStep == 0)
       {
@@ -802,6 +837,8 @@ int main(int argc, char** argv)
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addHydrodynamicInteraction,
                              *accessor);
 
+         // TODO: write and add addElectrostaticInteraction, see above
+
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addGravitationalForce, *accessor);
 
          reduceProperty.operator()< mesa_pd::ForceTorqueNotification >(*ps);
@@ -813,6 +850,8 @@ int main(int argc, char** argv)
       }
 
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor);
+
+      // TODO: write and add resetElectrostaticForceTorque, see above
 
       if (timeStep % infoSpacing == 0)
       {
@@ -833,6 +872,6 @@ int main(int argc, char** argv)
    return EXIT_SUCCESS;
 }
 
-} // namespace fluidized_bed
+} // namespace charged_particles
 
-int main(int argc, char** argv) { fluidized_bed::main(argc, argv); }
+int main(int argc, char** argv) { charged_particles::main(argc, argv); }
