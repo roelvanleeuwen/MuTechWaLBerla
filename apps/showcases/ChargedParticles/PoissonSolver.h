@@ -20,6 +20,7 @@ class PoissonSolver
       : src_(src), dst_(dst), rhs_(rhs), blocks_(blocks) {
 
       // stencil weights
+
       weights_.resize(Stencil_T::Size, real_c(0));
       weights_[Stencil_T::idx[stencil::C]] = real_t( 2) / (blocks_->dx() * blocks_->dx()) +
                                              real_t( 2) / (blocks_->dy() * blocks_->dy()) +
@@ -33,7 +34,7 @@ class PoissonSolver
 
       // communication
 
-      commScheme_ = std::make_unique< blockforest::communication::UniformBufferedScheme< Stencil_T > >(blocks_);
+      commScheme_ = make_shared< blockforest::communication::UniformBufferedScheme< Stencil_T > >(blocks_);
       commScheme_->addPackInfo(make_shared< field::communication::PackInfo< ScalarField_T > >(src_));
 
       // boundary handling
@@ -42,16 +43,23 @@ class PoissonSolver
 
       // iteration schemes
 
-      auto residualNormThreshold = real_c(1e-6);
+      auto residualNormThreshold = real_c(1e-4);
       auto residualCheckFrequency = uint_t(100);
       auto iterations = uint_t(1000);
 
+      // res norm
+
+      residualNorm_ = make_shared< pde::ResidualNorm< Stencil_T > >(blocks_->getBlockStorage(), src_, rhs_, weights_);
+
       // jacobi
 
+      jacobiFixedSweep_ = make_shared < pde::JacobiFixedStencil< Stencil_T > >(src_, dst_, rhs_, weights_);
+
       jacobiIteration_ = std::make_unique< pde::JacobiIteration >(
-         blocks_->getBlockStorage(), iterations, *commScheme_,
-         pde::JacobiFixedStencil< Stencil_T >(src_, dst_, rhs_, weights_),
-         pde::ResidualNorm< Stencil_T >(blocks_->getBlockStorage(), src_, rhs_, weights_), residualNormThreshold, residualCheckFrequency);
+         blocks_->getBlockStorage(), iterations,
+         *commScheme_,
+         *jacobiFixedSweep_,
+         *residualNorm_, residualNormThreshold, residualCheckFrequency);
 
       jacobiIteration_->addBoundaryHandling(neumannBCs);
 
@@ -59,12 +67,13 @@ class PoissonSolver
 
       real_t omega = real_t(1.9);
 
-      auto SORFixedSweep = pde::SORFixedStencil< Stencil_T >(blocks, src_, rhs_, weights_, omega);
+      sorFixedSweep_ = make_shared< pde::SORFixedStencil< Stencil_T > >(blocks, src_, rhs_, weights_, omega);
 
       sorIteration_ = std::make_unique< pde::RBGSIteration >(
-         blocks_->getBlockStorage(), iterations, *commScheme_,
-         SORFixedSweep.getRedSweep(), SORFixedSweep.getBlackSweep(),
-         pde::ResidualNorm< Stencil_T >(blocks_->getBlockStorage(), src_, rhs_, weights_), residualNormThreshold, residualCheckFrequency);
+         blocks_->getBlockStorage(), iterations,
+         *commScheme_,
+         sorFixedSweep_->getRedSweep(), sorFixedSweep_->getBlackSweep(),
+         *residualNorm_, residualNormThreshold, residualCheckFrequency);
 
       sorIteration_->addBoundaryHandling(neumannBCs);
    }
@@ -85,9 +94,14 @@ class PoissonSolver
 
    std::vector< real_t > weights_;
    std::shared_ptr< StructuredBlockForest > blocks_;
-   std::unique_ptr< blockforest::communication::UniformBufferedScheme< Stencil_T > > commScheme_;
+   std::shared_ptr< blockforest::communication::UniformBufferedScheme< Stencil_T > > commScheme_;
 
+   std::shared_ptr < pde::ResidualNorm< Stencil_T > > residualNorm_;
+
+   std::shared_ptr< pde::JacobiFixedStencil< Stencil_T > > jacobiFixedSweep_;
    std::unique_ptr< pde::JacobiIteration > jacobiIteration_;
+
+   std::shared_ptr< pde::SORFixedStencil< Stencil_T  > > sorFixedSweep_;
    std::unique_ptr< pde::RBGSIteration > sorIteration_;
 };
 
