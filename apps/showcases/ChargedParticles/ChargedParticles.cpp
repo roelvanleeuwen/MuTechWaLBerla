@@ -107,6 +107,7 @@ using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
 
 using ScalarField_T = GhostLayerField< real_t, 1 >;
+using VectorField_T = GhostLayerField< real_t, 3 >;
 
 const uint_t FieldGhostLayers = 1;
 
@@ -684,7 +685,7 @@ int main(int argc, char** argv)
       auto fractionFieldVTK =
          vtk::createVTKOutput_BlockData(blocks, "fraction_field", vtkSpacingFluid, 0, false, vtkFolder);
 
-      BlockDataID BFieldID = field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "B field", 0, field::fzyx, 1);
+      BlockDataID BFieldID = field::addToStorage< ScalarField_T >(blocks, "B field", 0, field::fzyx, 1);
 
       fractionFieldVTK->addBeforeFunction([&]() {
          for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
@@ -692,7 +693,7 @@ int main(int argc, char** argv)
             lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T* particleAndVolumeFractionField =
                blockIt->getData< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
                   particleAndVolumeFractionFieldID);
-            GhostLayerField< real_t, 1 >* BField = blockIt->getData< GhostLayerField< real_t, 1 > >(BFieldID);
+            ScalarField_T* BField = blockIt->getData< ScalarField_T >(BFieldID);
 
             WALBERLA_FOR_ALL_CELLS_XYZ(particleAndVolumeFractionField, BField->get(x, y, z) = 0.0;
                                        for (auto& e
@@ -704,7 +705,7 @@ int main(int argc, char** argv)
       fractionFieldVTK->addCellInclusionFilter(combinedSliceFilter);
 
       fractionFieldVTK->addCellDataWriter(
-         make_shared< field::VTKWriter< GhostLayerField< real_t, 1 > > >(BFieldID, "Fraction mapping field B"));
+         make_shared< field::VTKWriter< ScalarField_T > >(BFieldID, "Fraction mapping field B"));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(fractionFieldVTK), "VTK (fraction field data");
 
@@ -715,7 +716,7 @@ int main(int argc, char** argv)
       chargeDensityFieldVTK->addCellInclusionFilter(combinedSliceFilter);
 
       chargeDensityFieldVTK->addCellDataWriter(
-         make_shared< field::VTKWriter< GhostLayerField< real_t, 1 > > >(chargeDensityFieldID, "Charge density field"));
+         make_shared< field::VTKWriter< ScalarField_T > >(chargeDensityFieldID, "Charge density field"));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(chargeDensityFieldVTK), "VTK (charge density data");
 
@@ -725,7 +726,7 @@ int main(int argc, char** argv)
 
       electrostaticForceFieldVTK->addCellInclusionFilter(combinedSliceFilter);
 
-      electrostaticForceFieldVTK->addCellDataWriter(make_shared< field::VTKWriter< GhostLayerField< real_t, 3 > > >(
+      electrostaticForceFieldVTK->addCellDataWriter(make_shared< field::VTKWriter< VectorField_T > >(
          electrostaticForceFieldID, "Electrostatic force field"));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(electrostaticForceFieldVTK), "VTK (electrostatic force data");
