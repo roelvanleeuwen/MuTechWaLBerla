@@ -86,6 +86,8 @@
 
 #include "vtk/all.h"
 
+#include "PoissonSolver.h"
+#include "ChargeForce.h"
 #include "Utility.h"
 
 namespace charged_particles
@@ -522,6 +524,28 @@ int main(int argc, char** argv)
 
    auto simulationDomain = blocks->getDomain();
 
+   //////////////////////////
+   // POISSON SOLVER SETUP //
+   //////////////////////////
+
+   BlockDataID chargeDensityFieldID =
+      field::addToStorage< ScalarField_T >(blocks, "charge density field", 0, field::fzyx, 1);
+   BlockDataID potentialFieldID =
+      field::addToStorage< ScalarField_T >(blocks, "electric potential field", 0, field::fzyx, 1);
+   BlockDataID potentialFieldCopyID =
+      field::addCloneToStorage< ScalarField_T >(blocks, potentialFieldID, "electric potential field (copy)");
+
+   auto poissonSolver = PoissonSolver< true > (/* src */ potentialFieldID, /* dst */ potentialFieldCopyID, /* rhs */ chargeDensityFieldID, blocks);
+
+   /////////////////////////
+   // CHARGE FORCE UPDATE //
+   /////////////////////////
+
+   BlockDataID electrostaticForceFieldID =
+      field::addToStorage< VectorField_T >(blocks, "electrostatic force field", 0, field::fzyx, 1);
+
+   auto chargeForceUpdate = ChargeForceUpdate(potentialFieldID, electrostaticForceFieldID, blocks);
+
    //////////////////
    // RPD COUPLING //
    //////////////////
@@ -617,11 +641,6 @@ int main(int argc, char** argv)
    lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(
       blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(), particleAndVolumeFractionFieldID, 2);
    particleMapping();
-
-   BlockDataID chargeDensityFieldID =
-      field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "charge density field", 0, field::fzyx, 1);
-   BlockDataID electrostaticForceFieldID =
-      field::addToStorage< GhostLayerField< real_t, 3 > >(blocks, "electrostatic force field", 0, field::fzyx, 1);
 
    lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
                                                                          particleAndVolumeFractionFieldID, *accessor);
@@ -730,6 +749,17 @@ int main(int argc, char** argv)
          electrostaticForceFieldID, "Electrostatic force field"));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(electrostaticForceFieldVTK), "VTK (electrostatic force data");
+
+      // electrostatic potential
+      auto electrostaticPotentialVTK =
+         vtk::createVTKOutput_BlockData(blocks, "electrostatic_potential", vtkSpacingFluid, 0, false, vtkFolder);
+
+      electrostaticPotentialVTK->addCellInclusionFilter(combinedSliceFilter);
+
+      electrostaticPotentialVTK->addCellDataWriter(make_shared< field::VTKWriter< ScalarField_T > >(
+         potentialFieldID, "Electrostatic potential"));
+
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(electrostaticPotentialVTK), "VTK (electrostatic potential");
    }
 
    if (vtkSpacingFluid != uint_t(0) || vtkSpacingParticles != uint_t(0))
@@ -764,9 +794,12 @@ int main(int argc, char** argv)
 
       reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*ps);
 
+      // TODO: wrap into subcycle loop if stability issues occur
       // TODO: add charge and electrostatic force/torque variables to particles and add ElectrostaticForceTorqueNotification, see python/mesa_pd.py
       walberla::charged_particles::computeChargeDensity(blocks, particleAndVolumeFractionFieldID, chargeDensityFieldID);
-      // TODO: solve poisson equation to obtain electrostatic force field
+      // TODO: solve poisson equation and obtain electrostatic force field from electric potential
+      poissonSolver();
+      chargeForceUpdate();
       // TODO: reduce electrostatic force field components into corresponding particles, see src/lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h for how to reduce a force field into the corresponding particles
       // TODO: add ElectrostaticForceTorqueNotification for reduction between the blocks, see above
 
