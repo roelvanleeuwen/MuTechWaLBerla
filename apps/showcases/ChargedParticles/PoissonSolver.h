@@ -20,8 +20,7 @@ class PoissonSolver
       : src_(src), dst_(dst), rhs_(rhs), blocks_(blocks) {
 
       // stencil weights
-
-      weights_.reserve(Stencil_T::Size);
+      weights_.resize(Stencil_T::Size, real_c(0));
       weights_[Stencil_T::idx[stencil::C]] = real_t( 2) / (blocks_->dx() * blocks_->dx()) +
                                              real_t( 2) / (blocks_->dy() * blocks_->dy()) +
                                              real_t( 2) / (blocks_->dz() * blocks_->dz());
