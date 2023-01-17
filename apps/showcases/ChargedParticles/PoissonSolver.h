@@ -10,7 +10,7 @@ namespace walberla
 using Stencil_T = stencil::D3Q7;
 typedef GhostLayerField< real_t, 1 > ScalarField_T;
 
-template< bool useJacobi = true >
+template< bool useJacobi, bool useDirichlet >
 class PoissonSolver
 {
  public:
@@ -39,7 +39,58 @@ class PoissonSolver
 
       // boundary handling
 
-      auto neumannBCs = pde::NeumannDomainBoundary< ScalarField_T > (*blocks, src_); // TODO: dirichlet?
+      std::function< void () > boundaryHandling;
+      if constexpr (useDirichlet) {
+         // dirichlet BCs
+         boundaryHandling = [&blocks, &src]() {
+            for (auto block = blocks->begin(); block != blocks->end(); ++block) {
+               ScalarField_T* field = block->getData< ScalarField_T >(src);
+               CellInterval xyz     = field->xyzSizeWithGhostLayer();
+               Cell offset = Cell();
+
+               for (uint_t dim = 0; dim < Stencil_T::D; ++dim) {
+                  switch (dim) {
+                  case 0:
+                     if (blocks->atDomainMinBorder(dim, *block)) {
+                        xyz.xMax() = xyz.xMin();
+                        offset     = Cell(-1, 0, 0);
+                     } else if (blocks->atDomainMaxBorder(dim, *block)) {
+                        xyz.xMin() = xyz.xMax();
+                        offset     = Cell(1, 0, 0);
+                     }
+                     break;
+                  case 1:
+                     if (blocks->atDomainMinBorder(dim, *block)) {
+                        xyz.yMax() = xyz.yMin();
+                        offset     = Cell(0, -1, 0);
+                     } else if (blocks->atDomainMaxBorder(dim, *block)) {
+                        xyz.yMin() = xyz.yMax();
+                        offset     = Cell(0, 1, 0);
+                     }
+                     break;
+                  case 2:
+                     if (blocks->atDomainMinBorder(dim, *block)) {
+                        xyz.zMax() = xyz.zMin();
+                        offset     = Cell(0, 0, -1);
+                     } else if (blocks->atDomainMaxBorder(dim, *block)) {
+                        xyz.zMin() = xyz.zMax();
+                        offset     = Cell(0, 0, 1);
+                     }
+                     break;
+                  }
+
+                  // zero dirichlet BCs
+                  for (auto cell = xyz.begin(); cell != xyz.end(); ++cell) {
+                     field->get(*cell + offset) = -field->get(*cell);
+                  }
+               }
+            }
+         };
+      } else {
+         // neumann BCs
+         auto neumannBoundary = pde::NeumannDomainBoundary< ScalarField_T > (*blocks, src_);
+         boundaryHandling = [&neumannBoundary]() { neumannBoundary(); };
+      }
 
       // iteration schemes
 
@@ -61,7 +112,7 @@ class PoissonSolver
          *jacobiFixedSweep_,
          *residualNorm_, residualNormThreshold, residualCheckFrequency);
 
-      jacobiIteration_->addBoundaryHandling(neumannBCs);
+      jacobiIteration_->addBoundaryHandling(boundaryHandling);
 
       // SOR
 
@@ -75,7 +126,7 @@ class PoissonSolver
          sorFixedSweep_->getRedSweep(), sorFixedSweep_->getBlackSweep(),
          *residualNorm_, residualNormThreshold, residualCheckFrequency);
 
-      sorIteration_->addBoundaryHandling(neumannBCs);
+      sorIteration_->addBoundaryHandling(boundaryHandling);
    }
 
    // get approximate solution of electric potential
