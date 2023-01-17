@@ -88,8 +88,7 @@ class PoissonSolver
          };
       } else {
          // neumann BCs
-         auto neumannBoundary = pde::NeumannDomainBoundary< ScalarField_T > (*blocks, src_);
-         boundaryHandling = [&neumannBoundary]() { neumannBoundary(); };
+         boundaryHandling = pde::NeumannDomainBoundary< ScalarField_T > (*blocks, src_);
       }
 
       // iteration schemes
