@@ -43,7 +43,7 @@ void computeChargeDensity(const shared_ptr< BlockStorage_T >& blocks,
       WALBERLA_FOR_ALL_CELLS_XYZ(particleAndVolumeFractionField, chargeDensityField->get(x, y, z) = 0.0;
                                  for (auto& e
                                       : particleAndVolumeFractionField->get(x, y, z))
-                                    chargeDensityField->get(x, y, z) += e.second;)
+                                    chargeDensityField->get(x, y, z) -= e.second;) // rhs depends on the negative charge density
    }
 }
 
