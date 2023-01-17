@@ -795,13 +795,14 @@ int main(int argc, char** argv)
       reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*ps);
 
       // TODO: wrap into subcycle loop if stability issues occur
-      // TODO: add charge and electrostatic force/torque variables to particles and add ElectrostaticForceTorqueNotification, see python/mesa_pd.py
+      // TODO: add charge and electrostatic force variables to particles and add ElectrostaticForceNotification, see python/mesa_pd.py
       walberla::charged_particles::computeChargeDensity(blocks, particleAndVolumeFractionFieldID, chargeDensityFieldID);
-      // TODO: solve poisson equation and obtain electrostatic force field from electric potential
+      // Solve poisson equation to obtain electric potential
       poissonSolver();
+      // Compute electrostatic force field from electric potential (using finite differences)
       chargeForceUpdate();
       // TODO: reduce electrostatic force field components into corresponding particles, see src/lbm_mesapd_coupling/partially_saturated_cells_method/PSMSweep.h for how to reduce a force field into the corresponding particles
-      // TODO: add ElectrostaticForceTorqueNotification for reduction between the blocks, see above
+      // TODO: add ElectrostaticForceNotification for reduction between the blocks, see above
 
       if (timeStep == 0)
       {
@@ -885,7 +886,7 @@ int main(int argc, char** argv)
 
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor);
 
-      // TODO: write and add resetElectrostaticForceTorque, see above
+      // TODO: write and add resetElectrostaticForce, see above
 
       if (timeStep % infoSpacing == 0)
       {
