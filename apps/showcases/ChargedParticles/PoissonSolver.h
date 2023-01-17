@@ -15,6 +15,29 @@ class PoissonSolver
 {
  public:
 
+   /*
+   void myJacobiSweep(IBlock* const block) {
+      ScalarField_T* srcField = block->getData< ScalarField_T >(src_);
+      ScalarField_T* dstField = block->getData< ScalarField_T >(dst_);
+      ScalarField_T* rhsField = block->getData< ScalarField_T >(rhs_);
+
+      const real_t omega          = real_c(0.6);
+      const real_t invLaplaceDiag = real_t(1) / laplaceWeights_[Stencil_T::idx[stencil::C]];
+
+      WALBERLA_ASSERT_GREATER_EQUAL(srcField->nrOfGhostLayers(), 1);
+
+      WALBERLA_FOR_ALL_CELLS_XYZ(srcField,
+                                 real_t stencilTimesSrc = real_c(0);
+                                 for (auto dir = Stencil_T::begin(); dir != Stencil_T::end(); ++dir)
+                                    stencilTimesSrc += laplaceWeights_[dir.toIdx()] * srcField->getNeighbor(x, y, z, *dir);
+
+                                 dstField->get(x, y, z) = srcField->get(x, y, z) + omega * invLaplaceDiag * (rhsField->get(x, y, z) - stencilTimesSrc);
+      )
+
+      srcField->swapDataPointers(dstField);
+   }
+   */
+
    PoissonSolver(const BlockDataID& src, const BlockDataID& dst, const BlockDataID& rhs,
                  const std::shared_ptr< StructuredBlockForest >& blocks)
       : src_(src), dst_(dst), rhs_(rhs), blocks_(blocks) {
