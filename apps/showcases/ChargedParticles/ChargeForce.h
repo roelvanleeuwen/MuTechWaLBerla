@@ -24,9 +24,9 @@ class ChargeForceUpdate
          ScalarField_T* potential = block->getData< ScalarField_T >(potential_);
 
          WALBERLA_FOR_ALL_CELLS_XYZ(potential,
-            chargeForce->get(x, y, z, 0) = (real_c(1) / blocks_->dx()) * (potential->get(x + 1, y, z) - potential->get(x, y, z));
-            chargeForce->get(x, y, z, 1) = (real_c(1) / blocks_->dy()) * (potential->get(x, y + 1, z) - potential->get(x, y, z));
-            chargeForce->get(x, y, z, 2) = (real_c(1) / blocks_->dz()) * (potential->get(x, y, z + 1) - potential->get(x, y, z));
+            chargeForce->get(x, y, z, 0) = (real_c(1) / (real_c(2) * (blocks_->dx()))) * (potential->get(x + 1, y, z) - potential->get(x - 1, y, z));
+            chargeForce->get(x, y, z, 1) = (real_c(1) / (real_c(2) * (blocks_->dy()))) * (potential->get(x, y + 1, z) - potential->get(x, y - 1, z));
+            chargeForce->get(x, y, z, 2) = (real_c(1) / (real_c(2) * (blocks_->dz()))) * (potential->get(x, y, z + 1) - potential->get(x, y, z - 1));
          )
       }
    }
