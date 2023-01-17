@@ -726,7 +726,7 @@ int main(int argc, char** argv)
       fractionFieldVTK->addCellDataWriter(
          make_shared< field::VTKWriter< ScalarField_T > >(BFieldID, "Fraction mapping field B"));
 
-      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(fractionFieldVTK), "VTK (fraction field data");
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(fractionFieldVTK), "VTK (fraction field data)");
 
       // charge density field
       auto chargeDensityFieldVTK =
@@ -737,7 +737,7 @@ int main(int argc, char** argv)
       chargeDensityFieldVTK->addCellDataWriter(
          make_shared< field::VTKWriter< ScalarField_T > >(chargeDensityFieldID, "Charge density field"));
 
-      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(chargeDensityFieldVTK), "VTK (charge density data");
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(chargeDensityFieldVTK), "VTK (charge density data)");
 
       // electrostatic force field
       auto electrostaticForceFieldVTK =
@@ -748,7 +748,7 @@ int main(int argc, char** argv)
       electrostaticForceFieldVTK->addCellDataWriter(make_shared< field::VTKWriter< VectorField_T > >(
          electrostaticForceFieldID, "Electrostatic force field"));
 
-      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(electrostaticForceFieldVTK), "VTK (electrostatic force data");
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(electrostaticForceFieldVTK), "VTK (electrostatic force data)");
 
       // electrostatic potential
       auto electrostaticPotentialVTK =
@@ -759,7 +759,7 @@ int main(int argc, char** argv)
       electrostaticPotentialVTK->addCellDataWriter(make_shared< field::VTKWriter< ScalarField_T > >(
          potentialFieldID, "Electrostatic potential"));
 
-      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(electrostaticPotentialVTK), "VTK (electrostatic potential");
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(electrostaticPotentialVTK), "VTK (electrostatic potential)");
    }
 
    if (vtkSpacingFluid != uint_t(0) || vtkSpacingParticles != uint_t(0))
