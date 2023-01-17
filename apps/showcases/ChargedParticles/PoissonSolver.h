@@ -81,7 +81,7 @@ class PoissonSolver
 
                   // zero dirichlet BCs
                   for (auto cell = xyz.begin(); cell != xyz.end(); ++cell) {
-                     field->get(*cell + offset) = -field->get(*cell);
+                     field->get(*cell - offset) = -field->get(*cell);
                   }
                }
             }
