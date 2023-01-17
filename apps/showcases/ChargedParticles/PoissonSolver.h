@@ -44,16 +44,16 @@ class PoissonSolver
 
       // stencil weights
 
-      weights_.resize(Stencil_T::Size, real_c(0));
-      weights_[Stencil_T::idx[stencil::C]] = real_t( 2) / (blocks_->dx() * blocks_->dx()) +
+      laplaceWeights_.resize(Stencil_T::Size, real_c(0));
+      laplaceWeights_[Stencil_T::idx[stencil::C]] = real_t( 2) / (blocks_->dx() * blocks_->dx()) +
                                              real_t( 2) / (blocks_->dy() * blocks_->dy()) +
                                              real_t( 2) / (blocks_->dz() * blocks_->dz());
-      weights_[Stencil_T::idx[stencil::T]] = real_t(-1) / (blocks_->dz() * blocks_->dz());
-      weights_[Stencil_T::idx[stencil::B]] = real_t(-1) / (blocks_->dz() * blocks_->dz());
-      weights_[Stencil_T::idx[stencil::N]] = real_t(-1) / (blocks_->dy() * blocks_->dy());
-      weights_[Stencil_T::idx[stencil::S]] = real_t(-1) / (blocks_->dy() * blocks_->dy());
-      weights_[Stencil_T::idx[stencil::E]] = real_t(-1) / (blocks_->dx() * blocks_->dx());
-      weights_[Stencil_T::idx[stencil::W]] = real_t(-1) / (blocks_->dx() * blocks_->dx());
+      laplaceWeights_[Stencil_T::idx[stencil::T]] = real_t(-1) / (blocks_->dz() * blocks_->dz());
+      laplaceWeights_[Stencil_T::idx[stencil::B]] = real_t(-1) / (blocks_->dz() * blocks_->dz());
+      laplaceWeights_[Stencil_T::idx[stencil::N]] = real_t(-1) / (blocks_->dy() * blocks_->dy());
+      laplaceWeights_[Stencil_T::idx[stencil::S]] = real_t(-1) / (blocks_->dy() * blocks_->dy());
+      laplaceWeights_[Stencil_T::idx[stencil::E]] = real_t(-1) / (blocks_->dx() * blocks_->dx());
+      laplaceWeights_[Stencil_T::idx[stencil::W]] = real_t(-1) / (blocks_->dx() * blocks_->dx());
 
       // communication
 
@@ -122,11 +122,11 @@ class PoissonSolver
 
       // res norm
 
-      residualNorm_ = make_shared< pde::ResidualNorm< Stencil_T > >(blocks_->getBlockStorage(), src_, rhs_, weights_);
+      residualNorm_ = make_shared< pde::ResidualNorm< Stencil_T > >(blocks_->getBlockStorage(), src_, rhs_, laplaceWeights_);
 
       // jacobi
 
-      jacobiFixedSweep_ = make_shared < pde::JacobiFixedStencil< Stencil_T > >(src_, dst_, rhs_, weights_);
+      jacobiFixedSweep_ = make_shared < pde::JacobiFixedStencil< Stencil_T > >(src_, dst_, rhs_, laplaceWeights_);
 
       jacobiIteration_ = std::make_unique< pde::JacobiIteration >(
          blocks_->getBlockStorage(), iterations,
@@ -140,7 +140,7 @@ class PoissonSolver
 
       real_t omega = real_t(1.9);
 
-      sorFixedSweep_ = make_shared< pde::SORFixedStencil< Stencil_T > >(blocks, src_, rhs_, weights_, omega);
+      sorFixedSweep_ = make_shared< pde::SORFixedStencil< Stencil_T > >(blocks, src_, rhs_, laplaceWeights_, omega);
 
       sorIteration_ = std::make_unique< pde::RBGSIteration >(
          blocks_->getBlockStorage(), iterations,
@@ -165,7 +165,7 @@ class PoissonSolver
    BlockDataID dst_;
    BlockDataID rhs_;
 
-   std::vector< real_t > weights_;
+   std::vector< real_t > laplaceWeights_;
    std::shared_ptr< StructuredBlockForest > blocks_;
    std::shared_ptr< blockforest::communication::UniformBufferedScheme< Stencil_T > > commScheme_;
 
