@@ -40,7 +40,10 @@ class PoissonSolver
    */
 
    PoissonSolver(const BlockDataID& src, const BlockDataID& dst, const BlockDataID& rhs,
-                 const std::shared_ptr< StructuredBlockForest >& blocks)
+                 const std::shared_ptr< StructuredBlockForest >& blocks,
+                 uint_t iterations = uint_t(1000),
+                 real_t residualNormThreshold = real_c(1e-4),
+                 real_t residualCheckFrequency = uint_t(100))
       : src_(src), dst_(dst), rhs_(rhs), blocks_(blocks) {
 
       // stencil weights
@@ -72,12 +75,6 @@ class PoissonSolver
          boundaryHandling = pde::NeumannDomainBoundary< ScalarField_T > (*blocks_, src_);
       }
 
-      // iteration schemes
-
-      auto residualNormThreshold = real_c(1e-4);
-      auto residualCheckFrequency = uint_t(100);
-      auto iterations = uint_t(1000);
-
       // res norm
 
       residualNorm_ = make_shared< pde::ResidualNorm< Stencil_T > >(blocks_->getBlockStorage(), src_, rhs_, laplaceWeights_);
@@ -90,6 +87,7 @@ class PoissonSolver
          blocks_->getBlockStorage(), iterations,
          *commScheme_,
          *jacobiFixedSweep_,
+         //[this](IBlock* block) { myJacobiSweep(block); },
          *residualNorm_, residualNormThreshold, residualCheckFrequency);
 
       jacobiIteration_->addBoundaryHandling(boundaryHandling);
