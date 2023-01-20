@@ -13,7 +13,7 @@ class DirichletDomainBoundary
       for (uint_t i = 0; i != stencil::D3Q6::Size; ++i)
       {
          includeBoundary_[i] = true;
-         value_              = real_t(0);
+         values_[i] = real_t(0);
       }
    }
 
@@ -23,7 +23,8 @@ class DirichletDomainBoundary
       includeBoundary_[stencil::D3Q6::idx[direction]] = false;
    }
 
-   void setValue(const real_t value) { value_ = value; }
+   void setValue( const real_t value ) { for( uint_t i = 0; i != stencil::D3Q6::Size; ++i ) values_[i] = value; }
+   void setValue( const stencil::Direction & direction, const real_t value ) { values_[stencil::D3Q6::idx[direction]] = value; }
 
    void operator()();
 
@@ -37,7 +38,7 @@ class DirichletDomainBoundary
 
    bool includeBoundary_[stencil::D3Q6::Size];
 
-   real_t value_;
+   real_t values_[ stencil::D3Q6::Size ];
 
 }; // class DirichletDomainBoundary
 
@@ -54,7 +55,7 @@ void DirichletDomainBoundary< PdeField >::operator()()
                CellInterval(
                   cell_idx_t(-1), cell_idx_t(0)                         , cell_idx_t(0),
                   cell_idx_t(-1), cell_idx_c(p->ySize()) - cell_idx_t(1), cell_idx_c(p->zSize()) - cell_idx_t(1)),
-               cell_idx_t(1), cell_idx_t(0), cell_idx_t(0), value_);
+               cell_idx_t(1), cell_idx_t(0), cell_idx_t(0), values_[ stencil::D3Q6::idx[ stencil::W ] ]);
       }
       if (includeBoundary_[stencil::D3Q6::idx[stencil::E]] && blocks_.atDomainXMaxBorder(*block))
       {
@@ -62,7 +63,7 @@ void DirichletDomainBoundary< PdeField >::operator()()
                CellInterval(
                   cell_idx_c(p->xSize()), cell_idx_t(0)                         , cell_idx_t(0),
                   cell_idx_c(p->xSize()), cell_idx_c(p->ySize()) - cell_idx_t(1), cell_idx_c(p->zSize()) - cell_idx_t(1)),
-               cell_idx_t(-1), cell_idx_t(0), cell_idx_t(0), value_);
+               cell_idx_t(-1), cell_idx_t(0), cell_idx_t(0), values_[ stencil::D3Q6::idx[ stencil::E ] ]);
       }
 
       if (includeBoundary_[stencil::D3Q6::idx[stencil::S]] && blocks_.atDomainYMinBorder(*block))
@@ -71,7 +72,7 @@ void DirichletDomainBoundary< PdeField >::operator()()
                CellInterval(
                   cell_idx_t(0)                         , cell_idx_t(-1), cell_idx_t(0),
                   cell_idx_c(p->xSize()) - cell_idx_t(1), cell_idx_t(-1), cell_idx_c(p->zSize()) - cell_idx_t(1)),
-               cell_idx_t(0), cell_idx_t(1), cell_idx_t(0), value_);
+               cell_idx_t(0), cell_idx_t(1), cell_idx_t(0), values_[ stencil::D3Q6::idx[ stencil::S ] ]);
       }
       if (includeBoundary_[stencil::D3Q6::idx[stencil::N]] && blocks_.atDomainYMaxBorder(*block))
       {
@@ -79,7 +80,7 @@ void DirichletDomainBoundary< PdeField >::operator()()
                CellInterval(
                   cell_idx_t(0)                         , cell_idx_c(p->ySize()), cell_idx_t(0),
                   cell_idx_c(p->xSize()) - cell_idx_t(1), cell_idx_c(p->ySize()), cell_idx_c(p->zSize()) - cell_idx_t(1)),
-               cell_idx_t(0), cell_idx_t(-1), cell_idx_t(0), value_);
+               cell_idx_t(0), cell_idx_t(-1), cell_idx_t(0), values_[ stencil::D3Q6::idx[ stencil::N ] ]);
       }
 
       if (includeBoundary_[stencil::D3Q6::idx[stencil::B]] && blocks_.atDomainZMinBorder(*block))
@@ -88,7 +89,7 @@ void DirichletDomainBoundary< PdeField >::operator()()
                CellInterval(
                   cell_idx_t(0)                         , cell_idx_t(0)                         , cell_idx_t(-1),
                   cell_idx_c(p->xSize()) - cell_idx_t(1), cell_idx_c(p->ySize()) - cell_idx_t(1), cell_idx_t(-1)),
-               cell_idx_t(0), cell_idx_t(0), cell_idx_t(1), value_);
+               cell_idx_t(0), cell_idx_t(0), cell_idx_t(1), values_[ stencil::D3Q6::idx[ stencil::B ] ]);
       }
       if (includeBoundary_[stencil::D3Q6::idx[stencil::T]] && blocks_.atDomainZMaxBorder(*block))
       {
@@ -96,7 +97,7 @@ void DirichletDomainBoundary< PdeField >::operator()()
                CellInterval(
                   cell_idx_t(0)                         , cell_idx_t(0)                         , cell_idx_c(p->zSize()),
                   cell_idx_c(p->xSize()) - cell_idx_t(1), cell_idx_c(p->ySize()) - cell_idx_t(1), cell_idx_c(p->zSize())),
-               cell_idx_t(0), cell_idx_t(0), cell_idx_t(-1), value_);
+               cell_idx_t(0), cell_idx_t(0), cell_idx_t(-1), values_[ stencil::D3Q6::idx[ stencil::T ] ]);
       }
    }
 }
