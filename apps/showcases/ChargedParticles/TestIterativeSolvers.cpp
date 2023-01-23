@@ -185,6 +185,57 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
    WALBERLA_LOG_INFO_ON_ROOT("Error after SOR solver is: " << computeMaxError());
 }
 
+// solve two different charged particle scenarios (dirichlet scenario and neumann scenario) with different setups
+template < bool useDirichlet >
+void solveChargedParticles(const shared_ptr< StructuredBlockForest > & blocks,
+           math::AABB domainAABB, BlockDataID & solution, BlockDataID & solutionCpy, BlockDataID & rhs) {
+
+   // solvers: Jacobi and SOR
+
+   auto poissonSolverJacobi = PoissonSolver< true, useDirichlet > (solution, solutionCpy, rhs, blocks, 50000, real_t(1e-4), 1000);
+   auto poissonSolverSOR = PoissonSolver< false, useDirichlet > (solution, solutionCpy, rhs, blocks, 50000, real_t(1e-4), 1000);
+
+   // init rhs with two charged particles
+
+   for (auto block = blocks->begin(); block != blocks->end(); ++block) {
+      ScalarField_T* rhsField = block->getData< ScalarField_T >(rhs);
+
+      WALBERLA_FOR_ALL_CELLS_XYZ(
+         rhsField,
+
+         const auto cellAABB = blocks->getBlockLocalCellAABB(*block, Cell(x, y, z));
+         auto cellCenter = cellAABB.center();
+
+         const real_t x0 = domainAABB.xMin() + real_c(0.45) * domainAABB.size(0);
+         const real_t y0 = domainAABB.yMin() + real_c(0.45) * domainAABB.size(1);
+         const real_t z0 = domainAABB.zMin() + real_c(0.45) * domainAABB.size(2);
+         const real_t r0 = real_c(0.08) * domainAABB.size(0);
+         const real_t s0 = real_c(1);
+
+         const real_t x1 = domainAABB.xMin() + real_c(0.65) * domainAABB.size(0);
+         const real_t y1 = domainAABB.yMin() + real_c(0.65) * domainAABB.size(1);
+         const real_t z1 = domainAABB.zMin() + real_c(0.65) * domainAABB.size(2);
+         const real_t r1 = real_c(0.08) * domainAABB.size(0);
+         const real_t s1 = real_c(1);
+
+         if ( ( pow( cellCenter[0] - x0, 2 ) + pow( cellCenter[1] - y0, 2 ) + pow( cellCenter[2] - z0, 2 ) ) < pow( r0, 2 ) ) {
+            rhsField->get(x, y, z) = -s0 * ( real_c(1) - sqrt( pow( ( cellCenter[0] - x0 ) / r0, 2 ) + pow( ( cellCenter[1] - y0 ) / r0, 2 ) + pow( ( cellCenter[2] - z0 ) / r0, 2 ) ) );
+         } else if ( ( pow( cellCenter[0] - x1, 2 ) + pow( cellCenter[1] - y1, 2 ) + pow( cellCenter[2] - z1, 2 ) ) < pow( r1, 2 ) ) {
+            rhsField->get(x, y, z) = -s1 * ( real_c(1) - sqrt( pow( ( cellCenter[0] - x1 ) / r1, 2 ) + pow( ( cellCenter[1] - y1 ) / r1, 2 ) + pow( ( cellCenter[2] - z1 ) / r1, 2 ) ) );
+         } else {
+            rhsField->get(x, y, z) = real_c(0);
+         }
+      )
+   }
+
+   // solve with jacobi
+   poissonSolverJacobi();
+
+   // solve with SOR
+   resetSolution(blocks, solution, solutionCpy); // reset solutions and solve anew
+   poissonSolverSOR();
+}
+
 int main(int argc, char** argv)
 {
    Environment env(argc, argv);
@@ -222,6 +273,18 @@ int main(int argc, char** argv)
    resetRHS(blocks, rhs); // reset fields and solve anew
    resetSolution(blocks, solution, solutionCpy);
    solve< true > (blocks, domainAABB, solution, solutionCpy, rhs);
+
+   // ... charged particle test
+
+   resetRHS(blocks, rhs); // reset fields and solve anew
+   resetSolution(blocks, solution, solutionCpy);
+
+   // neumann
+   solveChargedParticles < false > (blocks, domainAABB, solution, solutionCpy, rhs);
+
+   // dirichlet
+   resetSolution(blocks, solution, solutionCpy); // reset solutions and solve anew
+   solveChargedParticles < true > (blocks, domainAABB, solution, solutionCpy, rhs);
 
    return EXIT_SUCCESS;
 }
