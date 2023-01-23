@@ -43,8 +43,9 @@ class PoissonSolver
                  const std::shared_ptr< StructuredBlockForest >& blocks,
                  uint_t iterations = uint_t(1000),
                  real_t residualNormThreshold = real_c(1e-4),
-                 real_t residualCheckFrequency = uint_t(100))
-      : src_(src), dst_(dst), rhs_(rhs), blocks_(blocks) {
+                 real_t residualCheckFrequency = uint_t(100),
+                 const std::function< void () >& boundaryHandling = {})
+      : src_(src), dst_(dst), rhs_(rhs), blocks_(blocks), boundaryHandling_(boundaryHandling) {
 
       // stencil weights
 
@@ -66,13 +67,14 @@ class PoissonSolver
 
       // boundary handling
 
-      std::function< void () > boundaryHandling;
-      if constexpr (useDirichlet) {
-         // dirichlet BCs
-         boundaryHandling = DirichletDomainBoundary< ScalarField_T > (*blocks_, src_);
-      } else {
-         // neumann BCs
-         boundaryHandling = pde::NeumannDomainBoundary< ScalarField_T > (*blocks_, src_);
+      if (!boundaryHandling_) {
+         if constexpr (useDirichlet) {
+            // dirichlet BCs
+            boundaryHandling_ = DirichletDomainBoundary< ScalarField_T >(*blocks_, src_);
+         } else {
+            // neumann BCs
+            boundaryHandling_ = pde::NeumannDomainBoundary< ScalarField_T >(*blocks_, src_);
+         }
       }
 
       // res norm
@@ -90,7 +92,7 @@ class PoissonSolver
          //[this](IBlock* block) { myJacobiSweep(block); },
          *residualNorm_, residualNormThreshold, residualCheckFrequency);
 
-      jacobiIteration_->addBoundaryHandling(boundaryHandling);
+      jacobiIteration_->addBoundaryHandling(boundaryHandling_);
 
       // SOR
 
@@ -124,6 +126,8 @@ class PoissonSolver
    std::vector< real_t > laplaceWeights_;
    std::shared_ptr< StructuredBlockForest > blocks_;
    std::shared_ptr< blockforest::communication::UniformBufferedScheme< Stencil_T > > commScheme_;
+
+   std::function< void () > boundaryHandling_;
 
    std::shared_ptr < pde::ResidualNorm< Stencil_T > > residualNorm_;
 
