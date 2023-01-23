@@ -79,6 +79,15 @@ void resetSolution(const shared_ptr< StructuredBlockStorage > & blocks, BlockDat
    }
 }
 
+void resetRHS(const shared_ptr< StructuredBlockStorage > & blocks, BlockDataID & rhs) {
+   for (auto block = blocks->begin(); block != blocks->end(); ++block) {
+      ScalarField_T* rhsField = block->getData< ScalarField_T >(rhs);
+
+      // reset field
+      rhsField->set(real_c(0));
+   }
+}
+
 // solve two different scenarios (dirichlet scenario and neumann scenario) with different analytical solutions and setups
 template < bool useDirichlet >
 void solve(const shared_ptr< StructuredBlockForest > & blocks,
@@ -189,7 +198,7 @@ int main(int argc, char** argv)
    // BLOCK STRUCTURE SETUP //
    ///////////////////////////
 
-   auto domainAABB = math::AABB(0, 0, 0, 1, 1, 1);
+   auto domainAABB = math::AABB(0, 0, 0, 125, 50, 250);
 
    shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid(
       domainAABB,
@@ -210,7 +219,8 @@ int main(int argc, char** argv)
    solve< false > (blocks, domainAABB, solution, solutionCpy, rhs);
 
    // ... then solve dirichlet problem
-   resetSolution(blocks, solution, solutionCpy); // reset solutions and solve anew
+   resetRHS(blocks, rhs); // reset fields and solve anew
+   resetSolution(blocks, solution, solutionCpy);
    solve< true > (blocks, domainAABB, solution, solutionCpy, rhs);
 
    return EXIT_SUCCESS;
