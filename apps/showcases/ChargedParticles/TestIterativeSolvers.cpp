@@ -64,7 +64,7 @@ int main(int argc, char** argv)
                                     real_t analyticalSol = cos ( real_c(2) * M_PI * cellCenter[0] ) *
                                                            cos ( real_c(2) * M_PI * cellCenter[1] ) *
                                                            cos ( real_c(2) * M_PI * cellCenter[2] );
-                                    real_t currErr = solutionField->get(x, y, z) - analyticalSol;
+                                    real_t currErr = fabs(solutionField->get(x, y, z) - analyticalSol);
 
                                     error = std::max (error, currErr);
          )
@@ -88,11 +88,11 @@ int main(int argc, char** argv)
          )
    }
 
-   WALBERLA_LOG_DETAIL_ON_ROOT("Initial error is: " << computeMaxError());
+   WALBERLA_LOG_INFO_ON_ROOT("Initial error is: " << computeMaxError());
 
    // solve with jacobi
    poissonSolverJacobi();
-   WALBERLA_LOG_DETAIL_ON_ROOT("Error after Jacobi solver is: " << computeMaxError());
+   WALBERLA_LOG_INFO_ON_ROOT("Error after Jacobi solver is: " << computeMaxError());
 
    // solve with SOR
    for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -105,7 +105,7 @@ int main(int argc, char** argv)
    }
 
    poissonSolverSOR();
-   WALBERLA_LOG_DETAIL_ON_ROOT("Error after SOR solver is: " << computeMaxError());
+   WALBERLA_LOG_INFO_ON_ROOT("Error after SOR solver is: " << computeMaxError());
 
    return EXIT_SUCCESS;
 }
