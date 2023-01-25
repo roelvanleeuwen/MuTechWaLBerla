@@ -249,7 +249,7 @@ int main(int argc, char** argv)
    // BLOCK STRUCTURE SETUP //
    ///////////////////////////
 
-   auto domainAABB = math::AABB(0, 0, 0, 125, 50, 250);
+   auto domainAABB = math::AABB(0, 0, 0, 1, 1, 1); // TODO: issues if dx = dy = dz = 1
 
    shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid(
       domainAABB,

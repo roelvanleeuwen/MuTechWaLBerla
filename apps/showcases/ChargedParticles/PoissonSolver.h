@@ -49,7 +49,7 @@ class PoissonSolver
 
       // stencil weights
 
-      laplaceWeights_.resize(Stencil_T::Size, real_c(0));
+      laplaceWeights_ = std::vector < real_t > (Stencil_T::Size, real_c(0));
       laplaceWeights_[Stencil_T::idx[stencil::C]] = real_t( 2) / (blocks_->dx() * blocks_->dx()) +
                                              real_t( 2) / (blocks_->dy() * blocks_->dy()) +
                                              real_t( 2) / (blocks_->dz() * blocks_->dz());
