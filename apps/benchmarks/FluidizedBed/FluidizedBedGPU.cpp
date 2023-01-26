@@ -892,11 +892,12 @@ int main(int argc, char** argv)
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPostForce, *accessor);
          if (particleBarriers) WALBERLA_MPI_BARRIER();
          timeloopTiming["RPD forEachParticle"].end();
-         timeloopTiming["RPD syncCall"].start();
-         syncCall();
-         if (particleBarriers) WALBERLA_MPI_BARRIER();
-         timeloopTiming["RPD syncCall"].end();
       }
+
+      timeloopTiming["RPD syncCall"].start();
+      syncCall();
+      if (particleBarriers) WALBERLA_MPI_BARRIER();
+      timeloopTiming["RPD syncCall"].end();
 
       timeloopTiming["RPD forEachParticle"].start();
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor);
