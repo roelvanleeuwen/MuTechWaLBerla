@@ -96,7 +96,7 @@ class PoissonSolver
 
       // SOR
 
-      real_t omega = real_t(1.9);
+      real_t omega = real_t(2) / real_t(3);
 
       sorFixedSweep_ = make_shared< pde::SORFixedStencil< Stencil_T > >(blocks, src_, rhs_, laplaceWeights_, omega);
 
