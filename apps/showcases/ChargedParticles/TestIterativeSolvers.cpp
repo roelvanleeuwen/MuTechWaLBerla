@@ -117,8 +117,13 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
 
    // solvers: Jacobi and SOR
 
-   auto poissonSolverJacobi = PoissonSolver< true, useDirichlet > (solution, solutionCpy, rhs, blocks, 50000, real_t(1e-4), 1000, boundaryHandling);
-   auto poissonSolverSOR = PoissonSolver< false, useDirichlet > (solution, solutionCpy, rhs, blocks, 50000, real_t(1e-4), 1000, boundaryHandling);
+   auto numIter = 50000u;
+   auto resThres = real_c(1e-10);
+   auto resCheckFreq = 1000;
+
+   auto poissonSolverJacobi = PoissonSolver< WALBERLA_JACOBI, useDirichlet > (solution, solutionCpy, rhs, blocks, numIter, resThres, resCheckFreq, boundaryHandling);
+   auto poissonSolverDampedJac = PoissonSolver< DAMPED_JACOBI, useDirichlet > (solution, solutionCpy, rhs, blocks, numIter, resThres, resCheckFreq, boundaryHandling);
+   auto poissonSolverSOR = PoissonSolver< WALBERLA_SOR, useDirichlet > (solution, solutionCpy, rhs, blocks, numIter, resThres, resCheckFreq, boundaryHandling);
 
    // calc error depending on scenario
 
@@ -192,8 +197,12 @@ void solveChargedParticles(const shared_ptr< StructuredBlockForest > & blocks,
 
    // solvers: Jacobi and SOR
 
-   auto poissonSolverJacobi = PoissonSolver< true, useDirichlet > (solution, solutionCpy, rhs, blocks, 50000, real_t(1e-4), 1000);
-   auto poissonSolverSOR = PoissonSolver< false, useDirichlet > (solution, solutionCpy, rhs, blocks, 50000, real_t(1e-4), 1000);
+   auto numIter = 50000u;
+   auto resThres = real_c(1e-5);
+   auto resCheckFreq = 1000;
+
+   auto poissonSolverJacobi = PoissonSolver< WALBERLA_JACOBI, useDirichlet > (solution, solutionCpy, rhs, blocks, numIter, resThres, resCheckFreq);
+   auto poissonSolverSOR = PoissonSolver< WALBERLA_SOR, useDirichlet > (solution, solutionCpy, rhs, blocks, numIter, resThres, resCheckFreq);
 
    // init rhs with two charged particles
 

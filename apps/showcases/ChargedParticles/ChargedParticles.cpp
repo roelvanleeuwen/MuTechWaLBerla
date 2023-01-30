@@ -535,7 +535,7 @@ int main(int argc, char** argv)
    BlockDataID potentialFieldCopyID =
       field::addCloneToStorage< ScalarField_T >(blocks, potentialFieldID, "electric potential field (copy)");
 
-   auto poissonSolver = PoissonSolver< true, true > (/* src */ potentialFieldID, /* dst */ potentialFieldCopyID, /* rhs */ chargeDensityFieldID, blocks);
+   auto poissonSolver = PoissonSolver< WALBERLA_JACOBI, true > (/* src */ potentialFieldID, /* dst */ potentialFieldCopyID, /* rhs */ chargeDensityFieldID, blocks);
 
    /////////////////////////
    // CHARGE FORCE UPDATE //

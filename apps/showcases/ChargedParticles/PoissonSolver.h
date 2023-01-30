@@ -4,6 +4,8 @@
 #include "pde/all.h"
 #include "DirichletDomainBoundary.h"
 
+enum Enum { WALBERLA_JACOBI, WALBERLA_SOR, DAMPED_JACOBI };
+
 namespace walberla
 {
 
@@ -11,13 +13,12 @@ namespace walberla
 using Stencil_T = stencil::D3Q7;
 typedef GhostLayerField< real_t, 1 > ScalarField_T;
 
-template< bool useJacobi, bool useDirichlet >
+template< Enum solver, bool useDirichlet >
 class PoissonSolver
 {
  public:
 
-   /*
-   void myJacobiSweep(IBlock* const block) {
+   void dampedJacobiSweep(IBlock* const block) {
       ScalarField_T* srcField = block->getData< ScalarField_T >(src_);
       ScalarField_T* dstField = block->getData< ScalarField_T >(dst_);
       ScalarField_T* rhsField = block->getData< ScalarField_T >(rhs_);
@@ -37,7 +38,6 @@ class PoissonSolver
 
       srcField->swapDataPointers(dstField);
    }
-   */
 
    PoissonSolver(const BlockDataID& src, const BlockDataID& dst, const BlockDataID& rhs,
                  const std::shared_ptr< StructuredBlockForest >& blocks,
@@ -85,11 +85,18 @@ class PoissonSolver
 
       jacobiFixedSweep_ = make_shared < pde::JacobiFixedStencil< Stencil_T > >(src_, dst_, rhs_, laplaceWeights_);
 
+      // use custom impl with damping or jacobi from waLBerla
+      std::function< void ( IBlock * ) > jacSweep = {};
+      if (solver == DAMPED_JACOBI) {
+         jacSweep = [this](IBlock* block) { dampedJacobiSweep(block); };
+      } else {
+         jacSweep = *jacobiFixedSweep_;
+      }
+
       jacobiIteration_ = std::make_unique< pde::JacobiIteration >(
          blocks_->getBlockStorage(), iterations,
          *commScheme_,
-         *jacobiFixedSweep_,
-         //[this](IBlock* block) { myJacobiSweep(block); },
+         jacSweep,
          *residualNorm_, residualNormThreshold, residualCheckFrequency);
 
       jacobiIteration_->addBoundaryHandling(boundaryHandling_);
@@ -111,7 +118,7 @@ class PoissonSolver
 
    // get approximate solution of electric potential
    void operator()() {
-      if constexpr (useJacobi) {
+      if constexpr (solver != WALBERLA_SOR) {
          (*jacobiIteration_)();
       } else {
          (*sorIteration_)();
