@@ -15,9 +15,11 @@
 
 namespace walberla {
 
+enum Testcase { TEST_DIRICHLET_1, TEST_DIRICHLET_2, TEST_NEUMANN };
+
 using ScalarField_T = GhostLayerField< real_t, 1 >;
 
-template < typename PdeField >
+template < typename PdeField, Testcase testcase >
 void applyDirichletFunction(const shared_ptr< StructuredBlockStorage > & blocks, math::AABB domainAABB, const stencil::Direction& direction,
                             IBlock* block, PdeField* p, const CellInterval& interval, const cell_idx_t cx, const cell_idx_t cy, const cell_idx_t cz) {
 
@@ -71,7 +73,17 @@ void applyDirichletFunction(const shared_ptr< StructuredBlockStorage > & blocks,
       boundaryCoord_y /= domainAABB.size(1);
       boundaryCoord_z /= domainAABB.size(2);
 
-      auto funcVal = (boundaryCoord_x * boundaryCoord_x) - real_c(0.5) * (boundaryCoord_y * boundaryCoord_y) - real_c(0.5) * (boundaryCoord_z * boundaryCoord_z);
+      auto funcVal = real_c(0);
+      switch (testcase) {
+         case TEST_DIRICHLET_1:
+            funcVal = (boundaryCoord_x * boundaryCoord_x) - real_c(0.5) * (boundaryCoord_y * boundaryCoord_y) - real_c(0.5) * (boundaryCoord_z * boundaryCoord_z);
+            break;
+         case TEST_DIRICHLET_2:
+            funcVal = sin ( M_PI * boundaryCoord_x ) * sin ( M_PI * boundaryCoord_y ) * sinh ( sqrt ( 2.0 ) * M_PI * boundaryCoord_z );
+            break;
+         default:
+            WALBERLA_ABORT("Unknown testcase");
+      }
       p->get(x, y, z) = real_c(2) * funcVal - p->get(x + cx, y + cy, z + cz);
    )
 }
@@ -97,9 +109,11 @@ void resetRHS(const shared_ptr< StructuredBlockStorage > & blocks, BlockDataID &
 }
 
 // solve two different scenarios (dirichlet scenario and neumann scenario) with different analytical solutions and setups
-template < bool useDirichlet >
+template < Testcase testcase >
 void solve(const shared_ptr< StructuredBlockForest > & blocks,
            math::AABB domainAABB, BlockDataID & solution, BlockDataID & solutionCpy, BlockDataID & rhs) {
+
+   const bool useDirichlet = testcase == TEST_DIRICHLET_1 || testcase == TEST_DIRICHLET_2;
 
    // set boundary handling depending on scenario
    std::function< void () > boundaryHandling = {};
@@ -110,7 +124,7 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
 
 #define GET_BOUNDARY_LAMBDA(dir) \
          [&blocks, &domainAABB](IBlock* block, ScalarField_T* p, const CellInterval& interval, const cell_idx_t cx, const cell_idx_t cy, const cell_idx_t cz) { \
-            applyDirichletFunction< ScalarField_T >(blocks, domainAABB, dir, block, p, interval, cx, cy, cz); \
+            applyDirichletFunction< ScalarField_T, testcase >(blocks, domainAABB, dir, block, p, interval, cx, cy, cz); \
          }
 
       dirichletFunction.setFunction(stencil::W, GET_BOUNDARY_LAMBDA(stencil::W));
@@ -154,19 +168,31 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
                                     auto posY = cellCenter[1] * scaleY;
                                     auto posZ = cellCenter[2] * scaleZ;
 
-                                    // analytical solution of problem with neumann boundaries
-                                    real_t analyticalSolNeumann = cos ( real_c(2) * M_PI * posX ) *
-                                                                  cos ( real_c(2) * M_PI * posY ) *
-                                                                  cos ( real_c(2) * M_PI * posZ );
+                                    real_t analyticalSol;
 
-                                    // analytical solution of problem with dirichlet boundaries
-                                    real_t analyticalSolDirichlet =                (posX * posX) -
-                                                                     real_c(0.5) * (posY * posY) -
-                                                                     real_c(0.5) * (posZ * posZ);
+                                    // analytical solution of problem with neumann/dirichlet boundaries
+                                    switch (testcase) {
+                                       case TEST_DIRICHLET_1:
+                                          analyticalSol =                 (posX * posX)
+                                                          - real_c(0.5) * (posY * posY)
+                                                          - real_c(0.5) * (posZ * posZ);
+                                          break;
+                                       case TEST_DIRICHLET_2:
+                                          analyticalSol = sin ( M_PI * posX ) *
+                                                          sin ( M_PI * posY ) *
+                                                          sinh ( sqrt ( 2.0 ) * M_PI * posZ );
+                                          break;
+                                       case TEST_NEUMANN:
+                                          analyticalSol = cos ( real_c(2) * M_PI * posX ) *
+                                                          cos ( real_c(2) * M_PI * posY ) *
+                                                          cos ( real_c(2) * M_PI * posZ );
+                                          break;
+                                       default:
+                                          WALBERLA_ABORT("Unknown testcase");
+                                    }
 
-                                    real_t analyticalSol = (useDirichlet) ? analyticalSolDirichlet : analyticalSolNeumann;
                                     real_t currErr = fabs(solutionField->get(x, y, z) - analyticalSol);
-                                    error = std::max (error, currErr);
+                                    error = std::max(error, currErr);
          )
       }
       mpi::allReduceInplace( error, mpi::MAX );
@@ -182,26 +208,37 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
       WALBERLA_FOR_ALL_CELLS_XYZ(
          rhsField,
 
-         if constexpr (useDirichlet) {
-            rhsField->get(x, y, z) = real_c(0);
-         } else {
-            const auto cellAABB = blocks->getBlockLocalCellAABB(*block, Cell(x, y, z));
-            auto cellCenter = cellAABB.center();
+         const auto cellAABB = blocks->getBlockLocalCellAABB(*block, Cell(x, y, z));
+         auto cellCenter = cellAABB.center();
 
-            // use positions normalized to unit cube
-            auto scaleX = real_c(1) / domainAABB.size(0);
-            auto scaleY = real_c(1) / domainAABB.size(1);
-            auto scaleZ = real_c(1) / domainAABB.size(2);
+         // use positions normalized to unit cube
+         auto scaleX = real_c(1) / domainAABB.size(0);
+         auto scaleY = real_c(1) / domainAABB.size(1);
+         auto scaleZ = real_c(1) / domainAABB.size(2);
 
-            auto posX = cellCenter[0] * scaleX;
-            auto posY = cellCenter[1] * scaleY;
-            auto posZ = cellCenter[2] * scaleZ;
+         auto posX = cellCenter[0] * scaleX;
+         auto posY = cellCenter[1] * scaleY;
+         auto posZ = cellCenter[2] * scaleZ;
 
-            rhsField->get(x, y, z) = real_c(4) * M_PI * M_PI *
-                                     (pow(scaleX, 2) + pow(scaleY, 2) + pow(scaleZ, 2)) *
-                                     cos(real_c(2) * M_PI * posX) *
-                                     cos(real_c(2) * M_PI * posY) *
-                                     cos(real_c(2) * M_PI * posZ);
+         switch (testcase) {
+            case TEST_DIRICHLET_1:
+               rhsField->get(x, y, z) = real_c(0);
+               break;
+            case TEST_DIRICHLET_2:
+               rhsField->get(x, y, z) = -( M_PI * M_PI ) * ( -( scaleX * scaleX ) - ( scaleY * scaleY ) + 2.0 * ( scaleZ * scaleZ ) ) *
+                                        sin ( M_PI * posX ) *
+                                        sin ( M_PI * posY ) *
+                                        sinh ( sqrt ( 2.0 ) * M_PI * posZ );
+               break;
+            case TEST_NEUMANN:
+               rhsField->get(x, y, z) = real_c(4) * M_PI * M_PI *
+                                        (pow(scaleX, 2) + pow(scaleY, 2) + pow(scaleZ, 2)) *
+                                        cos(real_c(2) * M_PI * posX) *
+                                        cos(real_c(2) * M_PI * posY) *
+                                        cos(real_c(2) * M_PI * posZ);
+               break;
+            default:
+               WALBERLA_ABORT("Unknown testcase");
          }
       )
    }
@@ -214,10 +251,10 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
    WALBERLA_LOG_INFO_ON_ROOT("Error after Jacobi solver is: " << computeMaxError());
 
    // solve with damped jacobi
-   WALBERLA_LOG_INFO_ON_ROOT("-- Solve using damped Jacobi --");
+   WALBERLA_LOG_INFO_ON_ROOT("-- Solve using (damped) Jacobi --");
    resetSolution(blocks, solution, solutionCpy); // reset solutions and solve anew
    poissonSolverDampedJac();
-   WALBERLA_LOG_INFO_ON_ROOT("Error after damped Jacobi solver is: " << computeMaxError());
+   WALBERLA_LOG_INFO_ON_ROOT("Error after (damped) Jacobi solver is: " << computeMaxError());
 
    // solve with SOR
    WALBERLA_LOG_INFO_ON_ROOT("-- Solve using SOR --");
@@ -315,13 +352,18 @@ int main(int argc, char** argv)
    // first solve neumann problem...
    WALBERLA_LOG_INFO_ON_ROOT("Run analytical test cases...")
    WALBERLA_LOG_INFO_ON_ROOT("- Solving analytical Neumann problem with Jacobi and SOR... -")
-   solve< false > (blocks, domainAABB, solution, solutionCpy, rhs);
+   solve< TEST_NEUMANN > (blocks, domainAABB, solution, solutionCpy, rhs);
 
    // ... then solve dirichlet problem
    resetRHS(blocks, rhs); // reset fields and solve anew
    resetSolution(blocks, solution, solutionCpy);
-   WALBERLA_LOG_INFO_ON_ROOT("- Solving analytical Dirichlet problem with Jacobi and SOR... -")
-   solve< true > (blocks, domainAABB, solution, solutionCpy, rhs);
+   WALBERLA_LOG_INFO_ON_ROOT("- Solving analytical Dirichlet problem (1) with Jacobi and SOR... -")
+   solve< TEST_DIRICHLET_1 > (blocks, domainAABB, solution, solutionCpy, rhs);
+
+   resetRHS(blocks, rhs); // reset fields and solve anew
+   resetSolution(blocks, solution, solutionCpy);
+   WALBERLA_LOG_INFO_ON_ROOT("- Solving analytical Dirichlet problem (2) with Jacobi and SOR... -")
+   solve< TEST_DIRICHLET_2 > (blocks, domainAABB, solution, solutionCpy, rhs);
 
    // ... charged particle test
 
