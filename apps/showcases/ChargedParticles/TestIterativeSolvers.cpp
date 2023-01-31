@@ -25,9 +25,9 @@ void applyDirichletFunction(const shared_ptr< StructuredBlockStorage > & blocks,
 
    WALBERLA_FOR_ALL_CELLS_IN_INTERVAL_XYZ(
       interval,
-      auto boundaryCoord_x = 0.;
-      auto boundaryCoord_y = 0.;
-      auto boundaryCoord_z = 0.;
+      real_t boundaryCoord_x = 0.;
+      real_t boundaryCoord_y = 0.;
+      real_t boundaryCoord_z = 0.;
 
       const auto cellAABB = blocks->getBlockLocalCellAABB(*block, Cell(x, y, z));
       auto cellCenter     = cellAABB.center();
@@ -79,7 +79,9 @@ void applyDirichletFunction(const shared_ptr< StructuredBlockStorage > & blocks,
             funcVal = (boundaryCoord_x * boundaryCoord_x) - real_c(0.5) * (boundaryCoord_y * boundaryCoord_y) - real_c(0.5) * (boundaryCoord_z * boundaryCoord_z);
             break;
          case TEST_DIRICHLET_2:
-            funcVal = sin ( M_PI * boundaryCoord_x ) * sin ( M_PI * boundaryCoord_y ) * sinh ( sqrt ( 2.0 ) * M_PI * boundaryCoord_z );
+            funcVal = real_c( sin ( M_PI * boundaryCoord_x ) ) *
+                      real_c( sin ( M_PI * boundaryCoord_y ) ) *
+                      real_c( sinh ( sqrt (real_c(2) ) * M_PI * boundaryCoord_z ) );
             break;
          default:
             WALBERLA_ABORT("Unknown testcase");
@@ -160,13 +162,13 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
                                     auto cellCenter = cellAABB.center();
 
                                     // use positions normalized to unit cube
-                                    auto scaleX = real_c(1) / domainAABB.size(0);
-                                    auto scaleY = real_c(1) / domainAABB.size(1);
-                                    auto scaleZ = real_c(1) / domainAABB.size(2);
+                                    real_t scaleX = real_c(1) / domainAABB.size(0);
+                                    real_t scaleY = real_c(1) / domainAABB.size(1);
+                                    real_t scaleZ = real_c(1) / domainAABB.size(2);
 
-                                    auto posX = cellCenter[0] * scaleX;
-                                    auto posY = cellCenter[1] * scaleY;
-                                    auto posZ = cellCenter[2] * scaleZ;
+                                    real_t posX = cellCenter[0] * scaleX;
+                                    real_t posY = cellCenter[1] * scaleY;
+                                    real_t posZ = cellCenter[2] * scaleZ;
 
                                     real_t analyticalSol;
 
@@ -178,20 +180,20 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
                                                           - real_c(0.5) * (posZ * posZ);
                                           break;
                                        case TEST_DIRICHLET_2:
-                                          analyticalSol = sin ( M_PI * posX ) *
-                                                          sin ( M_PI * posY ) *
-                                                          sinh ( sqrt ( 2.0 ) * M_PI * posZ );
+                                          analyticalSol = real_c( sin ( M_PI * posX ) ) *
+                                                          real_c( sin ( M_PI * posY ) ) *
+                                                          real_c( sinh ( sqrt (real_c(2) ) * M_PI * posZ ) );
                                           break;
                                        case TEST_NEUMANN:
-                                          analyticalSol = cos ( real_c(2) * M_PI * posX ) *
-                                                          cos ( real_c(2) * M_PI * posY ) *
-                                                          cos ( real_c(2) * M_PI * posZ );
+                                          analyticalSol = real_c( cos ( real_c(2) * M_PI * posX ) ) *
+                                                          real_c( cos ( real_c(2) * M_PI * posY ) ) *
+                                                          real_c( cos ( real_c(2) * M_PI * posZ ) );
                                           break;
                                        default:
                                           WALBERLA_ABORT("Unknown testcase");
                                     }
 
-                                    real_t currErr = fabs(solutionField->get(x, y, z) - analyticalSol);
+                                    real_t currErr = real_c(fabs(solutionField->get(x, y, z) - analyticalSol));
                                     error = std::max(error, currErr);
          )
       }
@@ -212,30 +214,30 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
          auto cellCenter = cellAABB.center();
 
          // use positions normalized to unit cube
-         auto scaleX = real_c(1) / domainAABB.size(0);
-         auto scaleY = real_c(1) / domainAABB.size(1);
-         auto scaleZ = real_c(1) / domainAABB.size(2);
+         real_t scaleX = real_c(1) / domainAABB.size(0);
+         real_t scaleY = real_c(1) / domainAABB.size(1);
+         real_t scaleZ = real_c(1) / domainAABB.size(2);
 
-         auto posX = cellCenter[0] * scaleX;
-         auto posY = cellCenter[1] * scaleY;
-         auto posZ = cellCenter[2] * scaleZ;
+         real_t posX = cellCenter[0] * scaleX;
+         real_t posY = cellCenter[1] * scaleY;
+         real_t posZ = cellCenter[2] * scaleZ;
 
          switch (testcase) {
             case TEST_DIRICHLET_1:
                rhsField->get(x, y, z) = real_c(0);
                break;
             case TEST_DIRICHLET_2:
-               rhsField->get(x, y, z) = -( M_PI * M_PI ) * ( -( scaleX * scaleX ) - ( scaleY * scaleY ) + 2.0 * ( scaleZ * scaleZ ) ) *
-                                        sin ( M_PI * posX ) *
-                                        sin ( M_PI * posY ) *
-                                        sinh ( sqrt ( 2.0 ) * M_PI * posZ );
+               rhsField->get(x, y, z) = real_c( -( M_PI * M_PI ) * ( -( scaleX * scaleX ) - ( scaleY * scaleY ) + real_c(2) * ( scaleZ * scaleZ ) ) ) *
+                                        real_c( sin ( M_PI * posX ) ) *
+                                        real_c( sin ( M_PI * posY ) ) *
+                                        real_c( sinh ( sqrt (real_c(2) ) * M_PI * posZ ) );
                break;
             case TEST_NEUMANN:
                rhsField->get(x, y, z) = real_c(4) * M_PI * M_PI *
-                                        (pow(scaleX, 2) + pow(scaleY, 2) + pow(scaleZ, 2)) *
-                                        cos(real_c(2) * M_PI * posX) *
-                                        cos(real_c(2) * M_PI * posY) *
-                                        cos(real_c(2) * M_PI * posZ);
+                                        real_c( (pow(scaleX, 2) + pow(scaleY, 2) + pow(scaleZ, 2)) ) *
+                                        real_c( cos(real_c(2) * M_PI * posX) ) *
+                                        real_c( cos(real_c(2) * M_PI * posY) ) *
+                                        real_c( cos(real_c(2) * M_PI * posZ) );
                break;
             default:
                WALBERLA_ABORT("Unknown testcase");
