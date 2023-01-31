@@ -4,8 +4,8 @@ PhysicalSetup // all to be specified in SI units!
     ySize 0.02; // = depth
     zSize 0.10; // = height
 
-    periodicInX true;
-    periodicInY true;
+    periodicInX false;
+    periodicInY false;
 
     runtime 10.0;
 
