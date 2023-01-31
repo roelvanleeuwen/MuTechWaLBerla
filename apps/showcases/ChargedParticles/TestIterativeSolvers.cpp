@@ -143,9 +143,9 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
 
    // solvers: Jacobi and SOR
 
-   auto numIter = 50000u;
+   auto numIter = uint_c(50000);
    auto resThres = real_c(1e-10);
-   auto resCheckFreq = 1000;
+   auto resCheckFreq = uint_c(1000);
 
    auto poissonSolverJacobi = PoissonSolver< WALBERLA_JACOBI, useDirichlet > (solution, solutionCpy, rhs, blocks, numIter, resThres, resCheckFreq, boundaryHandling);
    auto poissonSolverDampedJac = PoissonSolver< DAMPED_JACOBI, useDirichlet > (solution, solutionCpy, rhs, blocks, numIter, resThres, resCheckFreq, boundaryHandling);
@@ -274,9 +274,9 @@ void solveChargedParticles(const shared_ptr< StructuredBlockForest > & blocks,
 
    // solvers: Jacobi and SOR
 
-   auto numIter = 20000u;
+   auto numIter = uint_c(20000);
    auto resThres = real_c(1e-5);
-   auto resCheckFreq = 1000;
+   auto resCheckFreq = uint_c(1000);
 
    auto poissonSolverJacobi = PoissonSolver< DAMPED_JACOBI, useDirichlet > (solution, solutionCpy, rhs, blocks, numIter, resThres, resCheckFreq);
    auto poissonSolverSOR = PoissonSolver< WALBERLA_SOR, useDirichlet > (solution, solutionCpy, rhs, blocks, numIter, resThres, resCheckFreq);
@@ -308,10 +308,12 @@ void solveChargedParticles(const shared_ptr< StructuredBlockForest > & blocks,
          real_t posY = cellCenter[1];
          real_t posZ = cellCenter[2];
 
-         if ( ( pow( posX - x0, 2 ) + pow( posY - y0, 2 ) + pow( posZ - z0, 2 ) ) < pow( r0, 2 ) ) {
-            rhsField->get(x, y, z) = -s0 * ( real_c(1) - sqrt( pow( ( posX - x0 ) / r0, 2 ) + pow( ( posY - y0 ) / r0, 2 ) + pow( ( posZ - z0 ) / r0, 2 ) ) );
-         } else if ( ( pow( posX - x1, 2 ) + pow( posY - y1, 2 ) + pow( posZ - z1, 2 ) ) < pow( r1, 2 ) ) {
-            rhsField->get(x, y, z) = -s1 * ( real_c(1) - sqrt( pow( ( posX - x1 ) / r1, 2 ) + pow( ( posY - y1 ) / r1, 2 ) + pow( ( posZ - z1 ) / r1, 2 ) ) );
+         if ( ( real_c( pow( posX - x0, 2 ) ) + real_c( pow( posY - y0, 2 ) ) + real_c( pow( posZ - z0, 2 ) ) ) < real_c( pow( r0, 2 ) ) ) {
+            auto relDistPos0 = real_c( sqrt( real_c( pow( ( posX - x0 ) / r0, 2 ) ) + real_c( pow( ( posY - y0 ) / r0, 2 ) ) + real_c( pow( ( posZ - z0 ) / r0, 2 ) ) ) );
+            rhsField->get(x, y, z) = -s0 * ( real_c(1) - relDistPos0 );
+         } else if ( ( real_c ( pow( posX - x1, 2 ) ) + real_c ( pow( posY - y1, 2 ) ) + real_c ( pow( posZ - z1, 2 ) ) ) < real_c ( pow( r1, 2 ) ) ) {
+            auto relDistPos1 = real_c( sqrt( real_c( pow( ( posX - x1 ) / r1, 2 ) ) + real_c( pow( ( posY - y1 ) / r1, 2 ) ) + real_c( pow( ( posZ - z1 ) / r1, 2 ) ) ) );
+            rhsField->get(x, y, z) = -s1 * ( real_c(1) - relDistPos1);
          } else {
             rhsField->get(x, y, z) = real_c(0);
          }

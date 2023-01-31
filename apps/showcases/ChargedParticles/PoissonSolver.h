@@ -43,7 +43,7 @@ class PoissonSolver
                  const std::shared_ptr< StructuredBlockForest >& blocks,
                  uint_t iterations = uint_t(1000),
                  real_t residualNormThreshold = real_c(1e-4),
-                 real_t residualCheckFrequency = uint_t(100),
+                 uint_t residualCheckFrequency = uint_t(100),
                  const std::function< void () >& boundaryHandling = {})
       : src_(src), dst_(dst), rhs_(rhs), blocks_(blocks), boundaryHandling_(boundaryHandling) {
 
