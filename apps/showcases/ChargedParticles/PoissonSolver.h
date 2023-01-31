@@ -64,6 +64,7 @@ class PoissonSolver
 
       commScheme_ = make_shared< blockforest::communication::UniformBufferedScheme< Stencil_T > >(blocks_);
       commScheme_->addPackInfo(make_shared< field::communication::PackInfo< ScalarField_T > >(src_));
+      commScheme_->addPackInfo(make_shared< field::communication::PackInfo< ScalarField_T > >(rhs_));
 
       // boundary handling
 
