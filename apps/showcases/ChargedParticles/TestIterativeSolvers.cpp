@@ -11,6 +11,8 @@
 #include "field/AddToStorage.h"
 #include "field/vtk/all.h"
 
+#include <core/math/all.h>
+
 #include "PoissonSolver.h"
 
 namespace walberla {
@@ -79,9 +81,9 @@ void applyDirichletFunction(const shared_ptr< StructuredBlockStorage > & blocks,
             funcVal = (boundaryCoord_x * boundaryCoord_x) - real_c(0.5) * (boundaryCoord_y * boundaryCoord_y) - real_c(0.5) * (boundaryCoord_z * boundaryCoord_z);
             break;
          case TEST_DIRICHLET_2:
-            funcVal = real_c( sin ( M_PI * boundaryCoord_x ) ) *
-                      real_c( sin ( M_PI * boundaryCoord_y ) ) *
-                      real_c( sinh ( sqrt (real_c(2) ) * M_PI * boundaryCoord_z ) );
+            funcVal = real_c( sin ( math::pi * boundaryCoord_x ) ) *
+                      real_c( sin ( math::pi * boundaryCoord_y ) ) *
+                      real_c( math::root_two * math::pi * boundaryCoord_z );
             break;
          default:
             WALBERLA_ABORT("Unknown testcase");
@@ -180,14 +182,14 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
                                                           - real_c(0.5) * (posZ * posZ);
                                           break;
                                        case TEST_DIRICHLET_2:
-                                          analyticalSol = real_c( sin ( M_PI * posX ) ) *
-                                                          real_c( sin ( M_PI * posY ) ) *
-                                                          real_c( sinh ( sqrt (real_c(2) ) * M_PI * posZ ) );
+                                          analyticalSol = real_c( sin ( math::pi * posX ) ) *
+                                                          real_c( sin ( math::pi * posY ) ) *
+                                                          real_c( sinh ( math::root_two * math::pi * posZ ) );
                                           break;
                                        case TEST_NEUMANN:
-                                          analyticalSol = real_c( cos ( real_c(2) * M_PI * posX ) ) *
-                                                          real_c( cos ( real_c(2) * M_PI * posY ) ) *
-                                                          real_c( cos ( real_c(2) * M_PI * posZ ) );
+                                          analyticalSol = real_c( cos ( real_c(2) * math::pi * posX ) ) *
+                                                          real_c( cos ( real_c(2) * math::pi * posY ) ) *
+                                                          real_c( cos ( real_c(2) * math::pi * posZ ) );
                                           break;
                                        default:
                                           WALBERLA_ABORT("Unknown testcase");
@@ -227,17 +229,17 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
                rhsField->get(x, y, z) = real_c(0);
                break;
             case TEST_DIRICHLET_2:
-               rhsField->get(x, y, z) = real_c( -( M_PI * M_PI ) * ( -( scaleX * scaleX ) - ( scaleY * scaleY ) + real_c(2) * ( scaleZ * scaleZ ) ) ) *
-                                        real_c( sin ( M_PI * posX ) ) *
-                                        real_c( sin ( M_PI * posY ) ) *
-                                        real_c( sinh ( sqrt (real_c(2) ) * M_PI * posZ ) );
+               rhsField->get(x, y, z) = real_c( -( math::pi * math::pi ) * ( -( scaleX * scaleX ) - ( scaleY * scaleY ) + real_c(2) * ( scaleZ * scaleZ ) ) ) *
+                                        real_c( sin ( math::pi * posX ) ) *
+                                        real_c( sin ( math::pi * posY ) ) *
+                                        real_c( sinh ( math::root_two * math::pi * posZ ) );
                break;
             case TEST_NEUMANN:
-               rhsField->get(x, y, z) = real_c(4) * M_PI * M_PI *
+               rhsField->get(x, y, z) = real_c(4) * math::pi * math::pi *
                                         real_c( (pow(scaleX, 2) + pow(scaleY, 2) + pow(scaleZ, 2)) ) *
-                                        real_c( cos(real_c(2) * M_PI * posX) ) *
-                                        real_c( cos(real_c(2) * M_PI * posY) ) *
-                                        real_c( cos(real_c(2) * M_PI * posZ) );
+                                        real_c( cos(real_c(2) * math::pi * posX) ) *
+                                        real_c( cos(real_c(2) * math::pi * posY) ) *
+                                        real_c( cos(real_c(2) * math::pi * posZ) );
                break;
             default:
                WALBERLA_ABORT("Unknown testcase");
@@ -302,10 +304,14 @@ void solveChargedParticles(const shared_ptr< StructuredBlockForest > & blocks,
          const real_t r1 = real_c(0.08) * domainAABB.size(0);
          const real_t s1 = real_c(1);
 
-         if ( ( pow( cellCenter[0] - x0, 2 ) + pow( cellCenter[1] - y0, 2 ) + pow( cellCenter[2] - z0, 2 ) ) < pow( r0, 2 ) ) {
-            rhsField->get(x, y, z) = -s0 * ( real_c(1) - sqrt( pow( ( cellCenter[0] - x0 ) / r0, 2 ) + pow( ( cellCenter[1] - y0 ) / r0, 2 ) + pow( ( cellCenter[2] - z0 ) / r0, 2 ) ) );
-         } else if ( ( pow( cellCenter[0] - x1, 2 ) + pow( cellCenter[1] - y1, 2 ) + pow( cellCenter[2] - z1, 2 ) ) < pow( r1, 2 ) ) {
-            rhsField->get(x, y, z) = -s1 * ( real_c(1) - sqrt( pow( ( cellCenter[0] - x1 ) / r1, 2 ) + pow( ( cellCenter[1] - y1 ) / r1, 2 ) + pow( ( cellCenter[2] - z1 ) / r1, 2 ) ) );
+         real_t posX = cellCenter[0];
+         real_t posY = cellCenter[1];
+         real_t posZ = cellCenter[2];
+
+         if ( ( pow( posX - x0, 2 ) + pow( posY - y0, 2 ) + pow( posZ - z0, 2 ) ) < pow( r0, 2 ) ) {
+            rhsField->get(x, y, z) = -s0 * ( real_c(1) - sqrt( pow( ( posX - x0 ) / r0, 2 ) + pow( ( posY - y0 ) / r0, 2 ) + pow( ( posZ - z0 ) / r0, 2 ) ) );
+         } else if ( ( pow( posX - x1, 2 ) + pow( posY - y1, 2 ) + pow( posZ - z1, 2 ) ) < pow( r1, 2 ) ) {
+            rhsField->get(x, y, z) = -s1 * ( real_c(1) - sqrt( pow( ( posX - x1 ) / r1, 2 ) + pow( ( posY - y1 ) / r1, 2 ) + pow( ( posZ - z1 ) / r1, 2 ) ) );
          } else {
             rhsField->get(x, y, z) = real_c(0);
          }
