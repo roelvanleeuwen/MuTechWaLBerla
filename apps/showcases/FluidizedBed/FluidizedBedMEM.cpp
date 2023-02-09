@@ -32,6 +32,7 @@
 #include "core/math/all.h"
 #include "core/mpi/Broadcast.h"
 #include "core/timing/RemainingTimeLogger.h"
+#include "core/waLBerlaBuildInfo.h"
 
 #include "domain_decomposition/SharedSweep.h"
 
@@ -405,6 +406,7 @@ int main(int argc, char** argv)
    auto cfgFile = env.config();
    if (!cfgFile) { WALBERLA_ABORT("Usage: " << argv[0] << " path-to-configuration-file \n"); }
 
+   WALBERLA_LOG_INFO_ON_ROOT("waLBerla revision: " << std::string(WALBERLA_GIT_SHA1).substr(0, 8));
    WALBERLA_LOG_INFO_ON_ROOT(*cfgFile);
 
    // read all parameters from the config file
