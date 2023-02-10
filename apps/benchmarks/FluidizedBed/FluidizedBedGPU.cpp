@@ -17,7 +17,7 @@
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
-//! \brief Modification of benchmarks/FluidizedBed/FluidizedBed.cpp
+//! \brief Modification of showcases/FluidizedBed/FluidizedBedPSM.cpp
 //
 //======================================================================================================================
 
@@ -611,10 +611,11 @@ int main(int argc, char** argv)
       "boundary handling");
 
    // set up RPD functionality
-   // TODO: remove overlap
    std::function< void(void) > syncCall = [&ps, &rpdDomain]() {
+      // keep overlap for lubrication
+      const real_t overlap = real_t(1.5);
       mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
-      syncNextNeighborFunc(*ps, *rpdDomain);
+      syncNextNeighborFunc(*ps, *rpdDomain, overlap);
    };
 
    syncCall();
