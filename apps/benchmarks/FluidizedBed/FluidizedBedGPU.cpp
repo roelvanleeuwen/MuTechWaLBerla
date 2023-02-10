@@ -770,7 +770,7 @@ int main(int argc, char** argv)
    ////////////////////////
 
    WcTimingPool timeloopTiming;
-   const bool useOpenMP = false;
+   const bool useOpenMP = true;
 
    real_t linkedCellWidth = linkedCellWidthRation * diameter;
    mesa_pd::data::LinkedCells linkedCells(rpdDomain->getUnionOfLocalAABBs().getExtended(linkedCellWidth),
