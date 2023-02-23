@@ -39,7 +39,7 @@ NumericalSetup
 
     numberOfParticleSubBlocksPerDim 25;
     linkedCellWidthRation 1.01;
-    particleBarriers false;
+    particleBarriers true;
 }
 
 Output
