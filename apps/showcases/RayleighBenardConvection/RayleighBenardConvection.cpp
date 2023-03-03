@@ -18,160 +18,252 @@
 //
 //======================================================================================================================
 
+#include "blockforest/Initialization.h"
+#include "blockforest/communication/UniformBufferedScheme.h"
 
-#include "blockforest/all.h"
-#include "core/all.h"
-#include "domain_decomposition/all.h"
-#include "field/all.h"
-#include "geometry/all.h"
-#include "lbm/all.h"
-#include "timeloop/all.h"
+#include "core/Environment.h"
+#include "core/logging/Initialization.h"
+#include "core/math/Constants.h"
+#include "core/timing/RemainingTimeLogger.h"
 
-// Codegen includes
-#include "RBCLatticeModel.h"
-#include "RBCPackInfo.h"
+#include "field/AddToStorage.h"
+#include "field/FlagField.h"
+#include "field/vtk/VTKWriter.h"
 
-namespace walberla {
+#include "geometry/InitBoundaryHandling.h"
+#include "geometry/mesh/TriangleMeshIO.h"
 
-const uint_t FieldGhostLayers( 1 );
+#include "lbm/PerformanceEvaluation.h"
 
-////////////////////////////////////////
-/// Macro for LBM collision operator ///
-////////////////////////////////////////
+#include "python_coupling/CreateConfig.h"
+//#include "python_coupling/PythonCallback.h"
 
-#define USE_SRT
-//#define USE_TRT
+#include "timeloop/SweepTimeloop.h"
+
+#include "GenDefines.h"
+#include "InitializerFunctions.h"
+
+using namespace walberla;
 
 ///////////////////////
 /// Typedef Aliases ///
 ///////////////////////
-
-// Typedef alias for the lattice model
-typedef lbm::RBCLatticeModel LatticeModel_T;
-
-// Communication pack info
-typedef pystencils::RBCPackInfo PackInfo_T;
-
-// Typedef aliases for the involved stencils
-typedef LatticeModel_T::Stencil Stencil_T;
-typedef LatticeModel_T::CommunicationStencil CommunicationStencil_T;
-
-// Typedefs for the boundary handling, flag data type and flag field type
-typedef walberla::uint8_t flag_t;
-typedef FlagField<flag_t> FlagField_T;
-typedef lbm::PdfField<LatticeModel_T> PdfField_T;
-//using ScalarField_T = field::GhostLayerField< real_t, 1 >;
-//using VectorField_T = field::GhostLayerField< math::Vector3< real_t >, 1 >;
-typedef lbm::DefaultBoundaryHandlingFactory< LatticeModel_T, FlagField_T > BHFactory;
+using flag_t      = walberla::uint8_t;
+using FlagField_T = FlagField< flag_t >;
 
 /////////////////////
 /// Main Function ///
 /////////////////////
-
-int main( int argc, char ** argv )
+int main(int argc, char** argv)
 {
-   walberla::Environment walberlaEnv( argc, argv );
-   auto configPtr = walberlaEnv.config();
-   if(!configPtr) WALBERLA_ABORT("No configuration file specified!")
-   WALBERLA_LOG_INFO_ON_ROOT(*configPtr);
+   mpi::Environment Env(argc, argv);
+   // exportDataStructuresToPython(); //> what does that do?
 
-   #ifdef USE_SRT
-      WALBERLA_LOG_DEVEL_ON_ROOT("Using lbmpy generated SRT lattice model.")
-   #elif defined( USE_TRT )
-      WALBERLA_LOG_DEVEL_ON_ROOT("Using lbmpy generated TRT lattice model.")
-   #endif
+   for (auto cfg = python_coupling::configBegin(argc, argv); cfg != python_coupling::configEnd(); ++cfg)
+   {
+      WALBERLA_MPI_WORLD_BARRIER()
 
-   ///////////////////////////////////////////////////////
-   /// Block Storage Creation and Simulation Parameter ///
-   ///////////////////////////////////////////////////////
+      auto config = *cfg;
+      logging::configureLogging(config);
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(*config)
+      shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGridFromConfig(config);
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->isXPeriodic())
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->isYPeriodic())
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->isZPeriodic())
 
-   auto blocks = blockforest::createUniformBlockGridFromConfig( configPtr );
+      ///////////////////////////
+      // ADD DOMAIN PARAMETERS //
+      ///////////////////////////
+      auto domainSetup             = config->getOneBlock("DomainSetup");
+      Vector3< uint_t > domainSize = domainSetup.getParameter< Vector3< uint_t > >("domainSize");
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(domainSize)
 
-   // read parameters
-   auto parameters = configPtr->getOneBlock( "Parameters" );
+      ///////////////////////////////////////
+      // ADD GENERAL SIMULATION PARAMETERS //
+      ///////////////////////////////////////
+      auto parameters                    = config->getOneBlock("Parameters");
+      const std::string timeStepStrategy = parameters.getParameter< std::string >("timeStepStrategy", "normal");
+      const uint_t timesteps             = parameters.getParameter< uint_t >("timesteps", uint_c(50));
+      const real_t remainingTimeLoggerFrequency =
+         parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0));
+      // const uint_t scenario = parameters.getParameter< uint_t >("scenario", uint_c(1));
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(timesteps)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(remainingTimeLoggerFrequency)
 
-   const real_t          omega           = parameters.getParameter< real_t >         ( "omega",           real_c( 1.4 ) );
-   const Vector3<real_t> initialVelocity = parameters.getParameter< Vector3<real_t> >( "initialVelocity", Vector3<real_t>() );
-   const uint_t          timesteps       = parameters.getParameter< uint_t >         ( "timesteps",       uint_c( 10 )  );
+      ////////////////////////
+      // ADD DATA TO BLOCKS //
+      ////////////////////////
+      BlockDataID fluid_PDFs_ID =
+         field::addToStorage< PdfField_fluid_T >(blocks, "LB PDF field fluid", real_c(0.0), field::fzyx);
+      BlockDataID thermal_PDFs_ID =
+         field::addToStorage< PdfField_thermal_T >(blocks, "LB PDF field thermal", real_c(0.0), field::fzyx);
+      BlockDataID velocity_field_ID =
+         field::addToStorage< VelocityField_T >(blocks, "velocity", real_c(0.0), field::fzyx);
+      BlockDataID temperature_field_ID =
+         field::addToStorage< TemperatureField_T >(blocks, "Temperature", real_c(0.0), field::fzyx);
 
-   const double remainingTimeLoggerFrequency = parameters.getParameter< double >( "remainingTimeLoggerFrequency", 3.0 ); // in seconds
-   const Vector3<real_t> bodyForce(real_t(1e-6), real_t(0), real_t(0));
+      /////////////////////////////
+      // ADD PHYSICAL PARAMETERS //
+      /////////////////////////////
+      auto physical_parameters     = config->getOneBlock("PhysicalParameters");
+      const real_t omegaFluid      = physical_parameters.getParameter< real_t >("omegaFluid", real_c(1.95));
+      const real_t omegaThermal    = physical_parameters.getParameter< real_t >("omegaThermal");
+      const real_t temperatureHot  = physical_parameters.getParameter< real_t >("temperatureHot", real_c(0.5));
+      const real_t temperatureCold = physical_parameters.getParameter< real_t >("temperatureCold", real_c(-0.5));
+      const real_t gravity         = physical_parameters.getParameter< real_t >("gravitationalAcceleration");
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(omegaFluid)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(omegaThermal)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(temperatureHot)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(temperatureCold)
 
-   ///////////////////
-   /// Field Setup ///
-   ///////////////////
+      ///////////////////////////////////
+      // ADD INITIALIZATION PARAMETERS //
+      ///////////////////////////////////
+      auto initialization_parameters    = config->getOneBlock("InitializationParameters");
+      const real_t initAmplitude        = initialization_parameters.getParameter< real_t >("initAmplitude");
+      const real_t initTemperatureRange = initialization_parameters.getParameter< real_t >("initTemperatureRange");
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initAmplitude)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initTemperatureRange)
 
-#if defined(USE_SRT)
-   LatticeModel_T latticeModel = LatticeModel_T(bodyForce[0], bodyForce[1], bodyForce[2], omega);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(latticeModel.omega_)
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(latticeModel.force_0_)
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(latticeModel.force_1_)
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(latticeModel.force_2_)
-#elif defined(USE_TRT)
-   real_t lambda_e = lbm::collision_model::TRT::lambda_e( omega );
-   real_t lambda_d = lbm::collision_model::TRT::lambda_d( omega, lbm::collision_model::TRT::threeSixteenth );
-   std::cout << "   lambda_e = " << lambda_e << " | lambda_d = " << lambda_d << std::endl;
-   LatticeModel_T latticeModel =
-      LatticeModel_T(bodyForce[0], bodyForce[1], bodyForce[2], lambda_e, lambda_e);
-   auto viscosity = lbm::collision_model::viscosityFromOmega(omega);
-   std::cout << "   omega = " << omega << " | viscosity = " << viscosity << std::endl;
-#endif
-   BlockDataID pdfFieldId = lbm::addPdfFieldToStorage( blocks, "pdf field", latticeModel, field::fzyx );
-   BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >( blocks, "flag field" );
+      initTemperatureField(blocks, temperature_field_ID, initAmplitude, domainSize, initTemperatureRange);
 
-   /////////////////////////
-   /// Boundary Handling ///
-   /////////////////////////
+      ////////////////
+      // ADD SWEEPS //
+      ////////////////
+      pystencils::initialize_fluid_field initializeFluidField(fluid_PDFs_ID, temperature_field_ID, velocity_field_ID,
+                                                              gravity);
+      pystencils::initialize_thermal_field initializeThermalField(thermal_PDFs_ID, temperature_field_ID,
+                                                                  velocity_field_ID);
 
-   // create and initialize boundary handling
-   const FlagUID fluidFlagUID( "Fluid" );
+      pystencils::fluid_lb_step fluid_lb_step(fluid_PDFs_ID, temperature_field_ID, velocity_field_ID, gravity,
+                                              omegaFluid);
+      pystencils::thermal_lb_step thermal_lb_step(thermal_PDFs_ID, temperature_field_ID, velocity_field_ID,
+                                                  omegaThermal);
 
-   auto boundariesConfig = configPtr->getOneBlock( "Boundaries" );
+      ///////////////////////
+      // ADD COMMUNICATION //
+      ///////////////////////
+      auto UniformBufferedSchemeVelocityDistributions =
+         std::make_shared< blockforest::communication::UniformBufferedScheme< Stencil_fluid_T > >(blocks);
+      auto generatedPackInfo_hydro = std::make_shared< walberla::pystencils::PackInfo_hydro >(fluid_PDFs_ID);
+      UniformBufferedSchemeVelocityDistributions->addPackInfo(generatedPackInfo_hydro);
+      auto Comm_hydro = std::function< void() >([&]() { UniformBufferedSchemeVelocityDistributions->communicate(); });
 
-   BlockDataID boundaryHandlingId =
-      BHFactory::addBoundaryHandlingToStorage(blocks, "boundary handling", flagFieldId, pdfFieldId, fluidFlagUID,
-                                              Vector3< real_t >(), Vector3< real_t >(), real_c(0.0), real_c(0.0));
+      auto UniformBufferedSchemeThermalDistributions =
+         std::make_shared< blockforest::communication::UniformBufferedScheme< Stencil_thermal_T > >(blocks);
+      auto generatedPackInfo_thermal = std::make_shared< walberla::pystencils::PackInfo_thermal >(thermal_PDFs_ID);
+      UniformBufferedSchemeThermalDistributions->addPackInfo(generatedPackInfo_thermal);
+      auto Comm_thermal = std::function< void() >([&]() { UniformBufferedSchemeThermalDistributions->communicate(); });
 
-   geometry::initBoundaryHandling<BHFactory::BoundaryHandling>( *blocks, boundaryHandlingId, boundariesConfig );
-   geometry::setNonBoundaryCellsToDomain<BHFactory::BoundaryHandling> ( *blocks, boundaryHandlingId );
+      ///////////////////////
+      // BOUNDARY HANDLING //
+      ///////////////////////
+      const FlagUID fluidFlagUID("Fluid");
+      const FlagUID wallFlagUID("BC_fluid_NoSlip");
 
-   /////////////////
-   /// Time Loop ///
-   /////////////////
+      // Boundaries Hydro
+      BlockDataID flagFieldHydroID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field hydro");
+      const FlagUID fluidFlagHydroUID("Fluid");
+      auto boundariesConfigHydro = config->getBlock("Boundaries_Hydro");
+      if (boundariesConfigHydro)
+      {
+         geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldHydroID, boundariesConfigHydro);
+         geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldHydroID, fluidFlagHydroUID);
+      }
+      lbm::BC_fluid_NoSlip fluid_NoSlip(blocks, fluid_PDFs_ID);
+      fluid_NoSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldHydroID, wallFlagUID, fluidFlagUID);
 
-   // create time loop
-   SweepTimeloop timeloop( blocks->getBlockStorage(), timesteps );
+      // Boundaries Thermal
+      BlockDataID flagFieldThermalID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field thermal");
+      const FlagUID fluidFlagThermalUID("Thermal");
+      const FlagUID TcoldUID("BC_thermal_Tcold");
+      const FlagUID ThotUID("BC_thermal_Thot");
+      auto boundariesConfigThermal = config->getBlock("Boundaries_Thermal");
+      if (boundariesConfigThermal)
+      {
+         geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldThermalID, boundariesConfigThermal);
+         geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldThermalID, fluidFlagThermalUID);
+      }
+      lbm::BC_thermal_Tcold thermal_Tcold(blocks, thermal_PDFs_ID, temperatureCold);
+      thermal_Tcold.fillFromFlagField< FlagField_T >(blocks, flagFieldThermalID, TcoldUID, fluidFlagThermalUID);
+      lbm::BC_thermal_Thot thermal_Thot(blocks, thermal_PDFs_ID, temperatureHot);
+      thermal_Thot.fillFromFlagField< FlagField_T >(blocks, flagFieldThermalID, ThotUID, fluidFlagThermalUID);
 
-   // create communication for PdfField
-   blockforest::communication::UniformBufferedScheme< CommunicationStencil_T > communication( blocks );
-   communication.addPackInfo( make_shared< PackInfo_T >( pdfFieldId ) );
+      ///////////////
+      // TIME LOOP //
+      ///////////////
+      SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
-   // add LBM sweep and communication to time loop
-   timeloop.add() << BeforeFunction( communication, "communication" )
-                  << Sweep( BHFactory::BoundaryHandling::getBlockSweep( boundaryHandlingId ), "boundary handling" );
+      timeloop.add() << Sweep(thermal_Tcold, "Thermal Tcold boundary conditions");
+      timeloop.add() << Sweep(thermal_Thot, "Thermal Thot boundary conditions")
+                     << AfterFunction(Comm_thermal, "Communication of thermal PDFs");
+      timeloop.add() << Sweep(thermal_lb_step, "Thermal LB Step");
 
-   timeloop.add() << Sweep(LatticeModel_T::Sweep(pdfFieldId), "LB stream & collide");
+      timeloop.add() << BeforeFunction(Comm_hydro, "Communication of fluid PDFs")
+                     << Sweep(fluid_NoSlip, "Fluid NoSlip boundary conditions");
+      timeloop.add() << Sweep(fluid_lb_step, "Fluid LB Step");
 
-   // LBM stability check
-   timeloop.addFuncAfterTimeStep( makeSharedFunctor( field::makeStabilityChecker< PdfField_T, FlagField_T >(
-                                  configPtr, blocks, pdfFieldId, flagFieldId, fluidFlagUID ) ),
-                                  "LBM stability check" );
+      // initialize the two lattice Boltzmann fields
+      WALBERLA_LOG_INFO_ON_ROOT("initialization of the distributions")
+      for (auto& block : *blocks)
+      {
+         initializeFluidField(&block);
+         initializeThermalField(&block);
+      }
+      WALBERLA_LOG_INFO_ON_ROOT("initialization of the distributions done")
+      Comm_hydro();
+      Comm_thermal();
 
-   // log remaining time
-   timeloop.addFuncAfterTimeStep( timing::RemainingTimeLogger( timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency ), "remaining time logger" );
+      // remaining time logger
+      timeloop.addFuncAfterTimeStep(
+         timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
+         "remaining time logger");
 
-   // add VTK output to time loop
-   lbm::VTKOutput< LatticeModel_T, FlagField_T >::addToTimeloop( timeloop, blocks, configPtr, pdfFieldId,
-                                                                flagFieldId, fluidFlagUID );
+      // write VTK files
+      uint_t vtkWriteFrequency = parameters.getParameter< uint_t >("vtkWriteFrequency", 0);
+      if (vtkWriteFrequency > 0)
+      {
+         auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "vtk", vtkWriteFrequency, 0, false, "vtk_out",
+                                                         "simulation_step", false, true, true, false, 0);
 
-   timeloop.run();
+         // add velocity field as VTK output
+         auto velWriter = make_shared< field::VTKWriter< VelocityField_T > >(velocity_field_ID, "Velocity");
+         vtkOutput->addCellDataWriter(velWriter);
 
-   WALBERLA_LOG_INFO_ON_ROOT("Simulation was successful!")
+         // add temperature field as VTK output
+         auto tempWriter = make_shared< field::VTKWriter< TemperatureField_T > >(temperature_field_ID, "Temperature");
+         vtkOutput->addCellDataWriter(tempWriter);
+
+         // add thermal flag field as VTK output
+         auto thermalFlagWriter =
+            make_shared< field::VTKWriter< FlagField_T > >(flagFieldThermalID, "FlagFieldThermal");
+         vtkOutput->addCellDataWriter(thermalFlagWriter);
+
+         // add fluid flag field as VTK output
+         auto fluidFlagWriter = make_shared< field::VTKWriter< FlagField_T > >(flagFieldHydroID, "FlagFieldFluid");
+         vtkOutput->addCellDataWriter(fluidFlagWriter);
+
+         timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      }
+
+      // Performance evaluation
+      lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldHydroID, fluidFlagUID);
+      WcTimingPool timeloopTiming;
+      WcTimer simTimer;
+
+      WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps")
+      WALBERLA_MPI_WORLD_BARRIER()
+      simTimer.start();
+      timeloop.run(timeloopTiming);
+      WALBERLA_MPI_WORLD_BARRIER()
+      simTimer.end();
+
+      auto time = real_c(simTimer.max());
+      WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
+      performance.logResultOnRoot(timesteps, time);
+
+      const auto reducedTimeloopTiming = timeloopTiming.getReduced();
+      WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
+   }
    return EXIT_SUCCESS;
-}
-}
-
-int main( int argc, char ** argv )
-{
-   walberla::main(argc, argv);
 }
