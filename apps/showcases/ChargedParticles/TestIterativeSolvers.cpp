@@ -247,24 +247,28 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
       )
    }
 
-   WALBERLA_LOG_INFO_ON_ROOT("Initial error is: " << computeMaxError());
+   auto initError = computeMaxError();
+   WALBERLA_LOG_INFO_ON_ROOT("Initial error is: " << initError);
 
    // solve with jacobi
    WALBERLA_LOG_INFO_ON_ROOT("-- Solve using Jacobi --");
    poissonSolverJacobi();
-   WALBERLA_LOG_INFO_ON_ROOT("Error after Jacobi solver is: " << computeMaxError());
+   auto errJac = computeMaxError();
+   WALBERLA_LOG_INFO_ON_ROOT("Error after Jacobi solver is: " << errJac);
 
    // solve with damped jacobi
    WALBERLA_LOG_INFO_ON_ROOT("-- Solve using (damped) Jacobi --");
    resetSolution(blocks, solution, solutionCpy); // reset solutions and solve anew
    poissonSolverDampedJac();
-   WALBERLA_LOG_INFO_ON_ROOT("Error after (damped) Jacobi solver is: " << computeMaxError());
+   auto errDampedJac = computeMaxError();
+   WALBERLA_LOG_INFO_ON_ROOT("Error after (damped) Jacobi solver is: " << errDampedJac);
 
    // solve with SOR
    WALBERLA_LOG_INFO_ON_ROOT("-- Solve using SOR --");
    resetSolution(blocks, solution, solutionCpy); // reset solutions and solve anew
    poissonSolverSOR();
-   WALBERLA_LOG_INFO_ON_ROOT("Error after SOR solver is: " << computeMaxError());
+   auto errSOR = computeMaxError();
+   WALBERLA_LOG_INFO_ON_ROOT("Error after SOR solver is: " << errSOR);
 }
 
 // solve two different charged particle scenarios (dirichlet scenario and neumann scenario) with different setups
