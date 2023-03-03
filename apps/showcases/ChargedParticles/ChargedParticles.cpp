@@ -536,7 +536,7 @@ int main(int argc, char** argv)
       field::addCloneToStorage< ScalarField_T >(blocks, potentialFieldID, "electric potential field (copy)");
 
    auto poissonSolver = PoissonSolver< DAMPED_JACOBI, true > (/* src */ potentialFieldID, /* dst */ potentialFieldCopyID, /* rhs */ chargeDensityFieldID, blocks,
-                                                             uint_c(50000), real_c(1e-8), uint_c(1000));
+                                                             uint_c(1000), real_c(1e-3), uint_c(1000));
 
    /////////////////////////
    // CHARGE FORCE UPDATE //
@@ -605,8 +605,10 @@ int main(int argc, char** argv)
 
    // set up RPD functionality
    std::function< void(void) > syncCall = [&ps, &rpdDomain]() {
+      // keep overlap for lubrication
+      const real_t overlap = real_t(1.5);
       mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
-      syncNextNeighborFunc(*ps, *rpdDomain);
+      syncNextNeighborFunc(*ps, *rpdDomain, overlap);
    };
 
    syncCall();
