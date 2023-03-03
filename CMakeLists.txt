@@ -59,11 +59,11 @@ include( CTest )
 option ( WALBERLA_DOUBLE_ACCURACY           "Floating point accuracy, defaults to double"     ON )
 option ( WALBERLA_ENABLE_GUI                "Compile with GUI"                                   )
 
-option ( WALBERLA_BUILD_TESTS               "Build Testcases"                                    )
+option ( WALBERLA_BUILD_TESTS               "Build Testcases"                                 ON )
 option ( WALBERLA_BUILD_BENCHMARKS          "Build Benchmarks"                                ON )
-option ( WALBERLA_BUILD_TOOLS               "Build Tools"                                        )
+option ( WALBERLA_BUILD_TOOLS               "Build Tools"                                     ON )
 option ( WALBERLA_BUILD_TUTORIALS           "Build Tutorials"                                 ON )
-option ( WALBERLA_BUILD_SHOWCASES           "Build Showcases"                                OFF )
+option ( WALBERLA_BUILD_SHOWCASES           "Build Showcases"                                 ON )
 option ( WALBERLA_BUILD_DOC                 "Build Documentation"                             ON )
 
 option ( WALBERLA_BUILD_WITH_MPI            "Build with MPI"                                  ON )
@@ -422,6 +422,17 @@ if( WALBERLA_CXX_COMPILER_IS_GNU OR WALBERLA_CXX_COMPILER_IS_INTEL OR WALBERLA_C
     endif()
 endif()
 
+# Omit maybe-uninitialized for gcc 12 for now. Check if it is a bug or a real problem:
+if( WALBERLA_CXX_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "12.0" )
+   add_flag( CMAKE_CXX_FLAGS "-Wno-maybe-uninitialized" )
+endif()
+
+# GCC 12 reports a "array bounds" warning at UniformBufferedScheme.h:297 (error: array subscript 26 is above array bounds of)
+# when e.g. compiling the GhostLayerCommTest.
+# Since this is most probably a bug in GCC disable the warning for now
+if( WALBERLA_CXX_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "12.0" )
+   add_flag( CMAKE_CXX_FLAGS "-Wno-array-bounds" )
+endif()
 
 #fastmath
 if ( WALBERLA_BUILD_WITH_FASTMATH )
@@ -592,11 +603,17 @@ endif ()
 ##
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_CODEGEN )
-   execute_process(COMMAND ${Python_EXECUTABLE} -c "import lbmpy"
-         RESULT_VARIABLE LBMPY_FOUND )
+   set(LBMPY_MIN_VERSION 1.1)
+   execute_process(COMMAND ${Python_EXECUTABLE} -c "import lbmpy; print(lbmpy.__version__)"
+         RESULT_VARIABLE LBMPY_FOUND OUTPUT_VARIABLE LBMPY_VERSION)
     if(NOT LBMPY_FOUND EQUAL 0)
        message(FATAL_ERROR "WALBERLA_BUILD_WITH_CODEGEN activated but pystencils or lbmpy package not found.
                             Please install lbmpy e.g.: 'pip3 install lbmpy'")
+    elseif(LBMPY_VERSION VERSION_LESS LBMPY_MIN_VERSION)
+       string(STRIP ${LBMPY_VERSION} LBMPY_VERSION_STRIP)
+       message(WARNING
+             "lbmpy version ${LBMPY_VERSION_STRIP} was found.\n"
+             "We recommend to use at least version ${LBMPY_MIN_VERSION}.")
     endif()
     execute_process(COMMAND ${Python_EXECUTABLE} -c "from pystencils.include import get_pystencils_include_path; print(get_pystencils_include_path())"
                     OUTPUT_VARIABLE PYSTENCILS_INCLUDE_PATH)
@@ -1319,8 +1336,6 @@ install( FILES ${walberla_BINARY_DIR}/src/waLBerlaDefinitions.h DESTINATION walb
 # test
 if ( WALBERLA_BUILD_TESTS )
     add_subdirectory ( tests )
-else()
-    add_subdirectory( tests EXCLUDE_FROM_ALL )
 endif()
 
 

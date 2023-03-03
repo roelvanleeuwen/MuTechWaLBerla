@@ -29,6 +29,7 @@
 #include "lbm/field/AddToStorage.h"
 #include "lbm/free_surface/LoadBalancing.h"
 #include "lbm/free_surface/SurfaceMeshWriter.h"
+#include "lbm/free_surface/TotalMassComputer.h"
 #include "lbm/free_surface/VtkWriter.h"
 #include "lbm/free_surface/bubble_model/Geometry.h"
 #include "lbm/free_surface/dynamics/SurfaceDynamicsHandler.h"
@@ -183,7 +184,6 @@ int main(int argc, char** argv)
    const std::string excessMassDistributionModel =
       modelParameters.getParameter< std::string >("excessMassDistributionModel");
    const std::string curvatureModel          = modelParameters.getParameter< std::string >("curvatureModel");
-   const bool enableForceWeighting           = modelParameters.getParameter< bool >("enableForceWeighting");
    const bool useSimpleMassExchange          = modelParameters.getParameter< bool >("useSimpleMassExchange");
    const bool enableBubbleModel              = modelParameters.getParameter< bool >("enableBubbleModel");
    const bool enableBubbleSplits             = modelParameters.getParameter< bool >("enableBubbleSplits");
@@ -194,7 +194,6 @@ int main(int argc, char** argv)
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(pdfRefillingModel);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(excessMassDistributionModel);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(curvatureModel);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(enableForceWeighting);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(useSimpleMassExchange);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(enableBubbleModel);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(enableBubbleSplits);
@@ -204,19 +203,21 @@ int main(int argc, char** argv)
    // read evaluation parameters from parameter file
    const auto evaluationParameters      = walberlaEnv.config()->getOneBlock("EvaluationParameters");
    const uint_t performanceLogFrequency = evaluationParameters.getParameter< uint_t >("performanceLogFrequency");
+   const uint_t evaluationFrequency     = evaluationParameters.getParameter< uint_t >("evaluationFrequency");
 
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(performanceLogFrequency);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(evaluationFrequency);
 
    // create non-uniform block forest (non-uniformity required for load balancing)
    const std::shared_ptr< StructuredBlockForest > blockForest =
       createNonUniformBlockForest(domainSize, cellsPerBlock, numBlocks, periodicity);
 
    // add force field
-   const BlockDataID forceFieldID =
+   const BlockDataID forceDensityFieldID =
       field::addToStorage< VectorField_T >(blockForest, "Force field", force, field::fzyx, uint_c(1));
 
    // create lattice model
-   const LatticeModel_T latticeModel = LatticeModel_T(collisionModel, ForceModel_T(forceFieldID));
+   const LatticeModel_T latticeModel = LatticeModel_T(collisionModel, ForceModel_T(forceDensityFieldID));
 
    // add pdf field
    const BlockDataID pdfFieldID =
@@ -269,7 +270,7 @@ int main(int argc, char** argv)
    freeSurfaceBoundaryHandling->initFlagsFromFillLevel();
 
    // communication after initialization
-   Communication_T communication(blockForest, flagFieldID, fillFieldID, forceFieldID);
+   Communication_T communication(blockForest, flagFieldID, fillFieldID, forceDensityFieldID);
    communication();
 
    PdfCommunication_T pdfCommunication(blockForest, pdfFieldID);
@@ -314,9 +315,9 @@ int main(int argc, char** argv)
 
    // add boundary handling for standard boundaries and free surface boundaries
    const SurfaceDynamicsHandler< LatticeModel_T, FlagField_T, ScalarField_T, VectorField_T > dynamicsHandler(
-      blockForest, pdfFieldID, flagFieldID, fillFieldID, forceFieldID, normalFieldID, curvatureFieldID,
+      blockForest, pdfFieldID, flagFieldID, fillFieldID, forceDensityFieldID, normalFieldID, curvatureFieldID,
       freeSurfaceBoundaryHandling, bubbleModel, pdfReconstructionModel, pdfRefillingModel, excessMassDistributionModel,
-      relaxationRate, force, surfaceTension, enableForceWeighting, useSimpleMassExchange, cellConversionThreshold,
+      relaxationRate, force, surfaceTension, useSimpleMassExchange, cellConversionThreshold,
       cellConversionForceThreshold);
 
    dynamicsHandler.addSweeps(timeloop);
@@ -327,9 +328,17 @@ int main(int argc, char** argv)
       loadBalancingFrequency, printLoadBalancingStatistics);
    timeloop.addFuncAfterTimeStep(loadBalancer, "Sweep: load balancing");
 
+   // add evaluator for total and excessive mass (mass that is currently undistributed)
+   const std::shared_ptr< real_t > totalMass  = std::make_shared< real_t >(real_c(0));
+   const std::shared_ptr< real_t > excessMass = std::make_shared< real_t >(real_c(0));
+   const TotalMassComputer< FreeSurfaceBoundaryHandling_T, PdfField_T, FlagField_T, ScalarField_T > totalMassComputer(
+      blockForest, freeSurfaceBoundaryHandling, pdfFieldID, fillFieldID, dynamicsHandler.getConstExcessMassFieldID(),
+      evaluationFrequency, totalMass, excessMass);
+   timeloop.addFuncAfterTimeStep(totalMassComputer, "Evaluator: total mass");
+
    // add VTK output
    addVTKOutput< LatticeModel_T, FreeSurfaceBoundaryHandling_T, PdfField_T, FlagField_T, ScalarField_T, VectorField_T >(
-      blockForest, timeloop, walberlaEnv.config(), flagInfo, pdfFieldID, flagFieldID, fillFieldID, forceFieldID,
+      blockForest, timeloop, walberlaEnv.config(), flagInfo, pdfFieldID, flagFieldID, fillFieldID, forceDensityFieldID,
       geometryHandler.getCurvatureFieldID(), geometryHandler.getNormalFieldID(),
       geometryHandler.getObstNormalFieldID());
 
@@ -348,11 +357,13 @@ int main(int argc, char** argv)
 
    for (uint_t t = uint_c(0); t != timesteps; ++t)
    {
-      if (t % uint_c(real_c(timesteps / 100)) == uint_c(0))
-      {
-         WALBERLA_LOG_DEVEL_ON_ROOT("Performing timestep = " << t);
-      }
       timeloop.singleStep(timingPool, true);
+
+      if (t % evaluationFrequency == uint_c(0))
+      {
+         WALBERLA_LOG_DEVEL_ON_ROOT("time step = " << t << "\n\t\ttotal mass = " << *totalMass
+                                                   << "\n\t\texcess mass = " << *excessMass);
+      }
 
       if (t % performanceLogFrequency == uint_c(0) && t > uint_c(0)) { timingPool.logResultOnRoot(); }
    }

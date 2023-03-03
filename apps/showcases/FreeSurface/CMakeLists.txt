@@ -39,6 +39,10 @@ if( WALBERLA_BUILD_WITH_CODEGEN )
                                    GravityWaveLatticeModelGeneration)
 endif()
 
+waLBerla_add_executable(NAME    MovingDrop
+                        FILES   MovingDrop.cpp
+                        DEPENDS blockforest boundary core domain_decomposition field lbm postprocessing timeloop vtk)
+
 waLBerla_add_executable(NAME    RisingBubble
                         FILES   RisingBubble.cpp
                         DEPENDS blockforest boundary core domain_decomposition field lbm postprocessing timeloop vtk)
