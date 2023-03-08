@@ -22,11 +22,10 @@ enum Testcase { TEST_DIRICHLET_1, TEST_DIRICHLET_2, TEST_NEUMANN };
 using ScalarField_T = GhostLayerField< real_t, 1 >;
 
 template < typename PdeField, Testcase testcase >
-void applyDirichletFunction(const shared_ptr< StructuredBlockStorage > & blocks, math::AABB domainAABB, const stencil::Direction& direction,
+void applyDirichletFunction(const shared_ptr< StructuredBlockStorage > & blocks, const math::AABB & domainAABB, const stencil::Direction& direction,
                             IBlock* block, PdeField* p, const CellInterval& interval, const cell_idx_t cx, const cell_idx_t cy, const cell_idx_t cz) {
 
-   WALBERLA_FOR_ALL_CELLS_IN_INTERVAL_XYZ(
-      interval,
+   WALBERLA_FOR_ALL_CELLS_IN_INTERVAL_XYZ(interval,
       real_t boundaryCoord_x = 0.;
       real_t boundaryCoord_y = 0.;
       real_t boundaryCoord_z = 0.;
@@ -115,7 +114,7 @@ void resetRHS(const shared_ptr< StructuredBlockStorage > & blocks, BlockDataID &
 // solve two different scenarios (dirichlet scenario and neumann scenario) with different analytical solutions and setups
 template < Testcase testcase >
 void solve(const shared_ptr< StructuredBlockForest > & blocks,
-           math::AABB domainAABB, BlockDataID & solution, BlockDataID & solutionCpy, BlockDataID & rhs) {
+           const math::AABB & domainAABB, BlockDataID & solution, BlockDataID & solutionCpy, BlockDataID & rhs) {
 
    const bool useDirichlet = testcase == TEST_DIRICHLET_1 || testcase == TEST_DIRICHLET_2;
 
@@ -159,7 +158,8 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
       for (auto block = blocks->begin(); block != blocks->end(); ++block) {
          ScalarField_T* solutionField = block->getData< ScalarField_T >(solution);
 
-         WALBERLA_FOR_ALL_CELLS_XYZ_OMP(solutionField, omp parallel for schedule(static) reduction(max: error),
+         real_t blockResult = real_t(0);
+         WALBERLA_FOR_ALL_CELLS_XYZ_OMP(solutionField, omp parallel for schedule(static) reduction(max: blockResult),
                                     const auto cellAABB = blocks->getBlockLocalCellAABB(*block, Cell(x,y,z));
                                     auto cellCenter = cellAABB.center();
 
@@ -196,8 +196,9 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
                                     }
 
                                     real_t currErr = real_c(fabs(solutionField->get(x, y, z) - analyticalSol));
-                                    error = std::max(error, currErr);
+                                    blockResult = std::max(blockResult, currErr);
          )
+         error = std::max(error, blockResult);
       }
       mpi::allReduceInplace( error, mpi::MAX );
 
@@ -274,7 +275,7 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
 // solve two different charged particle scenarios (dirichlet scenario and neumann scenario) with different setups
 template < bool useDirichlet >
 void solveChargedParticles(const shared_ptr< StructuredBlockForest > & blocks,
-           math::AABB domainAABB, BlockDataID & solution, BlockDataID & solutionCpy, BlockDataID & rhs) {
+                           const math::AABB & domainAABB, BlockDataID & solution, BlockDataID & solutionCpy, BlockDataID & rhs) {
 
    // solvers: Jacobi and SOR
 
@@ -356,12 +357,9 @@ int main(int argc, char** argv)
       false, false, false,                // periodicity
       false);
 
-   BlockDataID rhs =
-      field::addToStorage< ScalarField_T >(blocks, "rhs", 0, field::fzyx, 1);
-   BlockDataID solution =
-      field::addToStorage< ScalarField_T >(blocks, "solution", 0, field::fzyx, 1);
-   BlockDataID solutionCpy =
-      field::addCloneToStorage< ScalarField_T >(blocks, solution, "solution (copy)");
+   BlockDataID rhs = field::addToStorage< ScalarField_T >(blocks, "rhs", 0, field::fzyx, 1);
+   BlockDataID solution = field::addToStorage< ScalarField_T >(blocks, "solution", 0, field::fzyx, 1);
+   BlockDataID solutionCpy = field::addCloneToStorage< ScalarField_T >(blocks, solution, "solution (copy)");
 
    // first solve neumann problem...
    WALBERLA_LOG_INFO_ON_ROOT("Run analytical test cases...")
