@@ -10,7 +10,7 @@ class Scenario:
         self.blocks = (9, 2, 4)
         self.periodic = (1, 0, 1)
         self.cells = (self.domain_size[0] // self.blocks[0], self.domain_size[1] // self.blocks[1], self.domain_size[2] // self.blocks[2])
-        print(f"self.cells = {self.cells}")
+        #print(f"self.cells = {self.cells}")
         #> Standard Parameters
         self.timesteps = 20000
         self.vtk_write_frequency = 200
@@ -31,12 +31,12 @@ class Scenario:
         self.thermal_diffusivity_LBM = np.sqrt(1. / (self.Prandtl * self.Rayleigh)) * self.time_conversion / \
                                        (self.length_conversion * self.length_conversion)
         self.omega_thermal = 1. / (3 * self.thermal_diffusivity_LBM + 1./2)
-        print(f"omega_fluid = {self.omega_fluid} | omega_thermal = {self.omega_thermal}")
+        #print(f"omega_fluid = {self.omega_fluid} | omega_thermal = {self.omega_thermal}")
         #! temperature_hot
         self.temperature_hot = 0.5
         #! temperature_cold
         self.temperature_cold = - self.temperature_hot
-        print(f"temperature_hot = {self.temperature_hot} | temperature_cold = {self.temperature_cold}")
+        #print(f"temperature_hot = {self.temperature_hot} | temperature_cold = {self.temperature_cold}")
         #! gravity_LBM
         self.gravity_SI = 9.81
         self.gravity_conversion = self.length_conversion / (self.time_conversion * self.time_conversion)  #! look
@@ -45,8 +45,8 @@ class Scenario:
         self.delta_temperature = abs(self.temperature_hot) + abs(self.temperature_cold)
         self.init_amplitude = self.delta_temperature / 20 * self.domain_size[0]
         self.init_temperature_range = 2 * self.delta_temperature / self.domain_size[0]
-        print(f"init_amplitude = {self.init_amplitude}")
-        print(f"init_temperature_range = {self.init_temperature_range}")
+        #print(f"init_amplitude = {self.init_amplitude}")
+        #print(f"init_temperature_range = {self.init_temperature_range}")
 
         #?self.viscosity_SI = 1.516e-5  #? look
         #?self.thermal_diffusivity_SI = 2.074e-5  #? look
