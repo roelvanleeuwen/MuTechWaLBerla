@@ -6,14 +6,14 @@ import math
 class Scenario:
     def __init__(self):
         #> Domain Parameters
-        self.domain_size = (100, 51, 1)
+        self.domain_size = (100, 50, 10)
         self.blocks = (4, 1, 1)
-        self.periodic = (1, 0, 0)
+        self.periodic = (1, 0, 1)
         self.cells = (self.domain_size[0] // self.blocks[0], self.domain_size[1] // self.blocks[1], self.domain_size[2] // self.blocks[2])
         print(f"self.cells = {self.cells}")
         #> Standard Parameters
         self.timesteps = 20000
-        self.vtk_write_frequency = 100
+        self.vtk_write_frequency = 200
         self.scenario = 1
         #> Physical Parameters
         #! Prandtl

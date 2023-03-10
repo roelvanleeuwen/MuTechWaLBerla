@@ -28,8 +28,8 @@ from lbmpy_walberla import generate_boundary#, generate_lb_pack_info
 
 import sympy as sp
 
-stencil_thermal = LBStencil(Stencil.D2Q9)
-stencil_fluid = LBStencil(Stencil.D2Q9)
+stencil_thermal = LBStencil(Stencil.D3Q19)
+stencil_fluid = LBStencil(Stencil.D3Q7)
 
 target = ps.Target.CPU
 layout = "fzyx"
@@ -64,7 +64,7 @@ velocity_field = fields(
 density_field = fields(f"density_field: [{stencil_fluid.D}D]", layout=layout)
 temperature_field = fields(f"temperature_field: [{stencil_thermal.D}D]", layout=layout)
 
-force = sp.Matrix([0, gravity_LBM * temperature_field(0) * rho])
+force = sp.Matrix([0, gravity_LBM * temperature_field(0) * rho, 0])
 
 # Fluid LBM
 lbm_config_fluid = LBMConfig(
