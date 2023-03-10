@@ -6,8 +6,8 @@ import math
 class Scenario:
     def __init__(self):
         #> Domain Parameters
-        self.domain_size = (100, 50, 10)
-        self.blocks = (4, 1, 1)
+        self.domain_size = (180, 100, 180)
+        self.blocks = (9, 2, 4)
         self.periodic = (1, 0, 1)
         self.cells = (self.domain_size[0] // self.blocks[0], self.domain_size[1] // self.blocks[1], self.domain_size[2] // self.blocks[2])
         print(f"self.cells = {self.cells}")
