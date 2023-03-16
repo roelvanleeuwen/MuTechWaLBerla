@@ -28,8 +28,8 @@ from lbmpy_walberla import generate_boundary#, generate_lb_pack_info
 
 import sympy as sp
 
-stencil_thermal = LBStencil(Stencil.D3Q19)
-stencil_fluid = LBStencil(Stencil.D3Q7)
+stencil_thermal = LBStencil(Stencil.D3Q7)
+stencil_fluid = LBStencil(Stencil.D3Q19)
 
 target = ps.Target.CPU
 layout = "fzyx"
