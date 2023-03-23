@@ -1,0 +1,26 @@
+#!/bin/bash -x
+#SBATCH --account=scalable2022
+#SBATCH --nodes=3
+#SBATCH --ntasks=12
+#SBATCH --ntasks-per-node=4
+#SBATCH --output=error_files/lagoon.%j
+#SBATCH --error=error_files/lagoon.%j
+#SBATCH --time=01:00:00
+#SBATCH --partition=booster
+#SBATCH --gres=gpu:4
+
+
+# module --force purge
+# module load Stages/2020
+# module load GCC
+# module load ParaStationMPI
+# module load CUDA
+# module load Python/3.8.5
+# export DB_FILE=BoosterScalingF.sqlite3
+
+module load GCC/11.2.0 ParaStationMPI/5.5.0-1 CUDA/11.5 Python/3.9.6
+
+echo "Lagoon"
+
+cd /p/scratch/scalable2022/showcases/walberla/build/apps/Lagoon
+srun ./Lagoon Lagoon.prm

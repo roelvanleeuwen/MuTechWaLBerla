@@ -1,0 +1,51 @@
+
+Parameters 
+{
+	reference_velocity  0.9;
+    viscosity  0.000015;
+	initialVelocity < 0.05, 0, 0 >;
+	timesteps       1000;
+
+    timeStepStrategy simpleOverlap;
+    innerOuterSplit     < 32, 1, 1>;
+    cudaEnabledMPI true;
+    gpuBlockSize <128, 1, 1>;
+
+    runBoundaries true;
+
+	remainingTimeLoggerFrequency 60; // in seconds
+	vtkWriteFrequency 0;
+}
+
+//! [domainSetup]
+DomainSetup
+{
+   meshFile         Lagoon.obj;
+   cellsPerBlock    < 256, 256, 256 >;
+   periodic         <  0,  0,  0 >;
+   weakScaling true;
+}
+
+//! [domainSetup]
+
+StabilityChecker
+{
+   checkFrequency 0;
+   streamOutput   false;
+   vtkOutput      true;
+}
+
+Boundaries
+{
+    Border { direction N;    walldistance -1;  flag NoSlip; }
+    Border { direction S;    walldistance -1;  flag NoSlip; }
+    Border { direction W;    walldistance -1;  flag UBB; }
+    Border { direction E;    walldistance -1;  flag PressureOutflow; }
+    Border { direction T;    walldistance -1;  flag NoSlip; }
+    Border { direction B;    walldistance -1;  flag NoSlip; }
+}
+
+Logging
+{
+    WriteDistanceOctree false;
+}

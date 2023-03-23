@@ -1,0 +1,67 @@
+Parameters
+{
+	ref_velocity  1;
+	max_lattice_velocity 0.05;
+	ref_length 0.3;
+    viscosity  1.49e-5;
+    ref_density 1.182;
+    sim_time 0.3;
+    mesh_size  0.009;
+
+    omega_wall  1.9;
+    sponge_zone_start 1280;
+
+    outerIterations 1;
+
+    innerOuterSplit <1, 1, 1>;  //<32,32,32>
+    timeStepStrategy noOverlap; //Overlap
+
+	remainingTimeLoggerFrequency 60; // in seconds
+	vtkWriteFrequency 1;
+
+	// GPU related Parameters, only used if GPU is enabled
+    sendDirectlyFromGPU true;
+    gpuBlockSize <128, 1, 1>;
+}
+
+//! [domainSetup]
+DomainSetup
+{
+   meshFile      Lagoon.obj;
+   blocks        <  2,  2,  1 >;
+   cellsPerBlock < 30, 10, 10 >;
+   periodic      <  0,  1,  1 >;
+   weakScaling   false;
+}
+//! [domainSetup]
+
+StabilityChecker
+{
+   checkFrequency 1000;
+   streamOutput   false;
+   vtkOutput      true;
+}
+
+Boundaries
+{
+    //Border { direction N;    walldistance 0;  flag NoSlip; }
+    //Border { direction S;    walldistance 0;  flag NoSlip; }
+    Border { direction W;    walldistance -1;  flag UBB; }
+    Border { direction E;    walldistance -1;  flag PressureOutflow; }
+    //Border { direction T;    walldistance 0;  flag NoSlip; }
+    //Border { direction B;    walldistance 0;  flag NoSlip; }
+}
+
+VTKWriter
+{
+    velocity true;
+    density true;
+    omega true;
+    flag true;
+}
+
+Logging
+{
+    WriteDistanceOctree false;
+    WriteSetupForestAndReturn false;
+}
