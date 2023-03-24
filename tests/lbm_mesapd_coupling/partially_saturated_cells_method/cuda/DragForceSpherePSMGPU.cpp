@@ -202,6 +202,7 @@ class DragForceEvaluator
          auto xyzField = pdfField->xyzSize();
          for (auto cell : xyzField)
          {
+            // TODO: fix velocity computation by using getPSMMacroscopicVelocity
             velocity_sum += pdfField->getVelocity(cell)[0];
          }
       }

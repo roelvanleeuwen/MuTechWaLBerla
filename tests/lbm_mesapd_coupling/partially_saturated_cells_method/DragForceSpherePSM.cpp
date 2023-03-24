@@ -103,9 +103,10 @@ class DragForceEvaluator
 {
  public:
    DragForceEvaluator(SweepTimeloop* timeloop, Setup* setup, const shared_ptr< StructuredBlockStorage >& blocks,
-                      const BlockDataID& pdfFieldID, const shared_ptr< ParticleAccessor_T >& ac,
-                      walberla::id_t sphereID)
-      : timeloop_(timeloop), setup_(setup), blocks_(blocks), pdfFieldID_(pdfFieldID), ac_(ac), sphereID_(sphereID),
+                      const BlockDataID& pdfFieldID, const BlockDataID& particleAndVolumeFractionFieldID,
+                      const shared_ptr< ParticleAccessor_T >& ac, walberla::id_t sphereID)
+      : timeloop_(timeloop), setup_(setup), blocks_(blocks), pdfFieldID_(pdfFieldID),
+        particleAndVolumeFractionFieldID_(particleAndVolumeFractionFieldID), ac_(ac), sphereID_(sphereID),
         normalizedDragOld_(0.0), normalizedDragNew_(0.0)
    {
       // calculate the analytical drag force value based on the series expansion of chi
@@ -198,13 +199,18 @@ class DragForceEvaluator
       {
          // retrieve the pdf field and the flag field from the block
          PdfField_T* pdfField = blockIt->getData< PdfField_T >(pdfFieldID_);
+         lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T* particleAndVolumeFractionField =
+            blockIt->getData< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
+               particleAndVolumeFractionFieldID_);
 
          // get the flag that marks a cell as being fluid
 
          auto xyzField = pdfField->xyzSize();
          for (auto cell : xyzField)
          {
-            velocity_sum += pdfField->getVelocity(cell)[0];
+            // TODO: weighting is fixed to 1
+            velocity_sum += lbm_mesapd_coupling::psm::getPSMMacroscopicVelocity< LatticeModel_T, 1 >(
+               *blockIt, pdfField, particleAndVolumeFractionField, *blocks_, cell, *ac_)[0];
          }
       }
 
@@ -219,6 +225,7 @@ class DragForceEvaluator
 
    shared_ptr< StructuredBlockStorage > blocks_;
    const BlockDataID pdfFieldID_;
+   const BlockDataID particleAndVolumeFractionFieldID_;
 
    shared_ptr< ParticleAccessor_T > ac_;
    const walberla::id_t sphereID_;
@@ -446,7 +453,8 @@ int main(int argc, char** argv)
 
    // add LBM communication function and streaming & force evaluation
    using DragForceEval_T = DragForceEvaluator< ParticleAccessor_T >;
-   auto forceEval        = make_shared< DragForceEval_T >(&timeloop, &setup, blocks, pdfFieldID, accessor, sphereID);
+   auto forceEval        = make_shared< DragForceEval_T >(&timeloop, &setup, blocks, pdfFieldID,
+                                                   particleAndVolumeFractionFieldID, accessor, sphereID);
    timeloop.add() << BeforeFunction(optimizedPDFCommunicationScheme, "LBM Communication")
                   << Sweep(lbm::makeStreamSweep(sweep), "cell-wise LB sweep (stream)")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");
