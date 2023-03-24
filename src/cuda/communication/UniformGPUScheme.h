@@ -73,7 +73,7 @@ namespace communication {
        bool sendFromGPU_;
 
        using CpuBuffer_T = cuda::communication::PinnedMemoryBuffer;
-       using GpuBuffer_T = cuda::communication::GPUMemoryBuffer;
+       using GpuBuffer_T = cuda::communication::cudaMemoryBuffer;
 
        mpi::GenericBufferSystem<CpuBuffer_T, CpuBuffer_T> bufferSystemCPU_;
        mpi::GenericBufferSystem<GpuBuffer_T, GpuBuffer_T> bufferSystemGPU_;

@@ -7,7 +7,7 @@ Parameters
 
     outerIterations 1;
 
-    innerOuterSplit <32, 1, 1>;
+    innerOuterSplit <1, 1, 1>;
     timeStepStrategy Overlap;
 
 	remainingTimeLoggerFrequency 60; // in seconds

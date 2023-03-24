@@ -1,18 +1,19 @@
 
 Parameters 
 {
-	reference_velocity  0.1;
+	reference_velocity  0.9;
     viscosity  0.015;
 	initialVelocity < 0.05, 0, 0 >;
 	timesteps       1000;
 
-    timeStepStrategy simpleOverlap;
+    timeStepStrategy Overlap;
     innerOuterSplit     < 1, 1, 1>;
     weakScaling true;
     cudaEnabledMPI true;
+
     runBoundaries true;
 
-	remainingTimeLoggerFrequency 20; // in seconds
+	remainingTimeLoggerFrequency 60; // in seconds
 	vtkWriteFrequency 0;
 	outFile aa;
 }
@@ -21,7 +22,7 @@ Parameters
 DomainSetup
 {
    meshFile         Lagoon.obj;
-   cellsPerBlock    < 256, 256, 256 >;
+   cellsPerBlock    < 256, 256, 128 >;
    periodic         <  0,  0,  0 >;
 }
 //! [domainSetup]
@@ -37,8 +38,8 @@ Boundaries
 {
     Border { direction N;    walldistance -1;  flag NoSlip; }
     Border { direction S;    walldistance -1;  flag NoSlip; }
-    Border { direction W;    walldistance -1;  flag UBB; }
-    Border { direction E;    walldistance -1;  flag PressureOutflow; }
+    Border { direction W;    walldistance -1;  flag NoSlip; }
+    Border { direction E;    walldistance -1;  flag NoSlip; }
     Border { direction T;    walldistance -1;  flag NoSlip; }
     Border { direction B;    walldistance -1;  flag NoSlip; }
 }

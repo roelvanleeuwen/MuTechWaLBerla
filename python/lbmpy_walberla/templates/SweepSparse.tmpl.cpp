@@ -47,7 +47,7 @@ namespace {{namespace}} {
 
 {{kernel|generate_definitions(target)}}
 
-void {{class_name}}::run( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["gpuStream_t stream"] if target == 'gpu' else []] | type_identifier_list -}} )
+void {{class_name}}::run( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["cudaStream_t stream"] if target == 'gpu' else []] | type_identifier_list -}} )
    {
       auto list = block->getData< lbmpy::ListLBMList >(listID);
 
@@ -56,7 +56,7 @@ void {{class_name}}::run( {{- ["IBlock * block", kernel.kernel_selection_paramet
       {{kernel|generate_swaps|indent(4)}}
    }
 
-   void {{class_name}}::inner( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["gpuStream_t stream"] if target == 'gpu' else []] | type_identifier_list -}} )
+   void {{class_name}}::inner( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["cudaStream_t stream"] if target == 'gpu' else []] | type_identifier_list -}} )
    {
       auto list = block->getData< lbmpy::ListLBMList >(listID);
 
@@ -65,7 +65,7 @@ void {{class_name}}::run( {{- ["IBlock * block", kernel.kernel_selection_paramet
    }
 
 
-   void {{class_name}}::outer( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["gpuStream_t stream"] if target == 'gpu' else []] | type_identifier_list -}} )
+   void {{class_name}}::outer( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["cudaStream_t stream"] if target == 'gpu' else []] | type_identifier_list -}} )
    {
       auto list = block->getData< lbmpy::ListLBMList >(listID);
 

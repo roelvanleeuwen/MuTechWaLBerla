@@ -13,6 +13,7 @@ from lbmpy.advanced_streaming import is_inplace
 
 from pystencils_walberla import CodeGeneration, generate_sweep, generate_info_header
 from lbmpy_walberla.sparse import generate_list_class, generate_sparse_sweep, generate_sparse_boundary, generate_sparse_pack_info, generate_alternating_sparse_lbm_sweep, generate_alternating_sparse_boundary, generate_alternating_sparse_pack_info
+from lbmpy_walberla import RefinementScaling
 
 with CodeGeneration() as ctx:
 
@@ -51,8 +52,8 @@ with CodeGeneration() as ctx:
     else:
         field_swaps=[]
 
-    #scaling = RefinementScaling()
-    #scaling.add_standard_relaxation_rate_scaling(omega)
+    scaling = RefinementScaling()
+    scaling.add_standard_relaxation_rate_scaling(omega)
 
     if ctx.cuda:
         target = Target.GPU

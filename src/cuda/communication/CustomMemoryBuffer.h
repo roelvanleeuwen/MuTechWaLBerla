@@ -92,7 +92,7 @@ namespace communication {
 
 
    using PinnedMemoryBuffer = CustomMemoryBuffer<HostMemoryAllocator>;
-   using GPUMemoryBuffer    = CustomMemoryBuffer<DeviceMemoryAllocator>;
+   using cudaMemoryBuffer    = CustomMemoryBuffer<DeviceMemoryAllocator>;
 
 
    struct HostMemoryAllocator

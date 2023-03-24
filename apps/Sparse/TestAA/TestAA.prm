@@ -1,14 +1,13 @@
-
-Parameters 
+Parameters
 {
 	reference_velocity  0.9;
     viscosity  0.000015;
 	initialVelocity < 0.05, 0, 0 >;
 	timesteps       1000;
 
-    timeStepStrategy simpleOverlap;
-    innerOuterSplit     < 32, 1, 1>;
-    cudaEnabledMPI true;
+    timeStepStrategy Overlap;
+    innerOuterSplit     < 1, 1, 1>;
+    sendDirectlyFromGPU true;
     gpuBlockSize <128, 1, 1>;
 
     runBoundaries true;

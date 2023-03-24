@@ -121,7 +121,7 @@ namespace communication {
       }
 
       // wait for packing to finish
-      cudaStreamSynchronize( stream );
+      WALBERLA_CUDA_CHECK ( cudaStreamSynchronize( stream ) );
 
       if( sendFromGPU_ )
          bufferSystemGPU_.sendAll();
@@ -151,7 +151,7 @@ namespace communication {
 
                for( auto &pi : packInfos_ )
                {
-                  auto size = pi->size( header.dir, block );
+                  auto size = pi->size( stencil::inverseDir[header.dir], block );
                   auto gpuDataPtr = recvInfo.buffer().advanceNoResize( size );
                   WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr )
                   parallelSection.run([&](auto s) {
@@ -175,7 +175,7 @@ namespace communication {
 
                for( auto &pi : packInfos_ )
                {
-                  auto size = pi->size( header.dir, block );
+                  auto size = pi->size( stencil::inverseDir[header.dir], block );
                   auto cpuDataPtr = recvInfo.buffer().advanceNoResize( size );
                   auto gpuDataPtr = gpuBuffer.advanceNoResize( size );
                   WALBERLA_ASSERT_NOT_NULLPTR( cpuDataPtr )

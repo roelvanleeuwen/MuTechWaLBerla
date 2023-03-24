@@ -632,8 +632,8 @@ class ListCommunicationSetup
 
             {% if target is equalto 'gpu' -%}
             {{index_type}} * sendPDFsVectorGPU;
-            gpuMalloc( &sendPDFsVectorGPU, sizeof({{index_type}}) * sendPDFsVector.size() );
-            gpuMemcpy( sendPDFsVectorGPU, &sendPDFsVector[0], sizeof({{index_type}}) * sendPDFsVector.size(), gpuMemcpyHostToDevice );
+            cudaMalloc( &sendPDFsVectorGPU, sizeof({{index_type}}) * sendPDFsVector.size() );
+            cudaMemcpy( sendPDFsVectorGPU, &sendPDFsVector[0], sizeof({{index_type}}) * sendPDFsVector.size(), cudaMemcpyHostToDevice );
             senderList->setSendPDFsGPU(sendPDFsVectorGPU, dir);
             {%- endif %}
          }

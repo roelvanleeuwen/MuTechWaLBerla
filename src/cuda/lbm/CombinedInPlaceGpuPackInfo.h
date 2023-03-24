@@ -52,7 +52,8 @@ class CombinedInPlaceGpuPackInfo : public cuda::GeneratedGPUPackInfo
       }
    }
 
-   void unpack(stencil::Direction dir, unsigned char* buffer, IBlock* block, cudaStream_t stream) override {
+   void unpack(stencil::Direction dir, unsigned char* buffer, IBlock* block, cudaStream_t stream) override
+   {
       if (IS_EVEN(tracker_->getCounter()))
       {
          evenPackInfo_.unpack(dir, buffer, block, stream);

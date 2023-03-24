@@ -51,9 +51,6 @@ with CodeGeneration() as ctx:
         cse_global=False, cse_pdfs=False,
     )
 
-
-
-
     if not is_inplace(streaming_pattern):
         lbm_opt = replace(lbm_opt, symbolic_temporary_field=pdfs_tmp)
         field_swaps = [(pdfs, pdfs_tmp)]
@@ -111,20 +108,20 @@ with CodeGeneration() as ctx:
 
     generate_sweep(ctx, 'Lagoon_MacroSetter', setter_assignments, target=Target.CPU, cpu_openmp=openmp)
 
-    #outflow = ExtrapolationOutflow(outflow_normal, lb_method, streaming_pattern=streaming_pattern, data_type=dtype)
-    #outflow_data_handler = OutflowAdditionalDataHandler(stencil, outflow, target=target)
-    fixed_density = FixedDensity(sp.Symbol("density"))
+    outflow_normal = (1, 0, 0)
 
-    ubb = UBB((0.05, 0.0, 0.0), data_type=dtype)
+    outflow = ExtrapolationOutflow(outflow_normal, lb_method, streaming_pattern=streaming_pattern, data_type=dtype)
+    outflow_data_handler = OutflowAdditionalDataHandler(stencil, outflow, target=target)
 
-    generate_alternating_lbm_boundary(ctx, 'Lagoon_UBB', ubb, lb_method,
+    generate_alternating_lbm_boundary(ctx, 'Lagoon_UBB', UBB((0.05, 0.0, 0.0), data_type=dtype), lb_method,
                                       target=target, streaming_pattern=streaming_pattern, cpu_openmp=openmp)
 
     generate_alternating_lbm_boundary(ctx, 'Lagoon_NoSlip', NoSlip(), lb_method,
                                       target=target, streaming_pattern=streaming_pattern, cpu_openmp=openmp)
 
-    generate_alternating_lbm_boundary(ctx, 'Lagoon_Outflow', fixed_density, lb_method,
-                                      target=target, streaming_pattern=streaming_pattern, cpu_openmp=openmp)
+    generate_alternating_lbm_boundary(ctx, 'Lagoon_Outflow', outflow, lb_method,
+                                      target=target, streaming_pattern=streaming_pattern,
+                                      additional_data_handler=outflow_data_handler, cpu_openmp=openmp)
 
     # communication setting OpenMP here is usually bad
     generate_lb_pack_info(ctx, 'Lagoon_PackInfo', stencil, pdfs,

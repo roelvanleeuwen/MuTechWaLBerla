@@ -21,7 +21,7 @@ if ( WALBERLA_BUILD_WITH_OPENMESH AND WALBERLA_BUILD_WITH_CODEGEN )
                 ListLBMInfoHeader.h)
 
         waLBerla_add_executable ( NAME TestAASparse
-                FILES TestAASparse.cpp LBMSparseSweepAA.h
+                FILES TestAASparse.cpp
                 DEPENDS blockforest boundary core cuda field lbm mesh stencil timeloop vtk TestAASparseCodeGen)
     else()
         waLBerla_generate_target_from_python(NAME TestAASparseCodeGen
@@ -37,7 +37,7 @@ if ( WALBERLA_BUILD_WITH_OPENMESH AND WALBERLA_BUILD_WITH_CODEGEN )
                 ListLBMInfoHeader.h)
 
         waLBerla_add_executable ( NAME TestAASparse
-                FILES TestAASparse.cpp LBMSparseSweepAA.h
+                FILES TestAASparse.cpp
                 DEPENDS blockforest boundary core field lbm mesh stencil timeloop vtk TestAASparseCodeGen)
     endif()
 endif()

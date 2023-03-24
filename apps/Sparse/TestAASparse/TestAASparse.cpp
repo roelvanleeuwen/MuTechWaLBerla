@@ -71,7 +71,6 @@
 #   include "lbm/communication/CombinedInPlaceCpuPackInfo.h"
 #endif
 
-#include "LBMSparseSweepAA.h"
 #include "ListLBMInfoHeader.h"
 #include <iostream>
 #include <fstream>
@@ -120,7 +119,7 @@ int main(int argc, char **argv)
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
    cuda::selectDeviceBasedOnMpiRank();
-   WALBERLA_CUDA_CHECK(gpuPeekAtLastError())
+   WALBERLA_CUDA_CHECK(cudaPeekAtLastError())
 #endif
 
    mpi::MPIManager::instance()->useWorldComm();
@@ -284,8 +283,6 @@ int main(int argc, char **argv)
    }
 
 
-
-
    ////////////////////////////////////
    /// CREATE AND INITIALIZE FIELDS ///
    ////////////////////////////////////
@@ -330,22 +327,18 @@ int main(int argc, char **argv)
    WALBERLA_LOG_INFO_ON_ROOT("Finished initialisation of the linked-list structure")
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
-   int streamHighPriority = 0;
-   int streamLowPriority  = 0;
-   WALBERLA_CUDA_CHECK(cudaDeviceGetStreamPriorityRange(&streamLowPriority, &streamHighPriority))
-   auto defaultStream = cuda::StreamRAII::newPriorityStream(streamLowPriority);
 
    const bool cudaEnabledMPI = parameters.getParameter< bool >("cudaEnabledMPI", true);
    auto packInfo = make_shared<lbm::CombinedInPlaceGpuPackInfo<PackInfoEven_T, PackInfoOdd_T> >(tracker, pdfListId);
    cuda::communication::UniformGPUScheme< Stencil_T > comm(blocks, cudaEnabledMPI);
    comm.addPackInfo(packInfo);
-   auto communicate = std::function< void() >([&]() { comm.communicate(defaultStream); });
-   auto start_communicate = std::function< void() >([&]() { comm.startCommunication(defaultStream); });
-   auto wait_communicate = std::function< void() >([&]() { comm.wait(defaultStream); });
+   auto communicate = std::function< void() >([&]() { comm.communicate(nullptr); });
+   auto start_communicate = std::function< void() >([&]() { comm.startCommunication(nullptr); });
+   auto wait_communicate = std::function< void() >([&]() { comm.wait(nullptr); });
    WALBERLA_LOG_INFO_ON_ROOT("Finished setting up communication and start first communication")
 
    // TODO: Data for List LBM is synced at first communication. Should be fixed ...
-   comm.communicate(defaultStream);
+   comm.communicate();
    WALBERLA_LOG_INFO_ON_ROOT("Finished first communication")
 #else
    auto packInfo = make_shared<lbm::CombinedInPlaceCpuPackInfo<PackInfoEven_T, PackInfoOdd_T> >(tracker, pdfListId);
@@ -365,19 +358,36 @@ int main(int argc, char **argv)
    const std::string timeStepStrategy = parameters.getParameter<std::string>("timeStepStrategy", "noOverlap");
    const bool runBoundaries = parameters.getParameter<bool>("runBoundaries", true);
 
+   // create time loop
+   SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
+
+   WALBERLA_LOG_INFO_ON_ROOT("timeStepStrategy: " << timeStepStrategy)
+
+   if (timeStepStrategy == "noOverlap") {
+      timeloop.add() << BeforeFunction(communicate, "communication")
+                     << Sweep(pressureOutflow.getSweep(tracker), "outflow boundary");
+      timeloop.add() << Sweep(ubb.getSweep(tracker), "ubb boundary");
+      timeloop.add() << BeforeFunction(tracker->getAdvancementFunction(), "Timestep Advancement")
+                     << Sweep(kernel.getSweep(tracker), "LB update rule");
+   } else if (timeStepStrategy == "Overlap") {
+      timeloop.add() << BeforeFunction(start_communicate, "Start Communication")
+                     << Sweep(pressureOutflow.getSweep(tracker), "outflow boundary");
+      timeloop.add() << Sweep(ubb.getSweep(tracker), "ubb boundary");
+      timeloop.add() << Sweep(kernel.getInnerSweep(tracker), "LBM Inner Kernel");
+      timeloop.add() << BeforeFunction(wait_communicate, "Wait for Communication")
+                     << BeforeFunction(tracker->getAdvancementFunction(), "Timestep Advancement")
+                     << Sweep(kernel.getOuterSweep(tracker), "LBM Outer Kernel");
+   } else if (timeStepStrategy == "kernelOnly") {
+      timeloop.add() << BeforeFunction(tracker->getAdvancementFunction(), "Timestep Advancement")
+                     << Sweep(kernel.getSweep(tracker), "LBM complete Kernel");
+   } else {
+      WALBERLA_ABORT_NO_DEBUG_INFO("Invalid value for 'timeStepStrategy'")
+   }
+
+
+
+   /*
    auto normalTimeStep = [&]() {
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-      communicate();
-      for (auto& block : *blocks)
-      {
-         if (runBoundaries) {
-            ubb(&block, tracker->getCounter(), defaultStream);
-            pressureOutflow(&block, tracker->getCounter(), defaultStream);
-         }
-         kernel(&block, tracker->getCounterPlusOne(), defaultStream);
-      }
-      tracker->advance();
-#else
       communicate();
       for (auto& block : *blocks)
       {
@@ -388,29 +398,11 @@ int main(int argc, char **argv)
          kernel(&block, tracker->getCounterPlusOne());
       }
       tracker->advance();
-#endif
+
 
    };
 
    auto simpleOverlapTimeStep = [&]() {
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-      start_communicate();
-      for (auto& block : *blocks)
-      {
-         if (runBoundaries) {
-            ubb(&block, tracker->getCounter(), defaultStream);
-            pressureOutflow(&block, tracker->getCounter(), defaultStream);
-         }
-         kernel.inner(&block, tracker->getCounterPlusOne(), defaultStream);
-      }
-      wait_communicate();
-      for (auto& block : *blocks)
-      {
-         kernel.outer(&block, tracker->getCounterPlusOne(), defaultStream);
-      }
-
-      tracker->advance();
-#else
       start_communicate();
       for (auto& block : *blocks)
       {
@@ -425,8 +417,9 @@ int main(int argc, char **argv)
       {
          kernel.outer(&block, tracker->getCounterPlusOne());
       }
+
       tracker->advance();
-#endif
+
    };
 
    auto kernelOnlyFunc = [&]() {
@@ -454,7 +447,7 @@ int main(int argc, char **argv)
 
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
    timeloop.add() << BeforeFunction(timeStep) << Sweep([](IBlock*) {}, "time step");
-
+   */
 
    //////////////////////////////////
    ///       VTK AND STUFF        ///

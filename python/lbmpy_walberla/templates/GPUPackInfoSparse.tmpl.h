@@ -34,12 +34,9 @@ class {{class_name}} : public walberla::cuda::GeneratedGPUPackInfo
 
    virtual ~{{class_name}}() = default;
 
-   void beforeStartCommunication() override {}
-
-   void communicateLocal( stencil::Direction dir, IBlock * sender, IBlock * receiver, gpuStream_t stream) override;
-
-   void pack  (stencil::Direction dir, unsigned char * buffer, IBlock * block, gpuStream_t stream) override;
-   void unpack(stencil::Direction dir, unsigned char * buffer, IBlock * block, gpuStream_t stream) override;
+   void pack  (stencil::Direction dir, unsigned char * buffer, IBlock * block, cudaStream_t stream) override;
+   void unpack(stencil::Direction dir, unsigned char * buffer, IBlock * block, cudaStream_t stream) override;
+   //void communicateLocal( stencil::Direction dir, IBlock * sender, IBlock * receiver, cudaStream_t stream) override;
    uint_t size  (stencil::Direction dir, IBlock * block) override;
 
    const BlockDataID listId_;

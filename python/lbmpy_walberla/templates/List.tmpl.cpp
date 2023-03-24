@@ -100,59 +100,59 @@ void {{class_name}}::syncGPU()
 {
    if (pdfsGPU_)
    {
-      WALBERLA_CUDA_CHECK( gpuFree( pdfsGPU_ ) );
+      WALBERLA_CUDA_CHECK( cudaFree( pdfsGPU_ ) );
       pdfsGPU_ = nullptr;
    }
    if (tmpPdfsGPU_)
    {
-      WALBERLA_CUDA_CHECK( gpuFree( tmpPdfsGPU_ ));
+      WALBERLA_CUDA_CHECK( cudaFree( tmpPdfsGPU_ ));
       tmpPdfsGPU_ = nullptr;
    }
    if (pullIdxsGPU_)
    {
-      WALBERLA_CUDA_CHECK( gpuFree( pullIdxsGPU_ ));
+      WALBERLA_CUDA_CHECK( cudaFree( pullIdxsGPU_ ));
       pullIdxsGPU_ = nullptr;
    }
    if (pullIdxsInnerGPU_)
    {
-      WALBERLA_CUDA_CHECK( gpuFree( pullIdxsInnerGPU_ ));
+      WALBERLA_CUDA_CHECK( cudaFree( pullIdxsInnerGPU_ ));
       pullIdxsInnerGPU_ = nullptr;
    }
    if (pullIdxsOuterGPU_)
    {
-      WALBERLA_CUDA_CHECK( gpuFree( pullIdxsOuterGPU_ ));
+      WALBERLA_CUDA_CHECK( cudaFree( pullIdxsOuterGPU_ ));
       pullIdxsOuterGPU_ = nullptr;
    }
 
-   WALBERLA_CUDA_CHECK( gpuMalloc( &pdfsGPU_, sizeof(real_t) * pdfs_.size() ));
-   WALBERLA_CUDA_CHECK( gpuMemcpy( pdfsGPU_, &pdfs_[0], sizeof(real_t) * pdfs_.size(), gpuMemcpyHostToDevice ));
+   WALBERLA_CUDA_CHECK( cudaMalloc( &pdfsGPU_, sizeof(real_t) * pdfs_.size() ));
+   WALBERLA_CUDA_CHECK( cudaMemcpy( pdfsGPU_, &pdfs_[0], sizeof(real_t) * pdfs_.size(), cudaMemcpyHostToDevice ));
 
-   WALBERLA_CUDA_CHECK( gpuMalloc( &tmpPdfsGPU_, sizeof(real_t) * tmpPdfs_.size() ));
-   WALBERLA_CUDA_CHECK( gpuMemcpy( tmpPdfsGPU_, &tmpPdfs_[0], sizeof(real_t) * tmpPdfs_.size(), gpuMemcpyHostToDevice ));
+   WALBERLA_CUDA_CHECK( cudaMalloc( &tmpPdfsGPU_, sizeof(real_t) * tmpPdfs_.size() ));
+   WALBERLA_CUDA_CHECK( cudaMemcpy( tmpPdfsGPU_, &tmpPdfs_[0], sizeof(real_t) * tmpPdfs_.size(), cudaMemcpyHostToDevice ));
 
-   WALBERLA_CUDA_CHECK( gpuMalloc( &pullIdxsGPU_, sizeof(uint32_t) * pullIdxs_.size() ));
-   WALBERLA_CUDA_CHECK( gpuMemcpy( pullIdxsGPU_, &pullIdxs_[0], sizeof(uint32_t) * pullIdxs_.size(), gpuMemcpyHostToDevice ));
+   WALBERLA_CUDA_CHECK( cudaMalloc( &pullIdxsGPU_, sizeof(uint32_t) * pullIdxs_.size() ));
+   WALBERLA_CUDA_CHECK( cudaMemcpy( pullIdxsGPU_, &pullIdxs_[0], sizeof(uint32_t) * pullIdxs_.size(), cudaMemcpyHostToDevice ));
 
-   WALBERLA_CUDA_CHECK( gpuMalloc( &pullIdxsInnerGPU_, sizeof(uint32_t) * pullIdxsInner_.size() ));
-   WALBERLA_CUDA_CHECK( gpuMemcpy( pullIdxsInnerGPU_, &pullIdxsInner_[0], sizeof(uint32_t) * pullIdxsInner_.size(), gpuMemcpyHostToDevice ));
+   WALBERLA_CUDA_CHECK( cudaMalloc( &pullIdxsInnerGPU_, sizeof(uint32_t) * pullIdxsInner_.size() ));
+   WALBERLA_CUDA_CHECK( cudaMemcpy( pullIdxsInnerGPU_, &pullIdxsInner_[0], sizeof(uint32_t) * pullIdxsInner_.size(), cudaMemcpyHostToDevice ));
 
-   WALBERLA_CUDA_CHECK( gpuMalloc( &pullIdxsOuterGPU_, sizeof(uint32_t) * pullIdxsOuter_.size() ));
-   WALBERLA_CUDA_CHECK( gpuMemcpy( pullIdxsOuterGPU_, &pullIdxsOuter_[0], sizeof(uint32_t) * pullIdxsOuter_.size(), gpuMemcpyHostToDevice ));
+   WALBERLA_CUDA_CHECK( cudaMalloc( &pullIdxsOuterGPU_, sizeof(uint32_t) * pullIdxsOuter_.size() ));
+   WALBERLA_CUDA_CHECK( cudaMemcpy( pullIdxsOuterGPU_, &pullIdxsOuter_[0], sizeof(uint32_t) * pullIdxsOuter_.size(), cudaMemcpyHostToDevice ));
    WALBERLA_LOG_INFO_ON_ROOT("Synced Data to GPU")
 }
 
 void {{class_name}}::copyPDFSToCPU()
 {
-   WALBERLA_CUDA_CHECK( gpuMemcpy( &pdfs_[0], pdfsGPU_, sizeof(real_t) * pdfs_.size(), gpuMemcpyDeviceToHost ));
+   WALBERLA_CUDA_CHECK( cudaMemcpy( &pdfs_[0], pdfsGPU_, sizeof(real_t) * pdfs_.size(), cudaMemcpyDeviceToHost ));
 }
 
 void {{class_name}}::clearGPUArrays()
 {
-   WALBERLA_CUDA_CHECK( gpuFree( pdfsGPU_ ));
-   WALBERLA_CUDA_CHECK( gpuFree( tmpPdfsGPU_ ));
-   WALBERLA_CUDA_CHECK( gpuFree( pullIdxsGPU_ ));
-   WALBERLA_CUDA_CHECK( gpuFree( pullIdxsInnerGPU_ ));
-   WALBERLA_CUDA_CHECK( gpuFree( pullIdxsOuterGPU_ ));
+   WALBERLA_CUDA_CHECK( cudaFree( pdfsGPU_ ));
+   WALBERLA_CUDA_CHECK( cudaFree( tmpPdfsGPU_ ));
+   WALBERLA_CUDA_CHECK( cudaFree( pullIdxsGPU_ ));
+   WALBERLA_CUDA_CHECK( cudaFree( pullIdxsInnerGPU_ ));
+   WALBERLA_CUDA_CHECK( cudaFree( pullIdxsOuterGPU_ ));
 }
 {%- else %}
 void {{class_name}}::syncGPU()

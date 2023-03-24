@@ -58,7 +58,7 @@ static __global__ void unpackOdd(double * RESTRICT const _data_buffer, double * 
 }
 {%- endif %}
 
-namespace internal_communicate_local {
+/*namespace internal_communicate_local {
 static __global__ void communicate(double * RESTRICT const _data_sender, double * RESTRICT _data_receiver, uint32_t * RESTRICT const _data_idx_sender, int64_t startIDXReceiver, int64_t numPDFs)
 {
    double * RESTRICT _start_receiver_pdfs = _data_receiver + startIDXReceiver;
@@ -68,10 +68,10 @@ static __global__ void communicate(double * RESTRICT const _data_sender, double 
       _start_receiver_pdfs[ctr_0] = _data_sender[_data_idx_sender[ctr_0]];
    }
 }
-}
+}*/
 
 
-void {{class_name}}::pack( stencil::Direction dir, unsigned char * byte_buffer, IBlock * block, gpuStream_t stream )
+void {{class_name}}::pack( stencil::Direction dir, unsigned char * byte_buffer, IBlock * block, cudaStream_t stream )
 {
    auto * list = block->getData< lbmpy::ListLBMList >( listId_ );
    WALBERLA_ASSERT_NOT_NULLPTR( list )
@@ -108,7 +108,7 @@ void {{class_name}}::pack( stencil::Direction dir, unsigned char * byte_buffer, 
 {%- endif %}
 }
 
-void {{class_name}}::unpack( stencil::Direction dir, unsigned char * byte_buffer, IBlock * block, gpuStream_t stream )
+void {{class_name}}::unpack( stencil::Direction dir, unsigned char * byte_buffer, IBlock * block, cudaStream_t stream )
 {
 
    auto * list = block->getData< lbmpy::ListLBMList >( listId_ );
@@ -148,7 +148,7 @@ void {{class_name}}::unpack( stencil::Direction dir, unsigned char * byte_buffer
 {%- endif %}
 }
 
-void {{class_name}}::communicateLocal( stencil::Direction dir, IBlock * sender, IBlock * receiver, gpuStream_t stream)
+/*void {{class_name}}::communicateLocal( stencil::Direction dir, IBlock * sender, IBlock * receiver, cudaStream_t stream)
 {
    stencil::Direction inverseDir = stencil::inverseDir[dir];
 
@@ -185,7 +185,7 @@ void {{class_name}}::communicateLocal( stencil::Direction dir, IBlock * sender, 
 
 
    internal_communicate_local::communicate<<<_grid, _block, 0, stream>>>(_data_sender_pdfs, _data_receiver_pdfs, idxs, ReceiverStartIDX, numPDFs);
-}
+}*/
 
 uint_t {{class_name}}::size( stencil::Direction dir, IBlock * block )
 {
@@ -199,7 +199,6 @@ uint_t {{class_name}}::size( stencil::Direction dir, IBlock * block )
    if(numPDFsSend != numPDFsRecieve) {
       WALBERLA_LOG_INFO("numPDFsSend " << numPDFsSend << " =! numPDFsRecieve " << numPDFsRecieve << " in dir " << stencil::dirToString[dir])
    }
-   //if (numPDFsSend == 0) numPDFsSend = 1;
    return numPDFsSend * sizeof( double );
 }
 
