@@ -6,13 +6,14 @@ import math
 class Scenario:
     def __init__(self):
         #> Domain Parameters
-        self.domain_size = (100, 50, 10)
+        self.domain_size = (32, 32, 32)
         self.blocks = (4, 1, 1)
         self.periodic = (1, 0, 1)
         self.cells = (self.domain_size[0] // self.blocks[0], self.domain_size[1] // self.blocks[1], self.domain_size[2] // self.blocks[2])
+        self.cells = (32, 32, 32)
         #print(f"self.cells = {self.cells}")
         #> Standard Parameters
-        self.timesteps = 20000
+        self.timesteps = 100
         self.vtk_write_frequency = 200
         self.scenario = 1
         #> Physical Parameters
@@ -57,10 +58,12 @@ class Scenario:
     def config(self):
         return {
             'DomainSetup': {
-                'blocks': self.blocks,
-                'domainSize': self.domain_size,
-                'cellsPerBlock': self.cells,
+                #'blocks': self.blocks,
+                #'domainSize': self.domain_size,
+                #'cellsPerBlock': self.cells,
+                'cells': self.cells,
                 'periodic': self.periodic,
+                'dx': 1.0,
             },
             'Parameters': {
                 'timesteps': self.timesteps,

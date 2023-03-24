@@ -66,17 +66,41 @@ int main(int argc, char** argv)
       auto config = *cfg;
       logging::configureLogging(config);
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(*config)
-      shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGridFromConfig(config);
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->isXPeriodic())
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->isYPeriodic())
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->isZPeriodic())
 
       ///////////////////////////
       // ADD DOMAIN PARAMETERS //
       ///////////////////////////
       auto domainSetup             = config->getOneBlock("DomainSetup");
-      Vector3< uint_t > domainSize = domainSetup.getParameter< Vector3< uint_t > >("domainSize");
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(domainSize)
+      bool weak_scaling = true;
+
+      uint_t nrOfProcesses = uint_c(MPIManager::instance()->numProcesses());
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(nrOfProcesses)
+
+      Vector3< uint_t > cellsPerBlock = domainSetup.getParameter< Vector3< uint_t > >("cells");
+      std::vector< config::Config::Block* > configDomainSetupBlock;
+      config->getWritableGlobalBlock().getWritableBlocks("DomainSetup", configDomainSetupBlock, 1, 1);
+      Vector3< uint_t > blocksPerDimension;
+      Vector3< uint_t > cellsPerBlockDummy;
+      blockforest::calculateCellDistribution(cellsPerBlock, nrOfProcesses, blocksPerDimension, cellsPerBlockDummy);
+
+      Vector3< uint_t > domainSize;
+      domainSize[0] = blocksPerDimension[0] * cellsPerBlock[0];
+      domainSize[1] = blocksPerDimension[1] * cellsPerBlock[1];
+      domainSize[2] = blocksPerDimension[2] * cellsPerBlock[2];
+
+      std::string tmp = "< " + std::to_string(domainSize[0]) + ", " + std::to_string(domainSize[1]) + ", " + std::to_string(domainSize[2]) + " >";
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(tmp)
+      configDomainSetupBlock[0]->setParameter("cells", tmp);
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(*config)
+
+      shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGridFromConfig(config);
+      //shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid(cellsPerBlock, blocksPerDimension);
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getXSize())
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getYSize())
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getZSize())
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockXSize())
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockYSize())
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockZSize())
 
       ///////////////////////////////////////
       // ADD GENERAL SIMULATION PARAMETERS //
