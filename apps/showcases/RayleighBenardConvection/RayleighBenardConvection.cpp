@@ -75,7 +75,7 @@ int main(int argc, char** argv)
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(nrOfProcesses)
 
       auto domainSetup                = config->getOneBlock("DomainSetup");
-      Vector3< uint_t > cellsPerBlock = domainSetup.getParameter< Vector3< uint_t > >("cells");
+      Vector3< uint_t > cellsPerBlock = domainSetup.getParameter< Vector3< uint_t > >("cellsPerBlock");
       std::vector< config::Config::Block* > configDomainSetupBlock;
       config->getWritableGlobalBlock().getWritableBlocks("DomainSetup", configDomainSetupBlock, 1, 1);
       Vector3< uint_t > blocksPerDimension;
@@ -86,23 +86,24 @@ int main(int argc, char** argv)
       domainSize[0] = blocksPerDimension[0] * cellsPerBlock[0];
       domainSize[1] = blocksPerDimension[1] * cellsPerBlock[1];
       domainSize[2] = blocksPerDimension[2] * cellsPerBlock[2];
+      //WALBERLA_LOG_INFO_ON_ROOT("cellsPerBlock = (" << cellsPerBlock[0] << ", " << cellsPerBlock[1] << ", " << cellsPerBlock[2] << ")")
+      //WALBERLA_LOG_INFO_ON_ROOT("blocksPerDimension = (" << blocksPerDimension[0] << ", " << blocksPerDimension[1] << ", " << blocksPerDimension[2] << ")")
+      //WALBERLA_LOG_INFO_ON_ROOT("domain size = (" << domainSize[0] << ", " << domainSize[1] << ", " << domainSize[2] << ")")
 
-      std::string tmp = "< " + std::to_string(domainSize[0]) + ", " + std::to_string(domainSize[1]) + ", " +
-                        std::to_string(domainSize[2]) + " >";
-      //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(tmp)
-      configDomainSetupBlock[0]->setParameter("cells", tmp);
+      std::string tmp = "< " + std::to_string(blocksPerDimension[0]) + ", " + std::to_string(blocksPerDimension[1]) + ", " +
+                        std::to_string(blocksPerDimension[2]) + " >";
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(tmp)
+      configDomainSetupBlock[0]->setOrAddParameter("blocks", tmp);
+
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(*config)
 
       shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGridFromConfig(config);
-      // shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid(cellsPerBlock,
-      // blocksPerDimension);
       /*WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getXSize())
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getYSize())
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getZSize())
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockXSize())
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockYSize())
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockZSize())
-      */
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockZSize())*/
 
       ///////////////////////////////////////
       // ADD GENERAL SIMULATION PARAMETERS //
@@ -252,7 +253,8 @@ int main(int argc, char** argv)
       auto benchmark_parameters = config->getOneBlock("BenchmarkParameters");
       std::string scaling_type  = benchmark_parameters.getParameter< std::string >("scalingType");
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(scaling_type)
-      WALBERLA_LOG_INFO_ON_ROOT("#blocks = (" << blocks->getXSize() << ", " << blocks->getYSize() << ", " << blocks->getZSize() << ")")
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(nrOfProcesses)
+      WALBERLA_LOG_INFO_ON_ROOT("#blocks = (" << blocks->getXSize() << ", " << blocks->getYSize() << ", " << blocks->getZSize() << ") | total #blocks = " << blocks->getXSize() * blocks->getYSize() * blocks->getZSize())
       WALBERLA_LOG_INFO_ON_ROOT("block size = (" << blocks->getRootBlockXSize() << ", " << blocks->getRootBlockYSize() << ", " << blocks->getRootBlockZSize() << ")")
       WALBERLA_LOG_INFO_ON_ROOT("domain size = (" << domainSize[0] << ", " << domainSize[1] << ", " << domainSize[2] << ")")
 
