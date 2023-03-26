@@ -4,7 +4,7 @@ import math
 
 
 class Scenario:
-    def __init__(self, weak_scaling=False, scaling_type=None, cells=(32, 32, 32)):
+    def __init__(self, weak_scaling=False, scaling_type=None, cells=(32, 32, 32), timesteps=100):
         #> Domain Parameters
         self.domain_size = (180, 100, 180)
         self.blocks = (9, 2, 4)
@@ -13,7 +13,7 @@ class Scenario:
         self.cells = cells
         #print(f"self.cells = {self.cells}")
         #> Standard Parameters
-        self.timesteps = 500
+        self.timesteps = timesteps
         self.vtk_write_frequency = 200
         self.scenario = 1
         #> Physical Parameters
@@ -53,7 +53,7 @@ class Scenario:
         self.weakScaling = weak_scaling # True
         self.scalingType = scaling_type  #"fluid", "thermal", "rbc"
         self.benchmarkingIterations = 5
-        self.warmupSteps = 100
+        self.warmupSteps = 10
 
         #?self.viscosity_SI = 1.516e-5  #? look
         #?self.thermal_diffusivity_SI = 2.074e-5  #? look
@@ -116,16 +116,17 @@ class Scenario:
 
 def runSimulation():
     scenarios = wlb.ScenarioManager()
-    scenarios.add(Scenario())
+    scenarios.add(Scenario(timesteps=10000))
 
 
 def weakScalingBenchmark():
     scenarios = wlb.ScenarioManager()
     block_sizes = [(i, i, i) for i in (8, 16, 32, 64, 128)]
+    timestepsPerBlockSize = [1024, 512, 256, 128, 64]
 
     for scaling_type in ['rbc', 'fluid', 'thermal']:
-        for block_size in block_sizes:
-            scenario = Scenario(weak_scaling=True, scaling_type=scaling_type, cells=block_size)
+        for block_size, timesteps in [(block_sizes[i], timestepsPerBlockSize[i]) for i in range(len(timestepsPerBlockSize))]:
+            scenario = Scenario(weak_scaling=True, scaling_type=scaling_type, cells=block_size, timesteps=timesteps)
             scenarios.add(scenario)
 
 
