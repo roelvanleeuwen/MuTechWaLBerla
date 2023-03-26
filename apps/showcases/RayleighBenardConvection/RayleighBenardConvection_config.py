@@ -13,14 +13,14 @@ class Scenario:
         self.cells = cells
         #print(f"self.cells = {self.cells}")
         #> Standard Parameters
-        self.timesteps = 500
+        self.timesteps = 1000
         self.vtk_write_frequency = 200
         self.scenario = 1
         #> Physical Parameters
         #! Prandtl
         self.Prandtl = 1
         #! Rayleigh
-        self.Rayleigh = 500000
+        self.Rayleigh = 50000
         #! omega_fluid
         self.omega_fluid = 1.95
         #! omega_thermal
@@ -120,7 +120,7 @@ def runSimulation():
 
 def weakScalingBenchmark():
     scenarios = wlb.ScenarioManager()
-    block_sizes = [(i, i, i) for i in (8, 16, 32)]#, 64, 128)]
+    block_sizes = [(i, i, i) for i in (8, 16, 32, 64, 128)]
 
     for scaling_type in ['rbc', 'fluid', 'thermal']:
         for block_size in block_sizes:
