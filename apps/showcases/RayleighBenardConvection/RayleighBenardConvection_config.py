@@ -4,16 +4,16 @@ import math
 
 
 class Scenario:
-    def __init__(self):
+    def __init__(self, weak_scaling=False, scaling_type=None, cells=(32, 32, 32)):
         #> Domain Parameters
         self.domain_size = (32, 32, 32)
         self.blocks = (4, 1, 1)
         self.periodic = (1, 0, 1)
         self.cells = (self.domain_size[0] // self.blocks[0], self.domain_size[1] // self.blocks[1], self.domain_size[2] // self.blocks[2])
-        self.cells = (32, 32, 32)
+        self.cells = cells
         #print(f"self.cells = {self.cells}")
         #> Standard Parameters
-        self.timesteps = 100
+        self.timesteps = 500
         self.vtk_write_frequency = 200
         self.scenario = 1
         #> Physical Parameters
@@ -48,6 +48,12 @@ class Scenario:
         self.init_temperature_range = 2 * self.delta_temperature / self.domain_size[0]
         #print(f"init_amplitude = {self.init_amplitude}")
         #print(f"init_temperature_range = {self.init_temperature_range}")
+
+        #> Benchmark Parameters
+        self.weakScaling = weak_scaling # True
+        self.scalingType = scaling_type  #"fluid", "thermal", "rbc"
+        self.benchmarkingIterations = 5
+        self.warmupSteps = 100
 
         #?self.viscosity_SI = 1.516e-5  #? look
         #?self.thermal_diffusivity_SI = 2.074e-5  #? look
@@ -86,6 +92,12 @@ class Scenario:
                 'initAmplitude': self.init_amplitude,
                 'initTemperatureRange': self.init_temperature_range,
             },
+            'BenchmarkParameters': {
+                'weakScaling': self.weakScaling,
+                'scalingType': self.scalingType,  #"fluid", "thermal", "rbc"
+                'benchmarkingIterations': self.benchmarkingIterations,
+                'warmupSteps': self.warmupSteps,
+            },
             'Boundaries_Hydro': {
                 'Border': [
                     {'direction': 'N', 'walldistance': -1, 'flag': 'BC_fluid_NoSlip'},
@@ -101,5 +113,20 @@ class Scenario:
         }
 
 
-scenarios = wlb.ScenarioManager()
-scenarios.add(Scenario())
+def runSimulation():
+    scenarios = wlb.ScenarioManager()
+    scenarios.add(Scenario())
+
+
+def weakScalingBenchmark():
+    scenarios = wlb.ScenarioManager()
+    block_sizes = [(i, i, i) for i in (8, 16, 32)]#, 64, 128)]
+
+    for scaling_type in ['rbc', 'fluid', 'thermal']:
+        for block_size in block_sizes:
+            scenario = Scenario(weak_scaling=True, scaling_type=scaling_type, cells=block_size)
+            scenarios.add(scenario)
+
+
+# runSimulation()
+weakScalingBenchmark()

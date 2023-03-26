@@ -65,17 +65,16 @@ int main(int argc, char** argv)
 
       auto config = *cfg;
       logging::configureLogging(config);
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(*config)
+      //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(*config)
 
       ///////////////////////////
       // ADD DOMAIN PARAMETERS //
       ///////////////////////////
-      auto domainSetup             = config->getOneBlock("DomainSetup");
-      bool weak_scaling = true;
 
       uint_t nrOfProcesses = uint_c(MPIManager::instance()->numProcesses());
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(nrOfProcesses)
 
+      auto domainSetup                = config->getOneBlock("DomainSetup");
       Vector3< uint_t > cellsPerBlock = domainSetup.getParameter< Vector3< uint_t > >("cells");
       std::vector< config::Config::Block* > configDomainSetupBlock;
       config->getWritableGlobalBlock().getWritableBlocks("DomainSetup", configDomainSetupBlock, 1, 1);
@@ -88,19 +87,22 @@ int main(int argc, char** argv)
       domainSize[1] = blocksPerDimension[1] * cellsPerBlock[1];
       domainSize[2] = blocksPerDimension[2] * cellsPerBlock[2];
 
-      std::string tmp = "< " + std::to_string(domainSize[0]) + ", " + std::to_string(domainSize[1]) + ", " + std::to_string(domainSize[2]) + " >";
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(tmp)
+      std::string tmp = "< " + std::to_string(domainSize[0]) + ", " + std::to_string(domainSize[1]) + ", " +
+                        std::to_string(domainSize[2]) + " >";
+      //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(tmp)
       configDomainSetupBlock[0]->setParameter("cells", tmp);
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(*config)
 
       shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGridFromConfig(config);
-      //shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid(cellsPerBlock, blocksPerDimension);
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getXSize())
+      // shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid(cellsPerBlock,
+      // blocksPerDimension);
+      /*WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getXSize())
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getYSize())
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getZSize())
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockXSize())
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockYSize())
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockZSize())
+      */
 
       ///////////////////////////////////////
       // ADD GENERAL SIMULATION PARAMETERS //
@@ -111,8 +113,8 @@ int main(int argc, char** argv)
       const real_t remainingTimeLoggerFrequency =
          parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0));
       // const uint_t scenario = parameters.getParameter< uint_t >("scenario", uint_c(1));
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(timesteps)
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(remainingTimeLoggerFrequency)
+      //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(timesteps)
+      //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(remainingTimeLoggerFrequency)
 
       ////////////////////////
       // ADD DATA TO BLOCKS //
@@ -135,10 +137,10 @@ int main(int argc, char** argv)
       const real_t temperatureHot  = physical_parameters.getParameter< real_t >("temperatureHot", real_c(0.5));
       const real_t temperatureCold = physical_parameters.getParameter< real_t >("temperatureCold", real_c(-0.5));
       const real_t gravity         = physical_parameters.getParameter< real_t >("gravitationalAcceleration");
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(omegaFluid)
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(omegaThermal)
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(temperatureHot)
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(temperatureCold)
+//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(omegaFluid)
+//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(omegaThermal)
+//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(temperatureHot)
+//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(temperatureCold)
 
       ///////////////////////////////////
       // ADD INITIALIZATION PARAMETERS //
@@ -146,8 +148,8 @@ int main(int argc, char** argv)
       auto initialization_parameters    = config->getOneBlock("InitializationParameters");
       const real_t initAmplitude        = initialization_parameters.getParameter< real_t >("initAmplitude");
       const real_t initTemperatureRange = initialization_parameters.getParameter< real_t >("initTemperatureRange");
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initAmplitude)
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initTemperatureRange)
+//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initAmplitude)
+//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initTemperatureRange)
 
       initTemperatureField(blocks, temperature_field_ID, initAmplitude, domainSize, initTemperatureRange);
 
@@ -213,81 +215,170 @@ int main(int argc, char** argv)
       lbm::BC_thermal_Thot thermal_Thot(blocks, thermal_PDFs_ID, temperatureHot);
       thermal_Thot.fillFromFlagField< FlagField_T >(blocks, flagFieldThermalID, ThotUID, fluidFlagThermalUID);
 
+      //------------------------------------- TIME STEP DEFINITIONS ---------------------------------------------------
+      auto kernelOnlyFuncFluid = [&]() {
+         for (auto& block : *blocks)
+            fluid_lb_step(&block);
+      };
+
+      auto kernelOnlyFuncThermal = [&]() {
+         for (auto& block : *blocks)
+            thermal_lb_step(&block);
+      };
+
+      auto boundaryThermal = [&](IBlock* block) {
+         thermal_Tcold.run(block);
+         thermal_Thot.run(block);
+      };
+      auto boundaryFluid = [&](IBlock* block) { fluid_NoSlip.run(block); };
+      auto rbcScaling    = [&]() {
+         Comm_thermal();
+         for (auto& block : *blocks)
+         {
+            boundaryThermal(&block);
+            thermal_lb_step(&block);
+         }
+         Comm_hydro();
+         for (auto& block : *blocks)
+         {
+            boundaryFluid(&block);
+            fluid_lb_step(&block);
+         }
+      };
+
       ///////////////
       // TIME LOOP //
       ///////////////
+      auto benchmark_parameters = config->getOneBlock("BenchmarkParameters");
+      std::string scaling_type  = benchmark_parameters.getParameter< std::string >("scalingType");
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(scaling_type)
+      bool weak_scaling         = benchmark_parameters.getParameter< bool >("weakScaling");
+      std::function< void() > timeStep;
+      if (weak_scaling)
+      {
+         if (scaling_type == "fluid") {
+            timeStep = std::function< void() >(kernelOnlyFuncFluid); }
+         else if (scaling_type == "thermal")
+         {
+            timeStep = std::function< void() >(kernelOnlyFuncThermal);
+         }
+         else if (scaling_type == "rbc")
+         {
+            timeStep = std::function< void() >(rbcScaling);
+         }
+         else
+            WALBERLA_ABORT("Scaling type \"" << scaling_type << "\" not known!")
+      }
+
       SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
-
-      timeloop.add() << Sweep(thermal_Tcold, "Thermal Tcold boundary conditions");
-      timeloop.add() << Sweep(thermal_Thot, "Thermal Thot boundary conditions")
-                     << AfterFunction(Comm_thermal, "Communication of thermal PDFs");
-      timeloop.add() << Sweep(thermal_lb_step, "Thermal LB Step");
-
-      timeloop.add() << BeforeFunction(Comm_hydro, "Communication of fluid PDFs")
-                     << Sweep(fluid_NoSlip, "Fluid NoSlip boundary conditions");
-      timeloop.add() << Sweep(fluid_lb_step, "Fluid LB Step");
-
-      // initialize the two lattice Boltzmann fields
-      WALBERLA_LOG_INFO_ON_ROOT("initialization of the distributions")
-      for (auto& block : *blocks)
+      if (!weak_scaling)
       {
-         initializeFluidField(&block);
-         initializeThermalField(&block);
+         timeloop.add() << Sweep(thermal_Tcold, "Thermal Tcold boundary conditions");
+         timeloop.add() << Sweep(thermal_Thot, "Thermal Thot boundary conditions")
+                        << AfterFunction(Comm_thermal, "Communication of thermal PDFs");
+         timeloop.add() << Sweep(thermal_lb_step, "Thermal LB Step");
+
+         timeloop.add() << BeforeFunction(Comm_hydro, "Communication of fluid PDFs")
+                        << Sweep(fluid_NoSlip, "Fluid NoSlip boundary conditions");
+         timeloop.add() << Sweep(fluid_lb_step, "Fluid LB Step");
+
+         // initialize the two lattice Boltzmann fields
+         WALBERLA_LOG_INFO_ON_ROOT("initialization of the distributions")
+         for (auto& block : *blocks)
+         {
+            initializeFluidField(&block);
+            initializeThermalField(&block);
+         }
+         WALBERLA_LOG_INFO_ON_ROOT("initialization of the distributions done")
+         Comm_hydro();
+         Comm_thermal();
+
+         // remaining time logger
+         timeloop.addFuncAfterTimeStep(
+            timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
+            "remaining time logger");
+
+         // write VTK files
+         uint_t vtkWriteFrequency = parameters.getParameter< uint_t >("vtkWriteFrequency", 0);
+         if (vtkWriteFrequency > 0)
+         {
+            auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "vtk", vtkWriteFrequency, 0, false, "vtk_out",
+                                                            "simulation_step", false, true, true, false, 0);
+
+            // add velocity field as VTK output
+            auto velWriter = make_shared< field::VTKWriter< VelocityField_T > >(velocity_field_ID, "Velocity");
+            vtkOutput->addCellDataWriter(velWriter);
+
+            // add temperature field as VTK output
+            auto tempWriter =
+               make_shared< field::VTKWriter< TemperatureField_T > >(temperature_field_ID, "Temperature");
+            vtkOutput->addCellDataWriter(tempWriter);
+
+            // add thermal flag field as VTK output
+            auto thermalFlagWriter =
+               make_shared< field::VTKWriter< FlagField_T > >(flagFieldThermalID, "FlagFieldThermal");
+            vtkOutput->addCellDataWriter(thermalFlagWriter);
+
+            // add fluid flag field as VTK output
+            auto fluidFlagWriter = make_shared< field::VTKWriter< FlagField_T > >(flagFieldHydroID, "FlagFieldFluid");
+            vtkOutput->addCellDataWriter(fluidFlagWriter);
+
+            timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+         }
+
+         // Performance evaluation
+         lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldHydroID, fluidFlagUID);
+         WcTimingPool timeloopTiming;
+         WcTimer simTimer;
+
+         WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps")
+         WALBERLA_MPI_WORLD_BARRIER()
+         simTimer.start();
+         timeloop.run(timeloopTiming);
+         WALBERLA_MPI_WORLD_BARRIER()
+         simTimer.end();
+
+         auto time = real_c(simTimer.max());
+         WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
+         performance.logResultOnRoot(timesteps, time);
+
+         const auto reducedTimeloopTiming = timeloopTiming.getReduced();
+         WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
+         WALBERLA_LOG_INFO_ON_ROOT("Simulation done!")
       }
-      WALBERLA_LOG_INFO_ON_ROOT("initialization of the distributions done")
-      Comm_hydro();
-      Comm_thermal();
-
-      // remaining time logger
-      timeloop.addFuncAfterTimeStep(
-         timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
-         "remaining time logger");
-
-      // write VTK files
-      uint_t vtkWriteFrequency = parameters.getParameter< uint_t >("vtkWriteFrequency", 0);
-      if (vtkWriteFrequency > 0)
+      else
       {
-         auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "vtk", vtkWriteFrequency, 0, false, "vtk_out",
-                                                         "simulation_step", false, true, true, false, 0);
+         timeloop.add() << BeforeFunction(timeStep) << Sweep([](IBlock*) {}, "time step");
 
-         // add velocity field as VTK output
-         auto velWriter = make_shared< field::VTKWriter< VelocityField_T > >(velocity_field_ID, "Velocity");
-         vtkOutput->addCellDataWriter(velWriter);
+         uint_t benchmarkingIterations = benchmark_parameters.getParameter< uint_t >("benchmarkingIterations", 5);
+         uint_t warmupSteps            = benchmark_parameters.getParameter< uint_t >("warmupSteps", 10);
+         for (uint_t i = 0; i < warmupSteps; ++i)
+            timeloop.singleStep();
 
-         // add temperature field as VTK output
-         auto tempWriter = make_shared< field::VTKWriter< TemperatureField_T > >(temperature_field_ID, "Temperature");
-         vtkOutput->addCellDataWriter(tempWriter);
+         WALBERLA_LOG_INFO_ON_ROOT("________________________________________________________________________")
+         WALBERLA_LOG_INFO_ON_ROOT("------------------------------------------------------------------------")
+         WALBERLA_LOG_INFO_ON_ROOT("Start benchmarking!")
+         for (uint_t i = 0; i < benchmarkingIterations; ++i)
+         {
+            timeloop.setCurrentTimeStepToZero();
+            WcTimer simTimer;
+            WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps")
+            simTimer.start();
+            timeloop.run();
+            simTimer.end();
+            WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
+            auto time = real_c(simTimer.last());
+            WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
+            auto nrOfCells = real_c(cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2]);
 
-         // add thermal flag field as VTK output
-         auto thermalFlagWriter =
-            make_shared< field::VTKWriter< FlagField_T > >(flagFieldThermalID, "FlagFieldThermal");
-         vtkOutput->addCellDataWriter(thermalFlagWriter);
-
-         // add fluid flag field as VTK output
-         auto fluidFlagWriter = make_shared< field::VTKWriter< FlagField_T > >(flagFieldHydroID, "FlagFieldFluid");
-         vtkOutput->addCellDataWriter(fluidFlagWriter);
-
-         timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+            auto mlupsPerProcess = nrOfCells * real_c(timesteps) / time * 1e-6;
+            WALBERLA_LOG_RESULT_ON_ROOT("MLUPS per process " << mlupsPerProcess)
+            WALBERLA_LOG_RESULT_ON_ROOT("Time per time step " << time / real_c(timesteps))
+         }
+         WALBERLA_LOG_INFO_ON_ROOT("Benchmarking done!")
+         WALBERLA_LOG_INFO_ON_ROOT("————————————————————————————————————————————————————————————————————————")
+         WALBERLA_LOG_INFO_ON_ROOT("————————————————————————————————————————————————————————————————————————")
       }
-
-      // Performance evaluation
-      lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldHydroID, fluidFlagUID);
-      WcTimingPool timeloopTiming;
-      WcTimer simTimer;
-
-      WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps")
-      WALBERLA_MPI_WORLD_BARRIER()
-      simTimer.start();
-      timeloop.run(timeloopTiming);
-      WALBERLA_MPI_WORLD_BARRIER()
-      simTimer.end();
-
-      auto time = real_c(simTimer.max());
-      WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
-      performance.logResultOnRoot(timesteps, time);
-
-      const auto reducedTimeloopTiming = timeloopTiming.getReduced();
-      WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
    }
    return EXIT_SUCCESS;
 }
