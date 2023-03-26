@@ -361,9 +361,14 @@ int main(int argc, char** argv)
          for (uint_t i = 0; i < warmupSteps; ++i)
             timeloop.singleStep();
 
+         //std::string performanceStatsFilename = "performance_" + scaling_type + "_" + std::to_string(blocks->getRootBlockXSize()) + ".txt";
+         std::string performanceStatsFilename = "performance.txt";
+
          WALBERLA_LOG_INFO_ON_ROOT("________________________________________________________________________")
          WALBERLA_LOG_INFO_ON_ROOT("------------------------------------------------------------------------")
          WALBERLA_LOG_INFO_ON_ROOT("Start benchmarking!")
+         real_t meanMLUPS = real_c(0.0);
+         real_t timePerTimestep = real_c(0);
          for (uint_t i = 0; i < benchmarkingIterations; ++i)
          {
             timeloop.setCurrentTimeStepToZero();
@@ -378,8 +383,16 @@ int main(int argc, char** argv)
             auto nrOfCells = real_c(cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2]);
 
             auto mlupsPerProcess = nrOfCells * real_c(timesteps) / time * 1e-6;
+            meanMLUPS += mlupsPerProcess;
+            timePerTimestep = real_c(time / real_c(timesteps));
             WALBERLA_LOG_RESULT_ON_ROOT("MLUPS per process " << mlupsPerProcess)
             WALBERLA_LOG_RESULT_ON_ROOT("Time per time step " << time / real_c(timesteps))
+         }
+         WALBERLA_ROOT_SECTION() {
+            meanMLUPS /= real_t(benchmarkingIterations);
+            std::ofstream performanceStatsToFile(performanceStatsFilename, std::ios::app);
+            performanceStatsToFile << scaling_type << "; " << nrOfProcesses << "; " << blocks->getRootBlockXSize() << "; " << meanMLUPS << "; " << timePerTimestep << "\n";
+            performanceStatsToFile.close();
          }
          WALBERLA_LOG_INFO_ON_ROOT("Benchmarking done!")
          WALBERLA_LOG_INFO_ON_ROOT("————————————————————————————————————————————————————————————————————————")
