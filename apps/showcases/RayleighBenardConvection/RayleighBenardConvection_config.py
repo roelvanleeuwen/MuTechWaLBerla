@@ -13,7 +13,7 @@ class Scenario:
         self.cells = cells
         #print(f"self.cells = {self.cells}")
         #> Standard Parameters
-        self.timesteps = 1000
+        self.timesteps = 500
         self.vtk_write_frequency = 200
         self.scenario = 1
         #> Physical Parameters
@@ -67,7 +67,8 @@ class Scenario:
                 #'blocks': self.blocks,
                 #'domainSize': self.domain_size,
                 #'cellsPerBlock': self.cells,
-                'cells': self.cells,
+                'cellsPerBlock': self.cells,
+                'blocks': self.blocks,
                 'periodic': self.periodic,
                 'dx': 1.0,
             },
