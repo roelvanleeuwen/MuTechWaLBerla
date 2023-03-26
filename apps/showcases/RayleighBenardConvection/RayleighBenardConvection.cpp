@@ -252,6 +252,10 @@ int main(int argc, char** argv)
       auto benchmark_parameters = config->getOneBlock("BenchmarkParameters");
       std::string scaling_type  = benchmark_parameters.getParameter< std::string >("scalingType");
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(scaling_type)
+      WALBERLA_LOG_INFO_ON_ROOT("#blocks = (" << blocks->getXSize() << ", " << blocks->getYSize() << ", " << blocks->getZSize() << ")")
+      WALBERLA_LOG_INFO_ON_ROOT("block size = (" << blocks->getRootBlockXSize() << ", " << blocks->getRootBlockYSize() << ", " << blocks->getRootBlockZSize() << ")")
+      WALBERLA_LOG_INFO_ON_ROOT("domain size = (" << domainSize[0] << ", " << domainSize[1] << ", " << domainSize[2] << ")")
+
       bool weak_scaling         = benchmark_parameters.getParameter< bool >("weakScaling");
       std::function< void() > timeStep;
       if (weak_scaling)
