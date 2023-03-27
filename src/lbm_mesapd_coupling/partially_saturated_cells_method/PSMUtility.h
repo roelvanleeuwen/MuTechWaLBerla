@@ -51,10 +51,10 @@ namespace psm
  * Weighting_T is like in the PSMSweep.
  */
 template< typename LatticeModel_T, int Weighting_T, typename ParticleAccessor_T >
-Vector3< real_t > getPSMMacroscopicVelocity(
-   const IBlock& block, lbm::PdfField< LatticeModel_T >* pdfField,
-   GhostLayerField< std::vector< std::pair< walberla::size_t, real_t > >, 1 >* particleAndVolumeFractionField,
-   StructuredBlockStorage& blockStorage, const Cell& cell, const ParticleAccessor_T& ac)
+Vector3< real_t > getPSMMacroscopicVelocity(const IBlock& block, lbm::PdfField< LatticeModel_T >* pdfField,
+                                            ParticleAndVolumeFractionField_T* particleAndVolumeFractionField,
+                                            StructuredBlockStorage& blockStorage, const Cell& cell,
+                                            const ParticleAccessor_T& ac)
 {
    static_assert(LatticeModel_T::compressible == false, "Only works with incompressible models!");
    WALBERLA_ASSERT_NOT_NULLPTR(pdfField);
