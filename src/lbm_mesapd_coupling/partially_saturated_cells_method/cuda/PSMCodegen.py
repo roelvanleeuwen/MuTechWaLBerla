@@ -36,7 +36,7 @@ with CodeGeneration() as ctx:
     )
 
     particle_velocities, particle_forces, Bs = ps.fields(
-        f"particle_velocities({MaxParticlesPerCell * stencil.D}), particle_forces({MaxParticlesPerCell * stencil.D}), Bs({MaxParticlesPerCell}): {data_type}[3D]",
+        f"particle_v({MaxParticlesPerCell * stencil.D}), particle_f({MaxParticlesPerCell * stencil.D}), Bs({MaxParticlesPerCell}): {data_type}[3D]",
         layout=layout,
     )
 
@@ -224,6 +224,25 @@ with CodeGeneration() as ctx:
     # Add first conditional to node collection, the other conditionals are nested inside the first one
     node_collection.all_assignments.append(conditionals[0])
 
+    # Print nodes into file
+    def build_markdown(n):
+        if type(n) == Conditional:
+            tex = "$if " + str(n.condition_expr) + "$: <br />\n"
+            for a in n.true_block.args:
+                tex += build_markdown(a)
+            tex += "$fi$ <br />\n"
+            assert n.false_block is None
+            return tex
+        return n._repr_html_() + " <br />\n"
+
+    markdown_string = ""
+    for assignment in node_collection.all_assignments:
+        markdown_string += build_markdown(assignment)
+
+    markdown_string = markdown_string.replace("_tmp", "_{tmp}")
+    with open("PSMSweep.md", "w") as f:
+        f.write(markdown_string)
+
     pdfs_setter = macroscopic_values_setter(
         method, init_density, init_velocity, pdfs.center_vector
     )
@@ -255,7 +274,6 @@ with CodeGeneration() as ctx:
 
     generate_sweep(ctx, "InitialPDFsSetter", pdfs_setter, target=target)
 
-    # TODO: check if boundary condition is correct for settling sphere
     generate_boundary(
         ctx,
         "PSM_NoSlip",
