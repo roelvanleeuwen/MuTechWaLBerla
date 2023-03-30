@@ -65,11 +65,38 @@ with CodeGeneration() as ctx:
 
     method = create_lb_method(lbm_config=srt_psm_config)
 
-    # SRT collision operator with (1 - solid_fraction) as prefactor
+    # Collision operator with (1 - solid_fraction) as prefactor
     equilibrium = method.get_equilibrium_terms()
     srt_collision_op_psm = []
-    for eq, f in zip(equilibrium, method.pre_collision_pdf_symbols):
-        srt_collision_op_psm.append((1.0 - B.center) * sp.Symbol("omega") * (f - eq))
+    if srt_psm_config.method == Method.SRT:
+        for eq, f in zip(equilibrium, method.pre_collision_pdf_symbols):
+            srt_collision_op_psm.append(
+                (1.0 - B.center) * srt_psm_config.relaxation_rate * (f - eq)
+            )
+    elif srt_psm_config.method == Method.TRT:
+        for i, (eq, f) in enumerate(zip(equilibrium, method.pre_collision_pdf_symbols)):
+            inverse_direction_index = stencil.stencil_entries.index(
+                stencil.inverse_stencil_entries[i]
+            )
+            srt_collision_op_psm.append(
+                (1.0 - B.center)
+                * (
+                    srt_psm_config.relaxation_rates[0]
+                    * (
+                        (f + method.pre_collision_pdf_symbols[inverse_direction_index])
+                        / 2
+                        - (eq + equilibrium[inverse_direction_index]) / 2
+                    )
+                    + srt_psm_config.relaxation_rates[1]
+                    * (
+                        (f - method.pre_collision_pdf_symbols[inverse_direction_index])
+                        / 2
+                        - (eq - equilibrium[inverse_direction_index]) / 2
+                    )
+                )
+            )
+    else:
+        raise ValueError("Only SRT and TRT are supported.")
 
     # Given forcing operator with (1 - solid_fraction) as prefactor
     fq = method.force_model(method)
