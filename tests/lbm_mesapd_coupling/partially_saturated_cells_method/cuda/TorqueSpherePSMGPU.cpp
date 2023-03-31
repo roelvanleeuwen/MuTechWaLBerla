@@ -368,7 +368,7 @@ int main(int argc, char** argv)
 
    // add PDF field ( uInit = <0,0,0>, rhoInit = 1 )
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
-      blocks, "pdf field (zyxf)", latticeModel, Vector3< real_t >(real_c(0), real_c(0), real_c(0)), real_c(1),
+      blocks, "pdf field (fzyx)", latticeModel, Vector3< real_t >(real_c(0), real_c(0), real_c(0)), real_c(1),
       uint_t(1), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU", true);
 
