@@ -15,7 +15,6 @@ add_subdirectory( NonUniformGrid )
 add_subdirectory( MotionSingleHeavySphere )
 add_subdirectory( PoiseuilleChannel )
 add_subdirectory( ProbeVsExtraMessage )
-add_subdirectory( RiverBed )
 add_subdirectory( SchaeferTurek )
 add_subdirectory( UniformGrid )
 
