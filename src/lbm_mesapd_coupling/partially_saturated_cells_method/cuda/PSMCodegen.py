@@ -30,6 +30,10 @@ with CodeGeneration() as ctx:
     init_velocity = sp.symbols("init_velocity_:3")
     layout = "fzyx"
     MaxParticlesPerCell = 2
+    # TODO: couple SC in code generation and in app such that it has to be set only once
+    # TODO: add different SCs to tests
+    # Solid collision variant
+    SC = 1
 
     pdfs, pdfs_tmp = ps.fields(
         f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {data_type}[3D]", layout=layout
@@ -127,7 +131,6 @@ with CodeGeneration() as ctx:
             equilibriumSolid.append(eq_sol)
 
         # Assemble right-hand side of collision assignments
-        # TODO: add more solid collision operators
         # Add solid collision part to collision right-hand side and forces right-hand side
         for i, (eqFluid, eqSolid, f, offset) in enumerate(
             zip(
@@ -140,13 +143,28 @@ with CodeGeneration() as ctx:
             inverse_direction_index = stencil.stencil_entries.index(
                 stencil.inverse_stencil_entries[i]
             )
-            solid_collision = Bs.center(p) * (
-                (
-                    method.pre_collision_pdf_symbols[inverse_direction_index]
-                    - equilibriumFluid[inverse_direction_index]
+            if SC == 1:
+                solid_collision = Bs.center(p) * (
+                    (
+                        method.pre_collision_pdf_symbols[inverse_direction_index]
+                        - equilibriumFluid[inverse_direction_index]
+                    )
+                    - (f - eqSolid)
                 )
-                - (f - eqSolid)
-            )
+            elif SC == 2:
+                solid_collision = Bs.center(p) * (
+                    (eqSolid - f) + (1 - omega) * (f - eqFluid)
+                )
+            elif SC == 3:
+                solid_collision = Bs.center(p) * (
+                    (
+                        method.pre_collision_pdf_symbols[inverse_direction_index]
+                        - equilibriumSolid[inverse_direction_index]
+                    )
+                    - (f - eqSolid)
+                )
+            else:
+                raise ValueError("Only M=1, M=2 and M=3 are supported.")
             collision_rhs[i] += solid_collision
             for j in range(stencil.D):
                 forces_rhs[p * stencil.D + j] -= solid_collision * int(offset[j])
