@@ -78,7 +78,7 @@
 
 #include <functional>
 
-#include "InitialPDFsSetter.h"
+#include "InitializeDomainForPSM.h"
 #include "PSMPackInfo.h"
 #include "PSMSweep.h"
 #include "PSM_NoSlip.h"
@@ -597,14 +597,6 @@ int main(int argc, char** argv)
       blocks, "pdf field (fzyx)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
 
-   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), real_t(0),
-                                           real_t(0), real_t(0));
-
-   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
-   {
-      pdfSetter(&(*blockIt));
-   }
-
    // add flag field
    BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
 
@@ -658,6 +650,18 @@ int main(int argc, char** argv)
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));
+   }
+
+   pystencils::InitializeDomainForPSM pdfSetter(
+      particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+      particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0), real_t(0), real_t(0),
+      real_t(1.0), real_t(0), real_t(0), real_t(0));
+
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      // pdfSetter requires particle velocities at cell centers
+      psmSweepCollection.setParticleVelocitiesSweep(&(*blockIt));
+      pdfSetter(&(*blockIt));
    }
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks

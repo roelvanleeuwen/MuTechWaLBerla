@@ -3,6 +3,7 @@ import sympy as sp
 import pystencils as ps
 from sympy.core.add import Add
 from sympy.core.mul import Mul
+from sympy.codegen.ast import Assignment
 
 from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil, ForceModel
 
@@ -69,6 +70,7 @@ with CodeGeneration() as ctx:
 
     method = create_lb_method(lbm_config=srt_psm_config)
 
+    # TODO: think about better way to obtain collision operator than to rebuild it
     # Collision operator with (1 - solid_fraction) as prefactor
     equilibrium = method.get_equilibrium_terms()
     srt_collision_op_psm = []
@@ -292,6 +294,16 @@ with CodeGeneration() as ctx:
         method, init_density, init_velocity, pdfs.center_vector
     )
 
+    # Use average velocity of all intersecting particles when setting PDFs (mandatory for SC=3)
+    for i, sub_exp in enumerate(pdfs_setter.subexpressions[-3:]):
+        rhs = []
+        for summand in sub_exp.rhs.args:
+            rhs.append(summand * (1.0 - B.center))
+        for p in range(MaxParticlesPerCell):
+            rhs.append(particle_velocities(p * stencil.D + i) * Bs.center(p))
+        pdfs_setter.subexpressions.remove(sub_exp)
+        pdfs_setter.subexpressions.append(Assignment(sub_exp.lhs, Add(*rhs)))
+
     if ctx.cuda:
         target = ps.Target.GPU
     else:
@@ -317,7 +329,7 @@ with CodeGeneration() as ctx:
 
     generate_pack_info_from_kernel(ctx, "PSMPackInfo", lbm_update_rule, target=target)
 
-    generate_sweep(ctx, "InitialPDFsSetter", pdfs_setter, target=target)
+    generate_sweep(ctx, "InitializeDomainForPSM", pdfs_setter, target=target)
 
     generate_boundary(
         ctx,

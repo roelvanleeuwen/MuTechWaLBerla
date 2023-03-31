@@ -54,10 +54,9 @@
 #include "mesa_pd/kernel/ParticleSelector.h"
 
 #include <iostream>
-#include <vector>
 
 // codegen
-#include "InitialPDFsSetter.h"
+#include "InitializeDomainForPSM.h"
 #include "PSMPackInfo.h"
 #include "PSMSweep.h"
 
@@ -335,7 +334,7 @@ int main(int argc, char** argv)
    setup.visc                    = (setup.tau - real_c(0.5)) / real_c(3);          // viscosity in lattice units
    const real_t omega            = real_c(1) / setup.tau;                          // relaxation rate
    const real_t dx               = real_c(1);                                      // lattice dx
-   const real_t convergenceLimit = real_c(1e-7); // tolerance for relative change in drag force
+   const real_t convergenceLimit = real_c(1e-7);               // tolerance for relative change in drag force
    const uint_t timesteps =
       funcTest ? 1 : (shortrun ? uint_c(150) : uint_c(50000)); // maximum number of time steps for the whole simulation
 
@@ -407,14 +406,6 @@ int main(int argc, char** argv)
       blocks, "pdf field (fzyx)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
 
-   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(setup.extForce), real_t(0), real_t(0), real_t(1.0),
-                                           real_t(0), real_t(0), real_t(0));
-
-   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
-   {
-      pdfSetter(&(*blockIt));
-   }
-
    ///////////////
    // TIME LOOP //
    ///////////////
@@ -436,6 +427,18 @@ int main(int argc, char** argv)
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));
+   }
+
+   pystencils::InitializeDomainForPSM pdfSetter(
+      particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+      particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0), real_t(0), real_t(0),
+      real_t(1.0), real_t(0), real_t(0), real_t(0));
+
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      // pdfSetter requires particle velocities at cell centers
+      psmSweepCollection.setParticleVelocitiesSweep(&(*blockIt));
+      pdfSetter(&(*blockIt));
    }
 
    // since external forcing is applied, the evaluation of the velocity has to be carried out directly after the

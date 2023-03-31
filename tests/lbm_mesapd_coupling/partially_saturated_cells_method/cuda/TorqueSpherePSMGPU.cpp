@@ -53,10 +53,8 @@
 #include "mesa_pd/mpi/SyncNextNeighbors.h"
 
 #include <iostream>
-#include <vector>
-
 // codegen
-#include "InitialPDFsSetter.h"
+#include "InitializeDomainForPSM.h"
 #include "PSMPackInfo.h"
 #include "PSMSweep.h"
 
@@ -288,8 +286,8 @@ int main(int argc, char** argv)
    setup.tau            = real_c(1.5);  // relaxation time
    setup.angularVel     = real_c(1e-5); // angular velocity of the sphere
    setup.checkFrequency = uint_t(100);  // evaluate the torque only every checkFrequency time steps
-   setup.radius         = real_c(0.5) * chi * real_c(setup.length); // sphere radius
-   setup.visc           = (setup.tau - real_c(0.5)) / real_c(3);    // viscosity in lattice units
+   setup.radius         = real_c(0.5) * chi * real_c(setup.length);  // sphere radius
+   setup.visc           = (setup.tau - real_c(0.5)) / real_c(3);     // viscosity in lattice units
    setup.phi            = real_c(4.0 / 3.0) * math::pi * setup.radius * setup.radius * setup.radius /
                (real_c(setup.length * setup.length * setup.length)); // solid volume fraction
    const real_t omega            = real_c(1) / setup.tau;            // relaxation rate
@@ -372,14 +370,6 @@ int main(int argc, char** argv)
       uint_t(1), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU", true);
 
-   pystencils::InitialPDFsSetter pdfSetter(pdfFieldGPUID, real_t(0), real_t(0), real_t(0), real_t(1.0), real_t(0),
-                                           real_t(0), real_t(0));
-
-   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
-   {
-      pdfSetter(&(*blockIt));
-   }
-
    // add particle and volume fraction data structures
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
    // map particles and calculate solid volume fraction initially
@@ -388,6 +378,18 @@ int main(int argc, char** argv)
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));
+   }
+
+   pystencils::InitializeDomainForPSM pdfSetter(
+      particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+      particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0), real_t(0), real_t(0),
+      real_t(1.0), real_t(0), real_t(0), real_t(0));
+
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      // pdfSetter requires particle velocities at cell centers
+      psmSweepCollection.setParticleVelocitiesSweep(&(*blockIt));
+      pdfSetter(&(*blockIt));
    }
 
    ///////////////
