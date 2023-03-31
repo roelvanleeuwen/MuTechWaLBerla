@@ -55,7 +55,7 @@ with CodeGeneration() as ctx:
         field_layout=layout,
     )
 
-    srt_psm_config = LBMConfig(
+    psm_config = LBMConfig(
         stencil=stencil,
         method=Method.SRT,
         relaxation_rate=omega,
@@ -68,32 +68,32 @@ with CodeGeneration() as ctx:
     # Code generation for the modified SRT sweep
     # =====================
 
-    method = create_lb_method(lbm_config=srt_psm_config)
+    method = create_lb_method(lbm_config=psm_config)
 
     # TODO: think about better way to obtain collision operator than to rebuild it
     # Collision operator with (1 - solid_fraction) as prefactor
     equilibrium = method.get_equilibrium_terms()
-    srt_collision_op_psm = []
-    if srt_psm_config.method == Method.SRT:
+    collision_op_psm = []
+    if psm_config.method == Method.SRT:
         for eq, f in zip(equilibrium, method.pre_collision_pdf_symbols):
-            srt_collision_op_psm.append(
-                (1.0 - B.center) * srt_psm_config.relaxation_rate * (f - eq)
+            collision_op_psm.append(
+                (1.0 - B.center) * psm_config.relaxation_rate * (f - eq)
             )
-    elif srt_psm_config.method == Method.TRT:
+    elif psm_config.method == Method.TRT:
         for i, (eq, f) in enumerate(zip(equilibrium, method.pre_collision_pdf_symbols)):
             inverse_direction_index = stencil.stencil_entries.index(
                 stencil.inverse_stencil_entries[i]
             )
-            srt_collision_op_psm.append(
+            collision_op_psm.append(
                 (1.0 - B.center)
                 * (
-                    srt_psm_config.relaxation_rates[0]
+                    psm_config.relaxation_rates[0]
                     * (
                         (f + method.pre_collision_pdf_symbols[inverse_direction_index])
                         / 2
                         - (eq + equilibrium[inverse_direction_index]) / 2
                     )
-                    + srt_psm_config.relaxation_rates[1]
+                    + psm_config.relaxation_rates[1]
                     * (
                         (f - method.pre_collision_pdf_symbols[inverse_direction_index])
                         / 2
@@ -112,7 +112,7 @@ with CodeGeneration() as ctx:
 
     # Assemble right-hand side of collision assignments
     collision_rhs = []
-    for f, c, fo in zip(method.pre_collision_pdf_symbols, srt_collision_op_psm, fq_psm):
+    for f, c, fo in zip(method.pre_collision_pdf_symbols, collision_op_psm, fq_psm):
         collision_rhs.append(f - c + fo)
 
     # =====================
@@ -199,14 +199,14 @@ with CodeGeneration() as ctx:
         collision_assignments, subexpressions=cqc.all_assignments
     )
     output_eqs = method.conserved_quantity_computation.output_equations_from_pdfs(
-        method.pre_collision_pdf_symbols, srt_psm_config.output
+        method.pre_collision_pdf_symbols, psm_config.output
     )
     up = up.new_merged(output_eqs)
     up.method = method
 
     # Create assignment collection for the complete update rule
     lbm_update_rule = create_lb_update_rule(
-        collision_rule=up, lbm_config=srt_psm_config, lbm_optimisation=psm_opt
+        collision_rule=up, lbm_config=psm_config, lbm_optimisation=psm_opt
     )
 
     # =====================
