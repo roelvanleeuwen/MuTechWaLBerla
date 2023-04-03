@@ -31,10 +31,10 @@ with CodeGeneration() as ctx:
     init_velocity = sp.symbols("init_velocity_:3")
     layout = "fzyx"
     MaxParticlesPerCell = 2
-    # TODO: couple SC in code generation and in app such that it has to be set only once
-    # TODO: add different SCs to tests
+    config_tokens = ctx.config.split("_")
+    methods = {"srt": Method.SRT, "trt": Method.TRT}
     # Solid collision variant
-    SC = 1
+    SC = int(config_tokens[1][2])
 
     pdfs, pdfs_tmp = ps.fields(
         f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {data_type}[3D]", layout=layout
@@ -57,7 +57,7 @@ with CodeGeneration() as ctx:
 
     psm_config = LBMConfig(
         stencil=stencil,
-        method=Method.SRT,
+        method=methods[config_tokens[0]],
         relaxation_rate=omega,
         force=sp.symbols("F_:3"),
         force_model=ForceModel.LUO,

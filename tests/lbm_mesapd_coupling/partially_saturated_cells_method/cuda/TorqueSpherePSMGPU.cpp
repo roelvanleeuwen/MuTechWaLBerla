@@ -254,7 +254,6 @@ int main(int argc, char** argv)
    bool funcTest = false;
    bool fileIO   = false;
 
-   // TODO: support different SC_W_ options
    for (int i = 1; i < argc; ++i)
    {
       if (std::strcmp(argv[i], "--shortrun") == 0)
@@ -465,7 +464,7 @@ int main(int argc, char** argv)
          }
       }
       // the relative error has to be below 10% (25% for SC2)
-      WALBERLA_CHECK_LESS(relErr, real_c(0.1));
+      WALBERLA_CHECK_LESS(relErr, (SC == 2) ? real_c(0.25) : real_c(0.1));
    }
 
    return 0;
