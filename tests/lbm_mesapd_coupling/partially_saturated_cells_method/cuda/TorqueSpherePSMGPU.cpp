@@ -370,7 +370,7 @@ int main(int argc, char** argv)
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU", true);
 
    // add particle and volume fraction data structures
-   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
+   ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, omega);
    // map particles and calculate solid volume fraction initially
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
                                             particleAndVolumeFractionSoA, 4);

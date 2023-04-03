@@ -85,10 +85,13 @@ if (WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCH
 
     foreach (collision_setup srt trt)
         foreach (solid_collision 1 2 3)
-            set(config ${collision_setup}_sc${solid_collision})
-            waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} FILES partially_saturated_cells_method/cuda/TorqueSpherePSMGPU.cpp DEPENDS blockforest boundary core cuda field lbm lbm_mesapd_coupling timeloop mesa_pd PSMCodegenPython_${config})
-            waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config}> PROCESSES 1)
-            target_compile_definitions(LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} PRIVATE SC=${solid_collision})
+            foreach (weighting 1 2)
+                set(config ${collision_setup}_sc${solid_collision}_w${weighting})
+                waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} FILES partially_saturated_cells_method/cuda/TorqueSpherePSMGPU.cpp DEPENDS blockforest boundary core cuda field lbm lbm_mesapd_coupling timeloop mesa_pd PSMCodegenPython_${collision_setup}_sc${solid_collision})
+                waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config}> PROCESSES 1)
+                target_compile_definitions(LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} PRIVATE SC=${solid_collision})
+                target_compile_definitions(LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} PRIVATE Weighting=${weighting})
+            endforeach ()
         endforeach ()
     endforeach ()
 
