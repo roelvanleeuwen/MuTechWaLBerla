@@ -273,9 +273,8 @@ int main(int argc, char **argv)
    mesh::BoundarySetup boundarySetup(blocks, makeMeshDistanceFunction(distanceOctree), numGhostLayers);
 
    geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
-   //boundarySetup.setFlag<FlagField_T>(flagFieldId, FlagUID("NoSlip"), mesh::BoundarySetup::INSIDE);
+   boundarySetup.setFlag<FlagField_T>(flagFieldId, FlagUID("NoSlip"), mesh::BoundarySetup::INSIDE);
    geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
-
    for (uint_t i = 0; i < 3; ++i) {
       if (int_c(cellsPerBlock[i]) <= InnerOuterSplit[i] * 2) {
          WALBERLA_ABORT_NO_DEBUG_INFO("innerOuterSplit too large - make it smaller or increase cellsPerBlock")
@@ -291,12 +290,16 @@ int main(int argc, char **argv)
    WALBERLA_LOG_INFO_ON_ROOT("Running Simulation with indirect addressing")
    BlockDataID pdfListId   = lbm::addListToStorage< List_T >(blocks, "LBM list (FIdx)", InnerOuterSplit);
    WALBERLA_LOG_INFO_ON_ROOT("Start initialisation of the linked-list structure")
+
+   WcTimer lbmTimer;
    for (auto& block : *blocks)
    {
       auto* lbmList = block.getData< List_T >(pdfListId);
       WALBERLA_CHECK_NOT_NULLPTR(lbmList)
       lbmList->fillFromFlagField< FlagField_T >(block, flagFieldId, fluidFlagUID);
    }
+   lbmTimer.end();
+   WALBERLA_LOG_INFO_ON_ROOT("Initialisation needed " << lbmTimer.last() << " s")
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
    const Vector3< int32_t > gpuBlockSize = parameters.getParameter< Vector3< int32_t > >("gpuBlockSize", Vector3< int32_t >(128, 1, 1));
@@ -321,8 +324,8 @@ int main(int argc, char **argv)
    {
       setterSweep(&block);
    }
+   WcTimer commTimer;
    lbmpy::ListCommunicationSetup(pdfListId, blocks);
-
 
    WALBERLA_LOG_INFO_ON_ROOT("Finished initialisation of the linked-list structure")
 
@@ -358,35 +361,6 @@ int main(int argc, char **argv)
    const std::string timeStepStrategy = parameters.getParameter<std::string>("timeStepStrategy", "noOverlap");
    const bool runBoundaries = parameters.getParameter<bool>("runBoundaries", true);
 
-   // create time loop
-   SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
-
-   WALBERLA_LOG_INFO_ON_ROOT("timeStepStrategy: " << timeStepStrategy)
-
-   if (timeStepStrategy == "noOverlap") {
-      timeloop.add() << BeforeFunction(communicate, "communication")
-                     << Sweep(pressureOutflow.getSweep(tracker), "outflow boundary");
-      timeloop.add() << Sweep(ubb.getSweep(tracker), "ubb boundary");
-      timeloop.add() << BeforeFunction(tracker->getAdvancementFunction(), "Timestep Advancement")
-                     << Sweep(kernel.getSweep(tracker), "LB update rule");
-   } else if (timeStepStrategy == "Overlap") {
-      timeloop.add() << BeforeFunction(start_communicate, "Start Communication")
-                     << Sweep(pressureOutflow.getSweep(tracker), "outflow boundary");
-      timeloop.add() << Sweep(ubb.getSweep(tracker), "ubb boundary");
-      timeloop.add() << Sweep(kernel.getInnerSweep(tracker), "LBM Inner Kernel");
-      timeloop.add() << BeforeFunction(wait_communicate, "Wait for Communication")
-                     << BeforeFunction(tracker->getAdvancementFunction(), "Timestep Advancement")
-                     << Sweep(kernel.getOuterSweep(tracker), "LBM Outer Kernel");
-   } else if (timeStepStrategy == "kernelOnly") {
-      timeloop.add() << BeforeFunction(tracker->getAdvancementFunction(), "Timestep Advancement")
-                     << Sweep(kernel.getSweep(tracker), "LBM complete Kernel");
-   } else {
-      WALBERLA_ABORT_NO_DEBUG_INFO("Invalid value for 'timeStepStrategy'")
-   }
-
-
-
-   /*
    auto normalTimeStep = [&]() {
       communicate();
       for (auto& block : *blocks)
@@ -398,8 +372,6 @@ int main(int argc, char **argv)
          kernel(&block, tracker->getCounterPlusOne());
       }
       tracker->advance();
-
-
    };
 
    auto simpleOverlapTimeStep = [&]() {
@@ -417,9 +389,7 @@ int main(int argc, char **argv)
       {
          kernel.outer(&block, tracker->getCounterPlusOne());
       }
-
       tracker->advance();
-
    };
 
    auto kernelOnlyFunc = [&]() {
@@ -428,10 +398,11 @@ int main(int argc, char **argv)
          kernel(&block, tracker->getCounter());
    };
 
+
    std::function< void() > timeStep;
    if (timeStepStrategy == "noOverlap")
-      timeStep = std::function< void() >(normalTimeStep);
-   else if (timeStepStrategy == "simpleOverlap")
+      timeStep = normalTimeStep;
+   else if (timeStepStrategy == "Overlap")
       timeStep = simpleOverlapTimeStep;
    else if (timeStepStrategy == "kernelOnly")
    {
@@ -446,8 +417,8 @@ int main(int argc, char **argv)
    }
 
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
-   timeloop.add() << BeforeFunction(timeStep) << Sweep([](IBlock*) {}, "time step");
-   */
+   timeloop.add() << BeforeFunction(timeStep, "Timestep") << Sweep([](IBlock*) {}, "Dummy");
+
 
    //////////////////////////////////
    ///       VTK AND STUFF        ///
@@ -486,7 +457,7 @@ int main(int argc, char **argv)
       vtkOutput->addCellDataWriter(velWriter);
       vtkOutput->addCellDataWriter(densityWriter);
 
-      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output"); //TODO After
+      timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output"); //TODO After
    }
 
 
