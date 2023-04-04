@@ -7,7 +7,7 @@ from sympy.codegen.ast import Assignment
 
 from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil, ForceModel
 
-from lbmpy.boundaries import NoSlip, UBB, FixedDensity
+from lbmpy.boundaries import NoSlip, UBB, FixedDensity, FreeSlip
 from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
 from pystencils.astnodes import Conditional, SympyAssignment, Block
@@ -357,6 +357,16 @@ with CodeGeneration() as ctx:
         ctx,
         "PSM_Density",
         FixedDensity(bc_density),
+        method,
+        field_name=pdfs.name,
+        streaming_pattern="pull",
+        target=target,
+    )
+
+    generate_boundary(
+        ctx,
+        "PSM_FreeSlip",
+        FreeSlip(stencil),
         method,
         field_name=pdfs.name,
         streaming_pattern="pull",

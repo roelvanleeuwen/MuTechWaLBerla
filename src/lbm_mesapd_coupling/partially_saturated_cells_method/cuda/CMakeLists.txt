@@ -21,7 +21,8 @@ if (WALBERLA_BUILD_WITH_CUDA)
                             CODEGEN_CFG ${config}
                             OUT_FILES PSMSweep.cu PSMSweep.h PSMSweepSplit.cu PSMSweepSplit.h
                             PSMPackInfo.cu PSMPackInfo.h InitializeDomainForPSM.cu InitializeDomainForPSM.h
-                            PSM_NoSlip.cu PSM_NoSlip.h PSM_UBB.cu PSM_UBB.h PSM_Density.cu PSM_Density.h)
+                            PSM_NoSlip.cu PSM_NoSlip.h PSM_UBB.cu PSM_UBB.h PSM_Density.cu PSM_Density.h
+                            PSM_FreeSlip.cu PSM_FreeSlip.h)
                 endforeach ()
             endforeach ()
         endif ()
