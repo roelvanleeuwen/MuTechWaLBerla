@@ -29,6 +29,8 @@ with CodeGeneration() as ctx:
     omega = sp.Symbol("omega")
     init_density = sp.Symbol("init_density")
     init_velocity = sp.symbols("init_velocity_:3")
+    pdfs_inter = sp.symbols("pdfs_inter:" + str(stencil.Q))
+    split = False
     layout = "fzyx"
     MaxParticlesPerCell = 2
     config_tokens = ctx.config.split("_")
@@ -131,7 +133,26 @@ with CodeGeneration() as ctx:
                     sp.Symbol("u_" + str(i)),
                     particle_velocities.center(p * stencil.D + i),
                 )
+            if split:
+                eq_sol = eq_sol.subs(
+                    sp.Symbol("delta_rho"),
+                    sp.Symbol("delta_rho_inter"),
+                )
             equilibriumSolid.append(eq_sol)
+        if split:
+            equilibriumFluidTmp = equilibriumFluid
+            equilibriumFluid = []
+            for eq in equilibriumFluidTmp:
+                for i in range(stencil.D):
+                    eq = eq.subs(
+                        sp.Symbol("u_" + str(i)),
+                        sp.Symbol("u_" + str(i) + "_inter"),
+                    )
+                eq = eq.subs(
+                    sp.Symbol("delta_rho"),
+                    sp.Symbol("delta_rho_inter"),
+                )
+                equilibriumFluid.append(eq)
 
         # Assemble right-hand side of collision assignments
         # Add solid collision part to collision right-hand side and forces right-hand side
@@ -178,10 +199,40 @@ with CodeGeneration() as ctx:
 
     # Assemble collision assignments
     collision_assignments = []
-    for d, c, sc in zip(
-        method.post_collision_pdf_symbols, collision_rhs, solid_collisions
-    ):
-        collision_assignments.append(ps.Assignment(d, c + sc))
+    if not split:
+        for d, c, sc in zip(
+            method.post_collision_pdf_symbols, collision_rhs, solid_collisions
+        ):
+            collision_assignments.append(ps.Assignment(d, c + sc))
+    else:
+        # First, add only fluid collision
+        for d, c in zip(pdfs_inter, collision_rhs):
+            collision_assignments.append(ps.Assignment(d, c))
+
+        # Second. define quantities to compute the equilibrium as functions of the pdfs_inter
+        cqc_inter = (
+            method.conserved_quantity_computation.equilibrium_input_equations_from_pdfs(
+                pdfs_inter, False
+            )
+        )
+        for cq in cqc_inter.all_assignments:
+            for i in range(stencil.D):
+                cq = cq.subs(
+                    sp.Symbol("u_" + str(i)), sp.Symbol("u_" + str(i) + "_inter")
+                )
+                cq = cq.subs(
+                    sp.Symbol("vel" + str(i) + "Term"),
+                    sp.Symbol("vel" + str(i) + "Term_inter"),
+                )
+            cq = cq.subs(sp.Symbol("delta_rho"), sp.Symbol("delta_rho_inter"))
+            cq = cq.subs(sp.Symbol("rho"), sp.Symbol("rho_inter"))
+            collision_assignments.append(cq)
+
+        # Third, add solid collision using quantities from pdfs_inter
+        for d, d_inter, sc in zip(
+            method.post_collision_pdf_symbols, pdfs_inter, solid_collisions
+        ):
+            collision_assignments.append(ps.Assignment(d, d_inter + sc))
 
     # Add force calculations to collision assignments
     for p in range(MaxParticlesPerCell):
