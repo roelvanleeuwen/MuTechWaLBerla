@@ -120,6 +120,7 @@ with CodeGeneration() as ctx:
     # =====================
 
     forces_rhs = [0] * MaxParticlesPerCell * stencil.D
+    solid_collisions = [0] * stencil.Q
     for p in range(MaxParticlesPerCell):
         equilibriumFluid = method.get_equilibrium_terms()
         equilibriumSolid = []
@@ -166,8 +167,8 @@ with CodeGeneration() as ctx:
                     - (f - eqSolid)
                 )
             else:
-                raise ValueError("Only M=1, M=2 and M=3 are supported.")
-            collision_rhs[i] += solid_collision
+                raise ValueError("Only SC=1, SC=2 and SC=3 are supported.")
+            solid_collisions[i] += solid_collision
             for j in range(stencil.D):
                 forces_rhs[p * stencil.D + j] -= solid_collision * int(offset[j])
 
@@ -177,8 +178,10 @@ with CodeGeneration() as ctx:
 
     # Assemble collision assignments
     collision_assignments = []
-    for d, c in zip(method.post_collision_pdf_symbols, collision_rhs):
-        collision_assignments.append(ps.Assignment(d, c))
+    for d, c, sc in zip(
+        method.post_collision_pdf_symbols, collision_rhs, solid_collisions
+    ):
+        collision_assignments.append(ps.Assignment(d, c + sc))
 
     # Add force calculations to collision assignments
     for p in range(MaxParticlesPerCell):
