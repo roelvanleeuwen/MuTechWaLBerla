@@ -283,46 +283,30 @@ class {{class_name}}
          index++;
       }
 
-      // Initialize pull idxs with no-slip boundary
-      for( uint_t idx = 0; idx < numFluidCellsPadded_; ++idx )
+      for (size_t f = 0; f < {{Q}}; ++f)
       {
-         Cell cell = getCell(idx);
-         {%- for dirIdx, dirVec, offset in stencil %}
-         setPullIdx( cell, {{dirIdx}}, getPDFIdx( idx, {{inv_dir[dirIdx]}} ) );
-         {%- endfor %}
-
-         if(ci_.contains(cell))
-         {
-            {%- for dirIdx, dirVec, offset in stencil %}
-            setPullIdxInner( cell, {{dirIdx}}, getPDFIdx( idx, {{inv_dir[dirIdx]}} ) );
-            {%- endfor %}
-         }
-         else
-         {
-            {%- for dirIdx, dirVec, offset in stencil %}
-            setPullIdxOuter( cell, {{dirIdx}}, getPDFIdx( idx, {{inv_dir[dirIdx]}} ) );
-            {%- endfor %}
-         }
-      }
-
-      for (size_t f = 1; f < {{Q}}; ++f)
-      {
+         index_inner = 0;
+         index_outer = 0;
          for (size_t i = 0; i < numFluidCells(); ++i)
          {
             Cell cell      = getCell(i);
             Cell neighbour = cell + Cell(cx[f], cy[f], cz[f]);
-            if (isFluidCell(neighbour))
-            {
-               setPullIdx(cell, inv_dir[f], getPDFIdx(neighbour, inv_dir[f]));
 
-               if(ci_.contains(cell))
-               {
-                  setPullIdxInner(cell, inv_dir[f], getPDFIdx(neighbour, inv_dir[f]));
-               }
-               else
-               {
-                  setPullIdxOuter(cell, inv_dir[f], getPDFIdx(neighbour, inv_dir[f]));
-               }
+            uint32_t pullIdx;
+            //set pull index to neighbor, if neighbor is fluid cell, else set it to noslip
+            if (isFluidCell(neighbour) && f != 0) {
+               pullIdx = getPDFIdx(neighbour, inv_dir[f]);
+            } else {
+               pullIdx = getPDFIdx(i, f);
+            }
+
+            setPullIdx(i, inv_dir[f], pullIdx);
+            if(ci_.contains(cell)) {
+               setPullIdxInner(index_inner, inv_dir[f], pullIdx);
+               index_inner++;
+            } else {
+               setPullIdxOuter(index_outer, inv_dir[f], pullIdx);
+               index_outer++;
             }
          }
       }
