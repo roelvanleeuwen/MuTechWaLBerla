@@ -4,6 +4,7 @@ from lbmpy.sparse import (
     create_lb_update_rule_sparse, create_macroscopic_value_getter_sparse,
     create_macroscopic_value_setter_sparse, create_symbolic_list)
 
+from lbmpy import LBMConfig
 from pystencils import create_kernel
 from pystencils.typing import TypedSymbol
 
@@ -15,6 +16,7 @@ class ListLbGenerator:
         num_cells = TypedSymbol('num_cells', np.uint64)
         method = self.collision_rule.method
         q = len(method.stencil)
+        self.lbmConfig = LBMConfig()
 
         self.num_cells = num_cells
         self.src = create_symbolic_list('src', num_cells, q, pdf_type, layout)
@@ -22,7 +24,7 @@ class ListLbGenerator:
         self.idx = create_symbolic_list('idx', num_cells, q, index_type, layout)
 
     def kernel(self, kernel_type='stream_pull_collide'):
-        ac = create_lb_update_rule_sparse(self.collision_rule, self.src, self.dst, self.idx, kernel_type)
+        ac = create_lb_update_rule_sparse(self.collision_rule, self.lbmConfig, self.src, self.idx, self.dst)
         return create_kernel(ac)
 
     def getter_ast(self, density=True, velocity=True):
