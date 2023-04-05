@@ -126,31 +126,20 @@ int main(int argc, char **argv)
    ///////////////////////
    /// PARAMETER INPUT ///
    ///////////////////////
-
-   // read general simulation parameters
    auto parameters = walberlaEnv.config()->getOneBlock("Parameters");
-
    real_t reference_velocity = parameters.getParameter< real_t >("reference_velocity", real_c(0.9));
-   real_t viscosity          = parameters.getParameter< real_t >("viscosity", real_c(0.9));
-   const Vector3< real_t > initialVelocity =
-      parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >());
+   real_t viscosity = parameters.getParameter< real_t >("viscosity", real_c(0.9));
+   const Vector3< real_t > initialVelocity = parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >());
    const uint_t timesteps = parameters.getParameter< uint_t >("timesteps", uint_c(10));
-   Vector3< int > InnerOuterSplit =
-      parameters.getParameter< Vector3< int > >("innerOuterSplit", Vector3< int >(1, 1, 1));
+   Vector3< int > InnerOuterSplit = parameters.getParameter< Vector3< int > >("innerOuterSplit", Vector3< int >(1, 1, 1));
    const bool weak_scaling = parameters.getParameter< bool >("weakScaling", false); // weak or strong scaling
-
-   const real_t remainingTimeLoggerFrequency =
-      parameters.getParameter< real_t >("remainingTimeLoggerFrequency", 3.0); // in seconds
-
+   const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", 3.0); // in seconds
    auto loggingParameters         = walberlaEnv.config()->getOneBlock("Logging");
    const bool WriteDistanceOctree = loggingParameters.getParameter< bool >("WriteDistanceOctree", false);
-
-   // read domain parameters
    auto domainParameters = walberlaEnv.config()->getOneBlock("DomainSetup");
    std::string meshFile  = domainParameters.getParameter< std::string >("meshFile");
+   const Vector3< bool > periodicity = domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(false));
 
-   const Vector3< bool > periodicity =
-      domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(false));
 
    Vector3< uint_t > cellsPerBlock;
    Vector3< uint_t > blocksPerDimension;
@@ -182,7 +171,7 @@ int main(int argc, char **argv)
    const Vector3< uint_t > TotalCells(cellsPerBlock[0] * blocksPerDimension[0],
                                       cellsPerBlock[1] * blocksPerDimension[1],
                                       cellsPerBlock[2] * blocksPerDimension[2]);
-   const real_t scalingFactor = (32.0 / real_c(TotalCells.min())) * 0.1;
+   const real_t scalingFactor = 0.03;// (32.0 / real_c(TotalCells.min())) * 0.1;
 
    const Vector3< real_t > dx(scalingFactor, scalingFactor, scalingFactor);
 

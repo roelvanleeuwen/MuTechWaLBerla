@@ -7,7 +7,7 @@ from lbmpy import ForceModel, LBMConfig, LBMOptimisation, LBStencil, Method, Ste
 from lbmpy.boundaries import UBB, NoSlip
 from lbmpy.creationfunctions import create_lb_method, create_lb_update_rule, create_lb_collision_rule
 from lbmpy_walberla import RefinementScaling, generate_boundary, generate_lattice_model
-from lbmpy_walberla.sparse import ListLbGenerator
+from lbmpy_walberla.sparse.sparse import ListLbGenerator
 from pystencils_walberla import generate_pack_info_for_field, generate_pack_info_from_kernel
 from pystencils_walberla.cmake_integration import ManualCodeGenerationContext
 
