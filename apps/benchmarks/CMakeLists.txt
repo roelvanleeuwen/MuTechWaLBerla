@@ -25,6 +25,7 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
       add_subdirectory( FlowAroundSphereCodeGen )
       add_subdirectory( UniformGridCPU )
       add_subdirectory( PhaseFieldAllenCahn )
+      add_subdirectory( ListLBM )
    endif()
 
    if ( WALBERLA_BUILD_WITH_CODEGEN AND WALBERLA_BUILD_WITH_CUDA )

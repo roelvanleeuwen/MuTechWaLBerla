@@ -190,7 +190,6 @@ void {{class_name}}::setOmega( const uint_t idx, const real_t omega )
 Vector3<real_t> {{class_name}}::getVelocity( uint_t idx ) const
 {
    Vector3<real_t> velocity = Vector3<real_t>(0.0);
-
    auto rho = getDensity(idx);
 
    for (size_t f = 1; f < {{Q}}; ++f)
@@ -199,7 +198,25 @@ Vector3<real_t> {{class_name}}::getVelocity( uint_t idx ) const
      velocity[0] += numeric_cast<real_t>( cx[f] ) * pdf;
      velocity[1] += numeric_cast<real_t>( cy[f] ) * pdf;
      velocity[2] += numeric_cast<real_t>( cz[f] ) * pdf;
+   }
+   velocity[0]/=rho;
+   velocity[1]/=rho;
+   velocity[2]/=rho;
 
+   return velocity;
+}
+
+Vector3<real_t> {{class_name}}::getVelocityOdd( uint_t idx ) const
+{
+   Vector3<real_t> velocity = Vector3<real_t>(0.0);
+   auto rho = getDensity(idx);
+
+   for (size_t f = 1; f < {{Q}}; ++f)
+   {
+     auto pdf = pdfs_[pullIdxs_[getPullIdx(idx, f)]];
+     velocity[0] += numeric_cast<real_t>( cx[f] ) * pdf;
+     velocity[1] += numeric_cast<real_t>( cy[f] ) * pdf;
+     velocity[2] += numeric_cast<real_t>( cz[f] ) * pdf;
    }
    velocity[0]/=rho;
    velocity[1]/=rho;

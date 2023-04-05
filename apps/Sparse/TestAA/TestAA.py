@@ -19,7 +19,7 @@ from lbmpy_walberla.additional_data_handler import UBBAdditionalDataHandler, Out
 with CodeGeneration() as ctx:
     dtype = 'float64' if ctx.double_accuracy else 'float32'
 
-    streaming_pattern = 'esotwist'
+    streaming_pattern = 'aa'
     timesteps = get_timesteps(streaming_pattern)
 
     stencil = LBStencil(Stencil.D3Q19)
@@ -113,7 +113,7 @@ with CodeGeneration() as ctx:
     outflow = ExtrapolationOutflow(outflow_normal, lb_method, streaming_pattern=streaming_pattern, data_type=dtype)
     outflow_data_handler = OutflowAdditionalDataHandler(stencil, outflow, target=target)
 
-    generate_alternating_lbm_boundary(ctx, 'Lagoon_UBB', UBB((0.05, 0.0, 0.0), data_type=dtype), lb_method,
+    generate_alternating_lbm_boundary(ctx, 'Lagoon_UBB', UBB((0.01, 0.0, 0.0), data_type=dtype), lb_method,
                                       target=target, streaming_pattern=streaming_pattern, cpu_openmp=openmp)
 
     generate_alternating_lbm_boundary(ctx, 'Lagoon_NoSlip', NoSlip(), lb_method,

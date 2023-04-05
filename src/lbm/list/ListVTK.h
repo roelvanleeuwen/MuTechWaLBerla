@@ -23,6 +23,7 @@
 
 #include "core/cell/CellSet.h"
 #include "vtk/BlockCellDataWriter.h"
+#include "lbm/inplace_streaming/TimestepTracker.h"
 
 namespace walberla {
 namespace lbm {
@@ -31,8 +32,11 @@ template< typename List_T, typename OutputType = float >
 class ListVelocityVTKWriter : public vtk::BlockCellDataWriter< OutputType, 3 >
 {
 public:
+   ListVelocityVTKWriter( const ConstBlockDataID & listId, std::shared_ptr<lbm::TimestepTracker> & tracker, const std::string & id ) :
+      vtk::BlockCellDataWriter< OutputType, 3 >( id ), listId_( listId ), list_( nullptr ), tracker_( tracker ) {}
+
    ListVelocityVTKWriter( const ConstBlockDataID & listId, const std::string & id ) :
-      vtk::BlockCellDataWriter< OutputType, 3 >( id ), listId_( listId ), list_( nullptr ) {}
+      vtk::BlockCellDataWriter< OutputType, 3 >( id ), listId_( listId ), list_( nullptr ), tracker_( nullptr ) {}
 
 protected:
 
@@ -44,12 +48,23 @@ protected:
       Cell cell( x, y, z );
       if( !list_->isFluidCell( cell ) )
          return std::numeric_limits<OutputType>::quiet_NaN();
+      size_t timestep = 0;
 
-      return numeric_cast< OutputType >( ( list_->getVelocity( cell ) )[uint_c( f )] );
+      if(tracker_ != nullptr) {
+         timestep = tracker_->getCounter();
+      }
+      real_t velocity;
+      if(((timestep & 1) ^ 1)) {
+         velocity = ( list_->getVelocity( cell ) )[uint_c( f )];
+      } else {
+         velocity = ( list_->getVelocityOdd( cell ) )[uint_c( f )];
+      }
+      return numeric_cast< OutputType >( velocity );
    }
 
    const ConstBlockDataID listId_;
    const List_T * list_;
+   std::shared_ptr<lbm::TimestepTracker> tracker_;
 
 }; // class VelocityVTKWriter
 

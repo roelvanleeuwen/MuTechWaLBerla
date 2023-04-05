@@ -1,11 +1,11 @@
 Parameters
 {
 	reference_velocity  0.9;
-    viscosity  0.000015;
-	initialVelocity < 0.05, 0, 0 >;
-	timesteps       1000;
+    viscosity  0.015;
+	initialVelocity < 0.01, 0, 0 >;
+	timesteps       50;
 
-    timeStepStrategy Overlap;
+    timeStepStrategy noOverlap;
     innerOuterSplit     < 1, 1, 1>;
     sendDirectlyFromGPU true;
     gpuBlockSize <128, 1, 1>;
@@ -13,14 +13,14 @@ Parameters
     runBoundaries true;
 
 	remainingTimeLoggerFrequency 60; // in seconds
-	vtkWriteFrequency 0;
+	vtkWriteFrequency 1;
 }
 
 //! [domainSetup]
 DomainSetup
 {
    meshFile         Lagoon.obj;
-   cellsPerBlock    < 256, 256, 256 >;
+   cellsPerBlock    < 64, 64, 10 >;
    periodic         <  0,  0,  0 >;
    weakScaling true;
 }

@@ -186,6 +186,9 @@ class {{class_name}}
    Vector3<real_t> getVelocity( uint_t idx ) const;
    Vector3<real_t> getVelocity( const Cell & cell ) const { return getVelocity( getIdx( cell ) ); }
 
+   Vector3<real_t> getVelocityOdd( uint_t idx ) const;
+   Vector3<real_t> getVelocityOdd( const Cell & cell ) const { return getVelocityOdd( getIdx( cell ) ); }
+
    real_t getDensity( uint_t idx ) const;
    real_t getDensity( const Cell & cell ) const { return getDensity( getIdx( cell ) ); }
 
