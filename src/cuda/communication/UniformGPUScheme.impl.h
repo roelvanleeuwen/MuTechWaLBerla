@@ -230,9 +230,11 @@ namespace communication {
 
             auto nProcess = mpi::MPIRank( block->getNeighborProcess( neighborIdx, uint_t( 0 )));
 
-            for( auto &pi : packInfos_ )
-               receiverInfo[nProcess] += mpi::MPISize( pi->size( *dir, block ));
-
+            for( auto &pi : packInfos_ ) {
+               auto size = pi->size(*dir, block);
+               if (size == 0) continue;
+               receiverInfo[nProcess] += mpi::MPISize(size);
+            }
             auto &headerBuffer = headerExchangeBs.sendBuffer( nProcess );
             nBlockId.toBuffer( headerBuffer );
             headerBuffer << *dir;
