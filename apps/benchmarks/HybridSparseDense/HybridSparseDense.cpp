@@ -189,7 +189,7 @@ int main(int argc, char **argv)
    }
    uint_t TotalNumberOfCells = blocks->getNumberOfXCells() * blocks->getNumberOfYCells() * blocks->getNumberOfZCells();
    const real_t porosity = real_c(TotalNumberOfFluidCells) / real_c(TotalNumberOfCells);
-   WALBERLA_LOG_INFO_ON_ROOT("porosity is " << Porosity)
+   WALBERLA_LOG_INFO_ON_ROOT("porosity is " << porosity)
 
 
 
@@ -223,7 +223,7 @@ int main(int argc, char **argv)
 #if defined(WALBERLA_BUILD_WITH_CUDA)
       const Vector3< int32_t > gpuBlockSize =
          parameters.getParameter< Vector3< int32_t > >("gpuBlockSize", Vector3< int32_t >(128, 1, 1));
-      lbmpy::LBSweep kernel(pdfListId, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2]);
+      lbmpy::SparseLBSweep kernel(pdfListId, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2]);
 #else
       lbmpy::SparseLBSweep kernel(pdfListId, omega);
 #endif
@@ -431,16 +431,16 @@ int main(int argc, char **argv)
       auto tracker = make_shared< lbm::TimestepTracker >(0);
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
-      BlockDataID pdfFieldIdGPU = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "PDFs on GPU", true);
+      BlockDataID pdfFieldIdGPU = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldId, "PDFs on GPU", true);
       const Vector3< int32_t > gpuBlockSize =
          parameters.getParameter< Vector3< int32_t > >("gpuBlockSize", Vector3< int32_t >(128, 1, 1));
-      lbm::DenseLBSweep kernel(pdfFieldIdGPU, omega, Cell(cell_idx_c(InnerOuterSplit[0]), cell_idx_c(InnerOuterSplit[1]), cell_idx_c(InnerOuterSplit[2])));
-      lbmpy::DenseUBB ubb(blocks, pdfFieldIdGPU, initialVelocity[0]);
-      lbmpy::DensePressure pressureOutflow(blocks, pdfFieldIdGPU, 1.0);
-      lbmpy::DenseNoSlip noSlip(blocks, pdfFieldIdGPU, initialVelocity[0]);
+      lbm::DenseLBSweep kernel(pdfFieldIdGPU, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], Cell(cell_idx_c(InnerOuterSplit[0]), cell_idx_c(InnerOuterSplit[1]), cell_idx_c(InnerOuterSplit[2])));
+      lbm::DenseUBB ubb(blocks, pdfFieldIdGPU, initialVelocity[0]);
+      lbm::DensePressure pressureOutflow(blocks, pdfFieldIdGPU, 1.0);
+      lbm::DenseNoSlip noSlip(blocks, pdfFieldIdGPU);
 
       const bool cudaEnabledMPI = parameters.getParameter< bool >("cudaEnabledMPI", true);
-      auto packInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbmpy::DensePackInfoEven, lbmpy::DensePackInfoOdd > >(tracker, pdfFieldIdGPU);
+      auto packInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbm::DensePackInfoEven, lbm::DensePackInfoOdd > >(tracker, pdfFieldIdGPU);
       cuda::communication::UniformGPUScheme< Stencil_T > comm(blocks, cudaEnabledMPI);
 #else
       lbm::DenseLBSweep kernel(pdfFieldId, omega, Cell(cell_idx_c(InnerOuterSplit[0]), cell_idx_c(InnerOuterSplit[1]), cell_idx_c(InnerOuterSplit[2])));
@@ -448,7 +448,7 @@ int main(int argc, char **argv)
       lbm::DensePressure pressureOutflow(blocks, pdfFieldId, 1.0);
       lbm::DenseNoSlip noSlip(blocks, pdfFieldId);
 
-      auto packInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbmpy::SparsePackInfoEven, lbmpy::SparsePackInfoOdd > >( tracker, pdfFieldId);
+      auto packInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbm::DensePackInfoEven, lbm::DensePackInfoOdd > >( tracker, pdfFieldId);
       blockforest::communication::UniformBufferedScheme< Stencil_T > comm(blocks);
 #endif
 
