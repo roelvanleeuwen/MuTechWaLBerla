@@ -26,6 +26,8 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
       add_subdirectory( UniformGridCPU )
       add_subdirectory( PhaseFieldAllenCahn )
       add_subdirectory( ListLBM )
+      add_subdirectory( HybridSparseDense )
+
    endif()
 
    if ( WALBERLA_BUILD_WITH_CODEGEN AND WALBERLA_BUILD_WITH_CUDA )

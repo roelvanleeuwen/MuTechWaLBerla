@@ -1,0 +1,39 @@
+
+Parameters 
+{
+	initialVelocity < 0.01, 0, 0 >;
+	omega           1.5;
+    timesteps       10000;
+
+
+    timeStepStrategy noOverlap;
+    innerOuterSplit     < 1, 1, 1>;
+    weakScaling true;
+    cudaEnabledMPI true;
+
+    runBoundaries true;
+
+	remainingTimeLoggerFrequency 10; // in seconds
+	vtkWriteFrequency 100;
+
+	SpheresRadius   4;
+	Inlet           0;
+	Shift           0;
+}
+
+//! [domainSetup]
+DomainSetup
+{
+   cellsPerBlock    < 64, 64, 10 >;
+}
+//! [domainSetup]
+
+Boundaries
+{
+    Border { direction N;    walldistance -1;  flag NoSlip; }
+    Border { direction S;    walldistance -1;  flag NoSlip; }
+    Border { direction W;    walldistance -1;  flag UBB; }
+    Border { direction E;    walldistance -1;  flag PressureOutflow; }
+    Border { direction T;    walldistance -1;  flag NoSlip; }
+    Border { direction B;    walldistance -1;  flag NoSlip; }
+}
