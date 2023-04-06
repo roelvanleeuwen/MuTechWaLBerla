@@ -19,6 +19,7 @@ Parameters
 	SpheresRadius   4;
 	Inlet           0;
 	Shift           0;
+	porositySwitch  0.8;
 }
 
 //! [domainSetup]

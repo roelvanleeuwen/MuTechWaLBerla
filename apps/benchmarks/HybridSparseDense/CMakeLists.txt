@@ -10,15 +10,23 @@ if ( WALBERLA_BUILD_WITH_OPENMESH AND WALBERLA_BUILD_WITH_CODEGEN )
     if( WALBERLA_BUILD_WITH_CUDA)
         waLBerla_generate_target_from_python(NAME HybridSparseDenseCodeGen
                 FILE HybridSparseDense.py
-                OUT_FILES LBSweep.cu LBSweep.h
+                OUT_FILES SparseLBSweep.cu SparseLBSweep.h
                 ListLBMList.cpp ListLBMList.h
-                MacroSetter.cpp MacroSetter.h
-                UBB.cu UBB.h
-                Pressure.cu Pressure.h
-                NoSlip.cu NoSlip.h
-                PackInfoEven.cu PackInfoEven.h
-                PackInfoOdd.cu PackInfoOdd.h
-                ListLBMInfoHeader.h)
+                SparseMacroSetter.cpp SparseMacroSetter.h
+                SparseUBB.cu SparseUBB.h
+                SparsePressure.cu SparsePressure.h
+                SparseNoSlip.cu SparseNoSlip.h
+                SparsePackInfoEven.cu SparsePackInfoEven.h
+                SparsePackInfoOdd.cu SparsePackInfoOdd.h
+                SparseLBMInfoHeader.h
+                DenseLBSweep.cu DenseLBSweep.h
+                DenseMacroSetter.cpp DenseMacroSetter.h
+                DenseUBB.cu DenseUBB.h
+                DensePressure.cu DensePressure.h
+                DenseNoSlip.cu DenseNoSlip.h
+                DensePackInfoEven.cu DensePackInfoEven.h
+                DensePackInfoOdd.cu DensePackInfoOdd.h
+                DenseLBMInfoHeader.h)
 
         waLBerla_add_executable ( NAME HybridSparseDense
                 FILES HybridSparseDense.cpp InitSpherePacking.h InitSpherePacking.cpp
@@ -26,15 +34,23 @@ if ( WALBERLA_BUILD_WITH_OPENMESH AND WALBERLA_BUILD_WITH_CODEGEN )
     else()
         waLBerla_generate_target_from_python(NAME HybridSparseDenseCodeGen
                 FILE HybridSparseDense.py
-                OUT_FILES LBSweep.cpp LBSweep.h
+                OUT_FILES SparseLBSweep.cpp SparseLBSweep.h
                 ListLBMList.cpp ListLBMList.h
-                MacroSetter.cpp MacroSetter.h
-                UBB.cpp UBB.h
-                Pressure.cpp Pressure.h
-                NoSlip.cpp NoSlip.h
-                PackInfoEven.cpp PackInfoEven.h
-                PackInfoOdd.cpp PackInfoOdd.h
-                ListLBMInfoHeader.h)
+                SparseMacroSetter.cpp SparseMacroSetter.h
+                SparseUBB.cpp SparseUBB.h
+                SparsePressure.cpp SparsePressure.h
+                SparseNoSlip.cpp SparseNoSlip.h
+                SparsePackInfoEven.cpp SparsePackInfoEven.h
+                SparsePackInfoOdd.cpp SparsePackInfoOdd.h
+                SparseLBMInfoHeader.h
+                DenseLBSweep.cpp DenseLBSweep.h
+                DenseMacroSetter.cpp DenseMacroSetter.h
+                DenseUBB.cpp DenseUBB.h
+                DensePressure.cpp DensePressure.h
+                DenseNoSlip.cpp DenseNoSlip.h
+                DensePackInfoEven.cpp DensePackInfoEven.h
+                DensePackInfoOdd.cpp DensePackInfoOdd.h
+                DenseLBMInfoHeader.h)
 
         waLBerla_add_executable ( NAME HybridSparseDense
                 FILES HybridSparseDense.cpp InitSpherePacking.h InitSpherePacking.cpp
