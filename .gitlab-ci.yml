@@ -2132,7 +2132,7 @@ msvc-14.1_Hybrid_dbg:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
+
 
 
 msvc-14.1_Hybrid_sp_dbg:
@@ -2145,7 +2145,7 @@ msvc-14.1_Hybrid_sp_dbg:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
+
 
 
 msvc-14.1_Hybrid:
@@ -2156,7 +2156,7 @@ msvc-14.1_Hybrid:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
+
 
 
 msvc-14.1_serial_dbg:
@@ -2170,7 +2170,7 @@ msvc-14.1_serial_dbg:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
+
 
 
 msvc-14.1_serial:
@@ -2183,7 +2183,7 @@ msvc-14.1_serial:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
+
 
 
 msvc-14.1_mpionly_dbg:
@@ -2196,7 +2196,7 @@ msvc-14.1_mpionly_dbg:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
+
 
 
 msvc-14.1_mpionly:
@@ -2208,7 +2208,7 @@ msvc-14.1_mpionly:
    only:
       variables:
          - $ENABLE_NIGHTLY_BUILDS
-   
+
 
 
 msvc-14.2_Hybrid_dbg:

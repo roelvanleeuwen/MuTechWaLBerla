@@ -32,6 +32,7 @@
 #include "lbm/field/AddToStorage.h"
 #include "lbm/free_surface/LoadBalancing.h"
 #include "lbm/free_surface/SurfaceMeshWriter.h"
+#include "lbm/free_surface/TotalMassComputer.h"
 #include "lbm/free_surface/VtkWriter.h"
 #include "lbm/free_surface/bubble_model/Geometry.h"
 #include "lbm/free_surface/dynamics/SurfaceDynamicsHandler.h"
@@ -512,7 +513,7 @@ int main(int argc, char** argv)
    timeloop.addFuncAfterTimeStep(loadBalancer, "Sweep: load balancing");
 
    // add sweep for evaluating the column height at the origin
-   const std::shared_ptr< cell_idx_t > currentColumnHeight = std::make_shared< cell_idx_t >(columnHeight);
+   const std::shared_ptr< cell_idx_t > currentColumnHeight = std::make_shared< cell_idx_t >(cell_idx_c(columnHeight));
    const ColumnHeightEvaluator< FreeSurfaceBoundaryHandling_T > heightEvaluator(
       blockForest, freeSurfaceBoundaryHandling, domainSize,
       Vector3< real_t >(real_c(0.5) * real_c(domainSize[0]), real_c(0), real_c(0.5) * real_c(domainSize[2])),
@@ -526,6 +527,14 @@ int main(int argc, char** argv)
       Vector3< real_t >(real_c(0.5) * real_c(domainSize[0]), real_c(0), real_c(0.5) * real_c(domainSize[2])),
       evaluationFrequency, columnRadiusSample);
    timeloop.addFuncAfterTimeStep(columnRadiusEvaluator, "Evaluator: radius");
+
+   // add evaluator for total and excessive mass (mass that is currently undistributed)
+   const std::shared_ptr< real_t > totalMass  = std::make_shared< real_t >(real_c(0));
+   const std::shared_ptr< real_t > excessMass = std::make_shared< real_t >(real_c(0));
+   const TotalMassComputer< FreeSurfaceBoundaryHandling_T, PdfField_T, FlagField_T, ScalarField_T > totalMassComputer(
+      blockForest, freeSurfaceBoundaryHandling, pdfFieldID, fillFieldID, dynamicsHandler.getConstExcessMassFieldID(),
+      evaluationFrequency, totalMass, excessMass);
+   timeloop.addFuncAfterTimeStep(totalMassComputer, "Evaluator: total mass");
 
    // add VTK output
    addVTKOutput< LatticeModel_T, FreeSurfaceBoundaryHandling_T, PdfField_T, FlagField_T, ScalarField_T, VectorField_T >(
@@ -571,13 +580,14 @@ int main(int argc, char** argv)
             H              = real_c(*currentColumnHeight) / columnHeight;
          }
 
-         WALBERLA_LOG_DEVEL_ON_ROOT("time step =" << t);
-         WALBERLA_LOG_DEVEL_ON_ROOT("\t\tT = " << T << "\n\t\tZ_mean = " << Z_mean << "\n\t\tZ_max = " << Z_max
-                                               << "\n\t\tZ_min = " << Z_min
-                                               << "\n\t\tZ_stdDeviation = " << Z_stdDeviation << "\n\t\tH = " << H);
-
          WALBERLA_ROOT_SECTION()
          {
+            WALBERLA_LOG_DEVEL("time step =" << t);
+            WALBERLA_LOG_DEVEL("\t\tT = " << T << "\n\t\tZ_mean = " << Z_mean << "\n\t\tZ_max = " << Z_max
+                                          << "\n\t\tZ_min = " << Z_min << "\n\t\tZ_stdDeviation = " << Z_stdDeviation
+                                          << "\n\t\tH = " << H << "\n\t\ttotal mass = " << *totalMass
+                                          << "\n\t\texcess mass = " << *excessMass);
+
             const std::vector< real_t > resultVector{ T, Z_mean, Z_max, Z_min, Z_stdDeviation, H };
             writeNumberVector(resultVector, t, filename);
          }
