@@ -87,6 +87,9 @@ waLBerla_execute_test( NAME   MESA_PD_DropTestAnalytic )
 waLBerla_compile_test( NAME   MESA_PD_DropTestGeneral FILES DropTestGeneral.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_DropTestGeneral )
 
+waLBerla_compile_test( NAME   MESA_PD_Kernel_Cohesion FILES kernel/Cohesion.cpp DEPENDS core )
+waLBerla_execute_test( NAME   MESA_PD_Kernel_Cohesion )
+
 waLBerla_compile_test( NAME   MESA_PD_Kernel_ClearNextNeighborSync FILES kernel/ClearNextNeighborSync.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Kernel_ClearNextNeighborSync PROCESSES 2 )
 

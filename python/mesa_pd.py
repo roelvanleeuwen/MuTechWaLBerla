@@ -95,6 +95,11 @@ if __name__ == '__main__':
     ch.add_property("tangentialSpringDisplacement", "walberla::mesa_pd::Vec3", defValue="real_t(0)")
     ch.add_property("isSticking", "bool", defValue="false")
     ch.add_property("impactVelocityMagnitude", "real_t", defValue="real_t(0)")
+    ch.add_property("cohesionBound", "bool", defValue="false")
+    ch.add_property("initialGapSize", "real_t", defValue="real_t(0)")
+    ch.add_property("slidingDisplacement", "walberla::mesa_pd::Vec3", defValue="real_t(0)")
+    ch.add_property("rollingDisplacement", "walberla::mesa_pd::Vec3", defValue="real_t(0)")
+    ch.add_property("torsionDisplacement", "walberla::mesa_pd::Vec3", defValue="real_t(0)")
 
     cs = mpd.add(data.ContactStorage())
     cs.add_property("id1", "walberla::id_t", defValue="walberla::id_t(-1)")
@@ -119,6 +124,8 @@ if __name__ == '__main__':
     mpd.add(data.SparseLinkedCells())
     mpd.add(data.ShapeStorage(ps))
 
+    mpd.add(kernel.Cohesion())
+    mpd.add(kernel.CohesionInitialization())
     mpd.add(kernel.DetectAndStoreContacts())
     mpd.add(kernel.DoubleCast(ps))
     mpd.add(kernel.ExplicitEuler())

@@ -58,10 +58,35 @@ public:
    real_t& getImpactVelocityMagnitudeRef() {return impactVelocityMagnitude_;}
    void setImpactVelocityMagnitude(const real_t& v) { impactVelocityMagnitude_ = v;}
    
+   const bool& getCohesionBound() const {return cohesionBound_;}
+   bool& getCohesionBoundRef() {return cohesionBound_;}
+   void setCohesionBound(const bool& v) { cohesionBound_ = v;}
+   
+   const real_t& getInitialGapSize() const {return initialGapSize_;}
+   real_t& getInitialGapSizeRef() {return initialGapSize_;}
+   void setInitialGapSize(const real_t& v) { initialGapSize_ = v;}
+   
+   const walberla::mesa_pd::Vec3& getSlidingDisplacement() const {return slidingDisplacement_;}
+   walberla::mesa_pd::Vec3& getSlidingDisplacementRef() {return slidingDisplacement_;}
+   void setSlidingDisplacement(const walberla::mesa_pd::Vec3& v) { slidingDisplacement_ = v;}
+   
+   const walberla::mesa_pd::Vec3& getRollingDisplacement() const {return rollingDisplacement_;}
+   walberla::mesa_pd::Vec3& getRollingDisplacementRef() {return rollingDisplacement_;}
+   void setRollingDisplacement(const walberla::mesa_pd::Vec3& v) { rollingDisplacement_ = v;}
+   
+   const walberla::mesa_pd::Vec3& getTorsionDisplacement() const {return torsionDisplacement_;}
+   walberla::mesa_pd::Vec3& getTorsionDisplacementRef() {return torsionDisplacement_;}
+   void setTorsionDisplacement(const walberla::mesa_pd::Vec3& v) { torsionDisplacement_ = v;}
+   
 private:
    walberla::mesa_pd::Vec3 tangentialSpringDisplacement_ {};
    bool isSticking_ {};
    real_t impactVelocityMagnitude_ {};
+   bool cohesionBound_ {};
+   real_t initialGapSize_ {};
+   walberla::mesa_pd::Vec3 slidingDisplacement_ {};
+   walberla::mesa_pd::Vec3 rollingDisplacement_ {};
+   walberla::mesa_pd::Vec3 torsionDisplacement_ {};
 };
 
 inline
@@ -71,6 +96,11 @@ std::ostream& operator<<( std::ostream& os, const ContactHistory& ch )
          "tangentialSpringDisplacement: " << ch.getTangentialSpringDisplacement() << "\n" <<
          "isSticking          : " << ch.getIsSticking() << "\n" <<
          "impactVelocityMagnitude: " << ch.getImpactVelocityMagnitude() << "\n" <<
+         "cohesionBound       : " << ch.getCohesionBound() << "\n" <<
+         "initialGapSize      : " << ch.getInitialGapSize() << "\n" <<
+         "slidingDisplacement : " << ch.getSlidingDisplacement() << "\n" <<
+         "rollingDisplacement : " << ch.getRollingDisplacement() << "\n" <<
+         "torsionDisplacement : " << ch.getTorsionDisplacement() << "\n" <<
          "================================" << std::endl;
    return os;
 }
@@ -96,6 +126,11 @@ mpi::GenericSendBuffer<T,G>& operator<<( mpi::GenericSendBuffer<T,G> & buf, cons
    buf << obj.getTangentialSpringDisplacement();
    buf << obj.getIsSticking();
    buf << obj.getImpactVelocityMagnitude();
+   buf << obj.getCohesionBound();
+   buf << obj.getInitialGapSize();
+   buf << obj.getSlidingDisplacement();
+   buf << obj.getRollingDisplacement();
+   buf << obj.getTorsionDisplacement();
    return buf;
 }
 
@@ -106,6 +141,11 @@ mpi::GenericRecvBuffer<T>& operator>>( mpi::GenericRecvBuffer<T> & buf, mesa_pd:
    buf >> objparam.getTangentialSpringDisplacementRef();
    buf >> objparam.getIsStickingRef();
    buf >> objparam.getImpactVelocityMagnitudeRef();
+   buf >> objparam.getCohesionBoundRef();
+   buf >> objparam.getInitialGapSizeRef();
+   buf >> objparam.getSlidingDisplacementRef();
+   buf >> objparam.getRollingDisplacementRef();
+   buf >> objparam.getTorsionDisplacementRef();
    return buf;
 }
 
