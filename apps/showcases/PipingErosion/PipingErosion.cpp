@@ -324,7 +324,6 @@ void initSpheresFromFile(const std::string& filename, walberla::mesa_pd::data::P
       data::ParticleStorage::position_type pos;
       walberla::real_t radius;
       iss >> uID >> pos[0] >> pos[1] >> pos[2] >> radius;
-      radius *= scalingFactor;
 
       auto particlePos = pos;
 
@@ -346,7 +345,7 @@ void initSpheresFromFile(const std::string& filename, walberla::mesa_pd::data::P
       // TODO: check why polydispersity does not work
       /*pIt->getBaseShapeRef() = std::make_shared< data::Sphere >(radius);
       pIt->getBaseShapeRef()->updateMassAndInertia(density);*/
-      pIt->setInteractionRadius(radius);
+      pIt->setInteractionRadius(diameter / 2);
       pIt->setOwner(rank);
       pIt->setType(1);
 
