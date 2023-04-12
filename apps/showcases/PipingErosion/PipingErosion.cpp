@@ -70,6 +70,8 @@
 #include "mesa_pd/data/shape/Sphere.h"
 #include "mesa_pd/domain/BlockForestDataHandling.h"
 #include "mesa_pd/domain/BlockForestDomain.h"
+#include "mesa_pd/kernel/Cohesion.h"
+#include "mesa_pd/kernel/CohesionInitialization.h"
 #include "mesa_pd/kernel/DoubleCast.h"
 #include "mesa_pd/kernel/LinearSpringDashpot.h"
 #include "mesa_pd/kernel/ParticleSelector.h"
@@ -85,6 +87,8 @@
 #include "timeloop/SweepTimeloop.h"
 
 #include "vtk/all.h"
+
+#include "../apps/bam/Utility.h"
 
 namespace fluidized_bed
 {
@@ -347,7 +351,7 @@ void initSpheresFromFile(const std::string& filename, walberla::mesa_pd::data::P
       pIt->getBaseShapeRef()->updateMassAndInertia(density);*/
       pIt->setInteractionRadius(diameter / 2);
       pIt->setOwner(rank);
-      pIt->setType(1);
+      pIt->setType(0);
 
       numParticles++;
 
@@ -555,7 +559,7 @@ int main( int argc, char **argv )
    // in simulation units: dt = 1, dx = 1, densityFluid = 1
 
    const real_t dt_SI = uOutflow / uOutflow_SI * dx_SI;
-   const real_t diameter = 10; // average diameter from bed generation TODO: remove hard coded diameter
+   const real_t diameter = 15; // average diameter from bed generation TODO: remove hard coded diameter
    const real_t viscosity =  kinematicViscosityFluid_SI * dt_SI / ( dx_SI * dx_SI );
    const real_t omega = lbm::collision_model::omegaFromViscosity(viscosity);
    const real_t gravitationalAcceleration = gravitationalAcceleration_SI * dt_SI * dt_SI / dx_SI;
@@ -725,6 +729,78 @@ int main( int argc, char **argv )
          return ac.getShapeID(particleIdx) == boxShape;
       }, *accessor, particleMappingKernel, *accessor, NoSlip_Flag);
 
+   // cohesion init
+   mesa_pd::kernel::CohesionInitialization cohesionInitKernel;
+   mesa_pd::kernel::Cohesion cohesionKernel(2);
+
+   real_t densityFluid_SI     = real_t(1000);
+   real_t diameter_SI         = real_t(0.0029); // m
+   real_t densityParticle_SI  = real_t(2550);
+   real_t y_n_SI              = 200_r;          // N = tensile force, where bond breaks
+   real_t frictionCoefficient = real_t(0.3);
+
+   real_t sphereRadius_SI = diameter_SI / 2_r;
+   real_t sphereVolume_SI = 4_r / 3_r * math::pi * sphereRadius_SI * sphereRadius_SI * sphereRadius_SI;
+   real_t sphereMass_SI   = densityParticle_SI * sphereVolume_SI;
+   real_t E_SI            = 1e3_r; // kg / (m * s^2)
+   real_t en              = 0.2_r; // coefficient of restitution
+   real_t kn_SI           = 2_r * E_SI * (sphereRadius_SI * sphereRadius_SI / (sphereRadius_SI + sphereRadius_SI));
+   real_t meff_SI         = sphereMass_SI * sphereMass_SI / (sphereMass_SI + sphereMass_SI);
+   real_t damping         = -std::log(en) / std::sqrt((std::log(en) * std::log(en) + math::pi * math::pi));
+   real_t nun_SI          = 2_r * std::sqrt(kn_SI * meff_SI) * damping;
+
+   real_t kn  = kn_SI / (densityFluid_SI * dx_SI * dx_SI * dx_SI / (dt_SI * dt_SI));
+   real_t nun = nun_SI / (densityFluid_SI * dx_SI * dx_SI * dx_SI / (dt_SI));
+   real_t y_n = y_n_SI / (densityFluid_SI * dx_SI * dx_SI * dx_SI * dx_SI / (dt_SI * dt_SI));
+
+   real_t ksFactors = 0.5_r; // -
+   real_t krFactors = 0.1_r; // -
+   real_t koFactors = 0.1_r; // -
+
+   real_t nusFactor = 0_r;   // -
+   real_t nurFactor = 0_r;   // -
+   real_t nuoFactor = 0_r;   // -
+
+   real_t y_s = 0.5_r * y_n;
+   real_t y_r = 0.1_r * y_n / dx_SI; // TODO check -> torsion = N m
+   real_t y_o = 0.1_r * y_n / dx_SI; // TODO check -> torsion = N m
+
+   WALBERLA_LOG_INFO_ON_ROOT("kn = " << kn << ", nun = " << nun << ", yn = " << y_n);
+   WALBERLA_LOG_INFO_ON_ROOT("Estimated maximum surface distance for rupture / radius= " << (y_n / kn) /
+                                                                                               (diameter / 2));
+   cohesionKernel.setKn(0,0,kn);
+   cohesionKernel.setKsFactor(0,0,ksFactors);
+   cohesionKernel.setKrFactor(0,0,krFactors);
+   cohesionKernel.setKoFactor(0,0,koFactors);
+
+   cohesionKernel.setNun(0,0,nun);
+   cohesionKernel.setNusFactor(0,0,nusFactor);
+   cohesionKernel.setNurFactor(0,0,nurFactor);
+   cohesionKernel.setNuoFactor(0,0,nuoFactor);
+
+   cohesionKernel.setFrictionCoefficient(0,0,frictionCoefficient);
+
+   cohesionKernel.setYn(0,0,y_n);
+   cohesionKernel.setYs(0,0,y_s);
+   cohesionKernel.setYr(0,0,y_r);
+   cohesionKernel.setYo(0,0,y_o);
+
+   mesa_pd::SelectSphere sphereSelector;
+   ps->forEachParticlePairHalf(false, sphereSelector, *accessor, [&](const size_t idx1, const size_t idx2) {
+      mesa_pd::collision_detection::AnalyticContactDetection acd;
+      mesa_pd::kernel::DoubleCast double_cast;
+      mesa_pd::mpi::ContactFilter contact_filter;
+      if (double_cast(idx1, idx2, *accessor, acd, *accessor))
+      {
+         // particles overlap
+         if (contact_filter(acd.getIdx1(), acd.getIdx2(), *accessor, acd.getContactPoint(), *rpdDomain))
+         {
+            cohesionInitKernel(acd.getIdx1(), acd.getIdx2(), *accessor, acd.getPenetrationDepth());
+         }
+      }
+   });
+   reduceAndSwapContactHistory(*ps);
+
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
    blockforest::communication::UniformBufferedScheme< Stencil_T > optimizedPDFCommunicationScheme( blocks );
    optimizedPDFCommunicationScheme.addPackInfo( make_shared< lbm::PdfFieldPackInfo< LatticeModel_T > >( pdfFieldID ) ); // optimized sync
@@ -869,26 +945,34 @@ int main( int argc, char **argv )
 
 
          // collision response
-         ps->forEachParticlePairHalf(useOpenMP, ExcludeGlobalGlobal(), *accessor,
-            [&collisionResponse, &rpdDomain, timeStepSizeRPD, coefficientOfRestitution, particleCollisionTime, kappa, particleVolume, particleDensityRatio]
-            (const size_t idx1, const size_t idx2, auto& ac)
+         ps->forEachParticlePairHalf(false, ExcludeGlobalGlobal(), *accessor, [&](size_t idx1, size_t idx2) {
+            mesa_pd::collision_detection::AnalyticContactDetection acd;
+            mesa_pd::kernel::DoubleCast double_cast;
+            mesa_pd::mpi::ContactFilter contact_filter;
+            bool contactExists = double_cast(idx1, idx2, *accessor, acd, *accessor);
+
+            Vector3< real_t > filteringPoint;
+            if (contactExists) { filteringPoint = acd.getContactPoint();}
+            else { filteringPoint = (accessor->getPosition(idx1) + accessor->getPosition(idx2)) / real_t(2); }
+
+            if (contact_filter(idx1, idx2, *accessor, filteringPoint, *rpdDomain))
             {
-               mesa_pd::collision_detection::AnalyticContactDetection acd;
-               mesa_pd::kernel::DoubleCast double_cast;
-               mesa_pd::mpi::ContactFilter contact_filter;
-               if (double_cast(idx1, idx2, ac, acd, ac ))
+               bool contactTreatedByCohesionKernel = false;
+               if (sphereSelector(idx1, idx2, *accessor))
                {
-                  if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *rpdDomain))
+                  if (cohesionKernel.isCohesiveBondActive(idx1, idx2, *accessor))
                   {
-                     auto meff_sphere_wall = particleVolume * particleDensityRatio;
-                     auto meff_sphere_sphere = real_t(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
-                     collisionResponse.setStiffnessAndDamping(0,1,coefficientOfRestitution, particleCollisionTime, kappa, meff_sphere_wall);
-                     collisionResponse.setStiffnessAndDamping(1,1,coefficientOfRestitution, particleCollisionTime, kappa, meff_sphere_sphere);
-                     collisionResponse(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), acd.getContactNormal(), acd.getPenetrationDepth(), timeStepSizeRPD);
+                     contactTreatedByCohesionKernel = cohesionKernel(idx1, idx2, *accessor, timeStepSizeRPD);
                   }
                }
-            },
-            *accessor );
+               if (contactExists && !contactTreatedByCohesionKernel)
+               {
+                  cohesionKernel.nonCohesiveInteraction(acd.getIdx1(), acd.getIdx2(), *accessor, acd.getContactPoint(),
+                                                        acd.getContactNormal(), acd.getPenetrationDepth(),
+                                                        timeStepSizeRPD);
+               }
+            }
+         });
 
          reduceAndSwapContactHistory(*ps);
 
