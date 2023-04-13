@@ -15,14 +15,16 @@ if (WALBERLA_BUILD_WITH_CUDA)
         if (WALBERLA_BUILD_WITH_CODEGEN)
             foreach (collision_setup srt trt)
                 foreach (solid_collision 1 2 3)
-                    set(config ${collision_setup}_sc${solid_collision})
-                    walberla_generate_target_from_python(NAME PSMCodegenPython_${config}
-                            FILE PSMCodegen.py
-                            CODEGEN_CFG ${config}
-                            OUT_FILES PSMSweep.cu PSMSweep.h PSMSweepSplit.cu PSMSweepSplit.h
-                            PSMPackInfo.cu PSMPackInfo.h InitializeDomainForPSM.cu InitializeDomainForPSM.h
-                            PSM_NoSlip.cu PSM_NoSlip.h PSM_UBB.cu PSM_UBB.h PSM_Density.cu PSM_Density.h
-                            PSM_FreeSlip.cu PSM_FreeSlip.h)
+                    foreach (split 0 1)
+                        set(config ${collision_setup}_sc${solid_collision}_s${split})
+                        walberla_generate_target_from_python(NAME PSMCodegenPython_${config}
+                                FILE PSMCodegen.py
+                                CODEGEN_CFG ${config}
+                                OUT_FILES PSMSweep.cu PSMSweep.h PSMSweepSplit.cu PSMSweepSplit.h
+                                PSMPackInfo.cu PSMPackInfo.h InitializeDomainForPSM.cu InitializeDomainForPSM.h
+                                PSM_NoSlip.cu PSM_NoSlip.h PSM_UBB.cu PSM_UBB.h PSM_Density.cu PSM_Density.h
+                                PSM_FreeSlip.cu PSM_FreeSlip.h)
+                    endforeach ()
                 endforeach ()
             endforeach ()
         endif ()

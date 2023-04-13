@@ -30,13 +30,13 @@ with CodeGeneration() as ctx:
     init_density = sp.Symbol("init_density")
     init_velocity = sp.symbols("init_velocity_:3")
     pdfs_inter = sp.symbols("pdfs_inter:" + str(stencil.Q))
-    split = False # Splitting scheme was introduced in the following paper: https://doi.org/10.1016/j.powtec.2022.117556
     layout = "fzyx"
     MaxParticlesPerCell = 2
     config_tokens = ctx.config.split("_")
     methods = {"srt": Method.SRT, "trt": Method.TRT}
     # Solid collision variant
     SC = int(config_tokens[1][2])
+    split = bool(int(config_tokens[2][1])) # Splitting scheme was introduced in the following paper: https://doi.org/10.1016/j.powtec.2022.117556
 
     pdfs, pdfs_tmp = ps.fields(
         f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {data_type}[3D]", layout=layout
