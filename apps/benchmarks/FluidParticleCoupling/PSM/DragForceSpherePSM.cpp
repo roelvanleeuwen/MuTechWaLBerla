@@ -61,7 +61,7 @@
 #include "PSMPackInfo.h"
 #include "PSMSweep.h"
 
-namespace drag_force_sphere_mem
+namespace drag_force_sphere_psm
 {
 
 ///////////
@@ -302,15 +302,6 @@ int main(int argc, char** argv)
    real_t externalForcing = real_t(1e-8);
    uint_t length          = uint_c(40);
 
-   real_t bulkViscRateFactor = real_t(
-      1); // ratio between bulk and shear viscosity related relaxation factors, 1 = TRT, > 1 for stability with MRT
-   // see Khirevich - Coarse- and fine-grid numerical behavior of MRT/TRT lattice-Boltzmann schemes in regular and
-   // random sphere packings
-   bool useSRT               = false;
-   real_t magicNumber        = real_t(3) / real_t(16);
-   bool useOmegaBulkAdaption = false;
-   real_t adaptionLayerSize  = real_t(2);
-
    for (int i = 1; i < argc; ++i)
    {
       if (std::strcmp(argv[i], "--shortrun") == 0)
@@ -346,16 +337,6 @@ int main(int argc, char** argv)
       if (std::strcmp(argv[i], "--length") == 0)
       {
          length = uint_c(std::atof(argv[++i]));
-         continue;
-      }
-      if (std::strcmp(argv[i], "--bulkViscRateFactor") == 0)
-      {
-         bulkViscRateFactor = real_c(std::atof(argv[++i]));
-         continue;
-      }
-      if (std::strcmp(argv[i], "--adaptionLayerSize") == 0)
-      {
-         adaptionLayerSize = real_c(std::atof(argv[++i]));
          continue;
       }
       WALBERLA_ABORT("Unrecognized command line argument found: " << argv[i]);
@@ -581,18 +562,14 @@ int main(int argc, char** argv)
          }
 
          std::string fileName;
-         fileName += "_bvrf" + std::to_string(uint_c(bulkViscRateFactor));
-         fileName += "_mn" + std::to_string(float(magicNumber));
-         if (useOmegaBulkAdaption) fileName += "_uOBA" + std::to_string(uint_c(adaptionLayerSize));
-         if (useSRT) fileName += "_SRT";
 
-         forceEval->logResultToFile("log_DragForceSphereMEM_Generated_" + fileName + ".txt");
+         forceEval->logResultToFile("log_DragForceSpherePSM_Generated_" + fileName + ".txt");
       }
    }
 
    return 0;
 }
 
-} // namespace drag_force_sphere_mem
+} // namespace drag_force_sphere_psm
 
-int main(int argc, char** argv) { drag_force_sphere_mem::main(argc, argv); }
+int main(int argc, char** argv) { drag_force_sphere_psm::main(argc, argv); }
