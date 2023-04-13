@@ -30,7 +30,7 @@ with CodeGeneration() as ctx:
     init_density = sp.Symbol("init_density")
     init_velocity = sp.symbols("init_velocity_:3")
     pdfs_inter = sp.symbols("pdfs_inter:" + str(stencil.Q))
-    split = False
+    split = False # Splitting scheme was introduced in the following paper: https://doi.org/10.1016/j.powtec.2022.117556
     layout = "fzyx"
     MaxParticlesPerCell = 2
     config_tokens = ctx.config.split("_")
@@ -81,6 +81,7 @@ with CodeGeneration() as ctx:
             collision_op_psm.append(
                 (1.0 - B.center) * psm_config.relaxation_rate * (f - eq)
             )
+    # TODO: set magic number
     elif psm_config.method == Method.TRT:
         for i, (eq, f) in enumerate(zip(equilibrium, method.pre_collision_pdf_symbols)):
             inverse_direction_index = stencil.stencil_entries.index(
@@ -209,7 +210,7 @@ with CodeGeneration() as ctx:
         for d, c in zip(pdfs_inter, collision_rhs):
             collision_assignments.append(ps.Assignment(d, c))
 
-        # Second. define quantities to compute the equilibrium as functions of the pdfs_inter
+        # Second, define quantities to compute the equilibrium as functions of the pdfs_inter
         cqc_inter = (
             method.conserved_quantity_computation.equilibrium_input_equations_from_pdfs(
                 pdfs_inter, False
