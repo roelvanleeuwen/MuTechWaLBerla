@@ -83,8 +83,6 @@ using FlagField_T = FlagField< flag_t >;
 
 using ScalarField_T = GhostLayerField< real_t, 1 >;
 
-const uint_t FieldGhostLayers = 1;
-
 typedef pystencils::PSMPackInfo PackInfo_T;
 
 ///////////
@@ -92,8 +90,6 @@ typedef pystencils::PSMPackInfo PackInfo_T;
 ///////////
 
 const FlagUID Fluid_Flag("fluid");
-const FlagUID MO_BB_Flag("moving obstacle BB");
-const FlagUID MO_CLI_Flag("moving obstacle CLI");
 
 ////////////////
 // PARAMETERS //
