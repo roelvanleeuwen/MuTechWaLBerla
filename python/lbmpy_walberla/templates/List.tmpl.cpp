@@ -323,13 +323,54 @@ bool {{class_name}}::operator==( const {{class_name}} & other ) const
          {
             setPullIdxOuter( fluidNeighborCell, it->dir, idx );
          }
-         idx++;
       }
-      else
+      idx++;
+   }
+
+   WALBERLA_ASSERT_EQUAL( idx, pdfs_.size() )
+
+   // syncGPU();
+   return startIdx;
+}
+
+
+{{index_type}} {{class_name}}::registerExternalPDFsDense( const std::vector< lbm::CellDir > & externalPdfs, const std::vector< Cell > & boundaryCells)
+{
+   WALBERLA_CHECK_LESS( pdfs_.size() + externalPdfs.size(), numeric_cast<size_t>( std::numeric_limits<{{index_type}}>::max() ),
+                       "The Number of PDFs you want to register as external PDFs increases the total number of stored "
+                       "PDFs beyond the capacity of {{index_type}}!" )
+
+   const {{index_type}} startIdx = numeric_cast<{{index_type}}>( pdfs_.size() );
+
+   pdfs_.resize( pdfs_.size() + externalPdfs.size(), 0.0 );
+
+   if( !manuallyAllocateTmpPDFs_ )
+      tmpPdfs_.resize( pdfs_.size(), 0.0 );
+
+   {{index_type}} idx = startIdx;
+
+   for( auto it = externalPdfs.begin(); it != externalPdfs.end(); ++it )
+   {
+      bool isBoundaryCell = false;
+      if ( std::binary_search( boundaryCells.begin(), boundaryCells.end(), it->cell ) ) {
+         //WALBERLA_LOG_INFO("Cell " << it->cell  << " is boundary cell")
+         isBoundaryCell = true;
+      }
+
+      Cell fluidNeighborCell = it->cell + Cell(cx[it->dir], cy[it->dir], cz[it->dir]);
+      if( isFluidCell( fluidNeighborCell ) && !isBoundaryCell)
       {
-         WALBERLA_LOG_WARNING( "You are registering external PDF " << it->cell << " " << it->dir << " but the neighboring cell "
-                                                                  << fluidNeighborCell << " is not a fluid cell! The external PDF is unused." )
+         setPullIdx( fluidNeighborCell, it->dir, idx );
+         if(ci_.contains(fluidNeighborCell))
+         {
+            setPullIdxInner( fluidNeighborCell, it->dir, idx );
+         }
+         else
+         {
+            setPullIdxOuter( fluidNeighborCell, it->dir, idx );
+         }
       }
+      idx++;
    }
 
    WALBERLA_ASSERT_EQUAL( idx, pdfs_.size() )

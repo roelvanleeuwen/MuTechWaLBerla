@@ -3,7 +3,7 @@ Parameters
 {
 	initialVelocity < 0.01, 0, 0 >;
 	omega           1.5;
-    timesteps       10000;
+    timesteps       1000;
 
 
     timeStepStrategy noOverlap;
@@ -13,13 +13,13 @@ Parameters
 
     runBoundaries true;
 
-	remainingTimeLoggerFrequency 10; // in seconds
-	vtkWriteFrequency 100;
+	remainingTimeLoggerFrequency 2; // in seconds
+	vtkWriteFrequency 50;
 
-	SpheresRadius   4;
-	Inlet           0;
-	Shift           0;
-	porositySwitch  0.8;
+	SpheresRadius   7;
+	Shift           7;
+	fillInParticles         <0.45, 1.0, 1.0>;
+	porositySwitch  0.8;    //use ListLBM if porosity < porositySwitch
 }
 
 //! [domainSetup]

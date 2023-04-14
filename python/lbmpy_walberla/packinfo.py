@@ -81,7 +81,6 @@ def generate_lb_pack_info(generation_context,
                 d = stencil.index(streaming_dir)
                 fa = write_accesses[d]
                 spec[(comm_dir,)].add(fa)
-
         if t == Timestep.EVEN:
             class_name_suffix = 'Even'
         elif t == Timestep.ODD:

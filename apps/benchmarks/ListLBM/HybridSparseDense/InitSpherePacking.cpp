@@ -24,7 +24,7 @@ namespace walberla
 using FlagField_T  = FlagField< uint8_t >;
 
 void InitSpherePacking(const shared_ptr< StructuredBlockStorage >& blocks, BlockDataID flagFieldID,
-                       const field::FlagUID boundaryFlagUID, const real_t Radius, const real_t Inlet, const real_t Shift)
+                       const field::FlagUID boundaryFlagUID, const real_t Radius, const real_t Shift, const Vector3<real_t> fillIn)
 {
    // Check that too small spheres are not used
    if(Radius < 1e-10)
@@ -37,7 +37,7 @@ void InitSpherePacking(const shared_ptr< StructuredBlockStorage >& blocks, Block
    const cell_idx_t MinR = cell_idx_c(floor(Radius));
    const cell_idx_t MaxR = cell_idx_c(ceil(Radius));
 
-   const uint_t Nx = uint_c(ceil((blocks->getDomainCellBB().xMax() - 2 * Inlet) / SphereDistanceX));
+   const uint_t Nx = uint_c(ceil((blocks->getDomainCellBB().xMax() / SphereDistanceX)));
    const uint_t Ny = uint_c(ceil(blocks->getDomainCellBB().yMax() / Diameter)) + 1;
    const uint_t Nz = uint_c(ceil(blocks->getDomainCellBB().zMax() / Diameter)) + 1;
 
@@ -51,7 +51,7 @@ void InitSpherePacking(const shared_ptr< StructuredBlockStorage >& blocks, Block
             for (uint_t k = 0; k < Nz; ++k){
 
                const real_t Offset = (i % 2 == 0) ? 0.0 : Radius;
-               Cell point(cell_idx_c(Inlet + real_c(i) * SphereDistanceX), cell_idx_c(real_c(j) * Diameter + Offset), cell_idx_c(real_c(k) * Diameter + Offset));
+               Cell point(cell_idx_c(real_c(i) * SphereDistanceX), cell_idx_c(real_c(j) * Diameter + Offset), cell_idx_c(real_c(k) * Diameter + Offset));
                CellInterval SphereBB(point.x() - MinR, point.y() - MinR, point.z() - MinR, point.x() + MaxR, point.y() + MaxR, point.z() + MaxR);
 
                if(BlockBB.overlaps(SphereBB))
@@ -62,6 +62,7 @@ void InitSpherePacking(const shared_ptr< StructuredBlockStorage >& blocks, Block
 
                   for(auto it = SphereBB.begin(); it != SphereBB.end(); ++it)
                   {
+                     if(it->x() > (real_c(blocks->getDomainCellBB().xSize()) * fillIn[0]) || it->y() > (real_c(blocks->getDomainCellBB().ySize()) * fillIn[1]) || it->z() > (real_c(blocks->getDomainCellBB().zSize()) * fillIn[2])) continue;
                      blocks->transformGlobalToBlockLocalCell(localCell, block, Cell(it->x(), it->y(), it->z()));
                      blocks->transformGlobalToBlockLocalCell(localPoint, block, point);
                      real_t Ri = (localCell[0] - localPoint.x()) * (localCell[0] - localPoint.x()) +

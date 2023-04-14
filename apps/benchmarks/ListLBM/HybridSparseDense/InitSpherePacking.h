@@ -31,6 +31,6 @@ namespace walberla
 {
 
 void InitSpherePacking(const shared_ptr< StructuredBlockStorage >& blocks, BlockDataID flagFieldID,
-                       const field::FlagUID boundaryFlagUID, const real_t Radius, const real_t Inlet, const real_t Shift);
+                       const field::FlagUID boundaryFlagUID, const real_t Radius, const real_t Shift, const Vector3<real_t> fillIn);
 
 } // namespace walberla

@@ -201,6 +201,8 @@ class {{class_name}}
    bool operator==( const {{class_name}} & other ) const;
 
    {{index_type}} registerExternalPDFs( const std::vector< lbm::CellDir > & pdfs );
+   {{index_type}} registerExternalPDFsDense( const std::vector< lbm::CellDir > & pdfs,  const std::vector< Cell > & boundaryCells);
+
 
    void enableAutomaticAllocationOfTmpPDFs() { manuallyAllocateTmpPDFs_ = false; tmpPdfs_.resize( pdfs_.size(), 0.0 ); }
 
@@ -403,15 +405,17 @@ class {{class_name}}
    std::map< stencil::Direction , index_t > numCommPDFs_;
 };
 
-
-
+template<typename FlagField_T, typename Stencil_T>
 class ListCommunicationSetup
 {
  public:
-   ListCommunicationSetup(const BlockDataID listId, weak_ptr<StructuredBlockForest> blockForest)
-      :listId_(listId), blockForest_(blockForest)
+   ListCommunicationSetup(const BlockDataID listId, const BlockDataID flagFieldID, weak_ptr<StructuredBlockForest> blockForest,  bool denseComm = false)
+      :listId_(listId), flagFieldID_(flagFieldID), blockForest_(blockForest), denseComm_(denseComm)
    {
-      beforeStartCommunication();
+     if (denseComm_)
+       setupDenseCommunication();
+     else
+       setupSparseCommunication();
    }
 
    CellInterval getSendCellInterval( const stencil::Direction dir )
@@ -480,7 +484,9 @@ class ListCommunicationSetup
    }
 
 
-   void beforeStartCommunication( )
+
+
+   void setupSparseCommunication( )
    {
       auto forest = blockForest_.lock();
       WALBERLA_CHECK_NOT_NULLPTR( forest, "Trying to execute communication for a block storage object that doesn't exist anymore" )
@@ -636,12 +642,181 @@ class ListCommunicationSetup
       WALBERLA_LOG_PROGRESS( "Setting up list communication finished" )
    }
 
+   void setupDenseCommunication( )
+   {
+      auto forest = blockForest_.lock();
+      WALBERLA_CHECK_NOT_NULLPTR( forest, "Trying to execute communication for a block storage object that doesn't exist anymore" )
+
+      WALBERLA_LOG_PROGRESS( "Setting up list communication" )
+
+      std::map< uint_t, uint_t > numBlocksToSend;
+
+      blockSize_ = Vector3<cell_idx_t>( cell_idx_c(forest->getNumberOfXCellsPerBlock()), cell_idx_c(forest->getNumberOfYCellsPerBlock()), cell_idx_c(forest->getNumberOfZCellsPerBlock()) );
+
+      for( auto senderIt = forest->begin(); senderIt != forest->end(); ++senderIt )
+      {
+         blockforest::Block & sender = dynamic_cast<blockforest::Block &>( *senderIt );
+
+         for (size_t f = 1; f < {{Q}}; ++f)
+         {
+            auto neighborhood = sender.getNeighborhoodSection( blockforest::getBlockNeighborhoodSectionIndex( (stencil::Direction) f ) );
+            WALBERLA_ASSERT_LESS_EQUAL( neighborhood.size(), size_t( 1 ) )
+            if( neighborhood.empty() )
+               continue;
+            auto * receiver = neighborhood.front();
+            numBlocksToSend[receiver->getProcess()] += uint_t(1);
+         }
+      }
+
+      mpi::BufferSystem bufferSystem( mpi::MPIManager::instance()->comm() );
+
+      for( auto it = numBlocksToSend.begin(); it != numBlocksToSend.end(); ++it )
+      {
+         WALBERLA_LOG_DETAIL( "Packing information for " << it->second << " blocks to send to process " << it->first );
+         bufferSystem.sendBuffer( it->first ) << it->second;
+      }
+
+      for( auto senderIt = forest->begin(); senderIt != forest->end(); ++senderIt )
+      {
+         blockforest::Block & sender = dynamic_cast<blockforest::Block &>( *senderIt );
+         auto * senderList = sender.getData< lbmpy::{{class_name}} >( listId_ );
+         WALBERLA_ASSERT_NOT_NULLPTR( senderList )
+         auto *flagField = sender.getData<FlagField_T>(flagFieldID_);
+         
+
+         for (size_t sendDir = 1; sendDir < {{Q}}; ++sendDir)
+         {
+            auto neighborhood = sender.getNeighborhoodSection( blockforest::getBlockNeighborhoodSectionIndex( (stencil::Direction) sendDir ) );
+            WALBERLA_ASSERT_LESS_EQUAL( neighborhood.size(), size_t( 1 ) )
+            if( neighborhood.empty() )
+               continue;
+            auto * receiver = neighborhood.front();
+            receiver->getId().toBuffer( bufferSystem.sendBuffer( receiver->getProcess() ) );
+            bufferSystem.sendBuffer( receiver->getProcess() ) << stencil::inverseDir[sendDir];
+            WALBERLA_LOG_DETAIL( "Packing information for block " << receiver->getId().getID() << " in direction " << stencil::dirToString[stencil::inverseDir[f]] );
+
+            auto flagIt = flagField->beginSliceBeforeGhostLayerXYZ(Stencil_T::dir[sendDir]);
+            std::vector< {{index_type}} > sendPDFsVector;
+            std::vector< lbm::CellDir > externalPDFs;
+            std::vector< Cell > isBoundary;
+            while( flagIt != flagField->end() )
+            {
+               //get send information
+               Cell cell(flagIt.x(), flagIt.y(), flagIt.z());
+               for(uint_t f = 0; f < Stencil_T::d_per_d_length[sendDir]; ++f)
+               {
+                  auto d = Stencil_T::d_per_d[sendDir][f];
+                  {{index_type}} sendIdx;
+                  if(!senderList->isFluidCell(cell)) {
+                     sendIdx = 0;
+                  }
+                  else {
+                     sendIdx = senderList->getPDFIdx( cell, d );
+                  }
+                  sendPDFsVector.push_back( sendIdx );
+                  //WALBERLA_LOG_INFO("Send " << cell << ", " << stencil::dirToString[d])
+               }
+               if (!senderList->isFluidCell(cell)) {
+                  isBoundary.push_back(cell);
+               }
+               ++flagIt;
+            }
+
+            std::sort( isBoundary.begin(), isBoundary.end() );
+            bufferSystem.sendBuffer( receiver->getProcess() ) << isBoundary.size();
+            for (auto boundaryCell : isBoundary) {
+               bufferSystem.sendBuffer( receiver->getProcess() ) << mapToNeighbor( boundaryCell, (stencil::Direction) sendDir );
+            }
+
+            //std::sort( sendPDFsVector.begin(), sendPDFsVector.end() );
+            senderList->setSendPDFs(sendPDFsVector, (stencil::Direction) sendDir);
+
+            {% if target is equalto 'gpu' -%}
+            {{index_type}} * sendPDFsVectorGPU;
+            cudaMalloc( &sendPDFsVectorGPU, sizeof({{index_type}}) * sendPDFsVector.size() );
+            cudaMemcpy( sendPDFsVectorGPU, &sendPDFsVector[0], sizeof({{index_type}}) * sendPDFsVector.size(), cudaMemcpyHostToDevice );
+            senderList->setSendPDFsGPU(sendPDFsVectorGPU, dir);
+            {%- endif %}
+         }
+      }
+
+      bufferSystem.setReceiverInfoFromSendBufferState( false, false );
+      WALBERLA_LOG_PROGRESS( "MPI exchange of structure data" )
+      bufferSystem.sendAll();
+      WALBERLA_LOG_PROGRESS( "MPI exchange of structure data finished" )
+
+
+      for( auto recvBufferIt = bufferSystem.begin(); recvBufferIt != bufferSystem.end(); ++recvBufferIt )
+      {
+         uint_t numBlocks;
+         recvBufferIt.buffer() >> numBlocks;
+         WALBERLA_LOG_DETAIL( "Unpacking information from " << numBlocks << " blocks from process " << recvBufferIt.rank() );
+         for( uint_t i = 0; i < numBlocks; ++i )
+         {
+            BlockID localBID;
+            localBID.fromBuffer( recvBufferIt.buffer() );
+            IBlock * localBlock = forest->getBlock( localBID );
+            WALBERLA_ASSERT_NOT_NULLPTR( localBlock )
+
+            stencil::Direction receiveDir;
+            uint_t numCells;
+            recvBufferIt.buffer() >> receiveDir;
+            WALBERLA_LOG_DETAIL( "Unpacking information for block " << localBID.getID() << " in direction " << stencil::dirToString[receiveDir] );
+
+            recvBufferIt.buffer() >> numCells;
+            std::vector<Cell> isBoundary( numCells );
+            for( auto it = isBoundary.begin(); it != isBoundary.end(); ++it )
+            {
+               recvBufferIt.buffer() >> *it;
+            }
+            /*WALBERLA_LOG_INFO("isBoundary in dir " << stencil::dirToString[receiveDir])
+            for(auto cell : isBoundary) {
+               WALBERLA_LOG_INFO(cell)
+            }*/
+            WALBERLA_LOG_DETAIL( isBoundary.size() << " boundary cells found" );
+
+            auto * senderList = localBlock->template getData< lbmpy::{{class_name}} >( listId_ );
+            WALBERLA_ASSERT_NOT_NULLPTR( senderList )
+            auto *flagField = localBlock->getData<FlagField_T>(flagFieldID_);
+
+            std::vector< lbm::CellDir > externalPDFs;
+            auto flagIt = flagField->beginSliceBeforeGhostLayerXYZ(Stencil_T::dir[receiveDir]);
+            while( flagIt != flagField->end() )
+            {
+               Cell cell(flagIt.x(), flagIt.y(), flagIt.z());
+               Cell neighborCell = cell + (stencil::Direction) receiveDir;
+               for(uint_t f = 0; f < Stencil_T::d_per_d_length[stencil::inverseDir[receiveDir]]; ++f)
+               {
+                     auto d = Stencil_T::d_per_d[stencil::inverseDir[receiveDir]][f];
+                     externalPDFs.push_back( lbm::CellDir( neighborCell, d ) );
+               }
+               ++flagIt;
+            }
+            //std::sort( externalPDFs.begin(), externalPDFs.end() );
+            /*for (auto pdf : externalPDFs) {
+               WALBERLA_LOG_INFO("Register " << pdf.cell << ", " << stencil::dirToString[pdf.dir])
+            }*/
+            senderList->setStartCommIdx(senderList->registerExternalPDFsDense( externalPDFs, isBoundary), receiveDir);
+            senderList->setNumCommPDFs(static_cast< {{index_type}} >( externalPDFs.size() ), receiveDir);
+         }
+      }
+
+      for( auto blockIt = forest->begin(); blockIt != forest->end(); ++blockIt )
+      {
+         blockforest::Block & block = dynamic_cast<blockforest::Block &>( *blockIt );
+         auto * pdfList = block.getData< lbmpy::ListLBMList >( listId_ );
+         pdfList->syncGPU();
+      }
+
+      WALBERLA_LOG_PROGRESS( "Setting up list communication finished" )
+   }
+
  protected:
    const BlockDataID listId_;
+   const BlockDataID flagFieldID_;
    weak_ptr<StructuredBlockForest> blockForest_;
    Vector3< cell_idx_t > blockSize_;
-
-
+   bool denseComm_;
 };
 
 } // namespace lbmpy

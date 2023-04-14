@@ -261,7 +261,7 @@ def generate_pack_info(generation_context, class_name: str,
     if cpu_openmp:
         raise ValueError("The packing kernels are already called inside an OpenMP parallel region. Thus "
                          "additionally parallelising each kernel is not supported.")
-    items = [(e[0], sorted(e[1], key=lambda x: str(x))) for e in directions_to_pack_terms.items()]
+    items = [(e[0], sorted(e[1], key=lambda x: int(x.index[0]))) for e in directions_to_pack_terms.items()]
     items = sorted(items, key=lambda e: e[0])
     directions_to_pack_terms = OrderedDict(items)
 
