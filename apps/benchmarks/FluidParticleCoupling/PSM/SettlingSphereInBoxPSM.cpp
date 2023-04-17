@@ -678,7 +678,7 @@ int main(int argc, char** argv)
    noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, FlagUID("NoSlip"), Fluid_Flag);
 
    // add particle and volume fraction data structures
-   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(
+   ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(
       blocks, lbm::collision_model::omegaFromViscosity(viscosity));
    // map particles and calculate solid volume fraction initially
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, 1);

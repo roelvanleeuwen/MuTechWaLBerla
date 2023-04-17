@@ -13,9 +13,11 @@ foreach (collision_setup srt trt)
                 set(config ${collision_setup}_sc${solid_collision}_w${weighting}_s${split})
                 waLBerla_add_executable(NAME DragForceOnSpherePSM_${config} FILES DragForceSpherePSM.cpp
                         DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd timeloop PSMCodegenPython_${collision_setup}_sc${solid_collision}_s${split})
+                target_compile_definitions(DragForceOnSpherePSM_${config} PRIVATE Weighting=${weighting})
 
                 waLBerla_add_executable(NAME SettlingSphereInBoxPSM_${config} FILES SettlingSphereInBoxPSM.cpp
                         DEPENDS DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd timeloop vtk PSMCodegenPython_${collision_setup}_sc${solid_collision}_s${split})
+                target_compile_definitions(SettlingSphereInBoxPSM_${config} PRIVATE Weighting=${weighting})
             endforeach ()
         endforeach ()
     endforeach ()
