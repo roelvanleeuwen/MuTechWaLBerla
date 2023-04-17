@@ -740,6 +740,9 @@ int main(int argc, char** argv)
       pdfGhostLayerSync.addPackInfo(make_shared< field::communication::PackInfo< PdfField_T > >(pdfFieldID));
       pdfFieldVTK->addBeforeFunction(pdfGhostLayerSync);
 
+      pdfFieldVTK->addBeforeFunction(
+         [&]() { cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID); });
+
       field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldID);
       fluidFilter.addFlag(Fluid_Flag);
       pdfFieldVTK->addCellInclusionFilter(fluidFilter);
@@ -759,8 +762,6 @@ int main(int argc, char** argv)
 
    // stream + collide LBM step
    addPSMSweepsToTimeloop(timeloop, psmSweepCollection, PSMSweep);
-   timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
-                           "Copy pdf from GPU to CPU");
 
    // evaluation functionality
    std::string loggingFileName(baseFolder + "/LoggingSettlingSphere_");
