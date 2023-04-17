@@ -40,6 +40,24 @@
 #include "lbm/list/ListVTK.h"
 #include "lbm/vtk/all.h"
 
+#include "mesh/blockforest/BlockExclusion.h"
+#include "mesh/blockforest/BlockForestInitialization.h"
+#include "mesh/boundary/BoundaryInfo.h"
+#include "mesh/boundary/BoundaryLocation.h"
+#include "mesh/boundary/BoundaryLocationFunction.h"
+#include "mesh/boundary/BoundarySetup.h"
+#include "mesh/boundary/BoundaryUIDFaceDataSource.h"
+#include "mesh/boundary/ColorToBoundaryMapper.h"
+#include "mesh_common/DistanceComputations.h"
+#include "mesh_common/DistanceFunction.h"
+#include "mesh_common/MatrixVectorOperations.h"
+#include "mesh_common/MeshIO.h"
+#include "mesh_common/MeshOperations.h"
+#include "mesh_common/TriangleMeshes.h"
+#include "mesh_common/distance_octree/DistanceOctree.h"
+#include "mesh_common/vtk/CommonDataSources.h"
+#include "mesh_common/vtk/VTKMeshWriter.h"
+
 #include "python_coupling/CreateConfig.h"
 #include "python_coupling/DictWrapper.h"
 #include "python_coupling/PythonCallback.h"
@@ -61,6 +79,7 @@
 
 #include "SparseLBMInfoHeader.h"
 #include "DenseLBMInfoHeader.h"
+#include "InitSpherePacking.h"
 #include "SetupHybridCommunication.h"
 #include <iostream>
 #include <fstream>
@@ -94,9 +113,34 @@ void setFlagFieldToPorosity(IBlock * block, const BlockDataID flagFieldId, const
       }
       nextBoundary += boundary_fraction;
    }
-
 }
 
+
+
+template<typename MeshType>
+void vertexToFaceColor(MeshType &mesh, const typename MeshType::Color &defaultColor) {
+   WALBERLA_CHECK(mesh.has_vertex_colors())
+   mesh.request_face_colors();
+
+   for (auto faceIt = mesh.faces_begin(); faceIt != mesh.faces_end(); ++faceIt) {
+      typename MeshType::Color vertexColor;
+
+      bool useVertexColor = true;
+
+      auto vertexIt = mesh.fv_iter(*faceIt);
+      WALBERLA_ASSERT(vertexIt.is_valid())
+
+      vertexColor = mesh.color(*vertexIt);
+
+      ++vertexIt;
+      while (vertexIt.is_valid() && useVertexColor) {
+         if (vertexColor != mesh.color(*vertexIt)) useVertexColor = false;
+         ++vertexIt;
+      }
+
+      mesh.set_color(*faceIt, useVertexColor ? vertexColor : defaultColor);
+   }
+}
 
 int main(int argc, char **argv)
 {
@@ -115,12 +159,11 @@ int main(int argc, char **argv)
       WALBERLA_MPI_WORLD_BARRIER()
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
-      WALBERLA_CUDA_CHECK(gpuPeekAtLastError())
+      WALBERLA_CUDA_CHECK(cudaPeekAtLastError())
 #endif
 
       auto config = *cfg;
       logging::configureLogging(config);
-
       ///////////////////////
       /// PARAMETER INPUT ///
       ///////////////////////
@@ -129,48 +172,30 @@ int main(int argc, char **argv)
       const Vector3< real_t > initialVelocity = parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >());
       const uint_t timesteps = parameters.getParameter< uint_t >("timesteps", uint_c(10));
       Vector3< int > InnerOuterSplit = parameters.getParameter< Vector3< int > >("innerOuterSplit", Vector3< int >(1, 1, 1));
-      const bool weak_scaling = parameters.getParameter< bool >("weakScaling", false); // weak or strong scaling
+      const bool weak_scaling = domainParameters.getParameter< bool >("weakScaling", false); // weak or strong scaling
       const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", 3.0); // in seconds
       const real_t omega = parameters.getParameter< real_t > ( "omega", real_c( 1.4 ) );
+      const uint_t vtkWriteFrequency = parameters.getParameter< uint_t >("vtkWriteFrequency", uint_t(0));
 
       Vector3< uint_t > cellsPerBlock;
       Vector3< uint_t > blocksPerDimension;
       uint_t nrOfProcesses = uint_c(MPIManager::instance()->numProcesses());
 
-      if (!domainParameters.isDefined("blocks"))
-      {
-         if (weak_scaling)
-         {
+      if (!domainParameters.isDefined("blocks")) {
+         if (weak_scaling) {
             Vector3< uint_t > cells = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
             blockforest::calculateCellDistribution(cells, nrOfProcesses, blocksPerDimension, cellsPerBlock);
             cellsPerBlock = cells;
          }
-         else
-         {
+         else {
             Vector3< uint_t > cells = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
             blockforest::calculateCellDistribution(cells, nrOfProcesses, blocksPerDimension, cellsPerBlock);
          }
       }
-      else
-      {
+      else {
          cellsPerBlock      = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
          blocksPerDimension = domainParameters.getParameter< Vector3< uint_t > >("blocks");
       }
-
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellsPerBlock)
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocksPerDimension)
-
-
-
-      const uint_t vtkWriteFrequency = parameters.getParameter< uint_t >("vtkWriteFrequency", uint_t(0));
-
-      ///////////////////////////
-      /// CREATE BLOCK FOREST ///
-      ///////////////////////////
-      real_t dx = 1;
-      auto blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx);
-      WALBERLA_LOG_INFO_ON_ROOT("Created Blockforest")
-      BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
 
       /////////////////////////
       /// BOUNDARY HANDLING ///
@@ -182,17 +207,74 @@ int main(int argc, char **argv)
       const FlagUID inflowUID("UBB");
       const FlagUID PressureOutflowUID("PressureOutflow");
 
+      BlockDataID flagFieldId;
+      shared_ptr< StructuredBlockForest > blocks;
+
+
       auto boundariesConfig = config->getOneBlock("Boundaries");
+      const std::string geometrySetup = domainParameters.getParameter< std::string >("geometrySetup", "randomNoslip");
 
-      const real_t porosity = parameters.getParameter< real_t >("porosity");
+      if (geometrySetup == "randomNoslip") {
+         real_t dx = 1;
+         blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx);
+         flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
+         const real_t porosity = parameters.getParameter< real_t >("porosity");
+         geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
+         for (auto& block : *blocks) {
+            setFlagFieldToPorosity(&block,flagFieldId,porosity,noslipFlagUID);
+         }
+         geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
+      }
+      else if (geometrySetup == "spheres") {
+         real_t dx = 1;
+         blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx);
+         flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
+         const real_t SpheresRadius = parameters.getParameter< real_t >("SpheresRadius");
+         const real_t SphereShift = parameters.getParameter< real_t >("SphereShift");
+         const Vector3<real_t> SphereFillDomainRatio = parameters.getParameter< Vector3<real_t> >("SphereFillDomainRatio", Vector3<real_t>(1.0));
+         geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
+         InitSpherePacking(blocks, flagFieldId, noslipFlagUID, SpheresRadius, SphereShift, SphereFillDomainRatio);
+         geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
+      }
+      else if (geometrySetup == "geometryFile") {
+         std::string meshFile  = domainParameters.getParameter< std::string >("meshFile");
+         const Vector3< uint_t > TotalCells(cellsPerBlock[0] * blocksPerDimension[0],
+                                            cellsPerBlock[1] * blocksPerDimension[1],
+                                            cellsPerBlock[2] * blocksPerDimension[2]);
+         const real_t scalingFactor = 0.03;// (32.0 / real_c(TotalCells.min())) * 0.1;
 
-      geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
-      for (auto& block : *blocks) {
-         setFlagFieldToPorosity(&block,flagFieldId,porosity,noslipFlagUID);
+         const Vector3< real_t > dx(scalingFactor, scalingFactor, scalingFactor);
+         WALBERLA_LOG_INFO_ON_ROOT("Using mesh from " << meshFile << ".")
+
+         auto mesh = make_shared< mesh::TriangleMesh >();
+         mesh->request_vertex_colors();
+         mesh::readAndBroadcast(meshFile, *mesh);
+
+         vertexToFaceColor(*mesh, mesh::TriangleMesh::Color(255, 255, 255));
+         auto triDist = make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh);
+         auto distanceOctree = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(triDist);
+         distanceOctree->writeVTKOutput("distanceOctree");
+
+         auto aabb = computeAABB(*mesh);
+         mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, dx, mesh::makeExcludeMeshInterior(distanceOctree, dx[0]));
+         //bfc.setPeriodicity(periodicity);
+         blocks = bfc.createStructuredBlockForest(cellsPerBlock, blocksPerDimension);
+         flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
+         mesh::BoundarySetup boundarySetup(blocks, makeMeshDistanceFunction(distanceOctree), numGhostLayers);
+
+         geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
+         boundarySetup.setFlag<FlagField_T>(flagFieldId, FlagUID("NoSlip"), mesh::BoundarySetup::INSIDE);
+         geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
+      }
+      else {
+         WALBERLA_ABORT_NO_DEBUG_INFO("Invalid value for 'geometrySetup'. Allowed values are 'randomNoslip', "
+                                      "'spheres', 'geometryFile'")
       }
 
 
-      geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
+
+
+
 
       const std::string timeStepStrategy = parameters.getParameter< std::string >("timeStepStrategy", "noOverlap");
       if(timeStepStrategy != "noOverlap") {
@@ -228,24 +310,22 @@ int main(int argc, char **argv)
       }
       uint_t TotalNumberOfCells = blocks->getNumberOfXCells() * blocks->getNumberOfYCells() * blocks->getNumberOfZCells();
       const real_t realPorosity = real_c(TotalNumberOfFluidCells) / real_c(TotalNumberOfCells);
-      WALBERLA_LOG_INFO_ON_ROOT("Porosity set is " << porosity  << ", real porosity is " << realPorosity)
+      WALBERLA_LOG_INFO_ON_ROOT("Porosity is " << realPorosity)
 
 
 
       const real_t porositySwitch = parameters.getParameter< real_t >("porositySwitch");
       bool runningIndirectAdressing;
-      if(porosity < porositySwitch)
+      if(blockPorosity < porositySwitch)
          runningIndirectAdressing = true;
       else
          runningIndirectAdressing = false;
 
       if(runningIndirectAdressing)
       {
-
          ///////////////////////////////////////////////////////////////////////////////////////////////////////
          ////////////////////////////////////  INDIRECT ADDRESSING PART  ///////////////////////////////////////
          ///////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
          WALBERLA_LOG_INFO("Block " << uint_c(MPIManager::instance()->rank()) << " is running Simulation with indirect addressing with porosity " << blockPorosity)
          BlockDataID pdfListId = lbm::addListToStorage< List_T >(blocks, "LBM list (FIdx)", InnerOuterSplit);
@@ -307,7 +387,7 @@ int main(int argc, char **argv)
          /// SET UP SWEEPS AND TIMELOOP ///
          //////////////////////////////////
 
-         const bool runBoundaries           = parameters.getParameter< bool >("runBoundaries", true);
+         const bool runBoundaries = parameters.getParameter< bool >("runBoundaries", true);
 
          auto normalTimeStep = [&]() {
             communicate();
@@ -393,12 +473,18 @@ int main(int argc, char **argv)
             });
    #endif
 
-            //vtkOutput->addCellInclusionFilter(lbm::ListFluidFilter< List_T >(pdfListId));
+            field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
+            fluidFilter.addFlag(fluidFlagUID);
+            vtkOutput->addCellInclusionFilter(fluidFilter);
+
             auto velWriter = make_shared< lbm::ListVelocityVTKWriter< List_T, real_t > >(pdfListId, tracker, "velocity");
             auto densityWriter = make_shared< lbm::ListDensityVTKWriter< List_T, real_t > >(pdfListId, "density");
+
             vtkOutput->addCellDataWriter(velWriter);
             vtkOutput->addCellDataWriter(densityWriter);
+
             timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+            vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
          }
 
          lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldId, fluidFlagUID);
@@ -444,7 +530,7 @@ int main(int argc, char **argv)
             WALBERLA_ROOT_SECTION(){
                std::ofstream myfile;
                myfile.open ("results.txt", std::ios::app);
-               myfile << porosity << " " << performance.mflupsPerProcess(timesteps, time) << " " << performance.mflups(timesteps, time) << std::endl;
+               myfile << blockPorosity << " " << performance.mflupsPerProcess(timesteps, time) << " " << performance.mflups(timesteps, time) << std::endl;
                myfile.close();
             }
          }
@@ -603,6 +689,11 @@ int main(int argc, char **argv)
                }
             });
    #endif
+
+            field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
+            fluidFilter.addFlag(fluidFlagUID);
+            vtkOutput->addCellInclusionFilter(fluidFilter);
+
             auto velWriter = make_shared<field::VTKWriter<VelocityField_T> >(velFieldId, "velocity");
             auto densityWriter = make_shared<field::VTKWriter<ScalarField_T> >(densityFieldId, "density");
 
@@ -610,6 +701,8 @@ int main(int argc, char **argv)
             vtkOutput->addCellDataWriter(densityWriter);
 
             timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+            vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
+
          }
 
          lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldId, fluidFlagUID);
@@ -655,7 +748,7 @@ int main(int argc, char **argv)
             WALBERLA_ROOT_SECTION(){
                std::ofstream myfile;
                myfile.open ("results.txt", std::ios::app);
-               myfile << porosity << " " << performance.mflupsPerProcess(timesteps, time) << " " << performance.mflups(timesteps, time) << std::endl;
+               myfile << blockPorosity << " " << performance.mflupsPerProcess(timesteps, time) << " " << performance.mflups(timesteps, time) << std::endl;
                myfile.close();
             }
          }

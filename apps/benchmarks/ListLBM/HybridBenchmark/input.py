@@ -13,12 +13,15 @@ DB_FILE = os.environ.get('DB_FILE', "ListLBMBenchmark.sqlite3")
 
 class Scenario:
     def __init__(self, cells_per_block=(64, 64, 10),
-                 timesteps=1000, time_step_strategy="noOverlap", omega=1.4, cuda_enabled_mpi=True,
-                 inner_outer_split=(1, 1, 1), vtk_write_frequency=0,
-                 porosity=0.5, porositySwitch=0.0):
+                 timesteps=1000, time_step_strategy="noOverlap", omega=0.8, cuda_enabled_mpi=True,
+                 inner_outer_split=(1, 1, 1), vtk_write_frequency=0, inflow_velocity=(0.01,0,0),
+                 porosity=0.5, porositySwitch=0.0, geometry_setup="randomNoslip",
+                 spheres_radius=9, sphere_shift = 10, sphere_fill = (1.0, 1.0, 1.0), mesh_file="None", run_boundaries=True):
 
         self.timesteps = timesteps
         self.vtkWriteFrequency = vtk_write_frequency
+
+        self.inflow_velocity = inflow_velocity
 
         self.cells_per_block = cells_per_block
         self.porositySwitch = porositySwitch
@@ -27,36 +30,55 @@ class Scenario:
         self.inner_outer_split = inner_outer_split
         self.time_step_strategy = time_step_strategy
         self.cuda_enabled_mpi = cuda_enabled_mpi
+        self.run_boundaries = run_boundaries
 
         self.omega = omega
 
+        self.geometry_setup = geometry_setup
+
+        self.spheres_radius = spheres_radius
+        self.sphere_shift = sphere_shift
+        self.sphere_fill = sphere_fill
+
+        self.mesh_file = mesh_file
+
         self.config_dict = self.config()
+
+
 
     @wlb.member_callback
     def config(self):
         return {
             'DomainSetup': {
                 'cellsPerBlock': self.cells_per_block,
-                'weakScaling': True
+                'weakScaling': False,
+                'geometrySetup': self.geometry_setup,
+                'meshFile': self.mesh_file
         },
             'Parameters': {
                 'timesteps': self.timesteps,
                 'omega': self.omega,
+                'initialVelocity':self.inflow_velocity,
                 'timeStepStrategy': self.time_step_strategy,
                 'innerOuterSplit': self.inner_outer_split,
                 'cudaEnabledMPI': self.cuda_enabled_mpi,
                 'vtkWriteFrequency': self.vtkWriteFrequency,
                 'porositySwitch': self.porositySwitch,
                 'porosity': self.porosity,
-                'runBoundaries': True,
-                'remainingTimeLoggerFrequency': 2
+                'runBoundaries': self.run_boundaries,
+                'remainingTimeLoggerFrequency': 10,
+                'SpheresRadius': self.spheres_radius,
+                'SphereShift': self.sphere_shift,
+                'SphereFillDomainRatio':self.sphere_fill,
+
+
         },
             'Boundaries': {
                 'Border': [
                     {'direction': 'N', 'walldistance': -1, 'flag': 'NoSlip'},
                     {'direction': 'S', 'walldistance': -1, 'flag': 'NoSlip'},
-                    {'direction': 'W', 'walldistance': -1, 'flag': 'NoSlip'},
-                    {'direction': 'E', 'walldistance': -1, 'flag': 'NoSlip'},
+                    {'direction': 'W', 'walldistance': -1, 'flag': 'UBB'},
+                    {'direction': 'E', 'walldistance': -1, 'flag': 'PressureOutflow'},
                     {'direction': 'T', 'walldistance': -1, 'flag': 'NoSlip'},
                     {'direction': 'B', 'walldistance': -1, 'flag': 'NoSlip'},
                 ]
@@ -69,8 +91,29 @@ def porosity_benchmark():
     scenarios = wlb.ScenarioManager()
     porosities = [0.1 * i for i in range(10+1)]
     for porosity in porosities:
-        scenario = Scenario(porosity=porosity)
+        scenario = Scenario(porosity=porosity, geometry_setup="randomNoslip", inflow_velocity=(0,0,0), run_boundaries=False)
         scenarios.add(scenario)
 
+def randomNoslip():
+    scenarios = wlb.ScenarioManager()
+    scenario = Scenario(porosity=0.9, vtk_write_frequency=50, geometry_setup="randomNoslip", inflow_velocity=(0,0,0))
+    scenarios.add(scenario)
 
-porosity_benchmark()
+def spheres():
+    scenarios = wlb.ScenarioManager()
+    spheres_radius = 50
+    sphere_shift = 100
+    sphere_fill = (0.49, 1.0, 1.0)
+    scenario = Scenario(vtk_write_frequency=50, geometry_setup="spheres", spheres_radius=spheres_radius,
+                        sphere_shift=sphere_shift, sphere_fill=sphere_fill)
+    scenarios.add(scenario)
+
+def geometryFile():
+    scenarios = wlb.ScenarioManager()
+    mesh_file = "Lagoon.obj"
+    scenario = Scenario(vtk_write_frequency=50, geometry_setup="geometryFile", mesh_file=mesh_file)
+    scenarios.add(scenario)
+
+#randomNoslip()
+spheres()
+#geometryFile()

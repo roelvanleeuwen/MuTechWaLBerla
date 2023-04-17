@@ -40,8 +40,8 @@ with CodeGeneration() as ctx:
     )
 
     lbm_opt = LBMOptimisation(
-        cse_global=False,
-        cse_pdfs=False,
+        cse_global=True,
+        cse_pdfs=True,
     )
 
     if not is_inplace(lbm_config.streaming_pattern):
