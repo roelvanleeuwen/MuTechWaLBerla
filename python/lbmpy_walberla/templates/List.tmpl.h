@@ -696,26 +696,11 @@ class ListCommunicationSetup
             WALBERLA_LOG_DETAIL( "Packing information for block " << receiver->getId().getID() << " in direction " << stencil::dirToString[stencil::inverseDir[f]] );
 
             auto flagIt = flagField->beginSliceBeforeGhostLayerXYZ(Stencil_T::dir[sendDir]);
-            std::vector< {{index_type}} > sendPDFsVector;
-            std::vector< lbm::CellDir > externalPDFs;
             std::vector< Cell > isBoundary;
             while( flagIt != flagField->end() )
             {
                //get send information
                Cell cell(flagIt.x(), flagIt.y(), flagIt.z());
-               for(uint_t f = 0; f < Stencil_T::d_per_d_length[sendDir]; ++f)
-               {
-                  auto d = Stencil_T::d_per_d[sendDir][f];
-                  {{index_type}} sendIdx;
-                  if(!senderList->isFluidCell(cell)) {
-                     sendIdx = 0;
-                  }
-                  else {
-                     sendIdx = senderList->getPDFIdx( cell, d );
-                  }
-                  sendPDFsVector.push_back( sendIdx );
-                  //WALBERLA_LOG_INFO("Send " << cell << ", " << stencil::dirToString[d])
-               }
                if (!senderList->isFluidCell(cell)) {
                   isBoundary.push_back(cell);
                }
@@ -727,19 +712,8 @@ class ListCommunicationSetup
             for (auto boundaryCell : isBoundary) {
                bufferSystem.sendBuffer( receiver->getProcess() ) << mapToNeighbor( boundaryCell, (stencil::Direction) sendDir );
             }
-
-            //std::sort( sendPDFsVector.begin(), sendPDFsVector.end() );
-            senderList->setSendPDFs(sendPDFsVector, (stencil::Direction) sendDir);
-
-            {% if target is equalto 'gpu' -%}
-            {{index_type}} * sendPDFsVectorGPU;
-            cudaMalloc( &sendPDFsVectorGPU, sizeof({{index_type}}) * sendPDFsVector.size() );
-            cudaMemcpy( sendPDFsVectorGPU, &sendPDFsVector[0], sizeof({{index_type}}) * sendPDFsVector.size(), cudaMemcpyHostToDevice );
-            senderList->setSendPDFsGPU(sendPDFsVectorGPU, sendDir);
-            {%- endif %}
          }
       }
-
       bufferSystem.setReceiverInfoFromSendBufferState( false, false );
       WALBERLA_LOG_PROGRESS( "MPI exchange of structure data" )
       bufferSystem.sendAll();
@@ -780,16 +754,29 @@ class ListCommunicationSetup
             auto *flagField = localBlock->getData<FlagField_T>(flagFieldID_);
 
             std::vector< lbm::CellDir > externalPDFs;
+            std::vector< {{index_type}} > sendPDFsVector;
             auto flagIt = flagField->beginSliceBeforeGhostLayerXYZ(Stencil_T::dir[receiveDir]);
+            {{index_type}} idx = numeric_cast<{{index_type}}>(senderList->size());
             while( flagIt != flagField->end() )
             {
                Cell cell(flagIt.x(), flagIt.y(), flagIt.z());
                Cell neighborCell = cell + (stencil::Direction) receiveDir;
                for(uint_t f = 0; f < Stencil_T::d_per_d_length[stencil::inverseDir[receiveDir]]; ++f)
                {
-                     auto d = Stencil_T::d_per_d[stencil::inverseDir[receiveDir]][f];
-                     externalPDFs.push_back( lbm::CellDir( neighborCell, d ) );
+                     auto d_receive = Stencil_T::d_per_d[stencil::inverseDir[receiveDir]][f];
+                     externalPDFs.push_back( lbm::CellDir( neighborCell, d_receive ) );
+                     auto d_send = Stencil_T::d_per_d[receiveDir][f];
+                     {{index_type}} sendIdx;
+                     if ( !senderList->isFluidCell(cell) ) {
+                        //if cell is boundary cell, send received pdf in GL back to neightbour to achieve (1 timestep later) NoSlip
+                        sendIdx = idx + numeric_cast<{{index_type}}>(d_receive);
+                     }
+                     else {
+                        sendIdx = senderList->getPDFIdx( cell, d_send );
+                     }
+                     sendPDFsVector.push_back( sendIdx );
                }
+               idx+=numeric_cast<{{index_type}}>(Stencil_T::d_per_d_length[receiveDir]);
                ++flagIt;
             }
             //std::sort( externalPDFs.begin(), externalPDFs.end() );
@@ -798,6 +785,15 @@ class ListCommunicationSetup
             }*/
             senderList->setStartCommIdx(senderList->registerExternalPDFsDense( externalPDFs, isBoundary), receiveDir);
             senderList->setNumCommPDFs(static_cast< {{index_type}} >( externalPDFs.size() ), receiveDir);
+
+            senderList->setSendPDFs(sendPDFsVector, (stencil::Direction) receiveDir);
+
+            {% if target is equalto 'gpu' -%}
+            {{index_type}} * sendPDFsVectorGPU;
+            cudaMalloc( &sendPDFsVectorGPU, sizeof({{index_type}}) * sendPDFsVector.size() );
+            cudaMemcpy( sendPDFsVectorGPU, &sendPDFsVector[0], sizeof({{index_type}}) * sendPDFsVector.size(), cudaMemcpyHostToDevice );
+            senderList->setSendPDFsGPU(sendPDFsVectorGPU, sendDir);
+            {%- endif %}
          }
       }
 
