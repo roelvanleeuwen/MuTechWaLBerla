@@ -101,3 +101,5 @@ if (WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCH
     waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> --funcTest PROCESSES 4)
     waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> PROCESSES 4 LABELS longrun CONFIGURATIONS Release RelWithDbgInfo)
 endif ()
+
+add_subdirectory(partially_saturated_cells_method)

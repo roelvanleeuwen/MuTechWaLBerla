@@ -1,0 +1,9 @@
+Boundaries
+{
+	Border { direction W;    walldistance -1;  flag NoSlip; }
+	Border { direction E;    walldistance -1;  flag NoSlip; }
+    Border { direction S;    walldistance -1;  flag NoSlip; }
+    Border { direction N;    walldistance -1;  flag NoSlip; }
+    Border { direction T;    walldistance -1;  flag NoSlip; }
+    Border { direction B;    walldistance -1;  flag NoSlip; }
+}

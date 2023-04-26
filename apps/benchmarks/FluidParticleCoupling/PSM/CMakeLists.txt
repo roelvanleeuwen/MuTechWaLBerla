@@ -1,3 +1,6 @@
+waLBerla_link_files_to_builddir("*.dat")
+waLBerla_link_files_to_builddir("*.prm")
+
 waLBerla_add_executable(NAME LubricationForceEvaluationPSM FILES LubricationForceEvaluationPSM.cpp
         DEPENDS blockforest boundary core domain_decomposition field lbm lbm_mesapd_coupling mesa_pd
         postprocessing timeloop vtk FluidParticleCouplingGeneratedLBM)
@@ -16,7 +19,7 @@ foreach (collision_setup srt trt)
                 target_compile_definitions(DragForceOnSpherePSM_${config} PRIVATE Weighting=${weighting})
 
                 waLBerla_add_executable(NAME SettlingSphereInBoxPSM_${config} FILES SettlingSphereInBoxPSM.cpp
-                        DEPENDS DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd timeloop vtk PSMCodegenPython_${collision_setup}_sc${solid_collision}_s${split})
+                        DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd timeloop vtk PSMCodegenPython_${collision_setup}_sc${solid_collision}_s${split})
                 target_compile_definitions(SettlingSphereInBoxPSM_${config} PRIVATE Weighting=${weighting})
             endforeach ()
         endforeach ()

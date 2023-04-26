@@ -9,12 +9,16 @@ from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil, ForceM
 
 from lbmpy.boundaries import NoSlip, UBB, FixedDensity, FreeSlip
 from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method
-from lbmpy.macroscopic_value_kernels import macroscopic_values_setter
 from pystencils.astnodes import Conditional, SympyAssignment, Block
 from pystencils.node_collection import NodeCollection
+from lbmpy.macroscopic_value_kernels import (
+    macroscopic_values_getter,
+    macroscopic_values_setter,
+)
 
 from pystencils_walberla import (
     CodeGeneration,
+    generate_info_header,
     generate_sweep,
     generate_pack_info_from_kernel,
 )
@@ -22,6 +26,14 @@ from pystencils_walberla import (
 from lbmpy_walberla import generate_boundary
 
 # Based on the following paper: https://doi.org/10.1016/j.compfluid.2017.05.033
+
+info_header = """
+const char * infoStencil = "{stencil}";
+const char * infoStreamingPattern = "{streaming_pattern}";
+const char * infoCollisionSetup = "{collision_setup}";
+const bool infoCseGlobal = {cse_global};
+const bool infoCsePdfs = {cse_pdfs};
+"""
 
 with CodeGeneration() as ctx:
     data_type = "float64" if ctx.double_accuracy else "float32"
@@ -36,10 +48,13 @@ with CodeGeneration() as ctx:
     methods = {"srt": Method.SRT, "trt": Method.TRT}
     # Solid collision variant
     SC = int(config_tokens[1][2])
-    split = bool(int(config_tokens[2][1])) # Splitting scheme was introduced in the following paper: https://doi.org/10.1016/j.powtec.2022.117556
+    split = bool(
+        int(config_tokens[2][1])
+    )  # Splitting scheme was introduced in the following paper: https://doi.org/10.1016/j.powtec.2022.117556
 
-    pdfs, pdfs_tmp = ps.fields(
-        f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {data_type}[3D]", layout=layout
+    pdfs, pdfs_tmp, velocity_field, density_field = ps.fields(
+        f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}), velocity_field({stencil.D}), density_field({1}): {data_type}[3D]",
+        layout=layout,
     )
 
     particle_velocities, particle_forces, Bs = ps.fields(
@@ -427,3 +442,43 @@ with CodeGeneration() as ctx:
         streaming_pattern="pull",
         target=target,
     )
+
+    # Info header containing correct template definitions for stencil and fields
+    infoHeaderParams = {
+        "stencil": stencil.name,
+        "streaming_pattern": psm_config.streaming_pattern,
+        "collision_setup": config_tokens[0],
+        "cse_global": int(psm_opt.cse_global),
+        "cse_pdfs": int(psm_opt.cse_pdfs),
+    }
+
+    stencil_typedefs = {"Stencil_T": stencil, "CommunicationStencil_T": stencil}
+    field_typedefs = {
+        "PdfField_T": pdfs,
+        "DensityField_T": density_field,
+        "VelocityField_T": velocity_field,
+    }
+
+    generate_info_header(
+        ctx,
+        "PSM_InfoHeader",
+        stencil_typedefs=stencil_typedefs,
+        field_typedefs=field_typedefs,
+        additional_code=info_header.format(**infoHeaderParams),
+    )
+
+    # Getter & setter to compute moments from pdfs
+    setter_assignments = macroscopic_values_setter(
+        method,
+        velocity=velocity_field.center_vector,
+        pdfs=pdfs.center_vector,
+        density=1.0,
+    )
+    getter_assignments = macroscopic_values_getter(
+        method,
+        density=density_field,
+        velocity=velocity_field.center_vector,
+        pdfs=pdfs.center_vector,
+    )
+    generate_sweep(ctx, "PSM_MacroSetter", setter_assignments)
+    generate_sweep(ctx, "PSM_MacroGetter", getter_assignments)

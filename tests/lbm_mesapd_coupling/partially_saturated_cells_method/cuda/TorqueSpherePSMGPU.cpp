@@ -37,11 +37,6 @@
 
 #include "field/AddToStorage.h"
 
-#include "lbm/field/AddToStorage.h"
-#include "lbm/field/PdfField.h"
-#include "lbm/lattice_model/D3Q19.h"
-#include "lbm/lattice_model/ForceModel.h"
-
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
@@ -57,6 +52,7 @@
 #include "InitializeDomainForPSM.h"
 #include "PSMPackInfo.h"
 #include "PSMSweep.h"
+#include "PSM_InfoHeader.h"
 
 namespace torque_sphere_psm
 {
@@ -68,12 +64,6 @@ namespace torque_sphere_psm
 using namespace walberla;
 using walberla::uint_t;
 using namespace lbm_mesapd_coupling::psm::cuda;
-
-// PDF field, flag field & particle field
-typedef lbm::D3Q19< lbm::collision_model::SRT, false > LatticeModel_T;
-
-using Stencil_T  = LatticeModel_T::Stencil;
-using PdfField_T = lbm::PdfField< LatticeModel_T >;
 
 using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
@@ -360,13 +350,9 @@ int main(int argc, char** argv)
    // ADD DATA TO BLOCKS //
    ////////////////////////
 
-   // create the lattice model
-   LatticeModel_T latticeModel = LatticeModel_T(omega);
-
-   // add PDF field ( uInit = <0,0,0>, rhoInit = 1 )
-   BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
-      blocks, "pdf field (fzyx)", latticeModel, Vector3< real_t >(real_c(0), real_c(0), real_c(0)), real_c(1),
-      uint_t(1), field::fzyx);
+   // add fields ( uInit = <0,0,0>, rhoInit = 1 )
+   BlockDataID pdfFieldID =
+      field::addToStorage< PdfField_T >(blocks, "pdf field (fzyx)", real_c(std::nan("")), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU", true);
 
    // add particle and volume fraction data structures

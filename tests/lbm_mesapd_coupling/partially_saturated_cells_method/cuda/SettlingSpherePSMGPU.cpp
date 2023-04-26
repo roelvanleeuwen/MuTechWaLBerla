@@ -24,7 +24,6 @@
 #include "blockforest/Initialization.h"
 
 #include "core/Environment.h"
-#include "core/debug/Debug.h"
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/all.h"
 #include "core/math/all.h"
@@ -37,14 +36,12 @@
 #include "field/AddToStorage.h"
 #include "field/vtk/all.h"
 
-#include "lbm/boundary/all.h"
+#include "geometry/InitBoundaryHandling.h"
+
 #include "lbm/field/AddToStorage.h"
-#include "lbm/field/PdfField.h"
-#include "lbm/lattice_model/D3Q19.h"
 #include "lbm/vtk/all.h"
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
-#include "lbm_mesapd_coupling/mapping/ParticleMapping.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/AddForceOnParticlesKernel.h"
 #include "lbm_mesapd_coupling/utility/AddHydrodynamicInteractionKernel.h"
@@ -81,6 +78,8 @@
 #include "InitializeDomainForPSM.h"
 #include "PSMPackInfo.h"
 #include "PSMSweep.h"
+#include "PSM_InfoHeader.h"
+#include "PSM_MacroGetter.h"
 #include "PSM_NoSlip.h"
 
 namespace settling_sphere
@@ -94,12 +93,6 @@ using namespace walberla;
 using walberla::uint_t;
 using namespace lbm_mesapd_coupling::psm::cuda;
 
-// TODO: use TRT in generated code
-using LatticeModel_T = lbm::D3Q19< lbm::collision_model::TRT >;
-
-using Stencil_T  = LatticeModel_T::Stencil;
-using PdfField_T = lbm::PdfField< LatticeModel_T >;
-
 using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
 
@@ -111,49 +104,8 @@ const uint_t FieldGhostLayers = 1;
 // FLAGS //
 ///////////
 
-const FlagUID Fluid_Flag("fluid");
-const FlagUID NoSlip_Flag("no slip");
-
-/////////////////////////////////////
-// BOUNDARY HANDLING CUSTOMIZATION //
-/////////////////////////////////////
-template< typename ParticleAccessor_T >
-class MyBoundaryHandling
-{
- public:
-   using NoSlip_T = lbm::NoSlip< LatticeModel_T, flag_t >;
-   using Type     = BoundaryHandling< FlagField_T, Stencil_T, NoSlip_T >;
-
-   MyBoundaryHandling(const BlockDataID& flagFieldID, const BlockDataID& pdfFieldID,
-                      const shared_ptr< ParticleAccessor_T >& ac)
-      : flagFieldID_(flagFieldID), pdfFieldID_(pdfFieldID), ac_(ac)
-   {}
-
-   Type* operator()(IBlock* const block, const StructuredBlockStorage* const /*storage*/) const
-   {
-      WALBERLA_ASSERT_NOT_NULLPTR(block);
-
-      auto* flagField = block->getData< FlagField_T >(flagFieldID_);
-      auto* pdfField  = block->getData< PdfField_T >(pdfFieldID_);
-
-      const auto fluid =
-         flagField->flagExists(Fluid_Flag) ? flagField->getFlag(Fluid_Flag) : flagField->registerFlag(Fluid_Flag);
-
-      Type* handling =
-         new Type("moving obstacle boundary handling", flagField, fluid, NoSlip_T("NoSlip", NoSlip_Flag, pdfField));
-
-      handling->fillWithDomain(FieldGhostLayers);
-
-      return handling;
-   }
-
- private:
-   const BlockDataID flagFieldID_;
-   const BlockDataID pdfFieldID_;
-
-   shared_ptr< ParticleAccessor_T > ac_;
-};
-//*******************************************************************************************************************
+const FlagUID Fluid_Flag("Fluid");
+const FlagUID NoSlip_Flag("NoSlip");
 
 //*******************************************************************************************************************
 /*!\brief Evaluating the position and velocity of the sphere
@@ -331,7 +283,8 @@ int main(int argc, char** argv)
 {
    debug::enterTestMode();
 
-   mpi::Environment env(argc, argv);
+   Environment env(argc, argv);
+   auto configPtr = env.config();
    cuda::selectDeviceBasedOnMpiRank();
 
    ///////////////////
@@ -406,6 +359,7 @@ int main(int argc, char** argv)
          useVelocityVerlet = true;
          continue;
       }
+      if (std::strcmp(argv[i], "partially_saturated_cells_method/cuda/SettlingSphereGPU.prm") == 0) { continue; }
       WALBERLA_ABORT("Unrecognized command line argument found: " << argv[i]);
    }
 
@@ -588,22 +542,16 @@ int main(int argc, char** argv)
    // ADD DATA TO BLOCKS //
    ////////////////////////
 
-   // create the lattice model
-   LatticeModel_T latticeModel =
-      LatticeModel_T(lbm::collision_model::TRT::constructWithMagicNumber(real_t(1) / relaxationTime));
-
    // add PDF field
-   BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
-      blocks, "pdf field (fzyx)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::fzyx);
+   BlockDataID pdfFieldID =
+      field::addToStorage< PdfField_T >(blocks, "pdf field (fzyx)", real_c(std::nan("")), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
+
+   BlockDataID densityFieldID = field::addToStorage< DensityField_T >(blocks, "Density", real_t(0), field::fzyx);
+   BlockDataID velFieldID     = field::addToStorage< VelocityField_T >(blocks, "Velocity", real_t(0), field::fzyx);
 
    // add flag field
    BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
-
-   // add boundary handling
-   using BoundaryHandling_T       = MyBoundaryHandling< ParticleAccessor_T >::Type;
-   BlockDataID boundaryHandlingID = blocks->addStructuredBlockData< BoundaryHandling_T >(
-      MyBoundaryHandling< ParticleAccessor_T >(flagFieldID, pdfFieldID, accessor), "boundary handling");
 
    // set up RPD functionality
    std::function< void(void) > syncCall = [ps, rpdDomain]() {
@@ -630,17 +578,17 @@ int main(int argc, char** argv)
    lbm_mesapd_coupling::AverageHydrodynamicForceTorqueKernel averageHydrodynamicForceTorque;
    lbm_mesapd_coupling::LubricationCorrectionKernel lubricationCorrectionKernel(
       viscosity, [](real_t r) { return real_t(0.0016) * r; });
-   lbm_mesapd_coupling::ParticleMappingKernel< BoundaryHandling_T > particleMappingKernel(blocks, boundaryHandlingID);
    lbm::PSM_NoSlip noSlip(blocks, pdfFieldGPUID);
 
    ///////////////
    // TIME LOOP //
    ///////////////
 
-   // map planes into the LBM simulation -> act as no-slip boundaries
-   ps->forEachParticle(false, lbm_mesapd_coupling::GlobalParticlesSelector(), *accessor, particleMappingKernel,
-                       *accessor, NoSlip_Flag);
-   noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, FlagUID("NoSlip"), Fluid_Flag);
+   // map no-slip boundaries into the LBM simulation
+   auto boundariesConfig = configPtr->getBlock("Boundaries");
+   geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldID, boundariesConfig);
+   geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldID, Fluid_Flag);
+   noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, NoSlip_Flag, Fluid_Flag);
 
    // add particle and volume fraction data structures
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(
@@ -705,17 +653,20 @@ int main(int argc, char** argv)
       pdfGhostLayerSync.addPackInfo(make_shared< field::communication::PackInfo< PdfField_T > >(pdfFieldID));
       pdfFieldVTK->addBeforeFunction(pdfGhostLayerSync);
 
-      pdfFieldVTK->addBeforeFunction(
-         [&]() { cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID); });
+      pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
+                                              real_t(0.0));
+      pdfFieldVTK->addBeforeFunction([&]() {
+         cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
+         for (auto& block : *blocks)
+            getterSweep(&block);
+      });
 
       field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldID);
       fluidFilter.addFlag(Fluid_Flag);
       pdfFieldVTK->addCellInclusionFilter(fluidFilter);
 
-      pdfFieldVTK->addCellDataWriter(
-         make_shared< lbm::VelocityVTKWriter< LatticeModel_T, float > >(pdfFieldID, "VelocityFromPDF"));
-      pdfFieldVTK->addCellDataWriter(
-         make_shared< lbm::DensityVTKWriter< LatticeModel_T, float > >(pdfFieldID, "DensityFromPDF"));
+      pdfFieldVTK->addCellDataWriter(make_shared< field::VTKWriter< VelocityField_T > >(velFieldID, "Velocity"));
+      pdfFieldVTK->addCellDataWriter(make_shared< field::VTKWriter< DensityField_T > >(densityFieldID, "Density"));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(pdfFieldVTK), "VTK (fluid field data)");
 

@@ -37,12 +37,6 @@
 
 #include "field/vtk/VTKWriter.h"
 
-#include "lbm/field/AddToStorage.h"
-#include "lbm/field/PdfField.h"
-#include "lbm/lattice_model/D3Q19.h"
-#include "lbm/lattice_model/ForceModel.h"
-#include "lbm/vtk/Velocity.h"
-
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
@@ -59,6 +53,8 @@
 #include "InitializeDomainForPSM.h"
 #include "PSMPackInfo.h"
 #include "PSMSweep.h"
+#include "PSM_InfoHeader.h"
+#include "PSM_MacroGetter.h"
 
 namespace drag_force_sphere_psm
 {
@@ -70,12 +66,6 @@ namespace drag_force_sphere_psm
 using namespace walberla;
 using walberla::uint_t;
 using namespace lbm_mesapd_coupling::psm::cuda;
-
-using ForceModel_T   = lbm::force_model::LuoConstant;
-using LatticeModel_T = lbm::D3Q19< lbm::collision_model::TRT, false, ForceModel_T >;
-
-using Stencil_T  = LatticeModel_T::Stencil;
-using PdfField_T = lbm::PdfField< LatticeModel_T >;
 
 typedef pystencils::PSMPackInfo PackInfo_T;
 
@@ -100,10 +90,10 @@ class DragForceEvaluator
 {
  public:
    DragForceEvaluator(SweepTimeloop* timeloop, Setup* setup, const shared_ptr< StructuredBlockStorage >& blocks,
-                      const BlockDataID& pdfFieldID, const shared_ptr< ParticleAccessor_T >& ac,
+                      const BlockDataID& velocityFieldID, const shared_ptr< ParticleAccessor_T >& ac,
                       walberla::id_t sphereID)
-      : timeloop_(timeloop), setup_(setup), blocks_(blocks), pdfFieldID_(pdfFieldID), ac_(ac), sphereID_(sphereID),
-        normalizedDragOld_(0.0), normalizedDragNew_(0.0)
+      : timeloop_(timeloop), setup_(setup), blocks_(blocks), velocityFieldID_(velocityFieldID), ac_(ac),
+        sphereID_(sphereID), normalizedDragOld_(0.0), normalizedDragNew_(0.0)
    {
       // calculate the analytical drag force value based on the series expansion of chi
       // see also Sangani - Slow flow through a periodic array of spheres, IJMF 1982. Eq. 60 and Table 1
@@ -194,15 +184,15 @@ class DragForceEvaluator
       for (auto blockIt = blocks_->begin(); blockIt != blocks_->end(); ++blockIt)
       {
          // retrieve the pdf field and the flag field from the block
-         PdfField_T* pdfField = blockIt->getData< PdfField_T >(pdfFieldID_);
+         VelocityField_T* velocityField = blockIt->getData< VelocityField_T >(velocityFieldID_);
 
          // get the flag that marks a cell as being fluid
 
-         auto xyzField = pdfField->xyzSize();
+         auto xyzField = velocityField->xyzSize();
          for (auto cell : xyzField)
          {
             // TODO: fix velocity computation by using getPSMMacroscopicVelocity
-            velocity_sum += pdfField->getVelocity(cell)[0];
+            velocity_sum += velocityField->get(cell, 0);
          }
       }
 
@@ -216,7 +206,7 @@ class DragForceEvaluator
    Setup* setup_;
 
    shared_ptr< StructuredBlockStorage > blocks_;
-   const BlockDataID pdfFieldID_;
+   const BlockDataID velocityFieldID_;
 
    shared_ptr< ParticleAccessor_T > ac_;
    const walberla::id_t sphereID_;
@@ -397,14 +387,13 @@ int main(int argc, char** argv)
    // ADD DATA TO BLOCKS //
    ////////////////////////
 
-   // create the lattice model
-   LatticeModel_T latticeModel = LatticeModel_T(lbm::collision_model::TRT::constructWithMagicNumber(omega),
-                                                ForceModel_T(Vector3< real_t >(setup.extForce, 0, 0)));
-
-   // add PDF field
-   BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
-      blocks, "pdf field (fzyx)", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::fzyx);
+   // add fields
+   BlockDataID pdfFieldID =
+      field::addToStorage< PdfField_T >(blocks, "pdf field (fzyx)", real_c(std::nan("")), field::fzyx);
    BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
+
+   BlockDataID densityFieldID = field::addToStorage< DensityField_T >(blocks, "Density", real_t(0), field::fzyx);
+   BlockDataID velFieldID     = field::addToStorage< VelocityField_T >(blocks, "Velocity", real_t(0), field::fzyx);
 
    ///////////////
    // TIME LOOP //
@@ -449,15 +438,19 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, setup.extForce,
                                  real_t(0.0), real_t(0.0), omega);
 
+   pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, setup.extForce, real_t(0.0),
+                                           real_t(0.0));
+
    // add LBM communication function and streaming & force evaluation
    using DragForceEval_T = DragForceEvaluator< ParticleAccessor_T >;
-   auto forceEval        = make_shared< DragForceEval_T >(&timeloop, &setup, blocks, pdfFieldID, accessor, sphereID);
+   auto forceEval        = make_shared< DragForceEval_T >(&timeloop, &setup, blocks, velFieldID, accessor, sphereID);
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
                   << Sweep(deviceSyncWrapper(psmSweepCollection.setParticleVelocitiesSweep), "Set particle velocities");
    timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "cell-wise PSM sweep");
    timeloop.add() << Sweep(deviceSyncWrapper(psmSweepCollection.reduceParticleForcesSweep), "Reduce particle forces");
    timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
-                           "copy pdf from GPU to CPU")
+                           "copy pdf from GPU to CPU");
+   timeloop.add() << Sweep(getterSweep, "compute velocity")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");
 
    // resetting force
@@ -476,8 +469,12 @@ int main(int argc, char** argv)
       auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "psm_velocity_fieldGPU", vtkFrequency, 0, false, path,
                                                       "simulation_step", false, true, true, false, 0);
 
-      vtkOutput->addCellDataWriter(
-         make_shared< lbm::VelocityVTKWriter< LatticeModel_T, float > >(pdfFieldID, "Velocity"));
+      vtkOutput->addBeforeFunction([&]() {
+         cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
+         for (auto& block : *blocks)
+            getterSweep(&block);
+      });
+      vtkOutput->addCellDataWriter(make_shared< field::VTKWriter< VelocityField_T > >(velFieldID, "Velocity"));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
    }
