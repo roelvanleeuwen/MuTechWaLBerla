@@ -196,6 +196,8 @@ int main(int argc, char **argv)
          cellsPerBlock      = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
          blocksPerDimension = domainParameters.getParameter< Vector3< uint_t > >("blocks");
       }
+      WALBERLA_LOG_INFO_ON_ROOT("CellsPerBlock " << cellsPerBlock)
+      WALBERLA_LOG_INFO_ON_ROOT("BlocksPerDimension " << blocksPerDimension)
 
       /////////////////////////
       /// BOUNDARY HANDLING ///
@@ -236,7 +238,7 @@ int main(int argc, char **argv)
          InitSpherePacking(blocks, flagFieldId, noslipFlagUID, SpheresRadius, SphereShift, SphereFillDomainRatio);
          geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
       }
-      else if (geometrySetup == "geometryFile") {
+      else if (geometrySetup == "artery") {
          std::string meshFile  = domainParameters.getParameter< std::string >("meshFile");
          WALBERLA_LOG_INFO_ON_ROOT("Using mesh from " << meshFile << ".")
 
@@ -250,60 +252,47 @@ int main(int argc, char **argv)
          distanceOctree->writeVTKOutput("distanceOctree");
 
          auto aabb = computeAABB(*mesh);
-         const Vector3< real_t > TotalCells(cellsPerBlock[0] * blocksPerDimension[0], cellsPerBlock[1] * blocksPerDimension[1], cellsPerBlock[2] * blocksPerDimension[2]);
-         const Vector3< real_t > cells_with_scaling_1(20,25,20);
-         Vector3< real_t > scalingVector(cells_with_scaling_1[0] / TotalCells[0] , cells_with_scaling_1[1] / TotalCells[1], cells_with_scaling_1[2] / TotalCells[2]);
-         WALBERLA_LOG_INFO_ON_ROOT("Scaling vector is " << scalingVector)
+         //const Vector3< real_t > dx(scalingFactor, scalingFactor, scalingFactor);
+         const Vector3< real_t > dx(0.1, 0.1, 0.1);
+         WALBERLA_LOG_INFO("AABB is " << aabb << " , dx is " << dx)
 
-         real_t scalingFactor = scalingVector.max();
-         if(meshFile == "Lagoon.obj")
-            scalingFactor = 0.03;// (32.0 / real_c(TotalCells.min())) * 0.1;
+         mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, dx, mesh::makeExcludeMeshExterior(distanceOctree, dx[0]));
+         blocks = bfc.createStructuredBlockForest(cellsPerBlock);
 
-         const Vector3< real_t > dx(scalingFactor, scalingFactor, scalingFactor);
-         mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, dx, mesh::makeExcludeMeshInterior(distanceOctree, dx[0]));
-         //bfc.setPeriodicity(periodicity);
-         blocks = bfc.createStructuredBlockForest(cellsPerBlock, blocksPerDimension);
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          mesh::BoundarySetup boundarySetup(blocks, makeMeshDistanceFunction(distanceOctree), numGhostLayers);
          // write mesh info to file
          mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "meshBoundaries", 1);
-         if(meshFile == "Artery.obj")  {
-            for (auto& block : *blocks)
-            {
-               FlagField_T *flagField = block.getData<FlagField_T>(flagFieldId);
-               flagField->registerFlag(fluidFlagUID);
-               flagField->registerFlag(noslipFlagUID);
-               flagField->registerFlag(inflowUID);
-               flagField->registerFlag(PressureOutflowUID);
-            }
-            const mesh::TriangleMesh::Color noSlipColor{255, 255, 255}; // White
-            const mesh::TriangleMesh::Color inflowColor{255, 255, 0};     // Yellow
-            const mesh::TriangleMesh::Color outflowColor{0, 255, 0};    // Light green
-            const walberla::BoundaryUID OutflowBoundaryUID("PressureOutflow");
-            const walberla::BoundaryUID InflowBoundaryUID("PressureInflow");
-            static walberla::BoundaryUID wallFlagUID("NoSlip");
-            mesh::ColorToBoundaryMapper< mesh::TriangleMesh > colorToBoundaryMapper((mesh::BoundaryInfo(wallFlagUID)));
-            colorToBoundaryMapper.set(noSlipColor, mesh::BoundaryInfo(wallFlagUID));
-            colorToBoundaryMapper.set(outflowColor, mesh::BoundaryInfo(OutflowBoundaryUID));
-            colorToBoundaryMapper.set(inflowColor, mesh::BoundaryInfo(InflowBoundaryUID));
-            auto boundaryLocations = colorToBoundaryMapper.addBoundaryInfoToMesh(*mesh);
-            boundarySetup.setFlag<FlagField_T>(flagFieldId, fluidFlagUID, mesh::BoundarySetup::INSIDE);
-            // set whole region outside the mesh to no-slip
-            boundarySetup.setFlag<FlagField_T>(flagFieldId, FlagUID("NoSlip"), mesh::BoundarySetup::OUTSIDE);
-            // set outflow flag to outflow boundary
-            boundarySetup.setBoundaryFlag<FlagField_T>(flagFieldId, PressureOutflowUID, OutflowBoundaryUID, makeBoundaryLocationFunction(distanceOctree, boundaryLocations),
-                                                         mesh::BoundarySetup::OUTSIDE);
-            // set inflow flag to inflow boundary
-            boundarySetup.setBoundaryFlag<FlagField_T>(flagFieldId, inflowUID, InflowBoundaryUID,
-                                                         makeBoundaryLocationFunction(distanceOctree, boundaryLocations),
-                                                         mesh::BoundarySetup::OUTSIDE);
-            meshWriter.addDataSource(make_shared< mesh::BoundaryUIDFaceDataSource< mesh::TriangleMesh > >(boundaryLocations));
-
-         } else {
-            geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
-            boundarySetup.setFlag<FlagField_T>(flagFieldId, FlagUID("NoSlip"), mesh::BoundarySetup::INSIDE);
-            geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
+         for (auto& block : *blocks)
+         {
+            FlagField_T *flagField = block.getData<FlagField_T>(flagFieldId);
+            flagField->registerFlag(fluidFlagUID);
+            flagField->registerFlag(noslipFlagUID);
+            flagField->registerFlag(inflowUID);
+            flagField->registerFlag(PressureOutflowUID);
          }
+         const mesh::TriangleMesh::Color noSlipColor{255, 255, 255}; // White
+         const mesh::TriangleMesh::Color inflowColor{255, 255, 0};     // Yellow
+         const mesh::TriangleMesh::Color outflowColor{0, 255, 0};    // Light green
+         const walberla::BoundaryUID OutflowBoundaryUID("PressureOutflow");
+         const walberla::BoundaryUID InflowBoundaryUID("PressureInflow");
+         static walberla::BoundaryUID wallFlagUID("NoSlip");
+         mesh::ColorToBoundaryMapper< mesh::TriangleMesh > colorToBoundaryMapper((mesh::BoundaryInfo(wallFlagUID)));
+         colorToBoundaryMapper.set(noSlipColor, mesh::BoundaryInfo(wallFlagUID));
+         colorToBoundaryMapper.set(outflowColor, mesh::BoundaryInfo(OutflowBoundaryUID));
+         colorToBoundaryMapper.set(inflowColor, mesh::BoundaryInfo(InflowBoundaryUID));
+         auto boundaryLocations = colorToBoundaryMapper.addBoundaryInfoToMesh(*mesh);
+         boundarySetup.setFlag<FlagField_T>(flagFieldId, fluidFlagUID, mesh::BoundarySetup::INSIDE);
+         // set whole region outside the mesh to no-slip
+         boundarySetup.setFlag<FlagField_T>(flagFieldId, FlagUID("NoSlip"), mesh::BoundarySetup::OUTSIDE);
+         // set outflow flag to outflow boundary
+         boundarySetup.setBoundaryFlag<FlagField_T>(flagFieldId, PressureOutflowUID, OutflowBoundaryUID, makeBoundaryLocationFunction(distanceOctree, boundaryLocations),
+                                                      mesh::BoundarySetup::OUTSIDE);
+         // set inflow flag to inflow boundary
+         boundarySetup.setBoundaryFlag<FlagField_T>(flagFieldId, inflowUID, InflowBoundaryUID,
+                                                      makeBoundaryLocationFunction(distanceOctree, boundaryLocations),
+                                                      mesh::BoundarySetup::OUTSIDE);
+         meshWriter.addDataSource(make_shared< mesh::BoundaryUIDFaceDataSource< mesh::TriangleMesh > >(boundaryLocations));
          meshWriter.addDataSource(make_shared< mesh::ColorFaceDataSource< mesh::TriangleMesh > >());
          meshWriter.addDataSource(make_shared< mesh::ColorVertexDataSource< mesh::TriangleMesh > >());
          meshWriter();
@@ -311,10 +300,10 @@ int main(int argc, char **argv)
 
       }
       else {
-         WALBERLA_ABORT_NO_DEBUG_INFO("Invalid value for 'geometrySetup'. Allowed values are 'randomNoslip', "
-                                      "'spheres', 'geometryFile'")
+         WALBERLA_ABORT_NO_DEBUG_INFO("Invalid value for 'geometrySetup'. Allowed values are 'randomNoslip', 'spheres', 'artery'")
       }
-
+      WALBERLA_LOG_INFO_ON_ROOT("Number of cells is <" << blocks->getNumberOfXCells() << "," << blocks->getNumberOfYCells() << "," << blocks->getNumberOfZCells() << ">")
+      WALBERLA_LOG_INFO_ON_ROOT("Number of blocks is <" << blocks->getXSize() << "," << blocks->getYSize() << "," << blocks->getZSize() << ">")
 
 
 
@@ -334,6 +323,8 @@ int main(int argc, char **argv)
       uint_t numberOfCells = 0;
       for (auto& block : *blocks)
       {
+         //WALBERLA_LOG_INFO("EYX")
+         //WALBERLA_LOG_INFO("BlockID is " <<  block.getId())
          auto* flagField = block.getData< FlagField_T >(flagFieldId);
          auto domainFlag = flagField->getFlag(fluidFlagUID);
          for (auto it = flagField->begin(); it != flagField->end(); ++it)
@@ -527,7 +518,7 @@ int main(int argc, char **argv)
             vtkOutput->addCellDataWriter(velWriter);
             vtkOutput->addCellDataWriter(densityWriter);
 
-            timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+            timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
             vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
          }
 
@@ -744,7 +735,7 @@ int main(int argc, char **argv)
             vtkOutput->addCellDataWriter(velWriter);
             vtkOutput->addCellDataWriter(densityWriter);
 
-            timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+            timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
             vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
 
          }

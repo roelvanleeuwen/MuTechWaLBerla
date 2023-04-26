@@ -53,7 +53,8 @@ void InitSpherePacking(const shared_ptr< StructuredBlockStorage >& blocks, Block
    {
       auto flagField    = block.template getData< FlagField_T >(flagFieldID);
       auto boundaryFlag = flagField->getFlag(boundaryFlagUID);
-      const CellInterval& BlockBB = blocks->getBlockCellBB( block );
+      CellInterval BlockBB = blocks->getBlockCellBB( block );
+      BlockBB.expand(1);
       for (uint_t i = 0; i < Nx; ++i){
          for (uint_t j = 0; j < Ny; ++j){
             for (uint_t k = 0; k < Nz; ++k){

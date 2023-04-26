@@ -12,7 +12,7 @@ from waLBerla.tools.sqlitedb import sequenceValuesToScalars, checkAndUpdateSchem
 DB_FILE = os.environ.get('DB_FILE', "ListLBMBenchmark.sqlite3")
 
 class Scenario:
-    def __init__(self, cells_per_block=(80, 80, 80),
+    def __init__(self, cells_per_block=(64, 64, 20),
                  timesteps=1000, time_step_strategy="noOverlap", omega=0.8, cuda_enabled_mpi=True,
                  inner_outer_split=(1, 1, 1), vtk_write_frequency=0, inflow_velocity=(0.01,0,0),
                  porosity=0.5, porositySwitch=0.8, geometry_setup="randomNoslip",
@@ -101,26 +101,19 @@ def randomNoslip():
 
 def spheres():
     scenarios = wlb.ScenarioManager()
-    spheres_radius = 11
-    sphere_shift = 7
+    spheres_radius = 7
+    sphere_shift = 3
     sphere_fill = (0.55, 1.0, 1.0)
     scenario = Scenario(vtk_write_frequency=50, geometry_setup="spheres", spheres_radius=spheres_radius,
-                        sphere_shift=sphere_shift, sphere_fill=sphere_fill, porositySwitch=0.75)
-    scenarios.add(scenario)
-
-def Lagoon():
-    scenarios = wlb.ScenarioManager()
-    mesh_file = "Lagoon.obj"
-    scenario = Scenario(vtk_write_frequency=50, geometry_setup="geometryFile", mesh_file=mesh_file)
+                        sphere_shift=sphere_shift, sphere_fill=sphere_fill, porositySwitch=0.75, cells_per_block=(20, 20, 20), timesteps=1000)
     scenarios.add(scenario)
 
 def Artery():
     scenarios = wlb.ScenarioManager()
     mesh_file = "Artery.obj"
-    scenario = Scenario(vtk_write_frequency=50, geometry_setup="geometryFile", mesh_file=mesh_file, timesteps=10000, omega=1.9)
+    scenario = Scenario(vtk_write_frequency=1000, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000, omega=1.9, cells_per_block=(10, 10, 10), porositySwitch=0.5)
     scenarios.add(scenario)
 
 #randomNoslip()
 #spheres()
-#Lagoon()
 Artery()
