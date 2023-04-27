@@ -627,6 +627,8 @@ int main(int argc, char** argv)
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 
+   pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
+                                           real_t(0.0));
    // vtk output
    if (vtkIOFreq != uint_t(0))
    {
@@ -653,10 +655,14 @@ int main(int argc, char** argv)
       pdfGhostLayerSync.addPackInfo(make_shared< field::communication::PackInfo< PdfField_T > >(pdfFieldID));
       pdfFieldVTK->addBeforeFunction(pdfGhostLayerSync);
 
-      pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
-                                              real_t(0.0));
+      BlockDataID BFieldID =
+         field::addToStorage< BField_T >(blocks, "B field CPU", 0, field::fzyx, 1);
+      BlockDataID BsFieldID = field::addToStorage< BsField_T >(blocks, "Bs field CPU", 0, field::fzyx, 1);
       pdfFieldVTK->addBeforeFunction([&]() {
          cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
+         cuda::fieldCpy< BField_T, BFieldGPU_T >(blocks, BFieldID,
+                                                                     particleAndVolumeFractionSoA.BFieldID);
+         cuda::fieldCpy< BsField_T, BsFieldGPU_T >(blocks, BsFieldID, particleAndVolumeFractionSoA.BsFieldID);
          for (auto& block : *blocks)
             getterSweep(&block);
       });
@@ -667,29 +673,11 @@ int main(int argc, char** argv)
 
       pdfFieldVTK->addCellDataWriter(make_shared< field::VTKWriter< VelocityField_T > >(velFieldID, "Velocity"));
       pdfFieldVTK->addCellDataWriter(make_shared< field::VTKWriter< DensityField_T > >(densityFieldID, "Density"));
-
-      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(pdfFieldVTK), "VTK (fluid field data)");
-
-      // fraction mapping field
-      auto fractionFieldVTK = vtk::createVTKOutput_BlockData(blocks, "fraction_field", vtkIOFreq, 0, false, baseFolder);
-
-      BlockDataID BFieldID =
-         field::addToStorage< GhostLayerField< real_t, 1 > >(blocks, "B field CPU", 0, field::fzyx, 1);
-      fractionFieldVTK->addBeforeFunction([&]() {
-         cuda::fieldCpy< GhostLayerField< real_t, 1 >, BFieldGPU_T >(blocks, BFieldID,
-                                                                     particleAndVolumeFractionSoA.BFieldID);
-      });
-      fractionFieldVTK->addCellDataWriter(
-         make_shared< field::VTKWriter< GhostLayerField< real_t, 1 > > >(BFieldID, "Fraction mapping field B"));
-
-      BlockDataID BsFieldID = field::addToStorage< BsField_T >(blocks, "Bs field CPU", 0, field::fzyx, 1);
-      fractionFieldVTK->addBeforeFunction([&]() {
-         cuda::fieldCpy< BsField_T, BsFieldGPU_T >(blocks, BsFieldID, particleAndVolumeFractionSoA.BsFieldID);
-      });
-      fractionFieldVTK->addCellDataWriter(
+      pdfFieldVTK->addCellDataWriter(make_shared< field::VTKWriter< BField_T > >(BFieldID, "Fraction mapping field B"));
+      pdfFieldVTK->addCellDataWriter(
          make_shared< field::VTKWriter< BsField_T > >(BsFieldID, "Fraction mapping field Bs"));
 
-      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(fractionFieldVTK), "VTK (fraction field data");
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(pdfFieldVTK), "VTK (fluid field data)");
    }
 
    // add LBM communication function and boundary handling sweep (does the hydro force calculations and the no-slip

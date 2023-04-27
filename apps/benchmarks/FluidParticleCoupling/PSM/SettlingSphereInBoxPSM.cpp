@@ -661,6 +661,8 @@ int main(int argc, char** argv)
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 
+   pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
+                                           real_t(0.0));
    // vtk output
    if (vtkIOFreq != uint_t(0))
    {
@@ -687,8 +689,6 @@ int main(int argc, char** argv)
       pdfGhostLayerSync.addPackInfo(make_shared< field::communication::PackInfo< PdfField_T > >(pdfFieldID));
       pdfFieldVTK->addBeforeFunction(pdfGhostLayerSync);
 
-      pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
-                                              real_t(0.0));
       pdfFieldVTK->addBeforeFunction([&]() {
          cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
          for (auto& block : *blocks)
