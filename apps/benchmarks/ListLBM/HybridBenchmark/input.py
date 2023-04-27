@@ -114,6 +114,13 @@ def Artery():
     scenario = Scenario(vtk_write_frequency=1000, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000, omega=1.9, cells_per_block=(10, 10, 10), porositySwitch=0.5)
     scenarios.add(scenario)
 
+def particleBed():
+    scenarios = wlb.ScenarioManager()
+    mesh_file = "Artery.obj"
+    scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=100, timesteps=1000, omega=1.9, cells_per_block=(50, 100, 50), porositySwitch=0.8)
+    scenarios.add(scenario)
+
 #randomNoslip()
 #spheres()
 Artery()
+#particleBed()

@@ -81,6 +81,7 @@
 #include "DenseLBMInfoHeader.h"
 #include "InitSpherePacking.h"
 #include "SetupHybridCommunication.h"
+#include "ReadParticleBoundaiesFromFile.h"
 #include <iostream>
 #include <fstream>
 
@@ -298,6 +299,18 @@ int main(int argc, char **argv)
          meshWriter();
 
 
+      }
+      else if (geometrySetup == "particleBed") {
+         const AABB  domainAABB = AABB(0.0, 0.0, 0.0, 0.1, 0.1, 0.1);
+         Vector3<real_t> dx(0.001, 0.001, 0.001);
+         Vector3<uint_t> numCells(uint_c(domainAABB.xSize() / dx[0]), uint_c(domainAABB.ySize() / dx[1]), uint_c(domainAABB.zSize() / dx[2]));
+         Vector3<uint_t> numBlocks(uint_c(std::ceil(numCells[0] / cellsPerBlock[0])), uint_c(std::ceil(numCells[1] / cellsPerBlock[1])), uint_c(std::ceil(numCells[2] / cellsPerBlock[2])));
+         blocks = blockforest::createUniformBlockGrid( domainAABB, numBlocks[0], numBlocks[1], numBlocks[2], cellsPerBlock[0],  cellsPerBlock[1],  cellsPerBlock[2], true, false, false, false, false);
+         flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
+         geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
+         const std::string filename = "/local/ed94aqyc/walberla_all/walberla/cmake-build-release/apps/showcases/Antidunes/spheres_out.dat";
+         initSpheresFromFile(filename, blocks, flagFieldId, noslipFlagUID, dx[0]);
+         geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
       }
       else {
          WALBERLA_ABORT_NO_DEBUG_INFO("Invalid value for 'geometrySetup'. Allowed values are 'randomNoslip', 'spheres', 'artery'")

@@ -35,7 +35,7 @@ if ( WALBERLA_BUILD_WITH_OPENMESH AND WALBERLA_BUILD_WITH_CODEGEN )
                 DenseLBMInfoHeader.h)
 
         waLBerla_add_executable ( NAME HybridBenchmark
-                FILES HybridBenchmark.cpp SetupHybridCommunication.h InitSpherePacking.h
+                FILES HybridBenchmark.cpp SetupHybridCommunication.h InitSpherePacking.h ReadParticleBoundaiesFromFile.h
                 DEPENDS blockforest boundary core cuda field lbm mesh stencil timeloop vtk python_coupling HybridBenchmarkCodeGen)
     else()
         waLBerla_generate_target_from_python(NAME HybridBenchmarkCodeGen
@@ -60,7 +60,7 @@ if ( WALBERLA_BUILD_WITH_OPENMESH AND WALBERLA_BUILD_WITH_CODEGEN )
                 DenseLBMInfoHeader.h)
 
         waLBerla_add_executable ( NAME HybridBenchmark
-                FILES HybridBenchmark.cpp SetupHybridCommunication.h InitSpherePacking.h
+                FILES HybridBenchmark.cpp SetupHybridCommunication.h InitSpherePacking.h ReadParticleBoundaiesFromFile.h
                 DEPENDS blockforest boundary core field lbm mesh stencil timeloop vtk python_coupling HybridBenchmarkCodeGen)
     endif()
 endif()
