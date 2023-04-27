@@ -655,13 +655,11 @@ int main(int argc, char** argv)
       pdfGhostLayerSync.addPackInfo(make_shared< field::communication::PackInfo< PdfField_T > >(pdfFieldID));
       pdfFieldVTK->addBeforeFunction(pdfGhostLayerSync);
 
-      BlockDataID BFieldID =
-         field::addToStorage< BField_T >(blocks, "B field CPU", 0, field::fzyx, 1);
+      BlockDataID BFieldID  = field::addToStorage< BField_T >(blocks, "B field CPU", 0, field::fzyx, 1);
       BlockDataID BsFieldID = field::addToStorage< BsField_T >(blocks, "Bs field CPU", 0, field::fzyx, 1);
       pdfFieldVTK->addBeforeFunction([&]() {
          cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
-         cuda::fieldCpy< BField_T, BFieldGPU_T >(blocks, BFieldID,
-                                                                     particleAndVolumeFractionSoA.BFieldID);
+         cuda::fieldCpy< BField_T, BFieldGPU_T >(blocks, BFieldID, particleAndVolumeFractionSoA.BFieldID);
          cuda::fieldCpy< BsField_T, BsFieldGPU_T >(blocks, BsFieldID, particleAndVolumeFractionSoA.BsFieldID);
          for (auto& block : *blocks)
             getterSweep(&block);
