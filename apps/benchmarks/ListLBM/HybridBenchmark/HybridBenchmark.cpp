@@ -535,7 +535,6 @@ int main(int argc, char **argv)
             vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
          }
 
-         lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldId, fluidFlagUID);
 
          WALBERLA_LOG_INFO_ON_ROOT("Simulating ListLBM:"
                                    "\n timesteps:                  "
@@ -570,6 +569,8 @@ int main(int argc, char **argv)
             WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
             real_t time = simTimer.max();
             WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
+
+            lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldId, fluidFlagUID);
             performance.logResultOnRoot(timesteps, time);
 
             const auto reducedTimeloopTiming = timeloopTiming.getReduced();
@@ -753,7 +754,6 @@ int main(int argc, char **argv)
 
          }
 
-         lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldId, fluidFlagUID);
 
          WALBERLA_LOG_INFO_ON_ROOT("Simulating ListLBM:"
                                       "\n timesteps:                  " << timesteps
@@ -788,6 +788,8 @@ int main(int argc, char **argv)
             WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
             real_t time = simTimer.max();
             WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
+
+            lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldId, fluidFlagUID);
             performance.logResultOnRoot(timesteps, time);
 
             const auto reducedTimeloopTiming = timeloopTiming.getReduced();
