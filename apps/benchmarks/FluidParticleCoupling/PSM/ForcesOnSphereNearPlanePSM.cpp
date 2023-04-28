@@ -604,7 +604,7 @@ int main(int argc, char** argv)
    ///////////////
 
    // add particle and volume fraction data structures
-   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(
+   ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(
       blocks, lbm::collision_model::omegaFromViscosity(viscosity));
    // map particles and calculate solid volume fraction initially
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, mesa_pd::kernel::SelectLocal(),

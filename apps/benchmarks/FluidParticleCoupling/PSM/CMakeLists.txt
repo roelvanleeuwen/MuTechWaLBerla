@@ -20,6 +20,7 @@ foreach (collision_setup srt trt)
 
                 waLBerla_add_executable(NAME ForcesOnSphereNearPlanePSM_${config} FILES ForcesOnSphereNearPlanePSM.cpp
                         DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd vtk PSMCodegenPython_${collision_setup}_sc${solid_collision}_s${split})
+                target_compile_definitions(ForcesOnSphereNearPlanePSM_${config} PRIVATE Weighting=${weighting})
 
                 waLBerla_add_executable(NAME SettlingSphereInBoxPSM_${config} FILES SettlingSphereInBoxPSM.cpp
                         DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd timeloop vtk PSMCodegenPython_${collision_setup}_sc${solid_collision}_s${split})
