@@ -102,6 +102,11 @@ auto pdfFieldAdder = [](IBlock *const block, StructuredBlockStorage *const stora
                          make_shared<field::AllocateAligned<real_t, 64> >());
 };
 
+auto porosityAdder = [](IBlock *const block, StructuredBlockStorage *const storage) {
+   return new real_t;
+};
+
+
 void setFlagFieldToPorosity(IBlock * block, const BlockDataID flagFieldId, const real_t porosity, const FlagUID noSlipFlagUID) {
    auto flagField    = block->getData< FlagField_T >(flagFieldId);
    auto noSlipFlag = flagField->getFlag(noSlipFlagUID);
@@ -177,6 +182,10 @@ int main(int argc, char **argv)
       const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", 3.0); // in seconds
       const real_t omega = parameters.getParameter< real_t > ( "omega", real_c( 1.4 ) );
       const uint_t vtkWriteFrequency = parameters.getParameter< uint_t >("vtkWriteFrequency", uint_t(0));
+      const bool runBoundaries = parameters.getParameter< bool >("runBoundaries", true);
+      const std::string timeStepStrategy = parameters.getParameter< std::string >("timeStepStrategy", "noOverlap");
+      const real_t porositySwitch = parameters.getParameter< real_t >("porositySwitch");
+
 
       Vector3< uint_t > cellsPerBlock;
       Vector3< uint_t > blocksPerDimension;
@@ -319,10 +328,6 @@ int main(int argc, char **argv)
       WALBERLA_LOG_INFO_ON_ROOT("Number of blocks is <" << blocks->getXSize() << "," << blocks->getYSize() << "," << blocks->getZSize() << ">")
 
 
-
-
-
-      const std::string timeStepStrategy = parameters.getParameter< std::string >("timeStepStrategy", "noOverlap");
       if(timeStepStrategy != "noOverlap") {
          for (uint_t i = 0; i < 3; ++i) {
             if (int_c(cellsPerBlock[i]) <= InnerOuterSplit[i] * 2) {
@@ -331,14 +336,19 @@ int main(int argc, char **argv)
          }
       }
 
+
+
       //Calculate Poriosity
-      uint_t FluidCellsOnProcess = 0;
-      uint_t numberOfCells = 0;
+      BlockDataID porosityId = blocks->addStructuredBlockData< real_t >(porosityAdder, "PDFs");
       for (auto& block : *blocks)
       {
+         uint_t FluidCellsOnProcess = 0;
+         uint_t numberOfCells = 0;
          //WALBERLA_LOG_INFO("EYX")
          //WALBERLA_LOG_INFO("BlockID is " <<  block.getId())
          auto* flagField = block.getData< FlagField_T >(flagFieldId);
+         auto blockPorosity = block.getData< real_t >(porosityId);
+
          auto domainFlag = flagField->getFlag(fluidFlagUID);
          for (auto it = flagField->begin(); it != flagField->end(); ++it)
          {
@@ -348,97 +358,211 @@ int main(int argc, char **argv)
             }
             numberOfCells++;
          }
+         *blockPorosity = real_c(FluidCellsOnProcess) / real_c(numberOfCells);
       }
-      real_t blockPorosity = real_c(FluidCellsOnProcess) / real_c(numberOfCells);
-      uint_t TotalNumberOfFluidCells = 0;
-      WALBERLA_MPI_SECTION()
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      ////////////////////////////////////    SETUP FIELDS      ///////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      BlockDataID pdfListId = lbm::addListToStorage< List_T >(blocks, "LBM list (FIdx)", InnerOuterSplit);
+
+      BlockDataID pdfFieldId     = blocks->addStructuredBlockData< PdfField_T >(pdfFieldAdder, "PDFs");
+      BlockDataID velFieldId     = field::addToStorage< VelocityField_T >(blocks, "velocity", real_t(0), field::fzyx);
+      BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_t(1.0), field::fzyx);
+#if defined(WALBERLA_BUILD_WITH_CUDA)
+      BlockDataID pdfFieldIdGPU = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldId, "PDFs on GPU", true);
+#endif
+
+
+
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////    SETUP KERNELS    //////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if defined(WALBERLA_BUILD_WITH_CUDA)
+      const Vector3< int32_t > gpuBlockSize =
+         parameters.getParameter< Vector3< int32_t > >("gpuBlockSize", Vector3< int32_t >(128, 1, 1));
+      lbmpy::SparseLBSweep sparseKernel(pdfListId, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2]);
+
+      lbm::DenseLBSweep denseKernel(pdfFieldIdGPU, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], Cell(cell_idx_c(InnerOuterSplit[0]), cell_idx_c(InnerOuterSplit[1]), cell_idx_c(InnerOuterSplit[2])));
+      lbm::DenseUBB denseUbb(blocks, pdfFieldIdGPU, initialVelocity[0]);
+      lbm::DensePressure densePressureOutflow(blocks, pdfFieldIdGPU, 1.0);
+      lbm::DenseNoSlip denseNoSlip(blocks, pdfFieldIdGPU);
+#else
+      lbmpy::SparseLBSweep sparseKernel(pdfListId, omega);
+
+      lbm::DenseLBSweep denseKernel(pdfFieldId, omega, Cell(cell_idx_c(InnerOuterSplit[0]), cell_idx_c(InnerOuterSplit[1]), cell_idx_c(InnerOuterSplit[2])));
+      lbm::DenseUBB denseUbb(blocks, pdfFieldId, initialVelocity[0]);
+      lbm::DensePressure densePressureOutflow(blocks, pdfFieldId, 1.0);
+      lbm::DenseNoSlip denseNoSlip(blocks, pdfFieldId);
+#endif
+      lbmpy::SparseUBB sparseUbb(blocks, pdfListId, initialVelocity[0]);
+      lbmpy::SparsePressure sparsePressureOutflow(blocks, pdfListId, 1.0);
+      lbmpy::SparseMacroSetter sparseSetterSweep(pdfListId);
+
+      pystencils::DenseMacroSetter denseSetterSweep(pdfFieldId);
+      pystencils::DenseMacroGetter denseGetterSweep(densityFieldId, pdfFieldId, velFieldId);
+
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      ////////////////////////////////////    INITFIELDS     //////////////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      for (auto& block : *blocks)
       {
-         TotalNumberOfFluidCells = walberla::mpi::reduce(FluidCellsOnProcess, walberla::mpi::SUM, 0);
-         walberla::mpi::broadcastObject( TotalNumberOfFluidCells, 0);
+         auto* lbmList = block.getData< List_T >(pdfListId);
+         WALBERLA_CHECK_NOT_NULLPTR(lbmList)
+         lbmList->fillFromFlagField< FlagField_T >(block, flagFieldId, fluidFlagUID);
       }
-      uint_t TotalNumberOfCells = blocks->getNumberOfXCells() * blocks->getNumberOfYCells() * blocks->getNumberOfZCells();
-      const real_t realPorosity = real_c(TotalNumberOfFluidCells) / real_c(TotalNumberOfCells);
-      WALBERLA_LOG_INFO_ON_ROOT("Porosity is " << realPorosity)
+      sparseUbb.fillFromFlagField< FlagField_T >(blocks, flagFieldId, inflowUID, fluidFlagUID);
+      sparsePressureOutflow.fillFromFlagField< FlagField_T >(blocks, flagFieldId, PressureOutflowUID, fluidFlagUID);
+      // noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldId, noslipFlagUID, fluidFlagUID);
+      for (auto& block : *blocks)
+      {
+         sparseSetterSweep(&block);
+      }
+      bool hybridCommunication = true;
+      lbmpy::ListCommunicationSetup< FlagField_T, Stencil_T >(pdfListId, flagFieldId, blocks, hybridCommunication);
+
+      for (auto& block : *blocks)
+      {
+         denseSetterSweep(&block);
+      }
+      SetupHybridCommunication<FlagField_T, Stencil_T > ( blocks, flagFieldId, fluidFlagUID);
+
+      denseUbb.fillFromFlagField< FlagField_T >(blocks, flagFieldId, inflowUID, fluidFlagUID);
+      densePressureOutflow.fillFromFlagField< FlagField_T >(blocks, flagFieldId, PressureOutflowUID, fluidFlagUID);
+      denseNoSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldId, noslipFlagUID, fluidFlagUID);
+
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      ////////////////////////////////////    SETUP COMMUNICATION   /////////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      auto tracker = make_shared<lbm::TimestepTracker>(0);
+#if defined(WALBERLA_BUILD_WITH_CUDA)
+      const bool cudaEnabledMPI = parameters.getParameter< bool >("cudaEnabledMPI", true);
+      auto sparsePackInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbmpy::SparsePackInfoEven, lbmpy::SparsePackInfoOdd > >(tracker, pdfListId);
+      auto densePackInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbm::DensePackInfoEven, lbm::DensePackInfoOdd > >(tracker, pdfFieldIdGPU);
+      cuda::communication::UniformGPUScheme< Stencil_T > sparseComm(blocks, cudaEnabledMPI);
+      cuda::communication::UniformGPUScheme< Stencil_T > denseComm(blocks, cudaEnabledMPI);
+
+#else
+      auto sparsePackInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbmpy::SparsePackInfoEven, lbmpy::SparsePackInfoOdd > >(tracker, pdfListId);
+      auto densePackInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbm::DensePackInfoEven, lbm::DensePackInfoOdd > >( tracker, pdfFieldId);
+      blockforest::communication::UniformBufferedScheme< Stencil_T > sparseComm(blocks);
+      blockforest::communication::UniformBufferedScheme< Stencil_T > denseComm(blocks);
+
+#endif
+      WALBERLA_LOG_INFO_ON_ROOT("Finished setting up communication")
+      sparseComm.addPackInfo(sparsePackInfo);
+      denseComm.addPackInfo(densePackInfo);
 
 
 
-      const real_t porositySwitch = parameters.getParameter< real_t >("porositySwitch");
-      bool runningIndirectAdressing;
-      if(blockPorosity < porositySwitch)
-         runningIndirectAdressing = true;
-      else
-         runningIndirectAdressing = false;
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+      ////////////////////////////////////    VTK OUT    ///////////////////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+      if (vtkWriteFrequency > 0)
+      {
+         auto sparseVtkOutput = vtk::createVTKOutput_BlockData(*blocks, "vtkSparse", vtkWriteFrequency, 0, false, "vtk_out", "simulation_step", false, false, true, false, 0);
+
+#if defined(WALBERLA_BUILD_WITH_CUDA)
+         sparseVtkOutput->addBeforeFunction([&]() {
+            for (auto& block : *blocks)
+            {
+               List_T* lbmList = block.getData< List_T >(pdfListId);
+               lbmList->copyPDFSToCPU();
+            }
+         });
+#endif
+
+         field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
+         fluidFilter.addFlag(fluidFlagUID);
+         sparseVtkOutput->addCellInclusionFilter(fluidFilter);
+
+         auto velWriter = make_shared< lbm::ListVelocityVTKWriter< List_T, real_t > >(pdfListId, tracker, "velocity");
+         auto densityWriter = make_shared< lbm::ListDensityVTKWriter< List_T, real_t > >(pdfListId, "density");
+
+         sparseVtkOutput->addCellDataWriter(velWriter);
+         sparseVtkOutput->addCellDataWriter(densityWriter);
+
+         vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
+
+
+         auto denseVtkOutput = vtk::createVTKOutput_BlockData(*blocks, "vtkSparse", vtkWriteFrequency, 0, false, "vtk_out", "simulation_step", false, false, true, false, 0);
+
+#if defined(WALBERLA_BUILD_WITH_CUDA)
+         denseVtkOutput->addBeforeFunction([&]() {
+            cuda::fieldCpy< PdfField_T , GPUField >(blocks, pdfFieldId, pdfFieldIdGPU);
+            for (auto& block : *blocks)
+            {
+               getterSweep(&block);
+            }
+         });
+#else
+         denseVtkOutput->addBeforeFunction([&]() {
+            for (auto& block : *blocks)
+            {
+               denseGetterSweep(&block);
+            }
+         });
+#endif
+
+         field::FlagFieldCellFilter< FlagField_T > denseFluidFilter(flagFieldId);
+         fluidFilter.addFlag(fluidFlagUID);
+         denseVtkOutput->addCellInclusionFilter(denseFluidFilter);
+
+         auto denseVelWriter = make_shared<field::VTKWriter<VelocityField_T> >(velFieldId, "velocity");
+         auto denseDensityWriter = make_shared<field::VTKWriter<ScalarField_T> >(densityFieldId, "density");
+
+         denseVtkOutput->addCellDataWriter(denseVelWriter);
+         denseVtkOutput->addCellDataWriter(denseDensityWriter);
+
+         vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
+      }
+
+      for (int i = 0; i < timesteps; ++i) {
+         for(auto &block : *blocks) {
+
+
+         }
+      }
+
+
+
+
+
+
+      timeloop.addFuncAfterTimeStep(vtk::writeFiles(denseVtkOutput), "VTK Output");
+      timeloop.addFuncAfterTimeStep(vtk::writeFiles(sparseVtkOutput), "VTK Output");
+
 
       if(runningIndirectAdressing)
       {
-         ///////////////////////////////////////////////////////////////////////////////////////////////////////
-         ////////////////////////////////////  INDIRECT ADDRESSING PART  ///////////////////////////////////////
-         ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
 
          WALBERLA_LOG_INFO("Block " << uint_c(MPIManager::instance()->rank()) << " is running Simulation with indirect addressing with porosity " << blockPorosity)
-         BlockDataID pdfListId = lbm::addListToStorage< List_T >(blocks, "LBM list (FIdx)", InnerOuterSplit);
          WALBERLA_LOG_INFO_ON_ROOT("Start initialisation of the linked-list structure")
 
-         WcTimer lbmTimer;
-         for (auto& block : *blocks)
-         {
-            auto* lbmList = block.getData< List_T >(pdfListId);
-            WALBERLA_CHECK_NOT_NULLPTR(lbmList)
-            lbmList->fillFromFlagField< FlagField_T >(block, flagFieldId, fluidFlagUID);
-         }
 
-   #if defined(WALBERLA_BUILD_WITH_CUDA)
-         const Vector3< int32_t > gpuBlockSize =
-            parameters.getParameter< Vector3< int32_t > >("gpuBlockSize", Vector3< int32_t >(128, 1, 1));
-         lbmpy::SparseLBSweep kernel(pdfListId, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2]);
-   #else
-         lbmpy::SparseLBSweep kernel(pdfListId, omega);
-   #endif
 
-         auto tracker = make_shared< lbm::TimestepTracker >(0);
-         lbmpy::SparseMacroSetter setterSweep(pdfListId);
-         lbmpy::SparseUBB ubb(blocks, pdfListId, initialVelocity[0]);
-         lbmpy::SparsePressure pressureOutflow(blocks, pdfListId, 1.0);
-         // lbm::SparseNoSlip noSlip(blocks, pdfListId);
 
-         ubb.fillFromFlagField< FlagField_T >(blocks, flagFieldId, inflowUID, fluidFlagUID);
-         pressureOutflow.fillFromFlagField< FlagField_T >(blocks, flagFieldId, PressureOutflowUID, fluidFlagUID);
-         // noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldId, noslipFlagUID, fluidFlagUID);
-         for (auto& block : *blocks)
-         {
-            setterSweep(&block);
-         }
-         bool denseCommunication = true;
-         lbmpy::ListCommunicationSetup< FlagField_T, Stencil_T >(pdfListId, flagFieldId, blocks, denseCommunication);
-         lbmTimer.end();
-         WALBERLA_LOG_INFO_ON_ROOT("Initialisation of the list structures needed " << lbmTimer.last() << " s")
 
-   #if defined(WALBERLA_BUILD_WITH_CUDA)
 
-         const bool cudaEnabledMPI = parameters.getParameter< bool >("cudaEnabledMPI", true);
-         auto packInfo =
-            make_shared< lbm::CombinedInPlaceGpuPackInfo< lbmpy::SparsePackInfoEven, lbmpy::SparsePackInfoOdd > >(
-               tracker, pdfListId);
-         cuda::communication::UniformGPUScheme< Stencil_T > comm(blocks, cudaEnabledMPI);
-   #else
-         auto packInfo =
-            make_shared< lbm::CombinedInPlaceCpuPackInfo< lbmpy::SparsePackInfoEven, lbmpy::SparsePackInfoOdd > >(
-               tracker, pdfListId);
-         blockforest::communication::UniformBufferedScheme< Stencil_T > comm(blocks);
-   #endif
-         WALBERLA_LOG_INFO_ON_ROOT("Finished setting up communication")
-         comm.addPackInfo(packInfo);
-         auto communicate       = std::function< void() >([&]() { comm.communicate(); });
-         auto start_communicate = std::function< void() >([&]() { comm.startCommunication(); });
-         auto wait_communicate  = std::function< void() >([&]() { comm.wait(); });
-         //////////////////////////////////
-         /// SET UP SWEEPS AND TIMELOOP ///
-         //////////////////////////////////
+
 
          const bool runBoundaries = parameters.getParameter< bool >("runBoundaries", true);
 
          auto normalTimeStep = [&]() {
-            communicate();
+            sparseComm.communicate();
             for (auto& block : *blocks)
             {
                if (runBoundaries)
@@ -452,7 +576,7 @@ int main(int argc, char **argv)
          };
 
          auto simpleOverlapTimeStep = [&]() {
-            start_communicate();
+            sparseComm.startCommunication();
             for (auto& block : *blocks)
             {
                if (runBoundaries)
@@ -462,7 +586,7 @@ int main(int argc, char **argv)
                }
                kernel.inner(&block, tracker->getCounterPlusOne());
             }
-            wait_communicate();
+            sparseComm.wait();
             for (auto& block : *blocks)
             {
                kernel.outer(&block, tracker->getCounterPlusOne());
@@ -506,34 +630,6 @@ int main(int argc, char **argv)
             timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
             "remaining time logger");
 
-         if (vtkWriteFrequency > 0)
-         {
-            auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "vtkSparse", vtkWriteFrequency, 0, false, "vtk_out",
-                                                            "simulation_step", false, false, true, false, 0);
-
-   #if defined(WALBERLA_BUILD_WITH_CUDA)
-            vtkOutput->addBeforeFunction([&]() {
-               for (auto& block : *blocks)
-               {
-                  List_T* lbmList = block.getData< List_T >(pdfListId);
-                  lbmList->copyPDFSToCPU();
-               }
-            });
-   #endif
-
-            field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
-            fluidFilter.addFlag(fluidFlagUID);
-            vtkOutput->addCellInclusionFilter(fluidFilter);
-
-            auto velWriter = make_shared< lbm::ListVelocityVTKWriter< List_T, real_t > >(pdfListId, tracker, "velocity");
-            auto densityWriter = make_shared< lbm::ListDensityVTKWriter< List_T, real_t > >(pdfListId, "density");
-
-            vtkOutput->addCellDataWriter(velWriter);
-            vtkOutput->addCellDataWriter(densityWriter);
-
-            timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
-            vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
-         }
 
          lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldId, fluidFlagUID);
 
@@ -590,52 +686,6 @@ int main(int argc, char **argv)
          ////////////////////////////////////  DIRECT ADDRESSING PART  /////////////////////////////////////////
          ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-         WALBERLA_LOG_INFO("Block " << uint_c(MPIManager::instance()->rank()) << " is running Simulation with direct addressing with porosity " << blockPorosity)
-
-         BlockDataID pdfFieldId     = blocks->addStructuredBlockData< PdfField_T >(pdfFieldAdder, "PDFs");
-         BlockDataID velFieldId     = field::addToStorage< VelocityField_T >(blocks, "velocity", real_t(0), field::fzyx);
-         BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_t(1.0), field::fzyx);
-         pystencils::DenseMacroSetter setterSweep(pdfFieldId);
-         pystencils::DenseMacroGetter getterSweep(densityFieldId, pdfFieldId, velFieldId);
-
-         for (auto& block : *blocks)
-         {
-            setterSweep(&block);
-         }
-         SetupHybridCommunication<FlagField_T, Stencil_T > ( blocks, flagFieldId, fluidFlagUID);
-
-         auto tracker = make_shared< lbm::TimestepTracker >(0);
-
-   #if defined(WALBERLA_BUILD_WITH_CUDA)
-         BlockDataID pdfFieldIdGPU = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldId, "PDFs on GPU", true);
-         const Vector3< int32_t > gpuBlockSize =
-            parameters.getParameter< Vector3< int32_t > >("gpuBlockSize", Vector3< int32_t >(128, 1, 1));
-         lbm::DenseLBSweep kernel(pdfFieldIdGPU, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], Cell(cell_idx_c(InnerOuterSplit[0]), cell_idx_c(InnerOuterSplit[1]), cell_idx_c(InnerOuterSplit[2])));
-         lbm::DenseUBB ubb(blocks, pdfFieldIdGPU, initialVelocity[0]);
-         lbm::DensePressure pressureOutflow(blocks, pdfFieldIdGPU, 1.0);
-         lbm::DenseNoSlip noSlip(blocks, pdfFieldIdGPU);
-
-         const bool cudaEnabledMPI = parameters.getParameter< bool >("cudaEnabledMPI", true);
-         auto packInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbm::DensePackInfoEven, lbm::DensePackInfoOdd > >(tracker, pdfFieldIdGPU);
-         cuda::communication::UniformGPUScheme< Stencil_T > comm(blocks, cudaEnabledMPI);
-   #else
-         lbm::DenseLBSweep kernel(pdfFieldId, omega, Cell(cell_idx_c(InnerOuterSplit[0]), cell_idx_c(InnerOuterSplit[1]), cell_idx_c(InnerOuterSplit[2])));
-         lbm::DenseUBB ubb(blocks, pdfFieldId, initialVelocity[0]);
-         lbm::DensePressure pressureOutflow(blocks, pdfFieldId, 1.0);
-         lbm::DenseNoSlip noSlip(blocks, pdfFieldId);
-
-         auto packInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbm::DensePackInfoEven, lbm::DensePackInfoOdd > >( tracker, pdfFieldId);
-         blockforest::communication::UniformBufferedScheme< Stencil_T > comm(blocks);
-   #endif
-
-         ubb.fillFromFlagField< FlagField_T >(blocks, flagFieldId, inflowUID, fluidFlagUID);
-         pressureOutflow.fillFromFlagField< FlagField_T >(blocks, flagFieldId, PressureOutflowUID, fluidFlagUID);
-         noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldId, noslipFlagUID, fluidFlagUID);
-
-         comm.addPackInfo(packInfo);
-         auto communicate       = std::function< void() >([&]() { comm.communicate(); });
-         auto start_communicate = std::function< void() >([&]() { comm.startCommunication(); });
-         auto wait_communicate  = std::function< void() >([&]() { comm.wait(); });
 
          //////////////////////////////////
          /// SET UP SWEEPS AND TIMELOOP ///
@@ -802,6 +852,7 @@ int main(int argc, char **argv)
          }
          //printResidentMemoryStatistics();
       } //direct addressing
+      */
    }//config
 
    return EXIT_SUCCESS;
