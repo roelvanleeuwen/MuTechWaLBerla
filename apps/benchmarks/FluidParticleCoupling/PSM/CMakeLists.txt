@@ -29,6 +29,3 @@ foreach (collision_setup srt trt)
         endforeach ()
     endforeach ()
 endforeach ()
-
-waLBerla_add_executable(NAME ForcesOnSphereNearPlanePSM FILES ForcesOnSphereNearPlanePSM.cpp
-        DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd vtk PSMCodegenPython_srt_sc1_s0)
