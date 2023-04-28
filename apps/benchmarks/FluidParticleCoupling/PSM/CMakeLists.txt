@@ -27,4 +27,4 @@ foreach (collision_setup srt trt)
 endforeach ()
 
 waLBerla_add_executable(NAME ForcesOnSphereNearPlanePSM FILES ForcesOnSphereNearPlanePSM.cpp
-        DEPENDS blockforest boundary core domain_decomposition field lbm lbm_mesapd_coupling mesa_pd postprocessing timeloop vtk)
+        DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd vtk PSMCodegenPython_srt_sc1_s0)
