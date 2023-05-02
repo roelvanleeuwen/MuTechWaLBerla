@@ -97,7 +97,7 @@ def porosity_benchmark():
 
 def emptyChannel():
     scenarios = wlb.ScenarioManager()
-    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", cells_per_block=(64, 64, 64), time_step_strategy="kernelOnly", run_boundaries=False, porositySwitch=1.1)
+    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", cells_per_block=(64, 64, 64), time_step_strategy="kernelOnly", run_boundaries=False, porositySwitch=0.0)
     scenarios.add(scenario)
 
 def randomNoslip():
