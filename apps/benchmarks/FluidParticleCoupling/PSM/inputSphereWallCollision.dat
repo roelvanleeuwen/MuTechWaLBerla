@@ -13,9 +13,6 @@ BouncingSphere
    // LBM
    uIn 0.02;
    diameter 20;
-   magicNumber 0.1875;
-   bulkViscRateFactor 100.;
-   useOmegaBulkAdaption true;
 
    // RPD
    numRPDSubCycles 100;
@@ -33,7 +30,6 @@ BouncingSphere
    averageForceTorqueOverTwoTimeSteps true;
    conserveMomentum false;
    disableFluidForceDuringContact false;
-   reconstructorType Grad; // Eq EAN Grad Ext
 
    // IO properties
    baseFolder vtk_out_SphereWallCollision;
@@ -58,7 +54,7 @@ Case_St27
    restitutionCoeff             0.97;
    numberOfBouncesUntilTermination 2;
    domainSize                   <12,12,48>; // multiples of diameter
-   numberOfBlocksPerDirection   <5,5,8>;
+   numberOfBlocksPerDirection   <2,2,2>;
 }
 
 // Fig. 10c
@@ -73,7 +69,7 @@ Case_St100
    restitutionCoeff             0.97;
    numberOfBouncesUntilTermination 2;
    domainSize                   <12,12,48>; // multiples of diameter
-   numberOfBlocksPerDirection   <5,5,8>;
+   numberOfBlocksPerDirection   <2,2,2>;
 }
 
 // Fig. 2 a,b
@@ -88,7 +84,7 @@ Case_St152
    restitutionCoeff             0.97;
    numberOfBouncesUntilTermination 4;
    domainSize                   <12,12,64>; // multiples of diameter
-   numberOfBlocksPerDirection   <5,5,8>;
+   numberOfBlocksPerDirection   <2,2,2>;
 }
 
 // Fig. 10b
@@ -103,7 +99,7 @@ Case_St192
    restitutionCoeff             0.97;
    numberOfBouncesUntilTermination 2;
    domainSize                   <12,12,64>; // multiples of diameter
-   numberOfBlocksPerDirection   <5,5,8>;
+   numberOfBlocksPerDirection   <2,2,2>;
 }
 
 // Fig. 10a
@@ -118,5 +114,5 @@ Case_St742
    restitutionCoeff             0.97;
    numberOfBouncesUntilTermination 2;
    domainSize                   <12,12,64>; // multiples of diameter
-   numberOfBlocksPerDirection   <5,5,8>;
+   numberOfBlocksPerDirection   <2,2,2>;
 }
