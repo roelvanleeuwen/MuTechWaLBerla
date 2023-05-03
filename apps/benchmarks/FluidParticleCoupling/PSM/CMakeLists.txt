@@ -5,9 +5,6 @@ waLBerla_add_executable(NAME LubricationForceEvaluationPSM FILES LubricationForc
         DEPENDS blockforest boundary core domain_decomposition field lbm lbm_mesapd_coupling mesa_pd
         postprocessing timeloop vtk FluidParticleCouplingGeneratedLBM)
 
-waLBerla_add_executable(NAME SphereWallCollisionPSM FILES SphereWallCollisionPSM.cpp
-        DEPENDS blockforest boundary core domain_decomposition field lbm lbm_mesapd_coupling
-        mesa_pd postprocessing timeloop vtk FluidParticleCouplingGeneratedLBM)
 
 foreach (collision_setup srt trt)
     foreach (solid_collision 1 2 3)
