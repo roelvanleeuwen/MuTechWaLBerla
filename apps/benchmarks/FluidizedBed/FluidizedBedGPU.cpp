@@ -102,8 +102,6 @@ using walberla::uint_t;
 using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
 
-const uint_t FieldGhostLayers = 1;
-
 using namespace lbm_mesapd_coupling::psm::cuda;
 typedef pystencils::PSMPackInfo PackInfo_T;
 
