@@ -98,8 +98,6 @@ using FlagField_T = FlagField< flag_t >;
 
 typedef pystencils::PSMPackInfo PackInfo_T;
 
-const uint_t FieldGhostLayers = 1;
-
 ///////////
 // FLAGS //
 ///////////
