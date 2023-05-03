@@ -1,0 +1,132 @@
+namespace walberla {
+
+/**
+\page tutorial_lbm_psm_cpu Tutorial - LBM-PSM 1: Coupled fluid-particle simulations on the CPU using the PSM
+
+\brief A minimal example for coupled fluid-particle simulations on the CPU using the Partially-Saturated-Cells Method (PSM)
+
+\section tutorial_lbm_psm_cpu_overview Overview
+
+The goal of this tutorial is to demonstrate how to couple the lattice Boltzmann method and the discrete element method using the PSM in waLBerla. To follow along, you should have a solid understanding of "01_BasicLBM", "06_LBBoundaryCondition", and "01_MESA_PD".
+Unlike the aforementioned tutorials, this tutorial focuses specifically on the coupling between fluid and particle dynamics. Our approach is fully resolved, meaning that the particle is several fluid cells in diameter.
+
+\section tutorial_lbm_psm_cpu_setup
+
+In this simulation, we study the settling of a sphere under the influence of gravity in a closed fluid box. The domain is confined by planes to prevent the sphere from exiting the box, while the fluid is subject to no-slip boundary conditions.
+
+\image html settling_sphere.png "Sphere settling under gravity in a closed box of fluid."  height=600px
+
+\section tutorial_lbm_psm_cpu_sub-cycling Sub-Cycling
+Typically, N particle sub-cycles are performed per time step since the DEM requires a finer resolution in time than the LBM for an accurate contact representation.
+To achieve this, we use a for loop that calls one time step of the timeloop object followed by the particle sub-cycles.
+
+\code
+uint_t numRPDSubCycles = uint_t(10);
+for (uint_t i = 0; i < timesteps; ++i)
+{
+timeloop.singleStep(timeloopTiming);
+...
+for (auto subCycle = uint_t(0); subCycle < numRPDSubCycles; ++subCycle)
+     {
+     ...
+     }
+}
+\endcode
+
+\section tutorial_lbm_psm_cpu_mapping Particle mapping
+One important aspect of the PSM is calculating the overlap fraction for each cell, i.e., the proportion of the fluid cell covered by particles.
+To achieve this, a particleAndVolumeFractionField is necessary. It can hold multiple values per cell, accounting for multiple particles overlapping with a single cell.
+The operator() function of the particleMapping class is responsible for updating this field.
+
+\code
+BlockDataID particleAndVolumeFractionFieldID =
+  field::addToStorage< lbm_mesapd_coupling::psm::ParticleAndVolumeFractionField_T >(
+     blocks, "particle and volume fraction field",
+     std::vector< lbm_mesapd_coupling::psm::ParticleAndVolumeFraction_T >(), field::fzyx, 0);
+lbm_mesapd_coupling::psm::ParticleAndVolumeFractionMapping particleMapping(blocks, accessor, sphereSelector, particleAndVolumeFractionFieldID, 4);
+particleMapping();
+\endcode
+
+\section tutorial_lbm_psm_cpu_psm PSM Sweep
+The PSM sweep is an extension of the traditional LBM sweep that updates the PDFs for all cells, irrespective of whether they are fluid cells or covered by particles.
+This is a significant advantage of the PSM as it eliminates the need for reconstructing PDFs when a particle exposes a previously covered fluid cell.
+The PSM sweep leverages the overlap fraction in the collision operator to blend a standard LBM collision with a "solid collision" that incorporates the particle velocity.
+Furthermore, it computes the hydrodynamic forces and torques excerted by the fluid on the particles.
+
+\code
+auto lbmSweep = lbm_mesapd_coupling::psm::makePSMSweep< LatticeModel_T, FlagField_T, 1, 1 >(pdfFieldID, particleAndVolumeFractionFieldID, blocks, accessor, flagFieldID, Fluid_Flag);
+\endcode
+
+\section tutorial_lbm_psm_cpu_hyd_forces Hydrodynamic Forces
+The coupling of the fluid to the particles necessitates adding the hydrodynamic forces acting on the particles.
+To achieve this, we need to implement functions that enable us to incorporate the hydrodynamic interactions into the overall particle forces and torques, as well as to reset these interactions.
+Additionally, since a single particle may overlap with multiple blocks, resulting in hydrodynamic interactions computed on multiple processes, we require a functionality for reducing the hydrodynamic forces and torques between the processes.
+
+\code
+lbm_mesapd_coupling::AddHydrodynamicInteractionKernel addHydrodynamicInteraction;
+lbm_mesapd_coupling::ResetHydrodynamicForceTorqueKernel resetHydrodynamicForceTorque;
+reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*ps);
+...
+ps->forEachParticle(false, mesa_pd::kernel::SelectLocal(), *accessor, addHydrodynamicInteraction, *accessor);
+ps->forEachParticle(false, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor);
+\endcode
+
+\section tutorial_lbm_psm_cpu_lub_corr Lubrication correction
+The lubrication force and torque occur when two particles approach each other and squeeze the fluid in the gap between them, resulting in a force opposing the relative motion.
+However, the fluid-particle coupling method can only accurately capture this effect with a very fine grid resolution, which is computationally too expensive.
+Given the significant impact of the lubrication force, we calculate correction force terms to account for the inaccuracies of the coupling method in representing these forces.
+
+\code
+lbm_mesapd_coupling::LubricationCorrectionKernel lubricationCorrectionKernel(viscosity, [](real_t r) { return real_t(0.0016) * r; });
+ps->forEachParticlePairHalf(
+            false, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
+            [&lubricationCorrectionKernel, rpdDomain](const size_t idx1, const size_t idx2, auto& ac) {
+               mesa_pd::collision_detection::AnalyticContactDetection acd;
+               acd.getContactThreshold() = lubricationCorrectionKernel.getNormalCutOffDistance();
+               mesa_pd::kernel::DoubleCast double_cast;
+               mesa_pd::mpi::ContactFilter contact_filter;
+               if (double_cast(idx1, idx2, ac, acd, ac))
+               {
+                  if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *rpdDomain))
+                  {
+                     double_cast(idx1, idx2, ac, lubricationCorrectionKernel, ac, acd.getContactNormal(),
+                                 acd.getPenetrationDepth());
+                  }
+               }
+            },
+            *accessor);
+\endcode
+
+\section tutorial_lbm_psm_cpu_bcs LBM boundary conditions
+
+To prevent the spherical particle from exiting the simulation domain, we cover the domain with planes. These planes are then used to apply no-slip boundary conditions to all six boundaries of the domain.
+
+\code
+lbm_mesapd_coupling::ParticleMappingKernel< BoundaryHandling_T > particleMappingKernel(blocks, boundaryHandlingID);
+ps->forEachParticle(false, lbm_mesapd_coupling::GlobalParticlesSelector(), *accessor, particleMappingKernel,
+                       *accessor, NoSlip_Flag);
+\endcode
+
+\section tutorial_lbm_psm_cpu_init Initialization
+In contrast to the standard LBM, initializing the PDFs to their equilibrium in the PSM incorporates the particle velocities for cells overlapping with particles.
+This is a key difference that allows the PSM to accurately capture the dynamics of both the fluid and the particles in the simulation.
+
+\code
+lbm_mesapd_coupling::psm::initializeDomainForPSM< LatticeModel_T, 1 >(*blocks, pdfFieldID,
+                                                                         particleAndVolumeFractionFieldID, *accessor);
+\endcode
+
+\section tutorial_lbm_psm_cpu_buoyancy Buoyancy force
+The buoyancy force is the upward force exerted by the fluid on a particle. In reality, an object submerged in fluid experiences a net upward force due to the pressure difference at the top and bottom of the object, with the pressure at the bottom being greater than at the top.
+However, since we use the incompressible LBM, this pressure difference is not accounted for.
+To accurately represent this physics, we incorporate the buoyancy force into the gravitational force by subtracting the fluid density from the particle density.
+
+\code
+Vector3< real_t > gravitationalForce(real_t(0), real_t(0), -(densitySphere - densityFluid) * gravitationalAcceleration * sphereVolume);
+\endcode
+
+\tableofcontents
+
+*/
+
+}// namespace walberla
