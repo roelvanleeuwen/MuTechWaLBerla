@@ -28,12 +28,13 @@
 namespace walberla {
 namespace cuda {
 
-
    template<typename... GpuFields>
    void exportModuleToPython(py::module_ &m);
 
    template<typename... CpuFields>
    void exportCopyFunctionsToPython(py::module_ &m);
+
+   void exportUtilityFunctionsToPython(py::module_ &m);
 
 
 } // namespace cuda
