@@ -237,7 +237,8 @@ int main(int argc, char** argv)
    const real_t diameter_SI      = real_t(7.5e-3);
    const real_t densitySphere_SI = real_t(1120);
 
-   real_t densityFluid_SI, dynamicViscosityFluid_SI;
+   real_t densityFluid_SI;
+   real_t dynamicViscosityFluid_SI;
    real_t expectedSettlingVelocity_SI;
 
    // Re_p around 1.5
