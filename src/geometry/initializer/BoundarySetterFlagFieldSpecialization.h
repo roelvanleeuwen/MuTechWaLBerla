@@ -20,6 +20,8 @@
 //======================================================================================================================
 
 #pragma once
+#include <bitset>
+#include "core/logging/Logging.h"
 
 #include "core/Abort.h"
 #include "core/DataTypes.h"
@@ -136,7 +138,7 @@ namespace initializer {
    template<typename Flag_T>
    void BoundarySetter<FlagField<Flag_T>>::set( cell_idx_t x, cell_idx_t y, cell_idx_t z )
    {
-      Flag_T maxValue = -1;
+      Flag_T maxValue(-1);
       //Check if no flag is set yet to avoid multiple flags per cell
       if(!field::isPartOfMaskSet(flagField_->get(x,y,z), maxValue))
          flagField_->addFlag( x, y, z, flag_ );
@@ -145,7 +147,7 @@ namespace initializer {
    template<typename Flag_T>
    void BoundarySetter<FlagField<Flag_T>>::set( const CellInterval & ci )
    {
-      Flag_T maxValue = -1;
+      Flag_T maxValue(-1);
       for( auto it = flagField_->beginSliceXYZ(ci); it != flagField_->end(); ++it ) {
          //Check if no flag is set yet to avoid multiple flags per cell
          if(!field::isPartOfMaskSet(it, maxValue))
@@ -157,7 +159,7 @@ namespace initializer {
    template< typename CellIterator >
    void BoundarySetter<FlagField<Flag_T> >::set( const CellIterator & begin, const CellIterator & end )
    {
-      Flag_T maxValue = -1;
+      Flag_T maxValue(-1);
       for(auto it = begin; it != end; ++it) {
          //Check if no flag is set yet to avoid multiple flags per cell
          if(!field::isPartOfMaskSet(flagField_->get(it->x(),it->y(),it->z()), maxValue))
