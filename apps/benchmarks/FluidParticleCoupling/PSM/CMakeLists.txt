@@ -30,3 +30,7 @@ foreach (collision_setup srt trt)
         endforeach ()
     endforeach ()
 endforeach ()
+
+waLBerla_add_executable(NAME ObliqueWetCollisionPSM FILES ObliqueWetCollisionPSM.cpp
+        DEPENDS blockforest boundary core domain_decomposition field lbm lbm_mesapd_coupling mesa_pd
+        postprocessing timeloop vtk FluidParticleCouplingGeneratedLBM)
