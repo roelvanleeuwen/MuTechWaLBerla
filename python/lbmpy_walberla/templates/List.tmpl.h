@@ -409,11 +409,11 @@ template<typename FlagField_T, typename Stencil_T>
 class ListCommunicationSetup
 {
  public:
-   ListCommunicationSetup(const BlockDataID listId, const BlockDataID flagFieldID, weak_ptr<StructuredBlockForest> blockForest,  bool denseComm = false)
-      :listId_(listId), flagFieldID_(flagFieldID), blockForest_(blockForest), denseComm_(denseComm)
+   ListCommunicationSetup(weak_ptr<StructuredBlockForest> blockForest, const BlockDataID listId, const BlockDataID flagFieldID, const FlagUID fluidFlagUID,  bool hybridComm = false, const Set<SUID> & requiredBlockSelectors = Set<SUID>::emptySet(), const Set<SUID> & incompatibleBlockSelectors = Set<SUID>::emptySet())
+      :blockForest_(blockForest), listId_(listId), flagFieldID_(flagFieldID), fluidFlagUID_(fluidFlagUID) , hybridComm_(hybridComm), requiredBlockSelectors_( requiredBlockSelectors ), incompatibleBlockSelectors_( incompatibleBlockSelectors )
    {
-     if (denseComm_)
-       setupDenseCommunication();
+     if (hybridComm_)
+       setupHybridCommunication();
      else
        setupSparseCommunication();
    }
@@ -497,6 +497,7 @@ class ListCommunicationSetup
 
       blockSize_ = Vector3<cell_idx_t>( cell_idx_c(forest->getNumberOfXCellsPerBlock()), cell_idx_c(forest->getNumberOfYCellsPerBlock()), cell_idx_c(forest->getNumberOfZCellsPerBlock()) );
 
+      //get number of Blocks to send to each neighbour
       for( auto senderIt = forest->begin(); senderIt != forest->end(); ++senderIt )
       {
          blockforest::Block & sender = dynamic_cast<blockforest::Block &>( *senderIt );
@@ -515,6 +516,7 @@ class ListCommunicationSetup
 
       mpi::BufferSystem bufferSystem( mpi::MPIManager::instance()->comm() );
 
+      //Initialize bufferSystem with number of blocks send to process x
       for( auto it = numBlocksToSend.begin(); it != numBlocksToSend.end(); ++it )
       {
          WALBERLA_LOG_DETAIL( "Packing information for " << it->second << " blocks to send to process " << it->first );
@@ -642,7 +644,7 @@ class ListCommunicationSetup
       WALBERLA_LOG_PROGRESS( "Setting up list communication finished" )
    }
 
-   void setupDenseCommunication( )
+   void setupHybridCommunication( )
    {
       auto forest = blockForest_.lock();
       WALBERLA_CHECK_NOT_NULLPTR( forest, "Trying to execute communication for a block storage object that doesn't exist anymore" )
@@ -653,6 +655,7 @@ class ListCommunicationSetup
 
       blockSize_ = Vector3<cell_idx_t>( cell_idx_c(forest->getNumberOfXCellsPerBlock()), cell_idx_c(forest->getNumberOfYCellsPerBlock()), cell_idx_c(forest->getNumberOfZCellsPerBlock()) );
 
+      //get number of Blocks to send to each neighbour
       for( auto senderIt = forest->begin(); senderIt != forest->end(); ++senderIt )
       {
          blockforest::Block & sender = dynamic_cast<blockforest::Block &>( *senderIt );
@@ -670,19 +673,20 @@ class ListCommunicationSetup
 
       mpi::BufferSystem bufferSystem( mpi::MPIManager::instance()->comm() );
 
+      //Initialize bufferSystem with number of blocks send to process x
       for( auto it = numBlocksToSend.begin(); it != numBlocksToSend.end(); ++it )
       {
          WALBERLA_LOG_DETAIL( "Packing information for " << it->second << " blocks to send to process " << it->first );
          bufferSystem.sendBuffer( it->first ) << it->second;
       }
 
+      //send boundary cells of beginSliceBeforeGhostLayerXYZ to neighbour sparse blocks
       for( auto senderIt = forest->begin(); senderIt != forest->end(); ++senderIt )
       {
          blockforest::Block & sender = dynamic_cast<blockforest::Block &>( *senderIt );
-         auto * senderList = sender.getData< lbmpy::{{class_name}} >( listId_ );
          WALBERLA_ASSERT_NOT_NULLPTR( senderList )
          auto *flagField = sender.getData<FlagField_T>(flagFieldID_);
-         
+         auto fluidFlag = flagField->getFlag( fluidFlagUID_ );
 
          for (size_t sendDir = 1; sendDir < {{Q}}; ++sendDir)
          {
@@ -701,7 +705,7 @@ class ListCommunicationSetup
             {
                //get send information
                Cell cell(flagIt.x(), flagIt.y(), flagIt.z());
-               if (!senderList->isFluidCell(cell)) {
+               if (!flagField->isFlagSet(cell, fluidFlag)) {
                   isBoundary.push_back(cell);
                }
                ++flagIt;
@@ -719,7 +723,7 @@ class ListCommunicationSetup
       bufferSystem.sendAll();
       WALBERLA_LOG_PROGRESS( "MPI exchange of structure data finished" )
 
-
+      //recieve boundary cells of sparse blocks and set only pull indices of registered PDFs, which do not pull from boundary cell
       for( auto recvBufferIt = bufferSystem.begin(); recvBufferIt != bufferSystem.end(); ++recvBufferIt )
       {
          uint_t numBlocks;
@@ -732,6 +736,9 @@ class ListCommunicationSetup
             IBlock * localBlock = forest->getBlock( localBID );
             WALBERLA_ASSERT_NOT_NULLPTR( localBlock )
 
+            if( !selectable::isSetSelected( localBlock->getState(), requiredBlockSelectors_, incompatibleBlockSelectors_ ) )
+               continue;
+
             stencil::Direction receiveDir;
             uint_t numCells;
             recvBufferIt.buffer() >> receiveDir;
@@ -743,10 +750,7 @@ class ListCommunicationSetup
             {
                recvBufferIt.buffer() >> *it;
             }
-            /*WALBERLA_LOG_INFO("isBoundary in dir " << stencil::dirToString[receiveDir])
-            for(auto cell : isBoundary) {
-               WALBERLA_LOG_INFO(cell)
-            }*/
+
             WALBERLA_LOG_DETAIL( isBoundary.size() << " boundary cells found" );
 
             auto * senderList = localBlock->template getData< lbmpy::{{class_name}} >( listId_ );
@@ -779,10 +783,6 @@ class ListCommunicationSetup
                idx+=numeric_cast<{{index_type}}>(Stencil_T::d_per_d_length[receiveDir]);
                ++flagIt;
             }
-            //std::sort( externalPDFs.begin(), externalPDFs.end() );
-            /*for (auto pdf : externalPDFs) {
-               WALBERLA_LOG_INFO("Register " << pdf.cell << ", " << stencil::dirToString[pdf.dir])
-            }*/
             senderList->setStartCommIdx(senderList->registerExternalPDFsDense( externalPDFs, isBoundary), receiveDir);
             senderList->setNumCommPDFs(static_cast< {{index_type}} >( externalPDFs.size() ), receiveDir);
 
@@ -799,6 +799,8 @@ class ListCommunicationSetup
 
       for( auto blockIt = forest->begin(); blockIt != forest->end(); ++blockIt )
       {
+         if( !selectable::isSetSelected( blockIt->getState(), requiredBlockSelectors_, incompatibleBlockSelectors_ ) )
+            continue;
          blockforest::Block & block = dynamic_cast<blockforest::Block &>( *blockIt );
          auto * pdfList = block.getData< lbmpy::ListLBMList >( listId_ );
          pdfList->syncGPU();
@@ -808,11 +810,15 @@ class ListCommunicationSetup
    }
 
  protected:
+   weak_ptr<StructuredBlockForest> blockForest_;
    const BlockDataID listId_;
    const BlockDataID flagFieldID_;
-   weak_ptr<StructuredBlockForest> blockForest_;
+   const FlagUID fluidFlagUID_;
+
    Vector3< cell_idx_t > blockSize_;
-   bool denseComm_;
+   bool hybridComm_;
+   Set<SUID> requiredBlockSelectors_;
+   Set<SUID> incompatibleBlockSelectors_;
 };
 
 } // namespace lbmpy

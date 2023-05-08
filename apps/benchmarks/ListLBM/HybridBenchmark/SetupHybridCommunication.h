@@ -41,8 +41,8 @@ template<typename FlagField_T, typename Stencil_T>
 class SetupHybridCommunication
 {
  public:
-   SetupHybridCommunication( weak_ptr<StructuredBlockForest> blockForest, const BlockDataID flagFieldID, const FlagUID fluidFlagUID)
-      : blockForest_(blockForest), flagFieldID_(flagFieldID),  fluidFlagUID_(fluidFlagUID)
+   SetupHybridCommunication( weak_ptr<StructuredBlockForest> blockForest, const BlockDataID flagFieldID, const FlagUID fluidFlagUID, const Set<SUID> & requiredBlockSelectors = Set<SUID>::emptySet(), const Set<SUID> & incompatibleBlockSelectors = Set<SUID>::emptySet())
+      : blockForest_(blockForest), flagFieldID_(flagFieldID),  fluidFlagUID_(fluidFlagUID), requiredBlockSelectors_( requiredBlockSelectors ), incompatibleBlockSelectors_( incompatibleBlockSelectors )
    {
       auto forest = blockForest_.lock();
       WALBERLA_CHECK_NOT_NULLPTR( forest, "Trying to execute communication for a block storage object that doesn't exist anymore" )
@@ -55,6 +55,9 @@ class SetupHybridCommunication
 
       for( auto senderIt = forest->begin(); senderIt != forest->end(); ++senderIt )
       {
+         if( !selectable::isSetSelected( senderIt->getState(), requiredBlockSelectors_, incompatibleBlockSelectors_ ) )
+            continue;
+
          blockforest::Block & sender = dynamic_cast<blockforest::Block &>( *senderIt );
 
          for (size_t f = 1; f < Stencil_T::Size; ++f)
@@ -157,6 +160,8 @@ class SetupHybridCommunication
    const BlockDataID flagFieldID_;
    const FlagUID fluidFlagUID_;
    Vector3< cell_idx_t > blockSize_;
+   Set<SUID> requiredBlockSelectors_;
+   Set<SUID> incompatibleBlockSelectors_;
 };
 
 } // namespace walberla

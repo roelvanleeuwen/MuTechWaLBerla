@@ -111,7 +111,7 @@ def spheres():
 def Artery():
     scenarios = wlb.ScenarioManager()
     mesh_file = "Artery.obj"
-    scenario = Scenario(vtk_write_frequency=1000, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000, omega=1.9, cells_per_block=(10, 10, 10), porositySwitch=0.5)
+    scenario = Scenario(vtk_write_frequency=100, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000, omega=1.9, cells_per_block=(20, 20, 20), porositySwitch=0.5, time_step_strategy="noOverlap")
     scenarios.add(scenario)
 
 def particleBed():

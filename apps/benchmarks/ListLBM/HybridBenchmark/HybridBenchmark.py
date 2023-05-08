@@ -93,12 +93,10 @@ with CodeGeneration() as ctx:
     generate_info_header(ctx, 'SparseLBMInfoHeader', stencil_typedefs=stencil_typedefs, additional_code=list_template)
 
 
-
     ########################################## Dense kernels ###################################################
 
     pdfs, pdfs_tmp, = fields(f"pdfs({q}), pdfs_tmp({q}): double[3D]",  layout='fzyx')
     velocity_field, density_field = fields(f"velocity({stencil.D}), density(1): double[3D]", layout='fzyx')
-
 
     setter_assignments = macroscopic_values_setter(method, density=1.0, velocity=(0.0, 0.0, 0.0), pdfs=pdfs, streaming_pattern=lbm_config.streaming_pattern)
     generate_sweep(ctx, 'DenseMacroSetter', setter_assignments, target=Target.CPU)
@@ -109,13 +107,10 @@ with CodeGeneration() as ctx:
                                                    previous_timestep=Timestep.BOTH)
     generate_sweep(ctx, 'DenseMacroGetter', getter_assignments, target=Target.CPU)
 
-
-
     if not is_inplace(lbm_config.streaming_pattern):
         field_swaps=[(pdfs, pdfs_tmp)]
     else:
         field_swaps=[]
-
 
     lbm_opt = replace(lbm_opt, symbolic_field=pdfs, symbolic_temporary_field=pdfs_tmp)
 
@@ -125,9 +120,7 @@ with CodeGeneration() as ctx:
                                    inner_outer_split=inner_outer_split, field_swaps=field_swaps)
 
     generate_alternating_lbm_boundary(ctx, 'DenseUBB', ubb, method, field_name=pdfs.name, streaming_pattern=lbm_config.streaming_pattern, target=target)
-
     generate_alternating_lbm_boundary(ctx, 'DensePressure', fixed_density, method, field_name=pdfs.name, streaming_pattern=lbm_config.streaming_pattern, target=target)
-
     generate_alternating_lbm_boundary(ctx, 'DenseNoSlip', NoSlip(), method, field_name=pdfs.name, streaming_pattern=lbm_config.streaming_pattern, target=target)
 
     generate_lb_pack_info(ctx, 'DensePackInfo', stencil, pdfs, streaming_pattern=lbm_config.streaming_pattern, target=target, always_generate_separate_classes=True)
