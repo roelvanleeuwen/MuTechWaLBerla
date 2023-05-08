@@ -29,6 +29,7 @@
 #include "core/mpi/MPIManager.h"
 #include "core/mpi/Reduce.h"
 #include "core/timing/RemainingTimeLogger.h"
+#include "core/waLBerlaBuildInfo.h"
 
 #include "cuda/AddGPUFieldToStorage.h"
 #include "cuda/DeviceSelectMPI.h"
@@ -264,6 +265,8 @@ int main(int argc, char** argv)
 
    mpi::Environment env(argc, argv);
    cuda::selectDeviceBasedOnMpiRank();
+
+   WALBERLA_LOG_INFO_ON_ROOT("waLBerla revision: " << std::string(WALBERLA_GIT_SHA1).substr(0, 8));
 
    auto processes = MPIManager::instance()->numProcesses();
 
