@@ -20,6 +20,8 @@
 //======================================================================================================================
 
 #pragma once
+#include <bitset>
+#include "core/logging/Logging.h"
 
 #include "core/Abort.h"
 #include "core/DataTypes.h"
@@ -136,22 +138,33 @@ namespace initializer {
    template<typename Flag_T>
    void BoundarySetter<FlagField<Flag_T>>::set( cell_idx_t x, cell_idx_t y, cell_idx_t z )
    {
-      flagField_->addFlag( x, y, z, flag_ );
+      Flag_T noBitsSet(0);
+      //Check if no flag is set yet to avoid multiple flags per cell
+      if(flagField_->get(x,y,z) == noBitsSet)
+         flagField_->addFlag( x, y, z, flag_ );
    }
 
    template<typename Flag_T>
    void BoundarySetter<FlagField<Flag_T>>::set( const CellInterval & ci )
    {
-      for( auto it = flagField_->beginSliceXYZ(ci); it != flagField_->end(); ++it )
-         field::addFlag(it, flag_);
+      Flag_T noBitsSet(0);
+      for( auto it = flagField_->beginSliceXYZ(ci); it != flagField_->end(); ++it ) {
+         //Check if no flag is set yet to avoid multiple flags per cell
+         if(*it == noBitsSet)
+            field::addFlag(it, flag_);
+      }
    }
 
    template<typename Flag_T>
    template< typename CellIterator >
    void BoundarySetter<FlagField<Flag_T> >::set( const CellIterator & begin, const CellIterator & end )
    {
-      for(auto it = begin; it != end; ++it)
-         flagField_->addFlag(it->x(), it->y(), it->z(), flag_);
+      Flag_T noBitsSet(0);
+      for(auto it = begin; it != end; ++it) {
+         //Check if no flag is set yet to avoid multiple flags per cell
+         if(flagField_->get(it->x(),it->y(),it->z()) == noBitsSet)
+            flagField_->addFlag(it->x(), it->y(), it->z(), flag_);
+      }
    }
 
 } // namespace initializer
