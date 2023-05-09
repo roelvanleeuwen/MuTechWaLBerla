@@ -186,7 +186,7 @@ void initializeCouetteProfile(const shared_ptr< StructuredBlockStorage >& blocks
 {
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
-      auto velField         = blockIt->getData< VelocityField_T >(velFieldID);
+      auto velField = blockIt->getData< VelocityField_T >(velFieldID);
 
       WALBERLA_FOR_ALL_CELLS_XYZ(velField,
 
@@ -197,9 +197,8 @@ void initializeCouetteProfile(const shared_ptr< StructuredBlockStorage >& blocks
 
                                  velocity[0] = wallVelocity * coord[2] / domainHeight;
 
-                                 velField->get(x, y, z, 0) = velocity[0];
-                                 velField->get(x, y, z, 1) = velocity[1];
-                                 velField->get(x, y, z, 2) = velocity[2];)
+                                 velField->get(x, y, z, 0) = velocity[0]; velField->get(x, y, z, 1) = velocity[1];
+                                 velField->get(x, y, z, 2)                                          = velocity[2];)
    }
 }
 
