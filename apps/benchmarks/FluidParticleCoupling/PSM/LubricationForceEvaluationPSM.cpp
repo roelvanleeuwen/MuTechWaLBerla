@@ -13,20 +13,19 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file LubricationForceEvaluation.cpp
+//! \file LubricationForceEvaluationPSM.cpp
 //! \ingroup lbm_mesapd_coupling
+//! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //! \author Christoph Rettinger <christoph.rettinger@fau.de>
 //
 //======================================================================================================================
 
 #include "blockforest/Initialization.h"
-#include "blockforest/communication/UniformBufferedScheme.h"
 
 #include "boundary/all.h"
 
 #include "core/DataTypes.h"
 #include "core/Environment.h"
-#include "core/SharedFunctor.h"
 #include "core/debug/Debug.h"
 #include "core/debug/TestSubsystem.h"
 #include "core/logging/all.h"
@@ -35,29 +34,22 @@
 #include "core/timing/RemainingTimeLogger.h"
 #include "core/waLBerlaBuildInfo.h"
 
-#include "domain_decomposition/SharedSweep.h"
+#include "cuda/AddGPUFieldToStorage.h"
+#include "cuda/communication/UniformGPUScheme.h"
 
 #include "field/AddToStorage.h"
-#include "field/StabilityChecker.h"
-#include "field/communication/PackInfo.h"
 #include "field/vtk/all.h"
 
 #include "lbm/boundary/all.h"
-#include "lbm/communication/PdfFieldPackInfo.h"
 #include "lbm/field/AddToStorage.h"
 #include "lbm/field/PdfField.h"
 #include "lbm/lattice_model/D3Q19.h"
-#include "lbm/sweeps/CellwiseSweep.h"
-#include "lbm/sweeps/SweepWrappers.h"
 #include "lbm/vtk/all.h"
 
 #include "lbm_mesapd_coupling/DataTypes.h"
-#include "lbm_mesapd_coupling/mapping/ParticleMapping.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/MovingParticleMapping.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/boundary/CurvedLinear.h"
-#include "lbm_mesapd_coupling/momentum_exchange_method/boundary/SimpleBB.h"
+#include "lbm_mesapd_coupling/DataTypesGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/LubricationCorrectionKernel.h"
-#include "lbm_mesapd_coupling/utility/OmegaBulkAdaption.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
 
@@ -75,15 +67,14 @@
 #include "mesa_pd/mpi/SyncNextNeighbors.h"
 #include "mesa_pd/vtk/ParticleVtkOutput.h"
 
-#include "timeloop/SweepTimeloop.h"
-
 #include "vtk/all.h"
 
 #include <functional>
 
-#ifdef WALBERLA_BUILD_WITH_CODEGEN
-#   include "GeneratedLBM.h"
-#endif
+#include "InitializeDomainForPSM.h"
+#include "PSMPackInfo.h"
+#include "PSMSweep.h"
+#include "PSM_FreeSlip.h"
 
 namespace lubrication_force_evaluation
 {
@@ -94,12 +85,9 @@ namespace lubrication_force_evaluation
 
 using namespace walberla;
 using walberla::uint_t;
+using namespace lbm_mesapd_coupling::psm::cuda;
 
-#ifdef WALBERLA_BUILD_WITH_CODEGEN
-using LatticeModel_T = lbm::GeneratedLBM;
-#else
-using LatticeModel_T = lbm::D3Q19< lbm::collision_model::D3Q19MRT >;
-#endif
+using LatticeModel_T = lbm::D3Q19< lbm::collision_model::SRT >;
 
 using Stencil_T  = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField< LatticeModel_T >;
@@ -111,16 +99,14 @@ using ScalarField_T = GhostLayerField< real_t, 1 >;
 
 const uint_t FieldGhostLayers = 1;
 
+typedef pystencils::PSMPackInfo PackInfo_T;
+
 ///////////
 // FLAGS //
 ///////////
 
 const FlagUID Fluid_Flag("fluid");
 const FlagUID FreeSlip_Flag("free slip");
-const FlagUID MO_SBB_Flag("moving obstacle sbb");
-const FlagUID MO_CLI_Flag("moving obstacle cli");
-const FlagUID FormerMO_Flag("former moving obstacle");
-
 /////////////////////////////////////
 // BOUNDARY HANDLING CUSTOMIZATION //
 /////////////////////////////////////
@@ -129,13 +115,11 @@ class MyBoundaryHandling
 {
  public:
    using FreeSlip_T = lbm::FreeSlip< LatticeModel_T, FlagField_T >;
-   using MO_SBB_T   = lbm_mesapd_coupling::SimpleBB< LatticeModel_T, FlagField_T, ParticleAccessor_T >;
-   using MO_CLI_T   = lbm_mesapd_coupling::CurvedLinear< LatticeModel_T, FlagField_T, ParticleAccessor_T >;
-   using Type       = BoundaryHandling< FlagField_T, Stencil_T, FreeSlip_T, MO_SBB_T, MO_CLI_T >;
+   using Type       = BoundaryHandling< FlagField_T, Stencil_T, FreeSlip_T >;
 
-   MyBoundaryHandling(const BlockDataID& flagFieldID, const BlockDataID& pdfFieldID, const BlockDataID& particleFieldID,
+   MyBoundaryHandling(const BlockDataID& flagFieldID, const BlockDataID& pdfFieldID,
                       const shared_ptr< ParticleAccessor_T >& ac)
-      : flagFieldID_(flagFieldID), pdfFieldID_(pdfFieldID), particleFieldID_(particleFieldID), ac_(ac)
+      : flagFieldID_(flagFieldID), pdfFieldID_(pdfFieldID), ac_(ac)
    {}
 
    Type* operator()(IBlock* const block, const StructuredBlockStorage* const storage) const
@@ -143,18 +127,14 @@ class MyBoundaryHandling
       WALBERLA_ASSERT_NOT_NULLPTR(block);
       WALBERLA_ASSERT_NOT_NULLPTR(storage);
 
-      auto* flagField     = block->getData< FlagField_T >(flagFieldID_);
-      auto* pdfField      = block->getData< PdfField_T >(pdfFieldID_);
-      auto* particleField = block->getData< lbm_mesapd_coupling::ParticleField_T >(particleFieldID_);
+      auto* flagField = block->getData< FlagField_T >(flagFieldID_);
+      auto* pdfField  = block->getData< PdfField_T >(pdfFieldID_);
 
       const auto fluid =
          flagField->flagExists(Fluid_Flag) ? flagField->getFlag(Fluid_Flag) : flagField->registerFlag(Fluid_Flag);
 
-      Type* handling =
-         new Type("moving obstacle boundary handling", flagField, fluid,
-                  FreeSlip_T("FreeSlip", FreeSlip_Flag, pdfField, flagField, fluid),
-                  MO_SBB_T("SBB", MO_SBB_Flag, pdfField, flagField, particleField, ac_, fluid, *storage, *block),
-                  MO_CLI_T("CLI", MO_CLI_Flag, pdfField, flagField, particleField, ac_, fluid, *storage, *block));
+      Type* handling = new Type("moving obstacle boundary handling", flagField, fluid,
+                                FreeSlip_T("FreeSlip", FreeSlip_Flag, pdfField, flagField, fluid));
 
       const auto freeslip = flagField->getFlag(FreeSlip_Flag);
 
@@ -200,7 +180,6 @@ class MyBoundaryHandling
  private:
    const BlockDataID flagFieldID_;
    const BlockDataID pdfFieldID_;
-   const BlockDataID particleFieldID_;
 
    shared_ptr< ParticleAccessor_T > ac_;
 };
@@ -243,11 +222,6 @@ int main(int argc, char** argv)
    real_t ReynoldsNumber     = real_t(1e-2);
    real_t tau                = real_t(1);
    real_t gapSize            = real_t(0);
-   real_t bulkViscRateFactor = real_t(1);
-   real_t magicNumber        = real_t(3) / real_t(16);
-   bool useOmegaBulkAdaption = false;
-   real_t adaptionLayerSize  = real_t(2);
-   bool useSBB               = false;
 
    // 1: translation in normal direction -> normal Lubrication force
    // 2: translation in tangential direction -> tangential Lubrication force and torque
@@ -292,11 +266,6 @@ int main(int argc, char** argv)
          gapSize = real_c(std::atof(argv[++i]));
          continue;
       }
-      if (std::strcmp(argv[i], "--bulkViscRateFactor") == 0)
-      {
-         bulkViscRateFactor = real_c(std::atof(argv[++i]));
-         continue;
-      }
       if (std::strcmp(argv[i], "--tau") == 0)
       {
          tau = real_c(std::atof(argv[++i]));
@@ -305,26 +274,6 @@ int main(int argc, char** argv)
       if (std::strcmp(argv[i], "--fileName") == 0)
       {
          fileNameEnding = argv[++i];
-         continue;
-      }
-      if (std::strcmp(argv[i], "--magicNumber") == 0)
-      {
-         magicNumber = real_c(std::atof(argv[++i]));
-         continue;
-      }
-      if (std::strcmp(argv[i], "--useOmegaBulkAdaption") == 0)
-      {
-         useOmegaBulkAdaption = true;
-         continue;
-      }
-      if (std::strcmp(argv[i], "--adaptionLayerSize") == 0)
-      {
-         adaptionLayerSize = real_c(std::atof(argv[++i]));
-         continue;
-      }
-      if (std::strcmp(argv[i], "--useSBB") == 0)
-      {
-         useSBB = true;
          continue;
       }
       WALBERLA_ABORT("Unrecognized command line argument found: " << argv[i]);
@@ -338,7 +287,7 @@ int main(int argc, char** argv)
    uint_t ySize = uint_c(real_t(24) * radius);
    uint_t zSize = uint_c(real_t(24) * radius);
 
-   uint_t xBlocks = uint_c(4);      // number of blocks in x-direction
+   uint_t xBlocks = uint_c(1);      // number of blocks in x-direction
    uint_t yBlocks = uint_c(1);      // number of blocks in y-direction
    uint_t zBlocks = uint_c(1);      // number of blocks in z-direction
 
@@ -350,7 +299,6 @@ int main(int argc, char** argv)
    real_t omega     = real_t(1) / tau;
    real_t nu        = walberla::lbm::collision_model::viscosityFromOmega(omega);
    real_t velocity  = ReynoldsNumber * nu / (real_t(2) * radius);
-   real_t omegaBulk = lbm_mesapd_coupling::omegaBulkFromOmega(omega, bulkViscRateFactor);
 
    uint_t timesteps = uint_c(10000);
 
@@ -374,9 +322,6 @@ int main(int argc, char** argv)
             << "-------------------------------------------------------\n";
       }
       ss << " omega        = " << omega << "\n"
-         << " omegaBulk    = " << omegaBulk << " (bvrf " << bulkViscRateFactor << ")\n"
-         << " use omega bulk adaption = " << useOmegaBulkAdaption << " (adaption layer size = " << adaptionLayerSize
-         << ")\n"
          << " radius       = " << radius << "\n"
          << " velocity     = " << velocity << "\n"
          << " Re           = " << ReynoldsNumber << "\n"
@@ -384,7 +329,6 @@ int main(int argc, char** argv)
          << " time steps   = " << timesteps << "\n"
          << " fStokes      = " << fStokes << "\n"
          << " setup        = " << setup << "\n"
-         << " useSBB       = " << useSBB << "\n"
          << "-------------------------------------------------------\n"
          << " domainSize = " << xSize << " x " << ySize << " x " << zSize << "\n"
          << " blocks     = " << xBlocks << " x " << yBlocks << " x " << zBlocks << "\n"
@@ -572,44 +516,29 @@ int main(int argc, char** argv)
    // ADD DATA TO BLOCKS //
    ////////////////////////
 
-   // add omega bulk field
-   BlockDataID omegaBulkFieldID =
-      field::addToStorage< ScalarField_T >(blocks, "omega bulk field", omegaBulk, field::fzyx);
-
    // create the lattice model
-   real_t lambda_e = lbm::collision_model::TRT::lambda_e(omega);
-   real_t lambda_d = lbm::collision_model::TRT::lambda_d(omega, magicNumber);
-#ifdef WALBERLA_BUILD_WITH_CODEGEN
-   WALBERLA_LOG_INFO_ON_ROOT("Using generated TRT-like lattice model!");
-   LatticeModel_T latticeModel = LatticeModel_T(omegaBulkFieldID, lambda_d, lambda_e);
-#else
-   WALBERLA_LOG_INFO_ON_ROOT(
-      "Using waLBerla built-in MRT lattice model and ignoring omega bulk field since not supported!");
-   LatticeModel_T latticeModel =
-      LatticeModel_T(lbm::collision_model::D3Q19MRT(omegaBulk, omegaBulk, lambda_d, lambda_e, lambda_e, lambda_d));
-#endif
+   LatticeModel_T latticeModel = LatticeModel_T(omega);
 
    // add PDF field
    BlockDataID pdfFieldID = lbm::addPdfFieldToStorage< LatticeModel_T >(
       blocks, "pdf field", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::fzyx);
+   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field gpu");
    // add flag field
    BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
-
-   // add body field
-   BlockDataID particleFieldID = field::addToStorage< lbm_mesapd_coupling::ParticleField_T >(
-      blocks, "particle field", accessor->getInvalidUid(), field::fzyx, FieldGhostLayers);
 
    // add boundary handling
    using BoundaryHandling_T       = MyBoundaryHandling< ParticleAccessor_T >::Type;
    BlockDataID boundaryHandlingID = blocks->addStructuredBlockData< BoundaryHandling_T >(
-      MyBoundaryHandling< ParticleAccessor_T >(flagFieldID, pdfFieldID, particleFieldID, accessor),
-      "boundary handling");
+      MyBoundaryHandling< ParticleAccessor_T >(flagFieldID, pdfFieldID, accessor), "boundary handling");
+   WALBERLA_UNUSED(boundaryHandlingID);
+
+   lbm::PSM_FreeSlip freeSlip(blocks, pdfFieldGPUID);
+   freeSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, FlagUID("free slip"), Fluid_Flag);
 
    // set up RPD functionality
    std::function< void(void) > syncCall = [&ps, &rpdDomain]() {
-      const real_t overlap = real_t(1.5);
       mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
-      syncNextNeighborFunc(*ps, *rpdDomain, overlap);
+      syncNextNeighborFunc(*ps, *rpdDomain);
    };
 
    syncCall();
@@ -628,36 +557,36 @@ int main(int argc, char** argv)
 
    lbm_mesapd_coupling::RegularParticlesSelector sphereSelector;
 
-   lbm_mesapd_coupling::MovingParticleMappingKernel< BoundaryHandling_T > movingParticleMappingKernel(
-      blocks, boundaryHandlingID, particleFieldID);
-
    ///////////////
    // TIME LOOP //
    ///////////////
 
-   // map particles into the LBM simulation
-   if (useSBB)
+   ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, omega);
+   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, 10);
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
-      ps->forEachParticle(false, mesa_pd::kernel::SelectAll(), *accessor, movingParticleMappingKernel, *accessor,
-                          MO_SBB_Flag);
+      psmSweepCollection.particleMappingSweep(&(*blockIt));
    }
-   else
+
+   pystencils::InitializeDomainForPSM pdfSetter(
+      particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+      particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0), real_t(0), real_t(0),
+      real_t(1.0), real_t(0), real_t(0), real_t(0));
+
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
-      ps->forEachParticle(false, mesa_pd::kernel::SelectAll(), *accessor, movingParticleMappingKernel, *accessor,
-                          MO_CLI_Flag);
+      // pdfSetter requires particle velocities at cell centers
+      psmSweepCollection.setParticleVelocitiesSweep(&(*blockIt));
+      pdfSetter(&(*blockIt));
    }
 
    // create the timeloop
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   blockforest::communication::UniformBufferedScheme< Stencil_T > optimizedPDFCommunicationScheme(blocks);
-   optimizedPDFCommunicationScheme.addPackInfo(
-      make_shared< lbm::PdfFieldPackInfo< LatticeModel_T > >(pdfFieldID)); // optimized sync
-
-   blockforest::communication::UniformBufferedScheme< Stencil_T > fullPDFCommunicationScheme(blocks);
-   fullPDFCommunicationScheme.addPackInfo(
-      make_shared< field::communication::PackInfo< PdfField_T > >(pdfFieldID)); // full sync
+   cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);
+   com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
+   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 
@@ -680,7 +609,10 @@ int main(int argc, char** argv)
       // pdf field
       auto pdfFieldVTK = vtk::createVTKOutput_BlockData(blocks, "fluid_field", vtkIOFreq, 0, false, baseFolder);
 
-      pdfFieldVTK->addBeforeFunction(fullPDFCommunicationScheme);
+      pdfFieldVTK->addBeforeFunction(communication);
+
+      pdfFieldVTK->addBeforeFunction(
+         [&]() { cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID); });
 
       field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldID);
       fluidFilter.addFlag(Fluid_Flag);
@@ -692,41 +624,19 @@ int main(int argc, char** argv)
          make_shared< lbm::DensityVTKWriter< LatticeModel_T, float > >(pdfFieldID, "DensityFromPDF"));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(pdfFieldVTK), "VTK (fluid field data)");
-
-      // omega bulk field
-      timeloop.addFuncBeforeTimeStep(field::createVTKOutput< ScalarField_T, float >(omegaBulkFieldID, *blocks,
-                                                                                    "omega_bulk_field", vtkIOFreq,
-                                                                                    uint_t(0), false, baseFolder),
-                                     "VTK (omega bulk field)");
-   }
-
-   // update bulk omega in all cells to adapt to changed particle position
-   if (useOmegaBulkAdaption)
-   {
-      using OmegaBulkAdapter_T = lbm_mesapd_coupling::OmegaBulkAdapter< ParticleAccessor_T, decltype(sphereSelector) >;
-      real_t defaultOmegaBulk  = lbm_mesapd_coupling::omegaBulkFromOmega(omega, real_t(1));
-      shared_ptr< OmegaBulkAdapter_T > omegaBulkAdapter = make_shared< OmegaBulkAdapter_T >(
-         blocks, omegaBulkFieldID, accessor, defaultOmegaBulk, omegaBulk, adaptionLayerSize, sphereSelector);
-      for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
-      {
-         (*omegaBulkAdapter)(&(*blockIt));
-      }
    }
 
    // add LBM communication function and boundary handling sweep (does the hydro force calculations and the no-slip
    // treatment)
 
-   timeloop.add() << BeforeFunction(optimizedPDFCommunicationScheme, "LBM Communication")
-                  << Sweep(BoundaryHandling_T::getBlockSweep(boundaryHandlingID), "Boundary Handling");
+   timeloop.add() << BeforeFunction(communication, "LBM Communication")
+                  << Sweep(freeSlip.getSweep(), "Boundary Handling (FreeSlip)");
 
-   // stream + collide LBM step
-#ifdef WALBERLA_BUILD_WITH_CODEGEN
-   auto lbmSweep = LatticeModel_T::Sweep(pdfFieldID);
-   timeloop.add() << Sweep(lbmSweep, "LB sweep");
-#else
-   auto lbmSweep = lbm::makeCellwiseSweep< LatticeModel_T, FlagField_T >(pdfFieldID, flagFieldID, Fluid_Flag);
-   timeloop.add() << Sweep(makeSharedSweep(lbmSweep), "cell-wise LB sweep");
-#endif
+   pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+                                 particleAndVolumeFractionSoA.particleForcesFieldID,
+                                 particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
+                                 real_t(0.0), real_t(0.0), omega);
+   addPSMSweepsToTimeloop(timeloop, psmSweepCollection, PSMSweep);
 
    ////////////////////////
    // EXECUTE SIMULATION //
@@ -847,10 +757,6 @@ int main(int argc, char** argv)
       loggingFileName += "_Setup" + std::to_string(setup);
       loggingFileName += "_gapSize" + std::to_string(uint_c(gapSize * real_t(100)));
       loggingFileName += "_radius" + std::to_string(uint_c(radius));
-      loggingFileName += "_bvrf" + std::to_string(uint_c(bulkViscRateFactor));
-      loggingFileName += "_mn" + std::to_string(float(magicNumber));
-      if (useOmegaBulkAdaption) loggingFileName += "_uOBA" + std::to_string(uint_c(adaptionLayerSize));
-      if (useSBB) loggingFileName += "_SBB";
       if (!fileNameEnding.empty()) loggingFileName += "_" + fileNameEnding;
       loggingFileName += ".txt";
 
