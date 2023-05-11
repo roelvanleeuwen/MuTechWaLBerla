@@ -1,25 +1,26 @@
-from typing import Dict, Sequence, Tuple
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from dataclasses import replace
 import numpy as np
 
 from jinja2 import Environment, PackageLoader, StrictUndefined
 
-from pystencils import Target
-from pystencils import Field, create_kernel
-from pystencils.astnodes import KernelFunction
-from pystencils.typing import collate_types
-
-from pystencils_walberla.codegen import KernelInfo
-from lbmpy_walberla.sparse.jinja_filters import add_sparse_jinja_env
+from lbmpy import LBStencil, Stencil
+from lbmpy.advanced_streaming import Timestep, is_inplace, get_accessor
+from lbmpy.advanced_streaming.communication import _extend_dir
 from lbmpy.sparse import create_lb_update_rule_sparse
 
-from pystencils_walberla.codegen import generate_selective_sweep, config_from_context
-from pystencils_walberla.kernel_selection import AbstractInterfaceArgumentMapping, AbstractConditionNode, KernelCallNode, KernelFamily, HighLevelInterfaceSpec
-from lbmpy.creationfunctions import create_lb_ast
-from lbmpy.advanced_streaming import Timestep, is_inplace
+from pystencils import Assignment, Target,  Field, create_kernel, FieldType
+from pystencils.astnodes import KernelFunction
+from pystencils.stencil import inverse_direction, offset_to_direction_string
+from pystencils.backends.cbackend import get_headers
 
+from lbmpy_walberla.sparse.jinja_filters import add_sparse_jinja_env
 from lbmpy_walberla.alternating_sweeps import EvenIntegerCondition, OddIntegerCondition, TimestepTrackerMapping
+
+from pystencils_walberla.codegen import generate_selective_sweep, config_from_context, KernelInfo, comm_directions, generate_pack_info
+from pystencils_walberla.kernel_selection import AbstractInterfaceArgumentMapping, AbstractConditionNode, KernelCallNode, KernelFamily, HighLevelInterfaceSpec
+from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
+
 
 
 
@@ -98,7 +99,7 @@ def generate_sparse_pack_info(generation_context, class_name: str, stencil,
         cpu_openmp: if loops should use openMP or not.
         **create_kernel_params: remaining keyword arguments are passed to `pystencils.create_kernel`
     """
-    template_name = "CPUPackInfoSparse.tmpl" if target == Target.CPU else "GPUPackInfoSparse.tmpl"
+    template_name = "CpuPackInfoSparse.tmpl" if target == Target.CPU else "GpuPackInfoSparse.tmpl"
 
     jinja_context = {
         'class_name': class_name,
@@ -120,29 +121,12 @@ def generate_sparse_pack_info(generation_context, class_name: str, stencil,
 
 
 
-
-
 def generate_alternating_sparse_pack_info(generation_context, class_name: str, stencil, streaming_pattern,
-                              namespace='lbmpy', operator=None, gl_to_inner=False,
-                              target=Target.CPU, data_type=None,
-                              cpu_openmp=None, **create_kernel_params):
-    """Generates a waLBerla GPU PackInfo
+                                          namespace='lbmpy', operator=None, gl_to_inner=False,
+                                          target=Target.CPU, data_type=None,
+                                          cpu_openmp=None, **create_kernel_params):
 
-    Args:
-        generation_context: see documentation of `generate_sweep`
-        class_name: name of the generated class
-        directions_to_pack_terms: maps tuples of directions to read field accesses, specifying which values have to be
-                                  packed for which direction
-        namespace: inner namespace of the generated class
-        operator: optional operator for, e.g., reduction pack infos
-        gl_to_inner: communicates values from ghost layers of sender to interior of receiver
-        target: An pystencils Target to define cpu or gpu code generation. See pystencils.Target
-        data_type: default datatype for the kernel creation. Default is double
-        cpu_openmp: if loops should use openMP or not.
-        **create_kernel_params: remaining keyword arguments are passed to `pystencils.create_kernel`
-    """
-    template_name = "CPUPackInfoSparse.tmpl" if target == Target.CPU else "GPUPackInfoSparse.tmpl"
-
+    template_name = "CpuPackInfoSparse.tmpl" if target == Target.CPU else "GpuPackInfoSparse.tmpl"
 
     timesteps = ["Even", "Odd"]
     for timestep in timesteps:
@@ -170,6 +154,148 @@ def generate_alternating_sparse_pack_info(generation_context, class_name: str, s
         source_extension = "cpp" if target == Target.CPU else "cu"
         generation_context.write_file(f"{class_name_timestep}.h", header)
         generation_context.write_file(f"{class_name_timestep}.{source_extension}", source)
+
+
+
+def generate_hybrid_pack_info(generation_context, class_name_prefix: str, stencil, pdf_field,
+                              streaming_pattern='pull', lb_collision_rule=None,
+                              namespace='lbmpy', operator=None, target=Target.CPU,
+                              data_type=None, cpu_openmp=None, gl_to_inner=False,
+                              **create_kernel_params):
+
+    timesteps = [Timestep.EVEN, Timestep.ODD]
+
+    common_spec = defaultdict(set)
+
+    if lb_collision_rule is not None:
+        assignments = lb_collision_rule.all_assignments
+        reads = set()
+        for a in assignments:
+            if not isinstance(a, Assignment):
+                continue
+            reads.update(a.rhs.atoms(Field.Access))
+        for fa in reads:
+            assert all(abs(e) <= 1 for e in fa.offsets)
+            if all(offset == 0 for offset in fa.offsets):
+                continue
+            comm_direction = inverse_direction(fa.offsets)
+            for comm_dir in comm_directions(comm_direction):
+                common_spec[(comm_dir,)].add(fa.field.center(*fa.index))
+
+    full_stencil = LBStencil(Stencil.D3Q27) if stencil.D == 3 else LBStencil(Stencil.D2Q9)
+
+    for t in timesteps:
+        directions_to_pack_terms = common_spec.copy()
+        write_accesses = get_accessor(streaming_pattern, t).write(pdf_field, stencil)
+        for comm_dir in full_stencil:
+            if all(d == 0 for d in comm_dir):
+                continue
+
+            for streaming_dir in set(_extend_dir(comm_dir)) & set(stencil):
+                d = stencil.index(streaming_dir)
+                fa = write_accesses[d]
+                directions_to_pack_terms[(comm_dir,)].add(fa)
+        if t == Timestep.EVEN:
+            class_name_suffix = 'Even'
+        elif t == Timestep.ODD:
+            class_name_suffix = 'Odd'
+        else:
+            class_name_suffix = ''
+
+        class_name = class_name_prefix + class_name_suffix
+
+        if cpu_openmp:
+            raise ValueError("The packing kernels are already called inside an OpenMP parallel region. Thus "
+                             "additionally parallelising each kernel is not supported.")
+        items = [(e[0], sorted(e[1], key=lambda x: int(x.index[0]))) for e in directions_to_pack_terms.items()]
+        items = sorted(items, key=lambda e: e[0])
+        directions_to_pack_terms = OrderedDict(items)
+
+        config = config_from_context(generation_context, target=target, data_type=data_type, cpu_openmp=cpu_openmp,
+                                     **create_kernel_params)
+
+        config_zero_gl = config_from_context(generation_context, target=target, data_type=data_type, cpu_openmp=cpu_openmp,
+                                             ghost_layers=0, **create_kernel_params)
+
+        # Vectorisation of the pack info is not implemented.
+        config = replace(config, cpu_vectorize_info=None)
+        config_zero_gl = replace(config_zero_gl, cpu_vectorize_info=None)
+
+        config = replace(config, allow_double_writes=True)
+        config_zero_gl = replace(config_zero_gl, allow_double_writes=True)
+
+        template_name = "CpuPackInfoHybrid.tmpl" if config.target == Target.CPU else 'GpuPackInfoHybrid.tmpl'
+
+        fields_accessed = set()
+        for terms in directions_to_pack_terms.values():
+            for term in terms:
+                assert isinstance(term, Field.Access)  # and all(e == 0 for e in term.offsets)
+                fields_accessed.add(term)
+
+        field_names = {fa.field.name for fa in fields_accessed}
+
+        data_types = {fa.field.dtype for fa in fields_accessed}
+        if len(data_types) == 0:
+            raise ValueError("No fields to pack!")
+        if len(data_types) != 1:
+            err_detail = "\n".join(f" - {f.name} [{f.dtype}]" for f in fields_accessed)
+            raise NotImplementedError("Fields of different data types are used - this is not supported.\n" + err_detail)
+        dtype = data_types.pop()
+
+        pack_kernels = OrderedDict()
+        unpack_kernels = OrderedDict()
+        all_accesses = set()
+        elements_per_cell = OrderedDict()
+        for direction_set, terms in directions_to_pack_terms.items():
+            for d in direction_set:
+                if not all(abs(i) <= 1 for i in d):
+                    raise NotImplementedError("Only first neighborhood supported")
+
+            buffer = Field.create_generic('buffer', spatial_dimensions=1, field_type=FieldType.BUFFER,
+                                          dtype=dtype.numpy_dtype, index_shape=(len(terms),))
+
+            direction_strings = tuple(offset_to_direction_string(d) for d in direction_set)
+            all_accesses.update(terms)
+
+            pack_assignments = [Assignment(buffer(i), term) for i, term in enumerate(terms)]
+            pack_ast = create_kernel(pack_assignments, config=config_zero_gl)
+            pack_ast.function_name = 'pack_{}'.format("_".join(direction_strings))
+            if operator is None:
+                unpack_assignments = [Assignment(term, buffer(i)) for i, term in enumerate(terms)]
+            else:
+                unpack_assignments = [Assignment(term, operator(term, buffer(i))) for i, term in enumerate(terms)]
+            unpack_ast = create_kernel(unpack_assignments, config=config_zero_gl)
+            unpack_ast.function_name = 'unpack_{}'.format("_".join(direction_strings))
+
+            pack_kernels[direction_strings] = KernelInfo(pack_ast)
+            unpack_kernels[direction_strings] = KernelInfo(unpack_ast)
+            elements_per_cell[direction_strings] = len(terms)
+        fused_kernel = create_kernel([Assignment(buffer.center, t) for t in all_accesses], config=config)
+
+        jinja_context = {
+            'class_name': class_name,
+            'pack_kernels': pack_kernels,
+            'unpack_kernels': unpack_kernels,
+            'fused_kernel': KernelInfo(fused_kernel),
+            'elements_per_cell': elements_per_cell,
+            'headers': get_headers(fused_kernel),
+            'target': config.target.name.lower(),
+            'dtype': dtype,
+            'field_name': field_names.pop(),
+            'namespace': namespace,
+            'gl_to_inner': gl_to_inner,
+            'timestep': class_name_suffix
+        }
+        env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)
+        add_pystencils_filters_to_jinja_env(env)
+        header = env.get_template(template_name + ".h").render(**jinja_context)
+        source = env.get_template(template_name + ".cpp").render(**jinja_context)
+
+        source_extension = "cpp" if config.target == Target.CPU else "cu"
+        generation_context.write_file(f"{class_name}.h", header)
+        generation_context.write_file(f"{class_name}.{source_extension}", source)
+
+
 
 
 

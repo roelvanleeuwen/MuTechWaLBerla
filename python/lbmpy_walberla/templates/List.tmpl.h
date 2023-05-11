@@ -736,9 +736,6 @@ class ListCommunicationSetup
             IBlock * localBlock = forest->getBlock( localBID );
             WALBERLA_ASSERT_NOT_NULLPTR( localBlock )
 
-            if( !selectable::isSetSelected( localBlock->getState(), requiredBlockSelectors_, incompatibleBlockSelectors_ ) )
-               continue;
-
             stencil::Direction receiveDir;
             uint_t numCells;
             recvBufferIt.buffer() >> receiveDir;
@@ -750,6 +747,9 @@ class ListCommunicationSetup
             {
                recvBufferIt.buffer() >> *it;
             }
+
+            if( !selectable::isSetSelected( localBlock->getState(), requiredBlockSelectors_, incompatibleBlockSelectors_ ) )
+               continue;
 
             WALBERLA_LOG_DETAIL( isBoundary.size() << " boundary cells found" );
 
@@ -797,6 +797,7 @@ class ListCommunicationSetup
          }
       }
 
+      {% if target is equalto 'gpu' -%}
       for( auto blockIt = forest->begin(); blockIt != forest->end(); ++blockIt )
       {
          if( !selectable::isSetSelected( blockIt->getState(), requiredBlockSelectors_, incompatibleBlockSelectors_ ) )
@@ -805,6 +806,7 @@ class ListCommunicationSetup
          auto * pdfList = block.getData< lbmpy::ListLBMList >( listId_ );
          pdfList->syncGPU();
       }
+      {%- endif %}
 
       WALBERLA_LOG_PROGRESS( "Setting up list communication finished" )
    }

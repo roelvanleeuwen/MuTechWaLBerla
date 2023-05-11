@@ -78,6 +78,8 @@
 
 #include "SparseLBMInfoHeader.h"
 #include "DenseLBMInfoHeader.h"
+#include "HybridPackInfoEven.h"
+#include "HybridPackInfoOdd.h"
 #include "InitSpherePacking.h"
 #include "ReadParticleBoundaiesFromFile.h"
 #include <iostream>
@@ -180,6 +182,7 @@ int main(int argc, char **argv)
       const bool runBoundaries = parameters.getParameter< bool >("runBoundaries", true);
       const std::string timeStepStrategy = parameters.getParameter< std::string >("timeStepStrategy", "noOverlap");
       const real_t porositySwitch = parameters.getParameter< real_t >("porositySwitch");
+      const bool runHybrid = parameters.getParameter< bool >("runHybrid", true);
 
 
       Vector3< uint_t > cellsPerBlock;
@@ -201,8 +204,6 @@ int main(int argc, char **argv)
          cellsPerBlock      = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
          blocksPerDimension = domainParameters.getParameter< Vector3< uint_t > >("blocks");
       }
-      WALBERLA_LOG_INFO_ON_ROOT("CellsPerBlock " << cellsPerBlock)
-      WALBERLA_LOG_INFO_ON_ROOT("BlocksPerDimension " << blocksPerDimension)
 
       /////////////////////////
       /// BOUNDARY HANDLING ///
@@ -330,8 +331,8 @@ int main(int argc, char **argv)
          }
       }
 
-      const SUID sweepSelectHighPorosity("HighPorosity");
-      const SUID sweepSelectLowPorosity("LowPorosity");
+      const Set< SUID > sweepSelectHighPorosity("HighPorosity");
+      const Set< SUID > sweepSelectLowPorosity("LowPorosity");
 
       //Calculate Poriosity
       for (auto& block : *blocks)
@@ -346,21 +347,17 @@ int main(int argc, char **argv)
          for (auto it = flagField->begin(); it != flagField->end(); ++it)
          {
             if (isFlagSet(it, domainFlag))
-            {
                fluidCells++;
-            }
             numberOfCells++;
          }
          real_t blockPorosity = real_c(fluidCells) / real_c(numberOfCells);
-         if (blockPorosity > porositySwitch) {
+         if (blockPorosity > porositySwitch && runHybrid) {
             block.setState(sweepSelectHighPorosity);
          }
          else {
             block.setState(sweepSelectLowPorosity);
          }
       }
-      for (auto& block : *blocks)
-         WALBERLA_LOG_INFO("Block state of block " << block.getId() << " is " << block.getState())
 
 
 
@@ -374,7 +371,7 @@ int main(int argc, char **argv)
       BlockDataID velFieldId     = field::addToStorage< VelocityField_T >(blocks, "velocity", real_t(0), field::fzyx, uint_t(1), false, sweepSelectHighPorosity, sweepSelectLowPorosity);
       BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_t(1.0), field::fzyx, uint_t(1), false, sweepSelectHighPorosity, sweepSelectLowPorosity);
 #if defined(WALBERLA_BUILD_WITH_CUDA)
-      BlockDataID pdfFieldIdGPU = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldId, "PDFs on GPU", true); //TODO selectors missing
+      BlockDataID pdfFieldIdGPU = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldId, "PDFs on GPU", true, sweepSelectHighPorosity, sweepSelectLowPorosity);
 #endif
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -433,9 +430,7 @@ int main(int argc, char **argv)
          }
 
       }
-      WALBERLA_LOG_INFO("Before Setup Comm")
-      lbmpy::ListCommunicationSetup< FlagField_T, Stencil_T >(blocks, pdfListId, flagFieldId, fluidFlagUID, true, sweepSelectLowPorosity, sweepSelectHighPorosity);
-      WALBERLA_LOG_INFO("After Setup Comm")
+      lbmpy::ListCommunicationSetup< FlagField_T, Stencil_T >(blocks, pdfListId, flagFieldId, fluidFlagUID, runHybrid, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -444,6 +439,7 @@ int main(int argc, char **argv)
 
       auto tracker = make_shared<lbm::TimestepTracker>(0);
 #if defined(WALBERLA_BUILD_WITH_CUDA)
+      //TODO GPU Packinfo
       const bool cudaEnabledMPI = parameters.getParameter< bool >("cudaEnabledMPI", true);
       auto sparsePackInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbmpy::SparsePackInfoEven, lbmpy::SparsePackInfoOdd > >(tracker, pdfListId);
       auto densePackInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbm::DensePackInfoEven, lbm::DensePackInfoOdd > >(tracker, pdfFieldIdGPU);
@@ -451,23 +447,19 @@ int main(int argc, char **argv)
       cuda::communication::UniformGPUScheme< Stencil_T > denseComm(blocks, sweepSelectHighPorosity, sweepSelectLowPorosity, cudaEnabledMPI);
 
 #else
-      auto sparsePackInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbmpy::SparsePackInfoEven, lbmpy::SparsePackInfoOdd > >(tracker, pdfListId);
-      auto densePackInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbm::DensePackInfoEven, lbm::DensePackInfoOdd > >( tracker, pdfFieldId);
-      blockforest::communication::UniformBufferedScheme< Stencil_T > sparseComm(blocks, sweepSelectLowPorosity, sweepSelectHighPorosity);
-      blockforest::communication::UniformBufferedScheme< Stencil_T > denseComm(blocks, sweepSelectHighPorosity, sweepSelectLowPorosity);
+      auto packInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldId, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
+      blockforest::communication::UniformBufferedScheme< Stencil_T > comm(blocks);
 
 #endif
       WALBERLA_LOG_INFO_ON_ROOT("Finished setting up communication")
-      sparseComm.addPackInfo(sparsePackInfo);
-      denseComm.addPackInfo(densePackInfo);
-
+      comm.addPackInfo(packInfo);
 
 
       const auto emptySweep = [](IBlock*) {};
       SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
       if (timeStepStrategy == "noOverlap") {
-         timeloop.add() << BeforeFunction(sparseComm) << BeforeFunction(denseComm) << Sweep(emptySweep);
+         timeloop.add() << BeforeFunction(comm, "communication") << Sweep(emptySweep);
          if(runBoundaries) {
             timeloop.add() << Sweep(denseNoSlip.getSweep(tracker), "denseNoslip", sweepSelectHighPorosity, sweepSelectLowPorosity);
             timeloop.add() << Sweep(sparseUbb.getSweep(tracker), "sparseUbb", sweepSelectLowPorosity, sweepSelectHighPorosity)

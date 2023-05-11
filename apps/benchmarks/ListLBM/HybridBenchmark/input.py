@@ -15,7 +15,7 @@ class Scenario:
     def __init__(self, cells_per_block=(64, 64, 20),
                  timesteps=1000, time_step_strategy="noOverlap", omega=0.8, cuda_enabled_mpi=True,
                  inner_outer_split=(1, 1, 1), vtk_write_frequency=0, inflow_velocity=(0.01,0,0),
-                 porosity=0.5, porositySwitch=0.8, geometry_setup="randomNoslip",
+                 porosity=0.5, porositySwitch=0.8, run_hybrid = True, geometry_setup="randomNoslip",
                  spheres_radius=9, sphere_shift = 10, sphere_fill = (1.0, 1.0, 1.0), mesh_file="None", run_boundaries=True):
 
         self.timesteps = timesteps
@@ -31,7 +31,7 @@ class Scenario:
         self.time_step_strategy = time_step_strategy
         self.cuda_enabled_mpi = cuda_enabled_mpi
         self.run_boundaries = run_boundaries
-
+        self.run_hybrid = run_hybrid
         self.omega = omega
 
         self.geometry_setup = geometry_setup
@@ -64,9 +64,12 @@ class Scenario:
                 'cudaEnabledMPI': self.cuda_enabled_mpi,
                 'vtkWriteFrequency': self.vtkWriteFrequency,
                 'porositySwitch': self.porositySwitch,
+                'runHybrid': self.run_hybrid,
                 'porosity': self.porosity,
                 'runBoundaries': self.run_boundaries,
                 'remainingTimeLoggerFrequency': 10,
+
+
                 'SpheresRadius': self.spheres_radius,
                 'SphereShift': self.sphere_shift,
                 'SphereFillDomainRatio':self.sphere_fill,
@@ -111,7 +114,7 @@ def spheres():
 def Artery():
     scenarios = wlb.ScenarioManager()
     mesh_file = "Artery.obj"
-    scenario = Scenario(vtk_write_frequency=100, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000, omega=1.9, cells_per_block=(20, 20, 20), porositySwitch=0.5, time_step_strategy="noOverlap")
+    scenario = Scenario(vtk_write_frequency=100, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000, omega=1.9, cells_per_block=(20, 20, 20), porositySwitch=0.8, run_hybrid=True, time_step_strategy="noOverlap")
     scenarios.add(scenario)
 
 def particleBed():

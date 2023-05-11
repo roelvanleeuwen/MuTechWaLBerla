@@ -13,7 +13,7 @@ from lbmpy.advanced_streaming import is_inplace, Timestep
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter, macroscopic_values_getter
 
 from pystencils_walberla import CodeGeneration, generate_sweep, generate_info_header
-from lbmpy_walberla.sparse import generate_list_class, generate_sparse_sweep, generate_sparse_boundary, generate_sparse_pack_info, generate_alternating_sparse_lbm_sweep, generate_alternating_sparse_boundary, generate_alternating_sparse_pack_info
+from lbmpy_walberla.sparse import generate_list_class, generate_sparse_sweep, generate_sparse_boundary, generate_sparse_pack_info, generate_alternating_sparse_lbm_sweep, generate_alternating_sparse_boundary, generate_alternating_sparse_pack_info, generate_hybrid_pack_info
 from lbmpy_walberla import generate_alternating_lbm_sweep, generate_lb_pack_info, generate_alternating_lbm_boundary
 
 with CodeGeneration() as ctx:
@@ -127,3 +127,5 @@ with CodeGeneration() as ctx:
 
     field_typedefs = {'PdfField_T': pdfs, 'VelocityField_T': velocity_field, 'ScalarField_T': density_field}
     generate_info_header(ctx, 'DenseLBMInfoHeader', stencil_typedefs=stencil_typedefs, field_typedefs=field_typedefs)
+
+    generate_hybrid_pack_info(ctx, 'HybridPackInfo', stencil, pdfs, streaming_pattern=lbm_config.streaming_pattern, target=target)
