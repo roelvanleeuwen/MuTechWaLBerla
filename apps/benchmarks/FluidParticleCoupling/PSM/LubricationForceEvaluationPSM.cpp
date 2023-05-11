@@ -218,10 +218,10 @@ int main(int argc, char** argv)
    std::string fileNameEnding = "";
    std::string baseFolder     = "vtk_out_Lubrication";
 
-   real_t radius             = real_t(5);
-   real_t ReynoldsNumber     = real_t(1e-2);
-   real_t tau                = real_t(1);
-   real_t gapSize            = real_t(0);
+   real_t radius         = real_t(5);
+   real_t ReynoldsNumber = real_t(1e-2);
+   real_t tau            = real_t(1);
+   real_t gapSize        = real_t(0);
 
    // 1: translation in normal direction -> normal Lubrication force
    // 2: translation in tangential direction -> tangential Lubrication force and torque
@@ -296,9 +296,9 @@ int main(int argc, char** argv)
    uint_t zCells = zSize / zBlocks; // number of cells in z-direction on each block
 
    // Perform missing variable calculations
-   real_t omega     = real_t(1) / tau;
-   real_t nu        = walberla::lbm::collision_model::viscosityFromOmega(omega);
-   real_t velocity  = ReynoldsNumber * nu / (real_t(2) * radius);
+   real_t omega    = real_t(1) / tau;
+   real_t nu       = walberla::lbm::collision_model::viscosityFromOmega(omega);
+   real_t velocity = ReynoldsNumber * nu / (real_t(2) * radius);
 
    uint_t timesteps = uint_c(10000);
 
