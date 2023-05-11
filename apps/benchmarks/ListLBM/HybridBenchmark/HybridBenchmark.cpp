@@ -438,14 +438,11 @@ int main(int argc, char **argv)
       ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
       auto tracker = make_shared<lbm::TimestepTracker>(0);
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-      //TODO GPU Packinfo
-      const bool cudaEnabledMPI = parameters.getParameter< bool >("cudaEnabledMPI", true);
-      auto sparsePackInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbmpy::SparsePackInfoEven, lbmpy::SparsePackInfoOdd > >(tracker, pdfListId);
-      auto densePackInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbm::DensePackInfoEven, lbm::DensePackInfoOdd > >(tracker, pdfFieldIdGPU);
-      cuda::communication::UniformGPUScheme< Stencil_T > sparseComm(blocks, cudaEnabledMPI, sweepSelectLowPorosity, sweepSelectHighPorosity, cudaEnabledMPI);
-      cuda::communication::UniformGPUScheme< Stencil_T > denseComm(blocks, sweepSelectHighPorosity, sweepSelectLowPorosity, cudaEnabledMPI);
 
+#if defined(WALBERLA_BUILD_WITH_CUDA)
+      const bool cudaEnabledMPI = parameters.getParameter< bool >("cudaEnabledMPI", true);
+      auto packInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldId, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
+      cuda::communication::UniformGPUScheme< Stencil_T > comm(blocks, cudaEnabledMPI);
 #else
       auto packInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldId, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
       blockforest::communication::UniformBufferedScheme< Stencil_T > comm(blocks);
