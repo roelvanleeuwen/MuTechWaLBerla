@@ -80,6 +80,7 @@ struct InitObject
 
             pythonManager->addExporterFunction( cuda::exportModuleToPython<GPU_FIELD_TYPES> );
             pythonManager->addExporterFunction( cuda::exportCopyFunctionsToPython<FIELD_TYPES> );
+            pythonManager->addExporterFunction( cuda::exportUtilityFunctionsToPython );
             pythonManager->addBlockDataConversion<GPU_FIELD_TYPES>();
       #endif
       //

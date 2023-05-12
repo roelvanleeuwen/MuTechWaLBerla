@@ -24,6 +24,7 @@
 #include "core/logging/Logging.h"
 
 #include "cuda/AddGPUFieldToStorage.h"
+#include "cuda/DeviceSelectMPI.h"
 #include "cuda/FieldCopy.h"
 #include "cuda/GPUField.h"
 #include "cuda/communication/GPUPackInfo.h"
@@ -383,6 +384,13 @@ void exportCopyFunctionsToPython(py::module_ &m)
         return internal::copyFieldToGPU<CpuFields...>(blocks, gpuFieldName, cpuFieldName, false);
       },
       "blocks"_a, "gpuFieldName"_a, "cpuFieldName"_a);
+}
+
+void exportUtilityFunctionsToPython(py::module_ &m)
+{
+   py::module_ m2 = m.def_submodule("cuda", "Cuda Extension of the waLBerla python bindings");
+
+   m2.def( "select_device_based_on_mpi_rank", &cuda::selectDeviceBasedOnMpiRank);
 }
 
 
