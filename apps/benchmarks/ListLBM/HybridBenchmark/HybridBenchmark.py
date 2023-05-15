@@ -98,13 +98,13 @@ with CodeGeneration() as ctx:
     pdfs, pdfs_tmp, = fields(f"pdfs({q}), pdfs_tmp({q}): double[3D]",  layout='fzyx')
     velocity_field, density_field = fields(f"velocity({stencil.D}), density(1): double[3D]", layout='fzyx')
 
-    setter_assignments = macroscopic_values_setter(method, density=1.0, velocity=(0.0, 0.0, 0.0), pdfs=pdfs, streaming_pattern=lbm_config.streaming_pattern)
+    setter_assignments = macroscopic_values_setter(method, density=1.0, velocity=(0.0, 0.0, 0.0), pdfs=pdfs, streaming_pattern=lbm_config.streaming_pattern, previous_timestep=Timestep.EVEN)
     generate_sweep(ctx, 'DenseMacroSetter', setter_assignments, target=Target.CPU)
 
     getter_assignments = macroscopic_values_getter(method, density=density_field, velocity=velocity_field.center_vector,
                                                    pdfs=pdfs,
                                                    streaming_pattern=lbm_config.streaming_pattern,
-                                                   previous_timestep=Timestep.BOTH)
+                                                   previous_timestep=Timestep.EVEN)
     generate_sweep(ctx, 'DenseMacroGetter', getter_assignments, target=Target.CPU)
 
     if not is_inplace(lbm_config.streaming_pattern):

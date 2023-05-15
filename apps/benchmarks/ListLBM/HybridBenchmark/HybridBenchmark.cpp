@@ -42,12 +42,14 @@
 
 #include "mesh/blockforest/BlockExclusion.h"
 #include "mesh/blockforest/BlockForestInitialization.h"
+#include "mesh/blockforest/BlockWorkloadMemory.h"
 #include "mesh/boundary/BoundaryInfo.h"
 #include "mesh/boundary/BoundaryLocation.h"
 #include "mesh/boundary/BoundaryLocationFunction.h"
 #include "mesh/boundary/BoundarySetup.h"
 #include "mesh/boundary/BoundaryUIDFaceDataSource.h"
 #include "mesh/boundary/ColorToBoundaryMapper.h"
+
 #include "mesh_common/DistanceComputations.h"
 #include "mesh_common/DistanceFunction.h"
 #include "mesh_common/MatrixVectorOperations.h"
@@ -182,7 +184,7 @@ int main(int argc, char **argv)
       const bool runBoundaries = parameters.getParameter< bool >("runBoundaries", true);
       const std::string timeStepStrategy = parameters.getParameter< std::string >("timeStepStrategy", "noOverlap");
       const real_t porositySwitch = parameters.getParameter< real_t >("porositySwitch");
-      const bool runHybrid = parameters.getParameter< bool >("runHybrid", true);
+      const bool runHybrid = parameters.getParameter< bool >("runHybrid", false);
 
 
       Vector3< uint_t > cellsPerBlock;
@@ -261,7 +263,15 @@ int main(int argc, char **argv)
          const Vector3< real_t > dx(0.1, 0.1, 0.1);
 
          mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, dx, mesh::makeExcludeMeshExterior(distanceOctree, dx[0]));
+
+         auto meshWorkloadMemory = mesh::makeMeshWorkloadMemory( distanceOctree, dx[0] );
+         meshWorkloadMemory.setInsideCellWorkload(1);
+         meshWorkloadMemory.setOutsideCellWorkload(0);
+         bfc.setWorkloadMemorySUIDAssignmentFunction( meshWorkloadMemory );
+
          blocks = bfc.createStructuredBlockForest(cellsPerBlock);
+
+         WALBERLA_LOG_INFO("Number of blocks is " << blocks->getNumberOfBlocks())
 
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          mesh::BoundarySetup boundarySetup(blocks, makeMeshDistanceFunction(distanceOctree), numGhostLayers);
@@ -445,6 +455,7 @@ int main(int argc, char **argv)
       cuda::communication::UniformGPUScheme< Stencil_T > comm(blocks, cudaEnabledMPI);
 #else
       auto packInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldId, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
+
       blockforest::communication::UniformBufferedScheme< Stencil_T > comm(blocks);
 
 #endif
@@ -464,11 +475,40 @@ int main(int argc, char **argv)
             timeloop.add() << Sweep(sparsePressureOutflow.getSweep(tracker), "sparsePressureOutflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
                            << Sweep(densePressureOutflow.getSweep(tracker), "densePressureOutflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
          }
+         timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
          timeloop.add() << Sweep(sparseKernel.getSweep(tracker), "sparseKernel", sweepSelectLowPorosity, sweepSelectHighPorosity)
                         << Sweep(denseKernel.getSweep(tracker), "denseKernel", sweepSelectHighPorosity, sweepSelectLowPorosity);
       }
       else if (timeStepStrategy == "Overlap"){
+         //start communication
+         timeloop.add() << BeforeFunction(comm.getStartCommunicateFunctor(), "communication") << Sweep(emptySweep);
 
+         //run inner boundaries
+         if(runBoundaries) {
+            timeloop.add() << Sweep(denseNoSlip.getInnerSweep(tracker), "denseNoslip inner", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(sparseUbb.getInnerSweep(tracker), "sparseUbb inner", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(denseUbb.getInnerSweep(tracker), "denseUbb inner", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(sparsePressureOutflow.getInnerSweep(tracker), "sparsePressureOutflow inner", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(densePressureOutflow.getInnerSweep(tracker), "densePressureOutflow inner", sweepSelectHighPorosity, sweepSelectLowPorosity);
+         }
+         //increase tracker and run inner LBM kernel
+         timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
+         timeloop.add() << Sweep(sparseKernel.getInnerSweep(tracker), "parseKernel inner", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                        << Sweep(denseKernel.getInnerSweep(tracker), "denseKernel inner", sweepSelectHighPorosity, sweepSelectLowPorosity);
+
+         //decrease tracker and run wait communication and outer boundaries
+         timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << BeforeFunction(comm.getWaitFunctor(), "communication") << Sweep(emptySweep);
+         if(runBoundaries) {
+            timeloop.add() << Sweep(denseNoSlip.getOuterSweep(tracker), "denseNoslip outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(sparseUbb.getOuterSweep(tracker), "sparseUbb outer", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(denseUbb.getOuterSweep(tracker), "denseUbb outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(sparsePressureOutflow.getOuterSweep(tracker), "sparsePressureOutflow outer", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(densePressureOutflow.getOuterSweep(tracker), "densePressureOutflow outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
+         }
+         //increase tracker again and run outer LBM kernel
+         timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
+         timeloop.add() << Sweep(sparseKernel.getOuterSweep(tracker), "sparseKernel outer", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                        << Sweep(denseKernel.getOuterSweep(tracker), "denseKernel outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
       }
       else if (timeStepStrategy == "kernelOnly")
       {
@@ -515,7 +555,7 @@ int main(int argc, char **argv)
          sparseVtkOutput->addCellDataWriter(velWriter);
          sparseVtkOutput->addCellDataWriter(densityWriter);
 
-         timeloop.addFuncAfterTimeStep(vtk::writeFiles(sparseVtkOutput, true, 0, sweepSelectLowPorosity, sweepSelectHighPorosity), "VTK Output Sparse");
+         timeloop.addFuncBeforeTimeStep(vtk::writeFiles(sparseVtkOutput, true, 0, sweepSelectLowPorosity, sweepSelectHighPorosity), "VTK Output Sparse");
          vtk::writeDomainDecomposition(blocks, "domain_decompositionSparse", "vtk_out", "write_call", true, true, 0, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
 
@@ -545,7 +585,7 @@ int main(int argc, char **argv)
          denseVtkOutput->addCellDataWriter(denseVelWriter);
          denseVtkOutput->addCellDataWriter(denseDensityWriter);
 
-         timeloop.addFuncAfterTimeStep(vtk::writeFiles(denseVtkOutput, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity), "VTK Output Dense");
+         timeloop.addFuncBeforeTimeStep(vtk::writeFiles(denseVtkOutput, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity), "VTK Output Dense");
          vtk::writeDomainDecomposition(blocks, "domain_decompositionDense", "vtk_out", "write_call", true, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity);
       }
 
@@ -580,6 +620,7 @@ int main(int argc, char **argv)
 
       WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
       real_t time = simTimer.max();
+      WALBERLA_LOG_INFO(performance.mflupsPerProcess(timesteps, time));
       WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
       performance.logResultOnRoot(timesteps, time);
 

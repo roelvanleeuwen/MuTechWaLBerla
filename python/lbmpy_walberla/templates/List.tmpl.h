@@ -409,11 +409,14 @@ template<typename FlagField_T, typename Stencil_T>
 class ListCommunicationSetup
 {
  public:
-   ListCommunicationSetup(weak_ptr<StructuredBlockForest> blockForest, const BlockDataID listId, const BlockDataID flagFieldID, const FlagUID fluidFlagUID,  bool hybridComm = false, const Set<SUID> & requiredBlockSelectors = Set<SUID>::emptySet(), const Set<SUID> & incompatibleBlockSelectors = Set<SUID>::emptySet())
+   ListCommunicationSetup(weak_ptr<StructuredBlockForest> blockForest, const BlockDataID listId, const BlockDataID flagFieldID = BlockDataID(), const FlagUID fluidFlagUID = "",  bool hybridComm = false, const Set<SUID> & requiredBlockSelectors = Set<SUID>::emptySet(), const Set<SUID> & incompatibleBlockSelectors = Set<SUID>::emptySet())
       :blockForest_(blockForest), listId_(listId), flagFieldID_(flagFieldID), fluidFlagUID_(fluidFlagUID) , hybridComm_(hybridComm), requiredBlockSelectors_( requiredBlockSelectors ), incompatibleBlockSelectors_( incompatibleBlockSelectors )
    {
-     if (hybridComm_)
+     if (hybridComm_) {
+       WALBERLA_ASSERT_UNEQUAL(flagFieldID, BlockDataID())
+       WALBERLA_ASSERT_UNEQUAL(fluidFlagUID, "")
        setupHybridCommunication();
+     }
      else
        setupSparseCommunication();
    }
@@ -522,7 +525,7 @@ class ListCommunicationSetup
          WALBERLA_LOG_DETAIL( "Packing information for " << it->second << " blocks to send to process " << it->first );
          bufferSystem.sendBuffer( it->first ) << it->second;
       }
-
+      //send fluid cells on MPI interface to neighbor block (cells are mapped to GL of neighbor block)
       for( auto senderIt = forest->begin(); senderIt != forest->end(); ++senderIt )
       {
          blockforest::Block & sender = dynamic_cast<blockforest::Block &>( *senderIt );
@@ -633,13 +636,14 @@ class ListCommunicationSetup
             {%- endif %}
          }
       }
-
+      {% if target is equalto 'gpu' -%}
       for( auto blockIt = forest->begin(); blockIt != forest->end(); ++blockIt )
       {
          blockforest::Block & block = dynamic_cast<blockforest::Block &>( *blockIt );
          auto * pdfList = block.getData< lbmpy::ListLBMList >( listId_ );
          pdfList->syncGPU();
       }
+      {%- endif %}
 
       WALBERLA_LOG_PROGRESS( "Setting up list communication finished" )
    }
@@ -690,7 +694,7 @@ class ListCommunicationSetup
 
          for (size_t sendDir = 1; sendDir < {{Q}}; ++sendDir)
          {
-            auto neighborhood = sender.getNeighborhoodSection( blockforest::getBlockNeighborhoodSectionIndex( (stencil::Direction) sendDir ) );
+         auto neighborhood = sender.getNeighborhoodSection( blockforest::getBlockNeighborhoodSectionIndex( (stencil::Direction) sendDir ) );
             WALBERLA_ASSERT_LESS_EQUAL( neighborhood.size(), size_t( 1 ) )
             if( neighborhood.empty() )
                continue;

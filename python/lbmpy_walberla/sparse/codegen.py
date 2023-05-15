@@ -204,6 +204,13 @@ def generate_hybrid_pack_info(generation_context, class_name_prefix: str, stenci
 
         class_name = class_name_prefix + class_name_suffix
 
+        if streaming_pattern == 'aa':
+            real_timestep = class_name_suffix
+        elif streaming_pattern == 'pull':
+            real_timestep = "Even"
+        else:
+            ValueError("Packinfo for streaming pattern", streaming_pattern, "not implemented")
+
         if cpu_openmp:
             raise ValueError("The packing kernels are already called inside an OpenMP parallel region. Thus "
                              "additionally parallelising each kernel is not supported.")
@@ -284,7 +291,7 @@ def generate_hybrid_pack_info(generation_context, class_name_prefix: str, stenci
             'field_name': field_names.pop(),
             'namespace': namespace,
             'gl_to_inner': gl_to_inner,
-            'timestep': class_name_suffix
+            'timestep': real_timestep
         }
         env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)
         add_pystencils_filters_to_jinja_env(env)

@@ -221,6 +221,10 @@ public:
                  startidx++;
                  auto element = IndexInfo(in, out,  int32_c(f) );
                  indexVectorAll.push_back( element );
+                 if( inner.contains( it.x(), it.y(), it.z() ) )
+                    indexVectorInner.push_back( element );
+                 else
+                    indexVectorOuter.push_back( element );
                  pdfsToRegister.push_back(lbm::CellDir( Cell(it.x(), it.y(), it.z()) + Cell(cx[f], cy[f], cz[f]), inv_dir[f] ));
 
               }
