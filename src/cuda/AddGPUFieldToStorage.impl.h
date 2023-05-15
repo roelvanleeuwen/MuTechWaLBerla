@@ -71,10 +71,12 @@ namespace cuda {
                                     uint_t fSize,
                                     const Layout layout,
                                     uint_t nrOfGhostLayers,
-                                    bool usePitchedMem )
+                                    bool usePitchedMem,
+                                    const Set<SUID> & requiredSelectors,
+                                    const Set<SUID> & incompatibleSelectors)
    {
       auto func = std::bind ( internal::createGPUField<GPUField_T>, std::placeholders::_1, std::placeholders::_2, nrOfGhostLayers, fSize, layout, usePitchedMem );
-      return bs->addStructuredBlockData< GPUField_T >( func, identifier );
+      return bs->addStructuredBlockData< GPUField_T >( func, identifier, requiredSelectors, incompatibleSelectors );
    }
 
 
@@ -82,10 +84,12 @@ namespace cuda {
    BlockDataID addGPUFieldToStorage( const shared_ptr< StructuredBlockStorage > & bs,
                                      ConstBlockDataID cpuFieldID,
                                      const std::string & identifier,
-                                     bool usePitchedMem )
+                                     bool usePitchedMem,
+                                     const Set<SUID> & requiredSelectors,
+                                     const Set<SUID> & incompatibleSelectors)
    {
       auto func = std::bind ( internal::createGPUFieldFromCPUField<Field_T>, std::placeholders::_1, std::placeholders::_2, cpuFieldID, usePitchedMem );
-      return bs->addStructuredBlockData< GPUField<typename Field_T::value_type> >( func, identifier );
+      return bs->addStructuredBlockData< GPUField<typename Field_T::value_type> >( func, identifier, requiredSelectors, incompatibleSelectors );
    }
 
 

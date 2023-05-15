@@ -74,7 +74,7 @@ with CodeGeneration() as ctx:
     sparse_setter_eqs = create_macroscopic_value_setter_sparse(method, pdfs, 1.0, (0.0, 0.0, 0.0))
     generate_sparse_sweep(ctx, 'MacroSetter', sparse_setter_eqs, stencil=stencil, target=Target.CPU)
 
-    generate_alternating_sparse_lbm_sweep(ctx, 'LBSweep', collision_rule, lbm_config, pdfs, index_list, dst=pdfs_tmp, field_swaps=field_swaps, target=target, inner_outer_split=False, varying_parameters=vp, gpu_indexing_params=sweep_params)
+    generate_alternating_sparse_lbm_sweep(ctx, 'LBSweep', collision_rule, lbm_config, pdfs, index_list, dst=pdfs_tmp, field_swaps=field_swaps, target=target, inner_outer_split=True, varying_parameters=vp, gpu_indexing_params=sweep_params)
 
     ubb = UBB((inlet_velocity, 0, 0))
     generate_alternating_sparse_boundary(ctx, 'UBB', ubb, method, streaming_pattern=lbm_config.streaming_pattern, target=target)

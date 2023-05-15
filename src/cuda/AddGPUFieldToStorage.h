@@ -44,7 +44,9 @@ namespace cuda {
                                     uint_t fSize,
                                     const Layout layout = fzyx,
                                     uint_t nrOfGhostLayers = 1,
-                                    bool usePitchedMem = true );
+                                    bool usePitchedMem = true,
+                                    const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
+                                    const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() );
 
 
 
@@ -61,8 +63,9 @@ namespace cuda {
    BlockDataID addGPUFieldToStorage( const shared_ptr< StructuredBlockStorage > & bs,
                                      ConstBlockDataID cpuFieldID,
                                      const std::string & identifier,
-                                     bool usePitchedMem = true );
-
+                                     bool usePitchedMem = true,
+                                     const Set<SUID> & requiredSelectors = Set<SUID>::emptySet(),
+                                     const Set<SUID> & incompatibleSelectors = Set<SUID>::emptySet() );
 
 
 } // namespace cuda

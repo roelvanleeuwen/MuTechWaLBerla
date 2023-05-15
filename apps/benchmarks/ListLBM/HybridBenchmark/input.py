@@ -15,7 +15,7 @@ class Scenario:
     def __init__(self, cells_per_block=(64, 64, 20),
                  timesteps=1000, time_step_strategy="noOverlap", omega=0.8, cuda_enabled_mpi=True,
                  inner_outer_split=(1, 1, 1), vtk_write_frequency=0, inflow_velocity=(0.01,0,0),
-                 porosity=0.5, porositySwitch=0.8, geometry_setup="randomNoslip",
+                 porosity=0.5, porositySwitch=0.8, run_hybrid = True, geometry_setup="randomNoslip",
                  spheres_radius=9, sphere_shift = 10, sphere_fill = (1.0, 1.0, 1.0), mesh_file="None", run_boundaries=True):
 
         self.timesteps = timesteps
@@ -31,7 +31,7 @@ class Scenario:
         self.time_step_strategy = time_step_strategy
         self.cuda_enabled_mpi = cuda_enabled_mpi
         self.run_boundaries = run_boundaries
-
+        self.run_hybrid = run_hybrid
         self.omega = omega
 
         self.geometry_setup = geometry_setup
@@ -64,9 +64,12 @@ class Scenario:
                 'cudaEnabledMPI': self.cuda_enabled_mpi,
                 'vtkWriteFrequency': self.vtkWriteFrequency,
                 'porositySwitch': self.porositySwitch,
+                'runHybrid': self.run_hybrid,
                 'porosity': self.porosity,
                 'runBoundaries': self.run_boundaries,
                 'remainingTimeLoggerFrequency': 10,
+
+
                 'SpheresRadius': self.spheres_radius,
                 'SphereShift': self.sphere_shift,
                 'SphereFillDomainRatio':self.sphere_fill,
@@ -94,12 +97,6 @@ def porosity_benchmark():
         scenario = Scenario(porosity=porosity, geometry_setup="randomNoslip", inflow_velocity=(0,0,0), run_boundaries=False)
         scenarios.add(scenario)
 
-
-def emptyChannel():
-    scenarios = wlb.ScenarioManager()
-    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", cells_per_block=(64, 64, 64), time_step_strategy="kernelOnly", run_boundaries=False, porositySwitch=0.0)
-    scenarios.add(scenario)
-
 def randomNoslip():
     scenarios = wlb.ScenarioManager()
     scenario = Scenario(porosity=0.9, vtk_write_frequency=50, geometry_setup="randomNoslip", inflow_velocity=(0,0,0))
@@ -117,7 +114,7 @@ def spheres():
 def Artery():
     scenarios = wlb.ScenarioManager()
     mesh_file = "Artery.obj"
-    scenario = Scenario(vtk_write_frequency=1000, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000, omega=1.9, cells_per_block=(10, 10, 10), porositySwitch=0.5)
+    scenario = Scenario(vtk_write_frequency=10000, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000, omega=1.9, cells_per_block=(20, 20, 20), porositySwitch=0.8, run_hybrid=True, time_step_strategy="kernelOnly", run_boundaries=True)
     scenarios.add(scenario)
 
 def particleBed():
@@ -126,8 +123,13 @@ def particleBed():
     scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=100, timesteps=1000, omega=1.9, cells_per_block=(50, 100, 50), porositySwitch=0.8)
     scenarios.add(scenario)
 
+def emptyChannel():
+    scenarios = wlb.ScenarioManager()
+    scenario = Scenario(porosity=1.0, vtk_write_frequency=100, geometry_setup="randomNoslip", inflow_velocity=(0.01, 0, 0), omega=1.9, porositySwitch=1.1, run_hybrid=False, cells_per_block=(100, 100, 10), time_step_strategy="Overlap")
+    scenarios.add(scenario)
+
 #randomNoslip()
 #spheres()
-#Artery()
+Artery()
 #particleBed()
-emptyChannel()
+#emptyChannel()

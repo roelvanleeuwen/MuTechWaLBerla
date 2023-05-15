@@ -297,7 +297,7 @@ int main(int argc, char **argv)
    {
       setterSweep(&block);
    }
-   lbmpy::ListCommunicationSetup(pdfListId, blocks);
+   lbmpy::ListCommunicationSetup< FlagField_T, Stencil_T >(blocks, pdfListId);
    lbmTimer.end();
    WALBERLA_LOG_INFO_ON_ROOT("Initialisation of the list structures needed " << lbmTimer.last() << " s")
 
@@ -427,6 +427,8 @@ int main(int argc, char **argv)
       vtkOutput->addCellDataWriter(velWriter);
       vtkOutput->addCellDataWriter(densityWriter);
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      vtk::writeDomainDecomposition(blocks, "domain_decompositionSparse", "vtk_out", "write_call", true, true, 0);
+
    }
 
    //////////////////////
