@@ -467,7 +467,7 @@ int main(int argc, char **argv)
       SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
       if (timeStepStrategy == "noOverlap") {
-         timeloop.add() << BeforeFunction(comm, "communication") << Sweep(emptySweep);
+         timeloop.add() << BeforeFunction(std::function< void() >([&]() { comm.communicate(); }), "communication") << Sweep(emptySweep);
          if(runBoundaries) {
             timeloop.add() << Sweep(denseNoSlip.getSweep(tracker), "denseNoslip", sweepSelectHighPorosity, sweepSelectLowPorosity);
             timeloop.add() << Sweep(sparseUbb.getSweep(tracker), "sparseUbb", sweepSelectLowPorosity, sweepSelectHighPorosity)
@@ -481,7 +481,7 @@ int main(int argc, char **argv)
       }
       else if (timeStepStrategy == "Overlap"){
          //start communication
-         timeloop.add() << BeforeFunction(comm.getStartCommunicateFunctor(), "communication") << Sweep(emptySweep);
+         timeloop.add() << BeforeFunction(std::function< void() >([&]() { comm.startCommunication(); }), "communication") << Sweep(emptySweep);
 
          //run inner boundaries
          if(runBoundaries) {
@@ -497,7 +497,7 @@ int main(int argc, char **argv)
                         << Sweep(denseKernel.getInnerSweep(tracker), "denseKernel inner", sweepSelectHighPorosity, sweepSelectLowPorosity);
 
          //decrease tracker and run wait communication and outer boundaries
-         timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << BeforeFunction(comm.getWaitFunctor(), "communication") << Sweep(emptySweep);
+         timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << BeforeFunction(std::function< void() >([&]() { comm.wait(); }), "communication") << Sweep(emptySweep);
          if(runBoundaries) {
             timeloop.add() << Sweep(denseNoSlip.getOuterSweep(tracker), "denseNoslip outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
             timeloop.add() << Sweep(sparseUbb.getOuterSweep(tracker), "sparseUbb outer", sweepSelectLowPorosity, sweepSelectHighPorosity)

@@ -6,6 +6,8 @@
 #include "domain_decomposition/IBlock.h"
 #include "cuda/communication/GeneratedGPUPackInfo.h"
 
+#include "ListLBMList.h"
+
 
 {% if target is equalto 'cpu' -%}
 #define FUNC_PREFIX
@@ -29,7 +31,7 @@ class {{class_name}} : public ::walberla::cuda::GeneratedGPUPackInfo
 {
  public:
    {{class_name}}( {{fused_kernel|generate_constructor_parameters(parameters_to_ignore=['buffer'])}},  const BlockDataID & listId,
-                      const BlockDataID & listId, const Set<SUID> & sparseBlockSelectors = Set<SUID>::emptySet(), const Set<SUID> & denseBlockSelectors = Set<SUID>::emptySet() )
+                    const Set<SUID> & sparseBlockSelectors = Set<SUID>::emptySet(), const Set<SUID> & denseBlockSelectors = Set<SUID>::emptySet() )
       : {{ fused_kernel|generate_constructor_initializer_list(parameters_to_ignore=['buffer']) }}, listId_( listId ), sparseBlockSelectors_( sparseBlockSelectors ), denseBlockSelectors_( denseBlockSelectors )
         {};
    virtual ~{{class_name}}() {}

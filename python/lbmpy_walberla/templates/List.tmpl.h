@@ -796,7 +796,7 @@ class ListCommunicationSetup
             {{index_type}} * sendPDFsVectorGPU;
             cudaMalloc( &sendPDFsVectorGPU, sizeof({{index_type}}) * sendPDFsVector.size() );
             cudaMemcpy( sendPDFsVectorGPU, &sendPDFsVector[0], sizeof({{index_type}}) * sendPDFsVector.size(), cudaMemcpyHostToDevice );
-            senderList->setSendPDFsGPU(sendPDFsVectorGPU, sendDir);
+            senderList->setSendPDFsGPU(sendPDFsVectorGPU, receiveDir);
             {%- endif %}
          }
       }
