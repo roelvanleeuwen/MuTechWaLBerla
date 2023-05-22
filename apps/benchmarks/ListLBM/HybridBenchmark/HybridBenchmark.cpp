@@ -513,6 +513,7 @@ int main(int argc, char **argv)
       else if (timeStepStrategy == "kernelOnly")
       {
          WALBERLA_LOG_INFO_ON_ROOT("Running only compute kernel without boundary - this makes only sense for benchmarking!")
+         timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
          timeloop.add() << Sweep(sparseKernel.getSweep(tracker), "sparseKernel", sweepSelectLowPorosity, sweepSelectHighPorosity)
                         << Sweep(denseKernel.getSweep(tracker), "denseKernel", sweepSelectHighPorosity, sweepSelectLowPorosity);
       }
