@@ -1,9 +1,23 @@
-#include "stencil/Directions.h"
-#include "core/cell/CellInterval.h"
-#include "cuda/GPUField.h"
-#include "core/DataTypes.h"
-#include "{{class_name}}.h"
+//======================================================================================================================
+//
+//  This file is part of waLBerla. waLBerla is free software: you can
+//  redistribute it and/or modify it under the terms of the GNU General Public
+//  License as published by the Free Software Foundation, either version 3 of
+//  the License, or (at your option) any later version.
+//
+//  waLBerla is distributed in the hope that it will be useful, but WITHOUT
+//  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+//  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+//  for more details.
+//
+//  You should have received a copy of the GNU General Public License along
+//  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
+//
+//! \\file {{class_name}}.cpp
+//! \\author pystencils
+//======================================================================================================================
 
+#include "{{class_name}}.h"
 
 {% if target is equalto 'cpu' -%}
 #define FUNC_PREFIX
@@ -29,7 +43,7 @@ using walberla::stencil::Direction;
 
 
 
-void {{class_name}}::pack(Direction dir, unsigned char * byte_buffer, IBlock * block, cudaStream_t stream)
+void {{class_name}}::pack(Direction dir, unsigned char * byte_buffer, IBlock * block, gpuStream_t stream)
 {
     {{dtype}} * buffer = reinterpret_cast<{{dtype}}*>(byte_buffer);
 
@@ -59,7 +73,7 @@ void {{class_name}}::pack(Direction dir, unsigned char * byte_buffer, IBlock * b
 }
 
 
-void {{class_name}}::unpack(Direction dir, unsigned char * byte_buffer, IBlock * block, cudaStream_t stream)
+void {{class_name}}::unpack(Direction dir, unsigned char * byte_buffer, IBlock * block, gpuStream_t stream)
 {
     {{dtype}} * buffer = reinterpret_cast<{{dtype}}*>(byte_buffer);
 
