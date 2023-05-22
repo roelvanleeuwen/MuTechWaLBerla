@@ -564,14 +564,12 @@ int main(int argc, char **argv)
          denseVtkOutput->addBeforeFunction([&]() {
             for (auto& block : *blocks)
             {
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-               GPUField * dst = block.getData<GPUField>( pdfFieldIdGPU );
-               const PdfField_T * src = block.getData<PdfField_T>( pdfFieldId );
-               cuda::fieldCpy( *dst, *src );
-#endif
-
-
                if (block.getState() == sweepSelectHighPorosity) {
+#if defined(WALBERLA_BUILD_WITH_CUDA)
+                  GPUField * dst = block.getData<GPUField>( pdfFieldIdGPU );
+                  const PdfField_T * src = block.getData<PdfField_T>( pdfFieldId );
+                  cuda::fieldCpy( *dst, *src );
+#endif
                   denseGetterSweep(&block);
                }
             }
