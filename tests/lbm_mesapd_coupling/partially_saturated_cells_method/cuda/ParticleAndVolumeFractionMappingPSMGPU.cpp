@@ -25,11 +25,11 @@
 #include "core/Environment.h"
 #include "core/debug/TestSubsystem.h"
 
-#include "cuda/DeviceSelectMPI.h"
-#include "cuda/FieldCopy.h"
-#include "cuda/GPUField.h"
-
 #include "field/AddToStorage.h"
+
+#include "gpu/DeviceSelectMPI.h"
+#include "gpu/FieldCopy.h"
+#include "gpu/GPUField.h"
 
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
@@ -52,7 +52,7 @@ namespace particle_volume_fraction_check
 ///////////
 
 using namespace walberla;
-using namespace walberla::lbm_mesapd_coupling::psm::cuda;
+using namespace walberla::lbm_mesapd_coupling::psm::gpu;
 
 //*******************************************************************************************************************
 /*!\brief Calculating the sum over all fraction values. This can be used as a sanity check since it has to be roughly
@@ -149,7 +149,7 @@ int main(int argc, char** argv)
    debug::enterTestMode();
 
    mpi::Environment env(argc, argv);
-   cuda::selectDeviceBasedOnMpiRank();
+   gpu::selectDeviceBasedOnMpiRank();
 
    auto processes = MPIManager::instance()->numProcesses();
 
@@ -272,10 +272,10 @@ int main(int argc, char** argv)
       // copy data back to perform the check on CPU
       for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
       {
-         cuda::fieldCpySweepFunction< nOverlappingParticlesField_T, nOverlappingParticlesFieldGPU_T >(
+         gpu::fieldCpySweepFunction< nOverlappingParticlesField_T, nOverlappingParticlesFieldGPU_T >(
             nOverlappingParticlesFieldID, particleAndVolumeFractionSoA.nOverlappingParticlesFieldID, &(*blockIt));
-         cuda::fieldCpySweepFunction< BsField_T, BsFieldGPU_T >(BsFieldID, particleAndVolumeFractionSoA.BsFieldID,
-                                                                &(*blockIt));
+         gpu::fieldCpySweepFunction< BsField_T, BsFieldGPU_T >(BsFieldID, particleAndVolumeFractionSoA.BsFieldID,
+                                                               &(*blockIt));
       }
 
       // check that the sum over all fractions is roughly the volume of the sphere

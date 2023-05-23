@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include "cuda/FieldAccessor.h"
+#include "gpu/FieldAccessor.h"
 
 namespace walberla
 {
@@ -29,7 +29,7 @@ namespace lbm_mesapd_coupling
 {
 namespace psm
 {
-namespace cuda
+namespace gpu
 {
 
 __device__ void cross(real_t* __restrict__ const crossResult, const real_t* __restrict__ lhs,
@@ -71,7 +71,7 @@ __device__ void addHydrodynamicForceAtWFPosAtomic(real_t* __restrict__ const par
    atomicAdd(&(particleTorque[2]), torque[2]);
 }
 
-} // namespace cuda
+} // namespace gpu
 } // namespace psm
 } // namespace lbm_mesapd_coupling
 } // namespace walberla

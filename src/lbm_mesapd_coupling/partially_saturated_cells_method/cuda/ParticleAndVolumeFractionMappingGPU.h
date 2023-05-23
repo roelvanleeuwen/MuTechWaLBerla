@@ -21,16 +21,16 @@
 
 #pragma once
 
-#include "cuda/AddGPUFieldToStorage.h"
-#include "cuda/FieldCopy.h"
-#include "cuda/FieldIndexing.h"
-#include "cuda/GPUField.h"
-#include "cuda/HostFieldAllocator.h"
-#include "cuda/Kernel.h"
-
 #include "domain_decomposition/StructuredBlockStorage.h"
 
 #include "field/GhostLayerField.h"
+
+#include "gpu/AddGPUFieldToStorage.h"
+#include "gpu/FieldCopy.h"
+#include "gpu/FieldIndexing.h"
+#include "gpu/GPUField.h"
+#include "gpu/HostFieldAllocator.h"
+#include "gpu/Kernel.h"
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/mapping/ParticleBoundingBox.h"
@@ -52,7 +52,7 @@ namespace lbm_mesapd_coupling
 {
 namespace psm
 {
-namespace cuda
+namespace gpu
 {
 
 template< int Weighting_T >
@@ -67,11 +67,11 @@ void mapParticles(const IBlock& blockIt,
    auto idxField = blockIt.getData< idxFieldGPU_T >(particleAndVolumeFractionSoA.idxFieldID);
    auto BField   = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
 
-   auto myKernel = walberla::cuda::make_kernel(&(linearApproximation< Weighting_T >) );
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField));
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));
-   myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));
+   auto myKernel = walberla::gpu::make_kernel(&(linearApproximation< Weighting_T >) );
+   myKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
+   myKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< real_t >::xyz(*BsField));
+   myKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< id_t >::xyz(*idxField));
+   myKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< real_t >::xyz(*BField));
    myKernel.addParam(particleAndVolumeFractionSoA.omega_);
    myKernel.addParam(spherePositions);
    myKernel.addParam(sphereRadii);
@@ -241,7 +241,7 @@ class ParticleAndVolumeFractionMappingGPU
    const uint_t subBlocksPerDim_;
 };
 
-} // namespace cuda
+} // namespace gpu
 } // namespace psm
 } // namespace lbm_mesapd_coupling
 } // namespace walberla

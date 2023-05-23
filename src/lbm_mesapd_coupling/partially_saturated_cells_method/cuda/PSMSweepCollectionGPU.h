@@ -30,7 +30,7 @@ namespace lbm_mesapd_coupling
 {
 namespace psm
 {
-namespace cuda
+namespace gpu
 {
 
 template< typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
@@ -104,7 +104,7 @@ void addPSMSweepsToTimeloops(SweepTimeloop& commTimeloop, SweepTimeloop& timeloo
    };
 }
 
-} // namespace cuda
+} // namespace gpu
 } // namespace psm
 } // namespace lbm_mesapd_coupling
 } // namespace walberla

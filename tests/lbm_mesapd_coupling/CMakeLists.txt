@@ -51,7 +51,7 @@ waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMap
 waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMapping COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMapping> PROCESSES 27 )
 
 if( WALBERLA_BUILD_WITH_CUDA )
-    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMappingGPU FILES partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingPSMGPU.cpp DEPENDS blockforest boundary core cuda field lbm_mesapd_coupling stencil mesa_pd )
+    waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMappingGPU FILES partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingPSMGPU.cpp DEPENDS blockforest boundary core gpu field lbm_mesapd_coupling stencil mesa_pd )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMappingGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMappingGPU> PROCESSES 27 )
 endif()
 
@@ -80,7 +80,7 @@ waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereSC3W2SingleTest 
 
 
 if (WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60)
-    waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/cuda/DragForceSpherePSMGPU.cpp DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd timeloop PSMCodegenPython_srt_sc1_s0)
+    waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/cuda/DragForceSpherePSMGPU.cpp DEPENDS blockforest core gpu field lbm lbm_mesapd_coupling mesa_pd timeloop PSMCodegenPython_srt_sc1_s0)
     waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU> PROCESSES 1)
 
     foreach (collision_setup srt trt)
@@ -88,7 +88,7 @@ if (WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCH
             foreach (weighting 1 2)
                 foreach (split 0 1)
                     set(config ${collision_setup}_sc${solid_collision}_w${weighting}_s${split})
-                    waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} FILES partially_saturated_cells_method/cuda/TorqueSpherePSMGPU.cpp DEPENDS blockforest boundary core cuda field lbm lbm_mesapd_coupling timeloop mesa_pd PSMCodegenPython_${collision_setup}_sc${solid_collision}_s${split})
+                    waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} FILES partially_saturated_cells_method/cuda/TorqueSpherePSMGPU.cpp DEPENDS blockforest boundary core gpu field lbm lbm_mesapd_coupling timeloop mesa_pd PSMCodegenPython_${collision_setup}_sc${solid_collision}_s${split})
                     waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config}> PROCESSES 1)
                     target_compile_definitions(LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} PRIVATE SC=${solid_collision})
                     target_compile_definitions(LBM_MESAPD_COUPLING_PSM_TorqueSphereGPU_${config} PRIVATE Weighting=${weighting})
@@ -97,7 +97,7 @@ if (WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCH
         endforeach ()
     endforeach ()
 
-    waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU FILES partially_saturated_cells_method/cuda/SettlingSpherePSMGPU.cpp DEPENDS blockforest core cuda field lbm lbm_mesapd_coupling mesa_pd timeloop vtk PSMCodegenPython_srt_sc1_s0)
+    waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU FILES partially_saturated_cells_method/cuda/SettlingSpherePSMGPU.cpp DEPENDS blockforest core gpu field lbm lbm_mesapd_coupling mesa_pd timeloop vtk PSMCodegenPython_srt_sc1_s0)
     waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> partially_saturated_cells_method/cuda/SettlingSphereGPU.prm --funcTest PROCESSES 4)
     waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> partially_saturated_cells_method/cuda/SettlingSphereGPU.prm PROCESSES 4 LABELS longrun CONFIGURATIONS Release RelWithDbgInfo)
 endif ()

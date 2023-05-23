@@ -34,7 +34,7 @@ namespace lbm_mesapd_coupling
 {
 namespace psm
 {
-namespace cuda
+namespace gpu
 {
 
 // Deprecated
@@ -65,12 +65,12 @@ namespace cuda
       auto idxField = blockIt.getData< idxFieldGPU_T >(particleAndVolumeFractionSoA.idxFieldID);
       auto BField   = blockIt.getData< BFieldGPU_T >(particleAndVolumeFractionSoA.BFieldID);
 
-      auto myKernel = walberla::cuda::make_kernel(&(linearApproximation< Weighting_T >) );
+      auto myKernel = walberla::gpu::make_kernel(&(linearApproximation< Weighting_T >) );
       myKernel.addFieldIndexingParam(
-         walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));          // FieldAccessor
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BsField)); // FieldAccessor
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));  // FieldAccessor
-      myKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*BField));  // FieldAccessor
+         walberla::gpu::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));          // FieldAccessor
+      myKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< real_t >::xyz(*BsField)); // FieldAccessor
+      myKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< id_t >::xyz(*idxField));  // FieldAccessor
+      myKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< real_t >::xyz(*BField));  // FieldAccessor
       myKernel.addParam(omega);
       Vector3< real_t > blockStart = blockIt.getAABB().minCorner();
       myKernel.addParam(double3{ particlePosition[0], particlePosition[1], particlePosition[2] }); // spherePosition
@@ -90,7 +90,7 @@ namespace cuda
    }
 };*/
 
-} // namespace cuda
+} // namespace gpu
 } // namespace psm
 } // namespace lbm_mesapd_coupling
 } // namespace walberla

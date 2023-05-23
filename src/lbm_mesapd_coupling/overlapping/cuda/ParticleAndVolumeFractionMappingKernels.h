@@ -24,7 +24,7 @@
 #include "core/DataTypes.h"
 #include "core/math/Vector3.h"
 
-#include "cuda/FieldAccessor.h"
+#include "gpu/FieldAccessor.h"
 
 namespace walberla
 {
@@ -32,26 +32,26 @@ namespace lbm_mesapd_coupling
 {
 namespace psm
 {
-namespace cuda
+namespace gpu
 {
 
 template< int Weighting_T >
 __global__ void particleAndVolumeFractionMappingKernelSoA(
-   walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField, walberla::cuda::FieldAccessor< real_t > BsField,
-   walberla::cuda::FieldAccessor< id_t > idxField, walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
+   walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField, walberla::gpu::FieldAccessor< real_t > BsField,
+   walberla::gpu::FieldAccessor< id_t > idxField, walberla::gpu::FieldAccessor< real_t > BField, real_t omega,
    double3 spherePosition, real_t sphereRadius, double3 blockStart, real_t dx, int3 nSamples, id_t uid);
 
 template< int Weighting_T >
-__global__ void linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
-                                    walberla::cuda::FieldAccessor< real_t > BsField,
-                                    walberla::cuda::FieldAccessor< id_t > idxField,
-                                    walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
+__global__ void linearApproximation(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
+                                    walberla::gpu::FieldAccessor< real_t > BsField,
+                                    walberla::gpu::FieldAccessor< id_t > idxField,
+                                    walberla::gpu::FieldAccessor< real_t > BField, real_t omega,
                                     real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
                                     real_t* __restrict__ const f_rs, double3 blockStart, real_t dx,
                                     size_t* __restrict__ const numParticlesSubBlocks,
                                     size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim);
 
-} // namespace cuda
+} // namespace gpu
 } // namespace psm
 } // namespace lbm_mesapd_coupling
 } // namespace walberla

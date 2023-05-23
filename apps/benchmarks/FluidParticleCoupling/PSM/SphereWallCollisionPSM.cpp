@@ -36,16 +36,16 @@
 #include "core/timing/RemainingTimeLogger.h"
 #include "core/waLBerlaBuildInfo.h"
 
-#include "cuda/AddGPUFieldToStorage.h"
-#include "cuda/DeviceSelectMPI.h"
-#include "cuda/communication/UniformGPUScheme.h"
-
 #include "field/AddToStorage.h"
 #include "field/adaptors/AdaptorCreators.h"
 #include "field/communication/PackInfo.h"
 #include "field/interpolators/FieldInterpolatorCreators.h"
 #include "field/interpolators/NearestNeighborFieldInterpolator.h"
 #include "field/vtk/all.h"
+
+#include "gpu/AddGPUFieldToStorage.h"
+#include "gpu/DeviceSelectMPI.h"
+#include "gpu/communication/UniformGPUScheme.h"
 
 #include "lbm/boundary/all.h"
 #include "lbm/field/Adaptors.h"
@@ -107,7 +107,7 @@ namespace sphere_wall_collision
 
 using namespace walberla;
 using walberla::uint_t;
-using namespace lbm_mesapd_coupling::psm::cuda;
+using namespace lbm_mesapd_coupling::psm::gpu;
 
 using LatticeModel_T = lbm::D3Q19< lbm::collision_model::TRT >;
 
@@ -510,7 +510,7 @@ real_t getAverageDensityInSystem(const shared_ptr< StructuredBlockStorage >& blo
 int main(int argc, char** argv)
 {
    Environment env(argc, argv);
-   cuda::selectDeviceBasedOnMpiRank();
+   gpu::selectDeviceBasedOnMpiRank();
 
    if (!env.config()) { WALBERLA_ABORT("Usage: " << argv[0] << " path-to-configuration-file \n"); }
 
@@ -869,7 +869,7 @@ int main(int argc, char** argv)
          blocks, "pdf field", latticeModel, Vector3< real_t >(real_t(0)), real_t(1), uint_t(1), field::fzyx);
    }
 
-   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
+   BlockDataID pdfFieldGPUID = gpu::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
 
    // add flag field
    BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
@@ -945,13 +945,13 @@ int main(int argc, char** argv)
    ps->forEachParticle(false, lbm_mesapd_coupling::GlobalParticlesSelector(), *accessor, particleMappingKernel,
                        *accessor, NoSlip_Flag);
 
-   cuda::fieldCpy< cuda::GPUField< real_t >, PdfField_T >(blocks, pdfFieldGPUID, pdfFieldID);
+   gpu::fieldCpy< gpu::GPUField< real_t >, PdfField_T >(blocks, pdfFieldGPUID, pdfFieldID);
    lbm::PSM_NoSlip noSlip(blocks, pdfFieldGPUID);
    noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, NoSlip_Flag, Fluid_Flag);
    lbm::PSM_Density density(blocks, pdfFieldGPUID, real_t(1));
    density.fillFromFlagField< FlagField_T >(blocks, flagFieldID, SimplePressure_Flag, Fluid_Flag);
 
-   cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 1);
+   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, 1, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
@@ -995,7 +995,7 @@ int main(int argc, char** argv)
       pdfFieldVTK->addBeforeFunction(communication);
 
       pdfFieldVTK->addBeforeFunction(
-         [&]() { cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID); });
+         [&]() { gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID); });
 
       AABB sliceAABB(real_t(0), real_c(domainSize[1]) * real_t(0.5) - real_t(1), real_t(0), real_c(domainSize[0]),
                      real_c(domainSize[1]) * real_t(0.5) + real_t(1), real_c(domainSize[2]));

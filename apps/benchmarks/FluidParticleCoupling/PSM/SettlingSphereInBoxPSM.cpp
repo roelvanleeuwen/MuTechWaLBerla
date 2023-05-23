@@ -29,14 +29,14 @@
 #include "core/timing/RemainingTimeLogger.h"
 #include "core/waLBerlaBuildInfo.h"
 
-#include "cuda/AddGPUFieldToStorage.h"
-#include "cuda/DeviceSelectMPI.h"
-#include "cuda/communication/UniformGPUScheme.h"
-
 #include "field/AddToStorage.h"
 #include "field/vtk/all.h"
 
 #include "geometry/InitBoundaryHandling.h"
+
+#include "gpu/AddGPUFieldToStorage.h"
+#include "gpu/DeviceSelectMPI.h"
+#include "gpu/communication/UniformGPUScheme.h"
 
 #include "lbm/field/AddToStorage.h"
 #include "lbm/vtk/all.h"
@@ -90,7 +90,7 @@ namespace settling_sphere_in_box
 
 using namespace walberla;
 using walberla::uint_t;
-using namespace lbm_mesapd_coupling::psm::cuda;
+using namespace lbm_mesapd_coupling::psm::gpu;
 
 using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
@@ -273,7 +273,7 @@ int main(int argc, char** argv)
 
    Environment env(argc, argv);
    auto configPtr = env.config();
-   cuda::selectDeviceBasedOnMpiRank();
+   gpu::selectDeviceBasedOnMpiRank();
 
    WALBERLA_LOG_INFO_ON_ROOT("waLBerla revision: " << std::string(WALBERLA_GIT_SHA1).substr(0, 8));
 
@@ -580,7 +580,7 @@ int main(int argc, char** argv)
    // add PDF field
    BlockDataID pdfFieldID =
       field::addToStorage< PdfField_T >(blocks, "pdf field (fzyx)", real_c(std::nan("")), field::fzyx);
-   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
+   BlockDataID pdfFieldGPUID = gpu::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
 
    BlockDataID densityFieldID = field::addToStorage< DensityField_T >(blocks, "Density", real_t(0), field::fzyx);
    BlockDataID velFieldID     = field::addToStorage< VelocityField_T >(blocks, "Velocity", real_t(0), field::fzyx);
@@ -648,7 +648,7 @@ int main(int argc, char** argv)
    }
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);
+   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, 0, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
@@ -691,7 +691,7 @@ int main(int argc, char** argv)
       pdfFieldVTK->addBeforeFunction(pdfGhostLayerSync);
 
       pdfFieldVTK->addBeforeFunction([&]() {
-         cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
+         gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
          for (auto& block : *blocks)
             getterSweep(&block);
       });

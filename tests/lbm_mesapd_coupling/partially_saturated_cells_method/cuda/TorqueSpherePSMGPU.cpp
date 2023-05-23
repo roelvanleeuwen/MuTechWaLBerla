@@ -31,11 +31,11 @@
 #include "core/mpi/Reduce.h"
 #include "core/timing/RemainingTimeLogger.h"
 
-#include "cuda/AddGPUFieldToStorage.h"
-#include "cuda/DeviceSelectMPI.h"
-#include "cuda/communication/UniformGPUScheme.h"
-
 #include "field/AddToStorage.h"
+
+#include "gpu/AddGPUFieldToStorage.h"
+#include "gpu/DeviceSelectMPI.h"
+#include "gpu/communication/UniformGPUScheme.h"
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
@@ -63,7 +63,7 @@ namespace torque_sphere_psm
 
 using namespace walberla;
 using walberla::uint_t;
-using namespace lbm_mesapd_coupling::psm::cuda;
+using namespace lbm_mesapd_coupling::psm::gpu;
 
 using flag_t      = walberla::uint8_t;
 using FlagField_T = FlagField< flag_t >;
@@ -226,7 +226,7 @@ int main(int argc, char** argv)
    debug::enterTestMode();
 
    mpi::Environment env(argc, argv);
-   cuda::selectDeviceBasedOnMpiRank();
+   gpu::selectDeviceBasedOnMpiRank();
 
    auto processes = MPIManager::instance()->numProcesses();
 
@@ -353,7 +353,7 @@ int main(int argc, char** argv)
    // add fields ( uInit = <0,0,0>, rhoInit = 1 )
    BlockDataID pdfFieldID =
       field::addToStorage< PdfField_T >(blocks, "pdf field (fzyx)", real_c(std::nan("")), field::fzyx);
-   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU", true);
+   BlockDataID pdfFieldGPUID = gpu::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU", true);
 
    // add particle and volume fraction data structures
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, omega);
@@ -385,7 +385,7 @@ int main(int argc, char** argv)
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);
+   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, 0, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
@@ -403,7 +403,7 @@ int main(int argc, char** argv)
                            "setParticleVelocitiesSweep");
    timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "cell-wise LB sweep");
    timeloop.add() << Sweep(deviceSyncWrapper(psmSweepCollection.reduceParticleForcesSweep), "Reduce particle forces");
-   timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
+   timeloop.add() << Sweep(gpu::fieldCpyFunctor< PdfField_T, gpu::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU")
                   << AfterFunction(SharedFunctor< TorqueEval_T >(torqueEval), "torque evaluation");
 

@@ -31,7 +31,7 @@ namespace lbm_mesapd_coupling
 {
 namespace psm
 {
-namespace cuda
+namespace gpu
 {
 
 // Functions to calculate Bs
@@ -56,8 +56,8 @@ __device__ void calculateWeighting< 2 >(real_t* __restrict__ const weighting, co
 // TODO: this kernel is not up to date
 template< int Weighting_T >
 __global__ void particleAndVolumeFractionMappingKernelSoA(
-   walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField, walberla::cuda::FieldAccessor< real_t > BsField,
-   walberla::cuda::FieldAccessor< id_t > idxField, walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
+   walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField, walberla::gpu::FieldAccessor< real_t > BsField,
+   walberla::gpu::FieldAccessor< id_t > idxField, walberla::gpu::FieldAccessor< real_t > BField, real_t omega,
    double3 spherePosition, real_t sphereRadius, double3 blockStart, real_t dx, int3 nSamples, size_t idx)
 {
    nOverlappingParticlesField.set(blockIdx, threadIdx);
@@ -121,10 +121,10 @@ __global__ void particleAndVolumeFractionMappingKernelSoA(
 
 // Based on the following paper: https://doi.org/10.1108/EC-02-2016-0052
 template< int Weighting_T >
-__global__ void linearApproximation(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
-                                    walberla::cuda::FieldAccessor< real_t > BsField,
-                                    walberla::cuda::FieldAccessor< id_t > idxField,
-                                    walberla::cuda::FieldAccessor< real_t > BField, real_t omega,
+__global__ void linearApproximation(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
+                                    walberla::gpu::FieldAccessor< real_t > BsField,
+                                    walberla::gpu::FieldAccessor< id_t > idxField,
+                                    walberla::gpu::FieldAccessor< real_t > BField, real_t omega,
                                     real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
                                     real_t* __restrict__ const f_rs, double3 blockStart, real_t dx,
                                     size_t* __restrict__ const numParticlesSubBlocks,
@@ -208,7 +208,7 @@ auto instance1_with_weighting_2 = particleAndVolumeFractionMappingKernelSoA< 2 >
 auto instance2_with_weighting_1 = linearApproximation< 1 >;
 auto instance3_with_weighting_2 = linearApproximation< 2 >;
 
-} // namespace cuda
+} // namespace gpu
 } // namespace psm
 } // namespace lbm_mesapd_coupling
 } // namespace walberla

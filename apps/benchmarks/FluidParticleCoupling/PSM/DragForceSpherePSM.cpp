@@ -31,11 +31,11 @@
 #include "core/timing/RemainingTimeLogger.h"
 #include "core/waLBerlaBuildInfo.h"
 
-#include "cuda/AddGPUFieldToStorage.h"
-#include "cuda/DeviceSelectMPI.h"
-#include "cuda/communication/UniformGPUScheme.h"
-
 #include "field/vtk/VTKWriter.h"
+
+#include "gpu/AddGPUFieldToStorage.h"
+#include "gpu/DeviceSelectMPI.h"
+#include "gpu/communication/UniformGPUScheme.h"
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
@@ -68,7 +68,7 @@ namespace drag_force_sphere_psm
 
 using namespace walberla;
 using walberla::uint_t;
-using namespace lbm_mesapd_coupling::psm::cuda;
+using namespace lbm_mesapd_coupling::psm::gpu;
 
 typedef pystencils::PSMPackInfo PackInfo_T;
 
@@ -264,7 +264,7 @@ int main(int argc, char** argv)
    debug::enterTestMode();
 
    mpi::Environment env(argc, argv);
-   cuda::selectDeviceBasedOnMpiRank();
+   gpu::selectDeviceBasedOnMpiRank();
 
    WALBERLA_LOG_INFO_ON_ROOT("waLBerla revision: " << std::string(WALBERLA_GIT_SHA1).substr(0, 8));
 
@@ -417,7 +417,7 @@ int main(int argc, char** argv)
    // add fields
    BlockDataID pdfFieldID =
       field::addToStorage< PdfField_T >(blocks, "pdf field (fzyx)", real_c(std::nan("")), field::fzyx);
-   BlockDataID pdfFieldGPUID = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
+   BlockDataID pdfFieldGPUID = gpu::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
 
    BlockDataID densityFieldID = field::addToStorage< DensityField_T >(blocks, "Density", real_t(0), field::fzyx);
    BlockDataID velFieldID     = field::addToStorage< VelocityField_T >(blocks, "Velocity", real_t(0), field::fzyx);
@@ -430,7 +430,7 @@ int main(int argc, char** argv)
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   cuda::communication::UniformGPUScheme< Stencil_T > com(blocks, 0);
+   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, 0, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 
@@ -472,7 +472,7 @@ int main(int argc, char** argv)
       auto pdfFieldVTK = vtk::createVTKOutput_BlockData(blocks, "fluid_field", vtkIOFreq, 0, false, baseFolder);
 
       pdfFieldVTK->addBeforeFunction([&]() {
-         cuda::fieldCpy< PdfField_T, cuda::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
+         gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
          for (auto& block : *blocks)
             getterSweep(&block);
       });
@@ -498,7 +498,7 @@ int main(int argc, char** argv)
                   << Sweep(deviceSyncWrapper(psmSweepCollection.setParticleVelocitiesSweep), "Set particle velocities");
    timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "cell-wise PSM sweep");
    timeloop.add() << Sweep(deviceSyncWrapper(psmSweepCollection.reduceParticleForcesSweep), "Reduce particle forces");
-   timeloop.add() << Sweep(cuda::fieldCpyFunctor< PdfField_T, cuda::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
+   timeloop.add() << Sweep(gpu::fieldCpyFunctor< PdfField_T, gpu::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU");
    timeloop.add() << Sweep(getterSweep, "compute velocity")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");

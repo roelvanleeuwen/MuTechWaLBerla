@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include "cuda/FieldAccessor.h"
+#include "gpu/FieldAccessor.h"
 
 namespace walberla
 {
@@ -29,25 +29,25 @@ namespace lbm_mesapd_coupling
 {
 namespace psm
 {
-namespace cuda
+namespace gpu
 {
 
-__global__ void SetParticleVelocities(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
-                                      walberla::cuda::FieldAccessor< uint_t > idxField,
-                                      walberla::cuda::FieldAccessor< real_t > particleVelocitiesField,
+__global__ void SetParticleVelocities(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
+                                      walberla::gpu::FieldAccessor< uint_t > idxField,
+                                      walberla::gpu::FieldAccessor< real_t > particleVelocitiesField,
                                       real_t* __restrict__ const linearVelocities,
                                       real_t* __restrict__ const angularVelocities,
                                       real_t* __restrict__ const positions, const double3 blockStart, const real_t dx);
 
-__global__ void ReduceParticleForces(walberla::cuda::FieldAccessor< uint_t > nOverlappingParticlesField,
-                                     walberla::cuda::FieldAccessor< id_t > idxField,
-                                     walberla::cuda::FieldAccessor< real_t > particleForcesField,
+__global__ void ReduceParticleForces(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
+                                     walberla::gpu::FieldAccessor< id_t > idxField,
+                                     walberla::gpu::FieldAccessor< real_t > particleForcesField,
                                      real_t* __restrict__ const hydrodynamicForces,
                                      real_t* __restrict__ const hydrodynamicTorques,
                                      real_t* __restrict__ const positions, const double3 blockStart, const real_t dx,
                                      const real_t forceScalingFactor);
 
-} // namespace cuda
+} // namespace gpu
 } // namespace psm
 } // namespace lbm_mesapd_coupling
 } // namespace walberla

@@ -23,10 +23,10 @@
 
 #include "core/DataTypes.h"
 
-#include "cuda/AddGPUFieldToStorage.h"
-#include "cuda/GPUField.h"
-
 #include "field/GhostLayerField.h"
+
+#include "gpu/AddGPUFieldToStorage.h"
+#include "gpu/GPUField.h"
 
 namespace walberla
 {
@@ -34,7 +34,7 @@ namespace lbm_mesapd_coupling
 {
 namespace psm
 {
-namespace cuda
+namespace gpu
 {
 
 // Maximum number of particles that may overlap with a cell. For fully resolved particles, 2 should normally be
@@ -50,15 +50,15 @@ const uint MaxParticlesPerCell = 2;
 // particleForcesField is used to store the hydrodynamic forces of the cell acting on the overlapping particles
 
 using nOverlappingParticlesField_T    = GhostLayerField< uint_t, 1 >;
-using nOverlappingParticlesFieldGPU_T = walberla::cuda::GPUField< uint_t >;
+using nOverlappingParticlesFieldGPU_T = walberla::gpu::GPUField< uint_t >;
 using BsField_T                       = GhostLayerField< real_t, MaxParticlesPerCell >;
-using BsFieldGPU_T                    = walberla::cuda::GPUField< real_t >;
+using BsFieldGPU_T                    = walberla::gpu::GPUField< real_t >;
 using idxField_T                      = GhostLayerField< size_t, MaxParticlesPerCell >;
-using idxFieldGPU_T                   = walberla::cuda::GPUField< size_t >;
+using idxFieldGPU_T                   = walberla::gpu::GPUField< size_t >;
 using BField_T                        = GhostLayerField< real_t, 1 >;
-using BFieldGPU_T                     = walberla::cuda::GPUField< real_t >;
-using particleVelocitiesFieldGPU_T    = walberla::cuda::GPUField< real_t >;
-using particleForcesFieldGPU_T        = walberla::cuda::GPUField< real_t >;
+using BFieldGPU_T                     = walberla::gpu::GPUField< real_t >;
+using particleVelocitiesFieldGPU_T    = walberla::gpu::GPUField< real_t >;
+using particleForcesFieldGPU_T        = walberla::gpu::GPUField< real_t >;
 
 // The ParticleAndVolumeFractionSoA encapsulates the data needed by the routines involved in the coupling
 template< int Weighting_T >
@@ -82,17 +82,17 @@ struct ParticleAndVolumeFractionSoA_T
    // fields with the same number of ghost layerserated kernels)
    ParticleAndVolumeFractionSoA_T(const shared_ptr< StructuredBlockStorage >& bs, const real_t omega)
    {
-      nOverlappingParticlesFieldID = walberla::cuda::addGPUFieldToStorage< nOverlappingParticlesFieldGPU_T >(
+      nOverlappingParticlesFieldID = walberla::gpu::addGPUFieldToStorage< nOverlappingParticlesFieldGPU_T >(
          bs, "number of overlapping particles field GPU", uint_t(1), field::fzyx, uint_t(1), true);
-      BsFieldID  = walberla::cuda::addGPUFieldToStorage< BsFieldGPU_T >(bs, "Bs field GPU", MaxParticlesPerCell,
+      BsFieldID  = walberla::gpu::addGPUFieldToStorage< BsFieldGPU_T >(bs, "Bs field GPU", MaxParticlesPerCell,
                                                                        field::fzyx, uint_t(1), true);
-      idxFieldID = walberla::cuda::addGPUFieldToStorage< idxFieldGPU_T >(bs, "idx field GPU", MaxParticlesPerCell,
+      idxFieldID = walberla::gpu::addGPUFieldToStorage< idxFieldGPU_T >(bs, "idx field GPU", MaxParticlesPerCell,
                                                                          field::fzyx, uint_t(1), true);
       BFieldID =
-         walberla::cuda::addGPUFieldToStorage< BFieldGPU_T >(bs, "B field GPU", 1, field::fzyx, uint_t(1), true);
-      particleVelocitiesFieldID = walberla::cuda::addGPUFieldToStorage< particleVelocitiesFieldGPU_T >(
+         walberla::gpu::addGPUFieldToStorage< BFieldGPU_T >(bs, "B field GPU", 1, field::fzyx, uint_t(1), true);
+      particleVelocitiesFieldID = walberla::gpu::addGPUFieldToStorage< particleVelocitiesFieldGPU_T >(
          bs, "particle velocities field GPU", uint_t(MaxParticlesPerCell * 3), field::fzyx, uint_t(1), true);
-      particleForcesFieldID = walberla::cuda::addGPUFieldToStorage< particleForcesFieldGPU_T >(
+      particleForcesFieldID = walberla::gpu::addGPUFieldToStorage< particleForcesFieldGPU_T >(
          bs, "particle forces field GPU", uint_t(MaxParticlesPerCell * 3), field::fzyx, uint_t(1), true);
       omega_ = omega;
    }
@@ -103,7 +103,7 @@ struct ParticleAndVolumeFractionSoA_T
    }
 };
 
-} // namespace cuda
+} // namespace gpu
 } // namespace psm
 } // namespace lbm_mesapd_coupling
 } // namespace walberla

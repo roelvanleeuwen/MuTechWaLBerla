@@ -21,14 +21,14 @@
 
 #pragma once
 
-#include "cuda/FieldIndexing.h"
-#include "cuda/GPUField.h"
-#include "cuda/Kernel.h"
-#include "cuda/sweeps/GPUSweepBase.h"
-
 #include "domain_decomposition/StructuredBlockStorage.h"
 
 #include "field/GhostLayerField.h"
+
+#include "gpu/FieldIndexing.h"
+#include "gpu/GPUField.h"
+#include "gpu/Kernel.h"
+#include "gpu/sweeps/GPUSweepBase.h"
 
 #include "lbm/sweeps/StreamPull.h"
 #include "lbm/sweeps/SweepBase.h"
@@ -50,7 +50,7 @@ namespace lbm_mesapd_coupling
 {
 namespace psm
 {
-namespace cuda
+namespace gpu
 {
 
 // The deviceSyncWrapper can be used so that the timeloop measures the correct device runtime
@@ -120,10 +120,10 @@ class SetParticleVelocitiesSweep
          block->getData< particleVelocitiesFieldGPU_T >(particleAndVolumeFractionSoA_.particleVelocitiesFieldID);
 
       // For every cell, compute the particle velocities of the overlapping particles evaluated at the cell center
-      auto velocitiesKernel = walberla::cuda::make_kernel(&(SetParticleVelocities));
-      velocitiesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
-      velocitiesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));
-      velocitiesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*particleVelocitiesField));
+      auto velocitiesKernel = walberla::gpu::make_kernel(&(SetParticleVelocities));
+      velocitiesKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
+      velocitiesKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< id_t >::xyz(*idxField));
+      velocitiesKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< real_t >::xyz(*particleVelocitiesField));
       velocitiesKernel.addParam(linearVelocities);
       velocitiesKernel.addParam(angularVelocities);
       velocitiesKernel.addParam(particleAndVolumeFractionSoA_.positions);
@@ -194,10 +194,10 @@ class ReduceParticleForcesSweep
                                         block->getAABB().minCorner()[2] };
 
       // For every cell, reduce the hydrodynamic forces and torques of the overlapping particles
-      auto forcesKernel = walberla::cuda::make_kernel(&(ReduceParticleForces));
-      forcesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
-      forcesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< id_t >::xyz(*idxField));
-      forcesKernel.addFieldIndexingParam(walberla::cuda::FieldIndexing< real_t >::xyz(*particleForcesField));
+      auto forcesKernel = walberla::gpu::make_kernel(&(ReduceParticleForces));
+      forcesKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
+      forcesKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< id_t >::xyz(*idxField));
+      forcesKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< real_t >::xyz(*particleForcesField));
       forcesKernel.addParam(hydrodynamicForces);
       forcesKernel.addParam(hydrodynamicTorques);
       forcesKernel.addParam(particleAndVolumeFractionSoA_.positions);
@@ -234,7 +234,7 @@ class ReduceParticleForcesSweep
    const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA_;
 };
 
-} // namespace cuda
+} // namespace gpu
 } // namespace psm
 } // namespace lbm_mesapd_coupling
 } // namespace walberla
