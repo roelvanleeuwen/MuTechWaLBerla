@@ -125,7 +125,17 @@ def particleBed():
 
 def emptyChannel():
     scenarios = wlb.ScenarioManager()
-    scenario = Scenario(porosity=1.0, vtk_write_frequency=100, geometry_setup="randomNoslip", inflow_velocity=(0.01, 0, 0), omega=1.9, porositySwitch=1.1, run_hybrid=False, cells_per_block=(100, 100, 10), time_step_strategy="Overlap")
+    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", inflow_velocity=(0.01, 0, 0), omega=1.9, porositySwitch=1.1, run_hybrid=False, cells_per_block=(100, 100, 10), time_step_strategy="Overlap")
+    scenarios.add(scenario)
+
+def scalingBenchmark():
+    cells_per_block=(256, 256, 256)
+    scenarios = wlb.ScenarioManager()
+    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", porositySwitch=1.1, run_hybrid=False, cells_per_block=cells_per_block, time_step_strategy="noOverlap")
+    scenarios.add(scenario)
+    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", porositySwitch=1.1, run_hybrid=False, cells_per_block=cells_per_block, time_step_strategy="Overlap", inner_outer_split=(1, 1, 1))
+    scenarios.add(scenario)
+    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", porositySwitch=1.1, run_hybrid=False, cells_per_block=cells_per_block, time_step_strategy="Overlap", inner_outer_split=(32, 1, 1))
     scenarios.add(scenario)
 
 #randomNoslip()

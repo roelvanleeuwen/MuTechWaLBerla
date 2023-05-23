@@ -629,7 +629,7 @@ int main(int argc, char **argv)
       WALBERLA_ROOT_SECTION(){
          std::ofstream myfile;
          myfile.open ("results.txt", std::ios::app);
-         myfile << performance.mflupsPerProcess(timesteps, time) << " " << performance.mflups(timesteps, time) << std::endl;
+         myfile << nrOfProcesses << " " << InnerOuterSplit  <<  " " << performance.mflupsPerProcess(timesteps, time) << " " << performance.mflups(timesteps, time) << std::endl;
          myfile.close();
       }
       //printResidentMemoryStatistics();
