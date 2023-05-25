@@ -1,13 +1,6 @@
 import os
-from math import prod
-import sys
-import sqlite3
-
-import numpy as np
 
 import waLBerla as wlb
-from waLBerla.tools.config import block_decomposition
-from waLBerla.tools.sqlitedb import sequenceValuesToScalars, checkAndUpdateSchema, storeSingle
 
 DB_FILE = os.environ.get('DB_FILE', "ListLBMBenchmark.sqlite3")
 
@@ -125,7 +118,8 @@ def particleBed():
 
 def emptyChannel():
     scenarios = wlb.ScenarioManager()
-    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", inflow_velocity=(0.01, 0, 0), omega=1.9, porositySwitch=1.1, run_hybrid=False, cells_per_block=(100, 100, 10), time_step_strategy="Overlap")
+    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", inflow_velocity=(0.01, 0, 0), omega=1.9, porositySwitch=1.1, run_hybrid=True, cells_per_block=(10, 10, 10),
+                        time_step_strategy="noOverlap", cuda_enabled_mpi=True)
     scenarios.add(scenario)
 
 def scalingBenchmark():
@@ -140,6 +134,6 @@ def scalingBenchmark():
 
 #randomNoslip()
 #spheres()
-Artery()
+#Artery()
 #particleBed()
-#emptyChannel()
+emptyChannel()

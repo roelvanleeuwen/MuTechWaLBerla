@@ -9,8 +9,8 @@ Look at the end of the file to select the benchmark to run
 
 import os
 import waLBerla as wlb
-from waLBerla.tools.config import block_decomposition
-from waLBerla.tools.sqlitedb import sequenceValuesToScalars, checkAndUpdateSchema, storeSingle
+#from waLBerla.tools.config import block_decomposition
+#from waLBerla.tools.sqlitedb import sequenceValuesToScalars, checkAndUpdateSchema, storeSingle
 import sys
 import sqlite3
 from math import prod
@@ -60,7 +60,7 @@ class Scenario:
                  inner_outer_split=(1, 1, 1), warmup_steps=5, outer_iterations=3, init_shear_flow=False,
                  additional_info=None):
 
-        self.blocks = block_decomposition(wlb.mpi.numProcesses())
+        self.blocks = (4, 1, 1)#block_decomposition(wlb.mpi.numProcesses())
 
         self.cells_per_block = cells_per_block
         self.periodic = periodic
@@ -108,35 +108,6 @@ class Scenario:
                 wlb.log_info_on_root("Additional Info:\n" + pformat(self.additional_info))
         return config_dict
 
-    @wlb.member_callback
-    def results_callback(self, **kwargs):
-        data = {}
-        data.update(self.config_dict['Parameters'])
-        data.update(self.config_dict['DomainSetup'])
-        data.update(kwargs)
-
-        if self.additional_info is not None:
-            data.update(self.additional_info)
-
-        data['executable'] = sys.argv[0]
-        data['compile_flags'] = wlb.build_info.compiler_flags
-        data['walberla_version'] = wlb.build_info.version
-        data['build_machine'] = wlb.build_info.build_machine
-        sequenceValuesToScalars(data)
-
-        result = data
-        sequenceValuesToScalars(result)
-        num_tries = 4
-        # check multiple times e.g. may fail when multiple benchmark processes are running
-        table_name = f"runs_{data['stencil']}_{data['streamingPattern']}_{data['collisionSetup']}_{prod(self.blocks)}"
-        table_name = table_name.replace("-", "_")
-        for num_try in range(num_tries):
-            try:
-                checkAndUpdateSchema(result, table_name, DB_FILE)
-                storeSingle(result, table_name, DB_FILE)
-                break
-            except sqlite3.OperationalError as e:
-                wlb.log_warning(f"Sqlite DB writing failed: try {num_try + 1}/{num_tries}  {str(e)}")
 
 
 # -------------------------------------- Profiling -----------------------------------
@@ -163,7 +134,7 @@ def overlap_benchmark():
     wlb.log_info_on_root("")
 
     scenarios = wlb.ScenarioManager()
-    cuda_enabled_mpi = False
+    cuda_enabled_mpi = True
     inner_outer_splits = [(1, 1, 1), (4, 1, 1), (8, 1, 1), (16, 1, 1), (32, 1, 1),
                           (4, 4, 1), (8, 8, 1), (16, 16, 1), (32, 32, 1),
                           (4, 4, 4), (8, 8, 8), (16, 16, 16), (32, 32, 32)]
@@ -213,7 +184,8 @@ def single_gpu_benchmark():
                 continue
             scenario = Scenario(cells_per_block=block_size,
                                 cuda_blocks=cuda_block_size,
-                                time_step_strategy='kernelOnly',
+                                time_step_strategy='noOverlap',
+                                cuda_enabled_mpi=True,
                                 timesteps=num_time_steps(block_size, 2000),
                                 additional_info=additional_info)
             scenarios.add(scenario)
@@ -302,7 +274,7 @@ if __name__ == '__main__':
 else:
     wlb.log_info_on_root(f"Batch run of benchmark scenarios, saving result to {DB_FILE}")
     # Select the benchmark you want to run
-    single_gpu_benchmark()  # benchmarks different CUDA block sizes and domain sizes and measures single GPU
+    #single_gpu_benchmark()  # benchmarks different CUDA block sizes and domain sizes and measures single GPU
     # performance of compute kernel (no communication)
-    # overlap_benchmark()  # benchmarks different communication overlap options
+    overlap_benchmark()  # benchmarks different communication overlap options
     # profiling()  # run only two timesteps on a smaller domain for profiling only
