@@ -107,7 +107,7 @@ def spheres():
 def Artery():
     scenarios = wlb.ScenarioManager()
     mesh_file = "Artery.obj"
-    scenario = Scenario(vtk_write_frequency=10000, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000, omega=1.9, cells_per_block=(20, 20, 20), porositySwitch=0.8, run_hybrid=True, time_step_strategy="kernelOnly", run_boundaries=True)
+    scenario = Scenario(vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000, omega=1.9, cells_per_block=(50, 50, 50), porositySwitch=0.8, run_hybrid=True, time_step_strategy="noOverlap", run_boundaries=True)
     scenarios.add(scenario)
 
 def particleBed():
@@ -118,7 +118,7 @@ def particleBed():
 
 def emptyChannel():
     scenarios = wlb.ScenarioManager()
-    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", inflow_velocity=(0.01, 0, 0), omega=1.9, porositySwitch=1.1, run_hybrid=True, cells_per_block=(10, 10, 10),
+    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", inflow_velocity=(0.01, 0, 0), omega=1.9, porositySwitch=1.1, run_hybrid=True,cells_per_block=(100, 100, 100),
                         time_step_strategy="noOverlap", cuda_enabled_mpi=True)
     scenarios.add(scenario)
 

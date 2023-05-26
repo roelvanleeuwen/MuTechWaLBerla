@@ -8,10 +8,6 @@ waLBerla_link_files_to_builddir( input.py )
 
 if ( WALBERLA_BUILD_WITH_OPENMESH AND WALBERLA_BUILD_WITH_CODEGEN )
 
-    waLBerla_link_files_to_builddir( *.obj )
-    waLBerla_link_files_to_builddir( *.stl )
-    waLBerla_link_files_to_builddir( *.mtl )
-
     if( WALBERLA_BUILD_WITH_CUDA)
         waLBerla_generate_target_from_python(NAME HybridBenchmarkCodeGen
                 FILE HybridBenchmark.py

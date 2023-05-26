@@ -225,7 +225,13 @@ int main(int argc, char **argv)
 
       if (geometrySetup == "randomNoslip") {
          real_t dx = 1;
-         blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx);
+         //blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx);
+
+         blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2],
+                                                            cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2],
+                                                                dx, 0, true, false,
+                                                                true, true, true, false);
+
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          const real_t porosity = parameters.getParameter< real_t >("porosity");
          geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);

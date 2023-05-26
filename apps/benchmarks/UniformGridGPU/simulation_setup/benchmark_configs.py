@@ -60,7 +60,7 @@ class Scenario:
                  inner_outer_split=(1, 1, 1), warmup_steps=5, outer_iterations=3, init_shear_flow=False,
                  additional_info=None):
 
-        self.blocks = (4, 1, 1)#block_decomposition(wlb.mpi.numProcesses())
+        self.blocks = (2, 2, 1)#block_decomposition(wlb.mpi.numProcesses())
 
         self.cells_per_block = cells_per_block
         self.periodic = periodic
@@ -109,6 +109,13 @@ class Scenario:
         return config_dict
 
 
+def emptyChannel():
+    scenarios = wlb.ScenarioManager()
+    scenario = Scenario( cells_per_block=(10, 10, 10), time_step_strategy="noOverlap", cuda_enabled_mpi=True, timesteps=100)
+    scenarios.add(scenario)
+
+
+
 
 # -------------------------------------- Profiling -----------------------------------
 def profiling():
@@ -142,13 +149,15 @@ def overlap_benchmark():
     # no overlap
     scenarios.add(Scenario(time_step_strategy='noOverlap',
                            inner_outer_split=(1, 1, 1),
-                           cuda_enabled_mpi=cuda_enabled_mpi))
+                           cuda_enabled_mpi=cuda_enabled_mpi,
+                           cells_per_block=(10, 10, 10)))
 
-    for inner_outer_split in inner_outer_splits:
-        scenario = Scenario(time_step_strategy='simpleOverlap',
-                            inner_outer_split=inner_outer_split,
-                            cuda_enabled_mpi=cuda_enabled_mpi)
-        scenarios.add(scenario)
+    #for inner_outer_split in inner_outer_splits:
+    #    scenario = Scenario(time_step_strategy='simpleOverlap',
+    #                        inner_outer_split=inner_outer_split,
+    #                        cuda_enabled_mpi=cuda_enabled_mpi,
+    #                        cells_per_block=(100, 100, 100))
+    #    scenarios.add(scenario)
 
 
 def single_gpu_benchmark():
@@ -276,5 +285,6 @@ else:
     # Select the benchmark you want to run
     #single_gpu_benchmark()  # benchmarks different CUDA block sizes and domain sizes and measures single GPU
     # performance of compute kernel (no communication)
-    overlap_benchmark()  # benchmarks different communication overlap options
+    #overlap_benchmark()  # benchmarks different communication overlap options
     # profiling()  # run only two timesteps on a smaller domain for profiling only
+    emptyChannel()
