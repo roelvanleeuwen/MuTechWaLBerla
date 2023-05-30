@@ -36,10 +36,13 @@ namespace gpu
 {
 
 template< int Weighting_T >
-__global__ void particleAndVolumeFractionMappingKernelSoA(
-   walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField, walberla::gpu::FieldAccessor< real_t > BsField,
-   walberla::gpu::FieldAccessor< id_t > idxField, walberla::gpu::FieldAccessor< real_t > BField, real_t omega,
-   double3 spherePosition, real_t sphereRadius, double3 blockStart, real_t dx, int3 nSamples, id_t uid);
+__global__ void
+   superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
+                 walberla::gpu::FieldAccessor< real_t > BsField, walberla::gpu::FieldAccessor< id_t > idxField,
+                 walberla::gpu::FieldAccessor< real_t > BField, real_t omega,
+                 real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii, double3 blockStart,
+                 real_t dx, int3 nSamples, size_t* __restrict__ const numParticlesSubBlocks,
+                 size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim);
 
 template< int Weighting_T >
 __global__ void linearApproximation(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
