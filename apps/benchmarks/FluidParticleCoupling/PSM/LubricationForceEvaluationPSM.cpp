@@ -111,10 +111,6 @@ const FlagUID FreeSlip_Flag("FreeSlip");
  * individually. All particles are fixed but have a small velocity which is a valid assumption in Stokes flow. The
  * simulations are run until steady state is reached.
  *
- * The positions are always shifted by a random offset to account for the dependence of the resulting force/torque
- * on the exact location w.r.t. the underlying grid.
- * This can be eliminated by averaging over several realizations of the same physical setup.
- *
  * see also Rettinger, Ruede 2020 for the details
  */
 //*******************************************************************************************************************
@@ -273,15 +269,14 @@ int main(int argc, char** argv)
    uint_t id1(0);
    uint_t id2(0);
 
-   uint_t randomSeed = uint_c(std::chrono::system_clock::now().time_since_epoch().count());
-   mpi::broadcastObject(randomSeed); // root process chooses seed and broadcasts it
-   std::mt19937 randomNumberGenerator(static_cast< unsigned int >(randomSeed));
+   // uint_t randomSeed = uint_c(std::chrono::system_clock::now().time_since_epoch().count());
+   // mpi::broadcastObject(randomSeed); // root process chooses seed and broadcasts it
+   // std::mt19937 randomNumberGenerator(static_cast< unsigned int >(randomSeed));
 
    Vector3< real_t > domainCenter(real_c(xSize) * real_t(0.5), real_c(ySize) * real_t(0.5),
                                   real_c(zSize) * real_t(0.5));
-   Vector3< real_t > offsetVector(math::realRandom< real_t >(real_t(0), real_t(1), randomNumberGenerator),
-                                  math::realRandom< real_t >(real_t(0), real_t(1), randomNumberGenerator),
-                                  math::realRandom< real_t >(real_t(0), real_t(1), randomNumberGenerator));
+   // TODO: think if random offset vector is really not necessary
+   Vector3< real_t > offsetVector(real_t(0), real_t(0), real_t(0));
 
    if (sphSphTest)
    {
