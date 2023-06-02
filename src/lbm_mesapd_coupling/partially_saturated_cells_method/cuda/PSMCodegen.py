@@ -11,6 +11,7 @@ from lbmpy.boundaries import NoSlip, UBB, FixedDensity, FreeSlip
 from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method
 from pystencils.astnodes import Conditional, SympyAssignment, Block
 from pystencils.node_collection import NodeCollection
+from lbmpy.creationfunctions import create_lb_collision_rule
 from lbmpy.macroscopic_value_kernels import (
     macroscopic_values_getter,
     macroscopic_values_setter,
@@ -72,6 +73,7 @@ with CodeGeneration() as ctx:
         field_layout=layout,
     )
 
+    # TODO: set magic number?
     psm_config = LBMConfig(
         stencil=stencil,
         method=methods[config_tokens[0]],
@@ -82,56 +84,23 @@ with CodeGeneration() as ctx:
     )
 
     # =====================
-    # Code generation for the modified SRT sweep
+    # Code generation for the fluid part (regular LBM collision with overlap fraction as prefactor)
     # =====================
 
     method = create_lb_method(lbm_config=psm_config)
+    collision_rule = create_lb_collision_rule(
+        lbm_config=psm_config, lbm_optimisation=psm_opt
+    )
 
-    # TODO: think about better way to obtain collision operator than to rebuild it
-    # Collision operator with (1 - solid_fraction) as prefactor
-    equilibrium = method.get_equilibrium_terms()
-    collision_op_psm = []
-    if psm_config.method == Method.SRT:
-        for eq, f in zip(equilibrium, method.pre_collision_pdf_symbols):
-            collision_op_psm.append(
-                (1.0 - B.center) * psm_config.relaxation_rate * (f - eq)
-            )
-    # TODO: set magic number
-    elif psm_config.method == Method.TRT:
-        for i, (eq, f) in enumerate(zip(equilibrium, method.pre_collision_pdf_symbols)):
-            inverse_direction_index = stencil.stencil_entries.index(
-                stencil.inverse_stencil_entries[i]
-            )
-            collision_op_psm.append(
-                (1.0 - B.center)
-                * (
-                    psm_config.relaxation_rates[0]
-                    * (
-                        (f + method.pre_collision_pdf_symbols[inverse_direction_index])
-                        / 2
-                        - (eq + equilibrium[inverse_direction_index]) / 2
-                    )
-                    + psm_config.relaxation_rates[1]
-                    * (
-                        (f - method.pre_collision_pdf_symbols[inverse_direction_index])
-                        / 2
-                        - (eq - equilibrium[inverse_direction_index]) / 2
-                    )
-                )
-            )
-    else:
-        raise ValueError("Only SRT and TRT are supported.")
-
-    # Given forcing operator with (1 - solid_fraction) as prefactor
-    fq = method.force_model(method)
-    fq_psm = []
-    for f in fq:
-        fq_psm.append((1 - B.center) * f)
-
-    # Assemble right-hand side of collision assignments
     collision_rhs = []
-    for f, c, fo in zip(method.pre_collision_pdf_symbols, collision_op_psm, fq_psm):
-        collision_rhs.append(f - c + fo)
+    for assignment in collision_rule.main_assignments:
+        rhsSum = 0
+        for arg in assignment.rhs.args:
+            if arg not in method.pre_collision_pdf_symbols:
+                rhsSum += (1 - B.center) * arg
+            else:
+                rhsSum += arg
+        collision_rhs.append(rhsSum)
 
     # =====================
     # Code generation for the solid parts
@@ -250,7 +219,7 @@ with CodeGeneration() as ctx:
         ):
             collision_assignments.append(ps.Assignment(d, d_inter + sc))
 
-    # Add force calculations to collision assignments
+    # Add hydrodynamic force calculations to collision assignments
     for p in range(MaxParticlesPerCell):
         for i in range(stencil.D):
             collision_assignments.append(
@@ -261,12 +230,13 @@ with CodeGeneration() as ctx:
             )
 
     # Define quantities to compute the equilibrium as functions of the pdfs
-    cqc = method.conserved_quantity_computation.equilibrium_input_equations_from_pdfs(
-        method.pre_collision_pdf_symbols, False
-    )
+    # TODO: maybe incorporate some of these assignments into the subexpressions
+    # cqc = method.conserved_quantity_computation.equilibrium_input_equations_from_pdfs(
+    #    method.pre_collision_pdf_symbols, False
+    # )
 
     up = ps.AssignmentCollection(
-        collision_assignments, subexpressions=cqc.all_assignments
+        collision_assignments, subexpressions=collision_rule.subexpressions
     )
     output_eqs = method.conserved_quantity_computation.output_equations_from_pdfs(
         method.pre_collision_pdf_symbols, psm_config.output
@@ -401,6 +371,7 @@ with CodeGeneration() as ctx:
 
     generate_sweep(ctx, "InitializeDomainForPSM", pdfs_setter, target=target)
 
+    # Boundary conditions
     generate_boundary(
         ctx,
         "PSM_NoSlip",
