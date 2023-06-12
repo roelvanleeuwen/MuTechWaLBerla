@@ -18,6 +18,8 @@ add_subdirectory( PoiseuilleChannel )
 add_subdirectory( ProbeVsExtraMessage )
 add_subdirectory( SchaeferTurek )
 add_subdirectory( UniformGrid )
+add_subdirectory( PSM_Complex_Geometry )
+
 
 if ( WALBERLA_BUILD_WITH_PYTHON )
    add_subdirectory( FieldCommunication )

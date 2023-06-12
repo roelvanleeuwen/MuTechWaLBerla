@@ -1,0 +1,29 @@
+
+Parameters 
+{
+	omega           1.8;
+	timesteps       5000;
+
+	remainingTimeLoggerFrequency 3; // in seconds
+	VTKwriteFrequency 100;
+}
+
+DomainSetup
+{
+   meshFile           bunny.obj;
+   domainScaling      <  10,  3,  1 >;
+   rotationFrequency  10;
+   rotationAngle      0.017453292519943;    //1° in rad
+
+   dx                 3;
+   cellsPerBlock      < 64, 64, 64 >;
+   periodic           <  0,  0,  1 >;
+}
+
+Boundaries
+{
+	Border { direction W;    walldistance -1;  flag UBB; }
+	Border { direction E;    walldistance -1;  flag Pressure; }
+	Border { direction S,N;  walldistance -1;  flag NoSlip; }
+
+}
