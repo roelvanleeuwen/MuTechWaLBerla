@@ -35,6 +35,8 @@
 
 #include "geometry/all.h"
 
+#include "lbm_generated/evaluation/PerformanceEvaluation.h"
+
 #include "mesh_common/DistanceComputations.h"
 #include "mesh_common/DistanceFunction.h"
 #include "mesh_common/MatrixVectorOperations.h"
@@ -155,7 +157,7 @@ class ObjectRotator
          mesh::BoundarySetup boundarySetup(blocks_, makeMeshDistanceFunction(distOctree_), 1);
 
          //clear PSM flag from flag field
-         for (auto &block : *blocks) {
+         for (auto &block : *blocks_) {
             auto flagFieldPSM = block.getData<FlagField_T>(flagFieldId_);
             auto psmFlag = flagFieldPSM->getFlag(PSMFlagUID);
             WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(flagFieldPSM,
@@ -322,6 +324,10 @@ int main(int argc, char** argv)
    auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
 
    geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
+   for (auto &block : *blocks) {
+      auto flagFieldPSM = block.getData<FlagField_T>(flagFieldId);
+      flagFieldPSM->registerFlag(PSMFlagUID);
+   }
    boundarySetup.setFlag<FlagField_T>(flagFieldId, PSMFlagUID, mesh::BoundarySetup::INSIDE);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
@@ -386,7 +392,7 @@ int main(int argc, char** argv)
 
 
    ObjectRotator objectRotator(blocks, mesh, flagFieldId, BFieldId, BsFieldId, rotationAngle, rotationFrequency);
-
+   std::function< void() > objectRotatorFunc = [&]() { objectRotator(); };
 
    /////////////////
    /// Time Loop ///
@@ -407,7 +413,7 @@ int main(int argc, char** argv)
 
    // Timeloop
    timeloop.add() << BeforeFunction(communication, "communication")
-                  << BeforeFunction(objectRotator(), "objectRotator")
+                  << BeforeFunction(objectRotatorFunc, "objectRotator")
                   << Sweep(ubb);
    timeloop.add() << Sweep(noSlip);
    timeloop.add() << Sweep(fixedDensity);
@@ -443,7 +449,17 @@ int main(int argc, char** argv)
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
    }
 
-   timeloop.run();
+   lbm_generated::PerformanceEvaluation<FlagField_T> const performance(blocks, flagFieldId, fluidFlagUID);
+   WcTimingPool timeloopTiming;
+   WcTimer simTimer;
+
+   simTimer.start();
+   timeloop.run(timeloopTiming);
+   simTimer.end();
+
+   double time = simTimer.max();
+   WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
+   performance.logResultOnRoot(timesteps, time);
 
    return EXIT_SUCCESS;
 }
