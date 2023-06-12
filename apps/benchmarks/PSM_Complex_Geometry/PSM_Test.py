@@ -86,18 +86,12 @@ with CodeGeneration() as ctx:
     #   Pack Info
     generate_pack_info_from_kernel(ctx, "PackInfo", lbm_update_rule, target=target)
 
-
     #   NoSlip Boundary
     generate_boundary(ctx, "NoSlip", NoSlip(), lbm_method, target=target)
     generate_boundary(ctx, "UBB", UBB((0.01,0,0)), lbm_method, target=target)
     generate_boundary(ctx, "FixedDensity", FixedDensity(1), lbm_method, target=target)
 
-
-
-
-
     # PSM Sweep
-
     split = False
     MaxParticlesPerCell = 1
     pdfs_inter = stencil.Q

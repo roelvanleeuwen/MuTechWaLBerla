@@ -2,16 +2,16 @@
 Parameters 
 {
 	omega           1.8;
-	timesteps       5000;
+	timesteps       1000;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 100;
+	VTKwriteFrequency 0;
 }
 
 DomainSetup
 {
    meshFile           bunny.obj;
-   domainScaling      <  10,  3,  1 >;
+   domainScaling      <  1,  1,  1 >;
    rotationFrequency  10;
    rotationAngle      0.017453292519943;    //1° in rad
 

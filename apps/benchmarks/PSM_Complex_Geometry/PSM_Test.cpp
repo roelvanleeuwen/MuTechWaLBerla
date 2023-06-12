@@ -147,9 +147,10 @@ class ObjectRotator
 
       if (counter % frequency_ == 0) {
 
-         //rotate mesh
-         Vector3<mesh::TriangleMesh::Scalar > axis(0,0,1);
-         Vector3< mesh::TriangleMesh::Scalar> axis_foot(0.,0.,0.);
+         //find mesh center and rotate mesh
+         const Vector3<mesh::TriangleMesh::Scalar > axis(0,0,1);
+         const mesh::TriangleMesh::Point meshCenter = computeCentroid( *mesh_ );
+         const Vector3< mesh::TriangleMesh::Scalar> axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
          mesh::rotate( *mesh_, axis, rotationAngle_, axis_foot);
 
          //build new distance octree and boundary setup
@@ -364,7 +365,7 @@ int main(int argc, char** argv)
 
    BlockDataID BsFieldId = field::addToStorage< ScalarField_T >(blocks, "BsField", real_c(0.0), field::fzyx);
    BlockDataID BFieldId = field::addToStorage< ScalarField_T >(blocks, "BFieldID", real_c(0.0), field::fzyx);
-   BlockDataID particleVelocitiesFieldID = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx);
+   BlockDataID particleVelocitiesFieldID = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx); //TODO set rotation velocity
    BlockDataID particleForcesFieldID = field::addToStorage< VectorField_T >(blocks, "particleForcesField", real_c(0.0), field::fzyx);
 
    for (auto &block : *blocks) {
@@ -412,13 +413,13 @@ int main(int argc, char** argv)
 #endif
 
    // Timeloop
-   timeloop.add() << BeforeFunction(communication, "communication")
-                  << BeforeFunction(objectRotatorFunc, "objectRotator")
-                  << Sweep(ubb);
-   timeloop.add() << Sweep(noSlip);
-   timeloop.add() << Sweep(fixedDensity);
-   //timeloop.add() << Sweep(lbmSweep);
-   timeloop.add() << Sweep(PSMSweep);
+   timeloop.add() << BeforeFunction(communication, "Communication")
+                  << BeforeFunction(objectRotatorFunc, "ObjectRotator")
+                  << Sweep(ubb, "UBB");
+   timeloop.add() << Sweep(noSlip, "NoSlip");
+   timeloop.add() << Sweep(fixedDensity, "FixedDensity");
+   //timeloop.add() << Sweep(lbmSweep, "LBM Sweep");
+   timeloop.add() << Sweep(PSMSweep, "PSMSweep");
 
    // Time logger
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
@@ -460,6 +461,9 @@ int main(int argc, char** argv)
    double time = simTimer.max();
    WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
    performance.logResultOnRoot(timesteps, time);
+
+   const auto reducedTimeloopTiming = timeloopTiming.getReduced();
+   WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
 
    return EXIT_SUCCESS;
 }
