@@ -139,58 +139,187 @@ void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultCo
 class ObjectRotator
 {
  public:
-   ObjectRotator( shared_ptr <StructuredBlockForest> &blocks, shared_ptr< mesh::TriangleMesh > &mesh, const BlockDataID flagFieldId, const BlockDataID BFieldId, const BlockDataID BsFieldId, const real_t rotationAngle, const uint_t frequency)
-      : blocks_(blocks), mesh_(mesh), flagFieldId_(flagFieldId), BFieldId_(BFieldId), BsFieldId_(BsFieldId), rotationAngle_(rotationAngle), frequency_(frequency), counter(0)
+   ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
+                 const BlockDataID flagFieldId, const BlockDataID BFieldId, const BlockDataID BsFieldId,
+                 const real_t rotationAngle, const uint_t frequency)
+      : blocks_(blocks), mesh_(mesh), flagFieldId_(flagFieldId), BFieldId_(BFieldId), BsFieldId_(BsFieldId),
+        rotationAngle_(rotationAngle), frequency_(frequency), counter(0)
    {}
 
-   void operator() () {
+   void operator()()
+   {
+      if (counter % frequency_ == 0)
+      {
+         // find mesh center and rotate mesh
+         const Vector3< mesh::TriangleMesh::Scalar > axis(0, 0, 1);
+         const mesh::TriangleMesh::Point meshCenter = computeCentroid(*mesh_);
+         const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
+         mesh::rotate(*mesh_, axis, rotationAngle_, axis_foot);
 
-      if (counter % frequency_ == 0) {
-
-         //find mesh center and rotate mesh
-         const Vector3<mesh::TriangleMesh::Scalar > axis(0,0,1);
-         const mesh::TriangleMesh::Point meshCenter = computeCentroid( *mesh_ );
-         const Vector3< mesh::TriangleMesh::Scalar> axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
-         mesh::rotate( *mesh_, axis, rotationAngle_, axis_foot);
-
-         //build new distance octree and boundary setup
-         distOctree_ = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_));
+         // build new distance octree and boundary setup
+         distOctree_ = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
+            make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_));
          mesh::BoundarySetup boundarySetup(blocks_, makeMeshDistanceFunction(distOctree_), 1);
 
-         //clear PSM flag from flag field
-         for (auto &block : *blocks_) {
-            auto flagFieldPSM = block.getData<FlagField_T>(flagFieldId_);
-            auto psmFlag = flagFieldPSM->getFlag(PSMFlagUID);
-            WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(flagFieldPSM,
-               if(flagFieldPSM->isFlagSet(x,y,z,psmFlag))
-                  flagFieldPSM->removeMask(x,y,z,psmFlag);
-            )
+         // clear PSM flag from flag field
+         for (auto& block : *blocks_)
+         {
+            auto flagFieldPSM = block.getData< FlagField_T >(flagFieldId_);
+            auto psmFlag      = flagFieldPSM->getFlag(PSMFlagUID);
+            WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(
+               flagFieldPSM, if (flagFieldPSM->isFlagSet(x, y, z, psmFlag)) flagFieldPSM->removeMask(x, y, z, psmFlag);)
          }
 
-         //set PSM flags in flag field
-         boundarySetup.setFlag<FlagField_T>(flagFieldId_, PSMFlagUID, mesh::BoundarySetup::INSIDE);
+         // set PSM flags in flag field
+         boundarySetup.setFlag< FlagField_T >(flagFieldId_, PSMFlagUID, mesh::BoundarySetup::INSIDE);
 
-         //set PSM fields to flag field, if PSM flag is set
-         for (auto &block : *blocks_) {
-            auto flagFieldPSM = block.getData<FlagField_T>(flagFieldId_);
-            auto BField = block.getData<ScalarField_T>(BFieldId_);
-            auto BsField = block.getData<ScalarField_T>(BsFieldId_);
+         // set PSM fields to flag field, if PSM flag is set
+         for (auto& block : *blocks_)
+         {
+            auto flagFieldPSM = block.getData< FlagField_T >(flagFieldId_);
+            auto BField       = block.getData< ScalarField_T >(BFieldId_);
+            auto BsField      = block.getData< ScalarField_T >(BsFieldId_);
 
             auto psmFlag = flagFieldPSM->getFlag(PSMFlagUID);
-            WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(flagFieldPSM,
-               BField->get(x, y, z)  = 0.0;
-               BsField->get(x, y, z) = 0.0;
-               if(flagFieldPSM->isFlagSet(x,y,z, psmFlag)) {
+            WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(
+               flagFieldPSM, BField->get(x, y, z) = 0.0; BsField->get(x, y, z) = 0.0;
+               if (flagFieldPSM->isFlagSet(x, y, z, psmFlag)) {
                   BField->get(x, y, z)  = 1.0;
                   BsField->get(x, y, z) = 1.0;
-               }
-            )
+               })
          }
-
-
       }
-      counter+=1;
+      counter += 1;
    }
+
+   void resetFractionField()
+   {
+      for (auto& block : *blocks_)
+      {
+         auto BField = block.getData< ScalarField_T >(BFieldId_);
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(BField,
+            BField->get(x, y, z) = 0.0;
+         )
+      }
+   }
+
+   void setBsToB() {
+      for (auto& block : *blocks_)
+      {
+         auto BField       = block.getData< ScalarField_T >(BFieldId_);
+         auto BsField      = block.getData< ScalarField_T >(BsFieldId_);
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(BField,
+            BsField->get(x, y, z) = BField->get(x, y, z);
+         )
+      }
+   }
+
+   void voxelize()
+   {
+      resetFractionField();
+
+      for( auto & block : *blocks_ )
+      {
+         ScalarField_T * BField = block.getData< ScalarField_T >( BFieldId_ );
+
+         CellInterval blockCi = BField->xyzSizeWithGhostLayer();
+         blocks_->transformBlockLocalToGlobalCellInterval( blockCi, block );
+
+         std::queue< CellInterval > ciQueue;
+         ciQueue.push( blockCi );
+
+         while( !ciQueue.empty() )
+         {
+            const CellInterval & curCi = ciQueue.front();
+
+            WALBERLA_ASSERT( !curCi.empty(), "Cell Interval: " << curCi );
+
+            AABB curAABB = blocks_->getAABBFromCellBB( curCi, blocks_->getLevel( block ) );
+
+            WALBERLA_ASSERT( !curAABB.empty(), "AABB: " << curAABB );
+
+            Vector3<real_t> cellCenter = curAABB.center();
+            blocks_->mapToPeriodicDomain( cellCenter );
+            const real_t sqSignedDistance = distanceFunction_( cellCenter );
+
+            if( curCi.numCells() == uint_t(1) )
+            {
+               if( ( sqSignedDistance < real_t(0) ) )
+               {
+                  Cell localCell;
+                  blocks_->transformGlobalToBlockLocalCell( localCell, block, curCi.min() );
+                  BField->get( localCell ) = uint8_t(1);
+               }
+
+               ciQueue.pop();
+               continue;
+            }
+
+            const real_t circumRadius = curAABB.sizes().length() * real_t(0.5);
+            const real_t sqCircumRadius = circumRadius * circumRadius;
+
+            if( sqSignedDistance < -sqCircumRadius )
+            {
+               // clearly the cell interval is fully covered by the mesh
+               CellInterval localCi;
+               blocks_->transformGlobalToBlockLocalCellInterval( localCi, block, curCi );
+               std::fill( BField->beginSliceXYZ( localCi ), BField->end(), uint8_t(1) );
+
+               ciQueue.pop();
+               continue;
+            }
+
+            if( sqSignedDistance > sqCircumRadius )
+            {
+               // clearly the cell interval is fully outside of the mesh
+
+               ciQueue.pop();
+               continue;
+            }
+
+            WALBERLA_ASSERT_GREATER( curCi.numCells(), uint_t(1) );
+            divideAndPushCellInterval( curCi, ciQueue );
+
+            ciQueue.pop();
+         }
+      }
+   }
+
+   void divideAndPushCellInterval( const CellInterval & ci, std::queue< CellInterval > & outputQueue )
+   {
+      WALBERLA_ASSERT( !ci.empty() );
+
+      Cell newMax( ci.xMin() + std::max( cell_idx_c( ci.xSize() ) / cell_idx_t(2) - cell_idx_t(1), cell_idx_t(0) ),
+                  ci.yMin() + std::max( cell_idx_c( ci.ySize() ) / cell_idx_t(2) - cell_idx_t(1), cell_idx_t(0) ),
+                  ci.zMin() + std::max( cell_idx_c( ci.zSize() ) / cell_idx_t(2) - cell_idx_t(1), cell_idx_t(0) ) );
+
+      WALBERLA_ASSERT( ci.contains( newMax ) );
+
+      Cell newMin( newMax[0] + cell_idx_c( 1 ), newMax[1] + cell_idx_c( 1 ), newMax[2] + cell_idx_c( 1 ) );
+
+      outputQueue.push( CellInterval( ci.xMin(), ci.yMin(), ci.zMin(), newMax[0], newMax[1], newMax[2] ) );
+      if( newMin[2] <= ci.zMax() )
+         outputQueue.push( CellInterval( ci.xMin(), ci.yMin(), newMin[2], newMax[0], newMax[1], ci.zMax() ) );
+      if( newMin[1] <= ci.yMax() )
+      {
+         outputQueue.push( CellInterval( ci.xMin(), newMin[1], ci.zMin(), newMax[0], ci.yMax(), newMax[2]) );
+         if( newMin[2] <= ci.zMax() )
+            outputQueue.push( CellInterval( ci.xMin(), newMin[1], newMin[2], newMax[0], ci.yMax(), ci.zMax() ) );
+      }
+      if( newMin[0] <= ci.xMax() )
+      {
+         outputQueue.push( CellInterval( newMin[0], ci.yMin(), ci.zMin(), ci.xMax(), newMax[1], newMax[2] ) );
+         if( newMin[2] <= ci.zMax() )
+            outputQueue.push( CellInterval( newMin[0], ci.yMin(), newMin[2], ci.xMax(), newMax[1], ci.zMax() ) );
+         if( newMin[1] <= ci.yMax() )
+         {
+            outputQueue.push( CellInterval( newMin[0], newMin[1], ci.zMin(), ci.xMax(), ci.yMax(), newMax[2] ) );
+            if( newMin[2] <= ci.zMax() )
+               outputQueue.push( CellInterval( newMin[0], newMin[1], newMin[2], ci.xMax(), ci.yMax(), ci.zMax() ) );
+         }
+      }
+   }
+
 
  private:
    shared_ptr <StructuredBlockForest> blocks_;
@@ -201,6 +330,7 @@ class ObjectRotator
    const real_t rotationAngle_;
    const uint_t frequency_;
    uint_t counter;
+
    shared_ptr < mesh::DistanceOctree< mesh::TriangleMesh > > distOctree_;
 };
 
