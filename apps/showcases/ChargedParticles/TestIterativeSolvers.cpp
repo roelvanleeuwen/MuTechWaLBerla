@@ -80,9 +80,9 @@ void applyDirichletFunction(const shared_ptr< StructuredBlockStorage > & blocks,
             funcVal = (boundaryCoord_x * boundaryCoord_x) - real_c(0.5) * (boundaryCoord_y * boundaryCoord_y) - real_c(0.5) * (boundaryCoord_z * boundaryCoord_z);
             break;
          case TEST_DIRICHLET_2:
-            funcVal = real_c( sin ( math::pi * boundaryCoord_x ) ) *
-                      real_c( sin ( math::pi * boundaryCoord_y ) ) *
-                      real_c( math::root_two * math::pi * boundaryCoord_z );
+            funcVal = real_c( sin  ( math::pi * boundaryCoord_x ) ) *
+                      real_c( sin  ( math::pi * boundaryCoord_y ) ) *
+                      real_c( sinh ( math::root_two * math::pi * boundaryCoord_z ) );
             break;
          default:
             WALBERLA_ABORT("Unknown testcase");
@@ -230,7 +230,7 @@ void solve(const shared_ptr< StructuredBlockForest > & blocks,
                rhsField->get(x, y, z) = real_c(0);
                break;
             case TEST_DIRICHLET_2:
-               rhsField->get(x, y, z) = real_c( -( math::pi * math::pi ) * ( -( scaleX * scaleX ) - ( scaleY * scaleY ) + real_c(2) * ( scaleZ * scaleZ ) ) ) *
+               rhsField->get(x, y, z) = real_c( ( math::pi * math::pi ) * ( ( scaleX * scaleX ) + ( scaleY * scaleY ) - real_c(2) * ( scaleZ * scaleZ ) ) ) *
                                         real_c( sin ( math::pi * posX ) ) *
                                         real_c( sin ( math::pi * posY ) ) *
                                         real_c( sinh ( math::root_two * math::pi * posZ ) );
