@@ -138,16 +138,23 @@ void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultCo
 
 class ObjectRotator
 {
+   typedef std::function< real_t ( const Vector3< real_t > &) > DistanceFunction;
+
+
  public:
    ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
                  const BlockDataID flagFieldId, const BlockDataID BFieldId, const BlockDataID BsFieldId,
-                 const real_t rotationAngle, const uint_t frequency)
+                 const real_t rotationAngle, const uint_t frequency, DistanceFunction distOctree)
       : blocks_(blocks), mesh_(mesh), flagFieldId_(flagFieldId), BFieldId_(BFieldId), BsFieldId_(BsFieldId),
-        rotationAngle_(rotationAngle), frequency_(frequency), counter(0)
+        rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree), counter(0)
    {}
 
    void operator()()
    {
+      rotate();
+   }
+
+   void rotate() {
       if (counter % frequency_ == 0)
       {
          // find mesh center and rotate mesh
@@ -156,38 +163,10 @@ class ObjectRotator
          const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
          mesh::rotate(*mesh_, axis, rotationAngle_, axis_foot);
 
-         // build new distance octree and boundary setup
-         distOctree_ = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
-            make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_));
-         mesh::BoundarySetup boundarySetup(blocks_, makeMeshDistanceFunction(distOctree_), 1);
+         distOctree_ = makeMeshDistanceFunction(make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_)));
 
-         // clear PSM flag from flag field
-         for (auto& block : *blocks_)
-         {
-            auto flagFieldPSM = block.getData< FlagField_T >(flagFieldId_);
-            auto psmFlag      = flagFieldPSM->getFlag(PSMFlagUID);
-            WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(
-               flagFieldPSM, if (flagFieldPSM->isFlagSet(x, y, z, psmFlag)) flagFieldPSM->removeMask(x, y, z, psmFlag);)
-         }
-
-         // set PSM flags in flag field
-         boundarySetup.setFlag< FlagField_T >(flagFieldId_, PSMFlagUID, mesh::BoundarySetup::INSIDE);
-
-         // set PSM fields to flag field, if PSM flag is set
-         for (auto& block : *blocks_)
-         {
-            auto flagFieldPSM = block.getData< FlagField_T >(flagFieldId_);
-            auto BField       = block.getData< ScalarField_T >(BFieldId_);
-            auto BsField      = block.getData< ScalarField_T >(BsFieldId_);
-
-            auto psmFlag = flagFieldPSM->getFlag(PSMFlagUID);
-            WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(
-               flagFieldPSM, BField->get(x, y, z) = 0.0; BsField->get(x, y, z) = 0.0;
-               if (flagFieldPSM->isFlagSet(x, y, z, psmFlag)) {
-                  BField->get(x, y, z)  = 1.0;
-                  BsField->get(x, y, z) = 1.0;
-               })
-         }
+         getFractionFieldFromMesh();
+         setBsToB();
       }
       counter += 1;
    }
@@ -214,7 +193,116 @@ class ObjectRotator
       }
    }
 
-   void voxelize()
+   void slowGetFractionFieldFromMesh()
+   {
+      resetFractionField();
+
+      for( auto & block : *blocks_ )
+      {
+         ScalarField_T * BField = block.getData< ScalarField_T >( BFieldId_ );
+         auto level = blocks_->getLevel( block );
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(BField,
+            Cell cell(x,y,z);
+            blocks_->transformBlockLocalToGlobalCell( cell, block );
+            Vector3<real_t> cellCenter = blocks_->getCellCenter(cell, level);
+            blocks_->mapToPeriodicDomain( cellCenter );
+            const real_t sqSignedDistance = distOctree_( cellCenter );
+            real_t distance;
+            if (sqSignedDistance < 0) {
+               distance = sqrt(-sqSignedDistance);
+               distance *= -1;
+            } else {
+               distance = sqrt(sqSignedDistance);
+            }
+
+
+            Cell localCell;
+            blocks_->transformGlobalToBlockLocalCell( localCell, block, blocks_->getCell(cellCenter, level) );
+            //TODO seems not to fit the geometry 100% -> also get fraction from fill level, not from distance
+
+            BField->get( localCell ) =  std::min(1.0, std::max(0.0, 1.0 - distance / blocks_->dx(level) + 0.5));
+         )
+      }
+   }
+
+   void getFractionFieldFromMesh()
+   {
+      //resetFractionField();
+
+      for( auto & block : *blocks_ )
+      {
+         ScalarField_T * BField = block.getData< ScalarField_T >( BFieldId_ );
+
+         CellInterval blockCi = BField->xyzSizeWithGhostLayer();
+         blocks_->transformBlockLocalToGlobalCellInterval( blockCi, block );
+         auto level = blocks_->getLevel( block );
+
+         std::queue< CellInterval > ciQueue;
+         ciQueue.push( blockCi );
+
+         while( !ciQueue.empty() )
+         {
+            const CellInterval & curCi = ciQueue.front();
+
+            WALBERLA_ASSERT( !curCi.empty(), "Cell Interval: " << curCi );
+
+            AABB curAABB = blocks_->getAABBFromCellBB( curCi, level );
+
+            WALBERLA_ASSERT( !curAABB.empty(), "AABB: " << curAABB );
+
+            Vector3<real_t> cellCenter = curAABB.center();
+            blocks_->mapToPeriodicDomain( cellCenter );
+            const real_t sqSignedDistance = distOctree_( cellCenter );
+
+            if( curCi.numCells() == uint_t(1) )
+            {
+               real_t distance;
+               if (sqSignedDistance < 0) {
+                  distance = sqrt(-sqSignedDistance);
+                  distance *= -1;
+               } else {
+                  distance = sqrt(sqSignedDistance);
+               }
+               Cell localCell;
+               blocks_->transformGlobalToBlockLocalCell( localCell, block, curCi.min() );
+               BField->get( localCell ) =  std::min(1.0, std::max(0.0, 1.0 - distance / blocks_->dx(level) + 0.5));
+               ciQueue.pop();
+               continue;
+            }
+
+            const real_t circumRadius = curAABB.sizes().length() * real_t(0.5);
+            const real_t sqCircumRadius = circumRadius * circumRadius;
+
+            // the cell interval is fully covered by the mesh
+            if( sqSignedDistance < -sqCircumRadius )
+            {
+               CellInterval localCi;
+               blocks_->transformGlobalToBlockLocalCellInterval( localCi, block, curCi );
+               std::fill( BField->beginSliceXYZ( localCi ), BField->end(), 1.0 );
+
+               ciQueue.pop();
+               continue;
+            }
+            // the cell interval is fully outside of mesh
+            if( sqSignedDistance > sqCircumRadius )
+            {
+               CellInterval localCi;
+               blocks_->transformGlobalToBlockLocalCellInterval( localCi, block, curCi );
+               std::fill( BField->beginSliceXYZ( localCi ), BField->end(), 0.0 );
+
+               ciQueue.pop();
+               continue;
+            }
+
+            WALBERLA_ASSERT_GREATER( curCi.numCells(), uint_t(1) );
+            divideAndPushCellInterval( curCi, ciQueue );
+
+            ciQueue.pop();
+         }
+      }
+   }
+
+   void getBinaryFractionFieldFromMesh()
    {
       resetFractionField();
 
@@ -240,10 +328,11 @@ class ObjectRotator
 
             Vector3<real_t> cellCenter = curAABB.center();
             blocks_->mapToPeriodicDomain( cellCenter );
-            const real_t sqSignedDistance = distanceFunction_( cellCenter );
+            const real_t sqSignedDistance = distOctree_( cellCenter );
 
             if( curCi.numCells() == uint_t(1) )
             {
+               WALBERLA_LOG_INFO_ON_ROOT("Signed squared distance is " << sqSignedDistance)
                if( ( sqSignedDistance < real_t(0) ) )
                {
                   Cell localCell;
@@ -263,7 +352,8 @@ class ObjectRotator
                // clearly the cell interval is fully covered by the mesh
                CellInterval localCi;
                blocks_->transformGlobalToBlockLocalCellInterval( localCi, block, curCi );
-               std::fill( BField->beginSliceXYZ( localCi ), BField->end(), uint8_t(1) );
+               //std::fill( BField->beginSliceXYZ( localCi ), BField->end(), uint8_t(1) );
+               std::fill( BField->beginSliceXYZ( localCi ), BField->end(), sqSignedDistance );
 
                ciQueue.pop();
                continue;
@@ -271,8 +361,6 @@ class ObjectRotator
 
             if( sqSignedDistance > sqCircumRadius )
             {
-               // clearly the cell interval is fully outside of the mesh
-
                ciQueue.pop();
                continue;
             }
@@ -329,9 +417,8 @@ class ObjectRotator
    const BlockDataID BsFieldId_;
    const real_t rotationAngle_;
    const uint_t frequency_;
+   DistanceFunction distOctree_;
    uint_t counter;
-
-   shared_ptr < mesh::DistanceOctree< mesh::TriangleMesh > > distOctree_;
 };
 
 
@@ -434,9 +521,6 @@ int main(int argc, char** argv)
    BlockDataID pdfFieldId = field::addToStorage< PdfField_T >(blocks, "pdf field", real_c(0.0), field::fzyx);
 #endif
 
-   WALBERLA_LOG_INFO_ON_ROOT("Finished field creation")
-
-
    const BoundaryUID wallFlagUID("NoSlip");
 
    mesh::ColorToBoundaryMapper< mesh::TriangleMesh > colorToBoundaryMapper((mesh::BoundaryInfo(wallFlagUID)));
@@ -450,20 +534,10 @@ int main(int argc, char** argv)
    meshWriter.addDataSource(make_shared< mesh::ColorVertexDataSource< mesh::TriangleMesh > >());
    meshWriter();
 
-   mesh::BoundarySetup boundarySetup(blocks, makeMeshDistanceFunction(distanceOctree), 1);
-
    auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
 
    geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
-   for (auto &block : *blocks) {
-      auto flagFieldPSM = block.getData<FlagField_T>(flagFieldId);
-      flagFieldPSM->registerFlag(PSMFlagUID);
-   }
-   boundarySetup.setFlag<FlagField_T>(flagFieldId, PSMFlagUID, mesh::BoundarySetup::INSIDE);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
-
-   WALBERLA_LOG_INFO_ON_ROOT("Finished boundary creation")
-
 
    /////////////
    /// Sweep ///
@@ -490,40 +564,26 @@ int main(int argc, char** argv)
    ubb.fillFromFlagField< FlagField_T >(blocks, flagFieldId, FlagUID("UBB"), fluidFlagUID);
    fixedDensity.fillFromFlagField< FlagField_T >(blocks, flagFieldId, FlagUID("FixedDensity"), fluidFlagUID);
 
-   WALBERLA_LOG_INFO_ON_ROOT("Finished field fill")
-
-
    BlockDataID BsFieldId = field::addToStorage< ScalarField_T >(blocks, "BsField", real_c(0.0), field::fzyx);
    BlockDataID BFieldId = field::addToStorage< ScalarField_T >(blocks, "BFieldID", real_c(0.0), field::fzyx);
    BlockDataID particleVelocitiesFieldID = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx); //TODO set rotation velocity
    BlockDataID particleForcesFieldID = field::addToStorage< VectorField_T >(blocks, "particleForcesField", real_c(0.0), field::fzyx);
 
-   for (auto &block : *blocks) {
-      auto flagFieldPSM = block.getData<FlagField_T>(flagFieldId);
-      auto BField = block.getData<ScalarField_T>(BFieldId);
-      auto BsField = block.getData<ScalarField_T>(BsFieldId);
+   ObjectRotator objectRotator(blocks, mesh, flagFieldId, BFieldId, BsFieldId, rotationAngle, rotationFrequency, makeMeshDistanceFunction(distanceOctree));
+   const std::function< void() > objectRotatorFunc = [&]() { objectRotator(); };
 
-      auto psmFlag = flagFieldPSM->getFlag(PSMFlagUID);
-      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(flagFieldPSM,
-         if(flagFieldPSM->isFlagSet(x,y,z, psmFlag)) {
-            BField->get(x, y, z)  = 1.0;
-            BsField->get(x, y, z) = 1.0;
-         }
-      )
+   objectRotator.getFractionFieldFromMesh();
+   objectRotator.setBsToB();
+
+
+   pystencils::PSMSweep PSMSweep(BsFieldId, BFieldId, particleForcesFieldID, particleVelocitiesFieldID, pdfFieldId, real_t(0), real_t(0.0), real_t(0.0), omega);
+
+   pystencils::MacroGetter getterSweep(densityFieldId, pdfFieldId, velocityFieldId, real_t(0.0), real_t(0.0), real_t(0.0));
+
+   pystencils::MacroSetter setterSweep( pdfFieldId, velocityFieldId, 0.02, 0.0, 0.0, 1.0 );
+   for(auto &block : *blocks) {
+      setterSweep(&block);
    }
-   WALBERLA_LOG_INFO_ON_ROOT("Finished fraction field fill")
-
-
-   pystencils::PSMSweep PSMSweep(BsFieldId, BFieldId, particleForcesFieldID,
-                                 particleVelocitiesFieldID, pdfFieldId, real_t(0),
-                                 real_t(0.0), real_t(0.0), omega);
-
-   pystencils::MacroGetter getterSweep(densityFieldId, pdfFieldId, velocityFieldId, real_t(0.0), real_t(0.0),
-                                           real_t(0.0));
-
-
-   ObjectRotator objectRotator(blocks, mesh, flagFieldId, BFieldId, BsFieldId, rotationAngle, rotationFrequency);
-   std::function< void() > objectRotatorFunc = [&]() { objectRotator(); };
 
    /////////////////
    /// Time Loop ///
@@ -542,14 +602,18 @@ int main(int argc, char** argv)
    communication.addPackInfo(make_shared< PackInfo_T >(pdfFieldId));
 #endif
 
+   const auto emptySweep = [](IBlock*) {};
+
    // Timeloop
    timeloop.add() << BeforeFunction(communication, "Communication")
-                  << BeforeFunction(objectRotatorFunc, "ObjectRotator")
                   << Sweep(ubb, "UBB");
    timeloop.add() << Sweep(noSlip, "NoSlip");
    timeloop.add() << Sweep(fixedDensity, "FixedDensity");
    //timeloop.add() << Sweep(lbmSweep, "LBM Sweep");
    timeloop.add() << Sweep(PSMSweep, "PSMSweep");
+   if(rotationAngle > 0.0 && rotationFrequency > 0)
+      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") << Sweep(emptySweep);
+
 
    // Time logger
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
@@ -571,11 +635,14 @@ int main(int argc, char** argv)
          for (auto& block : *blocks)
             getterSweep(&block);
       });
+
       auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
       auto flagWriter = make_shared< field::VTKWriter< FlagField_T > >(flagFieldId, "Flag");
+      auto fractionFieldWriter = make_shared< field::VTKWriter< ScalarField_T > >(BFieldId, "FractionField");
 
       vtkOutput->addCellDataWriter(velWriter);
       vtkOutput->addCellDataWriter(flagWriter);
+      vtkOutput->addCellDataWriter(fractionFieldWriter);
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
    }
