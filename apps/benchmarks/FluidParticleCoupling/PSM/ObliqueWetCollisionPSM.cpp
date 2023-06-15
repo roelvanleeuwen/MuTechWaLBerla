@@ -835,7 +835,7 @@ int main( int argc, char **argv )
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(
       blocks, lbm::collision_model::omegaFromViscosity(viscosity));
    // map particles and calculate solid volume fraction initially
-   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, mesa_pd::kernel::SelectLocal(),
+   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
                                             particleAndVolumeFractionSoA, 1);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
