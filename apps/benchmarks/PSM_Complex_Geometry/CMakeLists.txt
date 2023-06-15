@@ -17,10 +17,10 @@ walberla_generate_target_from_python( NAME PSM_TestCodeGen
 
 if(WALBERLA_BUILD_WITH_GPU_SUPPORT)
     walberla_add_executable ( NAME PSM_Test
-            FILES PSM_Test.cpp
+            FILES PSM_Test.cpp ObjectRotator.h
             DEPENDS blockforest gpu core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk PSM_TestCodeGen )
 else()
     walberla_add_executable ( NAME PSM_Test
-            FILES PSM_Test.cpp
+            FILES PSM_Test.cpp ObjectRotator.h
             DEPENDS blockforest core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk PSM_TestCodeGen )
 endif()

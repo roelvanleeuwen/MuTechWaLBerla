@@ -8,7 +8,7 @@ import pystencils as ps
 
 from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil, ForceModel
 
-from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method
+from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method, create_lb_collision_rule
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter, macroscopic_values_getter
 from lbmpy.boundaries import NoSlip, UBB, FixedDensity
 
@@ -97,136 +97,98 @@ with CodeGeneration() as ctx:
     pdfs_inter = stencil.Q
     SC = 1
 
-    particle_velocities, particle_forces, Bs = ps.fields(
-        f"particle_v({MaxParticlesPerCell * stencil.D}), particle_f({MaxParticlesPerCell * stencil.D}), Bs({MaxParticlesPerCell}): {data_type}[3D]",
+    particle_velocities, B = ps.fields(
+        f"particle_v({stencil.D}), B({1}): {data_type}[3D]",
         layout=layout,
     )
-    B = ps.fields(f"b({1}): {data_type}[3D]", layout=layout)
 
 
     method = create_lb_method(lbm_config=psm_config)
+    collision_rule = create_lb_collision_rule(
+        lbm_config=psm_config, lbm_optimisation=lbm_opt
+    )
 
-    # TODO: think about better way to obtain collision operator than to rebuild it
-    # Collision operator with (1 - solid_fraction) as prefactor
-    equilibrium = method.get_equilibrium_terms()
-    collision_op_psm = []
-    if psm_config.method == Method.SRT:
-        for eq, f in zip(equilibrium, method.pre_collision_pdf_symbols):
-            collision_op_psm.append(
-                (1.0 - B.center) * psm_config.relaxation_rate * (f - eq)
-            )
-    # TODO: set magic number
-    elif psm_config.method == Method.TRT:
-        for i, (eq, f) in enumerate(zip(equilibrium, method.pre_collision_pdf_symbols)):
-            inverse_direction_index = stencil.stencil_entries.index(
-                stencil.inverse_stencil_entries[i]
-            )
-            collision_op_psm.append(
-                (1.0 - B.center)
-                * (
-                        psm_config.relaxation_rates[0]
-                        * (
-                                (f + method.pre_collision_pdf_symbols[inverse_direction_index])
-                                / 2
-                                - (eq + equilibrium[inverse_direction_index]) / 2
-                        )
-                        + psm_config.relaxation_rates[1]
-                        * (
-                                (f - method.pre_collision_pdf_symbols[inverse_direction_index])
-                                / 2
-                                - (eq - equilibrium[inverse_direction_index]) / 2
-                        )
-                )
-            )
-    else:
-        raise ValueError("Only SRT and TRT are supported.")
-
-    # Given forcing operator with (1 - solid_fraction) as prefactor
-    fq = method.force_model(method)
-    fq_psm = []
-    for f in fq:
-        fq_psm.append((1 - B.center) * f)
-
-    # Assemble right-hand side of collision assignments
     collision_rhs = []
-    for f, c, fo in zip(method.pre_collision_pdf_symbols, collision_op_psm, fq_psm):
-        collision_rhs.append(f - c + fo)
+    for assignment in collision_rule.main_assignments:
+        rhsSum = 0
+        for arg in assignment.rhs.args:
+            if arg not in method.pre_collision_pdf_symbols:
+                rhsSum += (1 - B.center) * arg
+            else:
+                rhsSum += arg
+        collision_rhs.append(rhsSum)
 
     # =====================
     # Code generation for the solid parts
     # =====================
 
-    forces_rhs = [0] * MaxParticlesPerCell * stencil.D
     solid_collisions = [0] * stencil.Q
-    for p in range(MaxParticlesPerCell):
-        equilibriumFluid = method.get_equilibrium_terms()
-        equilibriumSolid = []
-        for eq in equilibriumFluid:
-            eq_sol = eq
-            for i in range(stencil.D):
-                eq_sol = eq_sol.subs(
-                    sp.Symbol("u_" + str(i)),
-                    particle_velocities.center(p * stencil.D + i),
-                )
-            if split:
-                eq_sol = eq_sol.subs(
-                    sp.Symbol("delta_rho"),
-                    sp.Symbol("delta_rho_inter"),
-                )
-            equilibriumSolid.append(eq_sol)
-        if split:
-            equilibriumFluidTmp = equilibriumFluid
-            equilibriumFluid = []
-            for eq in equilibriumFluidTmp:
-                for i in range(stencil.D):
-                    eq = eq.subs(
-                        sp.Symbol("u_" + str(i)),
-                        sp.Symbol("u_" + str(i) + "_inter"),
-                    )
-                eq = eq.subs(
-                    sp.Symbol("delta_rho"),
-                    sp.Symbol("delta_rho_inter"),
-                )
-                equilibriumFluid.append(eq)
 
-        # Assemble right-hand side of collision assignments
-        # Add solid collision part to collision right-hand side and forces right-hand side
-        for i, (eqFluid, eqSolid, f, offset) in enumerate(
-                zip(
-                    equilibriumFluid,
-                    equilibriumSolid,
-                    method.pre_collision_pdf_symbols,
-                    stencil,
-                )
-        ):
-            inverse_direction_index = stencil.stencil_entries.index(
-                stencil.inverse_stencil_entries[i]
+    equilibriumFluid = method.get_equilibrium_terms()
+    equilibriumSolid = []
+    for eq in equilibriumFluid:
+        eq_sol = eq
+        for i in range(stencil.D):
+            eq_sol = eq_sol.subs(
+                sp.Symbol("u_" + str(i)),
+                particle_velocities.center(i),
             )
-            if SC == 1:
-                solid_collision = Bs.center(p) * (
-                        (
-                                method.pre_collision_pdf_symbols[inverse_direction_index]
-                                - equilibriumFluid[inverse_direction_index]
-                        )
-                        - (f - eqSolid)
+        if split:
+            eq_sol = eq_sol.subs(
+                sp.Symbol("delta_rho"),
+                sp.Symbol("delta_rho_inter"),
+            )
+        equilibriumSolid.append(eq_sol)
+    if split:
+        equilibriumFluidTmp = equilibriumFluid
+        equilibriumFluid = []
+        for eq in equilibriumFluidTmp:
+            for i in range(stencil.D):
+                eq = eq.subs(
+                    sp.Symbol("u_" + str(i)),
+                    sp.Symbol("u_" + str(i) + "_inter"),
                 )
-            elif SC == 2:
-                solid_collision = Bs.center(p) * (
-                        (eqSolid - f) + (1 - omega) * (f - eqFluid)
-                )
-            elif SC == 3:
-                solid_collision = Bs.center(p) * (
-                        (
-                                method.pre_collision_pdf_symbols[inverse_direction_index]
-                                - equilibriumSolid[inverse_direction_index]
-                        )
-                        - (f - eqSolid)
-                )
-            else:
-                raise ValueError("Only SC=1, SC=2 and SC=3 are supported.")
-            solid_collisions[i] += solid_collision
-            for j in range(stencil.D):
-                forces_rhs[p * stencil.D + j] -= solid_collision * int(offset[j])
+            eq = eq.subs(
+                sp.Symbol("delta_rho"),
+                sp.Symbol("delta_rho_inter"),
+            )
+            equilibriumFluid.append(eq)
+
+    # Assemble right-hand side of collision assignments
+    # Add solid collision part to collision right-hand side and forces right-hand side
+    for i, (eqFluid, eqSolid, f, offset) in enumerate(
+            zip(
+                equilibriumFluid,
+                equilibriumSolid,
+                method.pre_collision_pdf_symbols,
+                stencil,
+            )
+    ):
+        inverse_direction_index = stencil.stencil_entries.index(stencil.inverse_stencil_entries[i])
+        if SC == 1:
+            solid_collision = B.center * (
+                    (
+                            method.pre_collision_pdf_symbols[inverse_direction_index]
+                            - equilibriumFluid[inverse_direction_index]
+                    )
+                    - (f - eqSolid)
+            )
+        elif SC == 2:
+            solid_collision = B.center * (
+                    (eqSolid - f) + (1 - omega) * (f - eqFluid)
+            )
+        elif SC == 3:
+            solid_collision = B.center * (
+                    (
+                            method.pre_collision_pdf_symbols[inverse_direction_index]
+                            - equilibriumSolid[inverse_direction_index]
+                    )
+                    - (f - eqSolid)
+            )
+        else:
+            raise ValueError("Only SC=1, SC=2 and SC=3 are supported.")
+        solid_collisions[i] += solid_collision
+
 
     # =====================
     # Assemble update rule
@@ -235,68 +197,32 @@ with CodeGeneration() as ctx:
     # Assemble collision assignments
     collision_assignments = []
     if not split:
-        for d, c, sc in zip(
-                method.post_collision_pdf_symbols, collision_rhs, solid_collisions
-        ):
+        for d, c, sc in zip( method.post_collision_pdf_symbols, collision_rhs, solid_collisions):
             collision_assignments.append(ps.Assignment(d, c + sc))
-    else:
-        # First, add only fluid collision
-        for d, c in zip(pdfs_inter, collision_rhs):
-            collision_assignments.append(ps.Assignment(d, c))
 
-        # Second, define quantities to compute the equilibrium as functions of the pdfs_inter
-        cqc_inter = (
-            method.conserved_quantity_computation.equilibrium_input_equations_from_pdfs(
-                pdfs_inter, False
-            )
-        )
-        for cq in cqc_inter.all_assignments:
-            for i in range(stencil.D):
-                cq = cq.subs(
-                    sp.Symbol("u_" + str(i)), sp.Symbol("u_" + str(i) + "_inter")
-                )
-                cq = cq.subs(
-                    sp.Symbol("vel" + str(i) + "Term"),
-                    sp.Symbol("vel" + str(i) + "Term_inter"),
-                )
-            cq = cq.subs(sp.Symbol("delta_rho"), sp.Symbol("delta_rho_inter"))
-            cq = cq.subs(sp.Symbol("rho"), sp.Symbol("rho_inter"))
-            collision_assignments.append(cq)
-
-        # Third, add solid collision using quantities from pdfs_inter
-        for d, d_inter, sc in zip(
-                method.post_collision_pdf_symbols, pdfs_inter, solid_collisions
-        ):
-            collision_assignments.append(ps.Assignment(d, d_inter + sc))
-
-    # Add force calculations to collision assignments
-    for p in range(MaxParticlesPerCell):
-        for i in range(stencil.D):
-            collision_assignments.append(
-                ps.Assignment(
-                    particle_forces.center(p * stencil.D + i),
-                    forces_rhs[p * stencil.D + i],
-                )
-            )
 
     # Define quantities to compute the equilibrium as functions of the pdfs
-    cqc = method.conserved_quantity_computation.equilibrium_input_equations_from_pdfs(
-        method.pre_collision_pdf_symbols, False
-    )
+    # TODO: maybe incorporate some of these assignments into the subexpressions
+    # cqc = method.conserved_quantity_computation.equilibrium_input_equations_from_pdfs(
+    #    method.pre_collision_pdf_symbols, False
+    # )
 
     up = ps.AssignmentCollection(
-        collision_assignments, subexpressions=cqc.all_assignments
+        collision_assignments, subexpressions=collision_rule.subexpressions
     )
     output_eqs = method.conserved_quantity_computation.output_equations_from_pdfs(
         method.pre_collision_pdf_symbols, psm_config.output
     )
     up = up.new_merged(output_eqs)
+
     up.method = method
 
     # Create assignment collection for the complete update rule
     lbm_update_rule = create_lb_update_rule(
         collision_rule=up, lbm_config=psm_config, lbm_optimisation=lbm_opt
     )
+
+
 
     # =====================
     # Add conditionals for the solid parts
@@ -306,62 +232,54 @@ with CodeGeneration() as ctx:
     node_collection = NodeCollection.from_assignment_collection(lbm_update_rule)
 
     conditionals = []
-    for p in range(MaxParticlesPerCell):
-        # One conditional for every potentially overlapping particle
-        conditional_assignments = []
 
-        # Move force computations to conditional
-        for i in range(stencil.D):
-            for node in node_collection.all_assignments:
-                if type(node) == SympyAssignment and node.lhs == particle_forces.center(
-                        p * stencil.D + i
-                ):
-                    conditional_assignments.append(node)
-                    node_collection.all_assignments.remove(node)
+    # One conditional for every potentially overlapping particle
+    conditional_assignments = []
 
-        # Move solid collisions to conditional
-        for node in node_collection.all_assignments:
-            if type(node) == SympyAssignment and type(node.rhs) == Add:
-                rhs = node.rhs.args
-                # Maximum one solid collision for each potentially overlapping particle per assignment
-                solid_collision = next(
-                    (
+    # Move solid collisions to conditional
+    for node in node_collection.all_assignments:
+        if type(node) == SympyAssignment and type(node.rhs) == Add:
+            rhs = node.rhs.args
+            # Maximum one solid collision for each potentially overlapping particle per assignment
+            solid_collision = next(
+                (
+                    summand
+                    for summand in rhs
+                    if type(summand) == Mul and B.center in summand.args
+                ),
+                None,
+            )
+            if solid_collision is not None:
+                conditional_assignments.append(
+                    SympyAssignment(
+                        copy.deepcopy(node.lhs),
+                        Add(solid_collision, copy.deepcopy(node.lhs)),
+                    )
+                )
+                node.rhs = Add(
+                    *[
                         summand
                         for summand in rhs
-                        if type(summand) == Mul and Bs.center(p) in summand.args
-                    ),
-                    None,
-                )
-                if solid_collision is not None:
-                    conditional_assignments.append(
-                        SympyAssignment(
-                            copy.deepcopy(node.lhs),
-                            Add(solid_collision, copy.deepcopy(node.lhs)),
+                        if not (
+                                type(summand) == Mul and B.center in summand.args
                         )
-                    )
-                    node.rhs = Add(
-                        *[
-                            summand
-                            for summand in rhs
-                            if not (
-                                    type(summand) == Mul and Bs.center(p) in summand.args
-                            )
-                        ]
-                    )
+                    ]
+                )
 
-        conditional = Conditional(Bs.center(p) > 0.0, Block(conditional_assignments))
+    conditional = Conditional(B.center > 0.0, Block(conditional_assignments))
 
-        conditionals.append(conditional)
-        # Append conditional at the end of previous conditional
-        # because n+1 particles can only overlap if at least n particles overlap
-        if p > 0:
-            conditionals[-2].true_block.append(conditional)
+    conditionals.append(conditional)
+
 
     # Add first conditional to node collection, the other conditionals are nested inside the first one
     node_collection.all_assignments.append(conditionals[0])
 
+    if ctx.cuda:
+        target = ps.Target.GPU
+    else:
+        target = ps.Target.CPU
 
-
+    # Generate files
     generate_sweep(
         ctx,
         "PSMSweep",
