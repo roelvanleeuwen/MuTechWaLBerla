@@ -897,6 +897,7 @@ int main( int argc, char **argv )
    {
       // sphere
       auto particleVtkOutput = make_shared<mesa_pd::vtk::ParticleVtkOutput>(ps);
+      particleVtkOutput->addOutput< mesa_pd::data::SelectParticleInteractionRadius >("radius");
       particleVtkOutput->addOutput<mesa_pd::data::SelectParticleLinearVelocity>("velocity");
       particleVtkOutput->addOutput<mesa_pd::data::SelectParticleAngularVelocity>("angular velocity");
       particleVtkOutput->setParticleSelector( [sphereShape](const mesa_pd::data::ParticleStorage::iterator& pIt) {return pIt->getShapeID() == sphereShape;} ); //limit output to sphere

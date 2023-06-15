@@ -55,6 +55,7 @@
 #include "mesa_pd/mpi/ReduceProperty.h"
 #include "mesa_pd/mpi/SyncNextNeighbors.h"
 #include "mesa_pd/mpi/notifications/HydrodynamicForceTorqueNotification.h"
+#include "mesa_pd/vtk/ParticleVtkOutput.h"
 
 #include "vtk/all.h"
 
@@ -567,6 +568,15 @@ int main(int argc, char** argv)
                                            real_t(0.0));
    if (vtkIOFreq != uint_t(0))
    {
+      // spheres
+      auto particleVtkOutput = make_shared< mesa_pd::vtk::ParticleVtkOutput >(ps);
+      particleVtkOutput->addOutput< mesa_pd::data::SelectParticleInteractionRadius >("radius");
+      particleVtkOutput->addOutput< mesa_pd::data::SelectParticleLinearVelocity >("velocity");
+      auto particleVtkWriter =
+         vtk::createVTKOutput_PointData(particleVtkOutput, "Particles", vtkIOFreq, baseFolderVTK, "simulation_step");
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(particleVtkWriter), "VTK (sphere data)");
+
+      // pdf field
       auto pdfFieldVTK =
          vtk::createVTKOutput_BlockData(blocks, "fluid_field", vtkIOFreq, uint_t(0), false, baseFolderVTK);
 

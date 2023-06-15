@@ -673,6 +673,7 @@ int main(int argc, char** argv)
          return pIt->getShapeID() == sphereShape;
       });
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleOwner >("owner");
+      particleVtkOutput->addOutput< mesa_pd::data::SelectParticleInteractionRadius >("radius");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleLinearVelocity >("velocity");
       auto particleVtkWriter =
          vtk::createVTKOutput_PointData(particleVtkOutput, "Particles", vtkIOFreq, baseFolder, "simulation_step");
