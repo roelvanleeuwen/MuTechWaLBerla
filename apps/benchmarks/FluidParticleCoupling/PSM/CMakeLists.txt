@@ -26,11 +26,11 @@ foreach (collision_setup srt trt)
                 waLBerla_add_executable(NAME SphereWallCollisionPSM_${config} FILES SphereWallCollisionPSM.cpp
                         DEPENDS blockforest core gpu field geometry lbm lbm_mesapd_coupling mesa_pd vtk PSMCodegenPython_${collision_setup}_sc${solid_collision}_s${split})
                 target_compile_definitions(SphereWallCollisionPSM_${config} PRIVATE Weighting=${weighting})
+
+                waLBerla_add_executable(NAME ObliqueWetCollisionPSM_${config} FILES ObliqueWetCollisionPSM.cpp
+                        DEPENDS blockforest core gpu field lbm lbm_mesapd_coupling mesa_pd timeloop vtk PSMCodegenPython_${collision_setup}_sc${solid_collision}_s${split})
+                target_compile_definitions(ObliqueWetCollisionPSM_${config} PRIVATE Weighting=${weighting})
             endforeach ()
         endforeach ()
     endforeach ()
 endforeach ()
-
-waLBerla_add_executable(NAME ObliqueWetCollisionPSM FILES ObliqueWetCollisionPSM.cpp
-        DEPENDS blockforest boundary core domain_decomposition field lbm lbm_mesapd_coupling mesa_pd
-        postprocessing timeloop vtk FluidParticleCouplingGeneratedLBM)
