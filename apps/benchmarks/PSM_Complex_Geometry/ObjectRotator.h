@@ -48,14 +48,19 @@ typedef field::GhostLayerField< real_t, 1 > ScalarField_T;
 class ObjectRotator
 {
    typedef std::function< real_t(const Vector3< real_t >&) > DistanceFunction;
+   typedef stencil::D3Q19 Stencil_T;
+   typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
 
  public:
    ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
                  const BlockDataID BFieldId, const BlockDataID objectVelocityId, const real_t rotationAngle,
                  const uint_t frequency, DistanceFunction distOctree)
       : blocks_(blocks), mesh_(mesh), BFieldId_(BFieldId), objectVelocityId_(objectVelocityId),
-        rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree), counter(0)
-   {}
+        rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree), counter(0), rotationAxis(0,-1,0)
+   {
+      meshCenter = computeCentroid(*mesh_);
+      initObjectVelocityField();
+   }
 
    void operator()() { rotate(); }
 
@@ -63,16 +68,31 @@ class ObjectRotator
    {
       if (counter % frequency_ == 0)
       {
-         // find mesh center and rotate mesh
-         const Vector3< mesh::TriangleMesh::Scalar > axis(0, 0, 1);
-         const mesh::TriangleMesh::Point meshCenter = computeCentroid(*mesh_);
-         const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
-         mesh::rotate(*mesh_, axis, rotationAngle_, axis_foot);
+         // rotate mesh
 
+         WcTimer simTimer;
+
+         simTimer.start();
+         const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
+         mesh::rotate(*mesh_, rotationAxis, rotationAngle_, axis_foot);
+         simTimer.end();
+         double time = simTimer.max();
+         WALBERLA_LOG_INFO_ON_ROOT("Time rotation: " << time)
+
+         simTimer.reset();
+         simTimer.start();
          distOctree_ = makeMeshDistanceFunction(make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
             make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_)));
+         simTimer.end();
+         time = simTimer.max();
+         WALBERLA_LOG_INFO_ON_ROOT("Time build octree: " << time)
 
+         simTimer.reset();
+         simTimer.start();
          getFractionFieldFromMesh();
+         simTimer.end();
+         time = simTimer.max();
+         WALBERLA_LOG_INFO_ON_ROOT("Time fill fraction field: " << time)
       }
       counter += 1;
    }
@@ -86,35 +106,32 @@ class ObjectRotator
       }
    }
 
-   void slowGetFractionFieldFromMesh()
-   {
-      resetFractionField();
-
+   void initObjectVelocityField() {
       for (auto& block : *blocks_)
       {
-         ScalarField_T* BField = block.getData< ScalarField_T >(BFieldId_);
-         auto level            = blocks_->getLevel(block);
-         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(
-            BField, Cell cell(x, y, z); blocks_->transformBlockLocalToGlobalCell(cell, block);
+         auto level = blocks_->getLevel(block);
+         auto objVelField = block.getData< VectorField_T >(objectVelocityId_);
+         const Vector3< real_t > angularVel(rotationAxis[0] * rotationAngle_, rotationAxis[1] * rotationAngle_, rotationAxis[2] * rotationAngle_);
+         const real_t dx = blocks_->dx(level);
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(objVelField,
+            Cell cell(x,y,z);
             Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
-            blocks_->mapToPeriodicDomain(cellCenter); const real_t sqSignedDistance = distOctree_(cellCenter);
-            real_t distance; if (sqSignedDistance < 0) {
-               distance = sqrt(-sqSignedDistance);
-               distance *= -1;
-            } else { distance = sqrt(sqSignedDistance); }
+            Vector3< real_t > distance((cellCenter[0] - meshCenter[0]) / dx, (cellCenter[1] - meshCenter[1]) / dx, (cellCenter[2] - meshCenter[2]) / dx);
+            real_t velX = angularVel[1] * distance[2] - angularVel[2] * distance[1];
+            real_t velY = angularVel[2] * distance[0] - angularVel[0] * distance[2];
+            real_t velZ = angularVel[0] * distance[1] - angularVel[1] * distance[0];
 
-            Cell localCell;
-            blocks_->transformGlobalToBlockLocalCell(localCell, block, blocks_->getCell(cellCenter, level));
-            // TODO seems not to fit the geometry 100% -> also get fraction from fill level, not from distance
+            objVelField->get(cell, 0) = velX;
+            objVelField->get(cell, 1) = velY;
+            objVelField->get(cell, 2) = velZ;
 
-            BField->get(localCell) = std::min(1.0, std::max(0.0, 1.0 - distance / blocks_->dx(level) + 0.5));)
+         )
       }
    }
 
+
    void getFractionFieldFromMesh()
    {
-      // resetFractionField();
-
       for (auto& block : *blocks_)
       {
          ScalarField_T* BField = block.getData< ScalarField_T >(BFieldId_);
@@ -187,6 +204,32 @@ class ObjectRotator
          }
       }
    }
+
+   void slowGetFractionFieldFromMesh()
+   {
+      resetFractionField();
+
+      for (auto& block : *blocks_)
+      {
+         ScalarField_T* BField = block.getData< ScalarField_T >(BFieldId_);
+         auto level            = blocks_->getLevel(block);
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(
+            BField, Cell cell(x, y, z); blocks_->transformBlockLocalToGlobalCell(cell, block);
+            Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
+            blocks_->mapToPeriodicDomain(cellCenter); const real_t sqSignedDistance = distOctree_(cellCenter);
+            real_t distance; if (sqSignedDistance < 0) {
+               distance = sqrt(-sqSignedDistance);
+               distance *= -1;
+            } else { distance = sqrt(sqSignedDistance); }
+
+            Cell localCell;
+            blocks_->transformGlobalToBlockLocalCell(localCell, block, blocks_->getCell(cellCenter, level));
+            // TODO seems not to fit the geometry 100% -> also get fraction from fill level, not from distance
+
+            BField->get(localCell) = std::min(1.0, std::max(0.0, 1.0 - distance / blocks_->dx(level) + 0.5));)
+      }
+   }
+
 
    void getBinaryFractionFieldFromMesh()
    {
@@ -303,6 +346,9 @@ class ObjectRotator
    const uint_t frequency_;
    DistanceFunction distOctree_;
    uint_t counter;
+   mesh::TriangleMesh::Point meshCenter;
+   Vector3< mesh::TriangleMesh::Scalar > rotationAxis;
+
 };
 
 }//namespace waLBerla

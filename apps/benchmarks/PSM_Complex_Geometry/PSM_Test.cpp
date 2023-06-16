@@ -219,11 +219,13 @@ int main(int argc, char** argv)
 
    auto boundaryLocations = colorToBoundaryMapper.addBoundaryInfoToMesh(*mesh);
 
-   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "meshBoundaries", 1);
+   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "meshBoundaries", VTKWriteFrequency);
    meshWriter.addDataSource(make_shared< mesh::BoundaryUIDFaceDataSource< mesh::TriangleMesh > >(boundaryLocations));
    meshWriter.addDataSource(make_shared< mesh::ColorFaceDataSource< mesh::TriangleMesh > >());
    meshWriter.addDataSource(make_shared< mesh::ColorVertexDataSource< mesh::TriangleMesh > >());
    meshWriter();
+   const std::function< void() > meshWritingFunc = [&]() { meshWriter(); };
+
 
    auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
 
@@ -256,7 +258,7 @@ int main(int argc, char** argv)
    fixedDensity.fillFromFlagField< FlagField_T >(blocks, flagFieldId, FlagUID("FixedDensity"), fluidFlagUID);
 
    BlockDataID BFieldId = field::addToStorage< ScalarField_T >(blocks, "BFieldID", real_c(0.0), field::fzyx);
-   BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx); //TODO set rotation velocity
+   BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx);
 
    ObjectRotator objectRotator(blocks, mesh, BFieldId, objectVelocitiesFieldId, rotationAngle, rotationFrequency, makeMeshDistanceFunction(distanceOctree));
    const std::function< void() > objectRotatorFunc = [&]() { objectRotator(); };
@@ -268,7 +270,7 @@ int main(int argc, char** argv)
 
    pystencils::MacroGetter getterSweep(densityFieldId, pdfFieldId, velocityFieldId, real_t(0.0), real_t(0.0), real_t(0.0));
 
-   pystencils::MacroSetter setterSweep( pdfFieldId, velocityFieldId, 0.02, 0.0, 0.0, 1.0 );
+   pystencils::MacroSetter setterSweep( pdfFieldId, velocityFieldId, 0.0, 0.0, 0.0, 1.0 );
    for(auto &block : *blocks) {
       setterSweep(&block);
    }
@@ -292,6 +294,7 @@ int main(int argc, char** argv)
 
    const auto emptySweep = [](IBlock*) {};
 
+
    // Timeloop
    timeloop.add() << BeforeFunction(communication, "Communication")
                   << Sweep(ubb, "UBB");
@@ -299,8 +302,9 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(fixedDensity, "FixedDensity");
    //timeloop.add() << Sweep(lbmSweep, "LBM Sweep");
    timeloop.add() << Sweep(PSMSweep, "PSMSweep");
-   if(rotationAngle > 0.0 && rotationFrequency > 0)
-      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") << Sweep(emptySweep);
+   if(rotationAngle > 0.0 && rotationFrequency > 0) {
+      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") << BeforeFunction(meshWritingFunc, "meshWriter")<<  Sweep(emptySweep);
+   }
 
 
    // Time logger
@@ -327,10 +331,13 @@ int main(int argc, char** argv)
       auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
       auto flagWriter = make_shared< field::VTKWriter< FlagField_T > >(flagFieldId, "Flag");
       auto fractionFieldWriter = make_shared< field::VTKWriter< ScalarField_T > >(BFieldId, "FractionField");
+      auto objVeldWriter = make_shared< field::VTKWriter< VectorField_T > >(objectVelocitiesFieldId, "objectVelocity");
 
       vtkOutput->addCellDataWriter(velWriter);
       vtkOutput->addCellDataWriter(flagWriter);
       vtkOutput->addCellDataWriter(fractionFieldWriter);
+      vtkOutput->addCellDataWriter(objVeldWriter);
+
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
    }

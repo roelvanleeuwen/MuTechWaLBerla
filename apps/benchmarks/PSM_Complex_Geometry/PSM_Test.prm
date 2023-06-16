@@ -2,10 +2,10 @@
 Parameters 
 {
 	omega           1.8;
-	timesteps       5001;
+	timesteps       50;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 100;
+	VTKwriteFrequency 0;
 }
 
 DomainSetup
@@ -15,15 +15,15 @@ DomainSetup
    rotationFrequency  10;
    rotationAngle      0.017453292519943;    //1° in rad
 
-   dx                 3;
+   dx                 3.0;
    cellsPerBlock      < 64, 64, 64 >;
    periodic           <  0,  0,  1 >;
 }
 
 Boundaries
 {
-	Border { direction W;    walldistance -1;  flag UBB; }
-	Border { direction E;    walldistance -1;  flag Pressure; }
+	Border { direction W;    walldistance -1;  flag NoSlip; }
+	Border { direction E;    walldistance -1;  flag NoSlip; }
 	Border { direction S,N;  walldistance -1;  flag NoSlip; }
 
 }
