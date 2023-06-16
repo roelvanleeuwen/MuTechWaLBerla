@@ -53,9 +53,9 @@ class ObjectRotator
 
  public:
    ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
-                 const BlockDataID BFieldId, const BlockDataID objectVelocityId, const real_t rotationAngle,
+                 const BlockDataID fractionFieldId, const BlockDataID objectVelocityId, const real_t rotationAngle,
                  const uint_t frequency, DistanceFunction distOctree)
-      : blocks_(blocks), mesh_(mesh), BFieldId_(BFieldId), objectVelocityId_(objectVelocityId),
+      : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId),
         rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree), counter(0), rotationAxis(0,-1,0)
    {
       meshCenter = computeCentroid(*mesh_);
@@ -101,8 +101,8 @@ class ObjectRotator
    {
       for (auto& block : *blocks_)
       {
-         auto BField = block.getData< ScalarField_T >(BFieldId_);
-         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(BField, BField->get(x, y, z) = 0.0;)
+         auto fractionField = block.getData< ScalarField_T >(fractionFieldId_);
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(fractionField, fractionField->get(x, y, z) = 0.0;)
       }
    }
 
@@ -134,9 +134,9 @@ class ObjectRotator
    {
       for (auto& block : *blocks_)
       {
-         ScalarField_T* BField = block.getData< ScalarField_T >(BFieldId_);
+         ScalarField_T* fractionField = block.getData< ScalarField_T >(fractionFieldId_);
 
-         CellInterval blockCi = BField->xyzSizeWithGhostLayer();
+         CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
          blocks_->transformBlockLocalToGlobalCellInterval(blockCi, block);
          auto level = blocks_->getLevel(block);
 
@@ -168,7 +168,7 @@ class ObjectRotator
                else { distance = sqrt(sqSignedDistance); }
                Cell localCell;
                blocks_->transformGlobalToBlockLocalCell(localCell, block, curCi.min());
-               BField->get(localCell) = std::min(1.0, std::max(0.0, 1.0 - distance / blocks_->dx(level) + 0.5));
+               fractionField->get(localCell) = std::min(1.0, std::max(0.0, 1.0 - distance / blocks_->dx(level) + 0.5));
                ciQueue.pop();
                continue;
             }
@@ -181,7 +181,7 @@ class ObjectRotator
             {
                CellInterval localCi;
                blocks_->transformGlobalToBlockLocalCellInterval(localCi, block, curCi);
-               std::fill(BField->beginSliceXYZ(localCi), BField->end(), 1.0);
+               std::fill(fractionField->beginSliceXYZ(localCi), fractionField->end(), 1.0);
 
                ciQueue.pop();
                continue;
@@ -191,7 +191,7 @@ class ObjectRotator
             {
                CellInterval localCi;
                blocks_->transformGlobalToBlockLocalCellInterval(localCi, block, curCi);
-               std::fill(BField->beginSliceXYZ(localCi), BField->end(), 0.0);
+               std::fill(fractionField->beginSliceXYZ(localCi), fractionField->end(), 0.0);
 
                ciQueue.pop();
                continue;
@@ -211,10 +211,10 @@ class ObjectRotator
 
       for (auto& block : *blocks_)
       {
-         ScalarField_T* BField = block.getData< ScalarField_T >(BFieldId_);
+         ScalarField_T* fractionField = block.getData< ScalarField_T >(fractionFieldId_);
          auto level            = blocks_->getLevel(block);
          WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(
-            BField, Cell cell(x, y, z); blocks_->transformBlockLocalToGlobalCell(cell, block);
+            fractionField, Cell cell(x, y, z); blocks_->transformBlockLocalToGlobalCell(cell, block);
             Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
             blocks_->mapToPeriodicDomain(cellCenter); const real_t sqSignedDistance = distOctree_(cellCenter);
             real_t distance; if (sqSignedDistance < 0) {
@@ -226,7 +226,7 @@ class ObjectRotator
             blocks_->transformGlobalToBlockLocalCell(localCell, block, blocks_->getCell(cellCenter, level));
             // TODO seems not to fit the geometry 100% -> also get fraction from fill level, not from distance
 
-            BField->get(localCell) = std::min(1.0, std::max(0.0, 1.0 - distance / blocks_->dx(level) + 0.5));)
+            fractionField->get(localCell) = std::min(1.0, std::max(0.0, 1.0 - distance / blocks_->dx(level) + 0.5));)
       }
    }
 
@@ -237,9 +237,9 @@ class ObjectRotator
 
       for (auto& block : *blocks_)
       {
-         ScalarField_T* BField = block.getData< ScalarField_T >(BFieldId_);
+         ScalarField_T* fractionField = block.getData< ScalarField_T >(fractionFieldId_);
 
-         CellInterval blockCi = BField->xyzSizeWithGhostLayer();
+         CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
          blocks_->transformBlockLocalToGlobalCellInterval(blockCi, block);
 
          std::queue< CellInterval > ciQueue;
@@ -266,7 +266,7 @@ class ObjectRotator
                {
                   Cell localCell;
                   blocks_->transformGlobalToBlockLocalCell(localCell, block, curCi.min());
-                  BField->get(localCell) = uint8_t(1);
+                  fractionField->get(localCell) = uint8_t(1);
                }
 
                ciQueue.pop();
@@ -281,8 +281,8 @@ class ObjectRotator
                // clearly the cell interval is fully covered by the mesh
                CellInterval localCi;
                blocks_->transformGlobalToBlockLocalCellInterval(localCi, block, curCi);
-               // std::fill( BField->beginSliceXYZ( localCi ), BField->end(), uint8_t(1) );
-               std::fill(BField->beginSliceXYZ(localCi), BField->end(), sqSignedDistance);
+               // std::fill( fractionField->beginSliceXYZ( localCi ), fractionField->end(), uint8_t(1) );
+               std::fill(fractionField->beginSliceXYZ(localCi), fractionField->end(), sqSignedDistance);
 
                ciQueue.pop();
                continue;
@@ -340,7 +340,7 @@ class ObjectRotator
  private:
    shared_ptr< StructuredBlockForest > blocks_;
    shared_ptr< mesh::TriangleMesh > mesh_;
-   const BlockDataID BFieldId_;
+   const BlockDataID fractionFieldId_;
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
    const uint_t frequency_;

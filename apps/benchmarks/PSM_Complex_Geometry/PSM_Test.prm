@@ -10,12 +10,12 @@ Parameters
 
 DomainSetup
 {
-   meshFile           bunny.obj;
+   meshFile           Rotor.obj;
    domainScaling      <  1,  1,  1 >;
    rotationFrequency  10;
    rotationAngle      0.017453292519943;    //1° in rad
 
-   dx                 3.0;
+   dx                 1.0;
    cellsPerBlock      < 64, 64, 64 >;
    periodic           <  0,  0,  1 >;
 }
