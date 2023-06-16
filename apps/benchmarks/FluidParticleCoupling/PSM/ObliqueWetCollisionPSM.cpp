@@ -43,7 +43,6 @@
 #include "gpu/AddGPUFieldToStorage.h"
 #include "gpu/communication/UniformGPUScheme.h"
 
-#include "lbm/lattice_model/D3Q19.h"
 #include "lbm/vtk/all.h"
 
 #include "lbm_mesapd_coupling/DataTypes.h"

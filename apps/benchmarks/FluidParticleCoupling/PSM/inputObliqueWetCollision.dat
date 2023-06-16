@@ -41,7 +41,7 @@ Variant_Gravity
    tau                             0.502;
    useFullGravityInNormalDirection false;
    domainSize                      <20,10,10>; // multiples of diameter
-   numberOfBlocksPerDirection      <8,5,5>;
+   numberOfBlocksPerDirection      <2,2,2>;
    initialSphereHeight             7; // multiple of diameter
 }
 
