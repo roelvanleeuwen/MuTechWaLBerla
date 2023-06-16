@@ -249,8 +249,8 @@ int main(int argc, char** argv)
    objectRotator.getFractionFieldFromMesh();
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    gpu::fieldCpy< GPUField, VectorField_T >(blocks, objectVelocitiesFieldGPUId, objectVelocitiesFieldId);
-#endif
    const std::function< void() > syncFractionField = [&]() { gpu::fieldCpy< GPUField, ScalarField_T >(blocks, fractionFieldGPUId, fractionFieldId); };
+#endif
 
 
 
@@ -265,7 +265,7 @@ int main(int argc, char** argv)
    lbm::NoSlip noSlip(blocks, pdfFieldGPUId);
    lbm::UBB ubb(blocks, pdfFieldGPUId);
    lbm::FixedDensity fixedDensity(blocks, pdfFieldGPUId);
-#elif 
+#else
    pystencils::LBMSweep const lbmSweep(pdfFieldId, 0,0,0, omega);
    pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId, real_t(0), real_t(0.0), real_t(0.0), omega);
 

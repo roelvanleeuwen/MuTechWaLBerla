@@ -68,31 +68,15 @@ class ObjectRotator
    {
       if (counter % frequency_ == 0)
       {
-         // rotate mesh
-
-         WcTimer simTimer;
-
-         simTimer.start();
          const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
-         mesh::rotate(*mesh_, rotationAxis, rotationAngle_, axis_foot);
-         simTimer.end();
-         double time = simTimer.max();
-         WALBERLA_LOG_INFO_ON_ROOT("Time rotation: " << time)
 
-         simTimer.reset();
-         simTimer.start();
+         mesh::rotate(*mesh_, rotationAxis, rotationAngle_, axis_foot);
+
          distOctree_ = makeMeshDistanceFunction(make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
             make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_)));
-         simTimer.end();
-         time = simTimer.max();
-         WALBERLA_LOG_INFO_ON_ROOT("Time build octree: " << time)
 
-         simTimer.reset();
-         simTimer.start();
          getFractionFieldFromMesh();
-         simTimer.end();
-         time = simTimer.max();
-         WALBERLA_LOG_INFO_ON_ROOT("Time fill fraction field: " << time)
+
       }
       counter += 1;
    }

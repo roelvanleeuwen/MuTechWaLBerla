@@ -2,10 +2,10 @@
 Parameters 
 {
 	omega           1.8;
-	timesteps       50;
+	timesteps       3601;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 0;
+	VTKwriteFrequency 200;
 }
 
 DomainSetup
