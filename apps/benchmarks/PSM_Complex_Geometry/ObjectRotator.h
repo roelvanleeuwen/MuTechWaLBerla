@@ -20,6 +20,17 @@
 #pragma once
 
 #include "blockforest/all.h"
+
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+#include "gpu/AddGPUFieldToStorage.h"
+#include "gpu/DeviceSelectMPI.h"
+#include "gpu/FieldCopy.h"
+#include "gpu/GPUWrapper.h"
+#include "gpu/HostFieldAllocator.h"
+#include "gpu/ParallelStreams.h"
+#include "gpu/communication/UniformGPUScheme.h"
+#endif
+
 #include "mesh_common/DistanceComputations.h"
 #include "mesh_common/DistanceFunction.h"
 #include "mesh_common/MatrixVectorOperations.h"
@@ -39,10 +50,16 @@
 #include "mesh/boundary/ColorToBoundaryMapper.h"
 
 
+
 namespace walberla
 {
 typedef field::GhostLayerField< real_t, 1 > ScalarField_T;
 
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+typedef gpu::GPUField< real_t > GPUField;
+#endif
+
+# define M_PI           3.14159265358979323846
 
 
 class ObjectRotator
@@ -52,14 +69,23 @@ class ObjectRotator
    typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
 
  public:
-   ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
-                 const BlockDataID fractionFieldId, const BlockDataID objectVelocityId, const real_t rotationAngle,
-                 const uint_t frequency, DistanceFunction distOctree)
-      : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId),
-        rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree), counter(0), rotationAxis(0,-1,0)
+   ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID fractionFieldId,
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+                 const BlockDataID fractionFieldIdGPU,
+#endif
+                 const BlockDataID objectVelocityId, const real_t rotationAngle, const uint_t frequency, DistanceFunction distOctree, const bool preProcessedFractionFields)
+      : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId),
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+        fractionFieldIdGPU_(fractionFieldIdGPU),
+#endif
+        objectVelocityId_(objectVelocityId), rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree),
+        preProcessedFractionFields_(preProcessedFractionFields), counter(0), rotationAxis(0,-1,0)
    {
       meshCenter = computeCentroid(*mesh_);
       initObjectVelocityField();
+      if(preProcessedFractionFields_) {
+         preprocessMesh();
+      }
    }
 
    void operator()() { rotate(); }
@@ -68,14 +94,20 @@ class ObjectRotator
    {
       if (counter % frequency_ == 0)
       {
-         const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
+         if(preProcessedFractionFields_) {
+            syncFractionFieldFromVector();
+         }
+         else {
+            const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
+            mesh::rotate(*mesh_, rotationAxis, rotationAngle_, axis_foot);
+            distOctree_ = makeMeshDistanceFunction(make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
+               make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_)));
+            getFractionFieldFromMesh(fractionFieldId_);
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+            gpu::fieldCpy< GPUField, ScalarField_T >(blocks_, fractionFieldGPUId_, fractionFieldId_);
+#endif
+         }
 
-         mesh::rotate(*mesh_, rotationAxis, rotationAngle_, axis_foot);
-
-         distOctree_ = makeMeshDistanceFunction(make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
-            make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_)));
-
-         getFractionFieldFromMesh();
 
       }
       counter += 1;
@@ -114,11 +146,11 @@ class ObjectRotator
    }
 
 
-   void getFractionFieldFromMesh()
+   void getFractionFieldFromMesh(BlockDataID fractionFieldId)
    {
       for (auto& block : *blocks_)
       {
-         ScalarField_T* fractionField = block.getData< ScalarField_T >(fractionFieldId_);
+         ScalarField_T* fractionField = block.getData< ScalarField_T >(fractionFieldId);
 
          CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
          blocks_->transformBlockLocalToGlobalCellInterval(blockCi, block);
@@ -186,31 +218,6 @@ class ObjectRotator
 
             ciQueue.pop();
          }
-      }
-   }
-
-   void slowGetFractionFieldFromMesh()
-   {
-      resetFractionField();
-
-      for (auto& block : *blocks_)
-      {
-         ScalarField_T* fractionField = block.getData< ScalarField_T >(fractionFieldId_);
-         auto level            = blocks_->getLevel(block);
-         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(
-            fractionField, Cell cell(x, y, z); blocks_->transformBlockLocalToGlobalCell(cell, block);
-            Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
-            blocks_->mapToPeriodicDomain(cellCenter); const real_t sqSignedDistance = distOctree_(cellCenter);
-            real_t distance; if (sqSignedDistance < 0) {
-               distance = sqrt(-sqSignedDistance);
-               distance *= -1;
-            } else { distance = sqrt(sqSignedDistance); }
-
-            Cell localCell;
-            blocks_->transformGlobalToBlockLocalCell(localCell, block, blocks_->getCell(cellCenter, level));
-            // TODO seems not to fit the geometry 100% -> also get fraction from fill level, not from distance
-
-            fractionField->get(localCell) = std::min(1.0, std::max(0.0, 1.0 - distance / blocks_->dx(level) + 0.5));)
       }
    }
 
@@ -321,18 +328,55 @@ class ObjectRotator
       }
    }
 
+   void preprocessMesh() {
+      const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
+      uint_t numFields = uint_c(std::round(2.0 * M_PI / rotationAngle_));
+      for (uint_t i = 0; i < numFields; ++i) {
+
+         mesh::rotate(*mesh_, rotationAxis, rotationAngle_, axis_foot);
+
+         distOctree_ = makeMeshDistanceFunction(make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
+            make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_)));
+
+         BlockDataID fractionFieldId = field::addToStorage< ScalarField_T >(blocks_, "fractionFieldId_" + std::to_string(i), real_c(0.0), field::fzyx);
+
+         getFractionFieldFromMesh(fractionFieldId);
+         fractionFieldIds_.push_back(fractionFieldId);
+      }
+   }
+
+   void syncFractionFieldFromVector() {
+      uint_t rotationState = (counter / frequency_) % fractionFieldIds_.size();
+      for (auto & block : *blocks_) {
+
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+         gpu::fieldCpy< GPUField, ScalarField_T >(blocks_, fractionFieldGPUId_, fractionFieldIds_[rotationState]);
+#else
+         ScalarField_T* realFractionField = block.getData< ScalarField_T >(fractionFieldId_);
+         ScalarField_T* fractionFieldFromVector = block.getData< ScalarField_T >(fractionFieldIds_[rotationState]);
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(realFractionField,
+            realFractionField->get(x,y,z) = fractionFieldFromVector->get(x,y,z);
+         )
+#endif
+      }
+   }
+
  private:
    shared_ptr< StructuredBlockForest > blocks_;
    shared_ptr< mesh::TriangleMesh > mesh_;
    const BlockDataID fractionFieldId_;
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   const BlockDataID fractionFieldIdGPU_,
+#endif
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
    const uint_t frequency_;
    DistanceFunction distOctree_;
+   const bool preProcessedFractionFields_;
    uint_t counter;
    mesh::TriangleMesh::Point meshCenter;
    Vector3< mesh::TriangleMesh::Scalar > rotationAxis;
-
+   std::vector<BlockDataID> fractionFieldIds_;
 };
 
 }//namespace waLBerla

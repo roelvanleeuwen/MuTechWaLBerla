@@ -21,16 +21,7 @@
 
 
 #include "core/all.h"
-
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-#include "gpu/AddGPUFieldToStorage.h"
-#include "gpu/DeviceSelectMPI.h"
-#include "gpu/FieldCopy.h"
-#include "gpu/GPUWrapper.h"
-#include "gpu/HostFieldAllocator.h"
-#include "gpu/ParallelStreams.h"
-#include "gpu/communication/UniformGPUScheme.h"
-#endif
+#include "core/MemoryUsage.h"
 
 #include "domain_decomposition/all.h"
 #include "field/all.h"
@@ -79,9 +70,7 @@ const FlagUID PSMFlagUID("PSM");
 
 
 
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-typedef gpu::GPUField< real_t > GPUField;
-#endif
+
 
 
 
@@ -243,13 +232,18 @@ int main(int argc, char** argv)
    geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
+   const bool preProcessFractionFields = false;
+   ObjectRotator objectRotator(blocks, mesh, fractionFieldId,
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+                               fractionFieldIdGPU_,
+#endif
+                               objectVelocitiesFieldId, rotationAngle, rotationFrequency, makeMeshDistanceFunction(distanceOctree), preProcessFractionFields);
 
-   ObjectRotator objectRotator(blocks, mesh, fractionFieldId, objectVelocitiesFieldId, rotationAngle, rotationFrequency, makeMeshDistanceFunction(distanceOctree));
    const std::function< void() > objectRotatorFunc = [&]() { objectRotator(); };
-   objectRotator.getFractionFieldFromMesh();
+   objectRotator.getFractionFieldFromMesh(fractionFieldId);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    gpu::fieldCpy< GPUField, VectorField_T >(blocks, objectVelocitiesFieldGPUId, objectVelocitiesFieldId);
-   const std::function< void() > syncFractionField = [&]() { gpu::fieldCpy< GPUField, ScalarField_T >(blocks, fractionFieldGPUId, fractionFieldId); };
+   const std::function< void() > syncFractionField = [&]() { ; };
 #endif
 
 
@@ -278,13 +272,9 @@ int main(int argc, char** argv)
    /// Boundary Handling ///
    /////////////////////////
 
-
-
    noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldId, noSlipFlagUID, fluidFlagUID);
    ubb.fillFromFlagField< FlagField_T >(blocks, flagFieldId, FlagUID("UBB"), fluidFlagUID);
    fixedDensity.fillFromFlagField< FlagField_T >(blocks, flagFieldId, FlagUID("FixedDensity"), fluidFlagUID);
-
-
 
    pystencils::MacroGetter getterSweep(densityFieldId, pdfFieldId, velocityFieldId, real_t(0.0), real_t(0.0), real_t(0.0));
 
@@ -388,6 +378,8 @@ int main(int argc, char** argv)
 
    const auto reducedTimeloopTiming = timeloopTiming.getReduced();
    WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
+
+   printResidentMemoryStatistics();
 
    return EXIT_SUCCESS;
 }
