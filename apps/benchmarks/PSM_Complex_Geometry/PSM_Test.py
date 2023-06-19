@@ -97,10 +97,10 @@ with CodeGeneration() as ctx:
     pdfs_inter = stencil.Q
     SC = 1
 
-    particle_velocities, B = ps.fields(
-        f"particle_v({stencil.D}), B({1}): {data_type}[3D]",
-        layout=layout,
-    )
+    particle_velocities = ps.fields(f"particle_v({stencil.D}): {data_type}[3D]", layout=layout,)
+
+    data_type_B = "float32"
+    B = ps.fields(f"B({1}): {data_type_B}[3D]", layout=layout,)
 
 
     method = create_lb_method(lbm_config=psm_config)

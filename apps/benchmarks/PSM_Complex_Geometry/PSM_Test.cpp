@@ -59,7 +59,6 @@ typedef field::GhostLayerField< real_t, Stencil_T::Size > PdfField_T;
 // Velocity Field Type
 typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
 
-typedef field::GhostLayerField< real_t, 1 > ScalarField_T;
 // Boundary Handling
 typedef walberla::uint8_t flag_t;
 typedef FlagField< flag_t > FlagField_T;
@@ -104,7 +103,15 @@ void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultCo
 }
 
 
+auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
+   return [sweep](IBlock* b) {
+      sweep(b);
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      gpuDeviceSynchronize();
+#endif
 
+   };
+};
 
 /////////////////////
 /// Main Function ///
@@ -200,15 +207,14 @@ int main(int argc, char** argv)
    BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(0.0), field::fzyx);
    BlockDataID flagFieldId     = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
 
-   BlockDataID fractionFieldId = field::addToStorage< ScalarField_T >(blocks, "fractionFieldID", real_c(0.0), field::fzyx);
+   BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionFieldID", fracSize(0.0), field::fzyx);
    BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    // GPU Field for PDFs
-   BlockDataID pdfFieldGPUId = gpu::addGPUFieldToStorage< GPUField >(blocks, "pdf field on GPU", Stencil_T::Size, field::fzyx, uint_t(1));
-   BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< GPUField >(blocks, "fraction field on GPU", uint_t(1), field::fzyx, uint_t(1));
-   BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< GPUField >(blocks, "object velocity field on GPU", Stencil_T::D, field::fzyx, uint_t(1));
-
+   BlockDataID pdfFieldGPUId = gpu::addGPUFieldToStorage< gpu::GPUField< real_t > >(blocks, "pdf field on GPU", Stencil_T::Size, field::fzyx, uint_t(1));
+   BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< gpu::GPUField< fracSize > >(blocks, "fraction field on GPU", uint_t(1), field::fzyx, uint_t(1));
+   BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< gpu::GPUField< real_t > >(blocks, "object velocity field on GPU", Stencil_T::D, field::fzyx, uint_t(1));
 #endif
 
 
@@ -232,18 +238,17 @@ int main(int argc, char** argv)
    geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
-   const bool preProcessFractionFields = false;
+   const bool preProcessFractionFields = true;
    ObjectRotator objectRotator(blocks, mesh, fractionFieldId,
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-                               fractionFieldIdGPU_,
+                               fractionFieldGPUId,
 #endif
                                objectVelocitiesFieldId, rotationAngle, rotationFrequency, makeMeshDistanceFunction(distanceOctree), preProcessFractionFields);
 
    const std::function< void() > objectRotatorFunc = [&]() { objectRotator(); };
    objectRotator.getFractionFieldFromMesh(fractionFieldId);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   gpu::fieldCpy< GPUField, VectorField_T >(blocks, objectVelocitiesFieldGPUId, objectVelocitiesFieldId);
-   const std::function< void() > syncFractionField = [&]() { ; };
+   gpu::fieldCpy< gpu::GPUField< real_t >, VectorField_T >(blocks, objectVelocitiesFieldGPUId, objectVelocitiesFieldId);
 #endif
 
 
@@ -292,7 +297,7 @@ int main(int argc, char** argv)
    // Communication
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const bool sendDirectlyFromGPU = false;
-   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, sendDirectlyFromGPU);
+   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, sendDirectlyFromGPU, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUId));
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 #else
@@ -305,16 +310,12 @@ int main(int argc, char** argv)
 
    // Timeloop
    timeloop.add() << BeforeFunction(communication, "Communication")
-                  << Sweep(ubb, "UBB");
-   timeloop.add() << Sweep(noSlip, "NoSlip");
-   timeloop.add() << Sweep(fixedDensity, "FixedDensity");
-   //timeloop.add() << Sweep(lbmSweep, "LBM Sweep");
-   timeloop.add() << Sweep(PSMSweep, "PSMSweep");
+                  << Sweep(deviceSyncWrapper(ubb), "UBB");
+   timeloop.add() << Sweep(deviceSyncWrapper(noSlip), "NoSlip");
+   timeloop.add() << Sweep(deviceSyncWrapper(fixedDensity), "FixedDensity");
+   timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "PSMSweep");
    if(rotationAngle > 0.0 && rotationFrequency > 0) {
       timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") << BeforeFunction(meshWritingFunc, "meshWriter")
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-                     << BeforeFunction(syncFractionField, "syncFractionField")
-#endif
                      <<  Sweep(emptySweep);
    }
 
@@ -332,7 +333,7 @@ int main(int argc, char** argv)
 
       vtkOutput->addBeforeFunction([&]() {
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-         gpu::fieldCpy< PdfField_T, GPUField >(blocks, pdfFieldId, pdfFieldGPUId);
+         gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldId, pdfFieldGPUId);
 #endif
          for (auto& block : *blocks)
             getterSweep(&block);
@@ -340,7 +341,7 @@ int main(int argc, char** argv)
 
       auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
       //auto flagWriter = make_shared< field::VTKWriter< FlagField_T > >(flagFieldId, "Flag");
-      auto fractionFieldWriter = make_shared< field::VTKWriter< ScalarField_T > >(fractionFieldId, "FractionField");
+      auto fractionFieldWriter = make_shared< field::VTKWriter< FracField_T > >(fractionFieldId, "FractionField");
       //auto objVeldWriter = make_shared< field::VTKWriter< VectorField_T > >(objectVelocitiesFieldId, "objectVelocity");
 
       vtkOutput->addCellDataWriter(velWriter);
