@@ -2,20 +2,20 @@
 Parameters 
 {
 	omega           1.8;
-	timesteps       3601;
+	timesteps       1;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 0;
+	VTKwriteFrequency 200;
 }
 
 DomainSetup
 {
    meshFile           Rotor.obj;
-   rotationFrequency  10;
+   rotationFrequency  0;
    rotationAngle      0.017453292519943;    //1° in rad
 
-   dx                 1.0;
-   cellsPerBlock      < 256, 128, 128 >;
+   dx                 0.1;
+   cellsPerBlock      < 64, 64, 64 >;
    periodic           <  1,  1,  1 >;
 }
 

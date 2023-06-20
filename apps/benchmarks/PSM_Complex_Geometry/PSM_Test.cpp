@@ -67,13 +67,6 @@ const FlagUID fluidFlagUID("Fluid");
 const FlagUID noSlipFlagUID("NoSlip");
 const FlagUID PSMFlagUID("PSM");
 
-
-
-
-
-
-
-
 template< typename MeshType >
 void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultColor)
 {
@@ -102,14 +95,12 @@ void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultCo
    }
 }
 
-
 auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
    return [sweep](IBlock* b) {
       sweep(b);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       gpuDeviceSynchronize();
 #endif
-
    };
 };
 
@@ -142,23 +133,14 @@ int main(int argc, char** argv)
       parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >(0.0));
    const uint_t timesteps = parameters.getParameter< uint_t >("timesteps", uint_c(10));
    const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
-
    const real_t remainingTimeLoggerFrequency =
       parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0)); // in seconds
 
-   //! [parseDomainParameters]
-   // read domain parameters
    auto domainParameters = walberlaEnv.config()->getOneBlock("DomainSetup");
-
    std::string meshFile = domainParameters.getParameter< std::string >("meshFile");
-   //! [parseDomainParameters]
-
-   Vector3< uint_t > domainScaling =
-      domainParameters.getParameter< Vector3< uint_t > >("domainScaling", Vector3< uint_t >(1));
 
    const uint_t rotationFrequency = domainParameters.getParameter< uint_t >("rotationFrequency", uint_t(1));
    const real_t rotationAngle = domainParameters.getParameter< real_t >("rotationAngle", real_t(0.017453292519943));
-
 
    const real_t dx = domainParameters.getParameter< real_t >("dx", real_t(1));
    const Vector3< bool > periodicity =
@@ -188,6 +170,7 @@ int main(int argc, char** argv)
    }
 
    auto aabb = computeAABB(*mesh);
+   Vector3<
    aabb.scale(domainScaling);
    //aabb.setCenter(aabb.center() + 0.2 * Vector3< real_t >(aabb.xSize(), 0, 0));
 
@@ -350,6 +333,7 @@ int main(int argc, char** argv)
       //vtkOutput->addCellDataWriter(objVeldWriter);
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      vtk::writeDomainDecomposition(blocks, "domain_decompositionDense", "vtk_out", "write_call", true, true, 0);
    }
 
    lbm_generated::PerformanceEvaluation<FlagField_T> const performance(blocks, flagFieldId, fluidFlagUID);

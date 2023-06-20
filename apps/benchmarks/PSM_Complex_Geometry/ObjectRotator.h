@@ -326,6 +326,9 @@ class ObjectRotator
    }
 
    void preprocessMesh() {
+      if(rotationAngle_ == 0.0 || frequency_ == 0)
+         return;
+
       const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
       uint_t numFields = uint_c(std::round(2.0 * M_PI / rotationAngle_));
       for (uint_t i = 0; i < numFields; ++i) {
