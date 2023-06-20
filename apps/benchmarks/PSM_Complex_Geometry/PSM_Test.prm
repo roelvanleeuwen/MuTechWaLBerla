@@ -1,11 +1,11 @@
 
 Parameters 
 {
-	omega           1.8;
+	omega           1.4;
 	timesteps       1;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 200;
+	VTKwriteFrequency 100;
 }
 
 DomainSetup
@@ -14,15 +14,16 @@ DomainSetup
    rotationFrequency  0;
    rotationAngle      0.017453292519943;    //1° in rad
 
-   dx                 0.1;
-   cellsPerBlock      < 64, 64, 64 >;
-   periodic           <  1,  1,  1 >;
+   dx                 0.25;
+   domainScaling      <  3, 30,  3 >;   //<  3, 50,  3 >;
+   cellsPerBlock      < 128, 128, 128 >;
+   periodic           <  1,  0,  1 >;
 }
 
 Boundaries
 {
-	//Border { direction W;    walldistance -1;  flag NoSlip; }
-	//Border { direction E;    walldistance -1;  flag NoSlip; }
-	//Border { direction S,N;  walldistance -1;  flag NoSlip; }
+	Border { direction S;    walldistance -1;  flag UBB; }
+	Border { direction N;    walldistance -1;  flag FixedDensity; }
+	//Border { direction E,W,T,B;  walldistance -1;  flag NoSlip; }
 
 }

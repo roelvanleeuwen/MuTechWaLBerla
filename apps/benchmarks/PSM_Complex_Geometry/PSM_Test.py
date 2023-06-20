@@ -88,7 +88,7 @@ with CodeGeneration() as ctx:
 
     #   NoSlip Boundary
     generate_boundary(ctx, "NoSlip", NoSlip(), lbm_method, target=target)
-    generate_boundary(ctx, "UBB", UBB((0.01,0,0)), lbm_method, target=target)
+    generate_boundary(ctx, "UBB", UBB((0,0.05,0)), lbm_method, target=target)
     generate_boundary(ctx, "FixedDensity", FixedDensity(1), lbm_method, target=target)
 
     # PSM Sweep

@@ -128,12 +128,14 @@ class ObjectRotator
          const real_t dx = blocks_->dx(level);
          WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(objVelField,
             Cell cell(x,y,z);
+            blocks_->transformBlockLocalToGlobalCell(cell, block);
             Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
             Vector3< real_t > distance((cellCenter[0] - meshCenter[0]) / dx, (cellCenter[1] - meshCenter[1]) / dx, (cellCenter[2] - meshCenter[2]) / dx);
             real_t velX = angularVel[1] * distance[2] - angularVel[2] * distance[1];
             real_t velY = angularVel[2] * distance[0] - angularVel[0] * distance[2];
             real_t velZ = angularVel[0] * distance[1] - angularVel[1] * distance[0];
 
+            blocks_->transformGlobalToBlockLocalCell(cell, block);
             objVelField->get(cell, 0) = velX;
             objVelField->get(cell, 1) = velY;
             objVelField->get(cell, 2) = velZ;
@@ -326,7 +328,7 @@ class ObjectRotator
    }
 
    void preprocessMesh() {
-      if(rotationAngle_ == 0.0 || frequency_ == 0)
+      if(rotationAngle_ <= 0.0 || frequency_ == 0)
          return;
 
       const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);

@@ -129,12 +129,10 @@ int main(int argc, char** argv)
    auto parameters = walberlaEnv.config()->getOneBlock("Parameters");
 
    real_t omega = parameters.getParameter< real_t >("omega", real_c(1.4));
-   const Vector3< real_t > initialVelocity =
-      parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >(0.0));
+   const Vector3< real_t > initialVelocity = parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >(0.0));
    const uint_t timesteps = parameters.getParameter< uint_t >("timesteps", uint_c(10));
    const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
-   const real_t remainingTimeLoggerFrequency =
-      parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0)); // in seconds
+   const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0)); // in seconds
 
    auto domainParameters = walberlaEnv.config()->getOneBlock("DomainSetup");
    std::string meshFile = domainParameters.getParameter< std::string >("meshFile");
@@ -143,8 +141,8 @@ int main(int argc, char** argv)
    const real_t rotationAngle = domainParameters.getParameter< real_t >("rotationAngle", real_t(0.017453292519943));
 
    const real_t dx = domainParameters.getParameter< real_t >("dx", real_t(1));
-   const Vector3< bool > periodicity =
-      domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
+   Vector3< uint_t > domainScaling = domainParameters.getParameter< Vector3< uint_t > >("domainScaling", Vector3< uint_t >(1));
+   const Vector3< bool > periodicity = domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
    const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
 
    ////////////////////
@@ -157,8 +155,8 @@ int main(int argc, char** argv)
    mesh->request_vertex_colors();
    mesh::readAndBroadcast(meshFile, *mesh);
 
-   vertexToFaceColor(*mesh, mesh::TriangleMesh::Color(255, 255, 255));
 
+   vertexToFaceColor(*mesh, mesh::TriangleMesh::Color(255, 255, 255));
 
    auto triDist = make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh);
    auto distanceOctree = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(triDist);
@@ -170,9 +168,8 @@ int main(int argc, char** argv)
    }
 
    auto aabb = computeAABB(*mesh);
-   Vector3<
    aabb.scale(domainScaling);
-   //aabb.setCenter(aabb.center() + 0.2 * Vector3< real_t >(aabb.xSize(), 0, 0));
+   aabb.setCenter(aabb.center() + 0.3 * Vector3< real_t >(0, aabb.ySize(), 0));
 
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctree, dx));
    bfc.setPeriodicity(periodicity);
