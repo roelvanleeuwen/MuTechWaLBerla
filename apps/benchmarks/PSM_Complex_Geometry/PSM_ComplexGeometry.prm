@@ -5,7 +5,7 @@ Parameters
 	timesteps       3601;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 200;
+	VTKwriteFrequency 0;
 }
 
 DomainSetup

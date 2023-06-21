@@ -194,8 +194,10 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    // GPU Field for PDFs
    const BlockDataID pdfFieldGPUId = lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldId, StorageSpec, "pdf field on GPU", true);
+   const BlockDataID velocityFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity field on GPU", true);
+   const BlockDataID densityFieldGPUId = gpu::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldId, "density field on GPU", true);
    const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fraction field on GPU", true);
-   const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< gpu::GPUField< real_t > >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
+   const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
 #endif
 
    /////////////////////////
@@ -221,7 +223,7 @@ int main(int argc, char** argv)
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldGPUId, pdfFieldGPUId, fluidFlagUID);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
 #else
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
 #endif
@@ -268,8 +270,8 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const bool sendDirectlyFromGPU = true;
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, sendDirectlyFromGPU, false);
-   auto packInfo = std::make_shared<lbm_generated::UniformGeneratedGPUPdfPackInfo< GPUPdfField_T >>(pdfFieldGpuID);
-   communication.addPackInfo(packInfo);
+   auto packInfo = std::make_shared<lbm_generated::UniformGeneratedGPUPdfPackInfo< GPUPdfField_T >>(pdfFieldGPUId);
+   com.addPackInfo(packInfo);
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 #else
    blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
@@ -301,11 +303,11 @@ int main(int argc, char** argv)
 
 
       vtkOutput->addBeforeFunction([&]() {
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-         gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldId, pdfFieldGPUId);
-#endif
          for (auto& block : *blocks)
             sweepCollection.calculateMacroscopicParameters(&block);
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+         gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, velocityFieldId, velocityFieldGPUId);
+#endif
       });
 
       auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
