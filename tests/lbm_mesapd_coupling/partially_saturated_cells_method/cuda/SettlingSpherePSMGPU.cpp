@@ -281,8 +281,7 @@ int main(int argc, char** argv)
 {
    debug::enterTestMode();
 
-   Environment env(argc, argv);
-   auto configPtr = env.config();
+   mpi::Environment env(argc, argv);
    gpu::selectDeviceBasedOnMpiRank();
 
    ///////////////////
@@ -357,7 +356,6 @@ int main(int argc, char** argv)
          useVelocityVerlet = true;
          continue;
       }
-      if (std::strcmp(argv[i], "partially_saturated_cells_method/cuda/SettlingSphereGPU.prm") == 0) { continue; }
       WALBERLA_ABORT("Unrecognized command line argument found: " << argv[i]);
    }
 
@@ -583,7 +581,27 @@ int main(int argc, char** argv)
    ///////////////
 
    // map no-slip boundaries into the LBM simulation
-   auto boundariesConfig = configPtr->getBlock("Boundaries");
+   std::string boundariesBlockString = " Boundaries"
+                                       "{"
+                                       "Border { direction T;    walldistance -1;  flag NoSlip; }"
+                                       "Border { direction B;    walldistance -1;  flag NoSlip; }"
+                                       "Border { direction N;    walldistance -1;  flag NoSlip; }"
+                                       "Border { direction S;    walldistance -1;  flag NoSlip; }"
+                                       "Border { direction W;    walldistance -1;  flag NoSlip; }"
+                                       "Border { direction E;    walldistance -1;  flag NoSlip; }"
+                                       "}";
+
+   WALBERLA_ROOT_SECTION()
+   {
+      std::ofstream boundariesFile("boundaries.prm");
+      boundariesFile << boundariesBlockString;
+      boundariesFile.close();
+   }
+   WALBERLA_MPI_BARRIER()
+
+   auto boundariesCfgFile = Config();
+   boundariesCfgFile.readParameterFile("boundaries.prm");
+   auto boundariesConfig = boundariesCfgFile.getBlock("Boundaries");
    geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldID, boundariesConfig);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldID, Fluid_Flag);
    noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, NoSlip_Flag, Fluid_Flag);

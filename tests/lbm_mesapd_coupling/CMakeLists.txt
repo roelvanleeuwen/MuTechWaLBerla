@@ -98,8 +98,8 @@ if (WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCH
     endforeach ()
 
     waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU FILES partially_saturated_cells_method/cuda/SettlingSpherePSMGPU.cpp DEPENDS blockforest core gpu field lbm lbm_mesapd_coupling mesa_pd timeloop vtk PSMCodegenPython_srt_sc1_s0)
-    waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> partially_saturated_cells_method/cuda/SettlingSphereGPU.prm --funcTest PROCESSES 4)
-    waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> partially_saturated_cells_method/cuda/SettlingSphereGPU.prm PROCESSES 4 LABELS longrun CONFIGURATIONS Release RelWithDbgInfo)
+    waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> --funcTest PROCESSES 4)
+    waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> PROCESSES 4 LABELS longrun CONFIGURATIONS Release RelWithDbgInfo)
 endif ()
 
 add_subdirectory(partially_saturated_cells_method)
