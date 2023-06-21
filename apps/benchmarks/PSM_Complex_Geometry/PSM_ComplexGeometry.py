@@ -15,8 +15,9 @@ from lbmpy.boundaries import NoSlip, UBB, FixedDensity
 from pystencils.node_collection import NodeCollection
 from pystencils.astnodes import Conditional, SympyAssignment, Block
 
-from pystencils_walberla import CodeGeneration, generate_sweep, generate_pack_info_from_kernel
-from lbmpy_walberla import generate_boundary
+from pystencils_walberla import CodeGeneration, generate_sweep, generate_info_header
+from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator
+
 
 #   =====================
 #      Code Generation
@@ -30,6 +31,10 @@ with CodeGeneration() as ctx:
     stencil = LBStencil(Stencil.D3Q19)
     omega = sp.Symbol('omega')
     layout = 'fzyx'
+    if ctx.optimize_for_localhost:
+        cpu_vec = {"nontemporal": False, "assume_aligned": True}
+    else:
+        cpu_vec = None
 
     #   PDF Fields
     pdfs, pdfs_tmp = ps.fields(f'pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {data_type}[3D]', layout=layout)
@@ -37,6 +42,7 @@ with CodeGeneration() as ctx:
     #   Velocity Output Field
     velocity = ps.fields(f"velocity({stencil.D}): {data_type}[3D]", layout=layout)
     density = ps.fields(f"density({1}): {data_type}[3D]", layout=layout)
+    macroscopic_fields = {'density': density, 'velocity': velocity}
 
     # LBM Optimisation
     lbm_opt = LBMOptimisation(cse_global=True,
@@ -59,39 +65,32 @@ with CodeGeneration() as ctx:
 
     lbm_update_rule = create_lb_update_rule(lbm_config=psm_config, lbm_optimisation=lbm_opt)
     lbm_method = lbm_update_rule.method
+    collision_rule = create_lb_collision_rule(lbm_config=psm_config, lbm_optimisation=lbm_opt)
 
-    #   ========================
+    no_slip = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip',
+                                     boundary_object=NoSlip())
+    ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
+                                 boundary_object=UBB([0.05, 0, 0], data_type=data_type))
+    fixedDensity = lbm_boundary_generator(class_name='FixedDensity', flag_uid='FixedDensity',
+                                 boundary_object=FixedDensity(1.0))
+
+#   ========================
     #      PDF Initialization
     #   ========================
 
-    initial_rho = sp.Symbol('rho_0')
-
-    pdfs_setter = macroscopic_values_setter(lbm_method,
-                                            initial_rho,
-                                            velocity.center_vector,
-                                            pdfs.center_vector)
-    pdfs_getter = macroscopic_values_getter(
-        lbm_method,
-        density=density,
-        velocity=velocity.center_vector,
-        pdfs=pdfs.center_vector)
-    generate_sweep(ctx, "MacroSetter", pdfs_setter)
-    generate_sweep(ctx, "MacroGetter", pdfs_getter)
-
     target = ps.Target.GPU if ctx.gpu else ps.Target.CPU
 
-    #   LBM Sweep
-    generate_sweep(ctx, "LBMSweep", lbm_update_rule, field_swaps=[(pdfs, pdfs_tmp)], target=target)
+    generate_lbm_package(ctx, name="PSM",
+                         collision_rule=collision_rule,
+                         lbm_config=psm_config, lbm_optimisation=lbm_opt,
+                         nonuniform=False, boundaries=[no_slip, ubb, fixedDensity],
+                         macroscopic_fields=macroscopic_fields,
+                         cpu_vectorize_info=cpu_vec, target=target)
 
-    #   Pack Info
-    generate_pack_info_from_kernel(ctx, "PackInfo", lbm_update_rule, target=target)
+    #   ========================
+    #      PSM SWEEP
+    #   ========================
 
-    #   NoSlip Boundary
-    generate_boundary(ctx, "NoSlip", NoSlip(), lbm_method, target=target)
-    generate_boundary(ctx, "UBB", UBB((0,0.05,0)), lbm_method, target=target)
-    generate_boundary(ctx, "FixedDensity", FixedDensity(1), lbm_method, target=target)
-
-    # PSM Sweep
     split = False
     MaxParticlesPerCell = 1
     pdfs_inter = stencil.Q
@@ -274,16 +273,11 @@ with CodeGeneration() as ctx:
     # Add first conditional to node collection, the other conditionals are nested inside the first one
     node_collection.all_assignments.append(conditionals[0])
 
-    if ctx.cuda:
-        target = ps.Target.GPU
-    else:
-        target = ps.Target.CPU
-
     # Generate files
-    generate_sweep(
-        ctx,
-        "PSMSweep",
-        node_collection,
-        field_swaps=[(pdfs, pdfs_tmp)],
-        target=target,
-    )
+    generate_sweep(ctx, "PSMSweep", node_collection, field_swaps=[(pdfs, pdfs_tmp)], target=target)
+
+    field_typedefs = {'VectorField_T': velocity,
+                      'ScalarField_T': density}
+
+    generate_info_header(ctx, 'PSM_InfoHeader',
+                         field_typedefs=field_typedefs)

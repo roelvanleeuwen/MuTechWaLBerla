@@ -27,22 +27,24 @@
 #include "field/all.h"
 #include "field/vtk/VTKWriter.h"
 #include "geometry/all.h"
+
+#include "lbm_generated/communication/UniformGeneratedPdfPackInfo.h"
+#include "lbm_generated/field/PdfField.h"
+#include "lbm_generated/field/AddToStorage.h"
+
 #include "lbm_generated/evaluation/PerformanceEvaluation.h"
+
 #include "stencil/D3Q19.h"
 #include "timeloop/all.h"
 
-//    Codegen Includes
-#include "LBMSweep.h"
-#include "PSMSweep.h"
-#include "NoSlip.h"
-#include "UBB.h"
-#include "FixedDensity.h"
-#include "PackInfo.h"
-#include "MacroSetter.h"
-#include "MacroGetter.h"
-
 #include "ObjectRotator.h"
+#include "PSM_InfoHeader.h"
 
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+#include "lbm_generated/gpu/AddToStorage.h"
+#include "lbm_generated/gpu/GPUPdfField.h"
+#include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
+#endif
 
 namespace walberla
 {
@@ -50,22 +52,21 @@ namespace walberla
 /// Typedef Aliases ///
 ///////////////////////
 
-// Communication Pack Info
-typedef pystencils::PackInfo PackInfo_T;
-// LB Method Stencil
-typedef stencil::D3Q19 Stencil_T;
-// PDF field type
-typedef field::GhostLayerField< real_t, Stencil_T::Size > PdfField_T;
-// Velocity Field Type
-typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
+using StorageSpecification_T = lbm::PSMStorageSpecification;
+using Stencil_T = lbm::PSMStorageSpecification::Stencil;
+using PdfField_T = lbm_generated::PdfField< StorageSpecification_T >;
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+using GPUPdfField_T = lbm_generated::GPUPdfField< StorageSpecification_T >;
+#endif
 
-// Boundary Handling
 typedef walberla::uint8_t flag_t;
 typedef FlagField< flag_t > FlagField_T;
+using BoundaryCollection_T = lbm::PSMBoundaryCollection< FlagField_T >;
+
+using SweepCollection_T = lbm::PSMSweepCollection;
 
 const FlagUID fluidFlagUID("Fluid");
 const FlagUID noSlipFlagUID("NoSlip");
-const FlagUID PSMFlagUID("PSM");
 
 template< typename MeshType >
 void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultColor)
@@ -155,13 +156,10 @@ int main(int argc, char** argv)
    mesh->request_vertex_colors();
    mesh::readAndBroadcast(meshFile, *mesh);
 
-
    vertexToFaceColor(*mesh, mesh::TriangleMesh::Color(255, 255, 255));
 
    auto triDist = make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh);
    auto distanceOctree = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(triDist);
-   WALBERLA_LOG_INFO_ON_ROOT("Octree has height " << distanceOctree->height())
-
    WALBERLA_ROOT_SECTION()
    {
       distanceOctree->writeVTKOutput("distanceOctree");
@@ -174,32 +172,37 @@ int main(int argc, char** argv)
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctree, dx));
    bfc.setPeriodicity(periodicity);
    auto blocks = bfc.createStructuredBlockForest(cellsPerBlock);
-   //! [blockForest]
-
 
    ////////////////////////////////////
    /// PDF Field and Velocity Setup ///
    ////////////////////////////////////
 
-   // Common Fields
-   BlockDataID pdfFieldId = field::addToStorage< PdfField_T >(blocks, "pdf field", real_c(0.0), field::fzyx);
-   BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_c(0.0), field::fzyx);
-   BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(0.0), field::fzyx);
-   BlockDataID flagFieldId     = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
+   const StorageSpecification_T StorageSpec = StorageSpecification_T();
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   auto allocator = make_shared< gpu::HostFieldAllocator<real_t> >(); // use pinned memory allocator for faster CPU-GPU memory transfers
+#else
+   auto allocator = make_shared< field::AllocateAligned< real_t, 64 > >();
+#endif
+   const BlockDataID pdfFieldId  = lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, uint_c(1), field::fzyx, allocator);
+   const BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_c(0.0), field::fzyx, uint_c(1), allocator);
+   const BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(0.0), field::fzyx, uint_c(1), allocator);
+   const BlockDataID flagFieldId     = field::addFlagFieldToStorage< FlagField_T >(blocks, "flagField");
 
-   BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionFieldID", fracSize(0.0), field::fzyx);
-   BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx);
+   const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", fracSize(0.0), field::fzyx, uint_c(1));
+   const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1), allocator);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    // GPU Field for PDFs
-   BlockDataID pdfFieldGPUId = gpu::addGPUFieldToStorage< gpu::GPUField< real_t > >(blocks, "pdf field on GPU", Stencil_T::Size, field::fzyx, uint_t(1));
-   BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< gpu::GPUField< fracSize > >(blocks, "fraction field on GPU", uint_t(1), field::fzyx, uint_t(1));
-   BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< gpu::GPUField< real_t > >(blocks, "object velocity field on GPU", Stencil_T::D, field::fzyx, uint_t(1));
+   const BlockDataID pdfFieldGPUId = lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldId, StorageSpec, "pdf field on GPU", true);
+   const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fraction field on GPU", true);
+   const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< gpu::GPUField< real_t > >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
 #endif
 
+   /////////////////////////
+   /// Boundary Handling ///
+   /////////////////////////
 
    const BoundaryUID wallFlagUID("NoSlip");
-
    mesh::ColorToBoundaryMapper< mesh::TriangleMesh > colorToBoundaryMapper((mesh::BoundaryInfo(wallFlagUID)));
    colorToBoundaryMapper.set(mesh::TriangleMesh::Color(255, 255, 255), mesh::BoundaryInfo(wallFlagUID));
 
@@ -212,12 +215,18 @@ int main(int argc, char** argv)
    meshWriter();
    const std::function< void() > meshWritingFunc = [&]() { meshWriter(); };
 
-
    auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
 
    geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldGPUId, pdfFieldGPUId, fluidFlagUID);
+#else
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
+#endif
+
+   //Setting up Object Rotator
    const bool preProcessFractionFields = true;
    ObjectRotator objectRotator(blocks, mesh, fractionFieldId,
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -231,43 +240,24 @@ int main(int argc, char** argv)
    gpu::fieldCpy< gpu::GPUField< real_t >, VectorField_T >(blocks, objectVelocitiesFieldGPUId, objectVelocitiesFieldId);
 #endif
 
-
-
    /////////////
    /// Sweep ///
    /////////////
 
+   const Cell innerOuterSplit = Cell(parameters.getParameter< Vector3<cell_idx_t> >("innerOuterSplit", Vector3<cell_idx_t>(1, 1, 1)));
+
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   pystencils::LBMSweep const lbmSweep(pdfFieldGPUId, 0,0,0, omega);
+   SweepCollection_T sweepCollection(blocks, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, 0.0, 0.0, 0.0, omega, innerOuterSplit);
    pystencils::PSMSweep PSMSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, real_t(0), real_t(0.0), real_t(0.0), omega);
-
-   lbm::NoSlip noSlip(blocks, pdfFieldGPUId);
-   lbm::UBB ubb(blocks, pdfFieldGPUId);
-   lbm::FixedDensity fixedDensity(blocks, pdfFieldGPUId);
 #else
-   pystencils::LBMSweep const lbmSweep(pdfFieldId, 0,0,0, omega);
+   SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, 0.0, 0.0, 0.0, omega, innerOuterSplit);
    pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId, real_t(0), real_t(0.0), real_t(0.0), omega);
-
-   lbm::NoSlip noSlip(blocks, pdfFieldId);
-   lbm::UBB ubb(blocks, pdfFieldId);
-   lbm::FixedDensity fixedDensity(blocks, pdfFieldId);
 #endif
 
-   /////////////////////////
-   /// Boundary Handling ///
-   /////////////////////////
-
-   noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldId, noSlipFlagUID, fluidFlagUID);
-   ubb.fillFromFlagField< FlagField_T >(blocks, flagFieldId, FlagUID("UBB"), fluidFlagUID);
-   fixedDensity.fillFromFlagField< FlagField_T >(blocks, flagFieldId, FlagUID("FixedDensity"), fluidFlagUID);
-
-   pystencils::MacroGetter getterSweep(densityFieldId, pdfFieldId, velocityFieldId, real_t(0.0), real_t(0.0), real_t(0.0));
-
-   pystencils::MacroSetter setterSweep( pdfFieldId, velocityFieldId, initialVelocity[0], initialVelocity[1], initialVelocity[2], 1.0 );
-   for(auto &block : *blocks) {
-      setterSweep(&block);
+   for (auto& block : *blocks)
+   {
+      sweepCollection.initialise(&block);
    }
-
    /////////////////
    /// Time Loop ///
    /////////////////
@@ -276,13 +266,15 @@ int main(int argc, char** argv)
 
    // Communication
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   const bool sendDirectlyFromGPU = false;
+   const bool sendDirectlyFromGPU = true;
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, sendDirectlyFromGPU, false);
-   com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUId));
+   auto packInfo = std::make_shared<lbm_generated::UniformGeneratedGPUPdfPackInfo< GPUPdfField_T >>(pdfFieldGpuID);
+   communication.addPackInfo(packInfo);
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
 #else
    blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
-   communication.addPackInfo(make_shared< PackInfo_T >(pdfFieldId));
+   auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
+   communication.addPackInfo(packInfo);
 #endif
 
    const auto emptySweep = [](IBlock*) {};
@@ -290,13 +282,10 @@ int main(int argc, char** argv)
 
    // Timeloop
    timeloop.add() << BeforeFunction(communication, "Communication")
-                  << Sweep(deviceSyncWrapper(ubb), "UBB");
-   timeloop.add() << Sweep(deviceSyncWrapper(noSlip), "NoSlip");
-   timeloop.add() << Sweep(deviceSyncWrapper(fixedDensity), "FixedDensity");
+                  << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");
    timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "PSMSweep");
    if(rotationAngle > 0.0 && rotationFrequency > 0) {
-      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") << BeforeFunction(meshWritingFunc, "meshWriter")
-                     <<  Sweep(emptySweep);
+      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
    }
 
 
@@ -316,7 +305,7 @@ int main(int argc, char** argv)
          gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldId, pdfFieldGPUId);
 #endif
          for (auto& block : *blocks)
-            getterSweep(&block);
+            sweepCollection.calculateMacroscopicParameters(&block);
       });
 
       auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
