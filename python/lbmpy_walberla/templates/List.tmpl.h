@@ -56,6 +56,12 @@ class {{class_name}}
 
    {{class_name}}( const Vector3<uint64_t> split, const bool manuallyAllocateTmpPDFs = false ) : {% if target is equalto 'gpu' -%}pdfsGPU_(nullptr), tmpPdfsGPU_(nullptr), omegasGPU_(nullptr), pullIdxsGPU_(nullptr), pullIdxsInnerGPU_(nullptr), pullIdxsOuterGPU_(nullptr), {%- endif %} split_(split), manuallyAllocateTmpPDFs_( manuallyAllocateTmpPDFs ) { }
 
+   ~{{class_name}}() {
+      {% if target is equalto 'gpu' -%}
+      void clearGPUArrays();
+      {%- endif %}
+   }
+
    void init(const std::vector<Cell> & fluidCells);
    void syncGPU();
    void clearGPUArrays();
