@@ -556,9 +556,11 @@ int main(int argc, char** argv)
                       << "Relative error: " << relErr << "\n";
          }
 
-         std::string fileName;
+         std::string fileName = argv[0];
+         size_t lastSlash     = fileName.find_last_of("/\\");
+         if (lastSlash != std::string::npos) { fileName = fileName.substr(lastSlash + 1); }
 
-         forceEval->logResultToFile("log_DragForceSpherePSM_Generated_" + fileName + ".txt");
+         forceEval->logResultToFile("log_" + fileName + ".txt");
       }
    }
 

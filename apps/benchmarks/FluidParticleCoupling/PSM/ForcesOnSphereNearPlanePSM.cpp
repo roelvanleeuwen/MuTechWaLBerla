@@ -608,7 +608,11 @@ int main(int argc, char** argv)
    // add force evaluation and logging
    real_t normalizationFactor =
       math::pi / real_t(8) * densityFluid * shearRate * shearRate * wallDistance * wallDistance * diameter * diameter;
-   std::string loggingFileName(baseFolderLogging + "/LoggingForcesNearPlane");
+   std::string loggingFileName(baseFolderLogging + "/LoggingForcesNearPlane_");
+   std::string executableName = argv[0];
+   size_t lastSlash           = executableName.find_last_of("/\\");
+   if (lastSlash != std::string::npos) { loggingFileName += executableName.substr(lastSlash + 1); }
+   else { loggingFileName += executableName; }
    loggingFileName += "_D" + std::to_string(uint_c(diameter));
    loggingFileName += "_Re" + std::to_string(uint_c(ReynoldsNumberShear));
    loggingFileName += "_WD" + std::to_string(uint_c(normalizedWallDistance * real_t(1000)));

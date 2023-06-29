@@ -683,7 +683,11 @@ int main(int argc, char** argv)
 
    if (fileIO)
    {
-      std::string loggingFileName(baseFolder + "/Logging");
+      std::string loggingFileName(baseFolder + "/Logging_");
+      std::string executableName = argv[0];
+      size_t lastSlash           = executableName.find_last_of("/\\");
+      if (lastSlash != std::string::npos) { loggingFileName += executableName.substr(lastSlash + 1); }
+      else { loggingFileName += executableName; }
       if (sphSphTest)
          loggingFileName += "_SphSph";
       else

@@ -735,6 +735,10 @@ int main(int argc, char** argv)
 
    // evaluation functionality
    std::string loggingFileName(baseFolder + "/LoggingSettlingSphere_");
+   std::string executableName = argv[0];
+   size_t lastSlash           = executableName.find_last_of("/\\");
+   if (lastSlash != std::string::npos) { loggingFileName += executableName.substr(lastSlash + 1) + "_"; }
+   else { loggingFileName += executableName + "_"; }
    loggingFileName += std::to_string(fluidType);
    loggingFileName += "_res" + std::to_string(numberOfCellsInHorizontalDirection);
    if (useGalileoParameterization) loggingFileName += "_Ga";

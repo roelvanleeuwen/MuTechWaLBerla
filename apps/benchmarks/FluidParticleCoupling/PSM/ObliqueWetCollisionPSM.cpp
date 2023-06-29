@@ -866,8 +866,14 @@ int main(int argc, char** argv)
    addPSMSweepsToTimeloop(timeloop, psmSweepCollection, PSMSweep);
 
    // evaluation functionality
-   std::string loggingFileName(baseFolder + "/LoggingObliqueWetCollision.txt");
-   std::string forceLoggingFileName(baseFolder + "/ForceLoggingObliqueWetCollision.txt");
+   std::string loggingFileName(baseFolder + "/LoggingObliqueWetCollision_");
+   std::string executableName = argv[0];
+   size_t lastSlash           = executableName.find_last_of("/\\");
+   if (lastSlash != std::string::npos) { loggingFileName += executableName.substr(lastSlash + 1) + ".txt"; }
+   else { loggingFileName += executableName + ".txt"; }
+   std::string forceLoggingFileName(baseFolder + "/ForceLoggingObliqueWetCollision_");
+   if (lastSlash != std::string::npos) { forceLoggingFileName += executableName.substr(lastSlash + 1) + ".txt"; }
+   else { forceLoggingFileName += executableName + ".txt"; }
    if (fileIO)
    {
       WALBERLA_LOG_INFO_ON_ROOT(" - writing logging output to file \"" << loggingFileName << "\"");

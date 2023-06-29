@@ -702,8 +702,12 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT(
       " - average forces over two LBM time steps = " << (averageForceTorqueOverTwoTimeSteps ? "yes" : "no"));
 
-   std::string checkPointFileName =
-      "checkPointingFile_" + setup + "_uIn" + std::to_string(uIn) + "_d" + std::to_string(diameter);
+   std::string checkPointFileName = "checkPointingFile_";
+   std::string executableName     = argv[0];
+   size_t lastSlash               = executableName.find_last_of("/\\");
+   if (lastSlash != std::string::npos) { checkPointFileName += executableName.substr(lastSlash + 1) + "_"; }
+   else { checkPointFileName += executableName + "_"; }
+   checkPointFileName += setup + "_uIn" + std::to_string(uIn) + "_d" + std::to_string(diameter);
    if (applyOutflowBCAtTop) checkPointFileName += "_outflowBC";
 
    WALBERLA_LOG_INFO_ON_ROOT("Checkpointing:");
@@ -1034,12 +1038,16 @@ int main(int argc, char** argv)
    SweepTimeloop timeloopAfterParticles(blocks->getBlockStorage(), timesteps);
 
    // evaluation functionality
-   std::string loggingFileName(baseFolder + "/LoggingSphereWallCollision.txt");
+   std::string loggingFileName(baseFolder + "/LoggingSphereWallCollision_");
+   if (lastSlash != std::string::npos) { loggingFileName += executableName.substr(lastSlash + 1) + ".txt"; }
+   else { loggingFileName += executableName + ".txt"; }
    if (fileIO) { WALBERLA_LOG_INFO_ON_ROOT(" - writing logging output to file \"" << loggingFileName << "\""); }
    SpherePropertyLogger< ParticleAccessor_T > logger(accessor, sphereUid, loggingFileName, fileIO, diameter, uIn,
                                                      numRPDSubCycles);
 
-   std::string forceLoggingFileName(baseFolder + "/ForceLoggingSphereWallCollision.txt");
+   std::string forceLoggingFileName(baseFolder + "/ForceLoggingSphereWallCollision_");
+   if (lastSlash != std::string::npos) { forceLoggingFileName += executableName.substr(lastSlash + 1) + ".txt"; }
+   else { forceLoggingFileName += executableName + ".txt"; }
    if (fileIO)
    {
       WALBERLA_LOG_INFO_ON_ROOT(" - writing force logging output to file \"" << forceLoggingFileName << "\"");
@@ -1314,7 +1322,12 @@ int main(int argc, char** argv)
       // evaluate density around sphere
       if (fileIO)
       {
-         std::string densityLoggingFileName(baseFolder + "/DensityLogging.txt");
+         std::string densityLoggingFileName(baseFolder + "/DensityLogging_");
+         if (lastSlash != std::string::npos)
+         {
+            densityLoggingFileName += executableName.substr(lastSlash + 1) + ".txt";
+         }
+         else { densityLoggingFileName += executableName + ".txt"; }
          if (i == uint_t(0))
          {
             WALBERLA_ROOT_SECTION()
@@ -1371,7 +1384,9 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT("Writing logging file " << resultFile);
    logger.writeResult(resultFile, tImpact);
 
-   std::string summaryFile(baseFolder + "/Summary.txt");
+   std::string summaryFile(baseFolder + "/Summary_");
+   if (lastSlash != std::string::npos) { summaryFile += executableName.substr(lastSlash + 1) + ".txt"; }
+   else { summaryFile += executableName + ".txt"; }
    WALBERLA_LOG_INFO_ON_ROOT("Writing summary file " << summaryFile);
    WALBERLA_ROOT_SECTION()
    {
