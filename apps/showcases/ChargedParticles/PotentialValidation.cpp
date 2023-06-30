@@ -71,7 +71,7 @@ void applyPotentialBCs(const shared_ptr< StructuredBlockStorage > & blocks, cons
 
       const real_t preFactor = real_c(1) / (real_c(4) * math::pi * eps_e);
 
-      const real_t dist = sqrt(pow(boundaryCoord_x - x0, 2) + pow(boundaryCoord_y - y0, 2) + pow(boundaryCoord_z - z0, 2));
+      const real_t dist = real_c(sqrt(pow(boundaryCoord_x - x0, 2) + pow(boundaryCoord_y - y0, 2) + pow(boundaryCoord_z - z0, 2)));
 
       auto funcVal = preFactor * (q_e / dist);
 
@@ -82,11 +82,12 @@ void applyPotentialBCs(const shared_ptr< StructuredBlockStorage > & blocks, cons
 void solveElectrostaticPoisson(const shared_ptr< StructuredBlockForest >& blocks,
                                real_t dx, real_t radiusScaleFactor,
                                const math::AABB& domainAABB,
+                               const bool useOverlapFraction,
                                BlockDataID& solution, BlockDataID& solutionCpy,
                                BlockDataID& rhs,
                                BlockDataID& analytical)
 {
-   auto numIter = uint_c(40000);
+   auto numIter = uint_c(100000);
    auto resThres = real_c(1e-14);
    auto resCheckFreq = uint_c(1000);
 
@@ -131,11 +132,25 @@ void solveElectrostaticPoisson(const shared_ptr< StructuredBlockForest >& blocks
          const auto cellAABB = blocks->getBlockLocalCellAABB(*block, Cell(x, y, z));
          auto cellCenter = cellAABB.center();
 
-         const real_t overlap = geometry::overlapFraction( sphere, cellCenter, dx, 3 );
+         if (useOverlapFraction) {
+            const real_t overlap = geometry::overlapFraction(sphere, cellCenter, dx, 3);
 
-         auto densityCell = overlap * q_e / ((real_c(4) / real_c(3)) * math::pi * pow(R_L, 3));
-         rhsField->get(x, y, z) = densityCell / eps_e;
-      )
+            auto densityCell       = overlap * q_e / ((real_c(4) / real_c(3)) * math::pi * pow(R_L, 3));
+            rhsField->get(x, y, z) = densityCell / eps_e;
+         } else {
+            const real_t posX = cellCenter[0];
+            const real_t posY = cellCenter[1];
+            const real_t posZ = cellCenter[2];
+
+            const real_t preFactor = real_c(1) / (real_c(4) * math::pi * eps_e);
+            const real_t squareSum = real_c(pow(posX - x0, 2) + pow(posY - y0, 2) + pow(posZ - z0, 2));
+            const real_t dist      = real_c(sqrt(squareSum));
+
+            if (dist > R_L)
+               rhsField->get(x, y, z) = 0_r;
+            else
+               rhsField->get(x, y, z) = -(3 * q_e) / (4 * math::pi * real_c(pow(R_L, 3)) * eps_e);
+         })
    }
 
    for (auto block = blocks->begin(); block != blocks->end(); ++block) {
@@ -149,12 +164,12 @@ void solveElectrostaticPoisson(const shared_ptr< StructuredBlockForest >& blocks
          const real_t posY = cellCenter[1];
          const real_t posZ = cellCenter[2];
 
-         const real_t dist = sqrt(pow(posX - x0, 2) + pow(posY - y0, 2) + pow(posZ - z0, 2));
+         const real_t dist = real_c(sqrt(pow(posX - x0, 2) + pow(posY - y0, 2) + pow(posZ - z0, 2)));
 
          const real_t preFactor = real_c(1) / (real_c(4) * math::pi * eps_e);
 
          if (dist < R_L) {
-            analyticalField->get(x, y, z) = preFactor * (q_e / (2 * R_L)) * (real_c(3) - pow(dist / R_L, 2));
+            analyticalField->get(x, y, z) = preFactor * (q_e / (real_c(2) * R_L)) * (real_c(3) - real_c(pow(dist / R_L, 2)));
          } else {
             analyticalField->get(x, y, z) = preFactor * (q_e / dist);
          }
@@ -210,19 +225,21 @@ int main(int argc, char** argv)
    // BLOCK STRUCTURE SETUP //
    ///////////////////////////
 
-   auto dx = 1E-4;
-   auto numCells = 128;
-   auto refCellCount = 64;
-   auto radiusScaleFactor = real_c(numCells) / real_c(refCellCount);
-   auto domainAABB = math::AABB(0, 0, 0, numCells * dx, numCells * dx, numCells * dx);
+   auto useOverlapFraction = false;
+   auto dx                 = 1E-4;
+   auto numCellsPerDim     = 64;
+   auto numBlocksPerDim    = 2;
+   auto refCellCount       = 64;
+   auto radiusScaleFactor  = real_c(numCellsPerDim) / real_c(refCellCount);
+   auto domainAABB         = math::AABB(0, 0, 0, real_c(numCellsPerDim) * dx, real_c(numCellsPerDim) * dx, real_c(numCellsPerDim) * dx);
    WALBERLA_LOG_INFO_ON_ROOT("Domain sizes are: x = " << domainAABB.size(0) << ", y = " << domainAABB.size(1) << ", z = " << domainAABB.size(2));
 
    const shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid(
       domainAABB,
-      uint_c( 1), uint_c( 1), uint_c( 1),                         // number of blocks in x,y,z direction
-      uint_c( numCells ), uint_c( numCells ), uint_c( numCells ), // how many cells per block (x,y,z)
-      true,                                                       // max blocks per process
-      false, false, false,                                        // periodicity
+      uint_c(numBlocksPerDim), uint_c(numBlocksPerDim),uint_c(numBlocksPerDim),
+      uint_c(numCellsPerDim), uint_c(numCellsPerDim), uint_c(numCellsPerDim),
+      true,
+      false, false, false,
       false);
 
    BlockDataID rhs = field::addToStorage< ScalarField_T >(blocks, "rhs", 0, field::fzyx, 1);
@@ -230,7 +247,7 @@ int main(int argc, char** argv)
    BlockDataID solutionCpy = field::addCloneToStorage< ScalarField_T >(blocks, solution, "solution (copy)");
    BlockDataID analytical = field::addCloneToStorage< ScalarField_T >(blocks, solution, "analytical");
 
-   solveElectrostaticPoisson (blocks, dx, radiusScaleFactor, domainAABB, solution, solutionCpy, rhs, analytical);
+   solveElectrostaticPoisson (blocks, dx, radiusScaleFactor, domainAABB, useOverlapFraction, solution, solutionCpy, rhs, analytical);
 
    auto vtkWriter = vtk::createVTKOutput_BlockData(*blocks, "block_data", uint_c(1), uint_c(0), true, "VTK" );
    vtkWriter->addCellDataWriter(make_shared<field::VTKWriter<ScalarField_T> >(solution, "solution"));
