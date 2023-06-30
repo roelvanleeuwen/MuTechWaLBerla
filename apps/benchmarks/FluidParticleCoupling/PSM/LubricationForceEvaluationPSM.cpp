@@ -269,14 +269,15 @@ int main(int argc, char** argv)
    uint_t id1(0);
    uint_t id2(0);
 
-   // uint_t randomSeed = uint_c(std::chrono::system_clock::now().time_since_epoch().count());
-   // mpi::broadcastObject(randomSeed); // root process chooses seed and broadcasts it
-   // std::mt19937 randomNumberGenerator(static_cast< unsigned int >(randomSeed));
+   uint_t randomSeed = uint_c(std::chrono::system_clock::now().time_since_epoch().count());
+   mpi::broadcastObject(randomSeed); // root process chooses seed and broadcasts it
+   std::mt19937 randomNumberGenerator(static_cast< unsigned int >(randomSeed));
 
    Vector3< real_t > domainCenter(real_c(xSize) * real_t(0.5), real_c(ySize) * real_t(0.5),
                                   real_c(zSize) * real_t(0.5));
-   // TODO: think if random offset vector is really not necessary
-   Vector3< real_t > offsetVector(real_t(0), real_t(0), real_t(0));
+   Vector3< real_t > offsetVector(math::realRandom< real_t >(real_t(0), real_t(1), randomNumberGenerator),
+                                  math::realRandom< real_t >(real_t(0), real_t(1), randomNumberGenerator),
+                                  math::realRandom< real_t >(real_t(0), real_t(1), randomNumberGenerator));
 
    if (sphSphTest)
    {
