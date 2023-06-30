@@ -623,7 +623,7 @@ int main(int argc, char **argv)
 
       WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
       real_t time = simTimer.max();
-      WALBERLA_LOG_INFO(performance.mflupsPerProcess(timesteps, time));
+      //WALBERLA_LOG_INFO(performance.mflupsPerProcess(timesteps, time));
       WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
       performance.logResultOnRoot(timesteps, time);
 
