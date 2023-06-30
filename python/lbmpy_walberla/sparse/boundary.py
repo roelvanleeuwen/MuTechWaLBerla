@@ -217,7 +217,7 @@ def generate_sparse_boundary(generation_context,
     boundary_assignments = boundary_object(f_out, f_in, dir_symbol, inv_dir, lb_method, index_field)
 
     boundary_assignments = substitute_proxies_sparse(boundary_assignments, pdf_field_sparse,
-                                                     f_out, f_in, index_field, prev_timestep, stencil)
+                                                     f_out, f_in, index_field, index_list, prev_timestep, stencil)
 
     #   Code Elements inside the loop
     elements = [Assignment(dir_symbol, index_field[0]('dir'))]
