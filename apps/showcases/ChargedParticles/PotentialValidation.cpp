@@ -142,7 +142,6 @@ void solveElectrostaticPoisson(const shared_ptr< StructuredBlockForest >& blocks
             const real_t posY = cellCenter[1];
             const real_t posZ = cellCenter[2];
 
-            const real_t preFactor = real_c(1) / (real_c(4) * math::pi * eps_e);
             const real_t squareSum = real_c(pow(posX - x0, 2) + pow(posY - y0, 2) + pow(posZ - z0, 2));
             const real_t dist      = real_c(sqrt(squareSum));
 
@@ -225,9 +224,9 @@ int main(int argc, char** argv)
    // BLOCK STRUCTURE SETUP //
    ///////////////////////////
 
-   auto useOverlapFraction = false;
+   auto useOverlapFraction = true;
    auto dx                 = 1E-4;
-   auto numCellsPerDim     = 64;
+   auto numCellsPerDim     = 32;
    auto numBlocksPerDim    = 2;
    auto refCellCount       = 64;
    auto radiusScaleFactor  = real_c(numCellsPerDim) / real_c(refCellCount);
