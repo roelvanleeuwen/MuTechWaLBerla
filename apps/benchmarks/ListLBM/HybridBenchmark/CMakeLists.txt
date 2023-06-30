@@ -3,7 +3,7 @@ waLBerla_link_files_to_builddir( *.png )
 waLBerla_link_files_to_builddir( *.obj )
 waLBerla_link_files_to_builddir( *.stl )
 waLBerla_link_files_to_builddir( *.mtl )
-waLBerla_link_files_to_builddir( input.py )
+waLBerla_link_files_to_builddir( input*.py )
 
 
 if ( WALBERLA_BUILD_WITH_OPENMESH AND WALBERLA_BUILD_WITH_CODEGEN )

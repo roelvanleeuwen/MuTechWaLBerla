@@ -112,7 +112,6 @@ def Artery():
 
 def particleBed():
     scenarios = wlb.ScenarioManager()
-    mesh_file = "Artery.obj"
     scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=100, timesteps=1000, omega=1.9, cells_per_block=(50, 100, 50), porositySwitch=0.8)
     scenarios.add(scenario)
 
@@ -123,17 +122,18 @@ def emptyChannel():
     scenarios.add(scenario)
 
 def scalingBenchmark():
-    cells_per_block=(256, 256, 256)
+    cells_per_block=(400, 400, 400)
     scenarios = wlb.ScenarioManager()
-    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", porositySwitch=1.1, run_hybrid=False, cells_per_block=cells_per_block, time_step_strategy="noOverlap")
+    #scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porositySwitch=1.1, run_hybrid=False, time_step_strategy="noOverlap", inner_outer_split=(0, 0, 0), run_boundaries=False)
+    #scenarios.add(scenario)
+    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porositySwitch=1.1, run_hybrid=False, time_step_strategy="Overlap", inner_outer_split=(1, 1, 1) ,run_boundaries=False)
     scenarios.add(scenario)
-    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", porositySwitch=1.1, run_hybrid=False, cells_per_block=cells_per_block, time_step_strategy="Overlap", inner_outer_split=(1, 1, 1))
-    scenarios.add(scenario)
-    scenario = Scenario(porosity=1.0, vtk_write_frequency=0, geometry_setup="randomNoslip", porositySwitch=1.1, run_hybrid=False, cells_per_block=cells_per_block, time_step_strategy="Overlap", inner_outer_split=(32, 1, 1))
-    scenarios.add(scenario)
+    #scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porositySwitch=1.1, run_hybrid=False, time_step_strategy="Overlap", inner_outer_split=(32, 1, 1) ,run_boundaries=False)
+    #scenarios.add(scenario)
 
 #randomNoslip()
 #spheres()
 #Artery()
 #particleBed()
-emptyChannel()
+#emptyChannel()
+scalingBenchmark()
