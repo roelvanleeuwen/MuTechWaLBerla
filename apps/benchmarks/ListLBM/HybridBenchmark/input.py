@@ -122,14 +122,14 @@ def emptyChannel():
     scenarios.add(scenario)
 
 def scalingBenchmark():
-    cells_per_block=(400, 400, 400)
+    cells_per_block=(256, 256, 256)
     scenarios = wlb.ScenarioManager()
-    #scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porositySwitch=1.1, run_hybrid=False, time_step_strategy="noOverlap", inner_outer_split=(0, 0, 0), run_boundaries=False)
-    #scenarios.add(scenario)
-    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porositySwitch=1.1, run_hybrid=False, time_step_strategy="Overlap", inner_outer_split=(1, 1, 1) ,run_boundaries=False)
+    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porositySwitch=1.1, run_hybrid=False, time_step_strategy="noOverlap", inner_outer_split=(0, 0, 0), run_boundaries=True)
     scenarios.add(scenario)
-    #scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porositySwitch=1.1, run_hybrid=False, time_step_strategy="Overlap", inner_outer_split=(32, 1, 1) ,run_boundaries=False)
-    #scenarios.add(scenario)
+    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porositySwitch=1.1, run_hybrid=False, time_step_strategy="Overlap", inner_outer_split=(1, 1, 1) ,run_boundaries=True)
+    scenarios.add(scenario)
+    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porositySwitch=1.1, run_hybrid=False, time_step_strategy="Overlap", inner_outer_split=(32, 1, 1) ,run_boundaries=True)
+    scenarios.add(scenario)
 
 #randomNoslip()
 #spheres()

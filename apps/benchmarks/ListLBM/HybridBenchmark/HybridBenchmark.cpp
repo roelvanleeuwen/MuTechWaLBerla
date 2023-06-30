@@ -225,19 +225,17 @@ int main(int argc, char **argv)
 
       if (geometrySetup == "randomNoslip") {
          real_t dx = 1;
-         //blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx);
-
-         blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2],
-                                                            cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2],
-                                                                dx, 0, true, false,
-                                                                true, true, true, false);
+         blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx);
 
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          const real_t porosity = parameters.getParameter< real_t >("porosity");
          geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
-         for (auto& block : *blocks) {
-            setFlagFieldToPorosity(&block,flagFieldId,porosity,noslipFlagUID);
+         if(porosity < 1.0) {
+            for (auto& block : *blocks) {
+               setFlagFieldToPorosity(&block,flagFieldId,porosity,noslipFlagUID);
+            }
          }
+
          geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
       }
       else if (geometrySetup == "spheres") {
@@ -491,11 +489,11 @@ int main(int argc, char **argv)
 
          //run inner boundaries
          if(runBoundaries) {
-            timeloop.add() << Sweep(denseNoSlip.getInnerSweep(tracker), "denseNoslip inner", sweepSelectHighPorosity, sweepSelectLowPorosity);
-            timeloop.add() << Sweep(sparseUbb.getInnerSweep(tracker), "sparseUbb inner", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                           << Sweep(denseUbb.getInnerSweep(tracker), "denseUbb inner", sweepSelectHighPorosity, sweepSelectLowPorosity);
-            timeloop.add() << Sweep(sparsePressureOutflow.getInnerSweep(tracker), "sparsePressureOutflow inner", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                           << Sweep(densePressureOutflow.getInnerSweep(tracker), "densePressureOutflow inner", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(denseNoSlip.getSweep(tracker), "denseNoslip", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(sparseUbb.getSweep(tracker), "sparseUbb", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(denseUbb.getSweep(tracker), "denseUbb", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(sparsePressureOutflow.getSweep(tracker), "sparsePressureOutflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(densePressureOutflow.getSweep(tracker), "densePressureOutflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
          }
          //increase tracker and run inner LBM kernel
          timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
@@ -504,13 +502,13 @@ int main(int argc, char **argv)
 
          //decrease tracker and run wait communication and outer boundaries
          timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << BeforeFunction(std::function< void() >([&]() { comm.wait(); }), "communication") << Sweep(emptySweep);
-         if(runBoundaries) {
+         /*if(runBoundaries) {
             timeloop.add() << Sweep(denseNoSlip.getOuterSweep(tracker), "denseNoslip outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
             timeloop.add() << Sweep(sparseUbb.getOuterSweep(tracker), "sparseUbb outer", sweepSelectLowPorosity, sweepSelectHighPorosity)
                            << Sweep(denseUbb.getOuterSweep(tracker), "denseUbb outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
             timeloop.add() << Sweep(sparsePressureOutflow.getOuterSweep(tracker), "sparsePressureOutflow outer", sweepSelectLowPorosity, sweepSelectHighPorosity)
                            << Sweep(densePressureOutflow.getOuterSweep(tracker), "densePressureOutflow outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
-         }
+         }*/
          //increase tracker again and run outer LBM kernel
          timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
          timeloop.add() << Sweep(sparseKernel.getOuterSweep(tracker), "sparseKernel outer", sweepSelectLowPorosity, sweepSelectHighPorosity)
