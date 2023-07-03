@@ -34,13 +34,13 @@
 #include "core/waLBerlaBuildInfo.h"
 
 #include "field/AddToStorage.h"
-#include "field/adaptors/AdaptorCreators.h"
 #include "field/interpolators/NearestNeighborFieldInterpolator.h"
 #include "field/vtk/all.h"
 
 #include "geometry/InitBoundaryHandling.h"
 
 #include "gpu/AddGPUFieldToStorage.h"
+#include "gpu/DeviceSelectMPI.h"
 #include "gpu/communication/UniformGPUScheme.h"
 
 #include "lbm/vtk/all.h"
@@ -367,6 +367,7 @@ Vector3< real_t > getTorque(walberla::id_t uid, ParticleAccessor_T& ac)
 int main(int argc, char** argv)
 {
    Environment env(argc, argv);
+   gpu::selectDeviceBasedOnMpiRank();
 
    if (!env.config()) { WALBERLA_ABORT("Usage: " << argv[0] << " path-to-configuration-file \n"); }
 
