@@ -94,7 +94,7 @@ void solveElectrostaticPoisson(const shared_ptr< StructuredBlockForest >& blocks
    const real_t x0 = domainAABB.xMin() + real_c(0.5) * domainAABB.size(0);
    const real_t y0 = domainAABB.yMin() + real_c(0.5) * domainAABB.size(1);
    const real_t z0 = domainAABB.zMin() + real_c(0.5) * domainAABB.size(2);
-   const real_t e = 1.602176E-19; // ampereseconds
+   const real_t e = real_c(1.602176E-19); // ampereseconds
    const real_t eps_e = real_c(78.5 * 8.854187812813E-12); // ampereseconds / voltmeter
    const real_t q_e = real_c(8000) * e; // ampereseconds
    auto R_L = radiusScaleFactor * real_c(6) * dx;
@@ -135,7 +135,7 @@ void solveElectrostaticPoisson(const shared_ptr< StructuredBlockForest >& blocks
          if (useOverlapFraction) {
             const real_t overlap = geometry::overlapFraction(sphere, cellCenter, dx, 3);
 
-            auto densityCell       = overlap * q_e / ((real_c(4) / real_c(3)) * math::pi * pow(R_L, 3));
+            auto densityCell       = overlap * q_e / ((real_c(4) / real_c(3)) * math::pi * real_c(pow(R_L, 3)));
             rhsField->get(x, y, z) = densityCell / eps_e;
          } else {
             const real_t posX = cellCenter[0];
@@ -225,7 +225,7 @@ int main(int argc, char** argv)
    ///////////////////////////
 
    auto useOverlapFraction = true;
-   auto dx                 = 1E-4;
+   auto dx                 = real_c(1E-4);
    auto numCellsPerDim     = 32;
    auto numBlocksPerDim    = 2;
    auto refCellCount       = 64;
