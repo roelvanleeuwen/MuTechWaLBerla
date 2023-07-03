@@ -692,13 +692,7 @@ int main(int argc, char** argv)
    BlockDataID velFieldID     = field::addToStorage< VelocityField_T >(blocks, "Velocity", real_t(0), field::fzyx);
 
    // assemble boundary block string
-   std::string boundariesBlockString = " Boundaries"
-                                       "{"
-                                       "Border { direction B;    walldistance -1;  flag NoSlip; }"
-                                       "Border { direction N;    walldistance -1;  flag NoSlip; }"
-                                       "Border { direction S;    walldistance -1;  flag NoSlip; }"
-                                       "Border { direction W;    walldistance -1;  flag NoSlip; }"
-                                       "Border { direction E;    walldistance -1;  flag NoSlip; }";
+   std::string boundariesBlockString = " Boundaries { Border { direction B;    walldistance -1;  flag NoSlip; }";
 
    if (applyOutflowBCAtTop)
    {
