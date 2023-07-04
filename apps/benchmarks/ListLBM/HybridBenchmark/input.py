@@ -131,9 +131,19 @@ def scalingBenchmark():
     scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=0.8, porositySwitch=0.0, run_hybrid=True, time_step_strategy="Overlap", inner_outer_split=(32, 1, 1) ,run_boundaries=True)
     scenarios.add(scenario)
 
+def testGPUComm():
+    cells_per_block=(256, 256, 256)
+    scenarios = wlb.ScenarioManager()
+    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porositySwitch=0.0, run_hybrid=True, time_step_strategy="kernelOnly", run_boundaries=True)
+    scenarios.add(scenario)
+    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porositySwitch=0.0, run_hybrid=True, time_step_strategy="communicationOnly")
+    scenarios.add(scenario)
+
+
 #randomNoslip()
 #spheres()
 #Artery()
 #particleBed()
 #emptyChannel()
-scalingBenchmark()
+#scalingBenchmark()
+testGPUComm()

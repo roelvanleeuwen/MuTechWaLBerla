@@ -521,9 +521,16 @@ int main(int argc, char **argv)
          timeloop.add() << Sweep(sparseKernel.getSweep(tracker), "sparseKernel", sweepSelectLowPorosity, sweepSelectHighPorosity)
                         << Sweep(denseKernel.getSweep(tracker), "denseKernel", sweepSelectHighPorosity, sweepSelectLowPorosity);
       }
+      else if (timeStepStrategy == "communicationOnly")
+      {
+         WALBERLA_LOG_INFO_ON_ROOT("Running only communication - this makes only sense for benchmarking!")
+         timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
+         timeloop.add() << BeforeFunction(std::function< void() >([&]() { comm.startCommunication(); }), "communication Start") << Sweep(emptySweep);
+         timeloop.add() << BeforeFunction(std::function< void() >([&]() { comm.wait(); }), "communication Wait") << Sweep(emptySweep);
+      }
       else
       {
-         WALBERLA_ABORT_NO_DEBUG_INFO("Invalid value for 'timeStepStrategy'. Allowed values are 'noOverlap', 'simpleOverlap', 'kernelOnly'")
+         WALBERLA_ABORT_NO_DEBUG_INFO("Invalid value for 'timeStepStrategy'. Allowed values are 'noOverlap', 'simpleOverlap', 'kernelOnly', 'communicationOnly'")
       }
 
       timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),"remaining time logger");

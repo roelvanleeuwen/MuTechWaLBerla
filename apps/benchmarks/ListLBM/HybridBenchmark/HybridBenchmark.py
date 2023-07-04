@@ -36,7 +36,7 @@ with CodeGeneration() as ctx:
         method=Method.SRT,
         stencil=stencil,
         relaxation_rate=omega,
-        streaming_pattern='aa'
+        streaming_pattern='pull'
     )
 
     lbm_opt = LBMOptimisation(
