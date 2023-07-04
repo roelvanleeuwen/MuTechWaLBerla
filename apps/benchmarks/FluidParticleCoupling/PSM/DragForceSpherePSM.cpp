@@ -347,7 +347,7 @@ int main(int argc, char** argv)
    const real_t dx               = real_c(1);                                      // lattice dx
    const real_t convergenceLimit = real_t(0.1) * setup.extForce; // tolerance for relative change in drag force
    const uint_t timesteps =
-      funcTest ? 1 : (shortrun ? uint_c(150) : uint_c(100000)); // maximum number of time steps for the whole simulation
+      funcTest ? 1 : (shortrun ? uint_c(150) : uint_c(200000)); // maximum number of time steps for the whole simulation
 
    WALBERLA_LOG_INFO_ON_ROOT("tau = " << tau);
    WALBERLA_LOG_INFO_ON_ROOT("diameter = " << real_t(2) * setup.radius);
