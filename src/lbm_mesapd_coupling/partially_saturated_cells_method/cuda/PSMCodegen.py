@@ -38,7 +38,7 @@ const bool infoCsePdfs = {cse_pdfs};
 
 with CodeGeneration() as ctx:
     data_type = "float64" if ctx.double_accuracy else "float32"
-    stencil = LBStencil(Stencil.D3Q19)
+    stencil = LBStencil(Stencil.D3Q27)
     omega = sp.Symbol("omega")
     init_density = sp.Symbol("init_density")
     init_velocity = sp.symbols("init_velocity_:3")
