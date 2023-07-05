@@ -862,11 +862,15 @@ int main(int argc, char** argv)
 
    // evaluation functionality
    std::string loggingFileName(baseFolder + "/LoggingObliqueWetCollision_");
+   loggingFileName += std::to_string(caseNumber);
+   loggingFileName += "_ration_" + std::to_string(impactRatio) + "_";
    std::string executableName = argv[0];
    size_t lastSlash           = executableName.find_last_of("/\\");
    if (lastSlash != std::string::npos) { loggingFileName += executableName.substr(lastSlash + 1) + ".txt"; }
    else { loggingFileName += executableName + ".txt"; }
    std::string forceLoggingFileName(baseFolder + "/ForceLoggingObliqueWetCollision_");
+   forceLoggingFileName += std::to_string(caseNumber);
+   forceLoggingFileName += "_ration_" + std::to_string(impactRatio) + "_";
    if (lastSlash != std::string::npos) { forceLoggingFileName += executableName.substr(lastSlash + 1) + ".txt"; }
    else { forceLoggingFileName += executableName + ".txt"; }
    if (fileIO)
