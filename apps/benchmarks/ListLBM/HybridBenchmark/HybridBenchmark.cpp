@@ -156,8 +156,6 @@ int main(int argc, char **argv)
    WALBERLA_CUDA_CHECK(cudaPeekAtLastError())
 #endif
 
-   mpi::MPIManager::instance()->useWorldComm();
-
 
    for (auto cfg = python_coupling::configBegin(argc, argv); cfg != python_coupling::configEnd(); ++cfg)
    {
@@ -178,6 +176,8 @@ int main(int argc, char **argv)
       const uint_t timesteps = parameters.getParameter< uint_t >("timesteps", uint_c(10));
       Vector3< int > InnerOuterSplit = parameters.getParameter< Vector3< int > >("innerOuterSplit", Vector3< int >(1, 1, 1));
       const bool weak_scaling = domainParameters.getParameter< bool >("weakScaling", false); // weak or strong scaling
+      const Vector3<bool> periodic = domainParameters.getParameter< Vector3<bool> >("periodic", Vector3<bool>(0,0,0));
+
       const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", 3.0); // in seconds
       const real_t omega = parameters.getParameter< real_t > ( "omega", real_c( 1.4 ) );
       const uint_t vtkWriteFrequency = parameters.getParameter< uint_t >("vtkWriteFrequency", uint_t(0));
@@ -185,6 +185,13 @@ int main(int argc, char **argv)
       const std::string timeStepStrategy = parameters.getParameter< std::string >("timeStepStrategy", "noOverlap");
       const real_t porositySwitch = parameters.getParameter< real_t >("porositySwitch");
       const bool runHybrid = parameters.getParameter< bool >("runHybrid", false);
+      const bool useCartesian = parameters.getParameter< bool >("useCartesian", false);
+
+      if(useCartesian) {
+         mpi::MPIManager::instance()->
+      }
+      else
+         mpi::MPIManager::instance()->useWorldComm();
 
 
       Vector3< uint_t > cellsPerBlock;
@@ -225,7 +232,11 @@ int main(int argc, char **argv)
 
       if (geometrySetup == "randomNoslip") {
          real_t dx = 1;
-         blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx);
+         blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2],
+                                                                   cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2],
+                                                                   dx, 0, true, false,
+                                                                   periodic[0], periodic[1], periodic[2],
+                                                                   false);
 
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          const real_t porosity = parameters.getParameter< real_t >("porosity");
@@ -335,6 +346,7 @@ int main(int argc, char **argv)
 
       WALBERLA_LOG_INFO_ON_ROOT("Number of cells is <" << blocks->getNumberOfXCells() << "," << blocks->getNumberOfYCells() << "," << blocks->getNumberOfZCells() << ">")
       WALBERLA_LOG_INFO_ON_ROOT("Number of blocks is <" << blocks->getXSize() << "," << blocks->getYSize() << "," << blocks->getZSize() << ">")
+      WALBERLA_LOG_INFO_ON_ROOT("Is cartesian communicator used: " << mpi::MPIManager::instance()->hasCartesianSetup())
 
 
       if(timeStepStrategy != "noOverlap") {
@@ -497,7 +509,7 @@ int main(int argc, char **argv)
          }
          //increase tracker and run inner LBM kernel
          timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
-         timeloop.add() << Sweep(sparseKernel.getInnerSweep(tracker), "parseKernel inner", sweepSelectLowPorosity, sweepSelectHighPorosity)
+         timeloop.add() << Sweep(sparseKernel.getInnerSweep(tracker), "sparseKernel inner", sweepSelectLowPorosity, sweepSelectHighPorosity)
                         << Sweep(denseKernel.getInnerSweep(tracker), "denseKernel inner", sweepSelectHighPorosity, sweepSelectLowPorosity);
 
          //decrease tracker and run wait communication and outer boundaries
