@@ -5,7 +5,7 @@ import waLBerla as wlb
 DB_FILE = os.environ.get('DB_FILE', "ListLBMBenchmark.sqlite3")
 
 class Scenario:
-    def __init__(self, cells_per_block=(64, 64, 20), periodic=(0,0,0),
+    def __init__(self, cells_per_block=(64, 64, 20), periodic=(False,False,False),
                  timesteps=1000, time_step_strategy="noOverlap", omega=0.8, cuda_enabled_mpi=True,
                  inner_outer_split=(1, 1, 1), vtk_write_frequency=0, inflow_velocity=(0.01,0,0),
                  porosity=0.5, porositySwitch=0.8, run_hybrid = True, geometry_setup="randomNoslip",
@@ -46,7 +46,7 @@ class Scenario:
         return {
             'DomainSetup': {
                 'cellsPerBlock': self.cells_per_block,
-                'periodic':self.periodic,
+                'periodic': self.periodic,
                 'weakScaling': True,
                 'geometrySetup': self.geometry_setup,
                 'meshFile': self.mesh_file
@@ -145,26 +145,26 @@ def testGPUComm():
 
 
 def testCartesianComm():
-    cells_per_block=(256, 256, 256)
+    cells_per_block=(50, 50, 50)
     scenarios = wlb.ScenarioManager()
-    scenario = Scenario(cells_per_block=cells_per_block, periodic=(0,1,1), geometry_setup="randomNoslip", porosity=1.0, porositySwitch=0.0, run_hybrid=True,
-                        time_step_strategy="noOverlap", inner_outer_split=(0, 0, 0), run_boundaries=True, use_cartesian_communicator=False)
-    scenarios.add(scenario)
-    scenario = Scenario(cells_per_block=cells_per_block, periodic=(0,1,1), geometry_setup="randomNoslip", porosity=1.0, porositySwitch=0.0, run_hybrid=True,
+    scenario = Scenario(cells_per_block=cells_per_block, periodic=(False,True,True), geometry_setup="randomNoslip", porosity=1.0, porositySwitch=0.0, run_hybrid=True,
                         time_step_strategy="noOverlap", inner_outer_split=(0, 0, 0), run_boundaries=True, use_cartesian_communicator=True)
     scenarios.add(scenario)
-    scenario = Scenario(cells_per_block=cells_per_block, periodic=(0,1,1), geometry_setup="randomNoslip", porosity=1.0, porositySwitch=0.0, run_hybrid=True,
-                        time_step_strategy="Overlap", inner_outer_split=(1, 1, 1), run_boundaries=True, use_cartesian_communicator=False)
+    scenario = Scenario(cells_per_block=cells_per_block, periodic=(False,True,True), geometry_setup="randomNoslip", porosity=1.0, porositySwitch=0.0, run_hybrid=True,
+                        time_step_strategy="noOverlap", inner_outer_split=(0, 0, 0), run_boundaries=True, use_cartesian_communicator=False)
     scenarios.add(scenario)
-    scenario = Scenario(cells_per_block=cells_per_block, periodic=(0,1,1), geometry_setup="randomNoslip", porosity=1.0, porositySwitch=0.0, run_hybrid=True,
-                        time_step_strategy="Overlap", inner_outer_split=(1, 1, 1), run_boundaries=True, use_cartesian_communicator=True)
-    scenarios.add(scenario)
+    #scenario = Scenario(cells_per_block=cells_per_block, periodic=(0,1,1), geometry_setup="randomNoslip", porosity=1.0, porositySwitch=0.0, run_hybrid=True,
+    #                    time_step_strategy="Overlap", inner_outer_split=(1, 1, 1), run_boundaries=True, use_cartesian_communicator=False)
+    #scenarios.add(scenario)
+    #scenario = Scenario(cells_per_block=cells_per_block, periodic=(0,1,1), geometry_setup="randomNoslip", porosity=1.0, porositySwitch=0.0, run_hybrid=True,
+    #                    time_step_strategy="Overlap", inner_outer_split=(1, 1, 1), run_boundaries=True, use_cartesian_communicator=True)
+    #scenarios.add(scenario)
 
 #randomNoslip()
 #spheres()
-#Artery()
+Artery()
 #particleBed()
 #emptyChannel()
 #scalingBenchmark()
 #testGPUComm()
-testCartesianComm()
+#testCartesianComm()
