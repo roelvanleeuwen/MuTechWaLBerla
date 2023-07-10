@@ -1,6 +1,8 @@
 waLBerla_link_files_to_builddir( *.prm )
 waLBerla_link_files_to_builddir( *.png )
 waLBerla_link_files_to_builddir( *.obj )
+waLBerla_link_files_to_builddir( *.stl )
+
 
 walberla_generate_target_from_python( NAME PSM_ComplexGeometryCodeGen
         FILE PSM_ComplexGeometry.py

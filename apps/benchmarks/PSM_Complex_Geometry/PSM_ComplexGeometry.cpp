@@ -118,7 +118,7 @@ int main(int argc, char** argv)
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #endif
 
-
+   logging::Logging::instance()->setLogLevel( logging::Logging::INFO );
 
    mpi::MPIManager::instance()->useWorldComm();
 
@@ -142,7 +142,7 @@ int main(int argc, char** argv)
    const real_t rotationAngle = domainParameters.getParameter< real_t >("rotationAngle", real_t(0.017453292519943));
 
    const real_t dx = domainParameters.getParameter< real_t >("dx", real_t(1));
-   Vector3< uint_t > domainScaling = domainParameters.getParameter< Vector3< uint_t > >("domainScaling", Vector3< uint_t >(1));
+   Vector3< real_t > domainScaling = domainParameters.getParameter< Vector3< real_t > >("domainScaling", Vector3< real_t >(1.0));
    const Vector3< bool > periodicity = domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
    const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
 
@@ -156,7 +156,10 @@ int main(int argc, char** argv)
    mesh->request_vertex_colors();
    mesh::readAndBroadcast(meshFile, *mesh);
 
+
    vertexToFaceColor(*mesh, mesh::TriangleMesh::Color(255, 255, 255));
+
+   WALBERLA_LOG_PROGRESS_ON_ROOT("Vertex colors valid? " << mesh->has_vertex_colors() << " Face colors valid? " << mesh->has_face_colors())
 
    auto triDist = make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh);
    auto distanceOctree = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(triDist);
@@ -167,7 +170,7 @@ int main(int argc, char** argv)
 
    auto aabb = computeAABB(*mesh);
    aabb.scale(domainScaling);
-   aabb.setCenter(aabb.center() + 0.3 * Vector3< real_t >(0, aabb.ySize(), 0));
+   aabb.setCenter(aabb.center() - 1.8 * Vector3< real_t >(aabb.xSize(), 0, 0));
 
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctree, dx));
    bfc.setPeriodicity(periodicity);
@@ -213,7 +216,7 @@ int main(int argc, char** argv)
    mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "meshBoundaries", VTKWriteFrequency);
    meshWriter.addDataSource(make_shared< mesh::BoundaryUIDFaceDataSource< mesh::TriangleMesh > >(boundaryLocations));
    meshWriter.addDataSource(make_shared< mesh::ColorFaceDataSource< mesh::TriangleMesh > >());
-   meshWriter.addDataSource(make_shared< mesh::ColorVertexDataSource< mesh::TriangleMesh > >());
+   //meshWriter.addDataSource(make_shared< mesh::ColorVertexDataSource< mesh::TriangleMesh > >());
    meshWriter();
    const std::function< void() > meshWritingFunc = [&]() { meshWriter(); };
 
@@ -229,7 +232,7 @@ int main(int argc, char** argv)
 #endif
 
    //Setting up Object Rotator
-   const bool preProcessFractionFields = true;
+   const bool preProcessFractionFields = false;
    ObjectRotator objectRotator(blocks, mesh, fractionFieldId,
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
                                fractionFieldGPUId,
@@ -288,6 +291,9 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "PSMSweep");
    if(rotationAngle > 0.0 && rotationFrequency > 0) {
       timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
+      if(!preProcessFractionFields)
+         timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
+
    }
 
 

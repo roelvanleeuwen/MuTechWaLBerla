@@ -2,28 +2,28 @@
 Parameters 
 {
 	omega           1.4;
-	timesteps       3601;
+	timesteps       101;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 0;
+	VTKwriteFrequency 1;
 }
 
 DomainSetup
 {
-   meshFile           Rotor.obj;
-   rotationFrequency  10;
-   rotationAngle      0.017453292519943;    //1° in rad
+   meshFile           CROR.obj;    //Rotor.obj;
+   rotationFrequency  100;
+   rotationAngle      0.17453292519943;   //0.017453292519943;    //1° in rad
 
-   dx                 0.5;
-   domainScaling      <  2, 10,  2 >;   //<  3, 50,  3 >;
+   dx                 0.02;
+   domainScaling      <  0.25, 2, 2 >;   //<  3, 50,  3 >;
    cellsPerBlock      < 64, 64, 64 >;
-   periodic           <  1,  0,  1 >;
+   periodic           <  0,  1,  1 >;
 }
 
 Boundaries
 {
-	//Border { direction S;    walldistance -1;  flag UBB; }
-	//Border { direction N;    walldistance -1;  flag FixedDensity; }
+	Border { direction E;    walldistance -1;  flag UBB; }
+	Border { direction W;    walldistance -1;  flag FixedDensity; }
 	//Border { direction E,W,T,B;  walldistance -1;  flag NoSlip; }
 
 }

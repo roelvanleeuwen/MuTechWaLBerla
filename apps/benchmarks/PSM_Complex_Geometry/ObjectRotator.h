@@ -76,7 +76,7 @@ class ObjectRotator
         fractionFieldGPUId_(fractionFieldGPUId),
 #endif
         objectVelocityId_(objectVelocityId), rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree),
-        preProcessedFractionFields_(preProcessedFractionFields), counter(0), rotationAxis(0,-1,0)
+        preProcessedFractionFields_(preProcessedFractionFields), counter(0), rotationAxis(-1,0,0)
    {
       meshCenter = computeCentroid(*mesh_);
       initObjectVelocityField();
@@ -96,7 +96,13 @@ class ObjectRotator
          }
          else {
             const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
-            mesh::rotate(*mesh_, rotationAxis, rotationAngle_, axis_foot);
+            rotationAxis = Vector3< mesh::TriangleMesh::Scalar >(1,0,0);
+            mesh::rotateByColor(*mesh_, rotationAxis, rotationAngle_, axis_foot, std::vector<mesh::TriangleMesh::Color>{mesh::TriangleMesh::Color(208, 201, 228), mesh::TriangleMesh::Color(185, 103, 12)});
+            rotationAxis = Vector3< mesh::TriangleMesh::Scalar >(-1,0,0);
+            mesh::rotateByColor(*mesh_, rotationAxis, rotationAngle_, axis_foot, std::vector<mesh::TriangleMesh::Color>{mesh::TriangleMesh::Color(232, 200, 121), mesh::TriangleMesh::Color(157, 68, 139)});
+
+            //mesh::rotate(*mesh_, rotationAxis, rotationAngle_, axis_foot);
+
             distOctree_ = makeMeshDistanceFunction(make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
                make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_)));
             getFractionFieldFromMesh(fractionFieldId_);
@@ -124,7 +130,7 @@ class ObjectRotator
       {
          auto level = blocks_->getLevel(block);
          auto objVelField = block.getData< VectorField_T >(objectVelocityId_);
-         const Vector3< real_t > angularVel(rotationAxis[0] * rotationAngle_, rotationAxis[1] * rotationAngle_, rotationAxis[2] * rotationAngle_);
+         const Vector3< real_t > angularVel(rotationAxis[0] * rotationAngle_ / frequency_, rotationAxis[1] * rotationAngle_ / frequency_, rotationAxis[2] * rotationAngle_ / frequency_);
          const real_t dx = blocks_->dx(level);
          WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(objVelField,
             Cell cell(x,y,z);
