@@ -2363,7 +2363,7 @@ void run( const shared_ptr< Config > & config, const LatticeModel_T & latticeMod
    // add velocity field + initialize velocity field writer (only used for simulations with an adaptive block structure)
 
    using VelocityField_T = field::GhostLayerField<Vector3<real_t>, 1>;
-   BlockDataID velocityFieldId = field::addToStorage< VelocityField_T >( blocks, "velocity", Vector3<real_t>(0), field::zyxf, FieldGhostLayers, true, None, Empty );
+   BlockDataID velocityFieldId = field::addToStorage< VelocityField_T >( blocks, "velocity", Vector3<real_t>(0), field::fzyx, FieldGhostLayers, true, None, Empty );
 
    using VelocityFieldWriter_T = lbm::VelocityFieldWriter<typename Types<LatticeModel_T>::PdfField_T, VelocityField_T>;
    BlockSweepWrapper< VelocityFieldWriter_T > velocityFieldWriter( blocks, VelocityFieldWriter_T( pdfFieldId, velocityFieldId ), None, Empty );
@@ -2623,7 +2623,7 @@ void run( const shared_ptr< Config > & config, const LatticeModel_T & latticeMod
 
    // remaining time logger
 
-   const double remainingTimeLoggerFrequency = configBlock.getParameter< double >( "remainingTimeLoggerFrequency", 3.0 );
+   const real_t remainingTimeLoggerFrequency = configBlock.getParameter< real_t >( "remainingTimeLoggerFrequency", real_c(3.0) );
    timeloop.addFuncAfterTimeStep( timing::RemainingTimeLogger( timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency ), "Remaining time logger" );
 
    // logging right before the simulation starts

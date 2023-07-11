@@ -360,7 +360,7 @@ class AddToStorageExporter
  public:
    AddToStorageExporter(const shared_ptr< StructuredBlockForest >& blocks, const std::string& name, py::object& dtype, uint_t fs,
                         uint_t gl, Layout layout, real_t initValue, uint_t alignment)
-      : blocks_(blocks), name_(name), dtype_(dtype), fs_(fs), gl_(gl), layout_(layout), initValue_(initValue), alignment_(alignment), found_(false)
+      : blocks_(blocks), name_(name), dtype_(dtype), fs_(fs), gl_(gl), layout_(layout), initValue_(initValue), alignment_(alignment)
    {}
 
    template< typename FieldType >
@@ -376,8 +376,8 @@ class AddToStorageExporter
          typedef internal::GhostLayerFieldDataHandling< GhostLayerField< T, F_SIZE > > DataHandling;
          auto dataHandling = walberla::make_shared< DataHandling >(blocks_, gl_, initValue_, layout_, alignment_);
          blocks_->addBlockData(dataHandling, name_);
+         found_ = true;
       }
-      found_ = true;
    }
 
    bool successful() const { return found_; }
@@ -391,7 +391,7 @@ class AddToStorageExporter
    Layout layout_;
    real_t initValue_;
    uint_t alignment_;
-   mutable bool found_;
+   mutable bool found_{false};
 };
 
 template< typename... FieldTypes >
@@ -631,7 +631,7 @@ void exportFields(py::module_& m)
       [](std::array< uint_t, 4 > size, py::object & dtype, uint_t ghostLayers, Layout layout, uint_t alignment) {
         return internal::createPythonField< FieldTypes... >(size, dtype, ghostLayers, layout, alignment);
       },
-      "size"_a, "dtype"_a, "ghostLayers"_a = uint_t(1), "layout"_a = zyxf, "alignment"_a = 0);
+      "size"_a, "dtype"_a, "ghostLayers"_a = uint_t(1), "layout"_a = fzyx, "alignment"_a = 0);
 
    m2.def(
       "addToStorage",
@@ -639,7 +639,7 @@ void exportFields(py::module_& m)
          Layout layout, uint_t ghostLayers, real_t initValue, uint_t alignment) {
          return internal::addToStorage< FieldTypes... >(blocks, name, dtype, fSize, ghostLayers, layout, initValue, alignment);
       },
-      "blocks"_a, "name"_a, "dtype"_a, "fSize"_a = 1, "layout"_a = zyxf, "ghostLayers"_a = uint_t(1), "initValue"_a = 0.0, "alignment"_a = 0);
+      "blocks"_a, "name"_a, "dtype"_a, "fSize"_a = 1, "layout"_a = fzyx, "ghostLayers"_a = uint_t(1), "initValue"_a = 0.0, "alignment"_a = 0);
 
    m2.def( "createVTKWriter",
            [](const shared_ptr<StructuredBlockForest> & blocks, const std::string & name,

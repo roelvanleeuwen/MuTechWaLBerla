@@ -76,9 +76,9 @@ class CenterOfMassComputer
  public:
    CenterOfMassComputer(const std::weak_ptr< const StructuredBlockForest >& blockForest,
                         const std::weak_ptr< const FreeSurfaceBoundaryHandling_T >& freeSurfaceBoundaryHandling,
-                        uint_t interval, const std::shared_ptr< Vector3< real_t > >& centerOfMass)
+                        uint_t frequency, const std::shared_ptr< Vector3< real_t > >& centerOfMass)
       : blockForest_(blockForest), freeSurfaceBoundaryHandling_(freeSurfaceBoundaryHandling),
-        centerOfMass_(centerOfMass), interval_(interval), executionCounter_(uint_c(0))
+        centerOfMass_(centerOfMass), frequency_(frequency), executionCounter_(uint_c(0))
    {}
 
    void operator()()
@@ -92,14 +92,16 @@ class CenterOfMassComputer
       ++executionCounter_;
 
       // only evaluate in given intervals
-      if (executionCounter_ % interval_ != uint_c(0)) { return; }
+      if (executionCounter_ % frequency_ != uint_c(0)) { return; }
 
       const BlockDataID flagFieldID = freeSurfaceBoundaryHandling->getFlagFieldID();
       const typename FreeSurfaceBoundaryHandling_T::FlagInfo_T& flagInfo = freeSurfaceBoundaryHandling->getFlagInfo();
 
-      *centerOfMass_   = Vector3< real_t >(real_c(0));
-      Cell cellSum     = Cell(cell_idx_c(0), cell_idx_c(0), cell_idx_c(0));
-      uint_t cellCount = uint_c(0);
+      *centerOfMass_ = Vector3< real_t >(real_c(0));
+
+      // use real_t to avoid integer overflow in sum below when using high grid resolutions
+      Vector3< real_t > cellSumVector = Vector3< real_t >(real_c(0));
+      real_t cellCount                = real_c(0);
 
       for (auto blockIt = blockForest->begin(); blockIt != blockForest->end(); ++blockIt)
       {
@@ -111,21 +113,18 @@ class CenterOfMassComputer
                Cell globalCell = flagFieldIt.cell();
                // transform local cell to global coordinates
                blockForest->transformBlockLocalToGlobalCell(globalCell, *blockIt);
-               cellSum += globalCell;
-               ++cellCount;
+               cellSumVector += Vector3< real_t >(real_c(globalCell[0]), real_c(globalCell[1]), real_c(globalCell[2]));
+               cellCount += real_c(1);
             }
          }) // WALBERLA_FOR_ALL_CELLS
       }
 
-      mpi::allReduceInplace< uint_t >(cellCount, mpi::SUM);
+      mpi::allReduceInplace< real_t >(cellCount, mpi::SUM);
+      mpi::allReduceInplace< real_t >(cellSumVector, mpi::SUM);
 
-      Vector3< cell_idx_t > cellSumVector =
-         Vector3< cell_idx_t >(cellSum[0], cellSum[1], cellSum[2]); // use Vector3 to limit calls to MPI-reduce to one
-      mpi::allReduceInplace< cell_idx_t >(cellSumVector, mpi::SUM);
-
-      (*centerOfMass_)[0] = real_c(cellSumVector[0]) / real_c(cellCount);
-      (*centerOfMass_)[1] = real_c(cellSumVector[1]) / real_c(cellCount);
-      (*centerOfMass_)[2] = real_c(cellSumVector[2]) / real_c(cellCount);
+      (*centerOfMass_)[0] = cellSumVector[0] / cellCount;
+      (*centerOfMass_)[1] = cellSumVector[1] / cellCount;
+      (*centerOfMass_)[2] = cellSumVector[2] / cellCount;
    }
 
  private:
@@ -133,7 +132,7 @@ class CenterOfMassComputer
    std::weak_ptr< const FreeSurfaceBoundaryHandling_T > freeSurfaceBoundaryHandling_;
    std::shared_ptr< Vector3< real_t > > centerOfMass_;
 
-   uint_t interval_;
+   uint_t frequency_;
    uint_t executionCounter_;
 }; // class CenterOfMassComputer
 
@@ -405,9 +404,12 @@ int main(int argc, char** argv)
       blockForest, freeSurfaceBoundaryHandling, evaluationFrequency, centerOfMass);
    timeloop.addFuncAfterTimeStep(centerOfMassComputer, "Evaluator: center of mass");
 
-   const std::shared_ptr< real_t > totalMass = std::make_shared< real_t >(real_c(0));
+   // add evaluator for total and excessive mass (mass that is currently undistributed)
+   const std::shared_ptr< real_t > totalMass  = std::make_shared< real_t >(real_c(0));
+   const std::shared_ptr< real_t > excessMass = std::make_shared< real_t >(real_c(0));
    const TotalMassComputer< FreeSurfaceBoundaryHandling_T, PdfField_T, FlagField_T, ScalarField_T > totalMassComputer(
-      blockForest, freeSurfaceBoundaryHandling, pdfFieldID, fillFieldID, evaluationFrequency, totalMass);
+      blockForest, freeSurfaceBoundaryHandling, pdfFieldID, fillFieldID, dynamicsHandler.getConstExcessMassFieldID(),
+      evaluationFrequency, totalMass, excessMass);
    timeloop.addFuncAfterTimeStep(totalMassComputer, "Evaluator: total mass");
 
    // add VTK output
@@ -438,27 +440,26 @@ int main(int argc, char** argv)
    {
       timeloop.singleStep(timingPool, true);
 
-      // only evaluate if center of mass has moved "significantly"
-      if ((*centerOfMass)[2] > (centerOfMassOld[2] + real_c(1)) && t > uint_c(0))
+      if (t % evaluationFrequency == uint_c(0) && t > uint_c(0))
       {
          WALBERLA_ROOT_SECTION()
          {
-            real_t riseVelocity    = ((*centerOfMass)[2] - centerOfMassOld[2]) / real_c(t - timestepOld);
-            const real_t dragForce = real_c(4) / real_c(3) * gravitationalAccelerationZ * real_c(bubbleDiameter) /
+            const real_t riseVelocity = ((*centerOfMass)[2] - centerOfMassOld[2]) / real_c(t - timestepOld);
+            const real_t dragForce    = real_c(4) / real_c(3) * gravitationalAccelerationZ * real_c(bubbleDiameter) /
                                      (riseVelocity * riseVelocity);
 
-            WALBERLA_LOG_DEVEL("time step = " << t);
-            WALBERLA_LOG_DEVEL("\t\tcenterOfMass = " << *centerOfMass << "\n\t\triseVelocity = " << riseVelocity
-                                                     << "\n\t\tdragForce = " << dragForce);
-            WALBERLA_LOG_DEVEL("\t\ttotalMass = " << *totalMass);
+            WALBERLA_LOG_DEVEL("time step = " << t << "\n\t\tcenterOfMass = " << *centerOfMass
+                                              << "\n\t\triseVelocity = " << riseVelocity
+                                              << "\n\t\tdragForce = " << dragForce << "\n\t\ttotalMass = " << *totalMass
+                                              << "\n\t\texcessMass = " << *excessMass);
 
             const std::vector< real_t > resultVector{ (*centerOfMass)[2], riseVelocity, dragForce };
 
             writeVectorToFile(resultVector, t, filename);
-         }
 
-         timestepOld     = t;
-         centerOfMassOld = *centerOfMass;
+            timestepOld     = t;
+            centerOfMassOld = *centerOfMass;
+         }
       }
 
       // stop simulation before bubble hits the top wall

@@ -5,7 +5,7 @@
 ## Contents:
 ##   - definition of build options
 ##   - compiler variables ( c++ standard, warnings etc. )
-##   - Finding of service libraries. Required: none, Optional: Boost, MPI, FFTW3, METIS, OpenMesh, Python
+##   - Finding of service libraries. Required: none, Optional: MPI, FFTW3, METIS, OpenMesh, Python
 ##     the include paths are set, and the libraries are added to variable SERVICE_LIBS
 ##   - Subdirectory cmake lists are called
 ##       -> src/   this folder contains all modules, each module (that contains c or cpp files) is linked to a
@@ -82,6 +82,7 @@ option ( WALBERLA_BUILD_WITH_CODEGEN        "Enable pystencils code generation" 
 option ( WALBERLA_BUILD_WITH_LIKWID_MARKERS "Compile in markers for likwid-perfctr"              )
 
 option ( WALBERLA_BUILD_WITH_CUDA	        "Enable CUDA support"                                )
+option ( WALBERLA_BUILD_WITH_HIP	           "Enable ROCm HIP support"                            )
 
 
 option ( WALBERLA_BUILD_WITH_FASTMATH       "Fast math"                                          )
@@ -100,6 +101,8 @@ option ( WALBERLA_OPTIMIZE_FOR_LOCALHOST    "Enable compiler optimizations spcif
 option ( WALBERLA_LOG_SKIPPED               "Log skipped cmake targets"                      ON  )
 
 option ( WALBERLA_GIT_SUBMODULE_AUTO        "Check submodules during cmake run"               ON )
+
+option ( WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT "Experimental half precision support"    OFF )
 
 # Installation Directory
 set ( CMAKE_INSTALL_PREFIX /usr/local/waLBerla CACHE STRING "The default installation directory."   )
@@ -219,8 +222,7 @@ else()
 endif()
 mark_as_advanced ( WALBERLA_CXX_COMPILER_IS_NEC )
 
-# Check for Clang compiler
-if( CMAKE_CXX_COMPILER MATCHES "clang" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" )
+if( CMAKE_CXX_COMPILER MATCHES "clang" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "clang" OR CMAKE_CXX_COMPILER MATCHES "hipcc" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" )
     option ( WALBERLA_CXX_COMPILER_IS_CLANG "Use clang compiler" ON  )
 else()
     option ( WALBERLA_CXX_COMPILER_IS_CLANG "Use clang compiler" OFF  )
@@ -379,7 +381,9 @@ if( WALBERLA_OPTIMIZE_FOR_LOCALHOST )
       endif()
 
       if( EXISTS "/proc/sys/abi/sve_default_vector_length" )
-        file( READ "/proc/sys/abi/sve_default_vector_length" SVE_LENGTH )
+        file( READ "/proc/sys/abi/sve_default_vector_length" SVE_LENGTH_BYTES )
+        string(STRIP "${SVE_LENGTH_BYTES}" SVE_LENGTH_BYTES)
+        math(EXPR SVE_LENGTH "${SVE_LENGTH_BYTES} * 8")
         add_flag ( CMAKE_CXX_FLAGS "-msve-vector-bits=${SVE_LENGTH}" )
         add_flag ( CMAKE_C_FLAGS   "-msve-vector-bits=${SVE_LENGTH}" )
       endif()
@@ -474,18 +478,18 @@ endif()
 
 
 # disable Xcode 7.3+ linker deduplication pass to speed up linking in debug mode
-if ( APPLE )
-   execute_process( COMMAND ${CMAKE_LINKER} -v OUTPUT_VARIABLE LINKER_VERSION ERROR_VARIABLE LINKER_VERSION )
-   string( REGEX MATCH "ld64-[0-9\\.\\-]+" LINKER_VERSION ${LINKER_VERSION} )
-   string( REGEX MATCHALL "[^\\-]+" LINKER_VERSION ${LINKER_VERSION} )
-   list( GET LINKER_VERSION 0 LINKER_TYPE )
-   list( GET LINKER_VERSION 1 LINKER_VERSION )
-   if( LINKER_TYPE STREQUAL "ld64" AND LINKER_VERSION VERSION_GREATER 264.3.101 )
-       add_flag( CMAKE_EXE_LINKER_FLAGS_DEBUG    "-Wl,-no_deduplicate")
-       add_flag( CMAKE_MODULE_LINKER_FLAGS_DEBUG "-Wl,-no_deduplicate")
-       add_flag( CMAKE_SHARED_LINKER_FLAGS_DEBUG "-Wl,-no_deduplicate")
-   endif()
-endif()
+#if ( APPLE )
+#   execute_process( COMMAND ${CMAKE_LINKER} -v OUTPUT_VARIABLE LINKER_VERSION ERROR_VARIABLE LINKER_VERSION )
+#   string( REGEX MATCH "ld64-[0-9\\.\\-]+" LINKER_VERSION ${LINKER_VERSION} )
+#   string( REGEX MATCHALL "[^\\-]+" LINKER_VERSION ${LINKER_VERSION} )
+#   list( GET LINKER_VERSION 0 LINKER_TYPE )
+#   list( GET LINKER_VERSION 1 LINKER_VERSION )
+#   if( LINKER_TYPE STREQUAL "ld64" AND LINKER_VERSION VERSION_GREATER 264.3.101 )
+#       add_flag( CMAKE_EXE_LINKER_FLAGS_DEBUG    "-Wl,-no_deduplicate")
+#       add_flag( CMAKE_MODULE_LINKER_FLAGS_DEBUG "-Wl,-no_deduplicate")
+#       add_flag( CMAKE_SHARED_LINKER_FLAGS_DEBUG "-Wl,-no_deduplicate")
+#   endif()
+#endif()
 
 
 ############################################################################################################################
@@ -603,7 +607,7 @@ endif ()
 ##
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_CODEGEN )
-   set(LBMPY_MIN_VERSION 1.1)
+   set(LBMPY_MIN_VERSION 1.2)
    execute_process(COMMAND ${Python_EXECUTABLE} -c "import lbmpy; print(lbmpy.__version__)"
          RESULT_VARIABLE LBMPY_FOUND OUTPUT_VARIABLE LBMPY_VERSION)
     if(NOT LBMPY_FOUND EQUAL 0)
@@ -698,53 +702,6 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
                          COMMENT "Building HTML documentation for Python extension with Sphinx")
   endif()
 endif()
-
-
-############################################################################################################################
-##
-## BOOST Libraries
-##
-#############################################################################################################################
-set ( Boost_NO_BOOST_CMAKE ON)
-
-# This variable is necessary, if the CMAKE version used is not aware of a more recent boost version (keep this up to date!)
-set ( Boost_ADDITIONAL_VERSIONS
-      "1.45" "1.45.0" "1.46" "1.46.0" "1.46.1" "1.47" "1.47.0" "1.48" "1.48.0" "1.49" "1.49.0"
-      "1.50" "1.50.0" "1.51" "1.51.0" "1.52" "1.52.0" "1.53" "1.53.0" "1.54" "1.54.0" "1.55" "1.55.0"
-      "1.56" "1.56.0" "1.57" "1.57.0" "1.58" "1.58.0" "1.59" "1.59.0" "1.60" "1.60.0" "1.61" "1.61.0" "1.62" "1.62.0" "1.63" "1.63.0"
-      "1.64.0" "1.65.0" "1.65.1" "1.66.0" "1.67.0" "1.68.0" "1.69.0" "1.70.0" "1.71.0" "1.72.0" "1.73.0" "1.74.0")
-
-# if you defined BOOST_ROOT or BOOST_BASE in your environment use it here to find boost too
-if ( NOT BOOST_ROOT )
-   foreach ( var  BOOST_ROOT  BOOST_BASE )
-      if ( NOT "$ENV{${var}}" STREQUAL "" )
-         message ( STATUS "Use environment boost directory: $ENV{${var}}" )
-         set ( BOOST_ROOT $ENV{${var}} CACHE INTERNAL "")
-         break ( )
-      endif ( )
-   endforeach ( )
-endif ( )
-
-find_package ( Boost )
-
-if ( Boost_FOUND )
-   if(CMAKE_GENERATOR STREQUAL "Xcode")
-      # this is needed because the SYSTEM flag to include_directories does not work
-      add_flag ( CMAKE_CXX_FLAGS "-isystem ${Boost_INCLUDE_DIRS}" )
-   else()
-      include_directories ( SYSTEM ${Boost_INCLUDE_DIRS} )
-   endif()
-   add_definitions ( -DBOOST_ALL_NO_LIB ) # Disable Boost auto-linking (CMAKE does that for us...)
-
-   set( WALBERLA_BUILD_WITH_BOOST TRUE CACHE INTERNAL "Build with Boost" )
-else( Boost_FOUND )
-   set( WALBERLA_BUILD_WITH_BOOST FALSE CACHE INTERNAL "Build with Boost" )
-endif( Boost_FOUND )
-
-
-############################################################################################################################
-
-
 
 
 
@@ -891,41 +848,24 @@ endif(WALBERLA_ENABLE_GUI)
 ##
 ############################################################################################################################
 
-if ( WALBERLA_BUILD_WITH_METIS )
-    find_package ( Metis QUIET )
+if ( WALBERLA_BUILD_WITH_PARMETIS )
+   # metis is required for parmetis
+   set( WALBERLA_BUILD_WITH_METIS TRUE FORCE )
+endif ()
 
-    if ( METIS_FOUND )
-        include_directories( ${METIS_INCLUDE_DIRS} )
-        link_directories   ( ${METIS_LIBRARY_DIR}  )
-        list ( APPEND SERVICE_LIBS ${METIS_LIBRARIES} )
-        set  ( WALBERLA_BUILD_WITH_METIS TRUE )
-    else()
-        set  ( WALBERLA_BUILD_WITH_METIS OFF CACHE BOOL "Build with metis graph partitioner" FORCE )
-    endif()
-else()
-    set ( METIS_FOUND OFF CACHE BOOL "Metis found" FORCE )
+if ( WALBERLA_BUILD_WITH_METIS )
+   find_package( Metis REQUIRED )
+
+   include_directories( ${METIS_INCLUDE_DIRS} )
+   list( APPEND SERVICE_LIBS ${METIS_LIBRARIES} )
+
 endif()
 
-
 if ( WALBERLA_BUILD_WITH_PARMETIS )
-   find_path(PARMETIS_INCLUDE_DIR parmetis.h
-      /usr/local/include
-      /usr/include
-      ${PARMETIS_ROOT}/include
-      $ENV{PARMETIS_ROOT}/include
-   )
+   find_package( Parmetis REQUIRED )
 
-  find_library(PARMETIS_LIBRARY parmetis
-    /usr/local/lib
-    /usr/lib
-    ${PARMETIS_ROOT}/lib
-    $ENV{PARMETIS_ROOT}/lib
-  )
-
-  if( PARMETIS_INCLUDE_DIR AND PARMETIS_LIBRARY AND METIS_LIBRARY )
-    include_directories( ${PARMETIS_INCLUDE_DIR} )
-    list ( APPEND SERVICE_LIBS ${PARMETIS_LIBRARY} ${METIS_LIBRARY} )
-  endif()
+   include_directories( ${PARMETIS_INCLUDE_DIR} )
+   list( APPEND SERVICE_LIBS ${PARMETIS_LIBRARY} )
 endif()
 
 ############################################################################################################################
@@ -1098,6 +1038,10 @@ endif()
 ##
 ############################################################################################################################
 if ( WALBERLA_BUILD_WITH_CUDA )
+    if (WALBERLA_BUILD_WITH_HIP)
+       message(FATAL_ERROR "For GPU support either use CUDA or HIP. Both simultaneously is not supported.")
+    endif()
+
     include(CheckLanguage)
     check_language(CUDA)
     if( CMAKE_CUDA_COMPILER )
@@ -1119,6 +1063,7 @@ if ( WALBERLA_BUILD_WITH_CUDA )
 
         #CUDA_FOUND is need for our cmake mechanism
         set ( CUDA_FOUND TRUE )
+        set (WALBERLA_BUILD_WITH_GPU_SUPPORT TRUE)
     else()
         message( WARNING "CUDA could not be enabled. The host compiler might not be compatible. Check CMakeFiles/CMakeError.log for more information" )
         set ( WALBERLA_BUILD_WITH_CUDA FALSE )
@@ -1142,6 +1087,38 @@ if (WALBERLA_BUILD_WITH_CUDA AND CUDA_FOUND)
 else()
     set(CODEGEN_FILE_SUFFIX "cpp")
 endif()
+############################################################################################################################
+
+
+
+############################################################################################################################
+##
+## ROCm HIP
+##
+############################################################################################################################
+if ( WALBERLA_BUILD_WITH_HIP )
+    if (WALBERLA_BUILD_WITH_CUDA)
+       message(FATAL_ERROR "For GPU support either use CUDA or HIP. Both simultaneously is not supported.")
+    endif()
+    if (${CMAKE_VERSION} VERSION_LESS "3.21.0")
+       message(FATAL_ERROR "For HIP support CMake > 3.21.0 is needed. Please install a newer version")
+    endif()
+
+    include(CheckLanguage)
+    check_language(HIP)
+
+    if( CMAKE_HIP_COMPILER )
+        enable_language(HIP)
+        # since waLBerla also supports CUDA we only use HIP on an AMD platform
+        add_compile_definitions(__HIP_PLATFORM_AMD__)
+        # include_directories(${HSA_HEADER})
+        set (WALBERLA_BUILD_WITH_GPU_SUPPORT TRUE)
+    else()
+         message("HIP compiler not found. HIP support is not possible")
+        set ( WALBERLA_BUILD_WITH_HIP FALSE )
+    endif ( )
+endif ( )
+
 ############################################################################################################################
 
 
@@ -1248,6 +1225,34 @@ if ( WALBERLA_SANITIZE_UNDEFINED )
         add_flag( CMAKE_CXX_FLAGS "-fsanitize=undefined")
     endif()
 endif()
+
+############################################################################################################################
+##
+##  Half precision
+##
+############################################################################################################################
+if (WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT)
+    if (WALBERLA_CXX_COMPILER_IS_GNU OR WALBERLA_CXX_COMPILER_IS_CLANG)
+        message(STATUS "Configuring with *experimental* half precision (float16) support. You better know what you are doing.")
+        if (WALBERLA_CXX_COMPILER_IS_GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12.0.0)
+            message(WARNING "[WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT] "
+                    "Half precision support for gcc has only been tested with version >= 12. "
+                    "You are using a previous version - it may not work correctly.")
+        endif ()
+        if (WALBERLA_CXX_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15.0.0)
+            message(WARNING "[WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT] "
+                    "Half precision support for clang has only been tested with version >= 15. "
+                    "You are using a previous version - it may not work correctly.")
+        endif ()
+        if (NOT WALBERLA_OPTIMIZE_FOR_LOCALHOST)
+            message(WARNING "[WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT] "
+                    "You are not optimizing for localhost. You may encounter linker errors, or WORSE: silent incorrect fp16 arithmetic! Consider also enabling WALBERLA_OPTIMIZE_FOR_LOCALHOST!")
+        endif ()
+    else ()
+        message(FATAL_ERROR "[WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT] "
+                "Half precision support is currently only available for gcc and clang.")
+    endif ()
+endif ()
 
 ############################################################################################################################
 # Documentation Generation
