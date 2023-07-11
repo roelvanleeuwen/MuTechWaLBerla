@@ -13,6 +13,7 @@ walberla_generate_target_from_python( NAME PSM_ComplexGeometryCodeGen
         NoSlip.${CODEGEN_FILE_SUFFIX} NoSlip.h
         UBB.${CODEGEN_FILE_SUFFIX} UBB.h
         FixedDensity.${CODEGEN_FILE_SUFFIX} FixedDensity.h
+        ExtrapolationOutflow.${CODEGEN_FILE_SUFFIX} ExtrapolationOutflow.h
         PSM_InfoHeader.h
         )
 

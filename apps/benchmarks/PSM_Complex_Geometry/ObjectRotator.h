@@ -66,55 +66,48 @@ class ObjectRotator
    typedef field::GhostLayerField< real_t, 3 > VectorField_T;
 
  public:
-   ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID fractionFieldId,
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-                 const BlockDataID fractionFieldGPUId,
-#endif
-                 const BlockDataID objectVelocityId, const real_t rotationAngle, const uint_t frequency, DistanceFunction distOctree, const bool preProcessedFractionFields)
-      : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId),
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-        fractionFieldGPUId_(fractionFieldGPUId),
-#endif
+   ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID fractionFieldId, const BlockDataID fractionFieldGPUId,
+                 const BlockDataID objectVelocityId, const real_t rotationAngle, const uint_t frequency, DistanceFunction distOctree, const bool preProcessedFractionFields, const bool rotate = true)
+      : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), fractionFieldGPUId_(fractionFieldGPUId),
         objectVelocityId_(objectVelocityId), rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree),
-        preProcessedFractionFields_(preProcessedFractionFields), counter(0), rotationAxis(-1,0,0)
+        preProcessedFractionFields_(preProcessedFractionFields), rotate_(rotate), counter(0), rotationAxis(-1,0,0)
    {
+
       meshCenter = computeCentroid(*mesh_);
       initObjectVelocityField();
       if(preProcessedFractionFields_) {
          preprocessMesh();
+      } else {
+         getFractionFieldFromMesh(fractionFieldId_);
       }
    }
 
-   void operator()() { rotate(); }
-
-   void rotate()
-   {
+   void operator()(bool resetFracField) {
       if (counter % frequency_ == 0)
       {
-         if(preProcessedFractionFields_) {
-            syncFractionFieldFromVector();
-         }
-         else {
-            const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
-            rotationAxis = Vector3< mesh::TriangleMesh::Scalar >(1,0,0);
-            mesh::rotateByColor(*mesh_, rotationAxis, rotationAngle_, axis_foot, std::vector<mesh::TriangleMesh::Color>{mesh::TriangleMesh::Color(208, 201, 228), mesh::TriangleMesh::Color(185, 103, 12)});
-            rotationAxis = Vector3< mesh::TriangleMesh::Scalar >(-1,0,0);
-            mesh::rotateByColor(*mesh_, rotationAxis, rotationAngle_, axis_foot, std::vector<mesh::TriangleMesh::Color>{mesh::TriangleMesh::Color(232, 200, 121), mesh::TriangleMesh::Color(157, 68, 139)});
-
-            //mesh::rotate(*mesh_, rotationAxis, rotationAngle_, axis_foot);
-
-            distOctree_ = makeMeshDistanceFunction(make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
-               make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_)));
-            getFractionFieldFromMesh(fractionFieldId_);
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-            gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks_, fractionFieldGPUId_, fractionFieldId_);
-#endif
-         }
-
-
+         if(rotate_)
+            rotate();
+         if(resetFracField)
+            resetFractionField();
+         getFractionFieldFromMesh(fractionFieldId_);
       }
       counter += 1;
    }
+
+   void rotate()
+   {
+      if(preProcessedFractionFields_) {
+         syncFractionFieldFromVector();
+      }
+      else {
+         const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
+         mesh::rotate(*mesh_, rotationAxis, rotationAngle_, axis_foot);
+
+         distOctree_ = makeMeshDistanceFunction(make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
+            make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_)));
+      }
+   }
+
 
    void resetFractionField()
    {
@@ -126,15 +119,27 @@ class ObjectRotator
    }
 
    void initObjectVelocityField() {
+      auto aabbMesh = computeAABB(*mesh_);
       for (auto& block : *blocks_)
       {
          auto level = blocks_->getLevel(block);
+         auto cellBB = blocks_->getCellBBFromAABB( aabbMesh, level );
+
          auto objVelField = block.getData< VectorField_T >(objectVelocityId_);
-         const Vector3< real_t > angularVel(rotationAxis[0] * rotationAngle_ / frequency_, rotationAxis[1] * rotationAngle_ / frequency_, rotationAxis[2] * rotationAngle_ / frequency_);
+         Vector3< real_t > angularVel;
+         if (!rotate_)
+            angularVel = Vector3< real_t >(0,0,0);
+         else
+            angularVel = Vector3< real_t > (rotationAxis[0] * rotationAngle_ / real_c(frequency_), rotationAxis[1] * rotationAngle_ / real_c(frequency_), rotationAxis[2] * rotationAngle_ / real_c(frequency_));
          const real_t dx = blocks_->dx(level);
          WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(objVelField,
             Cell cell(x,y,z);
             blocks_->transformBlockLocalToGlobalCell(cell, block);
+
+            // Set velocity only in aabb of mesh for x dir
+            if(cell[0] < cellBB.xMin() || cell[0] > cellBB.xMax())
+               continue;
+
             Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
             Vector3< real_t > distance((cellCenter[0] - meshCenter[0]) / dx, (cellCenter[1] - meshCenter[1]) / dx, (cellCenter[2] - meshCenter[2]) / dx);
             real_t velX = angularVel[1] * distance[2] - angularVel[2] * distance[1];
@@ -210,10 +215,6 @@ class ObjectRotator
             // the cell interval is fully outside of mesh
             if (sqSignedDistance > sqCircumRadius)
             {
-               CellInterval localCi;
-               blocks_->transformGlobalToBlockLocalCellInterval(localCi, block, curCi);
-               std::fill(fractionField->beginSliceXYZ(localCi), fractionField->end(), 0.0);
-
                ciQueue.pop();
                continue;
             }
@@ -334,7 +335,7 @@ class ObjectRotator
    }
 
    void preprocessMesh() {
-      if(rotationAngle_ <= 0.0 || frequency_ == 0)
+      if(!rotate_)
          return;
 
       const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
@@ -374,14 +375,13 @@ class ObjectRotator
    shared_ptr< StructuredBlockForest > blocks_;
    shared_ptr< mesh::TriangleMesh > mesh_;
    const BlockDataID fractionFieldId_;
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const BlockDataID fractionFieldGPUId_;
-#endif
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
    const uint_t frequency_;
    DistanceFunction distOctree_;
    const bool preProcessedFractionFields_;
+   const bool rotate_;
    uint_t counter;
    mesh::TriangleMesh::Point meshCenter;
    Vector3< mesh::TriangleMesh::Scalar > rotationAxis;

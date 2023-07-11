@@ -68,33 +68,6 @@ using SweepCollection_T = lbm::PSMSweepCollection;
 const FlagUID fluidFlagUID("Fluid");
 const FlagUID noSlipFlagUID("NoSlip");
 
-template< typename MeshType >
-void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultColor)
-{
-   WALBERLA_CHECK(mesh.has_vertex_colors())
-   mesh.request_face_colors();
-
-   for (auto faceIt = mesh.faces_begin(); faceIt != mesh.faces_end(); ++faceIt)
-   {
-      typename MeshType::Color vertexColor;
-
-      bool useVertexColor = true;
-
-      auto vertexIt = mesh.fv_iter(*faceIt);
-      WALBERLA_ASSERT(vertexIt.is_valid())
-
-      vertexColor = mesh.color(*vertexIt);
-
-      ++vertexIt;
-      while (vertexIt.is_valid() && useVertexColor)
-      {
-         if (vertexColor != mesh.color(*vertexIt)) useVertexColor = false;
-         ++vertexIt;
-      }
-
-      mesh.set_color(*faceIt, useVertexColor ? vertexColor : defaultColor);
-   }
-}
 
 auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
    return [sweep](IBlock* b) {
@@ -130,13 +103,12 @@ int main(int argc, char** argv)
    auto parameters = walberlaEnv.config()->getOneBlock("Parameters");
 
    real_t omega = parameters.getParameter< real_t >("omega", real_c(1.4));
-   const Vector3< real_t > initialVelocity = parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >(0.0));
+   //const Vector3< real_t > initialVelocity = parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >(0.0));
    const uint_t timesteps = parameters.getParameter< uint_t >("timesteps", uint_c(10));
    const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
    const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0)); // in seconds
 
    auto domainParameters = walberlaEnv.config()->getOneBlock("DomainSetup");
-   std::string meshFile = domainParameters.getParameter< std::string >("meshFile");
 
    const uint_t rotationFrequency = domainParameters.getParameter< uint_t >("rotationFrequency", uint_t(1));
    const real_t rotationAngle = domainParameters.getParameter< real_t >("rotationAngle", real_t(0.017453292519943));
@@ -150,29 +122,26 @@ int main(int argc, char** argv)
    /// PROCESS MESH ///
    ////////////////////
 
-   WALBERLA_LOG_INFO_ON_ROOT("Using mesh from " << meshFile << ".")
+   std::string meshFileBase = "CROR_base.obj";
+   auto meshBase = make_shared< mesh::TriangleMesh >();
+   mesh::readAndBroadcast(meshFileBase, *meshBase);
+   auto distanceOctreeMeshBase = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshBase));
 
-   auto mesh = make_shared< mesh::TriangleMesh >();
-   mesh->request_vertex_colors();
-   mesh::readAndBroadcast(meshFile, *mesh);
+   std::string meshFileRotor = "CROR_rotor.obj";
+   auto meshRotor = make_shared< mesh::TriangleMesh >();
+   mesh::readAndBroadcast(meshFileRotor, *meshRotor);
+   auto distanceOctreeMeshRotor = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshRotor));
 
+   std::string meshFileStator = "CROR_stator.obj";
+   auto meshStator = make_shared< mesh::TriangleMesh >();
+   mesh::readAndBroadcast(meshFileStator, *meshStator);
+   auto distanceOctreeMeshStator = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshStator));
 
-   vertexToFaceColor(*mesh, mesh::TriangleMesh::Color(255, 255, 255));
-
-   WALBERLA_LOG_PROGRESS_ON_ROOT("Vertex colors valid? " << mesh->has_vertex_colors() << " Face colors valid? " << mesh->has_face_colors())
-
-   auto triDist = make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh);
-   auto distanceOctree = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(triDist);
-   WALBERLA_ROOT_SECTION()
-   {
-      distanceOctree->writeVTKOutput("distanceOctree");
-   }
-
-   auto aabb = computeAABB(*mesh);
+   auto aabb = computeAABB(*meshBase);
    aabb.scale(domainScaling);
    aabb.setCenter(aabb.center() - 1.8 * Vector3< real_t >(aabb.xSize(), 0, 0));
 
-   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctree, dx));
+   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx));
    bfc.setPeriodicity(periodicity);
    auto blocks = bfc.createStructuredBlockForest(cellsPerBlock);
 
@@ -201,46 +170,39 @@ int main(int argc, char** argv)
    const BlockDataID densityFieldGPUId = gpu::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldId, "density field on GPU", true);
    const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fraction field on GPU", true);
    const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
+#else
+   const BlockDataID fractionFieldGPUId;
 #endif
 
    /////////////////////////
    /// Boundary Handling ///
    /////////////////////////
 
-   const BoundaryUID wallFlagUID("NoSlip");
-   mesh::ColorToBoundaryMapper< mesh::TriangleMesh > colorToBoundaryMapper((mesh::BoundaryInfo(wallFlagUID)));
-   colorToBoundaryMapper.set(mesh::TriangleMesh::Color(255, 255, 255), mesh::BoundaryInfo(wallFlagUID));
-
-   auto boundaryLocations = colorToBoundaryMapper.addBoundaryInfoToMesh(*mesh);
-
-   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "meshBoundaries", VTKWriteFrequency);
-   meshWriter.addDataSource(make_shared< mesh::BoundaryUIDFaceDataSource< mesh::TriangleMesh > >(boundaryLocations));
-   meshWriter.addDataSource(make_shared< mesh::ColorFaceDataSource< mesh::TriangleMesh > >());
-   //meshWriter.addDataSource(make_shared< mesh::ColorVertexDataSource< mesh::TriangleMesh > >());
-   meshWriter();
-   const std::function< void() > meshWritingFunc = [&]() { meshWriter(); };
+   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterBase(meshBase, "meshBase", VTKWriteFrequency);
+   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterRotor(meshRotor, "meshRotor", VTKWriteFrequency);
+   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterStator(meshStator, "meshStator", VTKWriteFrequency);
+   const std::function< void() > meshWritingFunc = [&]() { meshWriterBase(); meshWriterRotor(); meshWriterStator(); };
+   meshWritingFunc();
 
    auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
 
    geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
-#else
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
-#endif
-
    //Setting up Object Rotator
    const bool preProcessFractionFields = false;
-   ObjectRotator objectRotator(blocks, mesh, fractionFieldId,
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-                               fractionFieldGPUId,
-#endif
-                               objectVelocitiesFieldId, rotationAngle, rotationFrequency, makeMeshDistanceFunction(distanceOctree), preProcessFractionFields);
+   ObjectRotator objectRotatorMeshBase(blocks, meshBase, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, 0, rotationFrequency, makeMeshDistanceFunction(distanceOctreeMeshBase), preProcessFractionFields, false);
+   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, -rotationAngle, rotationFrequency, makeMeshDistanceFunction(distanceOctreeMeshRotor), preProcessFractionFields, true);
+   ObjectRotator objectRotatorMeshStator(blocks, meshStator, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, rotationAngle, rotationFrequency, makeMeshDistanceFunction(distanceOctreeMeshStator), preProcessFractionFields, true);
 
-   const std::function< void() > objectRotatorFunc = [&]() { objectRotator(); };
-   objectRotator.getFractionFieldFromMesh(fractionFieldId);
+   const std::function< void() > objectRotatorFunc = [&]() {
+      objectRotatorMeshBase(true);
+      objectRotatorMeshRotor(false);
+      objectRotatorMeshStator(false);
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks_, fractionFieldGPUId, fractionFieldId);
+#endif
+   };
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    gpu::fieldCpy< gpu::GPUField< real_t >, VectorField_T >(blocks, objectVelocitiesFieldGPUId, objectVelocitiesFieldId);
 #endif
@@ -248,15 +210,17 @@ int main(int argc, char** argv)
    /////////////
    /// Sweep ///
    /////////////
-
    const Cell innerOuterSplit = Cell(parameters.getParameter< Vector3<cell_idx_t> >("innerOuterSplit", Vector3<cell_idx_t>(1, 1, 1)));
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    SweepCollection_T sweepCollection(blocks, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, 0.0, 0.0, 0.0, omega, innerOuterSplit);
    pystencils::PSMSweep PSMSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, real_t(0), real_t(0.0), real_t(0.0), omega);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
+
 #else
    SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, 0.0, 0.0, 0.0, omega, innerOuterSplit);
    pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId, real_t(0), real_t(0.0), real_t(0.0), omega);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
 #endif
 
    for (auto& block : *blocks)
@@ -284,18 +248,16 @@ int main(int argc, char** argv)
 
    const auto emptySweep = [](IBlock*) {};
 
-
    // Timeloop
    timeloop.add() << BeforeFunction(communication, "Communication")
                   << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");
    timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "PSMSweep");
-   if(rotationAngle > 0.0 && rotationFrequency > 0) {
+   if( rotationFrequency > 0) {
       timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
       if(!preProcessFractionFields)
          timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
 
    }
-
 
    // Time logger
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
@@ -306,7 +268,6 @@ int main(int argc, char** argv)
       const std::string path = "vtk_out";
       auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "fields", VTKWriteFrequency, 0,
                                                               false, path, "simulation_step", false, true, true, false, 0);
-
 
       vtkOutput->addBeforeFunction([&]() {
          for (auto& block : *blocks)
@@ -319,12 +280,12 @@ int main(int argc, char** argv)
       auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
       //auto flagWriter = make_shared< field::VTKWriter< FlagField_T > >(flagFieldId, "Flag");
       auto fractionFieldWriter = make_shared< field::VTKWriter< FracField_T > >(fractionFieldId, "FractionField");
-      //auto objVeldWriter = make_shared< field::VTKWriter< VectorField_T > >(objectVelocitiesFieldId, "objectVelocity");
+      auto objVeldWriter = make_shared< field::VTKWriter< VectorField_T > >(objectVelocitiesFieldId, "objectVelocity");
 
       vtkOutput->addCellDataWriter(velWriter);
       //vtkOutput->addCellDataWriter(flagWriter);
       vtkOutput->addCellDataWriter(fractionFieldWriter);
-      //vtkOutput->addCellDataWriter(objVeldWriter);
+      vtkOutput->addCellDataWriter(objVeldWriter);
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decompositionDense", "vtk_out", "write_call", true, true, 0);

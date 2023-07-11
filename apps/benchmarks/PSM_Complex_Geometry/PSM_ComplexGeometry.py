@@ -10,7 +10,7 @@ from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil, ForceM
 
 from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method, create_lb_collision_rule
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter, macroscopic_values_getter
-from lbmpy.boundaries import NoSlip, UBB, FixedDensity
+from lbmpy.boundaries import NoSlip, UBB, FixedDensity, ExtrapolationOutflow
 
 from pystencils.node_collection import NodeCollection
 from pystencils.astnodes import Conditional, SympyAssignment, Block
@@ -69,10 +69,10 @@ with CodeGeneration() as ctx:
 
     no_slip = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip',
                                      boundary_object=NoSlip())
-    ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
-                                 boundary_object=UBB([0.05, 0, 0], data_type=data_type))
-    fixedDensity = lbm_boundary_generator(class_name='FixedDensity', flag_uid='FixedDensity',
-                                 boundary_object=FixedDensity(1.0))
+    inlet_vel=sp.symbols("inlet_vel"),
+    ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB', boundary_object=UBB([0.05, 0, 0], data_type=data_type))
+    fixedDensity = lbm_boundary_generator(class_name='FixedDensity', flag_uid='FixedDensity', boundary_object=FixedDensity(1.0))
+    extrapolOutflow = lbm_boundary_generator(class_name='ExtrapolationOutflow', flag_uid='ExtrapolationOutflow', boundary_object=ExtrapolationOutflow((1,0,0), lbm_method))
 
 #   ========================
     #      PDF Initialization
@@ -83,7 +83,7 @@ with CodeGeneration() as ctx:
     generate_lbm_package(ctx, name="PSM",
                          collision_rule=collision_rule,
                          lbm_config=psm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=False, boundaries=[no_slip, ubb, fixedDensity],
+                         nonuniform=False, boundaries=[no_slip, ubb, fixedDensity, extrapolOutflow],
                          macroscopic_fields=macroscopic_fields,
                          cpu_vectorize_info=cpu_vec, target=target)
 
