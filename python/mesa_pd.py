@@ -23,6 +23,7 @@ if __name__ == '__main__':
     ps.add_property("invMass", "walberla::real_t", defValue="real_t(1)", syncMode="ON_GHOST_CREATION")
     ps.add_property("force", "walberla::mesa_pd::Vec3", defValue="real_t(0)", syncMode="NEVER")
     ps.add_property("oldForce", "walberla::mesa_pd::Vec3", defValue="real_t(0)", syncMode="ON_OWNERSHIP_CHANGE")
+    ps.add_property("collisionForce", "walberla::mesa_pd::Vec3", defValue="real_t(0)", syncMode="NEVER")
 
     # shape definition for cases with small number of different shapes
     ps.add_property("shapeID", "size_t", defValue="", syncMode="ON_GHOST_CREATION")
@@ -147,6 +148,8 @@ if __name__ == '__main__':
     ftn = mpd.add(mpi.PropertyNotification('ForceTorqueNotification'))
     ftn.add_property('force', 'mesa_pd::Vec3', 'Vec3(real_t(0))')
     ftn.add_property('torque', 'mesa_pd::Vec3', 'Vec3(real_t(0))')
+    cfn = mpd.add(mpi.PropertyNotification('CollisionForceNotification'))
+    cfn.add_property('collisionForce', 'mesa_pd::Vec3', 'Vec3(real_t(0))')
     hftn = mpd.add(mpi.PropertyNotification('HydrodynamicForceTorqueNotification'))
     hftn.add_property('hydrodynamicForce', 'mesa_pd::Vec3', 'Vec3(real_t(0))')
     hftn.add_property('hydrodynamicTorque', 'mesa_pd::Vec3', 'Vec3(real_t(0))')

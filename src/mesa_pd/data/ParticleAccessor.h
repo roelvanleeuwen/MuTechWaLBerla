@@ -88,6 +88,10 @@ public:
    walberla::mesa_pd::Vec3& getOldForceRef(const size_t p_idx) {return ps_->getOldForceRef(p_idx);}
    void setOldForce(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setOldForce(p_idx, v);}
    
+   walberla::mesa_pd::Vec3 const & getCollisionForce(const size_t p_idx) const {return ps_->getCollisionForce(p_idx);}
+   walberla::mesa_pd::Vec3& getCollisionForceRef(const size_t p_idx) {return ps_->getCollisionForceRef(p_idx);}
+   void setCollisionForce(const size_t p_idx, walberla::mesa_pd::Vec3 const & v) { ps_->setCollisionForce(p_idx, v);}
+   
    size_t const & getShapeID(const size_t p_idx) const {return ps_->getShapeID(p_idx);}
    size_t& getShapeIDRef(const size_t p_idx) {return ps_->getShapeIDRef(p_idx);}
    void setShapeID(const size_t p_idx, size_t const & v) { ps_->setShapeID(p_idx, v);}
@@ -297,6 +301,10 @@ public:
    void setOldForce(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { oldForce_ = v;}
    walberla::mesa_pd::Vec3& getOldForceRef(const size_t /*p_idx*/) {return oldForce_;}
    
+   walberla::mesa_pd::Vec3 const & getCollisionForce(const size_t /*p_idx*/) const {return collisionForce_;}
+   void setCollisionForce(const size_t /*p_idx*/, walberla::mesa_pd::Vec3 const & v) { collisionForce_ = v;}
+   walberla::mesa_pd::Vec3& getCollisionForceRef(const size_t /*p_idx*/) {return collisionForce_;}
+   
    size_t const & getShapeID(const size_t /*p_idx*/) const {return shapeID_;}
    void setShapeID(const size_t /*p_idx*/, size_t const & v) { shapeID_ = v;}
    size_t& getShapeIDRef(const size_t /*p_idx*/) {return shapeID_;}
@@ -442,6 +450,7 @@ private:
    walberla::real_t invMass_;
    walberla::mesa_pd::Vec3 force_;
    walberla::mesa_pd::Vec3 oldForce_;
+   walberla::mesa_pd::Vec3 collisionForce_;
    size_t shapeID_;
    std::shared_ptr<walberla::mesa_pd::data::BaseShape> baseShape_;
    walberla::mesa_pd::Rot3 rotation_;

@@ -82,6 +82,7 @@ public:
       using invMass_type = walberla::real_t;
       using force_type = walberla::mesa_pd::Vec3;
       using oldForce_type = walberla::mesa_pd::Vec3;
+      using collisionForce_type = walberla::mesa_pd::Vec3;
       using shapeID_type = size_t;
       using baseShape_type = std::shared_ptr<walberla::mesa_pd::data::BaseShape>;
       using rotation_type = walberla::mesa_pd::Rot3;
@@ -154,6 +155,10 @@ public:
       oldForce_type const & getOldForce() const {return storage_.getOldForce(i_);}
       oldForce_type& getOldForceRef() {return storage_.getOldForceRef(i_);}
       void setOldForce(oldForce_type const & v) { storage_.setOldForce(i_, v);}
+      
+      collisionForce_type const & getCollisionForce() const {return storage_.getCollisionForce(i_);}
+      collisionForce_type& getCollisionForceRef() {return storage_.getCollisionForceRef(i_);}
+      void setCollisionForce(collisionForce_type const & v) { storage_.setCollisionForce(i_, v);}
       
       shapeID_type const & getShapeID() const {return storage_.getShapeID(i_);}
       shapeID_type& getShapeIDRef() {return storage_.getShapeIDRef(i_);}
@@ -349,6 +354,7 @@ public:
    using invMass_type = walberla::real_t;
    using force_type = walberla::mesa_pd::Vec3;
    using oldForce_type = walberla::mesa_pd::Vec3;
+   using collisionForce_type = walberla::mesa_pd::Vec3;
    using shapeID_type = size_t;
    using baseShape_type = std::shared_ptr<walberla::mesa_pd::data::BaseShape>;
    using rotation_type = walberla::mesa_pd::Rot3;
@@ -421,6 +427,10 @@ public:
    oldForce_type const & getOldForce(const size_t idx) const {return oldForce_[idx];}
    oldForce_type& getOldForceRef(const size_t idx) {return oldForce_[idx];}
    void setOldForce(const size_t idx, oldForce_type const & v) { oldForce_[idx] = v; }
+   
+   collisionForce_type const & getCollisionForce(const size_t idx) const {return collisionForce_[idx];}
+   collisionForce_type& getCollisionForceRef(const size_t idx) {return collisionForce_[idx];}
+   void setCollisionForce(const size_t idx, collisionForce_type const & v) { collisionForce_[idx] = v; }
    
    shapeID_type const & getShapeID(const size_t idx) const {return shapeID_[idx];}
    shapeID_type& getShapeIDRef(const size_t idx) {return shapeID_[idx];}
@@ -647,6 +657,7 @@ public:
    std::vector<invMass_type> invMass_ {};
    std::vector<force_type> force_ {};
    std::vector<oldForce_type> oldForce_ {};
+   std::vector<collisionForce_type> collisionForce_ {};
    std::vector<shapeID_type> shapeID_ {};
    std::vector<baseShape_type> baseShape_ {};
    std::vector<rotation_type> rotation_ {};
@@ -697,6 +708,7 @@ ParticleStorage::Particle& ParticleStorage::Particle::operator=(const ParticleSt
    getInvMassRef() = rhs.getInvMass();
    getForceRef() = rhs.getForce();
    getOldForceRef() = rhs.getOldForce();
+   getCollisionForceRef() = rhs.getCollisionForce();
    getShapeIDRef() = rhs.getShapeID();
    getBaseShapeRef() = rhs.getBaseShape();
    getRotationRef() = rhs.getRotation();
@@ -744,6 +756,7 @@ ParticleStorage::Particle& ParticleStorage::Particle::operator=(ParticleStorage:
    getInvMassRef() = std::move(rhs.getInvMassRef());
    getForceRef() = std::move(rhs.getForceRef());
    getOldForceRef() = std::move(rhs.getOldForceRef());
+   getCollisionForceRef() = std::move(rhs.getCollisionForceRef());
    getShapeIDRef() = std::move(rhs.getShapeIDRef());
    getBaseShapeRef() = std::move(rhs.getBaseShapeRef());
    getRotationRef() = std::move(rhs.getRotationRef());
@@ -792,6 +805,7 @@ void swap(ParticleStorage::Particle lhs, ParticleStorage::Particle rhs)
    std::swap(lhs.getInvMassRef(), rhs.getInvMassRef());
    std::swap(lhs.getForceRef(), rhs.getForceRef());
    std::swap(lhs.getOldForceRef(), rhs.getOldForceRef());
+   std::swap(lhs.getCollisionForceRef(), rhs.getCollisionForceRef());
    std::swap(lhs.getShapeIDRef(), rhs.getShapeIDRef());
    std::swap(lhs.getBaseShapeRef(), rhs.getBaseShapeRef());
    std::swap(lhs.getRotationRef(), rhs.getRotationRef());
@@ -840,6 +854,7 @@ std::ostream& operator<<( std::ostream& os, const ParticleStorage::Particle& p )
          "invMass             : " << p.getInvMass() << "\n" <<
          "force               : " << p.getForce() << "\n" <<
          "oldForce            : " << p.getOldForce() << "\n" <<
+         "collisionForce      : " << p.getCollisionForce() << "\n" <<
          "shapeID             : " << p.getShapeID() << "\n" <<
          "baseShape           : " << p.getBaseShape() << "\n" <<
          "rotation            : " << p.getRotation() << "\n" <<
@@ -958,6 +973,7 @@ inline ParticleStorage::iterator ParticleStorage::create(const id_t& uid)
    invMass_.emplace_back(real_t(1));
    force_.emplace_back(real_t(0));
    oldForce_.emplace_back(real_t(0));
+   collisionForce_.emplace_back(real_t(0));
    shapeID_.emplace_back();
    baseShape_.emplace_back(make_shared<walberla::mesa_pd::data::BaseShape>());
    rotation_.emplace_back();
@@ -1031,6 +1047,7 @@ inline ParticleStorage::iterator ParticleStorage::erase(iterator& it)
    invMass_.pop_back();
    force_.pop_back();
    oldForce_.pop_back();
+   collisionForce_.pop_back();
    shapeID_.pop_back();
    baseShape_.pop_back();
    rotation_.pop_back();
@@ -1091,6 +1108,7 @@ inline void ParticleStorage::reserve(const size_t size)
    invMass_.reserve(size);
    force_.reserve(size);
    oldForce_.reserve(size);
+   collisionForce_.reserve(size);
    shapeID_.reserve(size);
    baseShape_.reserve(size);
    rotation_.reserve(size);
@@ -1136,6 +1154,7 @@ inline void ParticleStorage::clear()
    invMass_.clear();
    force_.clear();
    oldForce_.clear();
+   collisionForce_.clear();
    shapeID_.clear();
    baseShape_.clear();
    rotation_.clear();
@@ -1182,6 +1201,7 @@ inline size_t ParticleStorage::size() const
    //WALBERLA_ASSERT_EQUAL( uid_.size(), invMass.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), force.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), oldForce.size() );
+   //WALBERLA_ASSERT_EQUAL( uid_.size(), collisionForce.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), shapeID.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), baseShape.size() );
    //WALBERLA_ASSERT_EQUAL( uid_.size(), rotation.size() );
@@ -1467,6 +1487,15 @@ public:
    walberla::mesa_pd::Vec3& operator()(data::Particle& p) const {return p.getOldForceRef();}
    walberla::mesa_pd::Vec3& operator()(data::Particle&& p) const {return p.getOldForceRef();}
    walberla::mesa_pd::Vec3 const & operator()(const data::Particle& p) const {return p.getOldForce();}
+};
+///Predicate that selects a certain property from a Particle
+class SelectParticleCollisionForce
+{
+public:
+   using return_type = walberla::mesa_pd::Vec3;
+   walberla::mesa_pd::Vec3& operator()(data::Particle& p) const {return p.getCollisionForceRef();}
+   walberla::mesa_pd::Vec3& operator()(data::Particle&& p) const {return p.getCollisionForceRef();}
+   walberla::mesa_pd::Vec3 const & operator()(const data::Particle& p) const {return p.getCollisionForce();}
 };
 ///Predicate that selects a certain property from a Particle
 class SelectParticleShapeID

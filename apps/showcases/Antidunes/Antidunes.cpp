@@ -77,6 +77,7 @@
 #include "mesa_pd/mpi/ReduceProperty.h"
 #include "mesa_pd/mpi/SyncGhostOwners.h"
 #include "mesa_pd/mpi/SyncNextNeighbors.h"
+#include "mesa_pd/mpi/notifications/CollisionForceNotification.h"
 #include "mesa_pd/mpi/notifications/ForceTorqueNotification.h"
 #include "mesa_pd/mpi/notifications/HydrodynamicForceTorqueNotification.h"
 #include "mesa_pd/vtk/ParticleVtkOutput.h"
@@ -1241,6 +1242,8 @@ int main(int argc, char** argv)
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleUid >("uid");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleLinearVelocity >("velocity");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleInteractionRadius >("radius");
+      particleVtkOutput->addOutput< mesa_pd::data::SelectParticleHydrodynamicForce >("hydroForce");
+      particleVtkOutput->addOutput< mesa_pd::data::SelectParticleCollisionForce >("collisionForce");
       // limit output to process-local spheres
       particleVtkOutput->setParticleSelector([](const mesa_pd::data::ParticleStorage::iterator& pIt) {
          using namespace walberla::mesa_pd::data::particle_flags;
@@ -1370,6 +1373,12 @@ int main(int argc, char** argv)
    {
       timeloop.singleStep(timingPool, true);
 
+      // reset old collision force after timeloop step such that the values printed into the vtk files are not zero
+      particleStorage->forEachParticle(
+         useOpenMP, mesa_pd::kernel::SelectAll(), *particleAccessor,
+         [](const size_t idx, ParticleAccessor_T& ac) { ac.setCollisionForce(idx, Vector3< real_t >(real_t(0))); },
+         *particleAccessor);
+
       timingPool["Mesa_pd"].start();
 
       reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*particleStorage);
@@ -1389,28 +1398,6 @@ int main(int argc, char** argv)
          particleStorage->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *particleAccessor,
                                           vvIntegratorPreForce, *particleAccessor);
          syncCall();
-
-         if (useLubricationCorrection)
-         {
-            // lubrication correction
-            particleStorage->forEachParticlePairHalf(
-               useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *particleAccessor,
-               [&lubricationCorrectionKernel, &mesapdDomain](const size_t idx1, const size_t idx2, auto& ac) {
-                  mesa_pd::collision_detection::AnalyticContactDetection acd;
-                  acd.getContactThreshold() = lubricationCorrectionKernel.getNormalCutOffDistance();
-                  mesa_pd::kernel::DoubleCast double_cast;
-                  mesa_pd::mpi::ContactFilter contact_filter;
-                  if (double_cast(idx1, idx2, ac, acd, ac))
-                  {
-                     if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *mesapdDomain))
-                     {
-                        double_cast(acd.getIdx1(), acd.getIdx2(), ac, lubricationCorrectionKernel, ac,
-                                    acd.getContactNormal(), acd.getPenetrationDepth());
-                     }
-                  }
-               },
-               *particleAccessor);
-         }
 
          // collision response
          particleStorage->forEachParticlePairHalf(
@@ -1434,6 +1421,35 @@ int main(int argc, char** argv)
             },
             *particleAccessor);
 
+         particleStorage->forEachParticle(
+            useOpenMP, mesa_pd::kernel::SelectAll(), *particleAccessor,
+            [](const size_t idx, ParticleAccessor_T& ac) {
+               ac.setCollisionForce(idx, ac.getCollisionForce(idx) + ac.getForce(idx));
+            },
+            *particleAccessor);
+
+         if (useLubricationCorrection)
+         {
+            // lubrication correction
+            particleStorage->forEachParticlePairHalf(
+               useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *particleAccessor,
+               [&lubricationCorrectionKernel, &mesapdDomain](const size_t idx1, const size_t idx2, auto& ac) {
+                  mesa_pd::collision_detection::AnalyticContactDetection acd;
+                  acd.getContactThreshold() = lubricationCorrectionKernel.getNormalCutOffDistance();
+                  mesa_pd::kernel::DoubleCast double_cast;
+                  mesa_pd::mpi::ContactFilter contact_filter;
+                  if (double_cast(idx1, idx2, ac, acd, ac))
+                  {
+                     if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *mesapdDomain))
+                     {
+                        double_cast(acd.getIdx1(), acd.getIdx2(), ac, lubricationCorrectionKernel, ac,
+                                    acd.getContactNormal(), acd.getPenetrationDepth());
+                     }
+                  }
+               },
+               *particleAccessor);
+         }
+
          reduceAndSwapContactHistory(*particleStorage);
 
          // add hydrodynamic force
@@ -1453,6 +1469,7 @@ int main(int argc, char** argv)
             *particleAccessor);
 
          reduceProperty.operator()< mesa_pd::ForceTorqueNotification >(*particleStorage);
+         reduceProperty.operator()< mesa_pd::CollisionForceNotification >(*particleStorage);
 
          particleStorage->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *particleAccessor,
                                           vvIntegratorPostForce, *particleAccessor);
