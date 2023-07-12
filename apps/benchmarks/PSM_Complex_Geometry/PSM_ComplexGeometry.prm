@@ -2,18 +2,20 @@
 Parameters 
 {
 	omega           1.4;
-	timesteps       3601;
+	timesteps       3;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 100;
+	VTKwriteFrequency 1;
 }
 
 DomainSetup
 {
    rotationFrequency  100;
    rotationAngle      0.17453292519943;   //0.017453292519943;    //1° in rad
+   rotationAxis       < 1, 0, 0 >
+   preProcessFractionFields false;
 
-   dx                 0.02;
+   dx                 0.01;
    domainScaling      <  0.25, 2, 2 >;   //<  3, 50,  3 >;
    cellsPerBlock      < 64, 64, 64 >;
    periodic           <  0,  1,  1 >;

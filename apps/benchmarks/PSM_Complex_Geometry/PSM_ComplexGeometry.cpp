@@ -112,9 +112,12 @@ int main(int argc, char** argv)
 
    const uint_t rotationFrequency = domainParameters.getParameter< uint_t >("rotationFrequency", uint_t(1));
    const real_t rotationAngle = domainParameters.getParameter< real_t >("rotationAngle", real_t(0.017453292519943));
+   const Vector3< int > rotationAxis = domainParameters.getParameter< Vector3< int > >("rotationAxis", Vector3< int >(1,0,0));
+   const bool preProcessFractionFields = domainParameters.getParameter< bool >("preProcessFractionFields", false);
+
 
    const real_t dx = domainParameters.getParameter< real_t >("dx", real_t(1));
-   Vector3< real_t > domainScaling = domainParameters.getParameter< Vector3< real_t > >("domainScaling", Vector3< real_t >(1.0));
+   const Vector3< real_t > domainScaling = domainParameters.getParameter< Vector3< real_t > >("domainScaling", Vector3< real_t >(1.0));
    const Vector3< bool > periodicity = domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
    const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
 
@@ -174,6 +177,8 @@ int main(int argc, char** argv)
    const BlockDataID fractionFieldGPUId;
 #endif
 
+   SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
+
    /////////////////////////
    /// Boundary Handling ///
    /////////////////////////
@@ -182,7 +187,7 @@ int main(int argc, char** argv)
    mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterRotor(meshRotor, "meshRotor", VTKWriteFrequency);
    mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterStator(meshStator, "meshStator", VTKWriteFrequency);
    const std::function< void() > meshWritingFunc = [&]() { meshWriterBase(); meshWriterRotor(); meshWriterStator(); };
-   meshWritingFunc();
+   //meshWritingFunc();
 
    auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
 
@@ -190,19 +195,51 @@ int main(int argc, char** argv)
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
    //Setting up Object Rotator
-   const bool preProcessFractionFields = false;
-   ObjectRotator objectRotatorMeshBase(blocks, meshBase, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, 0, rotationFrequency, makeMeshDistanceFunction(distanceOctreeMeshBase), preProcessFractionFields, false);
-   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, -rotationAngle, rotationFrequency, makeMeshDistanceFunction(distanceOctreeMeshRotor), preProcessFractionFields, true);
-   ObjectRotator objectRotatorMeshStator(blocks, meshStator, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, rotationAngle, rotationFrequency, makeMeshDistanceFunction(distanceOctreeMeshStator), preProcessFractionFields, true);
+   ObjectRotator objectRotatorMeshBase(blocks, meshBase, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, makeMeshDistanceFunction(distanceOctreeMeshBase), preProcessFractionFields, false);
+   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, makeMeshDistanceFunction(distanceOctreeMeshRotor), preProcessFractionFields, true);
+   ObjectRotator objectRotatorMeshStator(blocks, meshStator, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, -rotationAngle, rotationFrequency, rotationAxis,  makeMeshDistanceFunction(distanceOctreeMeshStator), preProcessFractionFields, true);
 
    const std::function< void() > objectRotatorFunc = [&]() {
-      objectRotatorMeshBase(true);
-      objectRotatorMeshRotor(false);
-      objectRotatorMeshStator(false);
+      objectRotatorMeshBase(timeloop.getCurrentTimeStep());
+      objectRotatorMeshRotor(timeloop.getCurrentTimeStep());
+      objectRotatorMeshStator(timeloop.getCurrentTimeStep());
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks_, fractionFieldGPUId, fractionFieldId);
+      gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldId);
 #endif
    };
+
+   std::vector<BlockDataID> fractionFieldIds;
+   if (preProcessFractionFields) {
+      uint_t numFields = uint_c(std::round(2.0 * M_PI / rotationAngle));
+      WALBERLA_LOG_INFO_ON_ROOT("Start Preprocessing mesh " << numFields << " times")
+
+      for (uint_t i = 0; i < numFields; ++i) {
+         BlockDataID tmpFractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionFieldId_" + std::to_string(i), fracSize(0.0), field::fzyx);
+         objectRotatorMeshBase.getFractionFieldFromMesh(tmpFractionFieldId);
+         objectRotatorMeshRotor.rotate();
+         objectRotatorMeshRotor.getFractionFieldFromMesh(tmpFractionFieldId);
+         objectRotatorMeshStator.rotate();
+         objectRotatorMeshStator.getFractionFieldFromMesh(tmpFractionFieldId);
+         fractionFieldIds.push_back(tmpFractionFieldId);
+      }
+      WALBERLA_LOG_INFO_ON_ROOT("Finished Preprocessing mesh!")
+
+   }
+
+   const std::function< void() > syncPreprocessedFractionFields = [&]() {
+      auto currTimestep = timeloop.getCurrentTimeStep();
+      uint_t rotationState = (currTimestep / rotationFrequency) % fractionFieldIds.size();
+      for (auto & block : *blocks) {
+         FracField_T* realFractionField = block.getData< FracField_T >(fractionFieldId);
+         FracField_T* fractionFieldFromVector = block.getData< FracField_T >(fractionFieldIds[rotationState]);
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(realFractionField, realFractionField->get(x,y,z) = fractionFieldFromVector->get(x,y,z);)
+      }
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldId);
+#endif
+   };
+
+
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    gpu::fieldCpy< gpu::GPUField< real_t >, VectorField_T >(blocks, objectVelocitiesFieldGPUId, objectVelocitiesFieldId);
 #endif
@@ -231,11 +268,10 @@ int main(int argc, char** argv)
    /// Time Loop ///
    /////////////////
 
-   SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
    // Communication
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   const bool sendDirectlyFromGPU = true;
+   const bool sendDirectlyFromGPU = false;
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, sendDirectlyFromGPU, false);
    auto packInfo = std::make_shared<lbm_generated::UniformGeneratedGPUPdfPackInfo< GPUPdfField_T >>(pdfFieldGPUId);
    com.addPackInfo(packInfo);
@@ -253,9 +289,15 @@ int main(int argc, char** argv)
                   << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");
    timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "PSMSweep");
    if( rotationFrequency > 0) {
-      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
-      if(!preProcessFractionFields)
+      if(preProcessFractionFields) {
+         timeloop.add() << BeforeFunction(syncPreprocessedFractionFields, "syncPreprocessedFractionFields") << Sweep(emptySweep);
+      }
+      else {
+         timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
          timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
+      }
+
+
 
    }
 
@@ -280,12 +322,12 @@ int main(int argc, char** argv)
       auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
       //auto flagWriter = make_shared< field::VTKWriter< FlagField_T > >(flagFieldId, "Flag");
       auto fractionFieldWriter = make_shared< field::VTKWriter< FracField_T > >(fractionFieldId, "FractionField");
-      auto objVeldWriter = make_shared< field::VTKWriter< VectorField_T > >(objectVelocitiesFieldId, "objectVelocity");
+      //auto objVeldWriter = make_shared< field::VTKWriter< VectorField_T > >(objectVelocitiesFieldId, "objectVelocity");
 
       vtkOutput->addCellDataWriter(velWriter);
       //vtkOutput->addCellDataWriter(flagWriter);
       vtkOutput->addCellDataWriter(fractionFieldWriter);
-      vtkOutput->addCellDataWriter(objVeldWriter);
+      //vtkOutput->addCellDataWriter(objVeldWriter);
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decompositionDense", "vtk_out", "write_call", true, true, 0);
