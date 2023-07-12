@@ -28,6 +28,9 @@ waLBerla_execute_test( NAME FieldTiming  )
 waLBerla_compile_test( FILES FlagFieldTest.cpp)
 waLBerla_execute_test( NAME FlagFieldTest )
 
+waLBerla_compile_test( FILES StabilityCheckerTest.cpp DEPENDS blockforest field timeloop )
+waLBerla_execute_test( NAME StabilityCheckerTest )
+
 waLBerla_compile_test( FILES interpolators/InterpolationTest.cpp)
 waLBerla_execute_test( NAME InterpolationTest )
 
@@ -67,6 +70,11 @@ waLBerla_generate_target_from_python(NAME CodegenJacobiCPUGeneratedJacobiKernel 
       OUT_FILES JacobiKernel2D.cpp JacobiKernel2D.h JacobiKernel3D.cpp JacobiKernel3D.h )
 waLBerla_compile_test( FILES codegen/CodegenJacobiCPU.cpp DEPENDS gui timeloop CodegenJacobiCPUGeneratedJacobiKernel)
 waLBerla_execute_test( NAME CodegenJacobiCPU )
+
+waLBerla_generate_target_from_python(NAME SweepCollectionKernel FILE codegen/SweepCollection.py
+        OUT_FILES SweepCollection.h SweepCollection.cpp)
+waLBerla_compile_test( FILES codegen/SweepCollection.cpp DEPENDS timeloop SweepCollectionKernel)
+waLBerla_execute_test( NAME SweepCollection )
 
 waLBerla_generate_target_from_python(NAME CodegenPoissonCPUGeneratedKernel FILE codegen/Poisson.py
       OUT_FILES Poisson.cpp Poisson.h )
