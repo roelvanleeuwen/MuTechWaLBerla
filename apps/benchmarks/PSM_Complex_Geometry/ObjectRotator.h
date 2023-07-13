@@ -31,6 +31,8 @@
 #include "gpu/communication/UniformGPUScheme.h"
 #endif
 
+#include "geometry/containment_octree/ContainmentOctree.h"
+
 #include "mesh_common/DistanceComputations.h"
 #include "mesh_common/DistanceFunction.h"
 #include "mesh_common/MatrixVectorOperations.h"
@@ -67,7 +69,7 @@ class ObjectRotator
 
  public:
    ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID fractionFieldId, const BlockDataID fractionFieldGPUId,
-                 const BlockDataID objectVelocityId, const real_t rotationAngle, const uint_t frequency, Vector3<int> rotationAxis, DistanceFunction distOctree, const bool preProcessedFractionFields, const bool rotate = true)
+                 const BlockDataID objectVelocityId, const real_t rotationAngle, const uint_t frequency, Vector3<int> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree, const bool preProcessedFractionFields, const bool rotate = true)
       : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), fractionFieldGPUId_(fractionFieldGPUId),
         objectVelocityId_(objectVelocityId), rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree),
         preProcessedFractionFields_(preProcessedFractionFields), rotate_(rotate), rotationAxis_(rotationAxis)
@@ -76,6 +78,8 @@ class ObjectRotator
       initObjectVelocityField();
       if(!preProcessedFractionFields_) {
          getFractionFieldFromMesh(fractionFieldId_);
+         //getFractionFieldFromMeshWithContainmentOctree(fractionFieldId_);
+
       }
    }
 
@@ -83,9 +87,24 @@ class ObjectRotator
       if (timestep % frequency_ == 0)
       {
          if(rotate_) {
+            WcTimer simTimer;
+            simTimer.start();
             rotate();
+            simTimer.end();
+            double time = simTimer.max();
+            WALBERLA_LOG_INFO_ON_ROOT("Rotation needed " << time << " s")
+            simTimer.reset();
+            simTimer.start();
             resetFractionField(fractionFieldId_);
+            simTimer.end();
+            time = simTimer.max();
+            WALBERLA_LOG_INFO_ON_ROOT("Reset Fraction Field needed " << time << " s")
+            simTimer.reset();
+            simTimer.start();
             getFractionFieldFromMesh(fractionFieldId_);
+            simTimer.end();
+            time = simTimer.max();
+            WALBERLA_LOG_INFO_ON_ROOT("Voxelize Fraction Field needed " << time << " s")
          }
       }
    }
@@ -95,8 +114,8 @@ class ObjectRotator
       const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
       mesh::rotate(*mesh_, rotationAxis_, rotationAngle_, axis_foot);
 
-      distOctree_ = makeMeshDistanceFunction(make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
-         make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_)));
+      distOctree_ = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
+         make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_));
    }
 
 
@@ -111,10 +130,7 @@ class ObjectRotator
          blocks_->transformGlobalToBlockLocalCellInterval(cellBBMesh, block);
          CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
          cellBBMesh.intersect(blockCi);
-
-         for(auto cell : cellBBMesh) {
-            fractionField->get(cell) = 0.0;
-         }
+         std::fill(fractionField->beginSliceXYZ(cellBBMesh), fractionField->end(), 0.0);
       }
    }
 
@@ -155,14 +171,18 @@ class ObjectRotator
       }
    }
 
-
    void getFractionFieldFromMesh(BlockDataID fractionFieldId)
    {
       auto aabbMesh = computeAABB(*mesh_);
+      DistanceFunction distFunct = makeMeshDistanceFunction(distOctree_);
+      const real_t ONEOVEREIGHT = real_t(1) / real_t(8);
+      const real_t ONEOVERFOUR = real_t(1) / real_t(4);
+
       for (auto& block : *blocks_)
       {
          FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId);
          auto level = blocks_->getLevel(block);
+         const real_t dx = blocks_->dx(level);
          auto cellBBMesh = blocks_->getCellBBFromAABB( aabbMesh, level );
 
          CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
@@ -184,20 +204,26 @@ class ObjectRotator
 
             Vector3< real_t > cellCenter = curAABB.center();
             blocks_->mapToPeriodicDomain(cellCenter);
-            const real_t sqSignedDistance = distOctree_(cellCenter);
+            real_t sqSignedDistance = distFunct(cellCenter);
 
             if (curCi.numCells() == uint_t(1))
             {
-               real_t distance;
-               if (sqSignedDistance < 0)
-               {
-                  distance = sqrt(-sqSignedDistance);
-                  distance *= -1;
+               //if only one cell left, split cell into 8 cell centers to get these cellCenter distances
+               std::vector<int> xOffset{-1,-1,-1,-1, 1, 1, 1, 1};
+               std::vector<int> yOffset{-1,-1, 1, 1,-1,-1, 1, 1};
+               std::vector<int> zOffset{-1, 1,-1, 1,-1, 1,-1, 1};
+               real_t fraction = 0;
+               Vector3<real_t> octreeCenter;
+               for (uint_t i = 0; i < 8; ++i) {
+                  octreeCenter = Vector3<real_t>(cellCenter[0] + xOffset[i] * dx * ONEOVERFOUR, cellCenter[1] + yOffset[i] * dx * ONEOVERFOUR, cellCenter[2] + zOffset[i] * dx * ONEOVERFOUR);
+                  sqSignedDistance = distFunct( octreeCenter );
+                  if(sqSignedDistance  < real_t(0))
+                     fraction += ONEOVEREIGHT;
                }
-               else { distance = sqrt(sqSignedDistance); }
                Cell localCell;
                blocks_->transformGlobalToBlockLocalCell(localCell, block, curCi.min());
-               fractionField->get(localCell) = fracSize(std::min(1.0, std::max(0.0, 1.0 - distance / blocks_->dx(level) + 0.5)));
+               fractionField->get(localCell) = fracSize(fraction);
+
                ciQueue.pop();
                continue;
             }
@@ -230,80 +256,6 @@ class ObjectRotator
       }
    }
 
-
-
-
-
-   /*void getBinaryFractionFieldFromMesh()
-   {
-      resetFractionField();
-
-      for (auto& block : *blocks_)
-      {
-         FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId_);
-
-         CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
-         blocks_->transformBlockLocalToGlobalCellInterval(blockCi, block);
-
-         std::queue< CellInterval > ciQueue;
-         ciQueue.push(blockCi);
-
-         while (!ciQueue.empty())
-         {
-            const CellInterval& curCi = ciQueue.front();
-
-            WALBERLA_ASSERT(!curCi.empty(), "Cell Interval: " << curCi);
-
-            AABB curAABB = blocks_->getAABBFromCellBB(curCi, blocks_->getLevel(block));
-
-            WALBERLA_ASSERT(!curAABB.empty(), "AABB: " << curAABB);
-
-            Vector3< real_t > cellCenter = curAABB.center();
-            blocks_->mapToPeriodicDomain(cellCenter);
-            const real_t sqSignedDistance = distOctree_(cellCenter);
-
-            if (curCi.numCells() == uint_t(1))
-            {
-               WALBERLA_LOG_INFO_ON_ROOT("Signed squared distance is " << sqSignedDistance)
-               if ((sqSignedDistance < real_t(0)))
-               {
-                  Cell localCell;
-                  blocks_->transformGlobalToBlockLocalCell(localCell, block, curCi.min());
-                  fractionField->get(localCell) = uint8_t(1);
-               }
-
-               ciQueue.pop();
-               continue;
-            }
-
-            const real_t circumRadius   = curAABB.sizes().length() * real_t(0.5);
-            const real_t sqCircumRadius = circumRadius * circumRadius;
-
-            if (sqSignedDistance < -sqCircumRadius)
-            {
-               // clearly the cell interval is fully covered by the mesh
-               CellInterval localCi;
-               blocks_->transformGlobalToBlockLocalCellInterval(localCi, block, curCi);
-               // std::fill( fractionField->beginSliceXYZ( localCi ), fractionField->end(), uint8_t(1) );
-               std::fill(fractionField->beginSliceXYZ(localCi), fractionField->end(), sqSignedDistance);
-
-               ciQueue.pop();
-               continue;
-            }
-
-            if (sqSignedDistance > sqCircumRadius)
-            {
-               ciQueue.pop();
-               continue;
-            }
-
-            WALBERLA_ASSERT_GREATER(curCi.numCells(), uint_t(1));
-            divideAndPushCellInterval(curCi, ciQueue);
-
-            ciQueue.pop();
-         }
-      }
-   }*/
 
    void divideAndPushCellInterval(const CellInterval& ci, std::queue< CellInterval >& outputQueue)
    {
@@ -348,7 +300,7 @@ class ObjectRotator
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
    const uint_t frequency_;
-   DistanceFunction distOctree_;
+   shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>> distOctree_;
    const bool preProcessedFractionFields_;
    const bool rotate_;
    mesh::TriangleMesh::Point meshCenter;

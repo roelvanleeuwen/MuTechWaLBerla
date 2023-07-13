@@ -118,6 +118,7 @@ int main(int argc, char** argv)
 
    const real_t dx = domainParameters.getParameter< real_t >("dx", real_t(1));
    const Vector3< real_t > domainScaling = domainParameters.getParameter< Vector3< real_t > >("domainScaling", Vector3< real_t >(1.0));
+   const Vector3< real_t > domainTransforming = domainParameters.getParameter< Vector3< real_t > >("domainTransforming", Vector3< real_t >(1.0));
    const Vector3< bool > periodicity = domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
    const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
 
@@ -142,7 +143,7 @@ int main(int argc, char** argv)
 
    auto aabb = computeAABB(*meshBase);
    aabb.scale(domainScaling);
-   aabb.setCenter(aabb.center() - 1.8 * Vector3< real_t >(aabb.xSize(), 0, 0));
+   aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
 
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx));
    bfc.setPeriodicity(periodicity);
@@ -195,9 +196,9 @@ int main(int argc, char** argv)
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
    //Setting up Object Rotator
-   ObjectRotator objectRotatorMeshBase(blocks, meshBase, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, makeMeshDistanceFunction(distanceOctreeMeshBase), preProcessFractionFields, false);
-   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, makeMeshDistanceFunction(distanceOctreeMeshRotor), preProcessFractionFields, true);
-   ObjectRotator objectRotatorMeshStator(blocks, meshStator, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, -rotationAngle, rotationFrequency, rotationAxis,  makeMeshDistanceFunction(distanceOctreeMeshStator), preProcessFractionFields, true);
+   ObjectRotator objectRotatorMeshBase(blocks, meshBase, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, preProcessFractionFields, false);
+   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, preProcessFractionFields, true);
+   ObjectRotator objectRotatorMeshStator(blocks, meshStator, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, -rotationAngle, rotationFrequency, rotationAxis,  distanceOctreeMeshStator, preProcessFractionFields, true);
 
    const std::function< void() > objectRotatorFunc = [&]() {
       objectRotatorMeshBase(timeloop.getCurrentTimeStep());
@@ -329,7 +330,7 @@ int main(int argc, char** argv)
       vtkOutput->addCellDataWriter(fractionFieldWriter);
       //vtkOutput->addCellDataWriter(objVeldWriter);
 
-      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decompositionDense", "vtk_out", "write_call", true, true, 0);
    }
 
