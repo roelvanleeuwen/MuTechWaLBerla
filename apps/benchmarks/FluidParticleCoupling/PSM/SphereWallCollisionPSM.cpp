@@ -51,7 +51,7 @@
 #include "lbm/field/Adaptors.h"
 #include "lbm/field/AddToStorage.h"
 #include "lbm/field/PdfField.h"
-#include "lbm/lattice_model/D3Q19.h"
+#include "lbm/lattice_model/D3Q27.h"
 #include "lbm/vtk/all.h"
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
@@ -109,7 +109,7 @@ using namespace walberla;
 using walberla::uint_t;
 using namespace lbm_mesapd_coupling::psm::gpu;
 
-using LatticeModel_T = lbm::D3Q19< lbm::collision_model::TRT >;
+using LatticeModel_T = lbm::D3Q27< lbm::collision_model::TRT >;
 
 using Stencil_T  = LatticeModel_T::Stencil;
 using PdfField_T = lbm::PdfField< LatticeModel_T >;
