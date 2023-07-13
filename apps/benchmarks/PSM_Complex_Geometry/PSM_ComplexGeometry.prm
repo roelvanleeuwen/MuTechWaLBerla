@@ -1,24 +1,32 @@
 
 Parameters 
 {
-	omega           1.4;
-	timesteps       1;
+	timesteps       1000;
+
+    initialVelocity   <0.05, 0.0, 0.0>;
+    ref_velocity  69.15;    // m/s
+    ref_length 1.0;         //rotor radius according to mesh file
+    viscosity  1.49e-5;
+    sim_time   0.3;           //set to 0, then timesteps is used
+    mesh_size 0.005;    // 5 mm;
+
+    timeStepStrategy   Overlap;
+    innerOuterSplit    <1,1,1>;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 1;
+	VTKwriteFrequency 100;
 }
 
 DomainSetup
 {
-   rotationFrequency  1;
-   rotationAngle      0.17453292519943;   //0.017453292519943;    //1° in rad
+   rotationFrequency  100;
+   rotationSpeed      738.173;     //rad/s
    rotationAxis       < 1, 0, 0 >
    preProcessFractionFields false;
 
-   dx                 0.005;
-   domainScaling      <  0.05, 1, 1 >;   //<  3, 50,  3 >;
-   domainTransforming <  9.5 , 0,  0 >;
-   cellsPerBlock      < 64, 64, 64 >;
+   domainScaling      <  0.25, 2, 2 >;   //<  3, 50,  3 >;
+   domainTransforming <  1.7 , 0,  0 >;
+   cellsPerBlock      < 256, 256, 256 >;
    periodic           <  0,  1,  1 >;
 }
 

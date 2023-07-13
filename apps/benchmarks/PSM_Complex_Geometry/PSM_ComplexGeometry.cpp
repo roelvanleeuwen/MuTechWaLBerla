@@ -98,29 +98,52 @@ int main(int argc, char** argv)
    ///////////////////////
    /// PARAMETER INPUT ///
    ///////////////////////
-
-   // read general simulation parameters
-   auto parameters = walberlaEnv.config()->getOneBlock("Parameters");
-
-   real_t omega = parameters.getParameter< real_t >("omega", real_c(1.4));
-   //const Vector3< real_t > initialVelocity = parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >(0.0));
-   const uint_t timesteps = parameters.getParameter< uint_t >("timesteps", uint_c(10));
-   const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
-   const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0)); // in seconds
-
    auto domainParameters = walberlaEnv.config()->getOneBlock("DomainSetup");
 
    const uint_t rotationFrequency = domainParameters.getParameter< uint_t >("rotationFrequency", uint_t(1));
-   const real_t rotationAngle = domainParameters.getParameter< real_t >("rotationAngle", real_t(0.017453292519943));
    const Vector3< int > rotationAxis = domainParameters.getParameter< Vector3< int > >("rotationAxis", Vector3< int >(1,0,0));
    const bool preProcessFractionFields = domainParameters.getParameter< bool >("preProcessFractionFields", false);
+   const real_t rotationSpeed = domainParameters.getParameter< real_t >("rotationSpeed");
 
 
-   const real_t dx = domainParameters.getParameter< real_t >("dx", real_t(1));
    const Vector3< real_t > domainScaling = domainParameters.getParameter< Vector3< real_t > >("domainScaling", Vector3< real_t >(1.0));
    const Vector3< real_t > domainTransforming = domainParameters.getParameter< Vector3< real_t > >("domainTransforming", Vector3< real_t >(1.0));
    const Vector3< bool > periodicity = domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
    const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
+
+   auto parameters = walberlaEnv.config()->getOneBlock("Parameters");
+
+   const Vector3< real_t > initialVelocity = parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >(0.0));
+   const uint_t timestepsFixed = parameters.getParameter< uint_t >("timesteps", uint_c(10));
+   const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
+   const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0));
+
+   const std::string timeStepStrategy = parameters.getParameter<std::string>("timeStepStrategy", "noOverlap");
+   const Cell innerOuterSplit = Cell(parameters.getParameter< Vector3<cell_idx_t> >("innerOuterSplit", Vector3<cell_idx_t>(1, 1, 1)));
+
+
+   real_t ref_velocity = parameters.getParameter<real_t>("ref_velocity");
+   real_t ref_length = parameters.getParameter<real_t>("ref_length");
+   real_t viscosity = parameters.getParameter<real_t>("viscosity");
+   real_t sim_time = parameters.getParameter<real_t>("sim_time");
+   real_t mesh_size = parameters.getParameter<real_t>("mesh_size");
+   const real_t dx = mesh_size;
+   real_t reynolds_number = (ref_velocity * ref_length) / viscosity;
+   real_t Cu = ref_velocity / initialVelocity[0];
+   real_t Ct = mesh_size / Cu;
+
+   real_t viscosity_lattice = viscosity * Ct / (mesh_size * mesh_size);
+   real_t omega = real_c(1.0 / (3.0 * viscosity_lattice + 0.5));
+   uint_t timesteps;
+   if(sim_time > 0.0)
+      timesteps = uint_c(sim_time / Ct);
+   else
+      timesteps = timestepsFixed;
+
+   real_t rotPerSec = rotationSpeed / (2 * M_PI);
+   real_t radPerTimestep = rotationSpeed * Ct;
+   real_t rotationAngle = radPerTimestep * real_c(rotationFrequency);
+
 
    ////////////////////
    /// PROCESS MESH ///
@@ -144,10 +167,35 @@ int main(int argc, char** argv)
    auto aabb = computeAABB(*meshBase);
    aabb.scale(domainScaling);
    aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
-
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx));
    bfc.setPeriodicity(periodicity);
    auto blocks = bfc.createStructuredBlockForest(cellsPerBlock);
+
+
+   WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter \n"
+                             << "Domain Decomposition <" << blocks->getXSize() << "," << blocks->getYSize() << "," << blocks->getZSize() << "> = " << blocks->getXSize() * blocks->getYSize() * blocks->getZSize()  << " Blocks \n"
+                             << "Cells per Block " << cellsPerBlock << " \n"
+                             << "Timestep Strategy " << timeStepStrategy << " \n"
+                             << "Inner Outer Split " << innerOuterSplit << " \n"
+                             << "Reynolds_number " << reynolds_number << "\n"
+                             << "Inflow velocity " << ref_velocity << " m/s \n"
+                             << "Lattice velocity " << initialVelocity[0] << "\n"
+                             << "Viscosity " << viscosity << "\n"
+                             << "Simulation time " << sim_time << " s \n"
+                             << "Timesteps " << timesteps << "\n"
+                             << "Mesh_size " << mesh_size << " m \n"
+                             << "Omega " << omega << "\n"
+                             << "Cu " << Cu << " \n"
+                             << "Ct " << Ct << " \n"
+                             << "Rotation Speed " << rotationSpeed << " rad/s \n"
+                             << "Rotation Angle per Rotation " << rotationAngle * 2 * M_PI  << " ° \n"
+
+   )
+   vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
+
+   return 0;
+
+
 
    ////////////////////////////////////
    /// PDF Field and Velocity Setup ///
@@ -160,7 +208,7 @@ int main(int argc, char** argv)
    auto allocator = make_shared< field::AllocateAligned< real_t, 64 > >();
 #endif
    const BlockDataID pdfFieldId  = lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, uint_c(1), field::fzyx, allocator);
-   const BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_c(0.0), field::fzyx, uint_c(1), allocator);
+   const BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_t(0.0), field::fzyx, uint_c(1), allocator);
    const BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(0.0), field::fzyx, uint_c(1), allocator);
    const BlockDataID flagFieldId     = field::addFlagFieldToStorage< FlagField_T >(blocks, "flagField");
 
@@ -248,21 +296,22 @@ int main(int argc, char** argv)
    /////////////
    /// Sweep ///
    /////////////
-   const Cell innerOuterSplit = Cell(parameters.getParameter< Vector3<cell_idx_t> >("innerOuterSplit", Vector3<cell_idx_t>(1, 1, 1)));
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    SweepCollection_T sweepCollection(blocks, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, 0.0, 0.0, 0.0, omega, innerOuterSplit);
-   pystencils::PSMSweep PSMSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, real_t(0), real_t(0.0), real_t(0.0), omega);
+   pystencils::PSMSweep PSMSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, real_t(0), real_t(0.0), real_t(0.0), omega, innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
 
 #else
    SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, 0.0, 0.0, 0.0, omega, innerOuterSplit);
-   pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId, real_t(0), real_t(0.0), real_t(0.0), omega);
+   pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId, real_t(0), real_t(0.0), real_t(0.0), omega, innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
 #endif
 
    for (auto& block : *blocks)
    {
+      auto velField = block.getData<VectorField_T>(velocityFieldId);
+      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(velField, velField->get(x,y,z,0) = initialVelocity[0];)
       sweepCollection.initialise(&block);
    }
    /////////////////
@@ -283,12 +332,26 @@ int main(int argc, char** argv)
    communication.addPackInfo(packInfo);
 #endif
 
-   const auto emptySweep = [](IBlock*) {};
 
-   // Timeloop
-   timeloop.add() << BeforeFunction(communication, "Communication")
-                  << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");
-   timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "PSMSweep");
+
+   const auto emptySweep = [](IBlock*) {};
+   if (timeStepStrategy == "noOverlap")
+   { // Timeloop
+      timeloop.add() << BeforeFunction(communication, "Communication")
+                     << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)),
+                              "Boundary Conditions");
+      timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "PSMSweep");
+   }
+   else if(timeStepStrategy == "Overlap") {
+      timeloop.add() << BeforeFunction(communication.getStartCommunicateFunctor(), "Start Communication")
+                     << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
+      timeloop.add() << Sweep(PSMSweep.getInnerSweep(), "PSM Sweep Inner Frame");
+      timeloop.add() << BeforeFunction(communication.getWaitFunctor(), "Wait for Communication")
+                     << Sweep(PSMSweep.getOuterSweep(), "PSM Sweep Outer Frame");
+   } else {
+      WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")
+   }
+
    if( rotationFrequency > 0) {
       if(preProcessFractionFields) {
          timeloop.add() << BeforeFunction(syncPreprocessedFractionFields, "syncPreprocessedFractionFields") << Sweep(emptySweep);
@@ -297,14 +360,13 @@ int main(int argc, char** argv)
          timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
          timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
       }
-
-
-
    }
 
    // Time logger
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
                                  "remaining time logger");
+
+   //timeloop.addFuncAfterTimeStep( makeSharedFunctor( field::makeStabilityChecker< PdfField_T >( blocks, pdfFieldId, VTKWriteFrequency ) ), "LBM stability check" );
 
    if (VTKWriteFrequency > 0)
    {
@@ -332,6 +394,7 @@ int main(int argc, char** argv)
 
       timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decompositionDense", "vtk_out", "write_call", true, true, 0);
+
    }
 
    lbm_generated::PerformanceEvaluation<FlagField_T> const performance(blocks, flagFieldId, fluidFlagUID);

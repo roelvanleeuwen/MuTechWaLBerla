@@ -92,19 +92,19 @@ class ObjectRotator
             rotate();
             simTimer.end();
             double time = simTimer.max();
-            WALBERLA_LOG_INFO_ON_ROOT("Rotation needed " << time << " s")
+            WALBERLA_LOG_PROGRESS_ON_ROOT("Rotation needed " << time << " s")
             simTimer.reset();
             simTimer.start();
             resetFractionField(fractionFieldId_);
             simTimer.end();
             time = simTimer.max();
-            WALBERLA_LOG_INFO_ON_ROOT("Reset Fraction Field needed " << time << " s")
+            WALBERLA_LOG_PROGRESS_ON_ROOT("Reset Fraction Field needed " << time << " s")
             simTimer.reset();
             simTimer.start();
             getFractionFieldFromMesh(fractionFieldId_);
             simTimer.end();
             time = simTimer.max();
-            WALBERLA_LOG_INFO_ON_ROOT("Voxelize Fraction Field needed " << time << " s")
+            WALBERLA_LOG_PROGRESS_ON_ROOT("Voxelize Fraction Field needed " << time << " s")
          }
       }
    }

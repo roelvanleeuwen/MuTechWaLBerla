@@ -274,7 +274,7 @@ with CodeGeneration() as ctx:
     node_collection.all_assignments.append(conditionals[0])
 
     # Generate files
-    generate_sweep(ctx, "PSMSweep", node_collection, field_swaps=[(pdfs, pdfs_tmp)], target=target)
+    generate_sweep(ctx, "PSMSweep", node_collection, field_swaps=[(pdfs, pdfs_tmp)], target=target, inner_outer_split=True)
 
     field_typedefs = {'VectorField_T': velocity,
                       'ScalarField_T': density}
