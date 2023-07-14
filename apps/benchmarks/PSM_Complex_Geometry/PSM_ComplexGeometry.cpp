@@ -193,9 +193,6 @@ int main(int argc, char** argv)
    )
    vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
 
-   return 0;
-
-
 
    ////////////////////////////////////
    /// PDF Field and Velocity Setup ///
@@ -340,14 +337,14 @@ int main(int argc, char** argv)
       timeloop.add() << BeforeFunction(communication, "Communication")
                      << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)),
                               "Boundary Conditions");
-      timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "PSMSweep");
+      timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep.getSweep()), "PSMSweep");
    }
    else if(timeStepStrategy == "Overlap") {
-      timeloop.add() << BeforeFunction(communication.getStartCommunicateFunctor(), "Start Communication")
-                     << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
-      timeloop.add() << Sweep(PSMSweep.getInnerSweep(), "PSM Sweep Inner Frame");
-      timeloop.add() << BeforeFunction(communication.getWaitFunctor(), "Wait for Communication")
-                     << Sweep(PSMSweep.getOuterSweep(), "PSM Sweep Outer Frame");
+      timeloop.add() << BeforeFunction(com.getStartCommunicateFunctor(), "Start Communication")
+                     << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");
+      timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep.getInnerSweep()), "PSM Sweep Inner Frame");
+      timeloop.add() << BeforeFunction(com.getWaitFunctor(), "Wait for Communication")
+                     << Sweep(deviceSyncWrapper(PSMSweep.getOuterSweep()), "PSM Sweep Outer Frame");
    } else {
       WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")
    }
