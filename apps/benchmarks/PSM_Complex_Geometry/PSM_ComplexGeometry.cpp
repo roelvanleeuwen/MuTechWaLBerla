@@ -193,7 +193,7 @@ int main(int argc, char** argv)
    )
 
    //vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
-   //return 0;
+   return 0;
 
    ////////////////////////////////////
    /// PDF Field and Velocity Setup ///
@@ -256,7 +256,7 @@ int main(int argc, char** argv)
    };
 
    std::vector<BlockDataID> fractionFieldIds;
-   if (preProcessFractionFields) {
+   if (preProcessFractionFields && rotationFrequency > 0) {
       uint_t numFields = uint_c(std::round(2.0 * M_PI / rotationAngle));
       WALBERLA_LOG_INFO_ON_ROOT("Start Preprocessing mesh " << numFields << " times")
 
@@ -310,8 +310,15 @@ int main(int argc, char** argv)
    {
       auto velField = block.getData<VectorField_T>(velocityFieldId);
       WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(velField, velField->get(x,y,z,0) = initialVelocity[0];)
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      gpu::GPUField<real_t> * dst = block.getData<gpu::GPUField<real_t>>( velocityFieldGPUId );
+      const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
+      gpu::fieldCpy( *dst, *src );
+#endif
       sweepCollection.initialise(&block);
    }
+
+
    /////////////////
    /// Time Loop ///
    /////////////////
@@ -388,6 +395,14 @@ int main(int argc, char** argv)
       //vtkOutput->addCellDataWriter(flagWriter);
       vtkOutput->addCellDataWriter(fractionFieldWriter);
       //vtkOutput->addCellDataWriter(objVeldWriter);
+
+      auto domainAABB = blocks->getDomain();
+      WALBERLA_LOG_INFO_ON_ROOT("DomainAABB is " << domainAABB)
+
+      AABB sliceAABB(real_c(domainAABB.xMin()), real_c(domainAABB.yMin()), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.5),
+                     real_c(domainAABB.xMax()), real_c(domainAABB.yMax() ), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.5 + dx));
+
+      vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
 
       timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decompositionDense", "vtk_out", "write_call", true, true, 0);

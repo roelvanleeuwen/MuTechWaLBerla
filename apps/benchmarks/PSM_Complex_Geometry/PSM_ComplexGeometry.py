@@ -56,11 +56,12 @@ with CodeGeneration() as ctx:
 
     psm_config = LBMConfig(
         stencil=stencil,
-        method=Method.SRT,
+        method=Method.TRT,
         relaxation_rate=omega,
         force=sp.symbols("F_:3"),
         force_model=ForceModel.LUO,
         compressible=False,
+        smagorinsky=True
     )
 
     lbm_update_rule = create_lb_update_rule(lbm_config=psm_config, lbm_optimisation=lbm_opt)
