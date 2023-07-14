@@ -165,8 +165,8 @@ int main(int argc, char** argv)
    auto distanceOctreeMeshStator = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshStator));
 
    auto aabb = computeAABB(*meshBase);
-   aabb.scale(domainScaling);
    aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
+   aabb.scale(domainScaling);
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx));
    bfc.setPeriodicity(periodicity);
    auto blocks = bfc.createStructuredBlockForest(cellsPerBlock);
@@ -191,8 +191,9 @@ int main(int argc, char** argv)
                              << "Rotation Angle per Rotation " << rotationAngle * 2 * M_PI  << " ° \n"
 
    )
-   vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
 
+   //vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
+   //return 0;
 
    ////////////////////////////////////
    /// PDF Field and Velocity Setup ///
@@ -319,10 +320,9 @@ int main(int argc, char** argv)
    // Communication
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const bool sendDirectlyFromGPU = false;
-   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, sendDirectlyFromGPU, false);
+   gpu::communication::UniformGPUScheme< Stencil_T > communication(blocks, sendDirectlyFromGPU, false);
    auto packInfo = std::make_shared<lbm_generated::UniformGeneratedGPUPdfPackInfo< GPUPdfField_T >>(pdfFieldGPUId);
-   com.addPackInfo(packInfo);
-   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
+   communication.addPackInfo(packInfo);
 #else
    blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
    auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
@@ -334,16 +334,16 @@ int main(int argc, char** argv)
    const auto emptySweep = [](IBlock*) {};
    if (timeStepStrategy == "noOverlap")
    { // Timeloop
-      timeloop.add() << BeforeFunction(communication, "Communication")
+      timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
                      << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)),
                               "Boundary Conditions");
       timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep.getSweep()), "PSMSweep");
    }
    else if(timeStepStrategy == "Overlap") {
-      timeloop.add() << BeforeFunction(com.getStartCommunicateFunctor(), "Start Communication")
+      timeloop.add() << BeforeFunction(communication.getStartCommunicateFunctor(), "Start Communication")
                      << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");
       timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep.getInnerSweep()), "PSM Sweep Inner Frame");
-      timeloop.add() << BeforeFunction(com.getWaitFunctor(), "Wait for Communication")
+      timeloop.add() << BeforeFunction(communication.getWaitFunctor(), "Wait for Communication")
                      << Sweep(deviceSyncWrapper(PSMSweep.getOuterSweep()), "PSM Sweep Outer Frame");
    } else {
       WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")
