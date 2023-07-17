@@ -42,7 +42,14 @@ namespace communication {
           parallelSectionManager_( -1 ),
           requiredBlockSelectors_( Set<SUID>::emptySet() ),
           incompatibleBlockSelectors_( Set<SUID>::emptySet() )
-   {}
+   {
+      WALBERLA_MPI_SECTION()
+      {
+#if !(defined(MPIX_CUDA_AWARE_SUPPORT) && MPIX_CUDA_AWARE_SUPPORT)
+         WALBERLA_CHECK(!sendDirectlyFromGPU)
+#endif
+      }
+   }
 
    template<typename Stencil>
    UniformGPUScheme<Stencil>::UniformGPUScheme( weak_ptr <StructuredBlockForest> bf,
@@ -61,7 +68,14 @@ namespace communication {
         parallelSectionManager_( -1 ),
         requiredBlockSelectors_( requiredBlockSelectors ),
         incompatibleBlockSelectors_( incompatibleBlockSelectors )
-   {}
+   {
+      WALBERLA_MPI_SECTION()
+      {
+#if !(defined(MPIX_CUDA_AWARE_SUPPORT) && MPIX_CUDA_AWARE_SUPPORT)
+         WALBERLA_CHECK(!sendDirectlyFromGPU)
+#endif
+      }
+   }
 
 
    template<typename Stencil>
@@ -307,7 +321,7 @@ namespace communication {
    }
 
    template< typename Stencil >
-   std::function<void()> UniformGPUScheme<Stencil>::getWaitFunctor(cudaStream_t stream)
+   std::function<void()> UniformGPUScheme<Stencil>::getWaitFunctor(gpuStream_t stream)
    {
       return [this, stream]() { wait( stream ); };
    }
