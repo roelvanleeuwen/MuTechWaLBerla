@@ -193,7 +193,6 @@ int main(int argc, char** argv)
    )
 
    //vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
-   return 0;
 
    ////////////////////////////////////
    /// PDF Field and Velocity Setup ///
@@ -296,13 +295,13 @@ int main(int argc, char** argv)
    /////////////
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   SweepCollection_T sweepCollection(blocks, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, 0.0, 0.0, 0.0, omega, innerOuterSplit);
-   pystencils::PSMSweep PSMSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, real_t(0), real_t(0.0), real_t(0.0), omega, innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
+   pystencils::PSMSweep PSMSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega, /*real_t(0.0),*/ innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
 
 #else
-   SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, 0.0, 0.0, 0.0, omega, innerOuterSplit);
-   pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId, real_t(0), real_t(0.0), real_t(0.0), omega, innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
+   pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId,  omega, real_t(1.0), innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
 #endif
 
@@ -315,7 +314,7 @@ int main(int argc, char** argv)
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
       gpu::fieldCpy( *dst, *src );
 #endif
-      sweepCollection.initialise(&block);
+      //sweepCollection.initialise(&block);
    }
 
 
@@ -404,7 +403,7 @@ int main(int argc, char** argv)
 
       vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
 
-      timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decompositionDense", "vtk_out", "write_call", true, true, 0);
 
    }

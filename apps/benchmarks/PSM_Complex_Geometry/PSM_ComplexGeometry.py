@@ -105,7 +105,6 @@ with CodeGeneration() as ctx:
         lbm_config=psm_config, lbm_optimisation=lbm_opt
     )
 
-    print("Collision rule before modifications /n", collision_rule)
 
     collision_rhs = []
     for assignment in collision_rule.main_assignments:
@@ -117,7 +116,6 @@ with CodeGeneration() as ctx:
                 rhsSum += arg
         collision_rhs.append(rhsSum)
 
-    print("Collision Rhs mods /n", collision_rhs)
 
 
     # =====================
@@ -201,7 +199,6 @@ with CodeGeneration() as ctx:
     if not split:
         for d, c, sc in zip( method.post_collision_pdf_symbols, collision_rhs, solid_collisions):
             collision_assignments.append(ps.Assignment(d, c + sc))
-
 
     # Define quantities to compute the equilibrium as functions of the pdfs
     # TODO: maybe incorporate some of these assignments into the subexpressions
