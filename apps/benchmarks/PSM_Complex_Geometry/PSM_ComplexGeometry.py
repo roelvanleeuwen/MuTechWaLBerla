@@ -56,12 +56,9 @@ with CodeGeneration() as ctx:
 
     psm_config = LBMConfig(
         stencil=stencil,
-        method=Method.TRT,
+        method=Method.SRT,
         relaxation_rate=omega,
-        force=sp.symbols("F_:3"),
-        force_model=ForceModel.LUO,
-        compressible=False,
-        smagorinsky=True
+        compressible=False
     )
 
     lbm_update_rule = create_lb_update_rule(lbm_config=psm_config, lbm_optimisation=lbm_opt)
@@ -108,6 +105,8 @@ with CodeGeneration() as ctx:
         lbm_config=psm_config, lbm_optimisation=lbm_opt
     )
 
+    print("Collision rule before modifications /n", collision_rule)
+
     collision_rhs = []
     for assignment in collision_rule.main_assignments:
         rhsSum = 0
@@ -117,6 +116,9 @@ with CodeGeneration() as ctx:
             else:
                 rhsSum += arg
         collision_rhs.append(rhsSum)
+
+    print("Collision Rhs mods /n", collision_rhs)
+
 
     # =====================
     # Code generation for the solid parts
@@ -273,6 +275,7 @@ with CodeGeneration() as ctx:
 
     # Add first conditional to node collection, the other conditionals are nested inside the first one
     node_collection.all_assignments.append(conditionals[0])
+
 
     # Generate files
     generate_sweep(ctx, "PSMSweep", node_collection, field_swaps=[(pdfs, pdfs_tmp)], target=target, inner_outer_split=True)
