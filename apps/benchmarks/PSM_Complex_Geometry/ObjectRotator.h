@@ -19,6 +19,7 @@
 //======================================================================================================================
 #pragma once
 
+#include "core/math/Constants.h"
 #include "blockforest/all.h"
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -58,8 +59,6 @@ namespace walberla
 typedef field::GhostLayerField< real_t, 1 > ScalarField_T;
 using fracSize = float;
 typedef field::GhostLayerField< fracSize, 1 > FracField_T;
-
-# define M_PI           3.14159265358979323846
 
 
 class ObjectRotator

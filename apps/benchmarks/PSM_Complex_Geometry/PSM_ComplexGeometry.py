@@ -14,9 +14,29 @@ from lbmpy.boundaries import NoSlip, UBB, FixedDensity, SimpleExtrapolationOutfl
 
 from pystencils.node_collection import NodeCollection
 from pystencils.astnodes import Conditional, SympyAssignment, Block
+from pystencils import TypedSymbol
 
 from pystencils_walberla import CodeGeneration, generate_sweep, generate_info_header
 from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator
+
+
+class SymbolGen:
+    """Default symbol generator producing number symbols ζ_0, ζ_1, ..."""
+
+    def __init__(self, symbol="mu", dtype=None):
+        self._ctr = 0
+        self._symbol = symbol
+        self._dtype = dtype
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        name = f"{self._symbol}_{self._ctr}"
+        self._ctr += 1
+        if self._dtype is not None:
+            return TypedSymbol(name, self._dtype)
+        return sp.Symbol(name)
 
 
 #   =====================
@@ -78,13 +98,6 @@ with CodeGeneration() as ctx:
 
     target = ps.Target.GPU if ctx.gpu else ps.Target.CPU
 
-    generate_lbm_package(ctx, name="PSM",
-                         collision_rule=collision_rule,
-                         lbm_config=psm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=True, boundaries=[no_slip, ubb, fixedDensity, extrapolOutflow],
-                         macroscopic_fields=macroscopic_fields,
-                         cpu_vectorize_info=cpu_vec, target=target)
-
     #   ========================
     #      PSM SWEEP
     #   ========================
@@ -99,12 +112,10 @@ with CodeGeneration() as ctx:
     data_type_B = "float32"
     B = ps.fields(f"B({1}): {data_type_B}[3D]", layout=layout,)
 
-
     method = create_lb_method(lbm_config=psm_config)
     collision_rule = create_lb_collision_rule(
         lbm_config=psm_config, lbm_optimisation=lbm_opt
     )
-
 
     collision_rhs = []
     for assignment in collision_rule.main_assignments:
@@ -197,7 +208,7 @@ with CodeGeneration() as ctx:
     # Assemble collision assignments
     collision_assignments = []
     if not split:
-        for d, c, sc in zip( method.post_collision_pdf_symbols, collision_rhs, solid_collisions):
+        for d, c, sc in zip(method.post_collision_pdf_symbols, collision_rhs, solid_collisions):
             collision_assignments.append(ps.Assignment(d, c + sc))
 
     # Define quantities to compute the equilibrium as functions of the pdfs
@@ -207,7 +218,7 @@ with CodeGeneration() as ctx:
     # )
 
     up = ps.AssignmentCollection(
-        collision_assignments, subexpressions=collision_rule.subexpressions
+        collision_assignments, subexpressions=collision_rule.subexpressions, subexpression_symbol_generator=SymbolGen()
     )
     output_eqs = method.conserved_quantity_computation.output_equations_from_pdfs(
         method.pre_collision_pdf_symbols, psm_config.output
@@ -215,6 +226,13 @@ with CodeGeneration() as ctx:
     up = up.new_merged(output_eqs)
 
     up.method = method
+
+    generate_lbm_package(ctx, name="PSM",
+                         collision_rule=up,
+                         lbm_config=psm_config, lbm_optimisation=lbm_opt,
+                         nonuniform=True, boundaries=[no_slip, ubb, fixedDensity, extrapolOutflow],
+                         macroscopic_fields=macroscopic_fields,
+                         cpu_vectorize_info=cpu_vec, target=target)
 
     # Create assignment collection for the complete update rule
     lbm_update_rule = create_lb_update_rule(
