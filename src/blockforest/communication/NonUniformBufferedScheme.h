@@ -88,6 +88,7 @@ public:
    inline void operator() () { communicate(); }
 
    inline void communicate() {communicateEqualLevel(); communicateCoarseToFine(); communicateFineToCoarse();}
+   std::function<void()>  getCommunicateFunctor() { return std::bind( &NonUniformBufferedScheme::communicate, this ); }
 
    inline void communicateEqualLevel();
    inline void communicateCoarseToFine();
@@ -130,7 +131,7 @@ public:
    inline void startCommunicateFineToCoarse( uint_t fineLevel );
    
    void wait() { waitCommunicateEqualLevel(); waitCommunicateCoarseToFine(); waitCommunicateFineToCoarse(); }
-   std::function<void() >  getWaitFunctor() { return std::bind( &NonUniformBufferedScheme::wait, this ); }
+   std::function<void()>  getWaitFunctor() { return std::bind( &NonUniformBufferedScheme::wait, this ); }
 
    inline void waitCommunicateEqualLevel();
    inline void waitCommunicateCoarseToFine();

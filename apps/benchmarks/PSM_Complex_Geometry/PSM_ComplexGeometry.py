@@ -81,7 +81,7 @@ with CodeGeneration() as ctx:
     generate_lbm_package(ctx, name="PSM",
                          collision_rule=collision_rule,
                          lbm_config=psm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=False, boundaries=[no_slip, ubb, fixedDensity, extrapolOutflow],
+                         nonuniform=True, boundaries=[no_slip, ubb, fixedDensity, extrapolOutflow],
                          macroscopic_fields=macroscopic_fields,
                          cpu_vectorize_info=cpu_vec, target=target)
 

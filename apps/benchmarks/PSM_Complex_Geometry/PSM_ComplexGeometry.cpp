@@ -18,21 +18,23 @@
 //
 //======================================================================================================================
 
-
+#include "blockforest/Initialization.h"
+#include "blockforest/SetupBlockForest.h"
+#include "blockforest/loadbalancing/StaticCurve.h"
 
 #include "core/all.h"
-#include "core/MemoryUsage.h"
 
 #include "domain_decomposition/all.h"
 #include "field/all.h"
 #include "field/vtk/VTKWriter.h"
 #include "geometry/all.h"
 
-#include "lbm_generated/communication/UniformGeneratedPdfPackInfo.h"
+//#include "lbm_generated/communication/UniformGeneratedPdfPackInfo.h"
+#include "lbm_generated/communication/NonuniformGeneratedPdfPackInfo.h"
+#include "lbm_generated/evaluation/PerformanceEvaluation.h"
 #include "lbm_generated/field/PdfField.h"
 #include "lbm_generated/field/AddToStorage.h"
-
-#include "lbm_generated/evaluation/PerformanceEvaluation.h"
+#include "lbm_generated/refinement/BasicRecursiveTimeStep.h"
 
 #include "stencil/D3Q19.h"
 #include "timeloop/all.h"
@@ -43,7 +45,9 @@
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 #include "lbm_generated/gpu/AddToStorage.h"
 #include "lbm_generated/gpu/GPUPdfField.h"
-#include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
+#include "lbm_generated/gpu/BasicRecursiveTimeStepGPU.h"
+#include "lbm_generated/gpu/NonuniformGeneratedGPUPdfPackInfo.h"
+#include "gpu/communication/NonUniformGPUScheme.h"
 #endif
 
 namespace walberla
@@ -54,9 +58,11 @@ namespace walberla
 
 using StorageSpecification_T = lbm::PSMStorageSpecification;
 using Stencil_T = lbm::PSMStorageSpecification::Stencil;
+using CommunicationStencil_T = StorageSpecification_T::CommunicationStencil;
 using PdfField_T = lbm_generated::PdfField< StorageSpecification_T >;
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 using GPUPdfField_T = lbm_generated::GPUPdfField< StorageSpecification_T >;
+using gpu::communication::NonUniformGPUScheme;
 #endif
 
 typedef walberla::uint8_t flag_t;
@@ -69,14 +75,30 @@ const FlagUID fluidFlagUID("Fluid");
 const FlagUID noSlipFlagUID("NoSlip");
 
 
-auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
-   return [sweep](IBlock* b) {
-      sweep(b);
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      gpuDeviceSynchronize();
-#endif
-   };
+
+class LDCRefinement
+{
+ private:
+   const uint_t refinementDepth_;
+   const std::vector<AABB> meshAABBs_;
+
+ public:
+   explicit LDCRefinement(const uint_t depth, std::vector<AABB> meshAABBs) : refinementDepth_(depth), meshAABBs_(meshAABBs){};
+
+   void operator()(SetupBlockForest& forest) const
+   {
+      for(auto & block : forest) {
+         auto & aabb = block.getAABB();
+         for (auto meshAABB : meshAABBs_) {
+            if (meshAABB.intersects(aabb)) {
+               if( block.getLevel() < refinementDepth_)
+                  block.setMarker( true );
+            }
+         }
+      }
+   }
 };
+
 
 /////////////////////
 /// Main Function ///
@@ -110,6 +132,7 @@ int main(int argc, char** argv)
    const Vector3< real_t > domainTransforming = domainParameters.getParameter< Vector3< real_t > >("domainTransforming", Vector3< real_t >(1.0));
    const Vector3< bool > periodicity = domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
    const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
+   const uint_t refinementDepth = domainParameters.getParameter< uint_t >("refinementDepth");
 
    auto parameters = walberlaEnv.config()->getOneBlock("Parameters");
 
@@ -164,17 +187,34 @@ int main(int argc, char** argv)
    mesh::readAndBroadcast(meshFileStator, *meshStator);
    auto distanceOctreeMeshStator = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshStator));
 
-   auto aabb = computeAABB(*meshBase);
+   auto aabbBase = computeAABB(*meshBase);
+   AABB aabb = aabbBase;
    aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
    aabb.scale(domainScaling);
+
+   //TODO exclude interior
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx));
    bfc.setPeriodicity(periodicity);
+
+   std::vector<AABB> meshAABBs{aabbBase, computeAABB(*meshRotor), computeAABB(*meshStator)};
+   bfc.setRefinementSelectionFunction(LDCRefinement(refinementDepth, meshAABBs));
+
    auto blocks = bfc.createStructuredBlockForest(cellsPerBlock);
+
+   uint_t numCells = blocks->getXSize() * blocks->getYSize() * blocks->getZSize() * cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2];
+   AABB domainAABB = blocks->getDomain();
+   real_t fullRefinedMeshSize = mesh_size / pow(2, real_c(refinementDepth));
+   WALBERLA_LOG_INFO_ON_ROOT(fullRefinedMeshSize<<  " AABB" << domainAABB )
+   uint_t numFullRefinedCell = uint_c((domainAABB.xSize() / fullRefinedMeshSize) * (domainAABB.ySize() / fullRefinedMeshSize) * (domainAABB.zSize() / fullRefinedMeshSize));
+
 
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter \n"
                              << "Domain Decomposition <" << blocks->getXSize() << "," << blocks->getYSize() << "," << blocks->getZSize() << "> = " << blocks->getXSize() * blocks->getYSize() * blocks->getZSize()  << " Blocks \n"
                              << "Cells per Block " << cellsPerBlock << " \n"
+                             << "Number of cells "  << numCells << ", number of potential Cells (full refined) " << numFullRefinedCell <<  ", Saved computation " << (1.0 - (real_c(numCells) / real_c(numFullRefinedCell))) * 100 << "% \n"
+                             << "Mesh_size " << mesh_size << " m \n"
+                             << "Refined Mesh size " << fullRefinedMeshSize << " m \n"
                              << "Timestep Strategy " << timeStepStrategy << " \n"
                              << "Inner Outer Split " << innerOuterSplit << " \n"
                              << "Reynolds_number " << reynolds_number << "\n"
@@ -183,7 +223,6 @@ int main(int argc, char** argv)
                              << "Viscosity " << viscosity << "\n"
                              << "Simulation time " << sim_time << " s \n"
                              << "Timesteps " << timesteps << "\n"
-                             << "Mesh_size " << mesh_size << " m \n"
                              << "Omega " << omega << "\n"
                              << "Cu " << Cu << " \n"
                              << "Ct " << Ct << " \n"
@@ -192,7 +231,8 @@ int main(int argc, char** argv)
 
    )
 
-   //vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
+   vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
+   return 0;
 
    ////////////////////////////////////
    /// PDF Field and Velocity Setup ///
@@ -301,7 +341,7 @@ int main(int argc, char** argv)
 
 #else
    SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
-   pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId,  omega, real_t(1.0), innerOuterSplit);
+   pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId,  omega, /*real_t(1.0),*/ innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
 #endif
 
@@ -326,32 +366,42 @@ int main(int argc, char** argv)
    // Communication
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const bool sendDirectlyFromGPU = false;
-   gpu::communication::UniformGPUScheme< Stencil_T > communication(blocks, sendDirectlyFromGPU, false);
-   auto packInfo = std::make_shared<lbm_generated::UniformGeneratedGPUPdfPackInfo< GPUPdfField_T >>(pdfFieldGPUId);
-   communication.addPackInfo(packInfo);
+   auto communication = std::make_shared< NonUniformGPUScheme <CommunicationStencil_T>> (blocks, sendDirectlyFromGPU);
+   auto packInfo = lbm_generated::setupNonuniformGPUPdfCommunication<GPUPdfField_T>(blocks, pdfFieldGPUId);
+   communication->addPackInfo(packInfo);
+   lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldGPUId, sweepCollection, boundaryCollection, communication, packInfo);
 #else
-   blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
-   auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
-   communication.addPackInfo(packInfo);
+   //blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
+   auto communication = std::make_shared< NonUniformBufferedScheme< CommunicationStencil_T > >(blocks);
+   auto packInfo      = lbm_generated::setupNonuniformPdfCommunication< PdfField_T >(blocks, pdfFieldId);
+   //auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
+   communication->addPackInfo(packInfo);
+   lbm_generated::BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(
+      blocks, pdfFieldId, sweepCollection, boundaryCollection, communication, packInfo);
 #endif
 
 
 
+
+
    const auto emptySweep = [](IBlock*) {};
-   if (timeStepStrategy == "noOverlap")
+   if(timeStepStrategy == "refinement")  {
+      LBMMeshRefinement.addRefinementToTimeLoop(timeloop);
+   }/*
+   else if (timeStepStrategy == "noOverlap")
    { // Timeloop
-      timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
-                     << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)),
+      timeloop.add() << BeforeFunction(communication->getWaitFunctor(), "Communication")
+                     << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL),
                               "Boundary Conditions");
-      timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep.getSweep()), "PSMSweep");
+      timeloop.add() << Sweep(PSMSweep.getSweep(), "PSMSweep");
    }
    else if(timeStepStrategy == "Overlap") {
-      timeloop.add() << BeforeFunction(communication.getStartCommunicateFunctor(), "Start Communication")
-                     << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");
-      timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep.getInnerSweep()), "PSM Sweep Inner Frame");
-      timeloop.add() << BeforeFunction(communication.getWaitFunctor(), "Wait for Communication")
-                     << Sweep(deviceSyncWrapper(PSMSweep.getOuterSweep()), "PSM Sweep Outer Frame");
-   } else {
+      timeloop.add() << BeforeFunction(communication->getStartCommunicateFunctor(), "Start Communication")
+                     << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
+      timeloop.add() << Sweep(PSMSweep.getInnerSweep(), "PSM Sweep Inner Frame");
+      timeloop.add() << BeforeFunction(communication->getWaitFunctor(), "Wait for Communication")
+                     << Sweep(PSMSweep.getOuterSweep(), "PSM Sweep Outer Frame");
+   }*/ else {
       WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")
    }
 
@@ -395,7 +445,6 @@ int main(int argc, char** argv)
       vtkOutput->addCellDataWriter(fractionFieldWriter);
       //vtkOutput->addCellDataWriter(objVeldWriter);
 
-      auto domainAABB = blocks->getDomain();
       WALBERLA_LOG_INFO_ON_ROOT("DomainAABB is " << domainAABB)
 
       AABB sliceAABB(real_c(domainAABB.xMin()), real_c(domainAABB.yMin()), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.5),
@@ -404,7 +453,7 @@ int main(int argc, char** argv)
       vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
-      vtk::writeDomainDecomposition(blocks, "domain_decompositionDense", "vtk_out", "write_call", true, true, 0);
+      vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
 
    }
 
@@ -412,21 +461,8 @@ int main(int argc, char** argv)
    WcTimingPool timeloopTiming;
    WcTimer simTimer;
 
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   WALBERLA_GPU_CHECK(gpuPeekAtLastError())
-   gpuDeviceSynchronize();
-#endif
-
-
    simTimer.start();
-   timeloop.run(timeloopTiming);
-
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   WALBERLA_GPU_CHECK(gpuPeekAtLastError())
-   gpuDeviceSynchronize();
-#endif
-
-
+   timeloop.run(timeloopTiming, true);
    simTimer.end();
 
    double time = simTimer.max();
@@ -436,7 +472,7 @@ int main(int argc, char** argv)
    const auto reducedTimeloopTiming = timeloopTiming.getReduced();
    WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
 
-   printResidentMemoryStatistics();
+   //printResidentMemoryStatistics();
 
    return EXIT_SUCCESS;
 }
