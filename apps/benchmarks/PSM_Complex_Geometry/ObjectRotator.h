@@ -77,8 +77,6 @@ class ObjectRotator
       initObjectVelocityField();
       if(!preProcessedFractionFields_) {
          getFractionFieldFromMesh(fractionFieldId_);
-         //getFractionFieldFromMeshWithContainmentOctree(fractionFieldId_);
-
       }
    }
 

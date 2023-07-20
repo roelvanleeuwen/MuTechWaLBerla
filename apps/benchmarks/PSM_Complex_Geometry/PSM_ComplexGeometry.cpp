@@ -231,8 +231,7 @@ int main(int argc, char** argv)
 
    )
 
-   vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
-   return 0;
+   //vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
 
    ////////////////////////////////////
    /// PDF Field and Velocity Setup ///
