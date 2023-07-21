@@ -192,8 +192,7 @@ int main(int argc, char** argv)
    aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
    aabb.scale(domainScaling);
 
-   //TODO exclude interior
-   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx));
+   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx), mesh::makeExcludeMeshInteriorRefinement(distanceOctreeMeshBase, dx));
    bfc.setPeriodicity(periodicity);
 
    std::vector<AABB> meshAABBs{aabbBase, computeAABB(*meshRotor), computeAABB(*meshStator)};
@@ -231,7 +230,8 @@ int main(int argc, char** argv)
 
    )
 
-   //vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
+   vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
+   return 0;
 
    ////////////////////////////////////
    /// PDF Field and Velocity Setup ///
@@ -247,7 +247,6 @@ int main(int argc, char** argv)
    const BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_t(0.0), field::fzyx, uint_c(1), allocator);
    const BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(0.0), field::fzyx, uint_c(1), allocator);
    const BlockDataID flagFieldId     = field::addFlagFieldToStorage< FlagField_T >(blocks, "flagField");
-
    const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", fracSize(0.0), field::fzyx, uint_c(1));
    const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1), allocator);
 
@@ -281,8 +280,8 @@ int main(int argc, char** argv)
 
    //Setting up Object Rotator
    ObjectRotator objectRotatorMeshBase(blocks, meshBase, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, preProcessFractionFields, false);
-   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, preProcessFractionFields, true);
-   ObjectRotator objectRotatorMeshStator(blocks, meshStator, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, -rotationAngle, rotationFrequency, rotationAxis,  distanceOctreeMeshStator, preProcessFractionFields, true);
+   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, preProcessFractionFields, false);
+   ObjectRotator objectRotatorMeshStator(blocks, meshStator, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, -rotationAngle, rotationFrequency, rotationAxis,  distanceOctreeMeshStator, preProcessFractionFields, false);
 
    const std::function< void() > objectRotatorFunc = [&]() {
       objectRotatorMeshBase(timeloop.getCurrentTimeStep());
@@ -334,13 +333,13 @@ int main(int argc, char** argv)
    /////////////
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   SweepCollection_T sweepCollection(blocks, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
-   pystencils::PSMSweep PSMSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega, /*real_t(0.0),*/ innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, fractionFieldGPUId, objectVelocitiesGPUFieldId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
+   //pystencils::PSMSweep PSMSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega, /*real_t(0.0),*/ innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
 
 #else
-   SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
-   pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId,  omega, /*real_t(1.0),*/ innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
+   //pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId,  omega, /*real_t(1.0),*/ innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
 #endif
 
@@ -353,7 +352,7 @@ int main(int argc, char** argv)
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
       gpu::fieldCpy( *dst, *src );
 #endif
-      //sweepCollection.initialise(&block);
+      sweepCollection.initialise(&block, 1);
    }
 
 
@@ -384,25 +383,7 @@ int main(int argc, char** argv)
 
 
    const auto emptySweep = [](IBlock*) {};
-   if(timeStepStrategy == "refinement")  {
-      LBMMeshRefinement.addRefinementToTimeLoop(timeloop);
-   }/*
-   else if (timeStepStrategy == "noOverlap")
-   { // Timeloop
-      timeloop.add() << BeforeFunction(communication->getWaitFunctor(), "Communication")
-                     << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL),
-                              "Boundary Conditions");
-      timeloop.add() << Sweep(PSMSweep.getSweep(), "PSMSweep");
-   }
-   else if(timeStepStrategy == "Overlap") {
-      timeloop.add() << BeforeFunction(communication->getStartCommunicateFunctor(), "Start Communication")
-                     << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
-      timeloop.add() << Sweep(PSMSweep.getInnerSweep(), "PSM Sweep Inner Frame");
-      timeloop.add() << BeforeFunction(communication->getWaitFunctor(), "Wait for Communication")
-                     << Sweep(PSMSweep.getOuterSweep(), "PSM Sweep Outer Frame");
-   }*/ else {
-      WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")
-   }
+
 
    if( rotationFrequency > 0) {
       if(preProcessFractionFields) {
@@ -452,8 +433,27 @@ int main(int argc, char** argv)
       vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
-      vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
+   }
 
+
+   if(timeStepStrategy == "refinement")  {
+      LBMMeshRefinement.addRefinementToTimeLoop(timeloop);
+   }/*
+    else if (timeStepStrategy == "noOverlap")
+    { // Timeloop
+       timeloop.add() << BeforeFunction(communication->getWaitFunctor(), "Communication")
+                      << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL),
+                               "Boundary Conditions");
+       timeloop.add() << Sweep(PSMSweep.getSweep(), "PSMSweep");
+    }
+    else if(timeStepStrategy == "Overlap") {
+       timeloop.add() << BeforeFunction(communication->getStartCommunicateFunctor(), "Start Communication")
+                      << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
+       timeloop.add() << Sweep(PSMSweep.getInnerSweep(), "PSM Sweep Inner Frame");
+       timeloop.add() << BeforeFunction(communication->getWaitFunctor(), "Wait for Communication")
+                      << Sweep(PSMSweep.getOuterSweep(), "PSM Sweep Outer Frame");
+    }*/ else {
+      WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")
    }
 
    lbm_generated::PerformanceEvaluation<FlagField_T> const performance(blocks, flagFieldId, fluidFlagUID);

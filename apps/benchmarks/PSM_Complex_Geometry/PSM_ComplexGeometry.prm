@@ -6,7 +6,7 @@ Parameters
     initialVelocity   <0.05, 0.0, 0.0>;
     ref_velocity  69.15;    // m/s
     ref_length 1.0;         //rotor radius according to mesh file
-    viscosity  1.49e-3;
+    viscosity  1.49e-3;     // 1.49e-5;
     sim_time   0.0;         //set to 0, then timesteps is used
     mesh_size  0.002;    // 2 mm;
 
