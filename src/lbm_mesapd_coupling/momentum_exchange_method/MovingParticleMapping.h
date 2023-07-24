@@ -332,11 +332,11 @@ private:
             {
                if( singleCast(particleIdx, ac, containsPointFctr, ac, Vector3<real_t>(cx,cy,cz)) )
                {
-                  if(boundaryHandling->isDomain(x,y,z))
-                  {
+                  //if(boundaryHandling->isDomain(x,y,z))
+                  //{
                      boundaryHandling->forceBoundary(obstacleFlag, x, y, z);
                      (*particleField)(x,y,z) = ac.getUid(particleIdx);
-                  }
+                  //}
                   // no else -> will not overwrite pre-existing boundary cells, e.g. of previously applied applied mapping (e.g. when first mapping global particles)
                }
                cx += dx;
