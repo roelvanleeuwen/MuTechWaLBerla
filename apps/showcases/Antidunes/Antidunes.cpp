@@ -1220,7 +1220,8 @@ int main(int argc, char** argv)
    {
       // particle field
       auto particleFieldVTK =
-         vtk::createVTKOutput_BlockData(blockForest, "particle_field", vtkSpacingParticles, 0, false, vtkFolder);
+         vtk::createVTKOutput_BlockData(blockForest, "particle_field", vtkSpacingParticles, 0, false, vtkFolder,
+                                        std::string("simulation_step"), false, true, true, true, beginTimeStep);
       auto cellBB_filterParameters             = vtkFluidParameters.getOneBlock("CellBB_filter");
       const Vector3< uint_t > cellBB_filterMin = cellBB_filterParameters.getParameter< Vector3< uint_t > >("min");
       const Vector3< uint_t > cellBB_filterMax = cellBB_filterParameters.getParameter< Vector3< uint_t > >("max");
