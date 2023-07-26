@@ -75,6 +75,8 @@ IncludeCategories:
     Priority:        10
   - Regex:           '^"gpu/'
     Priority:        11
+  - Regex:           '^"gpu/'
+    Priority:        12
   - Regex:           '^"gui/'
     Priority:        12
   - Regex:           '^"lbm/'
