@@ -20,25 +20,6 @@ from pystencils_walberla import CodeGeneration, generate_sweep, generate_info_he
 from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator
 
 
-class SymbolGen:
-    """Default symbol generator producing number symbols ζ_0, ζ_1, ..."""
-
-    def __init__(self, symbol="mu", dtype=None):
-        self._ctr = 0
-        self._symbol = symbol
-        self._dtype = dtype
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        name = f"{self._symbol}_{self._ctr}"
-        self._ctr += 1
-        if self._dtype is not None:
-            return TypedSymbol(name, self._dtype)
-        return sp.Symbol(name)
-
-
 #   =====================
 #      Code Generation
 #   =====================
@@ -64,25 +45,30 @@ with CodeGeneration() as ctx:
     density = ps.fields(f"density({1}): {data_type}[3D]", layout=layout)
     macroscopic_fields = {'density': density, 'velocity': velocity}
 
-    # LBM Optimisation
-    lbm_opt = LBMOptimisation(cse_global=True,
-                              symbolic_field=pdfs,
-                              symbolic_temporary_field=pdfs_tmp,
-                              field_layout=layout)
+    object_velocity_field = ps.fields(f"obj_vel({stencil.D}): {data_type}[3D]", layout=layout,)
 
-    #   ==================
-    #      Method Setup
-    #   ==================
+    data_type_B = "float32"
+    fraction_field = ps.fields(f"frac_field({1}): {data_type_B}[3D]", layout=layout,)
 
     psm_config = LBMConfig(
         stencil=stencil,
-        method=Method.SRT,
+        method=Method.CENTRAL_MOMENT,
         relaxation_rate=omega,
-        compressible=False
+        compressible=True,
+        partially_saturated_method=True,
+        fraction_field=fraction_field,
+        object_velocity_field=object_velocity_field
     )
 
-    lbm_update_rule = create_lb_update_rule(lbm_config=psm_config, lbm_optimisation=lbm_opt)
-    lbm_method = lbm_update_rule.method
+
+    # LBM Optimisation
+    lbm_opt = LBMOptimisation(cse_global=False,
+                              symbolic_field=pdfs,
+                              symbolic_temporary_field=pdfs_tmp,
+                              field_layout=layout,
+                              simplification=False)
+
+
     collision_rule = create_lb_collision_rule(lbm_config=psm_config, lbm_optimisation=lbm_opt)
 
     no_slip = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip',
@@ -92,37 +78,40 @@ with CodeGeneration() as ctx:
     fixedDensity = lbm_boundary_generator(class_name='FixedDensity', flag_uid='FixedDensity', boundary_object=FixedDensity(1.0))
     extrapolOutflow = lbm_boundary_generator(class_name='ExtrapolationOutflow', flag_uid='ExtrapolationOutflow', boundary_object=SimpleExtrapolationOutflow((1, 0, 0), stencil))
 
-#   ========================
-    #      PDF Initialization
-    #   ========================
-
     target = ps.Target.GPU if ctx.gpu else ps.Target.CPU
 
     #   ========================
     #      PSM SWEEP
     #   ========================
 
+    collision_rule = create_lb_collision_rule(
+        lbm_config=psm_config,
+        lbm_optimisation=lbm_opt
+    )
+
+
+    #generate_lbm_package(ctx, name="PSM",
+    #                     collision_rule=collision_rule,
+    #                     lbm_config=psm_config, lbm_optimisation=lbm_opt,
+    #                     nonuniform=True, boundaries=[no_slip, ubb, fixedDensity, extrapolOutflow],
+    #                     macroscopic_fields=macroscopic_fields,
+    #                     cpu_vectorize_info=cpu_vec, target=target)
+
+
     split = False
     MaxParticlesPerCell = 1
     pdfs_inter = stencil.Q
     SC = 1
 
-    particle_velocities = ps.fields(f"particle_v({stencil.D}): {data_type}[3D]", layout=layout,)
-
-    data_type_B = "float32"
-    B = ps.fields(f"B({1}): {data_type_B}[3D]", layout=layout,)
-
     method = create_lb_method(lbm_config=psm_config)
-    collision_rule = create_lb_collision_rule(
-        lbm_config=psm_config, lbm_optimisation=lbm_opt
-    )
+
 
     collision_rhs = []
     for assignment in collision_rule.main_assignments:
         rhsSum = 0
         for arg in assignment.rhs.args:
             if arg not in method.pre_collision_pdf_symbols:
-                rhsSum += (1 - B.center) * arg
+                rhsSum += (1 - fraction_field.center) * arg
             else:
                 rhsSum += arg
         collision_rhs.append(rhsSum)
@@ -142,7 +131,7 @@ with CodeGeneration() as ctx:
         for i in range(stencil.D):
             eq_sol = eq_sol.subs(
                 sp.Symbol("u_" + str(i)),
-                particle_velocities.center(i),
+                object_velocity_field.center(i),
             )
         if split:
             eq_sol = eq_sol.subs(
@@ -177,7 +166,7 @@ with CodeGeneration() as ctx:
     ):
         inverse_direction_index = stencil.stencil_entries.index(stencil.inverse_stencil_entries[i])
         if SC == 1:
-            solid_collision = B.center * (
+            solid_collision = fraction_field.center * (
                     (
                             method.pre_collision_pdf_symbols[inverse_direction_index]
                             - equilibriumFluid[inverse_direction_index]
@@ -185,11 +174,11 @@ with CodeGeneration() as ctx:
                     - (f - eqSolid)
             )
         elif SC == 2:
-            solid_collision = B.center * (
+            solid_collision = fraction_field.center * (
                     (eqSolid - f) + (1 - omega) * (f - eqFluid)
             )
         elif SC == 3:
-            solid_collision = B.center * (
+            solid_collision = fraction_field.center * (
                     (
                             method.pre_collision_pdf_symbols[inverse_direction_index]
                             - equilibriumSolid[inverse_direction_index]
@@ -208,24 +197,27 @@ with CodeGeneration() as ctx:
     # Assemble collision assignments
     collision_assignments = []
     if not split:
-        for d, c, sc in zip(method.post_collision_pdf_symbols, collision_rhs, solid_collisions):
-            collision_assignments.append(ps.Assignment(d, c + sc))
+        for d, c, sc in zip( method.post_collision_pdf_symbols, collision_rhs, solid_collisions):
+#            collision_assignments.append(ps.Assignment(d, c + sc))
+            collision_assignments.append(ps.Assignment(d, c ))
 
-    # Define quantities to compute the equilibrium as functions of the pdfs
+
+# Define quantities to compute the equilibrium as functions of the pdfs
     # TODO: maybe incorporate some of these assignments into the subexpressions
     # cqc = method.conserved_quantity_computation.equilibrium_input_equations_from_pdfs(
     #    method.pre_collision_pdf_symbols, False
     # )
 
     up = ps.AssignmentCollection(
-        collision_assignments, subexpressions=collision_rule.subexpressions, subexpression_symbol_generator=SymbolGen()
+        collision_assignments, subexpressions=collision_rule.subexpressions
     )
     output_eqs = method.conserved_quantity_computation.output_equations_from_pdfs(
         method.pre_collision_pdf_symbols, psm_config.output
     )
     up = up.new_merged(output_eqs)
-
     up.method = method
+
+    print(up)
 
     generate_lbm_package(ctx, name="PSM",
                          collision_rule=up,
@@ -234,66 +226,7 @@ with CodeGeneration() as ctx:
                          macroscopic_fields=macroscopic_fields,
                          cpu_vectorize_info=cpu_vec, target=target)
 
-    # Create assignment collection for the complete update rule
-    lbm_update_rule = create_lb_update_rule(
-        collision_rule=up, lbm_config=psm_config, lbm_optimisation=lbm_opt
-    )
 
-
-
-    # =====================
-    # Add conditionals for the solid parts
-    # =====================
-
-    # Transform the assignment collection into a node collection to be able to add conditionals
-    node_collection = NodeCollection.from_assignment_collection(lbm_update_rule)
-
-    conditionals = []
-
-    # One conditional for every potentially overlapping particle
-    conditional_assignments = []
-
-    # Move solid collisions to conditional
-    for node in node_collection.all_assignments:
-        if type(node) == SympyAssignment and type(node.rhs) == Add:
-            rhs = node.rhs.args
-            # Maximum one solid collision for each potentially overlapping particle per assignment
-            solid_collision = next(
-                (
-                    summand
-                    for summand in rhs
-                    if type(summand) == Mul and B.center in summand.args
-                ),
-                None,
-            )
-            if solid_collision is not None:
-                conditional_assignments.append(
-                    SympyAssignment(
-                        copy.deepcopy(node.lhs),
-                        Add(solid_collision, copy.deepcopy(node.lhs)),
-                    )
-                )
-                node.rhs = Add(
-                    *[
-                        summand
-                        for summand in rhs
-                        if not (
-                                type(summand) == Mul and B.center in summand.args
-                        )
-                    ]
-                )
-
-    conditional = Conditional(B.center > 0.0, Block(conditional_assignments))
-
-    conditionals.append(conditional)
-
-
-    # Add first conditional to node collection, the other conditionals are nested inside the first one
-    node_collection.all_assignments.append(conditionals[0])
-
-
-    # Generate files
-    generate_sweep(ctx, "PSMSweep", node_collection, field_swaps=[(pdfs, pdfs_tmp)], target=target, inner_outer_split=True)
 
     field_typedefs = {'VectorField_T': velocity,
                       'ScalarField_T': density}

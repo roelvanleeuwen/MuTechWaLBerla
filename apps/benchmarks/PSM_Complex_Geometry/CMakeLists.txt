@@ -9,7 +9,7 @@ walberla_generate_target_from_python( NAME PSM_ComplexGeometryCodeGen
         OUT_FILES PSMStorageSpecification.h PSMStorageSpecification.${CODEGEN_FILE_SUFFIX}
         PSMSweepCollection.h PSMSweepCollection.${CODEGEN_FILE_SUFFIX}
         PSMBoundaryCollection.h
-        PSMSweep.${CODEGEN_FILE_SUFFIX} PSMSweep.h
+        #PSMSweep.${CODEGEN_FILE_SUFFIX} PSMSweep.h
         NoSlip.${CODEGEN_FILE_SUFFIX} NoSlip.h
         UBB.${CODEGEN_FILE_SUFFIX} UBB.h
         FixedDensity.${CODEGEN_FILE_SUFFIX} FixedDensity.h

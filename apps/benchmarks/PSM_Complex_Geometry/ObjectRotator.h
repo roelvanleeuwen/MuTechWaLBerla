@@ -67,41 +67,26 @@ class ObjectRotator
    typedef field::GhostLayerField< real_t, 3 > VectorField_T;
 
  public:
-   ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID fractionFieldId, const BlockDataID fractionFieldGPUId,
-                 const BlockDataID objectVelocityId, const real_t rotationAngle, const uint_t frequency, Vector3<int> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree, const bool preProcessedFractionFields, const bool rotate = true)
-      : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), fractionFieldGPUId_(fractionFieldGPUId),
-        objectVelocityId_(objectVelocityId), rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree),
-        preProcessedFractionFields_(preProcessedFractionFields), rotate_(rotate), rotationAxis_(rotationAxis)
+   ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID objectVelocityId,
+                 const real_t rotationAngle, const uint_t frequency, Vector3<int> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree, std::string meshName, const bool rotate = true)
+      : blocks_(blocks), mesh_(mesh), objectVelocityId_(objectVelocityId),
+        rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree), meshName_(meshName),
+        rotate_(rotate), rotationAxis_(rotationAxis)
    {
+      fractionFieldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
+
       meshCenter = computeCentroid(*mesh_);
       initObjectVelocityField();
-      if(!preProcessedFractionFields_) {
-         getFractionFieldFromMesh(fractionFieldId_);
-      }
+      getFractionFieldFromMesh();
    }
 
    void operator()(uint_t timestep) {
       if (timestep % frequency_ == 0)
       {
          if(rotate_) {
-            WcTimer simTimer;
-            simTimer.start();
             rotate();
-            simTimer.end();
-            double time = simTimer.max();
-            WALBERLA_LOG_PROGRESS_ON_ROOT("Rotation needed " << time << " s")
-            simTimer.reset();
-            simTimer.start();
-            resetFractionField(fractionFieldId_);
-            simTimer.end();
-            time = simTimer.max();
-            WALBERLA_LOG_PROGRESS_ON_ROOT("Reset Fraction Field needed " << time << " s")
-            simTimer.reset();
-            simTimer.start();
-            getFractionFieldFromMesh(fractionFieldId_);
-            simTimer.end();
-            time = simTimer.max();
-            WALBERLA_LOG_PROGRESS_ON_ROOT("Voxelize Fraction Field needed " << time << " s")
+            resetFractionField();
+            getFractionFieldFromMesh();
          }
       }
    }
@@ -116,17 +101,18 @@ class ObjectRotator
    }
 
 
-   void resetFractionField(BlockDataID fractionFieldId)
+   void resetFractionField()
    {
       auto aabbMesh = computeAABB(*mesh_);
       for (auto& block : *blocks_)
       {
-         auto fractionField = block.getData< FracField_T >(fractionFieldId);
+         auto fractionField = block.getData< FracField_T >(fractionFieldId_);
          auto level = blocks_->getLevel(block);
          auto cellBBMesh = blocks_->getCellBBFromAABB( aabbMesh, level );
-         blocks_->transformGlobalToBlockLocalCellInterval(cellBBMesh, block);
          CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
+         blocks_->transformBlockLocalToGlobalCellInterval(blockCi, block);
          cellBBMesh.intersect(blockCi);
+         blocks_->transformGlobalToBlockLocalCellInterval(cellBBMesh, block);
          std::fill(fractionField->beginSliceXYZ(cellBBMesh), fractionField->end(), 0.0);
       }
    }
@@ -168,7 +154,7 @@ class ObjectRotator
       }
    }
 
-   void getFractionFieldFromMesh(BlockDataID fractionFieldId)
+   void getFractionFieldFromMesh()
    {
       auto aabbMesh = computeAABB(*mesh_);
       DistanceFunction distFunct = makeMeshDistanceFunction(distOctree_);
@@ -177,7 +163,7 @@ class ObjectRotator
 
       for (auto& block : *blocks_)
       {
-         FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId);
+         FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId_);
          auto level = blocks_->getLevel(block);
          const real_t dx = blocks_->dx(level);
          auto cellBBMesh = blocks_->getCellBBFromAABB( aabbMesh, level );
@@ -289,19 +275,39 @@ class ObjectRotator
       }
    }
 
+   BlockDataID getObjectFractionFieldID() {
+      return fractionFieldId_;
+
+   }
+
  private:
    shared_ptr< StructuredBlockForest > blocks_;
    shared_ptr< mesh::TriangleMesh > mesh_;
-   const BlockDataID fractionFieldId_;
-   const BlockDataID fractionFieldGPUId_;
+   BlockDataID fractionFieldId_;
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
    const uint_t frequency_;
    shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>> distOctree_;
-   const bool preProcessedFractionFields_;
+   std::string meshName_;
    const bool rotate_;
    mesh::TriangleMesh::Point meshCenter;
    Vector3< mesh::TriangleMesh::Scalar > rotationAxis_;
 };
+
+void fuseFractionFields(shared_ptr< StructuredBlockForest >& blocks, BlockDataID dstFracFieldID, std::vector<BlockDataID> srcFracFieldIDs) {
+   for (auto &block : *blocks) {
+      FracField_T* dstFractionField = block.getData< FracField_T >(dstFracFieldID);
+      std::vector<FracField_T*> srcFracFields;
+      for (auto srcFracFieldID : srcFracFieldIDs) {
+         srcFracFields.push_back(block.getData< FracField_T >(srcFracFieldID));
+      }
+      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(dstFractionField,
+          dstFractionField->get(x,y,z) = 0;
+          for (auto srcFracField : srcFracFields) {
+             dstFractionField->get(x,y,z) += srcFracField->get(x,y,z);
+          }
+      )
+   }
+}
 
 }//namespace waLBerla

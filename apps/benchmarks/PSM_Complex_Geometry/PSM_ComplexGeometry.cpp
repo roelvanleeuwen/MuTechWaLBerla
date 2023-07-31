@@ -140,6 +140,9 @@ int main(int argc, char** argv)
    const uint_t timestepsFixed = parameters.getParameter< uint_t >("timesteps", uint_c(10));
    const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
    const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0));
+   const bool writeDomainDecompositionAndReturn = parameters.getParameter< bool >("writeDomainDecompositionAndReturn", false);
+
+
 
    const std::string timeStepStrategy = parameters.getParameter<std::string>("timeStepStrategy", "noOverlap");
    const Cell innerOuterSplit = Cell(parameters.getParameter< Vector3<cell_idx_t> >("innerOuterSplit", Vector3<cell_idx_t>(1, 1, 1)));
@@ -231,7 +234,10 @@ int main(int argc, char** argv)
    )
 
    vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
-   return 0;
+   if(writeDomainDecompositionAndReturn) {
+      return EXIT_SUCCESS;
+   }
+
 
    ////////////////////////////////////
    /// PDF Field and Velocity Setup ///
@@ -257,8 +263,6 @@ int main(int argc, char** argv)
    const BlockDataID densityFieldGPUId = gpu::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldId, "density field on GPU", true);
    const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fraction field on GPU", true);
    const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
-#else
-   const BlockDataID fractionFieldGPUId;
 #endif
 
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
@@ -279,14 +283,16 @@ int main(int argc, char** argv)
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
    //Setting up Object Rotator
-   ObjectRotator objectRotatorMeshBase(blocks, meshBase, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, preProcessFractionFields, false);
-   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, preProcessFractionFields, false);
-   ObjectRotator objectRotatorMeshStator(blocks, meshStator, fractionFieldId, fractionFieldGPUId, objectVelocitiesFieldId, -rotationAngle, rotationFrequency, rotationAxis,  distanceOctreeMeshStator, preProcessFractionFields, false);
+   ObjectRotator objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, "base", false);
+   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, "rotor", false);
+   ObjectRotator objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, -rotationAngle, rotationFrequency, rotationAxis,  distanceOctreeMeshStator, "stator",false);
+   fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
 
    const std::function< void() > objectRotatorFunc = [&]() {
       objectRotatorMeshBase(timeloop.getCurrentTimeStep());
       objectRotatorMeshRotor(timeloop.getCurrentTimeStep());
       objectRotatorMeshStator(timeloop.getCurrentTimeStep());
+      fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldId);
 #endif
@@ -299,11 +305,10 @@ int main(int argc, char** argv)
 
       for (uint_t i = 0; i < numFields; ++i) {
          BlockDataID tmpFractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionFieldId_" + std::to_string(i), fracSize(0.0), field::fzyx);
-         objectRotatorMeshBase.getFractionFieldFromMesh(tmpFractionFieldId);
-         objectRotatorMeshRotor.rotate();
-         objectRotatorMeshRotor.getFractionFieldFromMesh(tmpFractionFieldId);
-         objectRotatorMeshStator.rotate();
-         objectRotatorMeshStator.getFractionFieldFromMesh(tmpFractionFieldId);
+         objectRotatorMeshBase(0);
+         objectRotatorMeshRotor(0);
+         objectRotatorMeshStator(0);
+         fuseFractionFields(blocks, tmpFractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
          fractionFieldIds.push_back(tmpFractionFieldId);
       }
       WALBERLA_LOG_INFO_ON_ROOT("Finished Preprocessing mesh!")
@@ -338,8 +343,8 @@ int main(int argc, char** argv)
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
 
 #else
-   SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
-   //pystencils::PSMSweep PSMSweep(fractionFieldId, objectVelocitiesFieldId, pdfFieldId,  omega, /*real_t(1.0),*/ innerOuterSplit);
+   //SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, /*real_t(0.0),*/ innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, fractionFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, /*real_t(0.0),*/ innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
 #endif
 
@@ -352,7 +357,7 @@ int main(int argc, char** argv)
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
       gpu::fieldCpy( *dst, *src );
 #endif
-      sweepCollection.initialise(&block, 1);
+      //sweepCollection.initialise(&block, 1);
    }
 
 
@@ -378,13 +383,7 @@ int main(int argc, char** argv)
       blocks, pdfFieldId, sweepCollection, boundaryCollection, communication, packInfo);
 #endif
 
-
-
-
-
    const auto emptySweep = [](IBlock*) {};
-
-
    if( rotationFrequency > 0) {
       if(preProcessFractionFields) {
          timeloop.add() << BeforeFunction(syncPreprocessedFractionFields, "syncPreprocessedFractionFields") << Sweep(emptySweep);

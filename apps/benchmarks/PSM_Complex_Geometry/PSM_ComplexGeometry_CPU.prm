@@ -28,7 +28,7 @@ DomainSetup
    domainTransforming <  0.45 , 0,  0 >;
    cellsPerBlock      < 16, 16, 16 >;
    periodic           <  0,  1,  1 >;
-   refinementDepth    2 ;
+   refinementDepth    1 ;
 }
 
 Boundaries
