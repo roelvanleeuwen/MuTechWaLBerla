@@ -78,6 +78,7 @@ with CodeGeneration() as ctx:
     fixedDensity = lbm_boundary_generator(class_name='FixedDensity', flag_uid='FixedDensity', boundary_object=FixedDensity(1.0))
     extrapolOutflow = lbm_boundary_generator(class_name='ExtrapolationOutflow', flag_uid='ExtrapolationOutflow', boundary_object=SimpleExtrapolationOutflow((1, 0, 0), stencil))
 
+
     target = ps.Target.GPU if ctx.gpu else ps.Target.CPU
 
     collision_rule = create_lb_collision_rule(

@@ -339,7 +339,7 @@ int main(int argc, char** argv)
    /////////////
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   SweepCollection_T sweepCollection(blocks, fractionFieldGPUId, objectVelocitiesGPUFieldId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
    //pystencils::PSMSweep PSMSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega, /*real_t(0.0),*/ innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
 
