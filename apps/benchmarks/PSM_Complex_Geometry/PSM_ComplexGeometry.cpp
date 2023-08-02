@@ -29,7 +29,7 @@
 #include "field/vtk/VTKWriter.h"
 #include "geometry/all.h"
 
-//#include "lbm_generated/communication/UniformGeneratedPdfPackInfo.h"
+#include "lbm_generated/communication/UniformGeneratedPdfPackInfo.h"
 #include "lbm_generated/communication/NonuniformGeneratedPdfPackInfo.h"
 #include "lbm_generated/evaluation/PerformanceEvaluation.h"
 #include "lbm_generated/field/PdfField.h"
@@ -201,18 +201,18 @@ int main(int argc, char** argv)
    std::vector<AABB> meshAABBs{aabbBase, computeAABB(*meshRotor), computeAABB(*meshStator)};
    bfc.setRefinementSelectionFunction(LDCRefinement(refinementDepth, meshAABBs));
 
-   auto blocks = bfc.createStructuredBlockForest(cellsPerBlock);
+   auto setupForest = bfc.createSetupBlockForest( cellsPerBlock, 1 );
 
-   uint_t numCells = blocks->getXSize() * blocks->getYSize() * blocks->getZSize() * cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2];
-   AABB domainAABB = blocks->getDomain();
+   uint_t numCells = setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize() * cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2];
+   AABB domainAABB = setupForest->getDomain();
    real_t fullRefinedMeshSize = mesh_size / pow(2, real_c(refinementDepth));
-   WALBERLA_LOG_INFO_ON_ROOT(fullRefinedMeshSize<<  " AABB" << domainAABB )
    uint_t numFullRefinedCell = uint_c((domainAABB.xSize() / fullRefinedMeshSize) * (domainAABB.ySize() / fullRefinedMeshSize) * (domainAABB.zSize() / fullRefinedMeshSize));
 
 
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter \n"
-                             << "Domain Decomposition <" << blocks->getXSize() << "," << blocks->getYSize() << "," << blocks->getZSize() << "> = " << blocks->getXSize() * blocks->getYSize() * blocks->getZSize()  << " Blocks \n"
+                             << "Domain Decomposition <" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << "> = " << setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize()  << " root Blocks \n"
+                             << "Number of blocks is " << setupForest->getNumberOfBlocks() << " \n"
                              << "Cells per Block " << cellsPerBlock << " \n"
                              << "Number of cells "  << numCells << ", number of potential Cells (full refined) " << numFullRefinedCell <<  ", Saved computation " << (1.0 - (real_c(numCells) / real_c(numFullRefinedCell))) * 100 << "% \n"
                              << "Mesh_size " << mesh_size << " m \n"
@@ -233,10 +233,11 @@ int main(int argc, char** argv)
 
    )
 
-   vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
    if(writeDomainDecompositionAndReturn) {
+      WALBERLA_ROOT_SECTION() { setupForest->writeVTKOutput("SetupBlockForest"); }
       return EXIT_SUCCESS;
    }
+   auto blocks = bfc.createStructuredBlockForest(cellsPerBlock);
 
 
    ////////////////////////////////////
@@ -251,7 +252,7 @@ int main(int argc, char** argv)
 #endif
    const BlockDataID pdfFieldId  = lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, uint_c(1), field::fzyx, allocator);
    const BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_t(0.0), field::fzyx, uint_c(1), allocator);
-   const BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(0.0), field::fzyx, uint_c(1), allocator);
+   const BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, uint_c(1), allocator);
    const BlockDataID flagFieldId     = field::addFlagFieldToStorage< FlagField_T >(blocks, "flagField");
    const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", fracSize(0.0), field::fzyx, uint_c(1));
    const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1), allocator);
@@ -343,8 +344,8 @@ int main(int argc, char** argv)
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
 
 #else
-   //SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, /*real_t(0.0),*/ innerOuterSplit);
-   SweepCollection_T sweepCollection(blocks, fractionFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, /*real_t(0.0),*/ innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
+   //SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
 #endif
 
@@ -357,7 +358,7 @@ int main(int argc, char** argv)
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
       gpu::fieldCpy( *dst, *src );
 #endif
-      //sweepCollection.initialise(&block, 1);
+      sweepCollection.initialise(&block, 1);
    }
 
 
@@ -374,9 +375,9 @@ int main(int argc, char** argv)
    communication->addPackInfo(packInfo);
    lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldGPUId, sweepCollection, boundaryCollection, communication, packInfo);
 #else
-   //blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
    auto communication = std::make_shared< NonUniformBufferedScheme< CommunicationStencil_T > >(blocks);
    auto packInfo      = lbm_generated::setupNonuniformPdfCommunication< PdfField_T >(blocks, pdfFieldId);
+   //blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
    //auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
    communication->addPackInfo(packInfo);
    lbm_generated::BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(
@@ -424,7 +425,6 @@ int main(int argc, char** argv)
       vtkOutput->addCellDataWriter(fractionFieldWriter);
       //vtkOutput->addCellDataWriter(objVeldWriter);
 
-      WALBERLA_LOG_INFO_ON_ROOT("DomainAABB is " << domainAABB)
 
       AABB sliceAABB(real_c(domainAABB.xMin()), real_c(domainAABB.yMin()), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.5),
                      real_c(domainAABB.xMax()), real_c(domainAABB.yMax() ), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.5 + dx));
@@ -432,25 +432,25 @@ int main(int argc, char** argv)
       vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
    }
 
 
    if(timeStepStrategy == "refinement")  {
       LBMMeshRefinement.addRefinementToTimeLoop(timeloop);
-   }/*
-    else if (timeStepStrategy == "noOverlap")
+   }
+    /*else if (timeStepStrategy == "noOverlap")
     { // Timeloop
-       timeloop.add() << BeforeFunction(communication->getWaitFunctor(), "Communication")
-                      << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL),
-                               "Boundary Conditions");
-       timeloop.add() << Sweep(PSMSweep.getSweep(), "PSMSweep");
+       timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
+                      << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
+       timeloop.add() << Sweep(sweepCollection.streamCollide(), "PSMSweep");
     }
     else if(timeStepStrategy == "Overlap") {
-       timeloop.add() << BeforeFunction(communication->getStartCommunicateFunctor(), "Start Communication")
+       timeloop.add() << BeforeFunction(communication.getStartCommunicateFunctor(), "Start Communication")
                       << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
-       timeloop.add() << Sweep(PSMSweep.getInnerSweep(), "PSM Sweep Inner Frame");
-       timeloop.add() << BeforeFunction(communication->getWaitFunctor(), "Wait for Communication")
-                      << Sweep(PSMSweep.getOuterSweep(), "PSM Sweep Outer Frame");
+       timeloop.add() << Sweep(sweepCollection.streamCollide(lbm::PSMSweepCollection::Type::INNER), "PSM Sweep Inner Frame");
+       timeloop.add() << BeforeFunction(communication.getWaitFunctor(), "Wait for Communication")
+                      << Sweep(sweepCollection.streamCollide(lbm::PSMSweepCollection::Type::OUTER), "PSM Sweep Outer Frame");
     }*/ else {
       WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")
    }

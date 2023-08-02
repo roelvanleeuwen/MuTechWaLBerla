@@ -89,10 +89,11 @@ class RefinementScaling:
         self.add_scaling(viscosity_relaxation_rate)
 
     def add_scaling(self, parameter):
-        if isinstance(parameter, sp.Symbol):
-            self.scaling_info.append(parameter.name)
-        else:
-            raise ValueError("Only pure symbols allowed")
+        #if isinstance(parameter, sp.Symbol):
+            #self.scaling_info.append(parameter.name)
+        self.scaling_info.append("omega")
+        #else:
+        #    raise ValueError("Only pure symbols allowed")
 
 
 def lbm_kernel_family(class_name, kernel_name,
