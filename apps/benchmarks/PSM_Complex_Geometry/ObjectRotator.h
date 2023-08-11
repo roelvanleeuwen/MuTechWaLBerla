@@ -166,7 +166,6 @@ class ObjectRotator
       const fracSize fracValue = fracSize(1.0 / pow(8, real_c(depth)));
       const real_t offsetMod = real_c(1.0 / pow(2, real_c(depth+2)));
 
-
       if(depth == maxSuperSamplingDepth_) {
          if((*distFunct)( cellCenter )  < real_t(0))
             fraction = fracValue;
@@ -182,7 +181,6 @@ class ObjectRotator
          }
       }
       return fraction;
-
    }
 
    void getFractionFieldFromMesh()

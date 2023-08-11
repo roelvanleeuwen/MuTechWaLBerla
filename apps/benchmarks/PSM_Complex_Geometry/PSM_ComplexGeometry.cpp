@@ -330,6 +330,7 @@ int main(int argc, char** argv)
             objectRotatorMeshStator(0);
             fuseFractionFields(blocks, tmpFractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
             fractionFieldIds.push_back(tmpFractionFieldId);
+            WALBERLA_MPI_BARRIER()
          }
       }
 
