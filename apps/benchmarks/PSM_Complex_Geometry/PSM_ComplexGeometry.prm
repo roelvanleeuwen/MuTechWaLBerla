@@ -1,36 +1,39 @@
 
 Parameters 
 {
-	timesteps       100001;
+	timesteps       20001;
 
-    initialVelocity   <0.02, 0.0, 0.0>;
+    initialVelocity   <0.0, 0.0, 0.0>;
     ref_velocity  69.15;    // m/s
     ref_length 1.0;         //rotor radius according to mesh file
-    viscosity  1.49e-5;     // 1.49e-5;
+    viscosity  1.49e-5;           //1.49e-5;
     sim_time   0.0;         //set to 0, then timesteps is used
-    mesh_size  0.004;    // 2 mm;
+    mesh_size  0.002;        // 0.005;
 
     timeStepStrategy   refinement;
-    innerOuterSplit    <1,1,1>;
+    innerOuterSplit    <0,0,0>;
 
-	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 1000;
-    writeDomainDecompositionAndReturn False;
+	VTKwriteFrequency 2000;
+	remainingTimeLoggerFrequency 10;            // in seconds
+	writeDomainDecompositionAndReturn true;
 
+	writeFractionFieldAndReturn true;
+	loadFractionFieldsFromFile false;
+    preProcessFractionFields false;
+	maxSuperSamplingDepth 2;
 }
 
 DomainSetup
 {
    rotationFrequency  100;
-   rotationSpeed      738.173;     //rad/s
-   rotationAxis       < 1, 0, 0 >
-   preProcessFractionFields true;
+   rotationSpeed      738.173;          //738.173;     //rad/s
+   rotationAxis       < 1, 0, 0 >;
 
-   domainScaling      <  0.3, 3, 3 >;   //<  3, 50,  3 >;
-   domainTransforming <  0.4 , 0,  0 >;
-   cellsPerBlock      < 64, 64, 64 >;
+   domainScaling      <  0.1, 2, 2 >;   //<  3, 50,  3 >;
+   domainTransforming <  0.45 , 0,  0 >;
+   cellsPerBlock      < 256, 256, 256 >;
    periodic           <  0,  1,  1 >;
-   refinementDepth    2;
+   refinementDepth    0;
 }
 
 Boundaries

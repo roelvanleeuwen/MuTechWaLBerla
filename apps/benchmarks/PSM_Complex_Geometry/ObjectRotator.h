@@ -68,10 +68,11 @@ class ObjectRotator
 
  public:
    ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID objectVelocityId,
-                 const real_t rotationAngle, const uint_t frequency, Vector3<int> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree, std::string meshName, const bool rotate = true)
+                 const real_t rotationAngle, const uint_t frequency, Vector3<int> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree,
+                 std::string meshName, uint_t maxSuperSamplingDepth, const bool rotate = true)
       : blocks_(blocks), mesh_(mesh), objectVelocityId_(objectVelocityId),
-        rotationAngle_(rotationAngle), frequency_(frequency), distOctree_(distOctree), meshName_(meshName),
-        rotate_(rotate), rotationAxis_(rotationAxis)
+        rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis), distOctree_(distOctree),
+        meshName_(meshName), maxSuperSamplingDepth_(maxSuperSamplingDepth), rotate_(rotate)
    {
       fractionFieldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
 
@@ -126,10 +127,14 @@ class ObjectRotator
 
          auto objVelField = block.getData< VectorField_T >(objectVelocityId_);
          Vector3< real_t > angularVel;
-         if (!rotate_)
+
+
+         if (rotate_ == false || frequency_ == 0 || rotationAngle_ <= 0.0) {
             angularVel = Vector3< real_t >(0,0,0);
+         }
          else
             angularVel = Vector3< real_t > (rotationAxis_[0] * rotationAngle_ / real_c(frequency_), rotationAxis_[1] * rotationAngle_ / real_c(frequency_), rotationAxis_[2] * rotationAngle_ / real_c(frequency_));
+
          const real_t dx = blocks_->dx(level);
          WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(objVelField,
             Cell cell(x,y,z);
@@ -154,12 +159,36 @@ class ObjectRotator
       }
    }
 
+
+   fracSize recursiveSuperSampling(const shared_ptr<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>> &distFunct, Vector3<real_t> cellCenter, real_t dx, uint_t depth) {
+      //if only one cell left, split cell into 8 cell centers to get these cellCenter distances
+      fracSize fraction = 0.0;
+      const fracSize fracValue = fracSize(1.0 / pow(8, real_c(depth)));
+      const real_t offsetMod = real_c(1.0 / pow(2, real_c(depth+2)));
+
+
+      if(depth == maxSuperSamplingDepth_) {
+         if((*distFunct)( cellCenter )  < real_t(0))
+            fraction = fracValue;
+      }
+      else {
+         std::vector<int> xOffset{-1,-1,-1,-1, 1, 1, 1, 1};
+         std::vector<int> yOffset{-1,-1, 1, 1,-1,-1, 1, 1};
+         std::vector<int> zOffset{-1, 1,-1, 1,-1, 1,-1, 1};
+         Vector3<real_t> octreeCenter;
+         for (uint_t i = 0; i < 8; ++i) {
+            octreeCenter = Vector3<real_t>(cellCenter[0] + xOffset[i] * dx * offsetMod, cellCenter[1] + yOffset[i] * dx * offsetMod, cellCenter[2] + zOffset[i] * dx * offsetMod);
+            fraction += recursiveSuperSampling(distFunct, octreeCenter, dx, depth+1);
+         }
+      }
+      return fraction;
+
+   }
+
    void getFractionFieldFromMesh()
    {
       auto aabbMesh = computeAABB(*mesh_);
-      DistanceFunction distFunct = makeMeshDistanceFunction(distOctree_);
-      const real_t ONEOVEREIGHT = real_t(1) / real_t(8);
-      const real_t ONEOVERFOUR = real_t(1) / real_t(4);
+      const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
 
       for (auto& block : *blocks_)
       {
@@ -181,31 +210,20 @@ class ObjectRotator
 
             WALBERLA_ASSERT(!curCi.empty(), "Cell Interval: " << curCi);
 
-            AABB curAABB = blocks_->getAABBFromCellBB(curCi, level);
+            const AABB curAABB = blocks_->getAABBFromCellBB(curCi, level);
 
             WALBERLA_ASSERT(!curAABB.empty(), "AABB: " << curAABB);
 
             Vector3< real_t > cellCenter = curAABB.center();
             blocks_->mapToPeriodicDomain(cellCenter);
-            real_t sqSignedDistance = distFunct(cellCenter);
+            const real_t sqSignedDistance = (*distFunct)(cellCenter);
 
             if (curCi.numCells() == uint_t(1))
             {
-               //if only one cell left, split cell into 8 cell centers to get these cellCenter distances
-               std::vector<int> xOffset{-1,-1,-1,-1, 1, 1, 1, 1};
-               std::vector<int> yOffset{-1,-1, 1, 1,-1,-1, 1, 1};
-               std::vector<int> zOffset{-1, 1,-1, 1,-1, 1,-1, 1};
-               real_t fraction = 0;
-               Vector3<real_t> octreeCenter;
-               for (uint_t i = 0; i < 8; ++i) {
-                  octreeCenter = Vector3<real_t>(cellCenter[0] + xOffset[i] * dx * ONEOVERFOUR, cellCenter[1] + yOffset[i] * dx * ONEOVERFOUR, cellCenter[2] + zOffset[i] * dx * ONEOVERFOUR);
-                  sqSignedDistance = distFunct( octreeCenter );
-                  if(sqSignedDistance  < real_t(0))
-                     fraction += ONEOVEREIGHT;
-               }
+               fracSize fraction = recursiveSuperSampling(distFunct, cellCenter, dx, 0);
                Cell localCell;
                blocks_->transformGlobalToBlockLocalCell(localCell, block, curCi.min());
-               fractionField->get(localCell) = fracSize(fraction);
+               fractionField->get(localCell) = fraction;
 
                ciQueue.pop();
                continue;
@@ -287,11 +305,13 @@ class ObjectRotator
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
    const uint_t frequency_;
+   Vector3< mesh::TriangleMesh::Scalar > rotationAxis_;
    shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>> distOctree_;
    std::string meshName_;
+   uint_t maxSuperSamplingDepth_;
    const bool rotate_;
    mesh::TriangleMesh::Point meshCenter;
-   Vector3< mesh::TriangleMesh::Scalar > rotationAxis_;
+
 };
 
 void fuseFractionFields(shared_ptr< StructuredBlockForest >& blocks, BlockDataID dstFracFieldID, std::vector<BlockDataID> srcFracFieldIDs) {

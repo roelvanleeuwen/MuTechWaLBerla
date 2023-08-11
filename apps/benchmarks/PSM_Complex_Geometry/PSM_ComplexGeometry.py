@@ -86,8 +86,6 @@ with CodeGeneration() as ctx:
         lbm_optimisation=lbm_opt
     )
 
-    print(collision_rule)
-
     generate_lbm_package(ctx, name="PSM",
                          collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,

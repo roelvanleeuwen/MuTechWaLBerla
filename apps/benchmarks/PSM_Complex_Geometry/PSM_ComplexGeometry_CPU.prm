@@ -23,7 +23,7 @@ DomainSetup
 {
    rotationFrequency  100;
    rotationSpeed      738.173;     //rad/s
-   rotationAxis       < 1, 0, 0 >
+   rotationAxis       < 1, 0, 0 >;
    preProcessFractionFields false;
 
    domainScaling      <  0.4, 10, 10 >;   //<  3, 50,  3 >;
