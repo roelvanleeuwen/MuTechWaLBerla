@@ -104,7 +104,7 @@ class ForceDensityCodegenSweep
  public:
    ForceDensityCodegenSweep(BlockDataID forceDensityFieldID, ConstBlockDataID pdfFieldID, ConstBlockDataID flagFieldID,
                             ConstBlockDataID fillFieldID, const FlagInfo< FlagField_T >& flagInfo,
-                            const Vector3< real_t >& globalAcceleration)
+                            shared_ptr<Vector3< real_t >> globalAcceleration)
       : forceDensityFieldID_(forceDensityFieldID), pdfFieldID_(pdfFieldID), flagFieldID_(flagFieldID),
         fillFieldID_(fillFieldID), flagInfo_(flagInfo), globalAcceleration_(globalAcceleration)
    {}
@@ -127,18 +127,18 @@ class ForceDensityCodegenSweep
                                 if (flagInfo_.isInterface(flag))
                                 {
                                    const real_t density   = pdfField->getDensity(pdfFieldIt.cell());
-                                   forceDensityFieldIt[0] = globalAcceleration_[0] * *fillFieldIt * density;
-                                   forceDensityFieldIt[1] = globalAcceleration_[1] * *fillFieldIt * density;
-                                   forceDensityFieldIt[2] = globalAcceleration_[2] * *fillFieldIt * density;
+                                   forceDensityFieldIt[0] = (*globalAcceleration_)[0] * *fillFieldIt * density;
+                                   forceDensityFieldIt[1] = (*globalAcceleration_)[1] * *fillFieldIt * density;
+                                   forceDensityFieldIt[2] = (*globalAcceleration_)[2] * *fillFieldIt * density;
                                 }
                                 else
                                 {
                                    if (flagInfo_.isLiquid(flag))
                                    {
                                       const real_t density   = pdfField->getDensity(pdfFieldIt.cell());
-                                      forceDensityFieldIt[0] = globalAcceleration_[0] * density;
-                                      forceDensityFieldIt[1] = globalAcceleration_[1] * density;
-                                      forceDensityFieldIt[2] = globalAcceleration_[2] * density;
+                                      forceDensityFieldIt[0] = (*globalAcceleration_)[0] * density;
+                                      forceDensityFieldIt[1] = (*globalAcceleration_)[1] * density;
+                                      forceDensityFieldIt[2] = (*globalAcceleration_)[2] * density;
                                    }
                                 }
                              }) // WALBERLA_FOR_ALL_CELLS
@@ -152,7 +152,7 @@ class ForceDensityCodegenSweep
    ConstBlockDataID flagFieldID_;
    ConstBlockDataID fillFieldID_;
    FlagInfo< FlagField_T > flagInfo_;
-   Vector3< real_t > globalAcceleration_;
+   std::shared_ptr<Vector3< real_t >> globalAcceleration_;
 }; // class ForceDensitySweep
 
 } // namespace free_surface

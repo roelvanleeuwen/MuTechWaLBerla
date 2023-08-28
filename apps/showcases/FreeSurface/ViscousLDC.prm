@@ -1,7 +1,7 @@
 BlockForestParameters
 {
    cellsPerBlock                 < 25, 25, 1 >;
-   periodicity                   < 1, 0, 1 >;
+   periodicity                   < 0, 0, 1 >;
    loadBalancingFrequency        0;
    printLoadBalancingStatistics  false;
 }
@@ -15,7 +15,8 @@ DomainParameters
 
 PhysicsParameters
 {
-   reynoldsNumber    10;
+   //velAtBoundary     < 0.01, 0, 0 >;
+   reynoldsNumber    1;
    relaxationRate    1.8;
    enableWetting     false;
    contactAngle      0; // only used if enableWetting=true
@@ -26,7 +27,7 @@ ModelParameters
 {
    pdfReconstructionModel        OnlyMissing;
    pdfRefillingModel             EquilibriumRefilling;
-   excessMassDistributionModel   EvenlyAllInterface;
+   excessMassDistributionModel   EvenlyAllInterfaceFallbackLiquid;
    curvatureModel                FiniteDifferenceMethod;
    useSimpleMassExchange         false;
    cellConversionThreshold       1e-2;
@@ -38,7 +39,7 @@ ModelParameters
 
 EvaluationParameters
 {
-   performanceLogFrequency 43200;
+   performanceLogFrequency 21600;
    evaluationFrequency     864;
    filename                viscous-LDC.txt;
 }
@@ -46,8 +47,8 @@ EvaluationParameters
 BoundaryParameters
 {
    // X
-   //Border { direction W;  walldistance -1; NoSlip{} }
-   //Border { direction E;  walldistance -1; NoSlip{} }
+   Border { direction W;  walldistance -1; NoSlip{} }
+   Border { direction E;  walldistance -1; NoSlip{} }
 
    // Y
    Border { direction N;  walldistance -1; NoSlip{} }
@@ -69,9 +70,9 @@ VTK
    fluid_field
    {
       writeFrequency       864;
-      ghostLayers          0;
+      ghostLayers          1;
       baseFolder           vtk-out;
-      samplingResolution   1;
+      samplingResolution   0;
 
       writers
       {
@@ -83,7 +84,7 @@ VTK
          //normal;
          //obstacle_normal;
          //pdf;
-         //flag;
+         flag;
          force_density;
       }
 
@@ -94,14 +95,14 @@ VTK
 
       before_functions
       {
-         //ghost_layer_synchronization;   // only needed if writing the ghost layer
+         ghost_layer_synchronization;   // only needed if writing the ghost layer
          gas_cell_zero_setter;            // sets velocity=0 and density=1 all gas cells before writing VTK output
       }
    }
 
    domain_decomposition
    {
-      writeFrequency             0;
+      writeFrequency             1000000;
       baseFolder                 vtk-out;
       outputDomainDecomposition  true;
    }

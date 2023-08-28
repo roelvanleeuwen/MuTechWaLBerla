@@ -80,7 +80,7 @@ class SurfaceDynamicsHandler
                           const std::shared_ptr< BubbleModelBase >& bubbleModel,
                           const std::string& pdfReconstructionModel, const std::string& pdfRefillingModel,
                           const std::string& excessMassDistributionModel, real_t relaxationRate,
-                          const Vector3< real_t >& globalAcceleration, real_t surfaceTension,
+                          std::shared_ptr<Vector3< real_t >> globalAcceleration, real_t surfaceTension,
                           bool useSimpleMassExchange, real_t cellConversionThreshold,
                           real_t cellConversionForceThreshold, BlockDataID relaxationRateFieldID = BlockDataID(),
                           real_t smagorinskyConstant = real_c(0))
@@ -141,9 +141,9 @@ class SurfaceDynamicsHandler
                               Set< SUID >::emptySet(), StateSweep::onlyGasAndBoundary)
                      << Sweep(emptySweep, "Empty sweep: boundary handling", StateSweep::onlyGasAndBoundary);
 
-      if (!(floatIsEqual(globalAcceleration_[0], real_c(0), real_c(1e-14)) &&
-            floatIsEqual(globalAcceleration_[1], real_c(0), real_c(1e-14)) &&
-            floatIsEqual(globalAcceleration_[2], real_c(0), real_c(1e-14))))
+      if (!(floatIsEqual((*globalAcceleration_)[0], real_c(0), real_c(1e-14)) &&
+            floatIsEqual((*globalAcceleration_)[1], real_c(0), real_c(1e-14)) &&
+            floatIsEqual((*globalAcceleration_)[2], real_c(0), real_c(1e-14))))
       {
          // add sweep for weighting force in interface cells with fill level and density
          if constexpr (useCodegen)
@@ -443,7 +443,7 @@ class SurfaceDynamicsHandler
    PdfRefillingModel pdfRefillingModel_;
    ExcessMassDistributionModel excessMassDistributionModel_;
    real_t relaxationRate_;
-   Vector3< real_t > globalAcceleration_;
+   std::shared_ptr<Vector3< real_t >> globalAcceleration_;
    real_t surfaceTension_;
    bool useSimpleMassExchange_;
    real_t cellConversionThreshold_;

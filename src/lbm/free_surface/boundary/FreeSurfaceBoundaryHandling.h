@@ -61,6 +61,7 @@ class FreeSurfaceBoundaryHandling
    using NoSlip_T   = lbm::NoSlip< LatticeModel_T, flag_t >;
    using FreeSlip_T = lbm::FreeSlip< LatticeModel_T, FlagField_T >;
    using UBB_T      = lbm::UBB< LatticeModel_T, flag_t >;
+   using SimpleUBB_T= lbm::SimpleUBB< LatticeModel_T, flag_t >;
    using Pressure_T = SimplePressureWithFreeSurface< LatticeModel_T, FlagField_T >;
    using Outlet_T   = lbm::Outlet< LatticeModel_T, FlagField_T, 4, 3 >;
    using UBB_Inflow_T =
@@ -122,6 +123,7 @@ class FreeSurfaceBoundaryHandling
    // flag IDs
    static const field::FlagUID noSlipFlagID;
    static const field::FlagUID ubbFlagID;
+   static const field::FlagUID simpleUbbFlagID;
    static const field::FlagUID ubbInflowFlagID;
    static const field::FlagUID pressureFlagID;
    static const field::FlagUID pressureOutflowFlagID;
@@ -131,6 +133,7 @@ class FreeSurfaceBoundaryHandling
    // boundary IDs
    static const BoundaryUID noSlipBoundaryID;
    static const BoundaryUID ubbBoundaryID;
+   static const BoundaryUID simpleUbbBoundaryID;
    static const BoundaryUID ubbInflowBoundaryID;
    static const BoundaryUID pressureBoundaryID;
    static const BoundaryUID pressureOutflowBoundaryID;
