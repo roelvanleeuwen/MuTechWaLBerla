@@ -184,9 +184,6 @@ int main(int argc, char **argv)
       const std::string timeStepStrategy = parameters.getParameter< std::string >("timeStepStrategy", "noOverlap");
       const real_t porositySwitch = parameters.getParameter< real_t >("porositySwitch");
       const bool runHybrid = parameters.getParameter< bool >("runHybrid", false);
-      const bool useCartesian = parameters.getParameter< bool >("useCartesian", false);
-
-
 
 
       Vector3< uint_t > cellsPerBlock;
@@ -225,24 +222,12 @@ int main(int argc, char **argv)
 
       auto boundariesConfig = config->getOneBlock("Boundaries");
       const std::string geometrySetup = domainParameters.getParameter< std::string >("geometrySetup", "randomNoslip");
+      bool pressureInflow = false;
 
       if (geometrySetup == "randomNoslip") {
          real_t dx = 1;
-         /*blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2],
-                                                                   cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2],
-                                                                   dx, 0, true, false,
-                                                                   periodic[0], periodic[1], periodic[2],
-                                                                   false);*/
-
-
-         blocks = walberla::blockforest::createUniformBlockGrid(
-            blocksPerDimension[0],        blocksPerDimension[1],        blocksPerDimension[2],         // blocks/processes in x/y/z direction
-            cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2],  // cells per block in x/y/z direction
-            dx,                                                    // cell size
-            true,                                    // one block per process
-            periodic[0], periodic[1], periodic[2],                 // periodicity
-            false                             // keep global block information
-         );
+         /*blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx, 0, true, false, periodic[0], periodic[1], periodic[2], false);*/
+         blocks = walberla::blockforest::createUniformBlockGrid(blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx,  true, periodic[0], periodic[1], periodic[2], false);
 
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          const real_t porosity = parameters.getParameter< real_t >("porosity");
@@ -294,8 +279,6 @@ int main(int argc, char **argv)
 
          blocks = bfc.createStructuredBlockForest(cellsPerBlock);
 
-         WALBERLA_LOG_INFO("Number of blocks is " << blocks->getNumberOfBlocks())
-
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          mesh::BoundarySetup boundarySetup(blocks, makeMeshDistanceFunction(distanceOctree), numGhostLayers);
          // write mesh info to file
@@ -308,9 +291,19 @@ int main(int argc, char **argv)
             flagField->registerFlag(inflowUID);
             flagField->registerFlag(PressureOutflowUID);
          }
-         const mesh::TriangleMesh::Color noSlipColor{255, 255, 255}; // White
-         const mesh::TriangleMesh::Color inflowColor{255, 255, 0};     // Yellow
-         const mesh::TriangleMesh::Color outflowColor{0, 255, 0};    // Light green
+         mesh::TriangleMesh::Color noSlipColor{255, 255, 255}; // White
+         mesh::TriangleMesh::Color inflowColor;     // Yellow
+         mesh::TriangleMesh::Color outflowColor;    // Light green
+
+         if (meshFile == "coronary_colored_medium.obj") {
+            inflowColor = mesh::TriangleMesh::Color(0, 255, 0);    // Light green
+            outflowColor = mesh::TriangleMesh::Color(255, 0, 0);    // Red green
+            pressureInflow = true;
+         }
+         else {
+            inflowColor = mesh::TriangleMesh::Color(255, 255, 0);     // Yellow
+            outflowColor = mesh::TriangleMesh::Color(0, 255, 0);    // Light green
+         }
          const walberla::BoundaryUID OutflowBoundaryUID("PressureOutflow");
          const walberla::BoundaryUID InflowBoundaryUID("PressureInflow");
          static walberla::BoundaryUID wallFlagUID("NoSlip");
@@ -323,12 +316,9 @@ int main(int argc, char **argv)
          // set whole region outside the mesh to no-slip
          boundarySetup.setFlag<FlagField_T>(flagFieldId, FlagUID("NoSlip"), mesh::BoundarySetup::OUTSIDE);
          // set outflow flag to outflow boundary
-         boundarySetup.setBoundaryFlag<FlagField_T>(flagFieldId, PressureOutflowUID, OutflowBoundaryUID, makeBoundaryLocationFunction(distanceOctree, boundaryLocations),
-                                                      mesh::BoundarySetup::OUTSIDE);
+         boundarySetup.setBoundaryFlag<FlagField_T>(flagFieldId, PressureOutflowUID, OutflowBoundaryUID, makeBoundaryLocationFunction(distanceOctree, boundaryLocations), mesh::BoundarySetup::OUTSIDE);
          // set inflow flag to inflow boundary
-         boundarySetup.setBoundaryFlag<FlagField_T>(flagFieldId, inflowUID, InflowBoundaryUID,
-                                                      makeBoundaryLocationFunction(distanceOctree, boundaryLocations),
-                                                      mesh::BoundarySetup::OUTSIDE);
+         boundarySetup.setBoundaryFlag<FlagField_T>(flagFieldId, inflowUID, InflowBoundaryUID, makeBoundaryLocationFunction(distanceOctree, boundaryLocations), mesh::BoundarySetup::OUTSIDE);
          meshWriter.addDataSource(make_shared< mesh::BoundaryUIDFaceDataSource< mesh::TriangleMesh > >(boundaryLocations));
          meshWriter.addDataSource(make_shared< mesh::ColorFaceDataSource< mesh::TriangleMesh > >());
          meshWriter.addDataSource(make_shared< mesh::ColorVertexDataSource< mesh::TriangleMesh > >());
@@ -338,15 +328,17 @@ int main(int argc, char **argv)
       }
       else if (geometrySetup == "particleBed") {
          mpi::MPIManager::instance()->useWorldComm();
-         const AABB  domainAABB = AABB(0.0, 0.0, 0.0, 0.1, 0.1, 0.1);
-         Vector3<real_t> dx(0.001, 0.001, 0.001);
-         Vector3<uint_t> numCells(uint_c(domainAABB.xSize() / dx[0]), uint_c(domainAABB.ySize() / dx[1]), uint_c(domainAABB.zSize() / dx[2]));
+         const AABB  domainAABB = AABB(0.0, 0.0, 0.0, 0.1, 0.05, 0.1);
+         const real_t dx = 0.0002;
+         Vector3<uint_t> numCells(uint_c(domainAABB.xSize() / dx), uint_c(domainAABB.ySize() / dx), uint_c(domainAABB.zSize() / dx));
          Vector3<uint_t> numBlocks(uint_c(std::ceil(numCells[0] / cellsPerBlock[0])), uint_c(std::ceil(numCells[1] / cellsPerBlock[1])), uint_c(std::ceil(numCells[2] / cellsPerBlock[2])));
-         blocks = blockforest::createUniformBlockGrid( domainAABB, numBlocks[0], numBlocks[1], numBlocks[2], cellsPerBlock[0],  cellsPerBlock[1],  cellsPerBlock[2], true, false, false, false, false);
+
+         blocks = blockforest::createUniformBlockGrid(domainAABB, numBlocks[0], numBlocks[1], numBlocks[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2]);
+
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
-         const std::string filename = "/local/ed94aqyc/walberla_all/walberla/cmake-build-release/apps/showcases/Antidunes/spheres_out.dat";
-         initSpheresFromFile(filename, blocks, flagFieldId, noslipFlagUID, dx[0]);
+         const std::string filename = "/local/ed94aqyc/walberla_all/walberla/cmake-build-cpu_release/apps/showcases/Antidunes/spheres_out.dat";
+         initSpheresFromFile(filename, blocks, flagFieldId, noslipFlagUID, dx);
          geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
       }
       else {
@@ -369,7 +361,9 @@ int main(int argc, char **argv)
       const Set< SUID > sweepSelectHighPorosity("HighPorosity");
       const Set< SUID > sweepSelectLowPorosity("LowPorosity");
 
-      //Calculate Poriosity
+      // Calculate Poriosity
+      real_t minPorosity = 1.0;
+      real_t averagePorosity = 0.0;
       for (auto& block : *blocks)
       {
          uint_t fluidCells = 0;
@@ -386,6 +380,10 @@ int main(int argc, char **argv)
             numberOfCells++;
          }
          real_t blockPorosity = real_c(fluidCells) / real_c(numberOfCells);
+         if (blockPorosity < minPorosity)
+            minPorosity = blockPorosity;
+         averagePorosity += blockPorosity;
+         //WALBERLA_LOG_INFO("Block porosity of block " << block.getId() << " is " << blockPorosity)
          if (blockPorosity > porositySwitch && runHybrid) {
             block.setState(sweepSelectHighPorosity);
          }
@@ -393,6 +391,15 @@ int main(int argc, char **argv)
             block.setState(sweepSelectLowPorosity);
          }
       }
+      averagePorosity /= real_c(blocks->getNumberOfBlocks());
+      WALBERLA_MPI_SECTION() {
+         walberla::mpi::reduceInplace(minPorosity, walberla::mpi::MIN);
+         walberla::mpi::reduceInplace(averagePorosity, walberla::mpi::SUM);
+      }
+      averagePorosity /= real_c(nrOfProcesses);
+      WALBERLA_LOG_INFO_ON_ROOT("Minimal Porosity: " << minPorosity << " , Average Porosity: " << averagePorosity)
+
+
 
 
 
@@ -420,6 +427,7 @@ int main(int argc, char **argv)
 
       lbm::DenseLBSweep denseKernel(pdfFieldIdGPU, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], Cell(cell_idx_c(InnerOuterSplit[0]), cell_idx_c(InnerOuterSplit[1]), cell_idx_c(InnerOuterSplit[2])));
       lbm::DenseUBB denseUbb(blocks, pdfFieldIdGPU, initialVelocity[0]);
+      lbm::DensePressure densePressureInflow(blocks, pdfFieldIdGPU, 1.01);
       lbm::DensePressure densePressureOutflow(blocks, pdfFieldIdGPU, 1.0);
       lbm::DenseNoSlip denseNoSlip(blocks, pdfFieldIdGPU);
 #else
@@ -427,10 +435,12 @@ int main(int argc, char **argv)
 
       lbm::DenseLBSweep denseKernel(pdfFieldId, omega, Cell(cell_idx_c(InnerOuterSplit[0]), cell_idx_c(InnerOuterSplit[1]), cell_idx_c(InnerOuterSplit[2])));
       lbm::DenseUBB denseUbb(blocks, pdfFieldId, initialVelocity[0]);
+      lbm::DensePressure densePressureInflow(blocks, pdfFieldId, 1.01);
       lbm::DensePressure densePressureOutflow(blocks, pdfFieldId, 1.0);
       lbm::DenseNoSlip denseNoSlip(blocks, pdfFieldId);
 #endif
       lbmpy::SparseUBB sparseUbb(blocks, pdfListId, initialVelocity[0]);
+      lbmpy::SparsePressure sparsePressureInflow(blocks, pdfListId, 1.01);
       lbmpy::SparsePressure sparsePressureOutflow(blocks, pdfListId, 1.0);
       lbmpy::SparseMacroSetter sparseSetterSweep(pdfListId);
 
@@ -449,15 +459,20 @@ int main(int argc, char **argv)
             WALBERLA_CHECK_NOT_NULLPTR(lbmList)
             lbmList->fillFromFlagField< FlagField_T >(block, flagFieldId, fluidFlagUID);
 
-            sparseUbb.fillFromFlagField< FlagField_T >(&block, flagFieldId, inflowUID, fluidFlagUID);
+            if(pressureInflow)
+               sparsePressureInflow.fillFromFlagField< FlagField_T >(&block, flagFieldId, inflowUID, fluidFlagUID);
+            else
+               sparseUbb.fillFromFlagField< FlagField_T >(&block, flagFieldId, inflowUID, fluidFlagUID);
             sparsePressureOutflow.fillFromFlagField< FlagField_T >(&block, flagFieldId, PressureOutflowUID, fluidFlagUID);
-            // noSlip.fillFromFlagField< FlagField_T >(&block, flagFieldId, noslipFlagUID, fluidFlagUID);
 
             sparseSetterSweep(&block);
 
          }
          else if (block.getState() == sweepSelectHighPorosity) {
-            denseUbb.fillFromFlagField< FlagField_T >(&block, flagFieldId, inflowUID, fluidFlagUID);
+            if(pressureInflow)
+               densePressureInflow.fillFromFlagField< FlagField_T >(&block, flagFieldId, inflowUID, fluidFlagUID);
+            else
+               denseUbb.fillFromFlagField< FlagField_T >(&block, flagFieldId, inflowUID, fluidFlagUID);
             densePressureOutflow.fillFromFlagField< FlagField_T >(&block, flagFieldId, PressureOutflowUID, fluidFlagUID);
             denseNoSlip.fillFromFlagField< FlagField_T >(&block, flagFieldId, noslipFlagUID, fluidFlagUID);
 
@@ -497,6 +512,8 @@ int main(int argc, char **argv)
             timeloop.add() << Sweep(denseNoSlip.getSweep(tracker), "denseNoslip", sweepSelectHighPorosity, sweepSelectLowPorosity);
             timeloop.add() << Sweep(sparseUbb.getSweep(tracker), "sparseUbb", sweepSelectLowPorosity, sweepSelectHighPorosity)
                            << Sweep(denseUbb.getSweep(tracker), "denseUbb", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(sparsePressureInflow.getSweep(tracker), "sparsePressureInflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(densePressureInflow.getSweep(tracker), "densePressureInflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
             timeloop.add() << Sweep(sparsePressureOutflow.getSweep(tracker), "sparsePressureOutflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
                            << Sweep(densePressureOutflow.getSweep(tracker), "densePressureOutflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
          }
@@ -513,6 +530,8 @@ int main(int argc, char **argv)
             timeloop.add() << Sweep(denseNoSlip.getSweep(tracker), "denseNoslip", sweepSelectHighPorosity, sweepSelectLowPorosity);
             timeloop.add() << Sweep(sparseUbb.getSweep(tracker), "sparseUbb", sweepSelectLowPorosity, sweepSelectHighPorosity)
                            << Sweep(denseUbb.getSweep(tracker), "denseUbb", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(sparsePressureInflow.getSweep(tracker), "sparsePressureInflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(densePressureInflow.getSweep(tracker), "densePressureInflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
             timeloop.add() << Sweep(sparsePressureOutflow.getSweep(tracker), "sparsePressureOutflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
                            << Sweep(densePressureOutflow.getSweep(tracker), "densePressureOutflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
          }
