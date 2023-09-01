@@ -1,6 +1,6 @@
 BlockForestParameters
 {
-   cellsPerBlock                 < 25, 25, 1 >;
+   cellsPerBlock                 < 16, 16, 1 >;
    periodicity                   < 0, 0, 1 >;
    loadBalancingFrequency        0;
    printLoadBalancingStatistics  false;
@@ -8,19 +8,21 @@ BlockForestParameters
 
 DomainParameters
 {
-   domainWidth       50; // equivalent to wavelength
-   liquidDepth       25;
+   //domainWidth       32;
+   //liquidDepth       16;
    initialAmplitude  0.5;
 }
 
 PhysicsParameters
 {
-   //velAtBoundary     < 0.01, 0, 0 >;
    reynoldsNumber    1;
    relaxationRate    1.8;
    enableWetting     false;
    contactAngle      0; // only used if enableWetting=true
    timesteps         86400;
+   amplitude         1.0;   // amplitude of sinus multiplied with force in x-direction
+   wavelength        8640;  // wavelength of sinus multiplied with force in x-direction
+   offset            0.0;   // offset of sinus multiplied with force in x-direction
 }
 
 ModelParameters
