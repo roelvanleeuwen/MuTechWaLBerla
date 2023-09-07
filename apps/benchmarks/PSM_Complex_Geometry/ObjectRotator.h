@@ -46,8 +46,6 @@
 #include "mesh/blockforest/BlockExclusion.h"
 #include "mesh/blockforest/BlockForestInitialization.h"
 #include "mesh/boundary/BoundaryInfo.h"
-#include "mesh/boundary/BoundaryLocation.h"
-#include "mesh/boundary/BoundaryLocationFunction.h"
 #include "mesh/boundary/BoundarySetup.h"
 #include "mesh/boundary/BoundaryUIDFaceDataSource.h"
 #include "mesh/boundary/ColorToBoundaryMapper.h"
@@ -293,7 +291,6 @@ class ObjectRotator
 
    BlockDataID getObjectFractionFieldID() {
       return fractionFieldId_;
-
    }
 
  private:
@@ -322,9 +319,10 @@ void fuseFractionFields(shared_ptr< StructuredBlockForest >& blocks, BlockDataID
       WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(dstFractionField,
           dstFractionField->get(x,y,z) = 0;
           for (auto srcFracField : srcFracFields) {
-             dstFractionField->get(x,y,z) += srcFracField->get(x,y,z);
+             dstFractionField->get(x,y,z) = std::max(srcFracField->get(x,y,z),dstFractionField->get(x,y,z));
           }
       )
+
    }
 }
 

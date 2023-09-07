@@ -39,6 +39,7 @@
 #include "timeloop/all.h"
 
 #include "ObjectRotator.h"
+#include "ObjectRotatorGPU.h"
 #include "PSM_InfoHeader.h"
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -297,11 +298,20 @@ int main(int argc, char** argv)
 
 
    //Setting up Object Rotator
-   ObjectRotator objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, "base", maxSuperSamplingDepth, false);
-   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, true);
-   ObjectRotator objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  distanceOctreeMeshStator, "stator", maxSuperSamplingDepth, true);
-   fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   ObjectRotatorGPU objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, "CROR_base", maxSuperSamplingDepth, false);
+   ObjectRotatorGPU objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, "CROR_rotor", maxSuperSamplingDepth, true);
+   ObjectRotatorGPU objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "CROR_stator", maxSuperSamplingDepth, true);
 
+   //ObjectRotatorGPU objectRotatorSphere(blocks, meshBase, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "sphere", maxSuperSamplingDepth, false);
+
+#else
+   ObjectRotator objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, "CROR_base", maxSuperSamplingDepth, false);
+   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, "CROR_rotor", maxSuperSamplingDepth, true);
+   ObjectRotator objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  distanceOctreeMeshStator, "CROR_stator", maxSuperSamplingDepth, true);
+#endif
+   fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
+   //fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorSphere.getObjectFractionFieldID()});
 
    std::vector<BlockDataID> fractionFieldIds;
    if (preProcessFractionFields && rotationFrequency > 0) {
