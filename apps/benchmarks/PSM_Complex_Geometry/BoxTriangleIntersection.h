@@ -185,3 +185,48 @@ int triBoxOverlap(float boxcenter[3],float boxhalfsize[3],float triverts[3][3])
    return 1;   /* box and triangle overlaps */
 }
 
+
+
+
+bool RayIntersectsTriangle(float rayOrigin[3], float rayVector[3], float inTriangle[3][3])
+{
+   const float EPSILON = 0.00000000001f;
+   float vertex0[3] = {inTriangle[0][0], inTriangle[0][1], inTriangle[0][2]};
+   float vertex1[3] = {inTriangle[1][0], inTriangle[1][1], inTriangle[1][2]};
+   float vertex2[3] = {inTriangle[2][0], inTriangle[2][1], inTriangle[2][2]};
+   float edge1[3], edge2[3], h[3], s[3], q[3];
+   float a, f, u, v;
+
+   SUB(edge1,vertex1,vertex0)
+   SUB(edge2,vertex2,vertex0)
+
+   CROSS(h,rayVector,edge2)
+   a = DOT(edge1,h);
+
+   //if (a > -EPSILON && a < EPSILON)
+   //   return false;    // This ray is parallel to this triangle.
+
+   f = 1.0f / a;
+   SUB(s,rayOrigin,vertex0)
+   u = f * DOT(s, h);
+
+   if (u < 0.0 || u > 1.0)
+      return false;
+
+   CROSS(q, s ,edge1)
+   v = f * DOT(rayVector, q);
+
+   if (v < 0.0 || u + v > 1.0)
+      return false;
+
+   // At this stage we can compute t to find out where the intersection point is on the line.
+   float t = f * DOT(edge2, q);
+
+   if (t > EPSILON) // ray intersection
+   {
+      return true;
+   }
+   else // This means that there is a line intersection but not a ray intersection.
+      return false;
+}
+

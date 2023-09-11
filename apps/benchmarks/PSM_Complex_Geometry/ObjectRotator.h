@@ -319,10 +319,9 @@ void fuseFractionFields(shared_ptr< StructuredBlockForest >& blocks, BlockDataID
       WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(dstFractionField,
           dstFractionField->get(x,y,z) = 0;
           for (auto srcFracField : srcFracFields) {
-             dstFractionField->get(x,y,z) = std::max(srcFracField->get(x,y,z),dstFractionField->get(x,y,z));
+             dstFractionField->get(x,y,z) = std::max(srcFracField->get(x,y,z), dstFractionField->get(x,y,z));
           }
       )
-
    }
 }
 

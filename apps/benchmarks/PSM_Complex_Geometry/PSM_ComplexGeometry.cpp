@@ -29,18 +29,18 @@
 #include "geometry/all.h"
 
 //#include "lbm_generated/communication/UniformGeneratedPdfPackInfo.h"
-#include "lbm_generated/communication/NonuniformGeneratedPdfPackInfo.h"
-#include "lbm_generated/evaluation/PerformanceEvaluation.h"
-#include "lbm_generated/field/PdfField.h"
-#include "lbm_generated/field/AddToStorage.h"
-#include "lbm_generated/refinement/BasicRecursiveTimeStep.h"
-
 #include "stencil/D3Q19.h"
+
 #include "timeloop/all.h"
 
 #include "ObjectRotator.h"
-#include "ObjectRotatorGPU.h"
+#include "ObjectRotatorGPU.cu"
 #include "PSM_InfoHeader.h"
+#include "lbm_generated/communication/NonuniformGeneratedPdfPackInfo.h"
+#include "lbm_generated/evaluation/PerformanceEvaluation.h"
+#include "lbm_generated/field/AddToStorage.h"
+#include "lbm_generated/field/PdfField.h"
+#include "lbm_generated/refinement/BasicRecursiveTimeStep.h"
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 #include "lbm_generated/gpu/AddToStorage.h"
@@ -157,7 +157,7 @@ int main(int argc, char** argv)
 
 
    const Vector3< real_t > domainScaling = domainParameters.getParameter< Vector3< real_t > >("domainScaling", Vector3< real_t >(1.0));
-   const Vector3< real_t > domainTransforming = domainParameters.getParameter< Vector3< real_t > >("domainTransforming", Vector3< real_t >(1.0));
+   const Vector3< real_t > domainTransforming = domainParameters.getParameter< Vector3< real_t > >("domainTransforming", Vector3< real_t >(0.0));
    const Vector3< bool > periodicity = domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
    const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
    const uint_t refinementDepth = domainParameters.getParameter< uint_t >("refinementDepth");
@@ -224,7 +224,12 @@ int main(int argc, char** argv)
    mesh::readAndBroadcast(meshFileStator, *meshStator);
    auto distanceOctreeMeshStator = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshStator));
 
-   auto aabbBase = computeAABB(*meshBase);
+   auto meshBunny = make_shared< mesh::TriangleMesh >();
+   mesh::readAndBroadcast("bunny.obj", *meshBunny);
+
+   //auto aabbBase = computeAABB(*meshBase);
+   auto aabbBase = computeAABB(*meshBunny);
+
    AABB aabb = aabbBase;
    aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
    aabb.scale(domainScaling);
@@ -299,19 +304,19 @@ int main(int argc, char** argv)
 
    //Setting up Object Rotator
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   ObjectRotatorGPU objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, "CROR_base", maxSuperSamplingDepth, false);
-   ObjectRotatorGPU objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, "CROR_rotor", maxSuperSamplingDepth, true);
-   ObjectRotatorGPU objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "CROR_stator", maxSuperSamplingDepth, true);
+   //ObjectRotatorGPU objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, "CROR_base", maxSuperSamplingDepth, false);
+   //ObjectRotatorGPU objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, "CROR_rotor", maxSuperSamplingDepth, true);
+   //ObjectRotatorGPU objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "CROR_stator", maxSuperSamplingDepth, true);
 
-   //ObjectRotatorGPU objectRotatorSphere(blocks, meshBase, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "sphere", maxSuperSamplingDepth, false);
+   ObjectRotatorGPU objectRotatorSphere(blocks, meshBase, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "bunny", maxSuperSamplingDepth, false);
 
 #else
    ObjectRotator objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, "CROR_base", maxSuperSamplingDepth, false);
    ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, "CROR_rotor", maxSuperSamplingDepth, true);
    ObjectRotator objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  distanceOctreeMeshStator, "CROR_stator", maxSuperSamplingDepth, true);
 #endif
-   fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
-   //fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorSphere.getObjectFractionFieldID()});
+   //fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
+   fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorSphere.getObjectFractionFieldID()});
 
    std::vector<BlockDataID> fractionFieldIds;
    if (preProcessFractionFields && rotationFrequency > 0) {
@@ -335,10 +340,10 @@ int main(int argc, char** argv)
          for (uint_t i = 0; i < numFields; ++i) {
             WALBERLA_LOG_INFO_ON_ROOT("Calc frac field number " << i)
             const BlockDataID tmpFractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionFieldId_" + std::to_string(i), fracSize(0.0), field::fzyx);
-            objectRotatorMeshBase(0);
-            objectRotatorMeshRotor(0);
-            objectRotatorMeshStator(0);
-            fuseFractionFields(blocks, tmpFractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
+            //objectRotatorMeshBase(0);
+            //objectRotatorMeshRotor(0);
+            //objectRotatorMeshStator(0);
+            //fuseFractionFields(blocks, tmpFractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
             fractionFieldIds.push_back(tmpFractionFieldId);
             WALBERLA_MPI_BARRIER()
          }
@@ -385,10 +390,10 @@ int main(int argc, char** argv)
    /////////////////////////
 
    const std::function< void() > objectRotatorFunc = [&]() {
-      objectRotatorMeshBase(timeloop.getCurrentTimeStep());
-      objectRotatorMeshRotor(timeloop.getCurrentTimeStep());
-      objectRotatorMeshStator(timeloop.getCurrentTimeStep());
-      fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
+      //objectRotatorMeshBase(timeloop.getCurrentTimeStep());
+      //objectRotatorMeshRotor(timeloop.getCurrentTimeStep());
+      //objectRotatorMeshStator(timeloop.getCurrentTimeStep());
+      //fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldId);
 #endif

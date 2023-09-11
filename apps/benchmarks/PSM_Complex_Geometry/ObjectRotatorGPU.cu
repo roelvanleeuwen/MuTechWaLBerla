@@ -26,6 +26,9 @@
 #include <fstream>
 #include <string>
 
+#include <curand.h>
+#include <curand_kernel.h>
+
 #include "BoxTriangleIntersection.h"
 
 
@@ -91,7 +94,7 @@ class ObjectRotatorGPU
       meshCenter = computeCentroid(*mesh_);
       initObjectVelocityField();
       WALBERLA_LOG_INFO_ON_ROOT("Start voxelizeBoxTriangleIntersection")
-      voxelizeBoxTriangleIntersection();
+      voxelizeRayTracing();
       WALBERLA_LOG_INFO_ON_ROOT("Finished voxelizeBoxTriangleIntersection")
    }
 
@@ -103,7 +106,8 @@ class ObjectRotatorGPU
             //rotate();
             //resetFractionField();
             //getFractionFieldFromMesh();
-            voxelizeBoxTriangleIntersection();
+            //voxelizeBoxTriangleIntersection();
+            //voxelizeRayTracing();
          }
       }
    }
@@ -256,11 +260,6 @@ class ObjectRotatorGPU
             faceAABB.intersect(block.getAABB());
             if(faceAABB.empty()) continue;
 
-            float normal[3],e0[3],e1[3],e2[3];
-            SUB(e0,triangle[1],triangle[0]);      /* tri edge 0 */
-            SUB(e1,triangle[2],triangle[1]);      /* tri edge 1 */
-            CROSS(normal,e0,e1);
-
             for (auto cellIt = cellBB.begin(); cellIt != cellBB.end(); ++cellIt) {
                auto cellAABB = blocks_->getAABBFromCellBB(CellInterval( *cellIt, *cellIt), level);
                cellAABB.intersect(block.getAABB());
@@ -272,16 +271,124 @@ class ObjectRotatorGPU
                if (intersection) {
                   Cell localCell;
                   blocks_->transformGlobalToBlockLocalCell(localCell, block, *cellIt);
-                  float flag;
-                  if (normal[0] <= 0) {   //front side triangle
-                     flag = 2.0;
-                     if (fractionField->get(localCell) == 3.0) flag = 4.0; //cell triangles with front and back faces
-                  } else if (normal[0] > 0) {
-                     flag = 3.0;
-                     if (fractionField->get(localCell) == 2.0) flag = 4.0; //cell triangles with front and back faces
-                  }
-                  fractionField->get(localCell) = flag;
+                  fractionField->get(localCell) += 1.0f;
                }
+            }
+         }
+      }
+   }
+
+
+   void voxelizeRayTracing() {
+      for (auto& block : *blocks_)
+      {
+         auto fractionField = block.getData< FracField_T >(fractionFieldId_);
+         auto level         = blocks_->getLevel(block);
+         float dx     = float(blocks_->dx(level));
+         float cellCenter[3];
+         float triangle[3][3];
+         float rayDirection[3];
+         float intersectionPoint[3];
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(fractionField,
+            cell::Cell curCell = Cell(x,y,z);
+
+            auto cellAABB = blocks_->getAABBFromCellBB(CellInterval( curCell, curCell), level);
+            cellCenter[0] = float(cellAABB.center()[0]);
+            cellCenter[1] = float(cellAABB.center()[1]);
+            cellCenter[2] = float(cellAABB.center()[2]);
+            uint intersections = 0;
+            //TODO Shoot multiple rays
+            rayDirection[0] = float(rand()) /  float(RAND_MAX); rayDirection[1] = float(rand()) /  float(RAND_MAX); rayDirection[2] = float(rand()) /  float(RAND_MAX);
+            for (uint i = 0; i < triangles_.size(); ++i) {
+               triangle[0][0] = vertices_[triangles_[i].x].x;
+               triangle[0][1] = vertices_[triangles_[i].x].y;
+               triangle[0][2] = vertices_[triangles_[i].x].z;
+               triangle[1][0] = vertices_[triangles_[i].y].x;
+               triangle[1][1] = vertices_[triangles_[i].y].y;
+               triangle[1][2] = vertices_[triangles_[i].y].z;
+               triangle[2][0] = vertices_[triangles_[i].z].x;
+               triangle[2][1] = vertices_[triangles_[i].z].y;
+               triangle[2][2] = vertices_[triangles_[i].z].z;
+
+               if(RayIntersectsTriangle(cellCenter, rayDirection, triangle))
+                  intersections ++;
+            }
+            if (intersections % 2 == 1) {
+               fractionField->get(x,y,z) = 1.0;
+            }
+         )
+      }
+   }
+
+   void voxelizeRayTracingGPUCall() {
+      for (auto& block : *blocks_)
+      {
+         auto fractionField = block.getData< gpu::GPUField< fracSize > >(fractionFieldId_);
+         fracSize * RESTRICT const fractionFieldData = fractionField->dataAt(-1, -1, -1, 0);
+         auto level         = blocks_->getLevel(block);
+         auto dx     = float(blocks_->dx(level));
+         auto blockAABB = block.getAABB();
+         const real_t minAABB[3] = {blockAABB.minCorner()[0], blockAABB.minCorner()[1], blockAABB.minCorner()[2]};
+         const int64_t size_frac_field[3] = {int64_t(fractionField->xSizeWithGhostLayer()), int64_t(fractionField->ySizeWithGhostLayer()), int64_t(fractionField->zSizeWithGhostLayer()};
+
+         voxelizeRayTracingGPU(fractionFieldData, minAABB, size_frac_field, dx);
+         float t[3] = {1,2,3};
+         float s[3] = t;
+      };
+   };
+
+
+   __device__ static bool RayIntersectsTriangle(float rayOrigin[3], float rayVector[3], int inTriangle[3], float * vertices[3])
+{
+   const float EPSILON = 0.00000001f;
+   float edge1[3], edge2[3], h[3], s[3], q[3];
+   float a, f, u, v;
+   SUB(edge1,vertices[inTriangle[1]],vertices[inTriangle[0]])
+   SUB(edge2,vertices[inTriangle[2]],vertices[inTriangle[0]])
+   CROSS(h,rayVector,edge2)
+   a = DOT(edge1,h);
+   if (a > -EPSILON && a < EPSILON) return false;    // This ray is parallel to this triangle.
+   f = 1.0f / a;
+   SUB(s,rayOrigin,vertices[inTriangle[0]])
+   u = f * DOT(s, h);
+   if (u < 0.0 || u > 1.0) return false;
+   CROSS(q, s ,edge1)
+   v = f * DOT(rayVector, q);
+   if (v < 0.0 || u + v > 1.0) return false;
+   // At this stage we can compute t to find out where the intersection point is on the line.
+   float t = f * DOT(edge2, q);
+   if (t > EPSILON) return true;
+   else return false;
+}
+
+
+   __global__
+   static void voxelizeRayTracingGPU(fracSize * RESTRICT const fractionFieldData, const float minAABB[3], const float size_frac_field[3], const float dx, int * triangles[3], float * vertices[3], float numTriangles, curandState *state) {
+
+      if (blockDim.x*blockIdx.x + threadIdx.x < size_frac_field[0] && blockDim.y*blockIdx.y + threadIdx.y < size_frac_field[1] && blockDim.z*blockIdx.z + threadIdx.z < size_frac_field[2] )
+      {
+         const int x = blockDim.x*blockIdx.x + threadIdx.x - 1;
+         const int y = blockDim.y*blockIdx.y + threadIdx.y - 1;
+         const int z = blockDim.z*blockIdx.z + threadIdx.z - 1;
+         const int idx = x + y * size_frac_field[1] + y * size_frac_field[1] * z * y * size_frac_field[2];
+         curand_init(1234, idx, 0, &state[idx]);
+
+         float dxHalf = 0.5 * dx;
+         float cellCenter[3] = {minAABB[0] + x * dx + dxHalf, minAABB[1] + y * dx + dxHalf, minAABB[2] + z * dx + dxHalf};
+
+         float rayDirection[3];
+         rayDirection[0] = float(curand_uniform(state+idx));
+         rayDirection[1] = float(curand_uniform(state+idx+1));
+         rayDirection[2] = float(curand_uniform(state+idx+2));
+
+         int intersections = 0;
+
+         //TODO Shoot multiple rays
+         for (int i = 0; i < numTriangles; ++i) {
+            if(RayIntersectsTriangle(cellCenter, rayDirection, triangles[i], vertices))
+               intersections ++;
+            if (intersections % 2 == 1) {
+               fractionFieldData[idx] = 1.0;
             }
          }
       }
@@ -290,11 +397,12 @@ class ObjectRotatorGPU
 
 
 
+
  private:
    shared_ptr< StructuredBlockForest > blocks_;
    shared_ptr< mesh::TriangleMesh > mesh_;
-   std::vector<float3> vertices_;
-   std::vector<uint3> triangles_;
+   float * vertices_[3];
+   int * triangles[3];
    BlockDataID fractionFieldId_;
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
