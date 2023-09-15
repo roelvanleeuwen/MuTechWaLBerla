@@ -1,0 +1,33 @@
+
+NumericalSetup
+{
+    // product of number of blocks should be equal to number of used processes
+    numXBlocks 1;
+    numYBlocks 1;
+    numZBlocks 1;
+
+    periodicInY true;
+    periodicInZ true;
+
+    numXCellsPerBlock 200;
+    numYCellsPerBlock 100;
+    numZCellsPerBlock 100;
+
+    timeSteps 10000;
+
+    // particle distribution in LBM units
+    particleDiameter 10.0;
+    particleGenerationSpacing 15.0;
+
+    // fluid quantities in LBM units
+    pressureDifference 0.1;
+    relaxationRate 0.9;
+}
+
+Output
+{
+    vtkSpacing 500;
+    vtkFolder vtk_out;
+
+    performanceLogFrequency 500;
+}
