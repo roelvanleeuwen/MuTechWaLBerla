@@ -138,7 +138,7 @@ int main(int argc, char** argv)
 
    const bool periodicInX                     = false;
    shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGrid(
-      numXBlocks, numYBlocks, numZBlocks, numXCellsPerBlock, numYCellsPerBlock, numZCellsPerBlock, real_t(1), real_t(0),
+      numXBlocks, numYBlocks, numZBlocks, numXCellsPerBlock, numYCellsPerBlock, numZCellsPerBlock, real_t(1), uint_t(0),
       false, false, periodicInX, periodicInY, periodicInZ, // periodicity
       false);
 
