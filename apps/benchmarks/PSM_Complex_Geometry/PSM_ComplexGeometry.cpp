@@ -34,7 +34,7 @@
 #include "timeloop/all.h"
 
 #include "ObjectRotator.h"
-#include "ObjectRotatorGPU.cu"
+#include "ObjectRotatorGPU.h"
 #include "PSM_InfoHeader.h"
 #include "lbm_generated/communication/NonuniformGeneratedPdfPackInfo.h"
 #include "lbm_generated/evaluation/PerformanceEvaluation.h"

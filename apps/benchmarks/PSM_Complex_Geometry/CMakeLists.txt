@@ -20,7 +20,7 @@ walberla_generate_target_from_python( NAME PSM_ComplexGeometryCodeGen
 
 if(WALBERLA_BUILD_WITH_GPU_SUPPORT)
     walberla_add_executable ( NAME PSM_ComplexGeometry
-            FILES PSM_ComplexGeometry.cpp ObjectRotator.h
+            FILES PSM_ComplexGeometry.cpp ObjectRotator.h ObjectRotatorGPU.h
             DEPENDS blockforest gpu core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk PSM_ComplexGeometryCodeGen )
 else()
     walberla_add_executable ( NAME PSM_ComplexGeometry
