@@ -1,7 +1,7 @@
 //
 // Created by ed94aqyc on 9/6/23.
 //
-
+#pragma once
 #include <math.h>
 
 #   pragma GCC diagnostic ignored "-Wconversion"

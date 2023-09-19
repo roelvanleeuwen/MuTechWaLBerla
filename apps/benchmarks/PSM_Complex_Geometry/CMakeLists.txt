@@ -9,7 +9,6 @@ walberla_generate_target_from_python( NAME PSM_ComplexGeometryCodeGen
         OUT_FILES PSMStorageSpecification.h PSMStorageSpecification.${CODEGEN_FILE_SUFFIX}
         PSMSweepCollection.h PSMSweepCollection.${CODEGEN_FILE_SUFFIX}
         PSMBoundaryCollection.h
-        #PSMSweep.${CODEGEN_FILE_SUFFIX} PSMSweep.h
         NoSlip.${CODEGEN_FILE_SUFFIX} NoSlip.h
         UBB.${CODEGEN_FILE_SUFFIX} UBB.h
         FixedDensity.${CODEGEN_FILE_SUFFIX} FixedDensity.h
@@ -20,7 +19,7 @@ walberla_generate_target_from_python( NAME PSM_ComplexGeometryCodeGen
 
 if(WALBERLA_BUILD_WITH_GPU_SUPPORT)
     walberla_add_executable ( NAME PSM_ComplexGeometry
-            FILES PSM_ComplexGeometry.cpp ObjectRotator.h ObjectRotatorGPU.h
+            FILES PSM_ComplexGeometry.cpp ObjectRotator.h ObjectRotatorGPU.cu
             DEPENDS blockforest gpu core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk PSM_ComplexGeometryCodeGen )
 else()
     walberla_add_executable ( NAME PSM_ComplexGeometry

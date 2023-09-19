@@ -22,6 +22,8 @@
 #include "core/math/Constants.h"
 #include "blockforest/all.h"
 #include "field/all.h"
+#include "gpu/GPUField.h"
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -30,7 +32,7 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-#include "BoxTriangleIntersection.h"
+//#include "BoxTriangleIntersection.h"
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 #include "gpu/AddGPUFieldToStorage.h"
@@ -101,7 +103,7 @@ class ObjectRotatorGPU
       meshCenter = computeCentroid(*mesh_);
       initObjectVelocityField();
       WALBERLA_LOG_INFO_ON_ROOT("Start voxelizeBoxTriangleIntersection")
-      voxelizeRayTracing();
+      voxelizeRayTracingGPUCall();
       WALBERLA_LOG_INFO_ON_ROOT("Finished voxelizeBoxTriangleIntersection")
    }
 
@@ -270,7 +272,7 @@ class ObjectRotatorGPU
       return math::GenericAABB< float >::createFromMinMaxCorner( Vector3<float>(min[0], min[1], min[2]), Vector3<float>(max[0], max[1], max[2]) );
    }
 
-
+/*
    void voxelizeBoxTriangleIntersection() {
       for (auto& block : *blocks_)
       {
@@ -324,9 +326,9 @@ class ObjectRotatorGPU
             uint intersections = 0;
             //TODO Shoot multiple rays
             rayDirection[0] = float(rand()) /  float(RAND_MAX); rayDirection[1] = float(rand()) /  float(RAND_MAX); rayDirection[2] = float(rand()) /  float(RAND_MAX);
-            for (size_t i = 0; i < numTriangles_; ++i) {
-               for(size_t y = 0; y < 3; ++y) {
-                  for(size_t x = 0; x < 3; ++x) {
+            for (int i = 0; i < numTriangles_; ++i) {
+               for(int y = 0; y < 3; ++y) {
+                  for(int x = 0; x < 3; ++x) {
                      triangle[y][x] = vertices_[3 * triangles_[3*i + y] + x];
                   }
                }
@@ -339,7 +341,7 @@ class ObjectRotatorGPU
          )
       }
    }
-
+*/
 
 
 
