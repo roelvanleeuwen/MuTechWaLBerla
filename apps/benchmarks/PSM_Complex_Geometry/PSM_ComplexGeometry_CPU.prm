@@ -8,29 +8,32 @@ Parameters
     ref_length 1.0;         //rotor radius according to mesh file
     viscosity  1.49e-5;
     sim_time   0.0;         //set to 0, then timesteps is used
-    mesh_size  0.01;    // 2 mm;
+    mesh_size  0.02;    // 2 mm;
 
     timeStepStrategy   refinement;
     innerOuterSplit    <1,1,1>;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 100;
-    writeDomainDecompositionAndReturn False;
+	VTKwriteFrequency 1;
+	writeDomainDecompositionAndReturn false;
 
+	writeFractionFieldAndReturn false;
+	loadFractionFieldsFromFile false;
+    preProcessFractionFields false;
+	maxSuperSamplingDepth 1;
 }
 
 DomainSetup
 {
-   rotationFrequency  100;
+   rotationFrequency  1;
    rotationSpeed      738.173;     //rad/s
    rotationAxis       < 1, 0, 0 >;
-   preProcessFractionFields false;
 
-   domainScaling      <  0.4, 10, 10 >;   //<  3, 50,  3 >;
+   domainScaling      <  0.1, 2, 2 >;   //<  3, 50,  3 >;
    domainTransforming <  0.45 , 0,  0 >;
-   cellsPerBlock      < 32, 32, 32 >;
+   cellsPerBlock      < 64, 64, 64 >;
    periodic           <  0,  1,  1 >;
-   refinementDepth    4 ;
+   refinementDepth    0 ;
 }
 
 Boundaries

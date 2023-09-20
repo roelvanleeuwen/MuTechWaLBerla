@@ -67,32 +67,35 @@ __device__ bool RayIntersectsTriangleGPU(float rayOrigin[3], float rayVector[3],
       return false;
 }
 
-__global__ static void voxelizeRayTracingGPU(fracSize* fractionFieldData, float minAABB[3], int size_frac_field[3],
-                                             float dx, int* triangles, float* vertices, float numTriangles,
+__global__ static void voxelizeRayTracingGPU(fracSize* fractionFieldData, float3 minAABB, int3 size_frac_fieldWithGL,
+                                             float dx, int* triangles, float* vertices, int numTriangles,
                                              curandState* state)
 {
-   if (threadIdx.x < size_frac_field[0] &&
-       blockDim.y * blockIdx.y  < size_frac_field[1] &&
-       blockDim.z * blockIdx.z  < size_frac_field[2])
+   const int x   = threadIdx.x;
+   const int y   = blockIdx.x;
+   const int z   = blockIdx.y;
+
+
+   if (x < size_frac_fieldWithGL.x &&
+       y < size_frac_fieldWithGL.y &&
+       z < size_frac_fieldWithGL.z)
    {
-      //TODO is -1 correct?
-      const int x   = threadIdx.x - 1;
-      const int y   = blockDim.y * blockIdx.y - 1;
-      const int z   = blockDim.z * blockIdx.z - 1;
-      const int idx = x + y * size_frac_field[1] + y * size_frac_field[1] * z * y * size_frac_field[2];
-      curand_init(1234, idx, 0, &state[idx]);
+      //printf("threadX %d threadY %d threadZ %d blockDimX %d blockDimY %d blockDimZ %d blockIdxX %d blockIdxY %d blockIdxZ %d \n",
+             //threadIdx.x,threadIdx.y,threadIdx.z, blockDim.x, blockDim.y, blockDim.z, blockIdx.x, blockIdx.y, blockIdx.z);
+      //printf("%d %d %d \n", x,y,z);
+      const int idx = x + y * size_frac_fieldWithGL.y + z * size_frac_fieldWithGL.x * size_frac_fieldWithGL.y;
+      //curand_init(1234, idx, 0, &state[0]);
 
       float dxHalf        = 0.5 * dx;
-      float cellCenter[3] = { minAABB[0] + x * dx + dxHalf, minAABB[1] + y * dx + dxHalf,
-                              minAABB[2] + z * dx + dxHalf };
+      float cellCenter[3] = { minAABB.x + x * dx + dxHalf, minAABB.y + y * dx + dxHalf,
+                              minAABB.z + z * dx + dxHalf };
 
       float rayDirection[3];
-      rayDirection[0] = float(curand_uniform(state + idx));
-      rayDirection[1] = float(curand_uniform(state + idx + 1));
-      rayDirection[2] = float(curand_uniform(state + idx + 2));
+      rayDirection[0] = 1.0f; //float(curand_uniform(state + idx));
+      rayDirection[1] = 2.0f; //float(curand_uniform(state + idx + 1));
+      rayDirection[2] = 3.0f; //float(curand_uniform(state + idx + 2));
 
       int intersections = 0;
-
       // TODO Shoot multiple rays
       for (int i = 0; i < numTriangles; ++i)
       {
@@ -103,7 +106,7 @@ __global__ static void voxelizeRayTracingGPU(fracSize* fractionFieldData, float 
                                   { vertices[3 * triangles[i * 3 + 2]], vertices[3 * triangles[i * 3 + 2] + 1],
                                     vertices[3 * triangles[i * 3 + 2] + 2] } };
          if (RayIntersectsTriangleGPU(cellCenter, rayDirection, triangle)) intersections++;
-         if (intersections % 2 == 1) { fractionFieldData[idx] = 1.0; }
+         //if (intersections % 2 == 1) { fractionFieldData[idx] = 1.0; }
       }
    }
 }
@@ -111,16 +114,16 @@ __global__ static void voxelizeRayTracingGPU(fracSize* fractionFieldData, float 
 void ObjectRotatorGPU::voxelizeRayTracingGPUCall() {
    for (auto& block : *blocks_)
    {
-      auto fractionField = block.getData< gpu::GPUField< fracSize > >(fractionFieldId_);
+      auto fractionField = block.getData< gpu::GPUField< fracSize > >(fractionFieldGPUId_);
       fracSize * RESTRICT const fractionFieldData = fractionField->dataAt(-1, -1, -1, 0);
       auto level         = blocks_->getLevel(block);
       auto dx     = float(blocks_->dx(level));
       auto blockAABB = block.getAABB();
-      float minAABB[3] = {float(blockAABB.minCorner()[0]), float(blockAABB.minCorner()[1]), float(blockAABB.minCorner()[2])};
-      int size_frac_field[3] = {int(fractionField->xSizeWithGhostLayer()), int(fractionField->ySizeWithGhostLayer()), int(fractionField->zSizeWithGhostLayer())};
+      float3 minAABB = {float(blockAABB.minCorner()[0]), float(blockAABB.minCorner()[1]), float(blockAABB.minCorner()[2])};
+      int3 size_frac_field = {int(fractionField->xSizeWithGhostLayer()), int(fractionField->ySizeWithGhostLayer()), int(fractionField->zSizeWithGhostLayer())};
 
-      const dim3 numBlocks(size_frac_field[1], size_frac_field[2]);
-      const dim3 threadsPerBlock(size_frac_field[0]);
+      const dim3 threadsPerBlock(size_frac_field.x);
+      const dim3 numBlocks(size_frac_field.y, size_frac_field.z);
 
       voxelizeRayTracingGPU<<<numBlocks, threadsPerBlock>>>(fractionFieldData, minAABB, size_frac_field, dx, triangles_, vertices_, numTriangles_, dev_curand_states);
    }

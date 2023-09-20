@@ -227,8 +227,8 @@ int main(int argc, char** argv)
    auto meshBunny = make_shared< mesh::TriangleMesh >();
    mesh::readAndBroadcast("bunny.obj", *meshBunny);
 
-   //auto aabbBase = computeAABB(*meshBase);
-   auto aabbBase = computeAABB(*meshBunny);
+   auto aabbBase = computeAABB(*meshBase);
+   //auto aabbBase = computeAABB(*meshBunny);
 
    AABB aabb = aabbBase;
    aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
@@ -286,10 +286,10 @@ int main(int argc, char** argv)
    /// Boundary Handling ///
    /////////////////////////
 
-   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterBase(meshBase, "meshBase", VTKWriteFrequency);
+   //mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterBase(meshBase, "meshBase", VTKWriteFrequency);
    mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterRotor(meshRotor, "meshRotor", VTKWriteFrequency);
-   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterStator(meshStator, "meshStator", VTKWriteFrequency);
-   const std::function< void() > meshWritingFunc = [&]() { meshWriterBase(); meshWriterRotor(); meshWriterStator(); };
+   //mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterStator(meshStator, "meshStator", VTKWriteFrequency);
+   const std::function< void() > meshWritingFunc = [&]() { /*meshWriterBase();*/ meshWriterRotor(); /*meshWriterStator();*/ };
    //meshWritingFunc();
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -300,7 +300,9 @@ int main(int argc, char** argv)
 
    const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", fracSize(0.0), field::fzyx, uint_c(1));
    const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1), allocator);
-
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fraction field on GPU", true);
+#endif
 
    //Setting up Object Rotator
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -308,7 +310,7 @@ int main(int argc, char** argv)
    //ObjectRotatorGPU objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, "CROR_rotor", maxSuperSamplingDepth, true);
    //ObjectRotatorGPU objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "CROR_stator", maxSuperSamplingDepth, true);
 
-   ObjectRotatorGPU objectRotatorSphere(blocks, meshBase, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "bunny", maxSuperSamplingDepth, false);
+   ObjectRotatorGPU objectRotatorSphere(blocks, fractionFieldGPUId, meshBase, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "bunny", maxSuperSamplingDepth, false);
 
 #else
    ObjectRotator objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, "CROR_base", maxSuperSamplingDepth, false);
@@ -316,7 +318,7 @@ int main(int argc, char** argv)
    ObjectRotator objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  distanceOctreeMeshStator, "CROR_stator", maxSuperSamplingDepth, true);
 #endif
    //fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
-   fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorSphere.getObjectFractionFieldID()});
+   //fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorSphere.getObjectFractionFieldID()});
 
    std::vector<BlockDataID> fractionFieldIds;
    if (preProcessFractionFields && rotationFrequency > 0) {
@@ -380,7 +382,6 @@ int main(int argc, char** argv)
    const BlockDataID pdfFieldGPUId = lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldId, StorageSpec, "pdf field on GPU", true);
    const BlockDataID velocityFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity field on GPU", true);
    const BlockDataID densityFieldGPUId = gpu::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldId, "density field on GPU", true);
-   const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fraction field on GPU", true);
    const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
 #endif
 
@@ -395,7 +396,7 @@ int main(int argc, char** argv)
       //objectRotatorMeshStator(timeloop.getCurrentTimeStep());
       //fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldId);
+      //gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldId);
 #endif
    };
 
@@ -500,18 +501,19 @@ int main(int argc, char** argv)
             sweepCollection.calculateMacroscopicParameters(&block);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
          gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, velocityFieldId, velocityFieldGPUId);
+         gpu::fieldCpy< FracField_T, gpu::GPUField< fracSize > >(blocks, fractionFieldId, fractionFieldGPUId);
 #endif
       });
 
       auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
       //auto flagWriter = make_shared< field::VTKWriter< FlagField_T > >(flagFieldId, "Flag");
       auto fractionFieldWriter = make_shared< field::VTKWriter< FracField_T > >(fractionFieldId, "FractionField");
-      auto objVeldWriter = make_shared< field::VTKWriter< VectorField_T > >(objectVelocitiesFieldId, "objectVelocity");
+      //auto objVeldWriter = make_shared< field::VTKWriter< VectorField_T > >(objectVelocitiesFieldId, "objectVelocity");
 
       vtkOutput->addCellDataWriter(velWriter);
       //vtkOutput->addCellDataWriter(flagWriter);
       vtkOutput->addCellDataWriter(fractionFieldWriter);
-      vtkOutput->addCellDataWriter(objVeldWriter);
+      //vtkOutput->addCellDataWriter(objVeldWriter);
 
 
       const AABB sliceAABB(real_c(domainAABB.xMin()), real_c(domainAABB.yMin()), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.5),

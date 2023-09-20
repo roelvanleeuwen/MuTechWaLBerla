@@ -83,18 +83,18 @@ class ObjectRotatorGPU
    typedef field::GhostLayerField< real_t, 3 > VectorField_T;
 
  public:
-   ObjectRotatorGPU(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID objectVelocityId,
+   ObjectRotatorGPU(shared_ptr< StructuredBlockForest >& blocks, const BlockDataID fractionFieldGPUId, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID objectVelocityId,
                  const real_t rotationAngle, const uint_t frequency, Vector3<int> rotationAxis,
                  std::string meshName, uint_t maxSuperSamplingDepth, const bool rotate = true)
-      : blocks_(blocks), mesh_(mesh), objectVelocityId_(objectVelocityId),
+      : blocks_(blocks), fractionFieldGPUId_(fractionFieldGPUId), mesh_(mesh), objectVelocityId_(objectVelocityId),
         rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis),
         meshName_(meshName), maxSuperSamplingDepth_(maxSuperSamplingDepth), rotate_(rotate)
    {
-      fractionFieldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
+      //fractionFieldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
       readFile();
       Vector3<uint_t> cellsPerBlock(blocks_->getNumberOfXCellsPerBlock() + 2, blocks_->getNumberOfYCellsPerBlock() + 2, blocks_->getNumberOfZCellsPerBlock() + 2);
 
-      cudaMalloc(&dev_curand_states, cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2] * sizeof(curandState));
+      cudaMalloc(&dev_curand_states, (cellsPerBlock[0] + 2) * (cellsPerBlock[1] + 2) * (cellsPerBlock[2] + 2) * sizeof(curandState));
       cudaMalloc(&verticesGPU_, numVertices_ * 3 * sizeof(float));
       cudaMalloc(&trianglesGPU_, numTriangles_ * 3 * sizeof(float));
       cudaMemcpy(verticesGPU_, vertices_,  numVertices_ * 3 * sizeof(float), cudaMemcpyHostToDevice);
@@ -102,9 +102,13 @@ class ObjectRotatorGPU
 
       meshCenter = computeCentroid(*mesh_);
       initObjectVelocityField();
+      WcTimer simTimer;
       WALBERLA_LOG_INFO_ON_ROOT("Start voxelizeBoxTriangleIntersection")
+      simTimer.start();
       voxelizeRayTracingGPUCall();
-      WALBERLA_LOG_INFO_ON_ROOT("Finished voxelizeBoxTriangleIntersection")
+      WALBERLA_GPU_CHECK( gpuDeviceSynchronize() )
+      simTimer.end();
+      WALBERLA_LOG_INFO_ON_ROOT("Finished voxelizeBoxTriangleIntersection in " << simTimer.max() << "s")
    }
 
 
@@ -114,9 +118,7 @@ class ObjectRotatorGPU
          if(rotate_) {
             //rotate();
             //resetFractionField();
-            //getFractionFieldFromMesh();
-            //voxelizeBoxTriangleIntersection();
-            //voxelizeRayTracing();
+            voxelizeRayTracingGPUCall();
          }
       }
    }
@@ -184,7 +186,7 @@ class ObjectRotatorGPU
    }
 
    BlockDataID getObjectFractionFieldID() {
-      return fractionFieldId_;
+      return fractionFieldGPUId_;
    }
 
 
@@ -199,7 +201,7 @@ class ObjectRotatorGPU
       auto aabbMesh = computeAABB(*mesh_);
       for (auto& block : *blocks_)
       {
-         auto fractionField = block.getData< FracField_T >(fractionFieldId_);
+         auto fractionField = block.getData< FracField_T >(fractionFieldGPUId_);
          auto level = blocks_->getLevel(block);
          auto cellBBMesh = blocks_->getCellBBFromAABB( aabbMesh, level );
          CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
@@ -362,7 +364,7 @@ class ObjectRotatorGPU
    int numVertices_;
    int numTriangles_;
 
-   BlockDataID fractionFieldId_;
+   BlockDataID fractionFieldGPUId_;
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
    const uint_t frequency_;
