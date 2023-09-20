@@ -35,13 +35,44 @@
          dest[2]=v1[2]-v2[2];
 
 
-
-
-
-
-
 namespace walberla
 {
+
+__global__ static void resetFractionFieldGPU(fracSize* RESTRICT const fractionFieldData, int3 size_frac_fieldWithGL) {
+
+   const int idx   = threadIdx.x + blockIdx.x * blockDim.x;
+   if (idx < size_frac_fieldWithGL.x * size_frac_fieldWithGL.y * size_frac_fieldWithGL.z)
+   {
+      fractionFieldData[0] = 0.0;
+   }
+}
+
+
+
+
+
+
+void ObjectRotatorGPU::resetFractionFieldGPUCall() {
+   for (auto& block : *blocks_)
+   {
+      auto fractionField = block.getData< gpu::GPUField< fracSize > >(fractionFieldGPUId_);
+      //fracSize * RESTRICT const fractionFieldData = fractionField->dataAt(-1, -1, -1, 0);
+      fracSize * RESTRICT const fractionFieldData = fractionField->dataAt(-1, -1, -1, 0);
+      int3 size_frac_field = {int(fractionField->xSizeWithGhostLayer()), int(fractionField->ySizeWithGhostLayer()), int(fractionField->zSizeWithGhostLayer())};
+
+      const uint threadsPerBlock(512);
+      const uint numBlocks((size_frac_field.x * size_frac_field.y * size_frac_field.z / threadsPerBlock) + 1);
+
+      resetFractionFieldGPU<<<numBlocks, threadsPerBlock>>>(fractionFieldData, size_frac_field);
+   }
+}
+
+
+
+
+
+
+
 __device__ bool RayIntersectsTriangleGPU(float rayOrigin[3], float rayVector[3], float inTriangle[3][3])
 {
    const float EPSILON = 0.00000001f;
@@ -67,7 +98,7 @@ __device__ bool RayIntersectsTriangleGPU(float rayOrigin[3], float rayVector[3],
       return false;
 }
 
-__global__ static void voxelizeRayTracingGPU(fracSize* fractionFieldData, float3 minAABB, int3 size_frac_fieldWithGL,
+__global__ void voxelizeRayTracingGPU(fracSize* RESTRICT const fractionFieldData, float3 minAABB, int3 size_frac_fieldWithGL,
                                              float dx, int* triangles, float* vertices, int numTriangles,
                                              curandState* state)
 {
@@ -84,7 +115,7 @@ __global__ static void voxelizeRayTracingGPU(fracSize* fractionFieldData, float3
              //threadIdx.x,threadIdx.y,threadIdx.z, blockDim.x, blockDim.y, blockDim.z, blockIdx.x, blockIdx.y, blockIdx.z);
       //printf("%d %d %d \n", x,y,z);
       const int idx = x + y * size_frac_fieldWithGL.y + z * size_frac_fieldWithGL.x * size_frac_fieldWithGL.y;
-      //curand_init(1234, idx, 0, &state[0]);
+      curand_init(1234, idx, 0, &state[idx]);
 
       float dxHalf        = 0.5 * dx;
       float cellCenter[3] = { minAABB.x + x * dx + dxHalf, minAABB.y + y * dx + dxHalf,
@@ -105,8 +136,14 @@ __global__ static void voxelizeRayTracingGPU(fracSize* fractionFieldData, float3
                                     vertices[3 * triangles[i * 3 + 1] + 2] },
                                   { vertices[3 * triangles[i * 3 + 2]], vertices[3 * triangles[i * 3 + 2] + 1],
                                     vertices[3 * triangles[i * 3 + 2] + 2] } };
-         if (RayIntersectsTriangleGPU(cellCenter, rayDirection, triangle)) intersections++;
-         //if (intersections % 2 == 1) { fractionFieldData[idx] = 1.0; }
+         if (RayIntersectsTriangleGPU(cellCenter, rayDirection, triangle))
+            intersections++;
+         if (intersections % 2 == 1) {
+            fracSize tmp = fractionFieldData[0];
+            printf(" %f", tmp);
+            //fractionFieldData[idx] = 1.0;
+            return;
+         }
       }
    }
 }
@@ -115,7 +152,9 @@ void ObjectRotatorGPU::voxelizeRayTracingGPUCall() {
    for (auto& block : *blocks_)
    {
       auto fractionField = block.getData< gpu::GPUField< fracSize > >(fractionFieldGPUId_);
-      fracSize * RESTRICT const fractionFieldData = fractionField->dataAt(-1, -1, -1, 0);
+      //fracSize * RESTRICT const fractionFieldData = fractionField->dataAt(-1, -1, -1, 0);
+      fracSize * RESTRICT const fractionFieldData = fractionField->dataAt(0, 0, 0, 0);
+
       auto level         = blocks_->getLevel(block);
       auto dx     = float(blocks_->dx(level));
       auto blockAABB = block.getAABB();

@@ -301,7 +301,8 @@ int main(int argc, char** argv)
    const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", fracSize(0.0), field::fzyx, uint_c(1));
    const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1), allocator);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fraction field on GPU", true);
+   const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, "fractionFieldGPU", uint_c(1), field::fzyx, uint_c(1), false );
+
 #endif
 
    //Setting up Object Rotator

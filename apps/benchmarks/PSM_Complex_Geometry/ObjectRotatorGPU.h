@@ -117,8 +117,8 @@ class ObjectRotatorGPU
       {
          if(rotate_) {
             //rotate();
-            //resetFractionField();
-            voxelizeRayTracingGPUCall();
+            resetFractionFieldGPUCall();
+            //voxelizeRayTracingGPUCall();
          }
       }
    }
@@ -160,7 +160,7 @@ class ObjectRotatorGPU
             }
          }
          meshFile.close();
-         numVertices_ = vertices.size();
+         numVertices_ = int(vertices.size());
          vertices_ = (float *) std::malloc( sizeof(float) * 3 * numVertices_);
          for ( size_t i = 0; i < numVertices_; ++i) {
             for ( size_t j = 0; j < 3; ++j)
@@ -170,7 +170,7 @@ class ObjectRotatorGPU
                vertices_[i * 3 + j] = vertices[i][j];
             }
          }
-         numTriangles_ = triangles.size();
+         numTriangles_ = int(triangles.size());
          triangles_ = (int *) std::malloc( sizeof(int) * 3 * numTriangles_);
          for ( int i = 0; i < numTriangles_; ++i) {
             for ( int j = 0; j < 3; ++j)
@@ -196,21 +196,6 @@ class ObjectRotatorGPU
       mesh::rotate(*mesh_, rotationAxis_, rotationAngle_, axis_foot);
    }
 
-   void resetFractionField()
-   {
-      auto aabbMesh = computeAABB(*mesh_);
-      for (auto& block : *blocks_)
-      {
-         auto fractionField = block.getData< FracField_T >(fractionFieldGPUId_);
-         auto level = blocks_->getLevel(block);
-         auto cellBBMesh = blocks_->getCellBBFromAABB( aabbMesh, level );
-         CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
-         blocks_->transformBlockLocalToGlobalCellInterval(blockCi, block);
-         cellBBMesh.intersect(blockCi);
-         blocks_->transformGlobalToBlockLocalCellInterval(cellBBMesh, block);
-         std::fill(fractionField->beginSliceXYZ(cellBBMesh), fractionField->end(), 0.0);
-      }
-   }
 
    void initObjectVelocityField() {
       for (auto& block : *blocks_)
@@ -253,6 +238,7 @@ class ObjectRotatorGPU
       }
    }
 
+   /*
    math::GenericAABB< float > computeAABBFromTriangle( float triverts[3][3] )
    {
       float min[3], max[3];
@@ -274,7 +260,7 @@ class ObjectRotatorGPU
       return math::GenericAABB< float >::createFromMinMaxCorner( Vector3<float>(min[0], min[1], min[2]), Vector3<float>(max[0], max[1], max[2]) );
    }
 
-/*
+
    void voxelizeBoxTriangleIntersection() {
       for (auto& block : *blocks_)
       {
@@ -346,8 +332,9 @@ class ObjectRotatorGPU
 */
 
 
-
    void voxelizeRayTracingGPUCall();
+   void resetFractionFieldGPUCall();
+
 
 
 
