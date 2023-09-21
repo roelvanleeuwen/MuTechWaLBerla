@@ -20,7 +20,6 @@
 
 #include "blockforest/Initialization.h"
 #include "blockforest/SetupBlockForest.h"
-
 #include "core/all.h"
 
 #include "domain_decomposition/all.h"
@@ -301,8 +300,7 @@ int main(int argc, char** argv)
    const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", fracSize(0.0), field::fzyx, uint_c(1));
    const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1), allocator);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, "fractionFieldGPU", uint_c(1), field::fzyx, uint_c(1), false );
-
+   const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fractionFieldGPU", true);
 #endif
 
    //Setting up Object Rotator
@@ -311,7 +309,7 @@ int main(int argc, char** argv)
    //ObjectRotatorGPU objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, "CROR_rotor", maxSuperSamplingDepth, true);
    //ObjectRotatorGPU objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "CROR_stator", maxSuperSamplingDepth, true);
 
-   ObjectRotatorGPU objectRotatorSphere(blocks, fractionFieldGPUId, meshBase, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "bunny", maxSuperSamplingDepth, false);
+   ObjectRotatorGPU objectRotatorSphere(blocks, fractionFieldGPUId, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis * -1,  "CROR_base", maxSuperSamplingDepth, false);
 
 #else
    ObjectRotator objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, "CROR_base", maxSuperSamplingDepth, false);

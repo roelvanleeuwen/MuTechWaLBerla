@@ -106,6 +106,7 @@ class ObjectRotatorGPU
       WALBERLA_LOG_INFO_ON_ROOT("Start voxelizeBoxTriangleIntersection")
       simTimer.start();
       voxelizeRayTracingGPUCall();
+      //resetFractionFieldGPUCall();
       WALBERLA_GPU_CHECK( gpuDeviceSynchronize() )
       simTimer.end();
       WALBERLA_LOG_INFO_ON_ROOT("Finished voxelizeBoxTriangleIntersection in " << simTimer.max() << "s")
@@ -117,7 +118,7 @@ class ObjectRotatorGPU
       {
          if(rotate_) {
             //rotate();
-            resetFractionFieldGPUCall();
+            //resetFractionFieldGPUCall();
             //voxelizeRayTracingGPUCall();
          }
       }
@@ -162,8 +163,8 @@ class ObjectRotatorGPU
          meshFile.close();
          numVertices_ = int(vertices.size());
          vertices_ = (float *) std::malloc( sizeof(float) * 3 * numVertices_);
-         for ( size_t i = 0; i < numVertices_; ++i) {
-            for ( size_t j = 0; j < 3; ++j)
+         for ( int i = 0; i < numVertices_; ++i) {
+            for ( int j = 0; j < 3; ++j)
             {
                vertices_[i * 3 + j] = vertices[i][j];
                vertices_[i * 3 + j] = vertices[i][j];

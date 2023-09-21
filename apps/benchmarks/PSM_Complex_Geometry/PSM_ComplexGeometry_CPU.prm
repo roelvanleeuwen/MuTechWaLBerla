@@ -29,7 +29,7 @@ DomainSetup
    rotationSpeed      738.173;     //rad/s
    rotationAxis       < 1, 0, 0 >;
 
-   domainScaling      <  0.1, 2, 2 >;   //<  3, 50,  3 >;
+   domainScaling      <  0.07, 2, 2 >;   //<  3, 50,  3 >;
    domainTransforming <  0.45 , 0,  0 >;
    cellsPerBlock      < 64, 64, 64 >;
    periodic           <  0,  1,  1 >;
