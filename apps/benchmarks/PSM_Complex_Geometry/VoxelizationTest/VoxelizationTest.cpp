@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file PSM_Test.cpp
+//! \file VoxelizationTest_Test.cpp
 //! \author Philipp Suffa <philipp.suffa@fau.de>
 //
 //======================================================================================================================
@@ -32,9 +32,8 @@
 
 #include "timeloop/all.h"
 
-#include "ObjectRotator.h"
-#include "ObjectRotatorGPU.h"
-#include "PSM_InfoHeader.h"
+#include "../ObjectRotator.h"
+#include "VoxelizationTest_InfoHeader.h"
 #include "lbm_generated/communication/NonuniformGeneratedPdfPackInfo.h"
 #include "lbm_generated/evaluation/PerformanceEvaluation.h"
 #include "lbm_generated/field/AddToStorage.h"
@@ -47,6 +46,8 @@
 #include "lbm_generated/gpu/BasicRecursiveTimeStepGPU.h"
 #include "lbm_generated/gpu/NonuniformGeneratedGPUPdfPackInfo.h"
 #include "gpu/communication/NonUniformGPUScheme.h"
+
+#include "ObjectRotatorGPU.h"
 #endif
 
 namespace walberla
@@ -55,8 +56,8 @@ namespace walberla
 /// Typedef Aliases ///
 ///////////////////////
 
-using StorageSpecification_T = lbm::PSMStorageSpecification;
-using Stencil_T = lbm::PSMStorageSpecification::Stencil;
+using StorageSpecification_T = lbm::VoxelizationTestStorageSpecification;
+using Stencil_T = lbm::VoxelizationTestStorageSpecification::Stencil;
 using CommunicationStencil_T = StorageSpecification_T::CommunicationStencil;
 using PdfField_T = lbm_generated::PdfField< StorageSpecification_T >;
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -66,35 +67,11 @@ using gpu::communication::NonUniformGPUScheme;
 
 typedef walberla::uint8_t flag_t;
 typedef FlagField< flag_t > FlagField_T;
-using BoundaryCollection_T = lbm::PSMBoundaryCollection< FlagField_T >;
+using BoundaryCollection_T = lbm::VoxelizationTestBoundaryCollection< FlagField_T >;
 
-using SweepCollection_T = lbm::PSMSweepCollection;
+using SweepCollection_T = lbm::VoxelizationTestSweepCollection;
 
 const FlagUID fluidFlagUID("Fluid");
-
-class LDCRefinement
-{
- private:
-   const uint_t refinementDepth_;
-   const std::vector<AABB> meshAABBs_;
-
- public:
-   explicit LDCRefinement(const uint_t depth, std::vector<AABB> meshAABBs) : refinementDepth_(depth), meshAABBs_(meshAABBs){};
-
-   void operator()(SetupBlockForest& forest) const
-   {
-      for(auto & block : forest) {
-         auto & aabb = block.getAABB();
-         for (auto meshAABB : meshAABBs_) {
-            if (meshAABB.intersects(aabb)) {
-               if( block.getLevel() < refinementDepth_)
-                  block.setMarker( true );
-            }
-         }
-      }
-   }
-};
-
 
 // data handling for loading a field of type ScalarField_T from file
 template< typename FracField_T >
@@ -174,8 +151,6 @@ int main(int argc, char** argv)
    const std::string fractionFieldFolderName = "savedFractionFields";
 
 
-
-
    const std::string timeStepStrategy = parameters.getParameter<std::string>("timeStepStrategy", "noOverlap");
    const Cell innerOuterSplit = Cell(parameters.getParameter< Vector3<cell_idx_t> >("innerOuterSplit", Vector3<cell_idx_t>(1, 1, 1)));
 
@@ -208,36 +183,18 @@ int main(int argc, char** argv)
    /// PROCESS MESH ///
    ////////////////////
 
-   const std::string meshFileBase = "CROR_base.obj";
-   auto meshBase = make_shared< mesh::TriangleMesh >();
-   mesh::readAndBroadcast(meshFileBase, *meshBase);
-   auto distanceOctreeMeshBase = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshBase));
-
-   const std::string meshFileRotor = "CROR_rotor.obj";
-   auto meshRotor = make_shared< mesh::TriangleMesh >();
-   mesh::readAndBroadcast(meshFileRotor, *meshRotor);
-   auto distanceOctreeMeshRotor = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshRotor));
-
-   const std::string meshFileStator = "CROR_stator.obj";
-   auto meshStator = make_shared< mesh::TriangleMesh >();
-   mesh::readAndBroadcast(meshFileStator, *meshStator);
-   auto distanceOctreeMeshStator = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshStator));
 
    auto meshBunny = make_shared< mesh::TriangleMesh >();
    mesh::readAndBroadcast("bunny.obj", *meshBunny);
-
-   auto aabbBase = computeAABB(*meshBase);
-   //auto aabbBase = computeAABB(*meshBunny);
+   auto distanceOctree = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshBunny));
+   auto aabbBase = computeAABB(*meshBunny);
 
    AABB aabb = aabbBase;
    aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
    aabb.scale(domainScaling);
 
-   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx), mesh::makeExcludeMeshInteriorRefinement(distanceOctreeMeshBase, dx));
+   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctree, dx), mesh::makeExcludeMeshInteriorRefinement(distanceOctree, dx));
    bfc.setPeriodicity(periodicity);
-
-   const std::vector<AABB> meshAABBs{aabbBase, computeAABB(*meshRotor), computeAABB(*meshStator)};
-   bfc.setRefinementSelectionFunction(LDCRefinement(refinementDepth, meshAABBs));
 
    auto setupForest = bfc.createSetupBlockForest( cellsPerBlock, 1 );
 
@@ -285,10 +242,8 @@ int main(int argc, char** argv)
    /// Boundary Handling ///
    /////////////////////////
 
-   //mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterBase(meshBase, "meshBase", VTKWriteFrequency);
-   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterRotor(meshRotor, "meshRotor", VTKWriteFrequency);
-   //mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterStator(meshStator, "meshStator", VTKWriteFrequency);
-   const std::function< void() > meshWritingFunc = [&]() { /*meshWriterBase();*/ meshWriterRotor(); /*meshWriterStator();*/ };
+   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(meshBunny, "meshBase", VTKWriteFrequency);
+   const std::function< void() > meshWritingFunc = [&]() { meshWriter(); };
    //meshWritingFunc();
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -305,67 +260,12 @@ int main(int argc, char** argv)
 
    //Setting up Object Rotator
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   //ObjectRotatorGPU objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, "CROR_base", maxSuperSamplingDepth, false);
-   //ObjectRotatorGPU objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, "CROR_rotor", maxSuperSamplingDepth, true);
-   //ObjectRotatorGPU objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "CROR_stator", maxSuperSamplingDepth, true);
-
-   ObjectRotatorGPU objectRotatorSphere(blocks, fractionFieldGPUId, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis * -1,  "CROR_base", maxSuperSamplingDepth, false);
-
+   //ObjectRotatorGPU objectRotatorMeshBase(blocks, fractionFieldGPUId, fractionFieldId, meshBunny, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis,  "bunny", maxSuperSamplingDepth, true);
 #else
-   ObjectRotator objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, "CROR_base", maxSuperSamplingDepth, false);
-   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, "CROR_rotor", maxSuperSamplingDepth, true);
-   ObjectRotator objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  distanceOctreeMeshStator, "CROR_stator", maxSuperSamplingDepth, true);
+   ObjectRotator objectRotator(blocks, meshBunny, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  distanceOctree, "bunny", maxSuperSamplingDepth, true);
+
 #endif
-   //fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
-   //fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorSphere.getObjectFractionFieldID()});
-
-   std::vector<BlockDataID> fractionFieldIds;
-   if (preProcessFractionFields && rotationFrequency > 0) {
-      const uint_t numFields = uint_c(std::round(2.0 * M_PI / rotationAngle));
-      WALBERLA_LOG_INFO_ON_ROOT("Start Preprocessing mesh " << numFields << " times")
-
-      if(loadFractionFieldsFromFile) {
-         WALBERLA_LOG_INFO_ON_ROOT("Loading fraction fields from file")
-
-         for (uint_t i = 0; i < numFields; ++i) {
-            const std::string fileName = fractionFieldFolderName + "/fractionField_" + std::to_string(i);
-            if (!filesystem::exists(filesystem::path(fileName))) WALBERLA_ABORT("Tried to load fraction field number " + std::to_string(i) + ", which does not exist")
-
-            const std::shared_ptr< FractionFieldHandling< FracField_T > > fractionFieldDataHandling = std::make_shared< FractionFieldHandling< FracField_T > >(blocks);
-            const BlockDataID tmpFractionFieldId = (blocks->getBlockStorage()).loadBlockData(fileName, fractionFieldDataHandling, "FractionField");
-            fractionFieldIds.push_back(tmpFractionFieldId);
-         }
-         WALBERLA_LOG_INFO_ON_ROOT("Finished loading fraction fields from file")
-      }
-      else {
-         for (uint_t i = 0; i < numFields; ++i) {
-            WALBERLA_LOG_INFO_ON_ROOT("Calc frac field number " << i)
-            const BlockDataID tmpFractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionFieldId_" + std::to_string(i), fracSize(0.0), field::fzyx);
-            //objectRotatorMeshBase(0);
-            //objectRotatorMeshRotor(0);
-            //objectRotatorMeshStator(0);
-            //fuseFractionFields(blocks, tmpFractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
-            fractionFieldIds.push_back(tmpFractionFieldId);
-            WALBERLA_MPI_BARRIER()
-         }
-      }
-
-      WALBERLA_LOG_INFO_ON_ROOT("Finished Preprocessing mesh!")
-
-      if(writeFractionFieldAndReturn) {
-         WALBERLA_LOG_INFO_ON_ROOT("Writing fraction fields to file")
-
-         const filesystem::path fractionFieldFolder("savedFractionFields");
-         if (!filesystem::exists(fractionFieldFolder)) filesystem::create_directory(fractionFieldFolder);
-         for (uint_t i = 0; i < numFields; ++i)
-         {
-            const std::string fileName = fractionFieldFolderName + "/fractionField_" + std::to_string(i);
-            blocks->saveBlockData(fileName, fractionFieldIds[i]);
-         }
-         WALBERLA_LOG_INFO_ON_ROOT("Saved fraction fields in files and returning now")
-         return EXIT_SUCCESS;
-      }
-   }
+   fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotator.getObjectFractionFieldID()});
 
    /////////////////////////
    /// Fields Creation   ///
@@ -390,27 +290,11 @@ int main(int argc, char** argv)
    /////////////////////////
 
    const std::function< void() > objectRotatorFunc = [&]() {
-      //objectRotatorMeshBase(timeloop.getCurrentTimeStep());
-      //objectRotatorMeshRotor(timeloop.getCurrentTimeStep());
-      //objectRotatorMeshStator(timeloop.getCurrentTimeStep());
-      //fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
+      objectRotator(timeloop.getCurrentTimeStep());
+      fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotator.getObjectFractionFieldID()});
+
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       //gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldId);
-#endif
-   };
-
-   const std::function< void() > syncPreprocessedFractionFields = [&]() {
-      auto currTimestep = timeloop.getCurrentTimeStep();
-      const uint_t rotationState = (currTimestep / rotationFrequency) % fractionFieldIds.size();
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldIds[rotationState]);
-#else
-      for (auto & block : *blocks)
-      {
-         FracField_T* realFractionField       = block.getData< FracField_T >(fractionFieldId);
-         FracField_T* fractionFieldFromVector = block.getData< FracField_T >(fractionFieldIds[rotationState]);
-         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(realFractionField, realFractionField->get(x, y, z) = fractionFieldFromVector->get(x, y, z);)
-      }
 #endif
    };
 
@@ -429,7 +313,7 @@ int main(int argc, char** argv)
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    SweepCollection_T sweepCollection(blocks, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
-   //pystencils::PSMSweep PSMSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega, /*real_t(0.0),*/ innerOuterSplit);
+   //pystencils::VoxelizationTestSweep VoxelizationTestSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega, /*real_t(0.0),*/ innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
 
 #else
@@ -474,13 +358,9 @@ int main(int argc, char** argv)
 
    const auto emptySweep = [](IBlock*) {};
    if( rotationFrequency > 0) {
-      if(preProcessFractionFields) {
-         timeloop.add() << BeforeFunction(syncPreprocessedFractionFields, "syncPreprocessedFractionFields") << Sweep(emptySweep);
-      }
-      else {
-         timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
-         timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
-      }
+
+      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
+      timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
    }
 
    // Time logger
@@ -537,9 +417,9 @@ int main(int argc, char** argv)
     else if(timeStepStrategy == "Overlap") {
        timeloop.add() << BeforeFunction(communication.getStartCommunicateFunctor(), "Start Communication")
                       << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
-       timeloop.add() << Sweep(sweepCollection.streamCollide(lbm::PSMSweepCollection::Type::INNER), "PSM Sweep Inner Frame");
+       timeloop.add() << Sweep(sweepCollection.streamCollide(lbm::VoxelizationTestSweepCollection::Type::INNER), "PSM Sweep Inner Frame");
        timeloop.add() << BeforeFunction(communication.getWaitFunctor(), "Wait for Communication")
-                      << Sweep(sweepCollection.streamCollide(lbm::PSMSweepCollection::Type::OUTER), "PSM Sweep Outer Frame");
+                      << Sweep(sweepCollection.streamCollide(lbm::VoxelizationTestSweepCollection::Type::OUTER), "PSM Sweep Outer Frame");
     }*/
    else {
       WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")

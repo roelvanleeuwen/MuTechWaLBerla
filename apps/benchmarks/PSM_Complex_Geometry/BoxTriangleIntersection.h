@@ -30,10 +30,10 @@
 namespace walberla
 {
 
-int planeBoxOverlap(float normal[3], float vert[3], float maxbox[3]) // -NJMP-
+int planeBoxOverlap(real_t normal[3], real_t vert[3], real_t maxbox[3]) // -NJMP-
 {
    int q;
-   float vmin[3], vmax[3], v;
+   real_t vmin[3], vmax[3], v;
    for (q = 0; q <= 2; q++)
    {
       v = vert[q]; // -NJMP-
@@ -100,7 +100,7 @@ int planeBoxOverlap(float normal[3], float vert[3], float maxbox[3]) // -NJMP-
          rad = fa * boxhalfsize[0] + fb * boxhalfsize[1];   \
          if (min > rad || max < -rad) return 0;
 
-int triBoxOverlap(float boxcenter[3], float boxhalfsize[3], float triverts[3][3])
+int triBoxOverlap(real_t boxcenter[3], real_t boxhalfsize[3], real_t triverts[3][3])
 {
    /*    use separating axis theorem to test overlap between triangle and box */
    /*    need to test for overlap in these directions: */
@@ -109,10 +109,10 @@ int triBoxOverlap(float boxcenter[3], float boxhalfsize[3], float triverts[3][3]
    /*    2) normal of the triangle */
    /*    3) crossproduct(edge from tri, {x,y,z}-directin) */
    /*       this gives 3x3=9 more tests */
-   float v0[3], v1[3], v2[3];
-   //   float axis[3];
-   float min, max, p0, p1, p2, rad, fex, fey, fez; // -NJMP- "d" local variable removed
-   float normal[3], e0[3], e1[3], e2[3];
+   real_t v0[3], v1[3], v2[3];
+   //   real_t axis[3];
+   real_t min, max, p0, p1, p2, rad, fex, fey, fez; // -NJMP- "d" local variable removed
+   real_t normal[3], e0[3], e1[3], e2[3];
 
    /* This is the fastest branch on Sun */
    /* move everything so that the boxcenter is in (0,0,0) */
@@ -127,22 +127,22 @@ int triBoxOverlap(float boxcenter[3], float boxhalfsize[3], float triverts[3][3]
 
                     /* Bullet 3:  */
    /*  test the 9 tests first (this was faster) */
-   fex = fabsf(e0[0]);
-   fey = fabsf(e0[1]);
-   fez = fabsf(e0[2]);
+   fex = abs(e0[0]);
+   fey = abs(e0[1]);
+   fez = abs(e0[2]);
    AXISTEST_X01(e0[2], e0[1], fez, fey);
    AXISTEST_Y02(e0[2], e0[0], fez, fex);
    AXISTEST_Z12(e0[1], e0[0], fey, fex);
-   fex = fabsf(e1[0]);
-   fey = fabsf(e1[1]);
-   fez = fabsf(e1[2]);
+   fex = abs(e1[0]);
+   fey = abs(e1[1]);
+   fez = abs(e1[2]);
    AXISTEST_X01(e1[2], e1[1], fez, fey);
    AXISTEST_Y02(e1[2], e1[0], fez, fex);
    AXISTEST_Z0(e1[1], e1[0], fey, fex);
 
-   fex = fabsf(e2[0]);
-   fey = fabsf(e2[1]);
-   fez = fabsf(e2[2]);
+   fex = abs(e2[0]);
+   fey = abs(e2[1]);
+   fez = abs(e2[2]);
 
    AXISTEST_X2(e2[2], e2[1], fez, fey);
    AXISTEST_Y1(e2[2], e2[0], fez, fex);
@@ -176,14 +176,14 @@ int triBoxOverlap(float boxcenter[3], float boxhalfsize[3], float triverts[3][3]
    return 1;                                                /* box and triangle overlaps */
 }
 
-bool RayIntersectsTriangle(float rayOrigin[3], float rayVector[3], float inTriangle[3][3])
+bool RayIntersectsTriangle(real_t rayOrigin[3], real_t rayVector[3], real_t inTriangle[3][3])
 {
-   const float EPSILON = 0.00000000001f;
-   float vertex0[3]    = { inTriangle[0][0], inTriangle[0][1], inTriangle[0][2] };
-   float vertex1[3]    = { inTriangle[1][0], inTriangle[1][1], inTriangle[1][2] };
-   float vertex2[3]    = { inTriangle[2][0], inTriangle[2][1], inTriangle[2][2] };
-   float edge1[3], edge2[3], h[3], s[3], q[3];
-   float a, f, u, v;
+   const real_t EPSILON = 0.00000000001f;
+   real_t vertex0[3]    = { inTriangle[0][0], inTriangle[0][1], inTriangle[0][2] };
+   real_t vertex1[3]    = { inTriangle[1][0], inTriangle[1][1], inTriangle[1][2] };
+   real_t vertex2[3]    = { inTriangle[2][0], inTriangle[2][1], inTriangle[2][2] };
+   real_t edge1[3], edge2[3], h[3], s[3], q[3];
+   real_t a, f, u, v;
 
    SUB(edge1, vertex1, vertex0)
    SUB(edge2, vertex2, vertex0)
@@ -206,7 +206,7 @@ bool RayIntersectsTriangle(float rayOrigin[3], float rayVector[3], float inTrian
    if (v < 0.0 || u + v > 1.0) return false;
 
    // At this stage we can compute t to find out where the intersection point is on the line.
-   float t = f * DOT(edge2, q);
+   real_t t = f * DOT(edge2, q);
 
    if (t > EPSILON) // ray intersection
    {
@@ -215,5 +215,63 @@ bool RayIntersectsTriangle(float rayOrigin[3], float rayVector[3], float inTrian
    else // This means that there is a line intersection but not a ray intersection.
       return false;
 }
+
+#define RIGHT	0
+#define LEFT	1
+#define MIDDLE	2
+
+bool RayBoxIntersection(real_t minB[3], real_t maxB[3], real_t origin[3], real_t rayDir[3]) {
+   int quadrant[3];
+   int whichPlane;
+   real_t candidatePlane[3];
+   bool inside = true;
+   real_t coord[3];
+   real_t maxT[3];
+
+   for (int i=0; i<3; i++)
+      if(origin[i] < minB[i]) {
+         quadrant[i] = LEFT;
+         candidatePlane[i] = minB[i];
+         inside = false;
+      }else if (origin[i] > maxB[i]) {
+         quadrant[i] = RIGHT;
+         candidatePlane[i] = maxB[i];
+         inside = false;
+      }else	{
+         quadrant[i] = MIDDLE;
+      }
+
+   /* Ray origin inside bounding box */
+   if(inside)
+      return true;
+
+   /* Calculate T distances to candidate planes */
+   for (int i = 0; i < 3; i++)
+      if (quadrant[i] != MIDDLE && (rayDir[i] < 0.0 || rayDir[i] > 0.0))
+         maxT[i] = (candidatePlane[i]-origin[i]) / rayDir[i];
+      else
+         maxT[i] = -1.;
+
+   /* Get largest of the maxT's for final choice of intersection */
+   whichPlane = 0;
+   for (int i = 1; i < 3; i++)
+      if (maxT[whichPlane] < maxT[i])
+         whichPlane = i;
+
+   /* Check final candidate actually inside box */
+   if (maxT[whichPlane] < 0.)
+      return false;
+   for (int i = 0; i < 3; i++)
+      if (whichPlane != i) {
+         coord[i] = origin[i] + maxT[whichPlane] * rayDir[i];
+         if (coord[i] < minB[i] || coord[i] > maxB[i])
+            return false;
+      } else {
+         coord[i] = candidatePlane[i];
+      }
+   return true;
+}
+
+
 
 } //namespace waLBerla

@@ -46,8 +46,7 @@ with CodeGeneration() as ctx:
     density = ps.fields(f"density({1}): {data_type}[3D]", layout=layout)
     macroscopic_fields = {'density': density, 'velocity': velocity}
 
-    data_type_B = "float32"
-    fraction_field = ps.fields(f"frac_field({1}): {data_type_B}[3D]", layout=layout,)
+    fraction_field = ps.fields(f"frac_field({1}): {data_type}[3D]", layout=layout,)
     object_velocity_field = ps.fields(f"obj_vel({stencil.D}): {data_type}[3D]", layout=layout,)
 
     psm_config = PSMConfig(
@@ -86,7 +85,7 @@ with CodeGeneration() as ctx:
         lbm_optimisation=lbm_opt
     )
 
-    generate_lbm_package(ctx, name="PSM",
+    generate_lbm_package(ctx, name="CROR",
                          collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
                          nonuniform=True, boundaries=[no_slip, ubb, fixedDensity, extrapolOutflow],
@@ -97,5 +96,5 @@ with CodeGeneration() as ctx:
     field_typedefs = {'VectorField_T': velocity,
                       'ScalarField_T': density}
 
-    generate_info_header(ctx, 'PSM_InfoHeader',
+    generate_info_header(ctx, 'CROR_InfoHeader',
                          field_typedefs=field_typedefs)

@@ -75,9 +75,9 @@ struct DistanceProperties
 * \image html mesh/triangle_topo.svg "A rotated triangle in the planar coordinate system. The vertex numbering is shown in red, the edge numbering in blue and the numbering of the voronoi regions in green."
 *
 * The class offers multiple methods to get the signed squared distance from a point to a single triangle or the whole mesh.
-* Please note that the distance computation for whole meshes is rather inefficient. Instead you should an object of this
-* class into a \ref mesh::distance_octree::DistanceOctree "mesh::DistanceOctree" reduce the computational complexity
-* from \f$\mathcal O(n)\f$ to \f$\mathcal O(\log n)\f$, where \f$\mathcal O(n)\f$ where \f$n\f$ is the number triangles.
+* Please note that the distance computation for whole meshes is rather inefficient. Instead you should transform an object of this
+* class into a \ref mesh::distance_octree::DistanceOctree "mesh::DistanceOctree" to reduce the computational complexity
+* from \f$\mathcal O(n)\f$ to \f$\mathcal O(\log n)\f$, where \f$n\f$ is the number triangles.
 *
 * Additionally to the signed squared distance you can also retrieve the closest point on the triangle or mesh to
 * your point of inquiry. You may also retrieve the corresponding normal and the closest voronoi region.

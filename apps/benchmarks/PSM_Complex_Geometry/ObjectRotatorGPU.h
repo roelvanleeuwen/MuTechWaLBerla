@@ -83,14 +83,14 @@ class ObjectRotatorGPU
    typedef field::GhostLayerField< real_t, 3 > VectorField_T;
 
  public:
-   ObjectRotatorGPU(shared_ptr< StructuredBlockForest >& blocks, const BlockDataID fractionFieldGPUId, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID objectVelocityId,
+   ObjectRotatorGPU(shared_ptr< StructuredBlockForest >& blocks, const BlockDataID fractionFieldGPUId,  const BlockDataID fractionFieldCPUId, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID objectVelocityId,
                  const real_t rotationAngle, const uint_t frequency, Vector3<int> rotationAxis,
                  std::string meshName, uint_t maxSuperSamplingDepth, const bool rotate = true)
       : blocks_(blocks), fractionFieldGPUId_(fractionFieldGPUId), mesh_(mesh), objectVelocityId_(objectVelocityId),
         rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis),
         meshName_(meshName), maxSuperSamplingDepth_(maxSuperSamplingDepth), rotate_(rotate)
    {
-      //fractionFieldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
+      tmpFracFieldGPUId =    gpu::addGPUFieldToStorage< FracField_T >(blocks_, fractionFieldCPUId, meshName_ + "_fracFieldGPU", true );
       readFile();
       Vector3<uint_t> cellsPerBlock(blocks_->getNumberOfXCellsPerBlock() + 2, blocks_->getNumberOfYCellsPerBlock() + 2, blocks_->getNumberOfZCellsPerBlock() + 2);
 
@@ -101,15 +101,16 @@ class ObjectRotatorGPU
       cudaMemcpy(trianglesGPU_, triangles_,  numTriangles_ * 3 * sizeof(float), cudaMemcpyHostToDevice);
 
       meshCenter = computeCentroid(*mesh_);
+      meshAABB = computeAABB(*mesh_);
+      //normalize(rotationAxis_);
       initObjectVelocityField();
       WcTimer simTimer;
-      WALBERLA_LOG_INFO_ON_ROOT("Start voxelizeBoxTriangleIntersection")
+      WALBERLA_LOG_INFO_ON_ROOT("Start Voxelization")
       simTimer.start();
       voxelizeRayTracingGPUCall();
-      //resetFractionFieldGPUCall();
       WALBERLA_GPU_CHECK( gpuDeviceSynchronize() )
       simTimer.end();
-      WALBERLA_LOG_INFO_ON_ROOT("Finished voxelizeBoxTriangleIntersection in " << simTimer.max() << "s")
+      WALBERLA_LOG_INFO_ON_ROOT("Finished Voxelization in " << simTimer.max() << "s")
    }
 
 
@@ -117,13 +118,11 @@ class ObjectRotatorGPU
       if (timestep % frequency_ == 0)
       {
          if(rotate_) {
-            //rotate();
-            //resetFractionFieldGPUCall();
-            //voxelizeRayTracingGPUCall();
+            rotateGPUCall();
+            voxelizeRayTracingGPUCall();
          }
       }
    }
-
 
    void readFile() {
       std::ifstream meshFile (meshName_ + ".obj");
@@ -185,18 +184,6 @@ class ObjectRotatorGPU
       else
          WALBERLA_ABORT("Couldn't open mesh file")
    }
-
-   BlockDataID getObjectFractionFieldID() {
-      return fractionFieldGPUId_;
-   }
-
-
-   void rotate()
-   {
-      const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
-      mesh::rotate(*mesh_, rotationAxis_, rotationAngle_, axis_foot);
-   }
-
 
    void initObjectVelocityField() {
       for (auto& block : *blocks_)
@@ -296,51 +283,19 @@ class ObjectRotatorGPU
       }
    }
 
-
-   void voxelizeRayTracing() {
-      for (auto& block : *blocks_)
-      {
-         auto fractionField = block.getData< FracField_T >(fractionFieldId_);
-         auto level         = blocks_->getLevel(block);
-         float cellCenter[3];
-         float triangle[3][3];
-         float rayDirection[3];
-         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(fractionField,
-            cell::Cell curCell = Cell(x,y,z);
-
-            auto cellAABB = blocks_->getAABBFromCellBB(CellInterval( curCell, curCell), level);
-            cellCenter[0] = float(cellAABB.center()[0]);
-            cellCenter[1] = float(cellAABB.center()[1]);
-            cellCenter[2] = float(cellAABB.center()[2]);
-            uint intersections = 0;
-            //TODO Shoot multiple rays
-            rayDirection[0] = float(rand()) /  float(RAND_MAX); rayDirection[1] = float(rand()) /  float(RAND_MAX); rayDirection[2] = float(rand()) /  float(RAND_MAX);
-            for (int i = 0; i < numTriangles_; ++i) {
-               for(int y = 0; y < 3; ++y) {
-                  for(int x = 0; x < 3; ++x) {
-                     triangle[y][x] = vertices_[3 * triangles_[3*i + y] + x];
-                  }
-               }
-               if(RayIntersectsTriangle(cellCenter, rayDirection, triangle))
-                  intersections ++;
-            }
-            if (intersections % 2 == 1) {
-               fractionField->get(x,y,z) = 1.0;
-            }
-         )
-      }
-   }
 */
 
+   void rotateGPUCall();
 
-   void voxelizeRayTracingGPUCall();
    void resetFractionFieldGPUCall();
 
-
-
+   void voxelizeRayTracingGPUCall();
 
  private:
    shared_ptr< StructuredBlockForest > blocks_;
+   BlockDataID fractionFieldGPUId_;
+   BlockDataID tmpFracFieldGPUId;
+
    shared_ptr< mesh::TriangleMesh > mesh_;
 
    float * vertices_;
@@ -352,7 +307,6 @@ class ObjectRotatorGPU
    int numVertices_;
    int numTriangles_;
 
-   BlockDataID fractionFieldGPUId_;
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
    const uint_t frequency_;
@@ -361,6 +315,7 @@ class ObjectRotatorGPU
    uint_t maxSuperSamplingDepth_;
    const bool rotate_;
    mesh::TriangleMesh::Point meshCenter;
+   AABB meshAABB;
 
    curandState* dev_curand_states;
 };
