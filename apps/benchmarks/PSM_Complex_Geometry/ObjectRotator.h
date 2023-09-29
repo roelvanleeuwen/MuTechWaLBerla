@@ -50,13 +50,33 @@
 #include "mesh/boundary/BoundaryUIDFaceDataSource.h"
 #include "mesh/boundary/ColorToBoundaryMapper.h"
 
+#include "GeometryOctree.h"
+
+#define CROSS(dest,v1,v2) \
+         dest[0]=v1[1]*v2[2]-v1[2]*v2[1]; \
+         dest[1]=v1[2]*v2[0]-v1[0]*v2[2]; \
+         dest[2]=v1[0]*v2[1]-v1[1]*v2[0];
+
+#define DOT(v1,v2) (v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2])
+
+#define SUB(dest,v1,v2) \
+         dest[0]=v1[0]-v2[0]; \
+         dest[1]=v1[1]-v2[1]; \
+         dest[2]=v1[2]-v2[2];
+
+#define ADD(dest,v1,v2) \
+         dest[0]=v1[0]+v2[0]; \
+         dest[1]=v1[1]+v2[1]; \
+         dest[2]=v1[2]+v2[2];
 
 
 namespace walberla
 {
 typedef field::GhostLayerField< real_t, 1 > ScalarField_T;
-using fracSize = float;
+using fracSize = real_t;
 typedef field::GhostLayerField< fracSize, 1 > FracField_T;
+
+
 
 
 class ObjectRotator
@@ -66,26 +86,49 @@ class ObjectRotator
 
  public:
    ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID objectVelocityId,
-                 const real_t rotationAngle, const uint_t frequency, Vector3<int> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree,
+                 const real_t rotationAngle, const uint_t frequency, Vector3<uint_t> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree,
                  std::string meshName, uint_t maxSuperSamplingDepth, const bool rotate = true)
       : blocks_(blocks), mesh_(mesh), objectVelocityId_(objectVelocityId),
         rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis), distOctree_(distOctree),
         meshName_(meshName), maxSuperSamplingDepth_(maxSuperSamplingDepth), rotate_(rotate)
    {
       fractionFieldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
-
+      currentAngle = 0.0;
+      readFile();
       meshCenter = computeCentroid(*mesh_);
       initObjectVelocityField();
-      getFractionFieldFromMesh();
+
+      auto aabbMesh = computeAABB(*mesh_);
+      WcTimer octreeTimer;
+      octreeTimer.start();
+      geometryOctree_ = make_shared<GeometryOctreeNode>(aabbMesh, 0, 1, triangles_, numTriangles_, vertices_);
+      octreeTimer.end();
+      WALBERLA_LOG_INFO_ON_ROOT("Built GeometryOctree in " << octreeTimer.max() << "s")
+      WALBERLA_LOG_INFO("Geometry aaBB is " << geometryOctree_->getBoxAABB() << ", it has " << geometryOctree_->getContainedTriangles().size() << " triangles and " << geometryOctree_->getChildNodes().size() << " child nodes")
+      WALBERLA_LOG_INFO("Num triangles is " << numTriangles_)
+
+
+      WcTimer simTimer;
+      WALBERLA_LOG_INFO_ON_ROOT("Start Voxelization")
+      simTimer.start();
+      //voxelizeRayTracing();
+      voxelizeRayTracingWithGeometryOctree();
+      simTimer.end();
+      WALBERLA_LOG_INFO_ON_ROOT("Finished Voxelization in " << simTimer.max() << "s")
    }
 
    void operator()(uint_t timestep) {
       if (timestep % frequency_ == 0)
       {
          if(rotate_) {
-            rotate();
+            //rotate();
             resetFractionField();
-            getFractionFieldFromMesh();
+            //getFractionFieldFromMesh();
+            //voxelizeRayTracing();
+            voxelizeRayTracingWithGeometryOctree();
+            currentAngle += rotationAngle_;
+
+
          }
       }
    }
@@ -99,20 +142,13 @@ class ObjectRotator
          make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_));
    }
 
-
    void resetFractionField()
    {
-      auto aabbMesh = computeAABB(*mesh_);
       for (auto& block : *blocks_)
       {
          auto fractionField = block.getData< FracField_T >(fractionFieldId_);
-         auto level = blocks_->getLevel(block);
-         auto cellBBMesh = blocks_->getCellBBFromAABB( aabbMesh, level );
          CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
-         blocks_->transformBlockLocalToGlobalCellInterval(blockCi, block);
-         cellBBMesh.intersect(blockCi);
-         blocks_->transformGlobalToBlockLocalCellInterval(cellBBMesh, block);
-         std::fill(fractionField->beginSliceXYZ(cellBBMesh), fractionField->end(), 0.0);
+         std::fill(fractionField->beginSliceXYZ(blockCi), fractionField->end(), 0.0);
       }
    }
 
@@ -293,9 +329,319 @@ class ObjectRotator
       return fractionFieldId_;
    }
 
+   void readFile() {
+      std::ifstream meshFile (meshName_ + ".obj");
+      std::string line;
+      std::stringstream stream;
+      std::string keyword;
+
+      std::vector<Vector3<real_t>> vertices;
+      std::vector<Vector3<uint>> triangles;
+
+      Vector3<real_t> vertex;
+      Vector3<uint_t> triangle;
+
+      if (meshFile.is_open())
+      {
+         while ( getline (meshFile,line) )
+         {
+            stream.str(line);
+            stream.clear();
+
+            stream >> keyword;
+            if (keyword == "v") {
+               stream >> vertex[0] >> vertex[1] >> vertex[2];
+               vertices.push_back(vertex);
+            }
+            else if(keyword == "f") {
+               std::string vertexSrt;
+               size_t found;
+               for (uint i = 0; i < 3; ++i) {
+                  stream >> vertexSrt;
+                  found = vertexSrt.find("/");
+                  triangle[i] = uint(stoi(vertexSrt.substr(0,found))-1);
+               }
+               triangles.push_back(triangle);
+            }
+         }
+         meshFile.close();
+         numVertices_ = uint_t(vertices.size());
+         vertices_ = (real_t *) std::malloc( sizeof(real_t) * 3 * numVertices_);
+         for ( uint_t i = 0; i < numVertices_; ++i) {
+            for ( uint_t j = 0; j < 3; ++j)
+            {
+               vertices_[i * 3 + j] = vertices[i][j];
+               vertices_[i * 3 + j] = vertices[i][j];
+               vertices_[i * 3 + j] = vertices[i][j];
+            }
+         }
+         numTriangles_ = uint_t(triangles.size());
+         triangles_ = (uint_t *) std::malloc( sizeof(uint_t) * 3 * numTriangles_);
+         for ( uint_t i = 0; i < numTriangles_; ++i) {
+            for ( uint_t j = 0; j < 3; ++j)
+            {
+               triangles_[i * 3 + j] = triangles[i][j];
+               triangles_[i * 3 + j] = triangles[i][j];
+               triangles_[i * 3 + j] = triangles[i][j];
+            }
+         }
+      }
+      else
+         WALBERLA_ABORT("Couldn't open mesh file")
+   }
+
+   bool RayIntersectsTriangle(real_t rayOrigin[3], real_t rayVector[3], real_t inTriangle[3][3])
+   {
+      const real_t EPSILON = 0.00000000001f;
+      real_t vertex0[3]    = { inTriangle[0][0], inTriangle[0][1], inTriangle[0][2] };
+      real_t vertex1[3]    = { inTriangle[1][0], inTriangle[1][1], inTriangle[1][2] };
+      real_t vertex2[3]    = { inTriangle[2][0], inTriangle[2][1], inTriangle[2][2] };
+      real_t edge1[3], edge2[3], h[3], s[3], q[3];
+      real_t a, f, u, v;
+      SUB(edge1, vertex1, vertex0)
+      SUB(edge2, vertex2, vertex0)
+      CROSS(h, rayVector, edge2)
+      a = DOT(edge1, h);
+      f = 1.0f / a;
+      SUB(s, rayOrigin, vertex0)
+      u = f * DOT(s, h);
+      if (u < 0.0 || u > 1.0) return false;
+      CROSS(q, s, edge1)
+      v = f * DOT(rayVector, q);
+      if (v < 0.0 || u + v > 1.0) return false;
+      real_t t = f * DOT(edge2, q);
+      if (t > EPSILON) // ray intersection
+         return true;
+      else // This means that there is a line intersection but not a ray intersection.
+         return false;
+   }
+
+   #define RIGHT	0
+   #define LEFT	1
+   #define MIDDLE	2
+
+   bool RayBoxIntersection(real_t minB[3], real_t maxB[3], real_t origin[3], real_t rayDir[3]) {
+      uint_t quadrant[3];
+      uint_t whichPlane;
+      real_t candidatePlane[3];
+      bool inside = true;
+      real_t coord[3];
+      real_t maxT[3];
+
+      for (uint_t i=0; i<3; i++)
+         if(origin[i] < minB[i]) {
+            quadrant[i] = LEFT;
+            candidatePlane[i] = minB[i];
+            inside = false;
+         }else if (origin[i] > maxB[i]) {
+            quadrant[i] = RIGHT;
+            candidatePlane[i] = maxB[i];
+            inside = false;
+         }else	{
+            quadrant[i] = MIDDLE;
+            candidatePlane[i] = 0.0;
+         }
+
+      /* Ray origin inside bounding box */
+      if(inside)
+         return true;
+
+      /* Calculate T distances to candidate planes */
+      for (uint_t i = 0; i < 3; i++)
+         if (quadrant[i] != MIDDLE && (rayDir[i] < 0.0 || rayDir[i] > 0.0))
+            maxT[i] = (candidatePlane[i]-origin[i]) / rayDir[i];
+         else
+            maxT[i] = -1.;
+
+      /* Get largest of the maxT's for final choice of intersection */
+      whichPlane = 0;
+      for (uint_t i = 1; i < 3; i++)
+         if (maxT[whichPlane] < maxT[i])
+            whichPlane = i;
+
+      /* Check final candidate actually inside box */
+      if (maxT[whichPlane] < 0.)
+         return false;
+      for (uint_t i = 0; i < 3; i++)
+         if (whichPlane != i) {
+            coord[i] = origin[i] + maxT[whichPlane] * rayDir[i];
+            if (coord[i] < minB[i] || coord[i] > maxB[i])
+               return false;
+         } else {
+            coord[i] = candidatePlane[i];
+         }
+      return true;
+   }
+
+
+   void voxelizeRayTracing() {
+      Matrix3< real_t > rotationMat(rotationAxis_, currentAngle);
+      WALBERLA_LOG_INFO(currentAngle)
+      WALBERLA_LOG_INFO("Mesh Center " << meshCenter)
+
+      for (auto& block : *blocks_)
+      {
+         auto fractionField = block.getData< FracField_T >(fractionFieldId_);
+         auto level         = blocks_->getLevel(block);
+         real_t cellCenter[3], rotatedCellCenter[3];
+         real_t triangle[3][3];
+         real_t rayDirection[3];
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(fractionField,
+            cell::Cell curCell = Cell(x,y,z);
+            //WALBERLA_LOG_INFO(curCell)
+
+            auto cellAABB = blocks_->getAABBFromCellBB(CellInterval( curCell, curCell), level);
+            cellCenter[0] = real_t(cellAABB.center()[0]);
+            cellCenter[1] = real_t(cellAABB.center()[1]);
+            cellCenter[2] = real_t(cellAABB.center()[2]);
+
+            SUB(cellCenter, cellCenter, meshCenter);
+
+            rotatedCellCenter[0] = rotationMat[0] * cellCenter[0] + rotationMat[1] * cellCenter[1] + rotationMat[2] * cellCenter[2];
+            rotatedCellCenter[1] = rotationMat[3] * cellCenter[0] + rotationMat[4] * cellCenter[1] + rotationMat[5] * cellCenter[2];
+            rotatedCellCenter[2] = rotationMat[6] * cellCenter[0] + rotationMat[7] * cellCenter[1] + rotationMat[8] * cellCenter[2];
+
+            ADD(rotatedCellCenter, rotatedCellCenter, meshCenter);
+
+            uint intersections = 0;
+            //TODO Shoot multiple rays
+
+            rayDirection[0] = real_t(rand()) /  real_t(RAND_MAX);
+            rayDirection[1] = real_t(rand()) /  real_t(RAND_MAX);
+            rayDirection[2] = real_t(rand()) /  real_t(RAND_MAX);
+
+            for (uint_t i = 0; i < numTriangles_; ++i) {
+               for(uint_t ty = 0; ty < 3; ++ty) {
+                  for(uint_t tx = 0; tx < 3; ++tx) {
+                     triangle[ty][tx] = vertices_[3 * triangles_[3*i + ty] + tx];
+                  }
+               }
+               if(RayIntersectsTriangle(rotatedCellCenter, rayDirection, triangle))
+                  intersections ++;
+            }
+            if (intersections % 2 == 1) {
+               fractionField->get(x,y,z) = 1.0;
+            }
+         )
+      }
+   }
+
+
+
+   void voxelizeRayTracingWithGeometryOctree() {
+      Matrix3< real_t > rotationMat(rotationAxis_, currentAngle);
+
+      for (auto& block : *blocks_)
+      {
+         auto fractionField = block.getData< FracField_T >(fractionFieldId_);
+         auto level         = blocks_->getLevel(block);
+         auto dx            = real_t(blocks_->dx(level));
+
+         real_t cellCenter[3], rotatedCellCenter[3];
+
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(fractionField,
+
+            //get global cell center in
+            cell::Cell curCell = Cell(x,y,z);
+            WALBERLA_LOG_INFO(curCell)
+
+            auto cellAABB = blocks_->getAABBFromCellBB(CellInterval( curCell, curCell), level);
+            cellCenter[0] = real_t(cellAABB.center()[0]);
+            cellCenter[1] = real_t(cellAABB.center()[1]);
+            cellCenter[2] = real_t(cellAABB.center()[2]);
+
+            //rotate cell center (instead of rotating the mesh)
+            SUB(cellCenter, cellCenter, meshCenter);
+            rotatedCellCenter[0] = rotationMat[0] * cellCenter[0] + rotationMat[1] * cellCenter[1] + rotationMat[2] * cellCenter[2];
+            rotatedCellCenter[1] = rotationMat[3] * cellCenter[0] + rotationMat[4] * cellCenter[1] + rotationMat[5] * cellCenter[2];
+            rotatedCellCenter[2] = rotationMat[6] * cellCenter[0] + rotationMat[7] * cellCenter[1] + rotationMat[8] * cellCenter[2];
+            ADD(rotatedCellCenter, rotatedCellCenter, meshCenter);
+
+            //get fraction
+            fracSize fraction = recursiveSuperSampling(geometryOctree_, rotatedCellCenter, dx, 0);
+            fractionField->get(x,y,z) = fraction;
+         )
+      }
+   }
+
+   fracSize recursiveSuperSampling(shared_ptr<GeometryOctreeNode> &geometryOctreeNode, real_t cellCenter[3], real_t dx, uint_t supersamplingDepth)
+   {
+      // if only one cell left, split cell into 8 cell centers to get these cellCenter distances
+
+      fracSize fraction        = 0.0;
+      const fracSize fracValue = fracSize(1.0 / pow(8, real_t(supersamplingDepth)));
+      const real_t offsetMod    = real_t(1.0 / pow(2, real_t(supersamplingDepth + 2)));
+
+      if (supersamplingDepth == maxSuperSamplingDepth_)
+      {
+         uint_t numRays = 1;
+         uint_t isInside = 0;
+         for(uint_t rays = 0; rays < numRays; ++rays) {
+            std::vector<uint_t> hitTriangles;
+            real_t rayDirection[3] = {real_t(rand()) /  real_t(RAND_MAX) - 0.5f, real_t(rand()) /  real_t(RAND_MAX) - 0.5f, real_t(rand()) /  real_t(RAND_MAX) - 0.5f};
+            recursiveIntersection(geometryOctreeNode, cellCenter, rayDirection, 0, hitTriangles);
+            std::sort(hitTriangles.begin(), hitTriangles.end());
+            hitTriangles.erase(std::unique(hitTriangles.begin(), hitTriangles.end()), hitTriangles.end()) ;
+            if (hitTriangles.size() % 2 == 1)
+               isInside++;
+         }
+         if (isInside == numRays )
+            fraction = fracValue;
+      }
+      else
+      {
+         for (uint_t i = 0; i < 8; ++i)
+         {
+            real_t octreeCenter[3] = { cellCenter[0] + xOffset[i] * dx * offsetMod, cellCenter[1] + yOffset[i] * dx * offsetMod,
+                             cellCenter[2] + zOffset[i] * dx * offsetMod };
+            fraction += recursiveSuperSampling(geometryOctreeNode, octreeCenter, dx, supersamplingDepth + 1);
+         }
+      }
+      return fraction;
+   }
+
+
+   void recursiveIntersection(shared_ptr<GeometryOctreeNode> &geometryOctreeNode, real_t cellCenter[3], real_t rayDirection[3], uint_t depth, std::vector<uint_t> &hitTriangles) {
+      AABB boxAABB = geometryOctreeNode->getBoxAABB();
+      real_t aabbMin[3] = {real_t(boxAABB.xMin()), real_t(boxAABB.yMin()), real_t(boxAABB.zMin())};
+      real_t aabbMax[3] = {real_t(boxAABB.xMax()), real_t(boxAABB.yMax()), real_t(boxAABB.zMax())};
+
+      if(!RayBoxIntersection(aabbMin, aabbMax, cellCenter, rayDirection)) {
+         return; // = return 0
+      }
+
+      if(depth == geometryOctreeNode->getMaxDepth()) {
+         auto containedTriangles = geometryOctreeNode->getContainedTriangles();
+         for (auto tris : containedTriangles) {
+            real_t triangle[3][3];
+            for(uint_t y = 0; y < 3; ++y) {
+               for(uint_t x = 0; x < 3; ++x) {
+                  triangle[y][x] = vertices_[3 * triangles_[3 * tris + y] + x];
+               }
+            }
+            if(RayIntersectsTriangle(cellCenter, rayDirection, triangle))
+               hitTriangles.push_back(tris);
+         }
+      }
+      else{
+         for( auto node : geometryOctreeNode->getChildNodes()) {
+            recursiveIntersection(node, cellCenter, rayDirection, depth+1, hitTriangles);
+         }
+      }
+   }
+
+
+
  private:
    shared_ptr< StructuredBlockForest > blocks_;
    shared_ptr< mesh::TriangleMesh > mesh_;
+
+   real_t * vertices_;
+   uint_t * triangles_;
+
+   uint_t numVertices_;
+   uint_t numTriangles_;
+
    BlockDataID fractionFieldId_;
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
@@ -306,6 +652,14 @@ class ObjectRotator
    uint_t maxSuperSamplingDepth_;
    const bool rotate_;
    mesh::TriangleMesh::Point meshCenter;
+   real_t currentAngle;
+
+   shared_ptr<GeometryOctreeNode> geometryOctree_;
+
+   real_t xOffset[8]{ -1, -1, -1, -1, 1, 1, 1, 1 };
+   real_t yOffset[8]{ -1, -1, 1, 1, -1, -1, 1, 1 };
+   real_t zOffset[8]{ -1, 1, -1, 1, -1, 1, -1, 1 };
+
 
 };
 
