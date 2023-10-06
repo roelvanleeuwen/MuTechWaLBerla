@@ -1,0 +1,42 @@
+
+Parameters 
+{
+	omega           1.6;
+	initialVelocity < 0.1, 0, 0 >;
+	timesteps       1000;
+	vtkWriteFrequency 25;
+
+	remainingTimeLoggerFrequency 3; // in seconds
+}
+
+DomainSetup
+{
+   blocks        <  1,    1,  1 >;
+   cellsPerBlock <  300, 40, 40 >;
+   periodic      <  0,    0,  0 >;
+}
+
+Boundaries 
+{
+    /* 
+       possible sub-blocks: documentation for the subblocks can be found in src/geometry/initializers/BoundaryFrom*.h
+       	   - CellInterval	 BoundaryFromCellInterval.h
+       	   - Border          BoundaryFromDomainBorder.h
+       	   - VoxelFile	     BoundaryFromVoxelFile.h
+       	   - Body			 BoundaryFromBody.h
+       	   - GrayScaleImage  BoundaryFromImage.h
+       	   - RGBAImage	     BoundaryFromImage.h
+    */
+    
+	Border { direction W;        flag UBB;     }
+	Border { direction E;        flag Outflow; }
+	Border { direction S,N,T,B;  flag NoSlip;  }
+
+	Body
+	{ 
+		shape box;
+		min   <30, 10, 10>;
+		max   <50, 30, 30>;
+		flag NoSlip;
+	}
+}
