@@ -99,8 +99,11 @@ int main(int argc, char** argv)
    data::ParticleAccessorWithBaseShape accessor(ps);
 
    // Init spheres
-   math::AABB generationDomain_SI(simulationDomain_SI.xMin(), simulationDomain_SI.yMin(), simulationDomain_SI.zMin(),
-                                  simulationDomain_SI.xMax(), simulationDomain_SI.yMax(), simulationDomain_SI.zMax());
+   // Use offset to domain boundary to prevent the spheres from touching in the beginning
+   real_t domainOffset = maxDiameter_SI / real_t(2);
+   math::AABB generationDomain_SI(simulationDomain_SI.xMin() + domainOffset, simulationDomain_SI.yMin() + domainOffset,
+                                  simulationDomain_SI.zMin() + domainOffset, simulationDomain_SI.xMax() - domainOffset,
+                                  simulationDomain_SI.yMax() - domainOffset, simulationDomain_SI.zMax() - domainOffset);
 
    for (auto pt :
         grid_generator::SCGrid(generationDomain_SI, Vec3(generationSpacing_SI) * real_c(0.5), generationSpacing_SI))
