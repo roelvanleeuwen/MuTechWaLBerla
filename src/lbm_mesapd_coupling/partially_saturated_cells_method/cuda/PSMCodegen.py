@@ -367,6 +367,14 @@ with CodeGeneration() as ctx:
         inner_outer_split=True,
     )
 
+    generate_sweep(
+        ctx,
+        "LBMSweep",
+        create_lb_update_rule(lbm_config=psm_config, lbm_optimisation=psm_opt),
+        field_swaps=[(pdfs, pdfs_tmp)],
+        target=target,
+    )
+
     generate_pack_info_from_kernel(ctx, "PSMPackInfo", lbm_update_rule, target=target)
 
     generate_sweep(ctx, "InitializeDomainForPSM", pdfs_setter, target=target)

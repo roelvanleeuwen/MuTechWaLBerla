@@ -16,6 +16,7 @@ NumericalSetup
     timeSteps 10000;
 
     // particle distribution in LBM units
+    useParticles true; // if true, PSM/particle mapping/velocity computation/hydrodynamic force reduction is used, else LBM is used
     particleDiameter 10.0;
     particleGenerationSpacing 15.0;
 

@@ -54,6 +54,7 @@
 
 #include "vtk/all.h"
 
+#include "LBMSweep.h"
 #include "PSMPackInfo.h"
 #include "PSMSweep.h"
 #include "PSM_Density.h"
@@ -122,6 +123,7 @@ int main(int argc, char** argv)
    const uint_t numYCellsPerBlock         = numericalSetup.getParameter< uint_t >("numYCellsPerBlock");
    const uint_t numZCellsPerBlock         = numericalSetup.getParameter< uint_t >("numZCellsPerBlock");
    const uint_t timeSteps                 = numericalSetup.getParameter< uint_t >("timeSteps");
+   const bool useParticles                = numericalSetup.getParameter< bool >("useParticles");
    const real_t particleDiameter          = numericalSetup.getParameter< real_t >("particleDiameter");
    const real_t particleGenerationSpacing = numericalSetup.getParameter< real_t >("particleGenerationSpacing");
    const real_t pressureDifference        = numericalSetup.getParameter< real_t >("pressureDifference");
@@ -158,20 +160,24 @@ int main(int argc, char** argv)
    auto sphereShape         = ss->create< mesa_pd::data::Sphere >(particleDiameter * real_t(0.5));
 
    // Create spheres
-   auto generationDomain = math::AABB::createFromMinMaxCorner(
-      math::Vector3< real_t >(simulationDomain.xMax() * real_t(0.25), simulationDomain.yMin(), simulationDomain.zMin()),
-      math::Vector3< real_t >(simulationDomain.xMax() * real_t(0.75), simulationDomain.yMax(),
-                              simulationDomain.zMax()));
-   for (auto pt : grid_generator::SCGrid(generationDomain, generationDomain.center(), particleGenerationSpacing))
+   if (useParticles)
    {
-      if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt))
+      auto generationDomain =
+         math::AABB::createFromMinMaxCorner(math::Vector3< real_t >(simulationDomain.xMax() * real_t(0.25),
+                                                                    simulationDomain.yMin(), simulationDomain.zMin()),
+                                            math::Vector3< real_t >(simulationDomain.xMax() * real_t(0.75),
+                                                                    simulationDomain.yMax(), simulationDomain.zMax()));
+      for (auto pt : grid_generator::SCGrid(generationDomain, generationDomain.center(), particleGenerationSpacing))
       {
-         mesa_pd::data::Particle&& p = *ps->create();
-         p.setPosition(pt);
-         p.setInteractionRadius(particleDiameter * real_t(0.5));
-         p.setOwner(mpi::MPIManager::instance()->rank());
-         p.setShapeID(sphereShape);
-         p.setType(0);
+         if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt))
+         {
+            mesa_pd::data::Particle&& p = *ps->create();
+            p.setPosition(pt);
+            p.setInteractionRadius(particleDiameter * real_t(0.5));
+            p.setOwner(mpi::MPIManager::instance()->rank());
+            p.setShapeID(sphereShape);
+            p.setType(0);
+         }
       }
    }
 
@@ -271,7 +277,7 @@ int main(int argc, char** argv)
 
    pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
                                            real_t(0.0));
-   // vtk output
+   // VTK output
    if (vtkSpacing != uint_t(0))
    {
       // Spheres
@@ -316,6 +322,7 @@ int main(int argc, char** argv)
    timeloop.addFuncAfterTimeStep(performanceLogger, "Evaluate performance logging");
 
    // Add LBM communication function and boundary handling sweep
+   // TODO: use split sweeps to hide communication
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
                   << Sweep(deviceSyncWrapper(density0_bc.getSweep()), "Boundary Handling (Density0)");
    timeloop.add() << Sweep(deviceSyncWrapper(density1_bc.getSweep()), "Boundary Handling (Density1)");
@@ -330,9 +337,13 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
                                  real_t(0.0), real_t(0.0), relaxationRate);
-   timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "PSM sweep");
+   pystencils::LBMSweep LBMSweep(pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate);
+
+   if (useParticles) { addPSMSweepsToTimeloop(timeloop, psmSweepCollection, PSMSweep); }
+   else { timeloop.add() << Sweep(deviceSyncWrapper(LBMSweep), "LBM sweep"); }
 
    WcTimingPool timeloopTiming;
+   // TODO: maybe add warmup phase
    timeloop.run(timeloopTiming);
    timeloopTiming.logResultOnRoot();
 
