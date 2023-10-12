@@ -131,8 +131,8 @@ int main(int argc, char** argv)
    createPlane(*ps, simulationDomain_SI.maxCorner(), Vec3(real_t(0), real_t(0), real_t(-1)));
 
    // VTK
-   auto vtkDomainOutput =
-      walberla::vtk::createVTKOutput_DomainDecomposition(forest, "domain_decomposition", 1, "vtk", "simulation_step");
+   auto vtkDomainOutput = walberla::vtk::createVTKOutput_DomainDecomposition(forest, "domain_decomposition", 1,
+                                                                             "vtk_settling_spheres", "simulation_step");
    vtkDomainOutput->write();
 
    auto particleVtkOutput = make_shared< mesa_pd::vtk::ParticleVtkOutput >(ps);
@@ -142,7 +142,7 @@ int main(int argc, char** argv)
       using namespace walberla::mesa_pd::data::particle_flags;
       return (pIt->getBaseShape()->getShapeType() == data::Sphere::SHAPE_TYPE) && !isSet(pIt->getFlags(), GHOST);
    });
-   auto vtkWriter = walberla::vtk::createVTKOutput_PointData(particleVtkOutput, "Particles", 1, "vtk",
+   auto vtkWriter = walberla::vtk::createVTKOutput_PointData(particleVtkOutput, "Particles", 1, "vtk_settling_spheres",
                                                              "simulation_step", false, false);
 
    // Init kernels

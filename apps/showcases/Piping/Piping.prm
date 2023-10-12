@@ -1,0 +1,37 @@
+Domain
+{
+    domainSize <300, 60, 150>;
+    numBlocks <1, 2, 1>; // if periodicInY true, then one needs at least two blocks in y direction
+    periodicInY true;
+}
+
+Physics
+{
+    timeSteps 10000;
+    pressureDifference 0.1; // final pressure difference
+    finalPressureTimeStep 10000; // time step in which the final pressure difference is reached, 0 means instantly
+    relaxationRate 0.9;
+}
+
+Bucket
+{
+    bucketSizeFraction <0.1, 1.0, 0.5>; // bucket size as a fraction of the domain size
+}
+
+Particles
+{
+    inFileName spheres_out.dat;
+    densityRatio 2.5;
+    frictionCoefficient 0.5;
+    restitutionCoefficient 0.97;
+    numSubCycles 10;
+    useLubricationCorrection true;
+    poissonsRatio 0.22;
+}
+
+Output
+{
+    vtkSpacing 500;
+    vtkFolder vtk_piping;
+    performanceLogFrequency 500;
+}
