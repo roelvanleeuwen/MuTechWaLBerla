@@ -40,12 +40,21 @@ if( WALBERLA_BUILD_WITH_CODEGEN )
 
    walberla_generate_target_from_python( NAME      ViscousLDCLatticeModelGeneration
                            FILE      ViscousLDCLatticeModelGeneration.py
-                           OUT_FILES ViscousLDCLatticeModel.cpp ViscousLDCLatticeModel.h )
+                           OUT_FILES ViscousLDCLatticeModel.cpp ViscousLDCLatticeModel.h ViscousLDCLatticeModelThermal.cpp ViscousLDCLatticeModelThermal.h )
+
+   waLBerla_generate_target_from_python(NAME ViscousLDC_codegen
+           FILE ViscousLDC_codegen.py
+           OUT_FILES initialize_thermal_field.cpp initialize_thermal_field.h
+           thermal_lb_step.cpp thermal_lb_step.h
+           BC_thermal_Thot.cpp BC_thermal_Thot.h
+           BC_thermal_Tcold.cpp BC_thermal_Tcold.h
+           PackInfo_thermal.cpp PackInfo_thermal.h
+           GenDefines.h)
 
    waLBerla_add_executable(NAME    ViscousLDCCodegen
                            FILES   ViscousLDCCodegen.cpp
                            DEPENDS blockforest boundary core domain_decomposition field lbm postprocessing timeloop vtk
-                                   ViscousLDCLatticeModelGeneration)
+                                   ViscousLDCLatticeModelGeneration ViscousLDC_codegen)
 endif()
 
 waLBerla_add_executable(NAME    MovingDrop

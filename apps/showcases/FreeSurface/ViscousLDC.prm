@@ -1,6 +1,6 @@
 BlockForestParameters
 {
-   cellsPerBlock                 < 16, 16, 1 >;
+   cellsPerBlock                 < 32, 32, 1 >;
    periodicity                   < 0, 0, 1 >;
    loadBalancingFrequency        0;
    printLoadBalancingStatistics  false;
@@ -16,10 +16,10 @@ DomainParameters
 PhysicsParameters
 {
    reynoldsNumber    1;
-   relaxationRate    1.8;
+   relaxationRate    1.75;
    enableWetting     false;
    contactAngle      0; // only used if enableWetting=true
-   timesteps         86400;
+   timesteps         4320;  // 86400;
    amplitude         1.0;   // amplitude of sinus multiplied with force in x-direction
    wavelength        8640;  // wavelength of sinus multiplied with force in x-direction
    offset            0.0;   // offset of sinus multiplied with force in x-direction
@@ -61,9 +61,24 @@ BoundaryParameters
    //Border { direction B;  walldistance -1; NoSlip{} }
 }
 
+BoundaryParametersThermal
+{
+   // X
+   Border { direction W;  walldistance -1; NoSlip{} }
+   Border { direction E;  walldistance -1; NoSlip{} }
+
+   // Y
+   Border { direction N;  walldistance -1; NoSlip{} }
+   Border { direction S;  walldistance -1; NoSlip{} }
+
+   // Z
+   Border { direction T;  walldistance -1; NoSlip{} }
+   Border { direction B;  walldistance -1; NoSlip{} }
+}
+
 MeshOutputParameters
 {
-   writeFrequency 864;
+   writeFrequency 432;
    baseFolder     mesh-out;
 }
 
@@ -71,7 +86,7 @@ VTK
 {
    fluid_field
    {
-      writeFrequency       864;
+      writeFrequency       432;
       ghostLayers          1;
       baseFolder           vtk-out;
       samplingResolution   0;

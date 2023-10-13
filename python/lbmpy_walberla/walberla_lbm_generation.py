@@ -121,7 +121,8 @@ def __lattice_model(generation_context, class_name, config, lb_method, stream_co
         'zero_centered': lb_method.conserved_quantity_computation.zero_centered_pdfs,
         'equilibrium_deviation_only': lb_method.equilibrium_distribution.deviation_only,
         'weights': ",".join(str(w.evalf()) + constant_suffix for w in lb_method.weights),
-        'inverse_weights': ",".join(str((1 / w).evalf()) + constant_suffix for w in lb_method.weights),
+        # inverse_weights: if-statement necessary -> w[0] = 0 for D3Q7 resulting in error for w_inv[0] = 1/0
+        'inverse_weights': ",".join(str((1 / w).evalf() if w != 0 else str(0)) + constant_suffix for w in lb_method.weights),
         'dtype': "float" if is_float else "double",
 
         'equilibrium_from_direction': stencil_switch_statement(lb_method.stencil, equilibrium),
