@@ -356,8 +356,8 @@ int main(int argc, char** argv)
    {
       timeloop.singleStep(timeloopTiming);
       // If pressure difference did not yet reach the limit, decrease the pressure on the right hand side
-      density1_bc.bc_density_ =
-         std::max(1.0 - pressureDifference, density1_bc.bc_density_ - pressureDifference / finalPressureTimeStep);
+      density1_bc.bc_density_ = std::max(real_t(1.0) - pressureDifference,
+                                         density1_bc.bc_density_ - pressureDifference / real_t(finalPressureTimeStep));
    }
 
    timeloopTiming.logResultOnRoot();
