@@ -233,7 +233,7 @@ struct SphereSelector
 
 template< typename ParticleAccessor_T >
 real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, const BlockDataID& BFieldID,
-                        const BlockDataID& BFieldGPUID, const shared_ptr< ParticleAccessor_T >& ac,
+                        const BlockDataID& BFieldGPUID, const shared_ptr< ParticleAccessor_T >& accessor,
                         const shared_ptr< mesa_pd::data::ParticleStorage >& ps)
 {
    using namespace lbm_mesapd_coupling::psm::gpu;
@@ -241,11 +241,11 @@ real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, cons
    // Compute max particle height (only considers particle centers, not particle radii)
    real_t maxParticleHeight = real_t(0);
    ps->forEachParticle(
-      false, SphereSelector(), *ac,
+      false, SphereSelector(), *accessor,
       [&maxParticleHeight](const size_t idx, auto& ac) {
          maxParticleHeight = std::max(ac.getPosition(idx)[2], maxParticleHeight);
       },
-      *ac);
+      *accessor);
 
    WALBERLA_MPI_SECTION() { mpi::allReduceInplace(maxParticleHeight, mpi::MAX); }
 
@@ -274,7 +274,38 @@ real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, cons
    }
 
    // Compute void fraction
-   return real_t(1 - sumOverlapFractions / numFluidCells);
+   return real_t(1) - sumOverlapFractions / real_t(numFluidCells);
+}
+
+template< typename ParticleAccessor_T >
+real_t computeSeepageLength(const shared_ptr< ParticleAccessor_T >& accessor,
+                            const shared_ptr< mesa_pd::data::ParticleStorage >& ps, const mesa_pd::Vec3& boxPosition,
+                            const mesa_pd::Vec3& boxEdgeLength)
+{
+   using namespace lbm_mesapd_coupling::psm::gpu;
+
+   // Compute max particle height (only considers particle close to the bucket)
+   // Assuming uniform height on both sides of the bucket (no uplift or subsidence)
+   real_t maxParticleSeepageHeight = real_t(0);
+   ps->forEachParticle(
+      false, SphereSelector(), *accessor,
+      [&maxParticleSeepageHeight, &boxPosition, &boxEdgeLength](const size_t idx, auto& ac) {
+         if (ac.getPosition(idx)[0] > boxPosition[0] - boxEdgeLength[0] &&
+             ac.getPosition(idx)[0] < boxPosition[0] + boxEdgeLength[0])
+         {
+            maxParticleSeepageHeight = std::max(ac.getPosition(idx)[2], maxParticleSeepageHeight);
+         }
+      },
+      *accessor);
+
+   WALBERLA_MPI_SECTION() { mpi::allReduceInplace(maxParticleSeepageHeight, mpi::MAX); }
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(maxParticleSeepageHeight)
+   const real_t penetrationDepth = maxParticleSeepageHeight - real_t(boxPosition[2] - boxEdgeLength[2] / 2);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(penetrationDepth)
+   WALBERLA_CHECK(penetrationDepth > 0, "Bucket does not penetrate the soil.")
+
+   // Two times the penetration depth plus the wall thickness
+   return real_t(2 * penetrationDepth + boxEdgeLength[0]);
 }
 
 } // namespace piping

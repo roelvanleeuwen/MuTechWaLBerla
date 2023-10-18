@@ -252,6 +252,9 @@ int main(int argc, char** argv)
    real_t e_init = computeVoidRatio(blocks, BFieldID, particleAndVolumeFractionSoA.BFieldID, accessor, ps);
    WALBERLA_LOG_INFO_ON_ROOT("Void ratio e_init: " << e_init)
 
+   real_t seepageLength = computeSeepageLength(accessor, ps, boxPosition, boxEdgeLength);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(seepageLength)
+
    // Initialize PDFs
    pystencils::InitializeDomainForPSM pdfSetter(
       particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
