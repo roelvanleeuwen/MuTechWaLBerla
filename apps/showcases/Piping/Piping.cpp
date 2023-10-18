@@ -133,11 +133,18 @@ int main(int argc, char** argv)
       WALBERLA_ABORT("The number of blocks in periodic dimensions must be greater than 1.")
    }
 
-   Config::BlockHandle physicsParameters = cfgFile->getBlock("Physics");
-   const uint_t timeSteps                = physicsParameters.getParameter< uint_t >("timeSteps");
-   const real_t pressureDifference       = physicsParameters.getParameter< real_t >("pressureDifference");
-   const uint_t finalPressureTimeStep    = physicsParameters.getParameter< uint_t >("finalPressureTimeStep");
-   const real_t relaxationRate           = physicsParameters.getParameter< real_t >("relaxationRate");
+   Config::BlockHandle physicsParameters   = cfgFile->getBlock("Physics");
+   const uint_t timeSteps                  = physicsParameters.getParameter< uint_t >("timeSteps");
+   const real_t pressureDifference         = physicsParameters.getParameter< real_t >("pressureDifference");
+   const uint_t finalPressureTimeStep      = physicsParameters.getParameter< uint_t >("finalPressureTimeStep");
+   const real_t kinematicViscosityFluid_SI = physicsParameters.getParameter< real_t >("kinematicViscosityFluid_SI");
+   const real_t dx_SI                      = physicsParameters.getParameter< real_t >("dx_SI");
+   const real_t dt_SI                      = physicsParameters.getParameter< real_t >("dt_SI");
+
+   const real_t viscosity = kinematicViscosityFluid_SI * dt_SI / (dx_SI * dx_SI);
+   const real_t omega     = lbm::collision_model::omegaFromViscosity(viscosity);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(viscosity)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(omega)
 
    Config::BlockHandle bucketParameters = cfgFile->getBlock("Bucket");
    const Vector3< real_t > bucketSizeFraction =
@@ -348,7 +355,7 @@ int main(int argc, char** argv)
    pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
-                                 real_t(0.0), real_t(0.0), relaxationRate);
+                                 real_t(0.0), real_t(0.0), omega);
 
    addPSMSweepsToTimeloop(timeloop, psmSweepCollection, PSMSweep);
 
