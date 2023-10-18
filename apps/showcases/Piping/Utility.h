@@ -25,6 +25,8 @@
 #include "core/mpi/MPITextFile.h"
 #include "core/mpi/Reduce.h"
 
+#include "lbm_mesapd_coupling/DataTypesGPU.h"
+
 #include "mesa_pd/data/ParticleStorage.h"
 #include "mesa_pd/data/shape/Sphere.h"
 
@@ -228,6 +230,52 @@ struct SphereSelector
       return ac.getBaseShape(particleIdx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE;
    }
 };
+
+template< typename ParticleAccessor_T >
+real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, const BlockDataID& BFieldID,
+                        const BlockDataID& BFieldGPUID, const shared_ptr< ParticleAccessor_T >& ac,
+                        const shared_ptr< mesa_pd::data::ParticleStorage >& ps)
+{
+   using namespace lbm_mesapd_coupling::psm::gpu;
+
+   // Compute max particle height (only considers particle centers, not particle radii)
+   real_t maxParticleHeight = real_t(0);
+   ps->forEachParticle(
+      false, SphereSelector(), *ac,
+      [&maxParticleHeight](const size_t idx, auto& ac) {
+         maxParticleHeight = std::max(ac.getPosition(idx)[2], maxParticleHeight);
+      },
+      *ac);
+
+   WALBERLA_MPI_SECTION() { mpi::allReduceInplace(maxParticleHeight, mpi::MAX); }
+
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(maxParticleHeight)
+   gpu::fieldCpy< GhostLayerField< real_t, 1 >, BFieldGPU_T >(blocks, BFieldID, BFieldGPUID);
+
+   // Compute cell-averaged overlap fraction for cells in the sediment bed (= below the maximum particle height)
+   real_t sumOverlapFractions = real_t(0);
+   uint_t numFluidCells       = uint_t(0);
+   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   {
+      BField_T* BField = blockIt->getData< BField_T >(BFieldID);
+      WALBERLA_FOR_ALL_CELLS_XYZ(
+         BField, Cell cell(x, y, z); blocks->transformBlockLocalToGlobalCell(cell, *blockIt);
+         const Vector3< real_t > globalCellCenter = blocks->getCellCenter(cell);
+         if (globalCellCenter[2] < maxParticleHeight) {
+            sumOverlapFractions += BField->get(x, y, z);
+            ++numFluidCells;
+         })
+   }
+
+   WALBERLA_MPI_SECTION()
+   {
+      mpi::allReduceInplace(sumOverlapFractions, mpi::SUM);
+      mpi::allReduceInplace(numFluidCells, mpi::SUM);
+   }
+
+   // Compute void fraction
+   return real_t(1 - sumOverlapFractions / numFluidCells);
+}
 
 } // namespace piping
 } // namespace walberla
