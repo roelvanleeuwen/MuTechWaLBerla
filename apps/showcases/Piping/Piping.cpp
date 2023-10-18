@@ -233,8 +233,7 @@ int main(int argc, char** argv)
    ///////////////
 
    // Map particles into the fluid domain
-   // TODO: use Weighting instead of 1
-   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, relaxationRate);
+   ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, omega);
    // TODO: find better value for numberOfParticleSubBlocksPerDim
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, SphereSelector(), particleAndVolumeFractionSoA,
                                             uint_t(5));
