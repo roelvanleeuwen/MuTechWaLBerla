@@ -32,27 +32,41 @@
 #pragma warning( disable :  1599 )
 #endif
 
-#define CROSS(dest,v1,v2) \
-         dest.x=v1.y*v2.z-v1.z*v2.y; \
-         dest.y=v1.z*v2.x-v1.x*v2.z; \
-         dest.z=v1.x*v2.y-v1.y*v2.x;
 
 #define DOT(v1,v2) (v1.x*v2.x+v1.y*v2.y+v1.z*v2.z)
+
+#define DOT2(v1,v2) (v1.x*v2.x+v1.y*v2.y)
+
+#define SQNORM2(v1) (sqrtf(v1.x*v1.x + v1.y*v1.y))
 
 #define SUB(dest,v1,v2) \
          dest.x=v1.x-v2.x; \
          dest.y=v1.y-v2.y; \
          dest.z=v1.z-v2.z;
 
+#define SUB2(dest,v1,v2) \
+         dest.x=v1.x-v2.x; \
+         dest.y=v1.y-v2.y;
+
 #define ADD(dest,v1,v2) \
          dest.x=v1.x+v2.x; \
          dest.y=v1.y+v2.y; \
          dest.z=v1.z+v2.z;
 
+#define MATVECMUL(dest, m1, v2) \
+         dest.x=m1[0]*v2.x+m1[1]*v2.y+m1[2]*v2.z; \
+         dest.y=m1[3]*v2.x+m1[4]*v2.y+m1[5]*v2.z; \
+         dest.z=m1[6]*v2.x+m1[7]*v2.y+m1[8]*v2.z;
+
+#define TRANSPOSE(dest, m1) \
+         dest[0] = m1[0]; dest[1] = m1[3]; dest[2] = m1[6]; \
+         dest[3] = m1[1]; dest[4] = m1[4]; dest[5] = m1[7]; \
+         dest[6] = m1[2]; dest[7] = m1[5]; dest[8] = m1[8];
 
 namespace walberla
 {
 
+/*
 __global__ static void rotateGPU(float * vertices, int numVertices, float3 rotationMatrixX, float3 rotationMatrixY, float3 rotationMatrixZ, float3 axis_foot) {
 
    const int64_t x = blockDim.x*blockIdx.x + threadIdx.x;
@@ -103,7 +117,7 @@ void ObjectRotatorGPU::rotateGPUCall()
    rotateGPU<<<threads, blocks>>>(verticesGPU_, numVertices_, rotationMatrixX, rotationMatrixY, rotationMatrixZ, axis_foot);
 
 }
-
+*/
 
 __global__ static void resetFractionFieldGPU(fracSize * RESTRICT const fractionFieldData, fracSize * RESTRICT const tmpFractionFieldData, int3 cellBBSize, int3 cellBBLocalMin, int3 stride_frac_field) {
 
@@ -132,82 +146,126 @@ __global__ void writeToActualFractionField(fracSize * RESTRICT const fractionFie
 }
 
 
-__device__ bool RayIntersectsTriangleGPU(float3 rayOrigin, float3 rayVector, float3 vertex0, float3 vertex1, float3 vertex2)
-{
-   const float EPSILON = 0.00000001f;
-   float3 edge1, edge2, h, s, q;
-   float a, f, u, v;
-   SUB(edge1, vertex1, vertex0)
-   SUB(edge2, vertex2, vertex0)
-   CROSS(h, rayVector, edge2)
-   a = DOT(edge1, h);
-   if (a > -EPSILON && a < EPSILON) return false; // This ray is parallel to this triangle.
-   f = 1.0f / a;
-   SUB(s, rayOrigin, vertex0)
-   u = f * DOT(s, h);
-   if (u < 0.0 || u > 1.0) return false;
-   CROSS(q, s, edge1)
-   v = f * DOT(rayVector, q);
-   if (v < 0.0 || u + v > 1.0) return false;
-   // At this stage we can compute t to find out where the intersection point is on the line.
-   float t = f * DOT(edge2, q);
-   if (t > EPSILON)
-      return true;
-   else
-      return false;
-}
+__device__ float getSqSignedDistance(DistancePropertiesGPU * distancePropertiesGpu, int numFaces, float3 cellCenter) {
+   // get sqDistance
+   float final_sqDistance = INFINITY;
+   float3 final_closestPoint;
+   float3 final_normal;
 
+   for (int i = 0; i < numFaces; ++i) {
+      DistancePropertiesGPU dp = distancePropertiesGpu[i];
+      float3 closestPoint;
+      int region;
+      float3 temp;
+      float2 temp2;
 
-__device__ fracSize recursiveSuperSampling(int* triangles, float* vertices, int numTriangles, float3 cellCenter, float dx, int depth, int maxSuperSamplingDepth, curandState state)
-{
-   // if only one cell left, split cell into 8 cell centers to get these cellCenter distances
+      float3 pt3;
+      ADD(temp, cellCenter, dp.translation)
+      MATVECMUL(pt3, dp.rotation, temp)
 
-   fracSize fraction        = 0.0;
-   const fracSize fracValue = float(1.0 / pow(8, float(depth)));
-   const float offsetMod    = float(1.0 / pow(2, float(depth + 2)));
+      closestPoint.z = 0.0;
 
-   if (depth == maxSuperSamplingDepth)
-   {
-      int raySamples = 2;
-      int cellInside = 0;
-      for (int r = 0; r < raySamples; ++r) {
-         float3 rayDirection = { float(curand_uniform(&state)), float(curand_uniform(&state)), float(curand_uniform(&state)) };
-         int intersections   = 0;
-         for (int i = 0; i < numTriangles; ++i)
-         {
-            float3 vertex0 = { vertices[3 * triangles[i * 3]], vertices[3 * triangles[i * 3] + 1], vertices[3 * triangles[i * 3] + 2] };
-            float3 vertex1 = { vertices[3 * triangles[i * 3 + 1]], vertices[3 * triangles[i * 3 + 1] + 1], vertices[3 * triangles[i * 3 + 1] + 2] };
-            float3 vertex2 = { vertices[3 * triangles[i * 3 + 2]], vertices[3 * triangles[i * 3 + 2] + 1], vertices[3 * triangles[i * 3 + 2] + 2] };
-            if (RayIntersectsTriangleGPU(cellCenter, rayDirection, vertex0, vertex1, vertex2))
-               intersections++;
-         }
-         if (intersections % 2 == 1)
-            cellInside++;
-         else
-            break;
-      }
-      if (cellInside > (raySamples / 2))
-         fraction = fracValue;
-   }
-   else
-   {
-      float xOffset[8]{ -1, -1, -1, -1, 1, 1, 1, 1 };
-      float yOffset[8]{ -1, -1, 1, 1, -1, -1, 1, 1 };
-      float zOffset[8]{ -1, 1, -1, 1, -1, 1, -1, 1 };
-      float3 octreeCenter;
-      for (uint_t i = 0; i < 8; ++i)
+      float sqDistance = pt3.z * pt3.z;
+      float2 pt = {pt3.x, pt3.y};
+
+      float e0p = DOT2(dp.e0_normalized, pt);
+      float e1p = DOT2(dp.e1_normalized, pt);
+      SUB2(temp2, pt, dp.e0)
+      float e2p = DOT2(dp.e2_normalized, temp2);
+
+      temp2 = {-1,0};
+      float e0d = DOT2(temp2, pt);
+      float e1d = DOT2(dp.e1_normal, pt);
+      SUB2(temp2, pt, dp.e0)
+      float e2d = DOT2(dp.e2_normal, temp2);
+
+      //printf("%f %f %f %f %f %f %f \n", pt.x, e0p, e1p, e2p, e0d, e1d, e2d );
+
+      if( e0p <= 0 && e1p <= 0  )
       {
-         octreeCenter = { cellCenter.x + xOffset[i] * dx * offsetMod, cellCenter.y + yOffset[i] * dx * offsetMod,
-                          cellCenter.z + zOffset[i] * dx * offsetMod };
-         fraction += recursiveSuperSampling(triangles, vertices, numTriangles, octreeCenter, dx, depth + 1, maxSuperSamplingDepth, state);
+         // Voronoi area of vertex 0
+         region = 1;
+         sqDistance += SQNORM2(pt); // distance from v0
+         closestPoint.x = closestPoint.y = 0;
+      }
+      else if( e0p >= dp.e0l && e2p <= 0 )
+      {
+         // Voronoi area of vertex 1
+         region = 2;
+         SUB2(temp2, pt, dp.e0)
+         sqDistance += SQNORM2(temp2); // distance from v1
+         closestPoint.x = dp.e0.x;
+         closestPoint.y = dp.e0.y;
+      }
+      else if( e1p >= dp.e1l && e2p >= dp.e2l )
+      {
+         // Voronoi area of vertex 2
+         region = 3;
+         SUB2(temp2, pt, dp.e1)
+         sqDistance += SQNORM2(temp2); // distance from v2
+         closestPoint.x = dp.e1.x;
+         closestPoint.y = dp.e1.y;
+      }
+      else if( e0d <= 0 && e1d <= 0 && e2d <= 0 )
+      {
+         // Voronoi area of face
+         region = 0;
+         // result += 0;
+         closestPoint.x = pt.x;
+         closestPoint.y = pt.y;
+      }
+      else if( e0d >= 0 && e0p > 0 && e0p < dp.e0l )
+      {
+         // Voronoi area of edge 0
+         region = 4;
+         sqDistance += pt.x * pt.x;
+         closestPoint.x = 0;
+         closestPoint.y = pt.y;
+      }
+      else if( e1d >= 0 && e1p > 0 && e1p < dp.e1l )
+      {
+         // Voronoi area of edge 1
+         region = 5;
+         sqDistance += e1d * e1d;
+         closestPoint.x = e1p * dp.e1_normalized.x;
+         closestPoint.y = e1p * dp.e1_normalized.y;
+      }
+      else if( e2d >= 0 && e2p > 0 && e2p < dp.e2l )
+      {
+         // Voronoi area of edge 2
+         region = 6;
+         sqDistance += e2d * e2d;
+         closestPoint.x = dp.e0.x + e2p * dp.e2_normalized.x;
+         closestPoint.y = dp.e0.y + e2p * dp.e2_normalized.y;
+      }
+      else
+      {
+         //TODO ERROR MESSAGE AND ABORT
+         printf("Error in sqDist calculation\n");
+         return 0.0;
+      }
+      //printf("spDist is %f\n", sqDistance);
+
+
+      if(sqDistance <= final_sqDistance) {
+         final_sqDistance = sqDistance;
+         float transpose[9];
+         TRANSPOSE(transpose, dp.rotation)
+         MATVECMUL(temp, transpose, closestPoint)
+         SUB(final_closestPoint, temp, dp.translation)
+         final_normal = dp.region_normal[region];
       }
    }
-   return fraction;
+   printf("final_sqDistance is %f\n", final_sqDistance);
+   return final_sqDistance;
+   float3 temp;
+   SUB(temp, cellCenter, final_closestPoint)
+   float dot = DOT(temp, final_normal);
+   return dot >= 0.0 ? final_sqDistance : -final_sqDistance;
 }
 
 
-__global__ void voxelizeRayTracingGPUSuperSampling(fracSize * RESTRICT const fractionFieldData, float3 minAABB, int3 cellBBSize, int3 cellBBLocalMin, int3 stride_frac_field,
-                                         float dx, int* triangles, float* vertices, int numTriangles, int maxSuperSamplingDepth, curandState* state)
+__global__ void voxelizeGPU(DistancePropertiesGPU * distancePropertiesGpu, fracSize * RESTRICT const fractionFieldData, float3 minAABB, int3 cellBBSize, int3 cellBBLocalMin, int3 stride_frac_field, float dx, int numFaces)
 {
    const int64_t x = blockDim.x*blockIdx.x + threadIdx.x ;
    const int64_t y = blockDim.y*blockIdx.y + threadIdx.y ;
@@ -217,21 +275,25 @@ __global__ void voxelizeRayTracingGPUSuperSampling(fracSize * RESTRICT const fra
       const int idx = (x + cellBBLocalMin.x) + (y + cellBBLocalMin.y) * stride_frac_field.y + (z + cellBBLocalMin.z) * stride_frac_field.z;
       //const int idx = x + y * stride_frac_field.y + z * stride_frac_field.z;
 
-      const int xyz = x+y+z;
-      curand_init(1234, xyz, 7, &state[xyz]);
-
-      float dxHalf        = 0.0;//0.5f * dx;
+      float dxHalf        = 0.0;    //0.5f * dx;
       float3 cellCenter = { minAABB.x + float(x) * dx + dxHalf, minAABB.y + float(y) * dx + dxHalf,
                             minAABB.z + float(z) * dx + dxHalf };
-      fracSize fraction;
-      fraction = recursiveSuperSampling(triangles, vertices, numTriangles, cellCenter, dx, 0, maxSuperSamplingDepth, state[xyz]);
-      fractionFieldData[idx] = fraction;
 
+      float sqSignedDistance = getSqSignedDistance(distancePropertiesGpu, numFaces, cellCenter);
+      //printf("sqSignedDistance is %f \n", sqSignedDistance);
+
+      float sqDx = dx * dx;
+      float sqDxHalf = (0.5 * dx) * (0.5 * dx);
+
+      fracSize fraction;
+      fraction = max(0.0, min(1.0, (sqDx - (sqSignedDistance + sqDxHalf) ) / sqDx));
+      fractionFieldData[idx] = sqSignedDistance;
    }
 }
 
 
-void ObjectRotatorGPU::voxelizeRayTracingGPUCall() {
+
+void ObjectRotatorGPU::voxelizeGPUCall() {
    for (auto& block : *blocks_)
    {
       auto tmpFractionFieldGPU = block.getData< gpu::GPUField<fracSize> >(tmpFracFieldGPUId);
@@ -249,7 +311,7 @@ void ObjectRotatorGPU::voxelizeRayTracingGPUCall() {
          continue;
       
       CellInterval cellBB = blocks_->getCellBBFromAABB(blockAABB);
-      int3 cellBBSize = {int(cellBB.xSize() + 1), int(cellBB.ySize() + 1), int(cellBB.zSize() + 1)};
+      int3 cellBBSize = {int(cellBB.xSize() + 2), int(cellBB.ySize() + 2), int(cellBB.zSize() + 2)}; //TODO +2 ??
       Cell cellBBGlobalMin = cellBB.min();
       blocks_->transformGlobalToBlockLocalCell(cellBBGlobalMin, block);
       int3 cellBBLocalMin = {int(cellBBGlobalMin[0]), int(cellBBGlobalMin[1]), int(cellBBGlobalMin[2])};
@@ -269,14 +331,10 @@ void ObjectRotatorGPU::voxelizeRayTracingGPUCall() {
 
       resetFractionFieldGPU<<<_grid, _block>>>(_data_fractionFieldGPU, _data_tmpFractionFieldGPU, cellBBSize, cellBBLocalMin, stride_frac_field);
 
-      voxelizeRayTracingGPUSuperSampling<<<_grid, _block>>>(_data_tmpFractionFieldGPU, minAABB, cellBBSize, cellBBLocalMin, stride_frac_field, dx, trianglesGPU_, verticesGPU_, numTriangles_, maxSuperSamplingDepth_, dev_curand_states);
+      voxelizeGPU<<<_grid, _block>>>(distancePropertiesGPUPtr, _data_tmpFractionFieldGPU, minAABB, cellBBSize, cellBBLocalMin, stride_frac_field, dx, numFaces_);
 
       writeToActualFractionField<<<_grid, _block>>>(_data_fractionFieldGPU, _data_tmpFractionFieldGPU, cellBBSize, cellBBLocalMin, stride_frac_field);
-
-
-
    }
 }
-
 
 } //namespace walberla

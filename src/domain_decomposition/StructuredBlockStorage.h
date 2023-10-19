@@ -375,7 +375,12 @@ public:
    inline Vector3< real_t > getBlockLocalCellCenter( const IBlock & block, const Cell & localCell ) const;
    inline void getBlockLocalCellCenter( const IBlock & block, const Cell & localCell, real_t & x, real_t & y, real_t & z ) const;
    inline void getBlockLocalCellCenter( const IBlock & block, const Cell & localCell, Vector3< real_t > & p ) const { getBlockLocalCellCenter( block, localCell, p[0], p[1], p[2] ); }
-   
+
+   inline Vector3< real_t > getGlobalCellCenter( const IBlock & block, const Cell & globalCell ) const;
+   inline void getGlobalCellCenter( const IBlock & block, const Cell & globalCell, real_t & x, real_t & y, real_t & z ) const;
+   inline void getGlobalCellCenter( const IBlock & block, const Cell & globalCell, Vector3< real_t > & p ) { getGlobalCellCenter( block, globalCell, p[0], p[1], p[2] ); }
+
+
    inline AABB getBlockLocalCellAABB( const IBlock & block, const Cell & localCell ) const;
    inline void getBlockLocalCellAABB( const IBlock & block, const Cell & localCell, AABB & aabb ) const;
 
@@ -821,6 +826,32 @@ inline void StructuredBlockStorage::getBlockLocalCellCenter( const IBlock & bloc
    z = aabb.zMin() + ( real_c( localCell.z() ) + real_c(0.5) ) * dz( level );
 }
 
+
+inline Vector3< real_t > StructuredBlockStorage::getGlobalCellCenter( const IBlock & block, const Cell & globalCell ) const
+{
+   Vector3< real_t > center;
+   getGlobalCellCenter( block, globalCell, center[0], center[1], center[2] );
+   return center;
+}
+
+//**********************************************************************************************************************
+/*!
+*   Returns the location of the center of a global cell "globalCell.
+ */
+//**********************************************************************************************************************
+inline void StructuredBlockStorage::getGlobalCellCenter( const IBlock & block, const Cell & globalCell , real_t & x, real_t & y, real_t & z ) const
+{
+   WALBERLA_ASSERT_EQUAL( blockStorage_.get(), &(block.getBlockStorage()) )
+
+   const AABB& domain = getDomain();
+   const uint_t level = getLevel( block );
+
+   WALBERLA_ASSERT_LESS( level, levels_ )
+
+   x = domain.xMin() + real_c( globalCell.x() ) * dx( level ) + 0.5 * dx( level );
+   y = domain.yMin() + real_c( globalCell.y() ) * dy( level ) + 0.5 * dy( level );
+   z = domain.zMin() + real_c( globalCell.z() ) * dz( level ) + 0.5 * dz( level );
+}
 
 
 //**********************************************************************************************************************

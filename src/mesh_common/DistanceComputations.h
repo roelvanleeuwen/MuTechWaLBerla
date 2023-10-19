@@ -92,6 +92,8 @@ public:
    typedef typename MeshType::FaceHandle FaceHandle;
    typedef math::Vector3<Scalar>         Vec3;
    typedef math::GenericAABB<Scalar>     BoundingBox;
+   typedef typename OpenMesh::FPropHandleT< DistanceProperties<MeshType> > DistancePropertyHandle;
+
 
    TriangleDistance( const shared_ptr<MeshType> & mesh ) : mesh_(mesh), distanceProperties_( *mesh, "DistanceProperties" ) { computeNormals(); computeDistanceProperties(); }
 
@@ -174,11 +176,11 @@ public:
 
    const BoundingBox & getAabb( FaceHandle fh ) const { return distanceProperties_[ fh ].aabb; }
 
+   const OpenMesh::PropertyManager< DistancePropertyHandle, MeshType > getDistanceProperties() { return distanceProperties_; }
+
    void triangleToStream( const FaceHandle fh, std::ostream & os ) const;
 
 protected:
-   typedef typename OpenMesh::FPropHandleT< DistanceProperties<MeshType> > DistancePropertyHandle;
-
    void computeNormals();
    void computeDistanceProperties();
 

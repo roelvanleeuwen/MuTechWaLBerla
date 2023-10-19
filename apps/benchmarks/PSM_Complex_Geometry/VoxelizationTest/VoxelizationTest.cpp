@@ -20,6 +20,7 @@
 
 #include "blockforest/Initialization.h"
 #include "blockforest/SetupBlockForest.h"
+#include "blockforest/communication/UniformBufferedScheme.h"
 #include "core/all.h"
 
 #include "domain_decomposition/all.h"
@@ -32,22 +33,22 @@
 
 #include "timeloop/all.h"
 
-#include "../ObjectRotator.h"
 #include "VoxelizationTest_InfoHeader.h"
-#include "lbm_generated/communication/NonuniformGeneratedPdfPackInfo.h"
 #include "lbm_generated/evaluation/PerformanceEvaluation.h"
 #include "lbm_generated/field/AddToStorage.h"
 #include "lbm_generated/field/PdfField.h"
-#include "lbm_generated/refinement/BasicRecursiveTimeStep.h"
+#include "lbm_generated/communication/UniformGeneratedPdfPackInfo.h"
+
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 #include "lbm_generated/gpu/AddToStorage.h"
 #include "lbm_generated/gpu/GPUPdfField.h"
-#include "lbm_generated/gpu/BasicRecursiveTimeStepGPU.h"
-#include "lbm_generated/gpu/NonuniformGeneratedGPUPdfPackInfo.h"
-#include "gpu/communication/NonUniformGPUScheme.h"
+#include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
+#include "gpu/communication/UniformGPUScheme.h"
 
-#include "ObjectRotatorGPU.h"
+#include "../ObjectRotatorGPU.h"
+#else
+#include "../ObjectRotator.h"
 #endif
 
 namespace walberla
@@ -62,16 +63,15 @@ using CommunicationStencil_T = StorageSpecification_T::CommunicationStencil;
 using PdfField_T = lbm_generated::PdfField< StorageSpecification_T >;
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 using GPUPdfField_T = lbm_generated::GPUPdfField< StorageSpecification_T >;
-using gpu::communication::NonUniformGPUScheme;
+using gpu::communication::UniformGPUScheme;
 #endif
 
 typedef walberla::uint8_t flag_t;
 typedef FlagField< flag_t > FlagField_T;
 using BoundaryCollection_T = lbm::VoxelizationTestBoundaryCollection< FlagField_T >;
-
 using SweepCollection_T = lbm::VoxelizationTestSweepCollection;
-
 const FlagUID fluidFlagUID("Fluid");
+using blockforest::communication::UniformBufferedScheme;
 
 // data handling for loading a field of type ScalarField_T from file
 template< typename FracField_T >
@@ -183,10 +183,18 @@ int main(int argc, char** argv)
    /// PROCESS MESH ///
    ////////////////////
 
-
    auto meshBunny = make_shared< mesh::TriangleMesh >();
-   mesh::readAndBroadcast("bunny.obj", *meshBunny);
-   auto distanceOctree = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshBunny));
+
+   //mesh::readAndBroadcast("../Meshfiles/CROR_rotor.obj", *meshBunny);
+   mesh::readAndBroadcast("../Meshfiles/CROR_rotor_downScaled100.obj", *meshBunny);
+
+   WcTimer distOctimer;
+   distOctimer.start();
+   auto triDist = make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshBunny);
+   auto distanceOctree = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(triDist);
+   distOctimer.end();
+   WALBERLA_LOG_INFO_ON_ROOT("Building Dist octree in " << distOctimer.max() << "s")
+
    auto aabbBase = computeAABB(*meshBunny);
 
    AABB aabb = aabbBase;
@@ -260,7 +268,7 @@ int main(int argc, char** argv)
 
    //Setting up Object Rotator
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   //ObjectRotatorGPU objectRotatorMeshBase(blocks, fractionFieldGPUId, fractionFieldId, meshBunny, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis,  "bunny", maxSuperSamplingDepth, true);
+   ObjectRotatorGPU objectRotator(blocks, fractionFieldGPUId, fractionFieldId, meshBunny, triDist, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis,  "bunny", true);
 #else
    ObjectRotator objectRotator(blocks, meshBunny, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  distanceOctree, "bunny", maxSuperSamplingDepth, true);
 
@@ -306,16 +314,13 @@ int main(int argc, char** argv)
    geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
-
    /////////////
    /// Sweep ///
    /////////////
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    SweepCollection_T sweepCollection(blocks, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
-   //pystencils::VoxelizationTestSweep VoxelizationTestSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega, /*real_t(0.0),*/ innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
-
 #else
    SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
    //SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
@@ -331,24 +336,22 @@ int main(int argc, char** argv)
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
       gpu::fieldCpy( *dst, *src );
 #endif
-      sweepCollection.initialise(&block, 1);
+      sweepCollection.initialise(&block);
    }
 
 
    // Communication
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const bool sendDirectlyFromGPU = false;
-   auto communication = std::make_shared< NonUniformGPUScheme <CommunicationStencil_T>> (blocks, sendDirectlyFromGPU);
-   auto packInfo = lbm_generated::setupNonuniformGPUPdfCommunication<GPUPdfField_T>(blocks, pdfFieldGPUId);
-   communication->addPackInfo(packInfo);
-   lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldGPUId, sweepCollection, boundaryCollection, communication, packInfo);
+   UniformGPUScheme< Stencil_T > communication(blocks, sendDirectlyFromGPU);
+   auto packInfo = std::make_shared<lbm_generated::UniformGeneratedGPUPdfPackInfo< GPUPdfField_T >>(pdfFieldGPUId);
+   communication.addPackInfo(packInfo);
 #else
-   auto communication = std::make_shared< NonUniformBufferedScheme< CommunicationStencil_T > >(blocks);
-   auto packInfo      = lbm_generated::setupNonuniformPdfCommunication< PdfField_T >(blocks, pdfFieldId);
+   UniformBufferedScheme< Stencil_T > communication(blocks);
+   auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
    //blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
    //auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
-   communication->addPackInfo(packInfo);
-   lbm_generated::BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldId, sweepCollection, boundaryCollection, communication, packInfo);
+   communication.addPackInfo(packInfo);
 #endif
 
 
@@ -358,11 +361,13 @@ int main(int argc, char** argv)
 
    const auto emptySweep = [](IBlock*) {};
    if( rotationFrequency > 0) {
-
-      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
       timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
+      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
    }
-
+   /*timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
+                  << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
+   timeloop.add() << Sweep(sweepCollection.streamCollide(), "PSMSweep");
+   */
    // Time logger
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
                                  "remaining time logger");
@@ -394,35 +399,8 @@ int main(int argc, char** argv)
       vtkOutput->addCellDataWriter(fractionFieldWriter);
       //vtkOutput->addCellDataWriter(objVeldWriter);
 
-
-      const AABB sliceAABB(real_c(domainAABB.xMin()), real_c(domainAABB.yMin()), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.5),
-                     real_c(domainAABB.xMax()), real_c(domainAABB.yMax() ), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.5 + dx));
-
-      //vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
-
-      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
-   }
-
-
-   if(timeStepStrategy == "refinement")  {
-      LBMMeshRefinement.addRefinementToTimeLoop(timeloop);
-   }
-    /*else if (timeStepStrategy == "noOverlap")
-    { // Timeloop
-       timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
-                      << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
-       timeloop.add() << Sweep(sweepCollection.streamCollide(), "PSMSweep");
-    }
-    else if(timeStepStrategy == "Overlap") {
-       timeloop.add() << BeforeFunction(communication.getStartCommunicateFunctor(), "Start Communication")
-                      << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
-       timeloop.add() << Sweep(sweepCollection.streamCollide(lbm::VoxelizationTestSweepCollection::Type::INNER), "PSM Sweep Inner Frame");
-       timeloop.add() << BeforeFunction(communication.getWaitFunctor(), "Wait for Communication")
-                      << Sweep(sweepCollection.streamCollide(lbm::VoxelizationTestSweepCollection::Type::OUTER), "PSM Sweep Outer Frame");
-    }*/
-   else {
-      WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")
    }
 
    lbm_generated::PerformanceEvaluation<FlagField_T> const performance(blocks, flagFieldId, fluidFlagUID);

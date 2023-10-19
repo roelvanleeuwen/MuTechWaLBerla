@@ -23,14 +23,14 @@
 #include "blockforest/all.h"
 #include "field/all.h"
 #include "gpu/GPUField.h"
+#include "mesh_common/DistanceComputations.h"
+
 
 #include <iostream>
 #include <fstream>
 #include <string>
 #include "lbm_generated/gpu/GPUPdfField.h"
 #include <cuda_runtime.h>
-#include <curand.h>
-#include <curand_kernel.h>
 
 //#include "BoxTriangleIntersection.h"
 
@@ -74,8 +74,24 @@
 namespace walberla
 {
 typedef field::GhostLayerField< real_t, 1 > ScalarField_T;
-using fracSize = float;
+using fracSize = real_t;
 typedef field::GhostLayerField< fracSize, 1 > FracField_T;
+
+
+
+struct DistancePropertiesGPU
+{
+   float2 e0, e1, e2;
+   float2 e1_normal, e2_normal;
+   float2 e1_normalized, e2_normalized, e0_normalized;
+   float e0l, e1l, e2l;
+
+   float3 translation;
+   float rotation[9];
+
+   float3 region_normal[7];
+};
+
 
 
 class ObjectRotatorGPU
@@ -83,31 +99,26 @@ class ObjectRotatorGPU
    typedef field::GhostLayerField< real_t, 3 > VectorField_T;
 
  public:
-   ObjectRotatorGPU(shared_ptr< StructuredBlockForest >& blocks, const BlockDataID fractionFieldGPUId,  const BlockDataID fractionFieldCPUId, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID objectVelocityId,
-                 const real_t rotationAngle, const uint_t frequency, Vector3<int> rotationAxis,
-                 std::string meshName, uint_t maxSuperSamplingDepth, const bool rotate = true)
-      : blocks_(blocks), fractionFieldGPUId_(fractionFieldGPUId), mesh_(mesh), objectVelocityId_(objectVelocityId),
-        rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis),
-        meshName_(meshName), maxSuperSamplingDepth_(maxSuperSamplingDepth), rotate_(rotate)
+   ObjectRotatorGPU(shared_ptr< StructuredBlockForest >& blocks, const BlockDataID fractionFieldGPUId,
+                    const BlockDataID fractionFieldCPUId, shared_ptr< mesh::TriangleMesh >& mesh,
+                    shared_ptr< mesh::TriangleDistance<mesh::TriangleMesh> >& triangleDistance,
+                    const BlockDataID objectVelocityId, const real_t rotationAngle, const uint_t frequency,
+                    Vector3<int> rotationAxis,  std::string meshName, uint_t maxSuperSamplingDepth,
+                    const bool rotate = true)
+      : blocks_(blocks), fractionFieldGPUId_(fractionFieldGPUId), mesh_(mesh), triangleDistance_(triangleDistance), objectVelocityId_(objectVelocityId),
+        rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis), meshName_(meshName), rotate_(rotate)
    {
-      tmpFracFieldGPUId =    gpu::addGPUFieldToStorage< FracField_T >(blocks_, fractionFieldCPUId, meshName_ + "_fracFieldGPU", true );
-      readFile();
-      Vector3<uint_t> cellsPerBlock(blocks_->getNumberOfXCellsPerBlock() + 2, blocks_->getNumberOfYCellsPerBlock() + 2, blocks_->getNumberOfZCellsPerBlock() + 2);
+      tmpFracFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks_, fractionFieldCPUId, meshName_ + "_fracFieldGPU", true );
 
-      cudaMalloc(&dev_curand_states, (cellsPerBlock[0] + 2) * (cellsPerBlock[1] + 2) * (cellsPerBlock[2] + 2) * sizeof(curandState));
-      cudaMalloc(&verticesGPU_, numVertices_ * 3 * sizeof(float));
-      cudaMalloc(&trianglesGPU_, numTriangles_ * 3 * sizeof(float));
-      cudaMemcpy(verticesGPU_, vertices_,  numVertices_ * 3 * sizeof(float), cudaMemcpyHostToDevice);
-      cudaMemcpy(trianglesGPU_, triangles_,  numTriangles_ * 3 * sizeof(float), cudaMemcpyHostToDevice);
-
+      WALBERLA_LOG_INFO_ON_ROOT("convertDistancePropertiesToGPU")
+      convertDistancePropertiesToGPU();
       meshCenter = computeCentroid(*mesh_);
-      meshAABB = computeAABB(*mesh_);
-      //normalize(rotationAxis_);
+      WALBERLA_LOG_INFO_ON_ROOT("initObjectVelocityField")
       initObjectVelocityField();
       WcTimer simTimer;
       WALBERLA_LOG_INFO_ON_ROOT("Start Voxelization")
       simTimer.start();
-      voxelizeRayTracingGPUCall();
+      voxelizeGPUCall();
       WALBERLA_GPU_CHECK( gpuDeviceSynchronize() )
       simTimer.end();
       WALBERLA_LOG_INFO_ON_ROOT("Finished Voxelization in " << simTimer.max() << "s")
@@ -118,72 +129,68 @@ class ObjectRotatorGPU
       if (timestep % frequency_ == 0)
       {
          if(rotate_) {
-            rotateGPUCall();
-            voxelizeRayTracingGPUCall();
+            //rotateGPUCall();
+            //voxelizeGPUCall();
          }
       }
    }
 
-   void readFile() {
-      std::ifstream meshFile (meshName_ + ".obj");
-      std::string line;
-      std::stringstream stream;
-      std::string keyword;
+   void convertDistancePropertiesToGPU() {
+      auto distanceProperties = triangleDistance_->getDistanceProperties();
+      for(auto f_it = mesh_->faces_begin(); f_it != mesh_->faces_end(); ++f_it) {
+         mesh::DistanceProperties<mesh::TriangleMesh> dp = distanceProperties[*f_it];
+         DistancePropertiesGPU dpGPU;
 
-      std::vector<Vector3<float>> vertices;
-      std::vector<Vector3<uint>> triangles;
+         dpGPU.e0 = {float(dp.e0[0]), float(dp.e0[1])};
+         dpGPU.e1 = {float(dp.e1[0]), float(dp.e1[1])};
+         dpGPU.e2 = {float(dp.e2[0]), float(dp.e2[1])};
 
-      Vector3<float> vertex;
-      Vector3<int> triangle;
+         dpGPU.e1_normal = {float(dp.e1_normal[0]), float(dp.e1_normal[1])};
+         dpGPU.e2_normal = {float(dp.e2_normal[0]), float(dp.e2_normal[1])};
 
-      if (meshFile.is_open())
-      {
-         while ( getline (meshFile,line) )
-         {
-            stream.str(line);
-            stream.clear();
+         dpGPU.e0_normalized = {float(dp.e0_normalized[0]), float(dp.e0_normalized[1])};
+         dpGPU.e1_normalized = {float(dp.e1_normalized[0]), float(dp.e1_normalized[1])};
+         dpGPU.e2_normalized = {float(dp.e2_normalized[0]), float(dp.e2_normalized[1])};
 
-            stream >> keyword;
-            if (keyword == "v") {
-               stream >> vertex[0] >> vertex[1] >> vertex[2];
-               vertices.push_back(vertex);
-            }
-            else if(keyword == "f") {
-               std::string vertexSrt;
-               size_t found;
-               for (uint i = 0; i < 3; ++i) {
-                  stream >> vertexSrt;
-                  found = vertexSrt.find("/");
-                  triangle[i] = uint(stoi(vertexSrt.substr(0,found))-1);
-               }
-               triangles.push_back(triangle);
-            }
-         }
-         meshFile.close();
-         numVertices_ = int(vertices.size());
-         vertices_ = (float *) std::malloc( sizeof(float) * 3 * numVertices_);
-         for ( int i = 0; i < numVertices_; ++i) {
-            for ( int j = 0; j < 3; ++j)
-            {
-               vertices_[i * 3 + j] = vertices[i][j];
-               vertices_[i * 3 + j] = vertices[i][j];
-               vertices_[i * 3 + j] = vertices[i][j];
-            }
-         }
-         numTriangles_ = int(triangles.size());
-         triangles_ = (int *) std::malloc( sizeof(int) * 3 * numTriangles_);
-         for ( int i = 0; i < numTriangles_; ++i) {
-            for ( int j = 0; j < 3; ++j)
-            {
-               triangles_[i * 3 + j] = triangles[i][j];
-               triangles_[i * 3 + j] = triangles[i][j];
-               triangles_[i * 3 + j] = triangles[i][j];
-            }
-         }
+         dpGPU.e0l = float(dp.e0l);
+         dpGPU.e1l = float(dp.e1l);
+         dpGPU.e2l = float(dp.e2l);
+
+         dpGPU.translation = {float(dp.translation[0]), float(dp.translation[1]), float(dp.translation[2])};
+
+         for (int i = 0; i < 9; ++i)
+            dpGPU.rotation[0] = float(dp.rotation[0]);
+
+         //also save normals of faces, edges and vertices to compute sign (Voronoi areas)
+         auto normal = mesh_->normal( *f_it );
+         dpGPU.region_normal[0] = {float(normal[0]), float(normal[1]), float(normal[2])};
+
+         normal = mesh_->normal( getVertexHandle( *mesh_, *f_it, 0U ) );
+         dpGPU.region_normal[1] = {float(normal[0]), float(normal[1]), float(normal[2])};
+
+         normal = mesh_->normal( getVertexHandle( *mesh_, *f_it, 1U ) );
+         dpGPU.region_normal[2] = {float(normal[0]), float(normal[1]), float(normal[2])};
+
+         normal = mesh_->normal( getVertexHandle( *mesh_, *f_it, 2U ) );
+         dpGPU.region_normal[3] = {float(normal[0]), float(normal[1]), float(normal[2])};
+
+         normal = mesh_->normal( getHalfedgeHandle( *mesh_, *f_it, 0U, 1U ) );
+         dpGPU.region_normal[4] = {float(normal[0]), float(normal[1]), float(normal[2])};
+
+         normal = mesh_->normal( getHalfedgeHandle( *mesh_, *f_it, 0U, 2U ) );
+         dpGPU.region_normal[5] = {float(normal[0]), float(normal[1]), float(normal[2])};
+
+         normal = mesh_->normal( getHalfedgeHandle( *mesh_, *f_it, 1U, 2U ) );
+         dpGPU.region_normal[6] = {float(normal[0]), float(normal[1]), float(normal[2])};
+
+         distancePropertiesCPUPtr.push_back(dpGPU);
       }
-      else
-         WALBERLA_ABORT("Couldn't open mesh file")
+
+      numFaces_ = distancePropertiesCPUPtr.size();
+      cudaMalloc((void **)&distancePropertiesGPUPtr, numFaces_ * sizeof(DistancePropertiesGPU));
+      cudaMemcpy(distancePropertiesGPUPtr, &distancePropertiesCPUPtr[0],  numFaces_ * sizeof(DistancePropertiesGPU), cudaMemcpyHostToDevice);
    }
+
 
    void initObjectVelocityField() {
       for (auto& block : *blocks_)
@@ -226,70 +233,9 @@ class ObjectRotatorGPU
       }
    }
 
-   /*
-   math::GenericAABB< float > computeAABBFromTriangle( float triverts[3][3] )
-   {
-      float min[3], max[3];
-      min[0] = max[0] = triverts[0][0];
-      min[1] = max[1] = triverts[0][1];
-      min[2] = max[2] = triverts[0][2];
+   //void rotateGPUCall();
 
-      for( uint i = 1; i < 3; ++i )
-      {
-         min[0] = std::min( min[0], triverts[i][0] );
-         min[1] = std::min( min[1], triverts[i][1] );
-         min[2] = std::min( min[2], triverts[i][2] );
-
-         max[0] = std::max( max[0], triverts[i][0] );
-         max[1] = std::max( max[1], triverts[i][1] );
-         max[2] = std::max( max[2], triverts[i][2] );
-      }
-
-      return math::GenericAABB< float >::createFromMinMaxCorner( Vector3<float>(min[0], min[1], min[2]), Vector3<float>(max[0], max[1], max[2]) );
-   }
-
-
-   void voxelizeBoxTriangleIntersection() {
-      for (auto& block : *blocks_)
-      {
-         auto fractionField   = block.getData< FracField_T >(fractionFieldId_);
-         auto level           = blocks_->getLevel(block);
-         const float dx       = float(blocks_->dx(level));
-         for (uint i = 0; i < numTriangles_; ++i) {
-            float triangle[3][3] = {{vertices_[3 * triangles_[i*3]], vertices_[3 * triangles_[i*3] + 1], vertices_[3 * triangles_[i*3] + 2]},
-                                     {vertices_[3 * triangles_[i*3+1]], vertices_[3 * triangles_[i*3+1] + 1], vertices_[3 * triangles_[i*3+1] + 2]},
-                                    {vertices_[3 * triangles_[i*3+2]], vertices_[3 * triangles_[i*3+2] + 1], vertices_[3 * triangles_[i*3+2] + 2]}};
-            //WALBERLA_LOG_INFO_ON_ROOT("Triangle " << triangles_[i].x << "," << triangles_[i].y << "," << triangles_[i].z << " with vertex " << vertices_[triangles_[i].x].x << "," <<  vertices_[triangles_[i].x].y << "," << vertices_[triangles_[i].x].z << " " << vertices_[triangles_[i].y].x << "," <<  vertices_[triangles_[i].y].y << "," << vertices_[triangles_[i].y].z << " " << vertices_[triangles_[i].z].x << "," <<  vertices_[triangles_[i].z].y << "," << vertices_[triangles_[i].z].z)
-            auto faceAABB = computeAABBFromTriangle( triangle );
-            auto cellBB = blocks_->getCellBBFromAABB( faceAABB, level );
-            faceAABB.intersect(block.getAABB());
-            if(faceAABB.empty()) continue;
-
-            for (auto cellIt = cellBB.begin(); cellIt != cellBB.end(); ++cellIt) {
-               auto cellAABB = blocks_->getAABBFromCellBB(CellInterval( *cellIt, *cellIt), level);
-               cellAABB.intersect(block.getAABB());
-               if(cellAABB.empty()) continue;
-               float cellCenter[3] = {float(cellAABB.center()[0]), float(cellAABB.center()[1]), float(cellAABB.center()[2])};
-               float boxHalfSize[3] = {float(dx*0.5), float(dx*0.5), float(dx*0.5)};
-
-               const bool intersection = triBoxOverlap(cellCenter, boxHalfSize , triangle);
-               if (intersection) {
-                  Cell localCell;
-                  blocks_->transformGlobalToBlockLocalCell(localCell, block, *cellIt);
-                  fractionField->get(localCell) += 1.0f;
-               }
-            }
-         }
-      }
-   }
-
-*/
-
-   void rotateGPUCall();
-
-   void resetFractionFieldGPUCall();
-
-   void voxelizeRayTracingGPUCall();
+   void voxelizeGPUCall();
 
  private:
    shared_ptr< StructuredBlockForest > blocks_;
@@ -297,27 +243,18 @@ class ObjectRotatorGPU
    BlockDataID tmpFracFieldGPUId;
 
    shared_ptr< mesh::TriangleMesh > mesh_;
-
-   float * vertices_;
-   int * triangles_;
-
-   float * verticesGPU_;
-   int * trianglesGPU_;
-
-   int numVertices_;
-   int numTriangles_;
+   shared_ptr< mesh::TriangleDistance<mesh::TriangleMesh> >& triangleDistance_;
+   std::vector<DistancePropertiesGPU> distancePropertiesCPUPtr;
+   DistancePropertiesGPU * distancePropertiesGPUPtr;
+   uint numFaces_;
 
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
    const uint_t frequency_;
    Vector3< mesh::TriangleMesh::Scalar > rotationAxis_;
    std::string meshName_;
-   uint_t maxSuperSamplingDepth_;
    const bool rotate_;
    mesh::TriangleMesh::Point meshCenter;
-   AABB meshAABB;
-
-   curandState* dev_curand_states;
 };
 
 
