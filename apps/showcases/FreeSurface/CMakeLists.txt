@@ -34,9 +34,9 @@ if( WALBERLA_BUILD_WITH_CODEGEN )
                                          OUT_FILES GravityWaveLatticeModel.cpp GravityWaveLatticeModel.h )
 
    waLBerla_add_executable(NAME    GravityWaveCodegen
-                           FILES   GravityWaveCodegen.cpp
-                           DEPENDS blockforest boundary core domain_decomposition field lbm postprocessing timeloop vtk
-                                   GravityWaveLatticeModelGeneration)
+                           FILES   GravityWaveCodegen.cpp SQLProperties.cpp
+                           DEPENDS blockforest boundary core domain_decomposition field lbm postprocessing sqlite
+                                   timeloop vtk GravityWaveLatticeModelGeneration)
 
    walberla_generate_target_from_python( NAME      ViscousLDCLatticeModelGeneration
                            FILE      ViscousLDCLatticeModelGeneration.py
@@ -52,9 +52,9 @@ if( WALBERLA_BUILD_WITH_CODEGEN )
            GenDefines.h)
 
    waLBerla_add_executable(NAME    ViscousLDCCodegen
-                           FILES   ViscousLDCCodegen.cpp
-                           DEPENDS blockforest boundary core domain_decomposition field lbm postprocessing timeloop vtk
-                                   ViscousLDCLatticeModelGeneration ViscousLDC_codegen)
+                           FILES   ViscousLDCCodegen.cpp SQLProperties.cpp
+                           DEPENDS blockforest boundary core domain_decomposition field lbm postprocessing sqlite
+                                   timeloop vtk ViscousLDCLatticeModelGeneration ViscousLDC_codegen)
 endif()
 
 waLBerla_add_executable(NAME    MovingDrop

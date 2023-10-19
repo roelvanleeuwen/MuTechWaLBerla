@@ -1,6 +1,6 @@
 BlockForestParameters
 {
-   cellsPerBlock                 < 25, 25, 1 >;
+   cellsPerBlock                 < 32, 32, 32 >;
    periodicity                   < 1, 0, 1 >;
    loadBalancingFrequency        0;
    printLoadBalancingStatistics  false;
@@ -8,9 +8,11 @@ BlockForestParameters
 
 DomainParameters
 {
-   domainWidth       50; // equivalent to wavelength
-   liquidDepth       25;
-   initialAmplitude  0.5;
+   domainSize       < 128, 32, 32 >;
+   nrWaves         4;
+   //domainWidth       400; // equivalent to wavelength
+   //liquidDepth       50;
+   initialAmplitude  1;
 }
 
 PhysicsParameters
@@ -19,7 +21,7 @@ PhysicsParameters
    relaxationRate    1.8;
    enableWetting     false;
    contactAngle      0; // only used if enableWetting=true
-   timesteps         86400;
+   timesteps         8640; //86400;
 }
 
 ModelParameters

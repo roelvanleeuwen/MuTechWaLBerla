@@ -40,6 +40,9 @@
 
 #include "GravityWaveLatticeModel.h"
 
+#include "SQLProperties.h"
+#include "sqlite/SQLite.h"
+
 namespace walberla
 {
 namespace free_surface
@@ -266,15 +269,41 @@ int main(int argc, char** argv)
 
    // get domain parameters from parameter file
    auto domainParameters         = walberlaEnv.config()->getOneBlock("DomainParameters");
-   const uint_t domainWidth      = domainParameters.getParameter< uint_t >("domainWidth");
-   const real_t liquidDepth      = domainParameters.getParameter< real_t >("liquidDepth");
-   const real_t initialAmplitude = domainParameters.getParameter< real_t >("initialAmplitude");
+   Vector3< uint_t > domainSize   = domainParameters.getParameter< Vector3< uint_t > >("domainSize", Vector3< uint_t >(0, 0, 0));
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(domainSize)
+
+   //const uint_t domainWidth      = domainParameters.getParameter< uint_t >("domainWidth");
+   //const real_t liquidDepth      = domainParameters.getParameter< real_t >("liquidDepth");
+   //auto domainParameters         = walberlaEnv.config()->getOneBlock("DomainParameters");
+   //const real_t initialAmplitude = domainParameters.getParameter< real_t >("initialAmplitude");
 
    // define domain size
-   Vector3< uint_t > domainSize;
-   domainSize[0] = domainWidth;
-   domainSize[1] = uint_c(liquidDepth * real_c(2));
-   domainSize[2] = uint_c(1);
+   //Vector3< uint_t > domainSize;
+   //domainSize[0] = domainWidth;
+   //domainSize[1] = uint_c(liquidDepth * real_c(2));
+   //domainSize[2] = uint_c(1);
+
+   const uint_t nrWaves = domainParameters.getParameter< uint_t >("nrWaves", uint_t(1));
+   const real_t wavelength = real_t(domainSize[0]) / nrWaves;
+   const real_t initialAmplitude = domainParameters.getParameter< real_t >("initialAmplitude");
+
+   if (domainSize[0] == uint_t(0))
+   {
+      const uint_t nrOfProcesses = uint_c(MPIManager::instance()->numProcesses());
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(nrOfProcesses)
+
+      Vector3< uint_t > blocksPerDimension;
+      Vector3< uint_t > cellsPerBlockDummy;
+      blockforest::calculateCellDistribution(cellsPerBlock, nrOfProcesses, blocksPerDimension, cellsPerBlockDummy);
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocksPerDimension)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellsPerBlockDummy)
+
+      // define domain size
+      domainSize[0] = blocksPerDimension[0] * cellsPerBlock[0]; // domainWidth;
+      domainSize[1] = blocksPerDimension[1] * cellsPerBlock[1]; // uint_c(liquidDepth * real_c(2));
+      domainSize[2] = blocksPerDimension[2] * cellsPerBlock[2]; // uint_c(1);
+   }
+   const real_t liquidDepth = real_t(domainSize[1]) / 2;
 
    // compute number of blocks as defined by domainSize and cellsPerBlock
    Vector3< uint_t > numBlocks;
@@ -293,7 +322,7 @@ int main(int argc, char** argv)
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellsPerBlock);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(domainSize);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(numBlocks);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(domainWidth);
+   //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(domainWidth);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(liquidDepth);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initialAmplitude);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(periodicity);
@@ -308,10 +337,10 @@ int main(int argc, char** argv)
    const real_t viscosity      = real_c(1) / real_c(3) * (real_c(1) / relaxationRate - real_c(0.5));
 
    const real_t reynoldsNumber = physicsParameters.getParameter< real_t >("reynoldsNumber");
-   const real_t waveNumber     = real_c(2) * math::pi / real_c(domainSize[0]);
-   const real_t waveFrequency  = reynoldsNumber * viscosity / real_c(domainSize[0]) / initialAmplitude;
+   const real_t waveNumber     = real_c(2) * math::pi / real_c(wavelength);
+   const real_t waveFrequency  = reynoldsNumber * viscosity / real_c(wavelength) / initialAmplitude;
    const real_t accelerationY  = -(waveFrequency * waveFrequency) / waveNumber / std::tanh(waveNumber * liquidDepth);
-   const Vector3< real_t > acceleration(real_c(0), accelerationY, real_c(0));
+   shared_ptr< Vector3< real_t > > acceleration = std::make_shared< Vector3< real_t > >(real_c(0), accelerationY, real_c(0));
 
    const bool enableWetting  = physicsParameters.getParameter< bool >("enableWetting");
    const real_t contactAngle = physicsParameters.getParameter< real_t >("contactAngle");
@@ -322,7 +351,7 @@ int main(int argc, char** argv)
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(contactAngle);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(timesteps);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(viscosity);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(acceleration);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(*acceleration);
 
    // read model parameters from parameter file
    const auto modelParameters               = walberlaEnv.config()->getOneBlock("ModelParameters");
@@ -410,7 +439,7 @@ int main(int argc, char** argv)
          {
             // value of the sine-function
             const real_t functionValue = initializationProfile(real_c(globalCell[0]) + real_c(xSample) * stepsize,
-                                                               initialAmplitude, liquidDepth, real_c(domainSize[0]));
+                                                               initialAmplitude, liquidDepth, real_c(wavelength));
 
             for (uint_t ySample = uint_c(0); ySample <= fillLevelInitSamples; ++ySample)
             {
@@ -457,11 +486,11 @@ int main(int argc, char** argv)
    else { bubbleModel = std::make_shared< bubble_model::BubbleModelConstantPressure >(real_c(1)); }
 
    // initialize hydrostatic pressure
-   initHydrostaticPressure< PdfField_T >(blockForest, pdfFieldID, acceleration, liquidDepth);
+   initHydrostaticPressure< PdfField_T >(blockForest, pdfFieldID, *acceleration, liquidDepth);
 
    // initialize force density field
    initForceDensityFieldCodegen< PdfField_T, FlagField_T, VectorFieldFlattened_T, ScalarField_T >(
-      blockForest, forceDensityFieldID, fillFieldID, pdfFieldID, flagFieldID, flagInfo, acceleration);
+      blockForest, forceDensityFieldID, fillFieldID, pdfFieldID, flagFieldID, flagInfo, *acceleration);
 
    // set density in non-liquid or non-interface cells to 1 (after initializing with hydrostatic pressure)
    setDensityInNonFluidCellsToOne< FlagField_T, PdfField_T >(blockForest, flagInfo, flagFieldID, pdfFieldID);
@@ -506,7 +535,7 @@ int main(int argc, char** argv)
    // add sweep for evaluating the surface position in y-direction
    const std::shared_ptr< real_t > surfaceYPosition = std::make_shared< real_t >(real_c(0));
    const SurfaceYPositionEvaluator< FreeSurfaceBoundaryHandling_T > positionEvaluator(
-      blockForest, freeSurfaceBoundaryHandling, fillFieldID, domainSize, cell_idx_c(real_c(domainWidth) * real_c(0.5)),
+      blockForest, freeSurfaceBoundaryHandling, fillFieldID, domainSize, cell_idx_c(real_c(domainSize[0]) * real_c(0.5)),
       evaluationFrequency, surfaceYPosition);
    timeloop.addFuncAfterTimeStep(positionEvaluator, "Evaluator: surface position");
 
@@ -568,6 +597,32 @@ int main(int argc, char** argv)
 
       if (t % performanceLogFrequency == uint_c(0) && t > uint_c(0)) { timingPool.logResultOnRoot(); }
    }
+
+   uint_t runId = uint_c(-1);
+   WALBERLA_ROOT_SECTION()
+   {
+      std::map< std::string, walberla::int64_t > integerProperties;
+      std::map< std::string, double >            realProperties;
+      std::map< std::string, std::string >       stringProperties;
+
+      std::string sqlFile = "GravityWaveCodegen.sqlite";
+
+      // GENERAL INFORMATION
+      stringProperties["walberla_git"]          = WALBERLA_GIT_SHA1;
+      stringProperties["tag"]                   = "free_surface";
+      integerProperties["mpi_num_processes"]    = mpi::MPIManager::instance()->numProcesses();
+      realProperties["initialAmplitude"]        = initialAmplitude;
+
+      // SETUP
+
+      addBuildInfoToSQL( integerProperties, realProperties, stringProperties );
+      addDomainPropertiesToSQL(blockForest, integerProperties, realProperties, stringProperties);
+      addSlurmPropertiesToSQL(integerProperties, realProperties, stringProperties);
+
+      runId = sqlite::storeRunInSqliteDB( sqlFile, integerProperties, stringProperties, realProperties );
+      //sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *tp_reduced, "Timeloop" );
+   }
+   WALBERLA_LOG_INFO_ON_ROOT("*** SQL OUTPUT - END ***");
 
    return EXIT_SUCCESS;
 }
