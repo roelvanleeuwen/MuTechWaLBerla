@@ -246,7 +246,7 @@ __device__ float getSqSignedDistance(DistancePropertiesGPU * distancePropertiesG
       }
 
       if(sqDistance <= final_sqDistance) {
-         final_sqDistance = sqDistance;
+         final_sqDistance = e0p;
          float transpose[9];
          TRANSPOSE(transpose, dp.rotation)
          MATVECMUL(temp, transpose, closestPoint)
@@ -306,7 +306,7 @@ void ObjectRotatorGPU::voxelizeGPUCall() {
          continue;
       
       CellInterval cellBB = blocks_->getCellBBFromAABB(blockAABB);
-      int3 cellBBSize = {int(cellBB.xSize() + 2), int(cellBB.ySize() + 2), int(cellBB.zSize() + 2)}; //TODO +2 ??
+      int3 cellBBSize = {int(cellBB.xSize() + 2), int(cellBB.ySize() ), int(cellBB.zSize() + 2)}; //TODO +2 ??
       Cell cellBBGlobalMin = cellBB.min();
       blocks_->transformGlobalToBlockLocalCell(cellBBGlobalMin, block);
       int3 cellBBLocalMin = {int(cellBBGlobalMin[0]), int(cellBBGlobalMin[1]), int(cellBBGlobalMin[2])};
@@ -324,7 +324,7 @@ void ObjectRotatorGPU::voxelizeGPUCall() {
       //WALBERLA_LOG_INFO("Grid is (" <<  _grid.x << "," << _grid.y << "," << _grid.z << ") and Block is (" << _block.x << "," << _block.y << "," << _block.z << ")")
       //WALBERLA_LOG_INFO("Num trinagles is " << numTriangles_ << " num vertices is " << numVertices_)
 
-      resetFractionFieldGPU<<<_grid, _block>>>(_data_fractionFieldGPU, _data_tmpFractionFieldGPU, cellBBSize, cellBBLocalMin, stride_frac_field);
+      //resetFractionFieldGPU<<<_grid, _block>>>(_data_fractionFieldGPU, _data_tmpFractionFieldGPU, cellBBSize, cellBBLocalMin, stride_frac_field);
 
       voxelizeGPU<<<_grid, _block>>>(distancePropertiesGPUPtr, _data_tmpFractionFieldGPU, minAABB, cellBBSize, cellBBLocalMin, stride_frac_field, dx, numFaces_);
 

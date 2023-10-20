@@ -1,7 +1,7 @@
 
 Parameters 
 {
-	timesteps       30;
+	timesteps       1;
 
     initialVelocity   <0.02, 0.0, 0.0>;
     ref_velocity  69.15;    // m/s
@@ -24,7 +24,7 @@ Parameters
 
 DomainSetup
 {
-   rotationFrequency  3;
+   rotationFrequency  1;
    rotationSpeed      7380.173;     //rad/s
    rotationAxis       < 1, 0, 0 >;
 

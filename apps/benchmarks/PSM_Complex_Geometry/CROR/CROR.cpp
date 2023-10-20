@@ -445,10 +445,10 @@ int main(int argc, char** argv)
       //vtkOutput->addCellDataWriter(objVeldWriter);
 
 
-      const AABB sliceAABB(real_c(domainAABB.xMin()), real_c(domainAABB.yMin()), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.5),
-                     real_c(domainAABB.xMax()), real_c(domainAABB.yMax() ), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.5 + dx));
+      const AABB sliceAABB(real_c(domainAABB.xMin() + domainAABB.xSize() * 0.15), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.2), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.2),
+                     real_c(domainAABB.xMin() + domainAABB.xSize() * 0.8), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.8), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.8));
 
-      //vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
+      vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
 
       timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);

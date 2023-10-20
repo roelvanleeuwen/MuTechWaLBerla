@@ -13,8 +13,8 @@ Parameters
     timeStepStrategy   refinement;
     innerOuterSplit    <1,1,1>;
 
-	remainingTimeLoggerFrequency 600; // in seconds
-	VTKwriteFrequency 2000;
+	remainingTimeLoggerFrequency 60; // in seconds
+	VTKwriteFrequency 2500;
 	writeDomainDecompositionAndReturn false;
 
 }

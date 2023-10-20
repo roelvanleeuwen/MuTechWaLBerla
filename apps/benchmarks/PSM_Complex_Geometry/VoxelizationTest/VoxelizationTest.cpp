@@ -276,7 +276,7 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    auto objectRotator = make_shared<ObjectRotatorGPU>(blocks, fractionFieldGPUId, fractionFieldId, meshBunny, triDist, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis,  "bunny", true);
 #else
-   auto objectRotator = make_shared<ObjectRotator> (blocks, meshBunny, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis,  distanceOctree, "bunny", fullRefinedMeshSize, true);
+   auto objectRotator = make_shared<ObjectRotator> (blocks, meshBunny, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis,  distanceOctree, "bunny", true);
    fuseFractionFields(blocks, fractionFieldId, std::vector<shared_ptr<ObjectRotator>>{objectRotator}, 0, rotationFrequency);
 #endif
 
