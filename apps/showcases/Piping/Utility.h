@@ -278,9 +278,9 @@ real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, cons
 }
 
 template< typename ParticleAccessor_T >
-real_t computeSeepageLength(const shared_ptr< ParticleAccessor_T >& accessor,
-                            const shared_ptr< mesa_pd::data::ParticleStorage >& ps, const mesa_pd::Vec3& boxPosition,
-                            const mesa_pd::Vec3& boxEdgeLength)
+real_t computeMaxParticleSeepageHeight(const shared_ptr< ParticleAccessor_T >& accessor,
+                                       const shared_ptr< mesa_pd::data::ParticleStorage >& ps,
+                                       const mesa_pd::Vec3& boxPosition, const mesa_pd::Vec3& boxEdgeLength)
 {
    using namespace lbm_mesapd_coupling::psm::gpu;
 
@@ -299,6 +299,18 @@ real_t computeSeepageLength(const shared_ptr< ParticleAccessor_T >& accessor,
       *accessor);
 
    WALBERLA_MPI_SECTION() { mpi::allReduceInplace(maxParticleSeepageHeight, mpi::MAX); }
+
+   return maxParticleSeepageHeight;
+}
+
+template< typename ParticleAccessor_T >
+real_t computeSeepageLength(const shared_ptr< ParticleAccessor_T >& accessor,
+                            const shared_ptr< mesa_pd::data::ParticleStorage >& ps, const mesa_pd::Vec3& boxPosition,
+                            const mesa_pd::Vec3& boxEdgeLength)
+{
+   using namespace lbm_mesapd_coupling::psm::gpu;
+
+   const real_t maxParticleSeepageHeight = computeMaxParticleSeepageHeight(accessor, ps, boxPosition, boxEdgeLength);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(maxParticleSeepageHeight)
    const real_t penetrationDepth = maxParticleSeepageHeight - real_t(boxPosition[2] - boxEdgeLength[2] / 2);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(penetrationDepth)
