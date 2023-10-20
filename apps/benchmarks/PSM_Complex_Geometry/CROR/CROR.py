@@ -73,7 +73,7 @@ with CodeGeneration() as ctx:
 
     no_slip = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip', boundary_object=NoSlip())
     inlet_vel=sp.symbols("inlet_vel"),
-    ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB', boundary_object=UBB([0.02, 0, 0], data_type=data_type))
+    ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB', boundary_object=UBB([0.01, 0, 0], data_type=data_type))
     fixedDensity = lbm_boundary_generator(class_name='FixedDensity', flag_uid='FixedDensity', boundary_object=FixedDensity(1.0))
     extrapolOutflow = lbm_boundary_generator(class_name='ExtrapolationOutflow', flag_uid='ExtrapolationOutflow', boundary_object=SimpleExtrapolationOutflow((1, 0, 0), stencil))
 

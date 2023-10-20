@@ -66,22 +66,13 @@ class ObjectRotator
  public:
    ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID objectVelocityId,
                  const real_t rotationAngle, const uint_t frequency, Vector3<uint_t> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree,
-                 std::string meshName, real_t dx, const bool isRotating = true)
+                 std::string meshName, const bool isRotating = true)
       : blocks_(blocks), mesh_(mesh), objectVelocityId_(objectVelocityId),
         rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis), distOctree_(distOctree),
         meshName_(meshName), isRotating_(isRotating)
    {
       fractionFieldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
       fractionFieldOldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
-
-      //get maximum rotation per timestep
-      auto meshAABB = computeAABB(*mesh_);
-      real_t radiusInCells = (meshAABB.ySize() * 0.5) / dx ;
-      real_t maxCellsRotatedOver = radiusInCells * rotationAngle;
-
-      uint_t optimizedRotationFreq = uint_c(1.0 / ((rotationAngle_/frequency_) * radiusInCells));
-      WALBERLA_LOG_INFO_ON_ROOT("Your current rotation Frequency is " << frequency_ << " with which you rotate over " << maxCellsRotatedOver << " cells per rotation\n" << "An optimal frequency would be " << optimizedRotationFreq)
-
 
       meshCenter = computeCentroid(*mesh_);
       initObjectVelocityField();

@@ -168,17 +168,11 @@ int main(int argc, char** argv)
    const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
    const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0));
    const bool writeDomainDecompositionAndReturn = parameters.getParameter< bool >("writeDomainDecompositionAndReturn", false);
-   const bool writeFractionFieldAndReturn = parameters.getParameter< bool >("writeFractionFieldAndReturn", false);
-   const bool loadFractionFieldsFromFile = parameters.getParameter< bool >("loadFractionFieldsFromFile", false);
-   const bool preProcessFractionFields = parameters.getParameter< bool >("preProcessFractionFields", false);
-   const uint_t maxSuperSamplingDepth = parameters.getParameter< uint_t >("maxSuperSamplingDepth", uint_c(1));
-   const std::string fractionFieldFolderName = "savedFractionFields";
-
 
    const std::string timeStepStrategy = parameters.getParameter<std::string>("timeStepStrategy", "noOverlap");
    const Cell innerOuterSplit = Cell(parameters.getParameter< Vector3<cell_idx_t> >("innerOuterSplit", Vector3<cell_idx_t>(1, 1, 1)));
 
-   const real_t ref_lattice_velocity = 0.01;
+   const real_t ref_lattice_velocity = initialVelocity[0];
    const real_t ref_velocity = parameters.getParameter<real_t>("ref_velocity");
    const real_t ref_length = parameters.getParameter<real_t>("ref_length");
    const real_t viscosity = parameters.getParameter<real_t>("viscosity");
@@ -207,26 +201,23 @@ int main(int argc, char** argv)
    /// PROCESS MESH ///
    ////////////////////
 
-   const std::string meshFileBase = "CROR_base.obj";
+   const std::string meshFileBase = "../Meshfiles/CROR_base_downScaled100.obj";
    auto meshBase = make_shared< mesh::TriangleMesh >();
    mesh::readAndBroadcast(meshFileBase, *meshBase);
    auto distanceOctreeMeshBase = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshBase));
 
-   const std::string meshFileRotor = "CROR_rotor.obj";
+   const std::string meshFileRotor = "../Meshfiles/CROR_rotor_downScaled100.obj";
    auto meshRotor = make_shared< mesh::TriangleMesh >();
    mesh::readAndBroadcast(meshFileRotor, *meshRotor);
    auto distanceOctreeMeshRotor = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshRotor));
 
-   const std::string meshFileStator = "CROR_stator.obj";
+   const std::string meshFileStator = "../Meshfiles/CROR_stator_downScaled100.obj";
    auto meshStator = make_shared< mesh::TriangleMesh >();
    mesh::readAndBroadcast(meshFileStator, *meshStator);
    auto distanceOctreeMeshStator = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshStator));
 
-   auto meshBunny = make_shared< mesh::TriangleMesh >();
-   mesh::readAndBroadcast("bunny.obj", *meshBunny);
 
    auto aabbBase = computeAABB(*meshBase);
-
    AABB aabb = aabbBase;
    aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
    aabb.scale(domainScaling);
@@ -244,11 +235,13 @@ int main(int argc, char** argv)
    const real_t fullRefinedMeshSize = mesh_size / pow(2, real_c(refinementDepth));
    const uint_t numFullRefinedCell = uint_c((domainAABB.xSize() / fullRefinedMeshSize) * (domainAABB.ySize() / fullRefinedMeshSize) * (domainAABB.zSize() / fullRefinedMeshSize));
 
-   real_t radiusInCells = (aabbBase.ySize() * 0.5) / dx ;
+   auto aabbRotor = computeAABB(*meshRotor);
+
+   real_t radiusInCells = (aabbRotor.ySize() * 0.5) / dx ;
    real_t maxCellsRotatedOver = radiusInCells * rotationAngle;
 
    uint_t optimizedRotationFreq = uint_c(1.0 / (radPerTimestep * radiusInCells));
-   WALBERLA_LOG_INFO_ON_ROOT("Your current rotation Frequency is " << rotationFrequency << " with which you rotate over " << maxCellsRotatedOver << " cells per rotation\n" << "An optimal frequency would be " << optimizedRotationFreq)
+   WALBERLA_LOG_INFO_ON_ROOT("Your current rotation Frequency is " << rotationFrequency << " with which you rotate over " << maxCellsRotatedOver << " cells per rotation\n" << "An optimal frequency would be <=" << optimizedRotationFreq)
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter \n"
                              << "Domain Decomposition <" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << "> = " << setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize()  << " root Blocks \n"
@@ -272,7 +265,6 @@ int main(int argc, char** argv)
                              << "Rotations per second " << rotPerSec << " 1/s \n"
                              << "Rad per second " << radPerTimestep << " rad \n"
                              << "Rotation Angle per Rotation " << rotationAngle / (2 * M_PI) * 360  << " ° \n"
-                             << "Rotation fraction fields " <<uint_c(std::round(2.0 * M_PI / rotationAngle))  << " \n"
    )
 
    if(writeDomainDecompositionAndReturn) {
@@ -316,60 +308,12 @@ int main(int argc, char** argv)
    ObjectRotatorGPU objectRotatorMeshStator(blocks, fractionFieldGPUId, fractionFieldId, meshStator, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis * -1,  "CROR_stator", maxSuperSamplingDepth, true);
 
 #else
-   ObjectRotator objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, "CROR_base", maxSuperSamplingDepth, false);
-   ObjectRotator objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, "CROR_rotor", maxSuperSamplingDepth, true);
-   ObjectRotator objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  distanceOctreeMeshStator, "CROR_stator", maxSuperSamplingDepth, true);
+   auto objectRotatorMeshBase = make_shared<ObjectRotator>(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, "CROR_base", false);
+   auto objectRotatorMeshRotor = make_shared<ObjectRotator>(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, "CROR_rotor", true);
+   auto objectRotatorMeshStator = make_shared<ObjectRotator>(blocks, meshStator, objectVelocitiesFieldId, rotationAngle * -1, rotationFrequency, rotationAxis,  distanceOctreeMeshStator, "CROR_stator", true);
 
 #endif
-   fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
-
-   std::vector<BlockDataID> fractionFieldIds;
-   if (preProcessFractionFields && rotationFrequency > 0) {
-      const uint_t numFields = uint_c(std::round(2.0 * M_PI / rotationAngle));
-      WALBERLA_LOG_INFO_ON_ROOT("Start Preprocessing mesh " << numFields << " times")
-
-      if(loadFractionFieldsFromFile) {
-         WALBERLA_LOG_INFO_ON_ROOT("Loading fraction fields from file")
-
-         for (uint_t i = 0; i < numFields; ++i) {
-            const std::string fileName = fractionFieldFolderName + "/fractionField_" + std::to_string(i);
-            if (!filesystem::exists(filesystem::path(fileName))) WALBERLA_ABORT("Tried to load fraction field number " + std::to_string(i) + ", which does not exist")
-
-            const std::shared_ptr< FractionFieldHandling< FracField_T > > fractionFieldDataHandling = std::make_shared< FractionFieldHandling< FracField_T > >(blocks);
-            const BlockDataID tmpFractionFieldId = (blocks->getBlockStorage()).loadBlockData(fileName, fractionFieldDataHandling, "FractionField");
-            fractionFieldIds.push_back(tmpFractionFieldId);
-         }
-         WALBERLA_LOG_INFO_ON_ROOT("Finished loading fraction fields from file")
-      }
-      else {
-         for (uint_t i = 0; i < numFields; ++i) {
-            WALBERLA_LOG_INFO_ON_ROOT("Calc frac field number " << i)
-            const BlockDataID tmpFractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionFieldId_" + std::to_string(i), fracSize(0.0), field::fzyx);
-            //objectRotatorMeshBase(0);
-            //objectRotatorMeshRotor(0);
-            //objectRotatorMeshStator(0);
-            //fuseFractionFields(blocks, tmpFractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
-            fractionFieldIds.push_back(tmpFractionFieldId);
-            WALBERLA_MPI_BARRIER()
-         }
-      }
-
-      WALBERLA_LOG_INFO_ON_ROOT("Finished Preprocessing mesh!")
-
-      if(writeFractionFieldAndReturn) {
-         WALBERLA_LOG_INFO_ON_ROOT("Writing fraction fields to file")
-
-         const filesystem::path fractionFieldFolder("savedFractionFields");
-         if (!filesystem::exists(fractionFieldFolder)) filesystem::create_directory(fractionFieldFolder);
-         for (uint_t i = 0; i < numFields; ++i)
-         {
-            const std::string fileName = fractionFieldFolderName + "/fractionField_" + std::to_string(i);
-            blocks->saveBlockData(fileName, fractionFieldIds[i]);
-         }
-         WALBERLA_LOG_INFO_ON_ROOT("Saved fraction fields in files and returning now")
-         return EXIT_SUCCESS;
-      }
-   }
+   fuseFractionFields(blocks, fractionFieldId, std::vector<shared_ptr<ObjectRotator>>{objectRotatorMeshBase, objectRotatorMeshRotor, objectRotatorMeshStator}, 0, rotationFrequency);
 
    /////////////////////////
    /// Fields Creation   ///
@@ -394,31 +338,16 @@ int main(int argc, char** argv)
    /////////////////////////
 
    const std::function< void() > objectRotatorFunc = [&]() {
-      objectRotatorMeshBase(timeloop.getCurrentTimeStep());
-      //objectRotatorMeshRotor(timeloop.getCurrentTimeStep());
-      //objectRotatorMeshStator(timeloop.getCurrentTimeStep());
-      fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID(), objectRotatorMeshRotor.getObjectFractionFieldID(), objectRotatorMeshStator.getObjectFractionFieldID()});
-      //fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotatorMeshBase.getObjectFractionFieldID()});
+      (*objectRotatorMeshBase)(timeloop.getCurrentTimeStep());
+      (*objectRotatorMeshRotor)(timeloop.getCurrentTimeStep());
+      (*objectRotatorMeshStator)(timeloop.getCurrentTimeStep());
+      fuseFractionFields(blocks, fractionFieldId, std::vector<shared_ptr<ObjectRotator>>{objectRotatorMeshBase, objectRotatorMeshRotor, objectRotatorMeshStator}, timeloop.getCurrentTimeStep(), rotationFrequency);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       //gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldId);
 #endif
    };
 
-   const std::function< void() > syncPreprocessedFractionFields = [&]() {
-      auto currTimestep = timeloop.getCurrentTimeStep();
-      const uint_t rotationState = (currTimestep / rotationFrequency) % fractionFieldIds.size();
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldIds[rotationState]);
-#else
-      for (auto & block : *blocks)
-      {
-         FracField_T* realFractionField       = block.getData< FracField_T >(fractionFieldId);
-         FracField_T* fractionFieldFromVector = block.getData< FracField_T >(fractionFieldIds[rotationState]);
-         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(realFractionField, realFractionField->get(x, y, z) = fractionFieldFromVector->get(x, y, z);)
-      }
-#endif
-   };
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    gpu::fieldCpy< gpu::GPUField< real_t >, VectorField_T >(blocks, objectVelocitiesFieldGPUId, objectVelocitiesFieldId);
@@ -453,7 +382,7 @@ int main(int argc, char** argv)
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
       gpu::fieldCpy( *dst, *src );
 #endif
-      sweepCollection.initialise(&block, 1);
+      sweepCollection.initialise(&block);
    }
 
 
@@ -480,13 +409,8 @@ int main(int argc, char** argv)
 
    const auto emptySweep = [](IBlock*) {};
    if( rotationFrequency > 0) {
-      if(preProcessFractionFields) {
-         timeloop.add() << BeforeFunction(syncPreprocessedFractionFields, "syncPreprocessedFractionFields") << Sweep(emptySweep);
-      }
-      else {
-         timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
-         timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
-      }
+      timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
+      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
    }
 
    // Time logger
@@ -526,7 +450,7 @@ int main(int argc, char** argv)
 
       //vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
 
-      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
    }
 
@@ -534,19 +458,6 @@ int main(int argc, char** argv)
    if(timeStepStrategy == "refinement")  {
       LBMMeshRefinement.addRefinementToTimeLoop(timeloop);
    }
-    /*else if (timeStepStrategy == "noOverlap")
-    { // Timeloop
-       timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
-                      << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
-       timeloop.add() << Sweep(sweepCollection.streamCollide(), "PSMSweep");
-    }
-    else if(timeStepStrategy == "Overlap") {
-       timeloop.add() << BeforeFunction(communication.getStartCommunicateFunctor(), "Start Communication")
-                      << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
-       timeloop.add() << Sweep(sweepCollection.streamCollide(lbm::CRORSweepCollection::Type::INNER), "PSM Sweep Inner Frame");
-       timeloop.add() << BeforeFunction(communication.getWaitFunctor(), "Wait for Communication")
-                      << Sweep(sweepCollection.streamCollide(lbm::CRORSweepCollection::Type::OUTER), "PSM Sweep Outer Frame");
-    }*/
    else {
       WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")
    }
