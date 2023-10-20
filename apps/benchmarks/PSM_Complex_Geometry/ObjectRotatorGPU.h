@@ -19,33 +19,18 @@
 //======================================================================================================================
 #pragma once
 
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <cuda_runtime.h>
+
 #include "core/math/Constants.h"
 #include "blockforest/all.h"
 #include "field/all.h"
 #include "gpu/GPUField.h"
 #include "mesh_common/DistanceComputations.h"
-
-
-#include <iostream>
-#include <fstream>
-#include <string>
 #include "lbm_generated/gpu/GPUPdfField.h"
-#include <cuda_runtime.h>
-
-//#include "BoxTriangleIntersection.h"
-
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-#include "gpu/AddGPUFieldToStorage.h"
-#include "gpu/DeviceSelectMPI.h"
-#include "gpu/FieldCopy.h"
-#include "gpu/GPUWrapper.h"
-#include "gpu/HostFieldAllocator.h"
-#include "gpu/ParallelStreams.h"
-#include "gpu/communication/UniformGPUScheme.h"
-#endif
-
 #include "geometry/containment_octree/ContainmentOctree.h"
-
 #include "mesh_common/MatrixVectorOperations.h"
 #include "mesh_common/MeshIO.h"
 #include "mesh_common/MeshOperations.h"
@@ -59,7 +44,15 @@
 #include "mesh/boundary/BoundaryLocation.h"
 #include "mesh/boundary/BoundaryLocationFunction.h"
 #include "mesh/boundary/BoundarySetup.h"
-
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+#include "gpu/AddGPUFieldToStorage.h"
+#include "gpu/DeviceSelectMPI.h"
+#include "gpu/FieldCopy.h"
+#include "gpu/GPUWrapper.h"
+#include "gpu/HostFieldAllocator.h"
+#include "gpu/ParallelStreams.h"
+#include "gpu/communication/UniformGPUScheme.h"
+#endif
 
 #ifdef __GNUC__
 #define RESTRICT __restrict__
@@ -68,8 +61,6 @@
 #else
 #define RESTRICT
 #endif
-
-
 
 namespace walberla
 {
@@ -109,14 +100,16 @@ class ObjectRotatorGPU
         rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis), meshName_(meshName), rotate_(rotate)
    {
       tmpFracFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks_, fractionFieldCPUId, meshName_ + "_fracFieldGPU", true );
+      meshCenter = computeCentroid(*mesh_);
 
       WALBERLA_LOG_INFO_ON_ROOT("convertDistancePropertiesToGPU")
       convertDistancePropertiesToGPU();
-      meshCenter = computeCentroid(*mesh_);
+
       WALBERLA_LOG_INFO_ON_ROOT("initObjectVelocityField")
       initObjectVelocityField();
-      WcTimer simTimer;
+
       WALBERLA_LOG_INFO_ON_ROOT("Start Voxelization")
+      WcTimer simTimer;
       simTimer.start();
       voxelizeGPUCall();
       WALBERLA_GPU_CHECK( gpuDeviceSynchronize() )
@@ -159,27 +152,21 @@ class ObjectRotatorGPU
          dpGPU.translation = {float(dp.translation[0]), float(dp.translation[1]), float(dp.translation[2])};
 
          for (int i = 0; i < 9; ++i)
-            dpGPU.rotation[0] = float(dp.rotation[0]);
+            dpGPU.rotation[i] = float(dp.rotation[i]);
 
          //also save normals of faces, edges and vertices to compute sign (Voronoi areas)
          auto normal = mesh_->normal( *f_it );
          dpGPU.region_normal[0] = {float(normal[0]), float(normal[1]), float(normal[2])};
-
          normal = mesh_->normal( getVertexHandle( *mesh_, *f_it, 0U ) );
          dpGPU.region_normal[1] = {float(normal[0]), float(normal[1]), float(normal[2])};
-
          normal = mesh_->normal( getVertexHandle( *mesh_, *f_it, 1U ) );
          dpGPU.region_normal[2] = {float(normal[0]), float(normal[1]), float(normal[2])};
-
          normal = mesh_->normal( getVertexHandle( *mesh_, *f_it, 2U ) );
          dpGPU.region_normal[3] = {float(normal[0]), float(normal[1]), float(normal[2])};
-
          normal = mesh_->normal( getHalfedgeHandle( *mesh_, *f_it, 0U, 1U ) );
          dpGPU.region_normal[4] = {float(normal[0]), float(normal[1]), float(normal[2])};
-
          normal = mesh_->normal( getHalfedgeHandle( *mesh_, *f_it, 0U, 2U ) );
          dpGPU.region_normal[5] = {float(normal[0]), float(normal[1]), float(normal[2])};
-
          normal = mesh_->normal( getHalfedgeHandle( *mesh_, *f_it, 1U, 2U ) );
          dpGPU.region_normal[6] = {float(normal[0]), float(normal[1]), float(normal[2])};
 

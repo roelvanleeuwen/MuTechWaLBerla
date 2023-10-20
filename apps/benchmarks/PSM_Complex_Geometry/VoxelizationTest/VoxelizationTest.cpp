@@ -213,6 +213,12 @@ int main(int argc, char** argv)
 
 
 
+   real_t radiusInCells = (aabbBase.ySize() * 0.5) / dx ;
+   real_t maxCellsRotatedOver = radiusInCells * rotationAngle;
+
+   uint_t optimizedRotationFreq = uint_c(1.0 / (radPerTimestep * radiusInCells));
+   WALBERLA_LOG_INFO_ON_ROOT("Your current rotation Frequency is " << rotationFrequency << " with which you rotate over " << maxCellsRotatedOver << " cells per rotation\n" << "An optimal frequency would be " << optimizedRotationFreq)
+
    WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter \n"
                              << "Domain Decomposition <" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << "> = " << setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize()  << " root Blocks \n"
                              << "Number of blocks is " << setupForest->getNumberOfBlocks() << " \n"
@@ -235,11 +241,11 @@ int main(int argc, char** argv)
                              << "Rotations per second " << rotPerSec << " 1/s \n"
                              << "Rad per second " << radPerTimestep << " rad \n"
                              << "Rotation Angle per Rotation " << rotationAngle / (2 * M_PI) * 360  << " ° \n"
-                             << "Rotation fraction fields " <<uint_c(std::round(2.0 * M_PI / rotationAngle))  << " \n"
    )
 
    if(writeDomainDecompositionAndReturn) {
       WALBERLA_ROOT_SECTION() { setupForest->writeVTKOutput("SetupBlockForest"); }
+      //get maximum rotation per timestep
       return EXIT_SUCCESS;
    }
    auto blocks = bfc.createStructuredBlockForest(cellsPerBlock);
@@ -268,12 +274,11 @@ int main(int argc, char** argv)
 
    //Setting up Object Rotator
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   ObjectRotatorGPU objectRotator(blocks, fractionFieldGPUId, fractionFieldId, meshBunny, triDist, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis,  "bunny", true);
+   auto objectRotator = make_shared<ObjectRotatorGPU>(blocks, fractionFieldGPUId, fractionFieldId, meshBunny, triDist, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis,  "bunny", true);
 #else
-   ObjectRotator objectRotator(blocks, meshBunny, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  distanceOctree, "bunny", maxSuperSamplingDepth, true);
-
+   auto objectRotator = make_shared<ObjectRotator> (blocks, meshBunny, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis,  distanceOctree, "bunny", fullRefinedMeshSize, true);
+   fuseFractionFields(blocks, fractionFieldId, std::vector<shared_ptr<ObjectRotator>>{objectRotator}, 0, rotationFrequency);
 #endif
-   fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotator.getObjectFractionFieldID()});
 
    /////////////////////////
    /// Fields Creation   ///
@@ -298,12 +303,17 @@ int main(int argc, char** argv)
    /////////////////////////
 
    const std::function< void() > objectRotatorFunc = [&]() {
-      objectRotator(timeloop.getCurrentTimeStep());
-      fuseFractionFields(blocks, fractionFieldId, std::vector<BlockDataID>{objectRotator.getObjectFractionFieldID()});
+      WcTimer simTimer;
+      simTimer.start();
+      (*objectRotator)(timeloop.getCurrentTimeStep());
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       //gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldId);
+#else
+      fuseFractionFields(blocks, fractionFieldId, std::vector<shared_ptr<ObjectRotator>>{objectRotator}, timeloop.getCurrentTimeStep(), rotationFrequency);
 #endif
+      simTimer.end();
+      WALBERLA_LOG_INFO_ON_ROOT("Finished Rotation in " << simTimer.max() << "s")
    };
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)

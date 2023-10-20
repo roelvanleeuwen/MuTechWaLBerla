@@ -244,7 +244,11 @@ int main(int argc, char** argv)
    const real_t fullRefinedMeshSize = mesh_size / pow(2, real_c(refinementDepth));
    const uint_t numFullRefinedCell = uint_c((domainAABB.xSize() / fullRefinedMeshSize) * (domainAABB.ySize() / fullRefinedMeshSize) * (domainAABB.zSize() / fullRefinedMeshSize));
 
+   real_t radiusInCells = (aabbBase.ySize() * 0.5) / dx ;
+   real_t maxCellsRotatedOver = radiusInCells * rotationAngle;
 
+   uint_t optimizedRotationFreq = uint_c(1.0 / (radPerTimestep * radiusInCells));
+   WALBERLA_LOG_INFO_ON_ROOT("Your current rotation Frequency is " << rotationFrequency << " with which you rotate over " << maxCellsRotatedOver << " cells per rotation\n" << "An optimal frequency would be " << optimizedRotationFreq)
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter \n"
                              << "Domain Decomposition <" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << "> = " << setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize()  << " root Blocks \n"

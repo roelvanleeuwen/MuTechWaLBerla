@@ -21,19 +21,7 @@
 
 #include "core/math/Constants.h"
 #include "blockforest/all.h"
-
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-#include "gpu/AddGPUFieldToStorage.h"
-#include "gpu/DeviceSelectMPI.h"
-#include "gpu/FieldCopy.h"
-#include "gpu/GPUWrapper.h"
-#include "gpu/HostFieldAllocator.h"
-#include "gpu/ParallelStreams.h"
-#include "gpu/communication/UniformGPUScheme.h"
-#endif
-
 #include "geometry/containment_octree/ContainmentOctree.h"
-
 #include "mesh_common/DistanceComputations.h"
 #include "mesh_common/DistanceFunction.h"
 #include "mesh_common/MatrixVectorOperations.h"
@@ -49,25 +37,16 @@
 #include "mesh/boundary/BoundarySetup.h"
 #include "mesh/boundary/BoundaryUIDFaceDataSource.h"
 #include "mesh/boundary/ColorToBoundaryMapper.h"
-
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+#include "gpu/AddGPUFieldToStorage.h"
+#include "gpu/DeviceSelectMPI.h"
+#include "gpu/FieldCopy.h"
+#include "gpu/GPUWrapper.h"
+#include "gpu/HostFieldAllocator.h"
+#include "gpu/ParallelStreams.h"
+#include "gpu/communication/UniformGPUScheme.h"
+#endif
 #include "GeometryOctree.h"
-
-#define CROSS(dest,v1,v2) \
-         dest[0]=v1[1]*v2[2]-v1[2]*v2[1]; \
-         dest[1]=v1[2]*v2[0]-v1[0]*v2[2]; \
-         dest[2]=v1[0]*v2[1]-v1[1]*v2[0];
-
-#define DOT(v1,v2) (v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2])
-
-#define SUB(dest,v1,v2) \
-         dest[0]=v1[0]-v2[0]; \
-         dest[1]=v1[1]-v2[1]; \
-         dest[2]=v1[2]-v2[2];
-
-#define ADD(dest,v1,v2) \
-         dest[0]=v1[0]+v2[0]; \
-         dest[1]=v1[1]+v2[1]; \
-         dest[2]=v1[2]+v2[2];
 
 
 namespace walberla
@@ -87,53 +66,52 @@ class ObjectRotator
  public:
    ObjectRotator(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, const BlockDataID objectVelocityId,
                  const real_t rotationAngle, const uint_t frequency, Vector3<uint_t> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree,
-                 std::string meshName, uint_t maxSuperSamplingDepth, const bool isRotating = true)
+                 std::string meshName, real_t dx, const bool isRotating = true)
       : blocks_(blocks), mesh_(mesh), objectVelocityId_(objectVelocityId),
         rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis), distOctree_(distOctree),
         meshName_(meshName), isRotating_(isRotating)
    {
       fractionFieldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
-      distanceFieldOldId_ = field::addToStorage< FracField_T >(blocks, "distanceField_old" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
-      distanceFieldNewId_ = field::addToStorage< FracField_T >(blocks, "distanceField_new" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
+      fractionFieldOldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
 
-      //readFile();
+      //get maximum rotation per timestep
+      auto meshAABB = computeAABB(*mesh_);
+      real_t radiusInCells = (meshAABB.ySize() * 0.5) / dx ;
+      real_t maxCellsRotatedOver = radiusInCells * rotationAngle;
+
+      uint_t optimizedRotationFreq = uint_c(1.0 / ((rotationAngle_/frequency_) * radiusInCells));
+      WALBERLA_LOG_INFO_ON_ROOT("Your current rotation Frequency is " << frequency_ << " with which you rotate over " << maxCellsRotatedOver << " cells per rotation\n" << "An optimal frequency would be " << optimizedRotationFreq)
+
+
       meshCenter = computeCentroid(*mesh_);
       initObjectVelocityField();
 
-      WcTimer simTimer;
-      WALBERLA_LOG_INFO_ON_ROOT("Start Voxelization")
-      simTimer.start();
-      fillDistanceField(distanceFieldOldId_);
+      getFractionFieldFromMesh();
+      swapFractionFields();
       rotate();
-      fillDistanceField(distanceFieldNewId_);
-      getFractionFieldFromDistanceFields(0);
-      //getFractionFieldFromMesh();
-      simTimer.end();
-      WALBERLA_LOG_INFO_ON_ROOT("Finished Voxelization in " << simTimer.max() << "s")
+      getFractionFieldFromMesh();
+      //fillDistanceField(fractionFieldOldId_);
    }
 
    void operator()(uint_t timestep) {
       if(isRotating_) {
-         WcTimer simTimer;
-         simTimer.start();
          if (timestep % frequency_ == 0)
          {
-            swapDistanceFields();
+            swapFractionFields();
             rotate();
-            fillDistanceField(distanceFieldNewId_);
+            resetFractionField();
+            getFractionFieldFromMesh();
+            //fillDistanceField(fractionFieldOldId_);
          }
-         getFractionFieldFromDistanceFields(timestep);
-         simTimer.end();
-         WALBERLA_LOG_INFO_ON_ROOT("Finished Rotation in " << simTimer.max() << "s")
       }
    }
 
-   void swapDistanceFields() {
+   void swapFractionFields() {
       for (auto& block : *blocks_)
       {
-         FracField_T* distanceFieldOld = block.getData< FracField_T >(distanceFieldOldId_);
-         FracField_T* distanceFieldNew = block.getData< FracField_T >(distanceFieldNewId_);
-         distanceFieldOld->swapDataPointers(distanceFieldNew);
+         FracField_T* fractionFieldOld = block.getData< FracField_T >(fractionFieldId_);
+         FracField_T* fractionFieldNew = block.getData< FracField_T >(fractionFieldOldId_);
+         fractionFieldOld->swapDataPointers(fractionFieldNew);
       }
    }
 
@@ -155,6 +133,7 @@ class ObjectRotator
          std::fill(fractionField->beginSliceXYZ(blockCi), fractionField->end(), 0.0);
       }
    }
+
 
    void initObjectVelocityField() {
       for (auto& block : *blocks_)
@@ -197,53 +176,25 @@ class ObjectRotator
       }
    }
 
-   //TODO only do for meshAABB?
+
    void fillDistanceField(BlockDataID distFieldId) {
-      //auto aabbMesh = computeAABB(*mesh_);
       const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
       for (auto& block : *blocks_)
       {
          FracField_T* distanceField = block.getData< FracField_T >(distFieldId);
-         auto level                 = blocks_->getLevel(block);
-         //auto cellBBMesh            = blocks_->getCellBBFromAABB(aabbMesh, level);
 
          CellInterval blockCi = distanceField->xyzSizeWithGhostLayer();
          blocks_->transformBlockLocalToGlobalCellInterval(blockCi, block);
-         //cellBBMesh.intersect(blockCi);
 
          for (auto cellIt = blockCi.begin(); cellIt != blockCi.end(); cellIt++) {
             Vector3<real_t> cellCenter = blocks_->getGlobalCellCenter(block, *cellIt);
             const real_t sqSignedDistance = (*distFunct)(cellCenter);
-            const real_t sign = sqSignedDistance / abs(sqSignedDistance);
             Cell localCell;
             blocks_->transformGlobalToBlockLocalCell(localCell, block, *cellIt);
-            distanceField->get(localCell) = sqrt(abs(sqSignedDistance)) * sign;
+            distanceField->get(localCell) = sqSignedDistance;
          }
       }
    }
-
-   void getFractionFieldFromDistanceFields(uint timestep) {
-      real_t partOld = real_t(frequency_ - (timestep % frequency_)) / real_t(frequency_);
-      real_t partNew = 1.0 - partOld;
-
-      for (auto& block : *blocks_) {
-         const real_t dx = blocks_->dx(blocks_->getLevel(block));
-         //real_t sqDx = dx * dx;
-         //real_t sqDxHalf = (0.5 * dx) * (0.5 * dx);
-
-         FracField_T* distanceFieldOld = block.getData< FracField_T >(distanceFieldOldId_);
-         FracField_T* distanceFieldNew = block.getData< FracField_T >(distanceFieldNewId_);
-         FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId_);
-
-         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(fractionField,
-            fracSize interpolatedDistance = partOld * distanceFieldOld->get(x,y,z) + partNew * distanceFieldNew->get(x,y,z);
-            //fractionField->get(x,y,z) = std::max(0.0, std::min(1.0, (sqDx - (interpolatedDistance + sqDxHalf) ) / sqDx));
-            fractionField->get(x,y,z) = std::max(0.0, std::min(1.0, (dx - (interpolatedDistance + (0.5 * dx)) ) / dx));
-
-         )
-      }
-   }
-
 
 
    void getFractionFieldFromMesh()
@@ -358,8 +309,11 @@ class ObjectRotator
       }
    }
 
-   BlockDataID getObjectFractionFieldID() {
+   BlockDataID getFractionFieldID() {
       return fractionFieldId_;
+   }
+   BlockDataID getFractionFieldOldID() {
+      return fractionFieldOldId_;
    }
 
 
@@ -368,8 +322,7 @@ class ObjectRotator
    shared_ptr< mesh::TriangleMesh > mesh_;
 
    BlockDataID fractionFieldId_;
-   BlockDataID distanceFieldOldId_;
-   BlockDataID distanceFieldNewId_;
+   BlockDataID fractionFieldOldId_;
 
    const BlockDataID objectVelocityId_;
    const real_t rotationAngle_;
@@ -384,18 +337,27 @@ class ObjectRotator
    };
 
 
+void fuseFractionFields(shared_ptr< StructuredBlockForest >& blocks, BlockDataID dstFracFieldID, std::vector<shared_ptr<ObjectRotator>> objectRotators, uint_t timestep, uint_t rotationFrequency) {
 
-void fuseFractionFields(shared_ptr< StructuredBlockForest >& blocks, BlockDataID dstFracFieldID, std::vector<BlockDataID> srcFracFieldIDs) {
+   real_t partOld = real_t(rotationFrequency - (timestep % rotationFrequency)) / real_t(rotationFrequency);
+   real_t partNew = 1.0 - partOld;
+
    for (auto &block : *blocks) {
       FracField_T* dstFractionField = block.getData< FracField_T >(dstFracFieldID);
       std::vector<FracField_T*> srcFracFields;
-      for (auto srcFracFieldID : srcFracFieldIDs) {
-         srcFracFields.push_back(block.getData< FracField_T >(srcFracFieldID));
+      std::vector<FracField_T*> srcFracFieldsOld;
+
+      for (auto objectRotator : objectRotators) {
+         srcFracFields.push_back(block.getData< FracField_T >(objectRotator->getFractionFieldID()));
+         srcFracFieldsOld.push_back(block.getData< FracField_T >(objectRotator->getFractionFieldOldID()));
       }
+
       WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(dstFractionField,
-          dstFractionField->get(x,y,z) = 0;
-          for (auto srcFracField : srcFracFields) {
-             dstFractionField->get(x,y,z) = std::max(srcFracField->get(x,y,z), dstFractionField->get(x,y,z));
+          dstFractionField->get(x,y,z) = 0.0;
+          for (uint_t i = 0; i < srcFracFields.size(); ++i) {
+            fracSize interpolatedDistance = partOld * srcFracFieldsOld[i]->get(x,y,z) + partNew * srcFracFields[i]->get(x,y,z);
+            dstFractionField->get(x,y,z) = std::min(1.0, dstFractionField->get(x,y,z) + interpolatedDistance);
+            //dstFractionField->get(x,y,z) = srcFracFieldsOld[i]->get(x,y,z);
           }
       )
    }

@@ -166,6 +166,8 @@ __device__ float getSqSignedDistance(DistancePropertiesGPU * distancePropertiesG
       closestPoint.z = 0.0;
 
       float sqDistance = pt3.z * pt3.z;
+      //printf("dp.translation[0] is %f, [1] is %f, [2] is %f, [3] is %f, [4] is %f, [5] is %f, [6] is %f, [7] is %f, [8] is %f \n", dp.rotation[0], dp.rotation[1], dp.rotation[2], dp.rotation[3], dp.rotation[4], dp.rotation[5], dp.rotation[6], dp.rotation[7], dp.rotation[8]);
+
       float2 pt = {pt3.x, pt3.y};
 
       float e0p = DOT2(dp.e0_normalized, pt);
@@ -178,8 +180,6 @@ __device__ float getSqSignedDistance(DistancePropertiesGPU * distancePropertiesG
       float e1d = DOT2(dp.e1_normal, pt);
       SUB2(temp2, pt, dp.e0)
       float e2d = DOT2(dp.e2_normal, temp2);
-
-      //printf("%f %f %f %f %f %f %f \n", pt.x, e0p, e1p, e2p, e0d, e1d, e2d );
 
       if( e0p <= 0 && e1p <= 0  )
       {
@@ -244,8 +244,6 @@ __device__ float getSqSignedDistance(DistancePropertiesGPU * distancePropertiesG
          printf("Error in sqDist calculation\n");
          return 0.0;
       }
-      //printf("spDist is %f\n", sqDistance);
-
 
       if(sqDistance <= final_sqDistance) {
          final_sqDistance = sqDistance;
@@ -256,12 +254,13 @@ __device__ float getSqSignedDistance(DistancePropertiesGPU * distancePropertiesG
          final_normal = dp.region_normal[region];
       }
    }
-   printf("final_sqDistance is %f\n", final_sqDistance);
-   return final_sqDistance;
+   //printf("final_sqDistance is %f\n", final_sqDistance);
    float3 temp;
    SUB(temp, cellCenter, final_closestPoint)
    float dot = DOT(temp, final_normal);
-   return dot >= 0.0 ? final_sqDistance : -final_sqDistance;
+   //return dot >= 0.0 ? final_sqDistance : -final_sqDistance;
+   return final_sqDistance;
+
 }
 
 
@@ -273,7 +272,6 @@ __global__ void voxelizeGPU(DistancePropertiesGPU * distancePropertiesGpu, fracS
    if (x < cellBBSize.x  && y < cellBBSize.y  && z < cellBBSize.z )
    {
       const int idx = (x + cellBBLocalMin.x) + (y + cellBBLocalMin.y) * stride_frac_field.y + (z + cellBBLocalMin.z) * stride_frac_field.z;
-      //const int idx = x + y * stride_frac_field.y + z * stride_frac_field.z;
 
       float dxHalf        = 0.0;    //0.5f * dx;
       float3 cellCenter = { minAABB.x + float(x) * dx + dxHalf, minAABB.y + float(y) * dx + dxHalf,
@@ -282,11 +280,8 @@ __global__ void voxelizeGPU(DistancePropertiesGPU * distancePropertiesGpu, fracS
       float sqSignedDistance = getSqSignedDistance(distancePropertiesGpu, numFaces, cellCenter);
       //printf("sqSignedDistance is %f \n", sqSignedDistance);
 
-      float sqDx = dx * dx;
-      float sqDxHalf = (0.5 * dx) * (0.5 * dx);
-
       fracSize fraction;
-      fraction = max(0.0, min(1.0, (sqDx - (sqSignedDistance + sqDxHalf) ) / sqDx));
+      fraction = max(0.0, min(1.0, (dx - (sqrt(sqSignedDistance) + (dx * 0.5)) ) / dx));
       fractionFieldData[idx] = sqSignedDistance;
    }
 }
