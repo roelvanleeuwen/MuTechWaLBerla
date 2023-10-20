@@ -13,6 +13,7 @@ Physics
     kinematicViscosityFluid_SI 1e-6;
     dx_SI 5e-5;
     dt_SI 5e-7;
+    gravitationalAcceleration_SI 9.81;
 }
 
 Bucket
