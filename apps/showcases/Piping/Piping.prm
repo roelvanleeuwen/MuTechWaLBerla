@@ -36,5 +36,6 @@ Output
 {
     vtkSpacing 500;
     vtkFolder vtk_piping;
+    fluidSlice true;
     performanceLogFrequency 500;
 }

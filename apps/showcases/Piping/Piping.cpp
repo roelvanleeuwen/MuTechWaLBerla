@@ -167,6 +167,7 @@ int main(int argc, char** argv)
    Config::BlockHandle outputParameters = cfgFile->getBlock("Output");
    const uint_t vtkSpacing              = outputParameters.getParameter< uint_t >("vtkSpacing");
    const std::string vtkFolder          = outputParameters.getParameter< std::string >("vtkFolder");
+   const bool fluidSlice                = outputParameters.getParameter< bool >("fluidSlice");
    const uint_t performanceLogFrequency = outputParameters.getParameter< uint_t >("performanceLogFrequency");
 
    ///////////////////////////
@@ -340,7 +341,7 @@ int main(int argc, char** argv)
       fluidFilter.addFlag(Fluid_Flag);
       vtk::ChainedFilter combinedSliceFilter;
       combinedSliceFilter.addFilter(fluidFilter);
-      combinedSliceFilter.addFilter(aabbSliceFilter);
+      if (fluidSlice) { combinedSliceFilter.addFilter(aabbSliceFilter); }
       pdfFieldVTK->addCellInclusionFilter(combinedSliceFilter);
 
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(pdfFieldVTK), "VTK (fluid field data)");
