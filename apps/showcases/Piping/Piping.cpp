@@ -135,8 +135,8 @@ int main(int argc, char** argv)
 
    Config::BlockHandle physicsParameters     = cfgFile->getBlock("Physics");
    const uint_t timeSteps                    = physicsParameters.getParameter< uint_t >("timeSteps");
-   const real_t pressureDifference           = physicsParameters.getParameter< real_t >("pressureDifference");
-   const uint_t finalPressureTimeStep        = physicsParameters.getParameter< uint_t >("finalPressureTimeStep");
+   const real_t hydraulicGradient            = physicsParameters.getParameter< real_t >("hydraulicGradient");
+   const uint_t finalGradientTimeStep        = physicsParameters.getParameter< uint_t >("finalGradientTimeStep");
    const real_t kinematicViscosityFluid_SI   = physicsParameters.getParameter< real_t >("kinematicViscosityFluid_SI");
    const real_t dx_SI                        = physicsParameters.getParameter< real_t >("dx_SI");
    const real_t dt_SI                        = physicsParameters.getParameter< real_t >("dt_SI");
@@ -202,6 +202,13 @@ int main(int argc, char** argv)
    initSpheresFromFile(particleInFileName, *ps, *rpdDomain, particleDensityRatio, simulationDomain, domainSize,
                        boxPosition, boxEdgeLength);
 
+   real_t seepageLength = computeSeepageLength(accessor, ps, boxPosition, boxEdgeLength);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(seepageLength)
+
+   // TODO: check formula again
+   const real_t pressureDifference = hydraulicGradient * gravitationalAcceleration * seepageLength;
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(pressureDifference)
+
    ///////////////////////
    // ADD DATA TO BLOCKS //
    ////////////////////////
@@ -233,7 +240,7 @@ int main(int argc, char** argv)
    lbm::PSM_Density density0_bc(blocks, pdfFieldGPUID, real_t(1.0));
    density0_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Density0_Flag, Fluid_Flag);
    lbm::PSM_Density density1_bc(blocks, pdfFieldGPUID, real_t(1.0));
-   if (finalPressureTimeStep == 0) { density1_bc.bc_density_ = real_t(1.0) - pressureDifference; }
+   if (finalGradientTimeStep == 0) { density1_bc.bc_density_ = real_t(1.0) - pressureDifference; }
    density1_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Density1_Flag, Fluid_Flag);
    lbm::PSM_NoSlip noSlip(blocks, pdfFieldGPUID);
    noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, NoSlip_Flag, Fluid_Flag);
@@ -254,9 +261,6 @@ int main(int argc, char** argv)
 
    real_t e_init = computeVoidRatio(blocks, BFieldID, particleAndVolumeFractionSoA.BFieldID, accessor, ps);
    WALBERLA_LOG_INFO_ON_ROOT("Void ratio e_init: " << e_init)
-
-   real_t seepageLength = computeSeepageLength(accessor, ps, boxPosition, boxEdgeLength);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(seepageLength)
 
    // Initialize PDFs
    pystencils::InitializeDomainForPSM pdfSetter(
@@ -372,7 +376,7 @@ int main(int argc, char** argv)
       timeloop.singleStep(timeloopTiming);
       // If pressure difference did not yet reach the limit, decrease the pressure on the right hand side
       density1_bc.bc_density_ = std::max(real_t(1.0) - pressureDifference,
-                                         density1_bc.bc_density_ - pressureDifference / real_t(finalPressureTimeStep));
+                                         density1_bc.bc_density_ - pressureDifference / real_t(finalGradientTimeStep));
    }
 
    timeloopTiming.logResultOnRoot();

@@ -7,9 +7,9 @@ Domain
 
 Physics
 {
-    timeSteps 10000;
-    pressureDifference 0.1; // final pressure difference
-    finalPressureTimeStep 10000; // time step in which the final pressure difference is reached, 0 means instantly
+    timeSteps 6000000;
+    hydraulicGradient 2.915; // final hydraulic gradient (see Fukumoto et al., 2021)
+    finalGradientTimeStep 6000000; // time step in which the final hydraulic gradient is reached, 0 means instantly
     kinematicViscosityFluid_SI 1e-6;
     dx_SI 5e-5;
     dt_SI 5e-7;
