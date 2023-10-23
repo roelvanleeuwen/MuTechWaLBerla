@@ -263,7 +263,8 @@ int main(int argc, char** argv)
       psmSweepCollection.particleMappingSweep(&(*blockIt));
    }
 
-   real_t e_init = computeVoidRatio(blocks, BFieldID, particleAndVolumeFractionSoA.BFieldID, accessor, ps);
+   real_t e_init =
+      computeVoidRatio(blocks, BFieldID, particleAndVolumeFractionSoA.BFieldID, flagFieldID, Fluid_Flag, accessor, ps);
    WALBERLA_LOG_INFO_ON_ROOT("Void ratio e_init: " << e_init)
 
    // Initialize PDFs

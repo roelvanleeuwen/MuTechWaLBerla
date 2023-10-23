@@ -245,7 +245,8 @@ struct SphereSelector
 
 template< typename ParticleAccessor_T >
 real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, const BlockDataID& BFieldID,
-                        const BlockDataID& BFieldGPUID, const shared_ptr< ParticleAccessor_T >& accessor,
+                        const BlockDataID& BFieldGPUID, const BlockDataID& flagFieldID, field::FlagUID fluidFlagID,
+                        const shared_ptr< ParticleAccessor_T >& accessor,
                         const shared_ptr< mesa_pd::data::ParticleStorage >& ps)
 {
    using namespace lbm_mesapd_coupling::psm::gpu;
@@ -269,11 +270,14 @@ real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, cons
    uint_t numFluidCells       = uint_t(0);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
-      BField_T* BField = blockIt->getData< BField_T >(BFieldID);
+      BField_T* BField                          = blockIt->getData< BField_T >(BFieldID);
+      FlagField< walberla::uint8_t >* flagField = blockIt->getData< FlagField< walberla::uint8_t > >(flagFieldID);
+      auto fluidFlag                            = flagField->getOrRegisterFlag(fluidFlagID);
       WALBERLA_FOR_ALL_CELLS_XYZ(
          BField, Cell cell(x, y, z); blocks->transformBlockLocalToGlobalCell(cell, *blockIt);
          const Vector3< real_t > globalCellCenter = blocks->getCellCenter(cell);
-         if (globalCellCenter[2] < maxParticleHeight) {
+         // Only consider cells inside the soil (< maxParticleHeight) and outside the bucket (= fluidFlag)
+         if (globalCellCenter[2] < maxParticleHeight && flagField->get(x, y, z) == fluidFlag) {
             sumOverlapFractions += BField->get(x, y, z);
             ++numFluidCells;
          })
