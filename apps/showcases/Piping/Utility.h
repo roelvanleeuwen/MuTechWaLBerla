@@ -15,7 +15,6 @@
 //
 //! \file   Utility.h
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
-//! \brief Based on showcases/Antidunes/Utility.cpp
 //
 //======================================================================================================================
 
@@ -37,6 +36,8 @@ namespace walberla
 {
 namespace piping
 {
+
+// Some functions in this file (as the one below) are based on showcases/Antidunes/Utility.cpp
 
 void writeSphereInformationToFile(const std::string& filename, walberla::mesa_pd::data::ParticleStorage& ps,
                                   Vector3< real_t >& domainSize, int precision = 12)
@@ -111,6 +112,9 @@ void initSpheresFromFile(const std::string& fileName, walberla::mesa_pd::data::P
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(generationDomainSize_SI)
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(scalingFactor)
 
+   real_t minParticleDiameter = std::numeric_limits< real_t >::max();
+   real_t maxParticleDiameter = real_t(0);
+
    while (std::getline(fileIss, line))
    {
       std::istringstream iss(line);
@@ -135,8 +139,16 @@ void initSpheresFromFile(const std::string& fileName, walberla::mesa_pd::data::P
       pIt->setOwner(rank);
       pIt->setType(0);
 
+      minParticleDiameter = std::min(real_t(2) * radius, minParticleDiameter);
+      maxParticleDiameter = std::max(real_t(2) * radius, maxParticleDiameter);
+
       WALBERLA_CHECK_EQUAL(iss.tellg(), -1);
    }
+
+   WALBERLA_MPI_SECTION() { walberla::mpi::allReduceInplace(minParticleDiameter, walberla::mpi::MIN); }
+   WALBERLA_MPI_SECTION() { walberla::mpi::allReduceInplace(maxParticleDiameter, walberla::mpi::MAX); }
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(minParticleDiameter)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(maxParticleDiameter)
 }
 
 // TODO: maybe set different types and density for plane and sphere
