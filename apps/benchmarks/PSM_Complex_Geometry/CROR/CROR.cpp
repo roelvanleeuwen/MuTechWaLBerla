@@ -400,6 +400,7 @@ int main(int argc, char** argv)
    //auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
    communication->addPackInfo(packInfo);
    lbm_generated::BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldId, sweepCollection, boundaryCollection, communication, packInfo);
+   communication->communicate();
 #endif
 
 

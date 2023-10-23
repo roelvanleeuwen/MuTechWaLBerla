@@ -246,7 +246,7 @@ __device__ float getSqSignedDistance(DistancePropertiesGPU * distancePropertiesG
       }
 
       if(sqDistance <= final_sqDistance) {
-         final_sqDistance = e0p;
+         final_sqDistance = sqDistance;
          float transpose[9];
          TRANSPOSE(transpose, dp.rotation)
          MATVECMUL(temp, transpose, closestPoint)

@@ -186,7 +186,7 @@ int main(int argc, char** argv)
    auto meshBunny = make_shared< mesh::TriangleMesh >();
 
    //mesh::readAndBroadcast("../Meshfiles/CROR_rotor.obj", *meshBunny);
-   mesh::readAndBroadcast("../Meshfiles/CROR_rotor_downScaled100.obj", *meshBunny);
+   mesh::readAndBroadcast("../Meshfiles/sphere.obj", *meshBunny);
 
    WcTimer distOctimer;
    distOctimer.start();
@@ -346,7 +346,7 @@ int main(int argc, char** argv)
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
       gpu::fieldCpy( *dst, *src );
 #endif
-      sweepCollection.initialise(&block);
+      sweepCollection.initialise(&block, 10);
    }
 
 
