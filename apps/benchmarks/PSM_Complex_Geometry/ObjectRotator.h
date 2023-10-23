@@ -137,7 +137,7 @@ class ObjectRotator
          Vector3< real_t > angularVel;
 
 
-         if (isRotating_ == false || frequency_ == 0 || rotationAngle_ <= 0.0) {
+         if (isRotating_ == false || frequency_ == 0) {
             angularVel = Vector3< real_t >(0,0,0);
          }
          else
