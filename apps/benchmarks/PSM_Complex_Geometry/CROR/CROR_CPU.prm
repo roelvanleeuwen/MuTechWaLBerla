@@ -1,27 +1,27 @@
 
 Parameters 
 {
-	timesteps       1;
+	timesteps       100001;
 
-    initialVelocity   <0.01, 0.0, 0.0>;
+    initialVelocity   <0.005, 0.0, 0.0>;
     ref_velocity  69.15;    // m/s
     ref_length 1.0;         //rotor radius according to mesh file
     viscosity  1.49e-5;
     sim_time   0.0;         //set to 0, then timesteps is used
-    mesh_size  0.02;    // 2 mm;
+    mesh_size  0.003;    // 2 mm;
 
     timeStepStrategy   refinement;
     innerOuterSplit    <1,1,1>;
 
 	remainingTimeLoggerFrequency 60; // in seconds
-	VTKwriteFrequency 1;
+	VTKwriteFrequency 2500;
 	writeDomainDecompositionAndReturn false;
 
 }
 
 DomainSetup
 {
-   rotationFrequency  30;
+   rotationFrequency  20;
    rotationSpeed      738.173;     //rad/s
    rotationAxis       < 1, 0, 0 >;
 

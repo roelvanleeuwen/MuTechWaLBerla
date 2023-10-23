@@ -176,7 +176,7 @@ int main(int argc, char** argv)
    const real_t ref_velocity = parameters.getParameter<real_t>("ref_velocity");
    const real_t ref_length = parameters.getParameter<real_t>("ref_length");
    const real_t viscosity = parameters.getParameter<real_t>("viscosity");
-   const real_t sim_time = parameters.getParameter<real_t>("sim_time");
+   real_t sim_time = parameters.getParameter<real_t>("sim_time");
    const real_t mesh_size = parameters.getParameter<real_t>("mesh_size");
    const real_t dx = mesh_size;
    const real_t reynolds_number = (ref_velocity * ref_length) / viscosity;
@@ -188,8 +188,10 @@ int main(int argc, char** argv)
    uint_t timesteps;
    if(sim_time > 0.0)
       timesteps = uint_c(sim_time / Ct);
-   else
+   else {
       timesteps = timestepsFixed;
+      sim_time = Ct * timesteps;
+   }
 
    const real_t rotPerSec = rotationSpeed * (2 * M_PI) / 360;
 
@@ -382,7 +384,7 @@ int main(int argc, char** argv)
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
       gpu::fieldCpy( *dst, *src );
 #endif
-      sweepCollection.initialise(&block);
+      sweepCollection.initialise(&block, 1);
    }
 
 
