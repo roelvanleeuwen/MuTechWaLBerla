@@ -112,7 +112,6 @@ int main(int argc, char** argv)
    Config::BlockHandle domainParameters = cfgFile->getBlock("Domain");
    const Vector3< uint_t > domainSize   = domainParameters.getParameter< Vector3< uint_t > >("domainSize");
    const Vector3< uint_t > numBlocks    = domainParameters.getParameter< Vector3< uint_t > >("numBlocks");
-   WALBERLA_CHECK(numBlocks[1] > 1, "Number of blocks in periodic y direction has to be bigger than 1");
    WALBERLA_CHECK_EQUAL(numBlocks[0] * numBlocks[1] * numBlocks[2], uint_t(MPIManager::instance()->numProcesses()),
                         "When using GPUs, the number of blocks (" << numBlocks[0] * numBlocks[1] * numBlocks[2]
                                                                   << ") has to match the number of MPI processes ("
@@ -257,9 +256,8 @@ int main(int argc, char** argv)
 
    // Map particles into the fluid domain
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, omega);
-   // TODO: find better value for numberOfParticleSubBlocksPerDim
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, SphereSelector(), particleAndVolumeFractionSoA,
-                                            uint_t(5));
+                                            uint_t(15));
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));
@@ -355,9 +353,13 @@ int main(int argc, char** argv)
    if (vtkSpacing != uint_t(0)) { vtk::writeDomainDecomposition(blocks, "domain_decomposition", vtkFolder); }
 
    // Add performance logging
-   const lbm::PerformanceLogger< FlagField_T > performanceLogger(blocks, flagFieldID, Fluid_Flag,
-                                                                 performanceLogFrequency);
-   timeloop.addFuncAfterTimeStep(performanceLogger, "Evaluate performance logging");
+   // TODO: have a look why it causes a segmentation fault when called with performanceLogFrequency=0
+   if (performanceLogFrequency > 0)
+   {
+      const lbm::PerformanceLogger< FlagField_T > performanceLogger(blocks, flagFieldID, Fluid_Flag,
+                                                                    performanceLogFrequency);
+      timeloop.addFuncAfterTimeStep(performanceLogger, "Evaluate performance logging");
+   }
 
    // Add LBM communication function and boundary handling sweep
    // TODO: use split sweeps to hide communication

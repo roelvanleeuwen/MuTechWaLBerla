@@ -1,8 +1,8 @@
 Domain
 {
     domainSize <300, 60, 150>;
-    numBlocks <1, 2, 1>; // if periodicInY true, then one needs at least two blocks in y direction
-    periodicInY true;
+    numBlocks <1, 1, 1>; // if periodicInY true, then one needs at least two blocks in y direction
+    periodicInY false;
 }
 
 Physics
