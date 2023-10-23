@@ -39,3 +39,10 @@ Output
     fluidSlice true;
     performanceLogFrequency 500;
 }
+
+StabilityChecker
+{
+   checkFrequency 10000;
+   streamOutput   false;
+   vtkOutput      true;
+}

@@ -22,10 +22,12 @@
 #include "blockforest/Initialization.h"
 
 #include "core/Environment.h"
+#include "core/SharedFunctor.h"
 #include "core/logging/all.h"
 #include "core/timing/RemainingTimeLogger.h"
 
 #include "field/AddToStorage.h"
+#include "field/StabilityChecker.h"
 
 #include "geometry/InitBoundaryHandling.h"
 
@@ -169,6 +171,9 @@ int main(int argc, char** argv)
    const std::string vtkFolder          = outputParameters.getParameter< std::string >("vtkFolder");
    const bool fluidSlice                = outputParameters.getParameter< bool >("fluidSlice");
    const uint_t performanceLogFrequency = outputParameters.getParameter< uint_t >("performanceLogFrequency");
+
+   Config::BlockHandle stabilityCheckerParameters = cfgFile->getBlock("StabilityChecker");
+   const uint_t checkFrequency                    = stabilityCheckerParameters.getParameter< uint_t >("checkFrequency");
 
    ///////////////////////////
    // BLOCK STRUCTURE SETUP //
@@ -378,6 +383,16 @@ int main(int argc, char** argv)
       // If pressure difference did not yet reach the limit, decrease the pressure on the right hand side
       density1_bc.bc_density_ = std::max(real_t(1.0) - pressureDifference,
                                          density1_bc.bc_density_ - pressureDifference / real_t(finalGradientTimeStep));
+
+      // LBM stability check (check for NaNs in the PDF field)
+      timeloopTiming["LBM stability check"].start();
+      if (checkFrequency > 0 && timeStep % checkFrequency == 0)
+      {
+         gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
+         makeSharedFunctor(field::makeStabilityChecker< PdfField_T, FlagField_T >(cfgFile, blocks, pdfFieldID,
+                                                                                  flagFieldID, Fluid_Flag))();
+      }
+      timeloopTiming["LBM stability check"].end();
    }
 
    timeloopTiming.logResultOnRoot();
