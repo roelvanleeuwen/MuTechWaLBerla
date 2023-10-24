@@ -243,6 +243,25 @@ struct SphereSelector
    }
 };
 
+class SelectBoxEdgeLength
+{
+ public:
+   using return_type = walberla::mesa_pd::Vec3;
+   walberla::mesa_pd::Vec3 operator()(mesa_pd::data::Particle& p) const
+   {
+      return static_cast< mesa_pd::data::Box* >(p->getBaseShape().get())->getEdgeLength();
+   }
+   walberla::mesa_pd::Vec3 operator()(mesa_pd::data::Particle&& p) const
+   {
+      return static_cast< mesa_pd::data::Box* >(p->getBaseShape().get())->getEdgeLength();
+   }
+   walberla::mesa_pd::Vec3 const operator()(const mesa_pd::data::Particle& p) const
+   {
+      auto p_tmp = p;
+      return static_cast< mesa_pd::data::Box* >(p_tmp->getBaseShape().get())->getEdgeLength();
+   }
+};
+
 template< typename ParticleAccessor_T >
 real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, const BlockDataID& BFieldID,
                         const BlockDataID& BFieldGPUID, const BlockDataID& flagFieldID, field::FlagUID fluidFlagID,
