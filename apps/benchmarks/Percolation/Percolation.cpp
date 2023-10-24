@@ -25,7 +25,6 @@
 #include "core/Environment.h"
 #include "core/grid_generator/SCIterator.h"
 #include "core/logging/all.h"
-#include "core/math/Random.h"
 #include "core/timing/RemainingTimeLogger.h"
 
 #include "field/AddToStorage.h"
@@ -168,15 +167,19 @@ int main(int argc, char** argv)
                                                                     simulationDomain.yMin(), simulationDomain.zMin()),
                                             math::Vector3< real_t >(simulationDomain.xMax() * real_t(0.75),
                                                                     simulationDomain.yMax(), simulationDomain.zMax()));
-      real_t maxParticleOffset = (particleGenerationSpacing - particleDiameter) / real_t(2);
-      math::seedRandomGenerator(42);
+      real_t particleOffset = particleGenerationSpacing / real_t(2);
       for (auto pt : grid_generator::SCGrid(generationDomain, generationDomain.center(), particleGenerationSpacing))
       {
          if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt))
          {
             mesa_pd::data::Particle&& p = *ps->create();
-            p.setPosition(pt + Vector3(real_t(0), math::realRandom(-maxParticleOffset, maxParticleOffset),
-                                       math::realRandom(-maxParticleOffset, maxParticleOffset)));
+            if (uint_t(round(math::abs(generationDomain.center()[0] - pt[0]) / (particleGenerationSpacing))) %
+                   uint_t(2) ==
+                uint_t(0))
+            {
+               p.setPosition(pt);
+            }
+            else { p.setPosition(pt + Vector3(real_t(0), particleOffset, particleOffset)); }
             p.setInteractionRadius(particleDiameter * real_t(0.5));
             p.setOwner(mpi::MPIManager::instance()->rank());
             p.setShapeID(sphereShape);
