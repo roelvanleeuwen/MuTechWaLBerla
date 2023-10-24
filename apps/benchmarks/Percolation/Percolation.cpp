@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file GranularBed.cpp
+//! \file Percolation.cpp
 //! \ingroup lbm_mesapd_coupling
 //! \author Samuel Kemmler <samuel.kemmler@fau.de>
 //
@@ -62,7 +62,7 @@
 #include "PSM_InfoHeader.h"
 #include "PSM_MacroGetter.h"
 
-namespace granular_bed
+namespace percolation
 {
 
 ///////////
@@ -354,6 +354,6 @@ int main(int argc, char** argv)
    return EXIT_SUCCESS;
 }
 
-} // namespace granular_bed
+} // namespace percolation
 
-int main(int argc, char** argv) { granular_bed::main(argc, argv); }
+int main(int argc, char** argv) { percolation::main(argc, argv); }
