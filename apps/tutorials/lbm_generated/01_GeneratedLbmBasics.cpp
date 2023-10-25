@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file 01_BasicLBM.cpp
+//! \file 01_GeneratedLbmBasics.cpp
 //! \author Frederik Hennig <frederik.hennig@fau.de>
 //
 //======================================================================================================================
