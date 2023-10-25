@@ -80,7 +80,7 @@ with CodeGeneration() as ctx:
         relaxation_rate=omega,
         force=sp.symbols("F_:3"),
         force_model=ForceModel.LUO,
-        compressible=False,
+        compressible=True,
     )
 
     # =====================
