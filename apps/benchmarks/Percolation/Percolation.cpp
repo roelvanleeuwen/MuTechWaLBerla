@@ -173,6 +173,7 @@ int main(int argc, char** argv)
          if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt))
          {
             mesa_pd::data::Particle&& p = *ps->create();
+            // Offset every second particle layer in flow direction to avoid channels in flow direction
             if (uint_t(round(math::abs(generationDomain.center()[0] - pt[0]) / (particleGenerationSpacing))) %
                    uint_t(2) ==
                 uint_t(0))
