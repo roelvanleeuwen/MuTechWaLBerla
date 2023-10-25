@@ -30,6 +30,7 @@ Particles
     numSubCycles 10;
     useLubricationCorrection true;
     poissonsRatio 0.22;
+    observationDomainFraction <0.1, 1.0, 0.2>; // uplift/subsidence observation domain size as a fraction of the domain size
 }
 
 Output
@@ -38,6 +39,7 @@ Output
     vtkFolder vtk_piping;
     fluidSlice true;
     performanceLogFrequency 500;
+    upliftSubsidenceFrequency 200000;
 }
 
 StabilityChecker

@@ -162,14 +162,20 @@ int main(int argc, char** argv)
    const uint_t particleNumSubCycles           = particlesParameters.getParameter< uint_t >("numSubCycles");
    const bool useLubricationCorrection         = particlesParameters.getParameter< bool >("useLubricationCorrection");
    const real_t poissonsRatio                  = particlesParameters.getParameter< real_t >("poissonsRatio");
-   const real_t kappa                          = real_c(2) * (real_c(1) - poissonsRatio) / (real_c(2) - poissonsRatio);
-   bool useOpenMP                              = false;
+   const Vector3< real_t > observationDomainFraction =
+      particlesParameters.getParameter< Vector3< real_t > >("observationDomainFraction");
+   const Vector3< real_t > observationDomainSize(real_c(domainSize[0]) * observationDomainFraction[0],
+                                                 real_c(domainSize[1]) * observationDomainFraction[1],
+                                                 real_c(domainSize[2]) * observationDomainFraction[2]);
+   const real_t kappa = real_c(2) * (real_c(1) - poissonsRatio) / (real_c(2) - poissonsRatio);
+   bool useOpenMP     = false;
 
-   Config::BlockHandle outputParameters = cfgFile->getBlock("Output");
-   const uint_t vtkSpacing              = outputParameters.getParameter< uint_t >("vtkSpacing");
-   const std::string vtkFolder          = outputParameters.getParameter< std::string >("vtkFolder");
-   const bool fluidSlice                = outputParameters.getParameter< bool >("fluidSlice");
-   const uint_t performanceLogFrequency = outputParameters.getParameter< uint_t >("performanceLogFrequency");
+   Config::BlockHandle outputParameters   = cfgFile->getBlock("Output");
+   const uint_t vtkSpacing                = outputParameters.getParameter< uint_t >("vtkSpacing");
+   const std::string vtkFolder            = outputParameters.getParameter< std::string >("vtkFolder");
+   const bool fluidSlice                  = outputParameters.getParameter< bool >("fluidSlice");
+   const uint_t performanceLogFrequency   = outputParameters.getParameter< uint_t >("performanceLogFrequency");
+   const uint_t upliftSubsidenceFrequency = outputParameters.getParameter< uint_t >("upliftSubsidenceFrequency");
 
    Config::BlockHandle stabilityCheckerParameters = cfgFile->getBlock("StabilityChecker");
    const uint_t checkFrequency                    = stabilityCheckerParameters.getParameter< uint_t >("checkFrequency");
@@ -206,6 +212,8 @@ int main(int argc, char** argv)
    // Read spheres
    initSpheresFromFile(particleInFileName, *ps, *rpdDomain, particleDensityRatio, simulationDomain, domainSize,
                        boxPosition, boxEdgeLength);
+
+   UpliftSubsidenceEvaluator upliftSubsidenceEvaluator(accessor, ps, boxPosition, boxEdgeLength, observationDomainSize);
 
    real_t seepageLength = computeSeepageLength(accessor, ps, boxPosition, boxEdgeLength);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(seepageLength)
@@ -370,7 +378,6 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(deviceSyncWrapper(noSlip.getSweep()), "Boundary Handling (NoSlip)");
 
    // PSM kernel
-   // TODO: use compressible LBM
    pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
@@ -396,6 +403,14 @@ int main(int argc, char** argv)
                                                                                   flagFieldID, Fluid_Flag))();
       }
       timeloopTiming["LBM stability check"].end();
+
+      // Uplift/Subsidence evaluation
+      timeloopTiming["Uplift/Subsidence evaluation"].start();
+      if (upliftSubsidenceFrequency > 0 && timeStep % upliftSubsidenceFrequency == 0)
+      {
+         upliftSubsidenceEvaluator(hydraulicGradient * timeStep / finalGradientTimeStep, accessor, ps);
+      }
+      timeloopTiming["Uplift/Subsidence evaluation"].end();
    }
 
    timeloopTiming.logResultOnRoot();

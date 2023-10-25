@@ -21,6 +21,7 @@
 #pragma once
 
 #include "core/mpi/Broadcast.h"
+#include "core/mpi/Gatherv.h"
 #include "core/mpi/MPITextFile.h"
 #include "core/mpi/Reduce.h"
 
@@ -63,8 +64,8 @@ void writeSphereInformationToFile(const std::string& filename, walberla::mesa_pd
    walberla::mpi::writeMPITextFile(filename, ossData.str());
 }
 
-bool sphereBucketOverlap(const mesa_pd::Vec3& spherePosition, const real_t sphereRadius,
-                         const mesa_pd::Vec3& boxPosition, const mesa_pd::Vec3& boxEdgeLength)
+bool sphereBoxOverlap(const mesa_pd::Vec3& spherePosition, const real_t sphereRadius, const mesa_pd::Vec3& boxPosition,
+                      const mesa_pd::Vec3& boxEdgeLength)
 {
    if ((spherePosition[0] + sphereRadius < boxPosition[0] - boxEdgeLength[0] / real_t(2)) ||
        (spherePosition[1] + sphereRadius < boxPosition[1] - boxEdgeLength[1] / real_t(2)) ||
@@ -129,7 +130,7 @@ void initSpheresFromFile(const std::string& fileName, walberla::mesa_pd::data::P
                      "Particle read from file is not contained in simulation domain");
 
       if (!domain.isContainedInProcessSubdomain(uint_c(rank), position)) continue;
-      if (sphereBucketOverlap(position, radius, boxPosition, boxEdgeLength)) continue;
+      if (sphereBoxOverlap(position, radius, boxPosition, boxEdgeLength)) continue;
 
       auto pIt = ps.create();
       pIt->setPosition(position);
@@ -243,6 +244,17 @@ struct SphereSelector
    }
 };
 
+struct SphereSelectorExcludeGhost
+{
+   template< typename ParticleAccessor_T >
+   bool inline operator()(const size_t particleIdx, const ParticleAccessor_T& ac) const
+   {
+      using namespace walberla::mesa_pd::data::particle_flags;
+      return (ac.getBaseShape(particleIdx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE) &&
+             !isSet(ac.getFlags(particleIdx), GHOST);
+   }
+};
+
 class SelectBoxEdgeLength
 {
  public:
@@ -317,8 +329,6 @@ real_t computeMaxParticleSeepageHeight(const shared_ptr< ParticleAccessor_T >& a
                                        const shared_ptr< mesa_pd::data::ParticleStorage >& ps,
                                        const mesa_pd::Vec3& boxPosition, const mesa_pd::Vec3& boxEdgeLength)
 {
-   using namespace lbm_mesapd_coupling::psm::gpu;
-
    // Compute max particle height (only considers particle close to the bucket)
    // Assuming uniform height on both sides of the bucket (no uplift or subsidence)
    real_t maxParticleSeepageHeight = real_t(0);
@@ -354,6 +364,118 @@ real_t computeSeepageLength(const shared_ptr< ParticleAccessor_T >& accessor,
    // Two times the penetration depth plus the wall thickness
    return real_t(2 * penetrationDepth + boxEdgeLength[0]);
 }
+
+// TODO: further test this functionality (particle UIDs already tested)
+// Computes the average particle displacement (uplift/subsidence) in z direction. The corresponding observation domains
+// are aligned with the bucket and the soil (see Fukumoto et al., 2021) height and the size is specified in the
+// parameter file. All particles overlapping with the observation domain are tracked.
+template< typename ParticleAccessor_T >
+class UpliftSubsidenceEvaluator
+{
+ public:
+   UpliftSubsidenceEvaluator(const shared_ptr< ParticleAccessor_T >& accessor,
+                             const shared_ptr< mesa_pd::data::ParticleStorage >& ps, const mesa_pd::Vec3& boxPosition,
+                             const mesa_pd::Vec3& boxEdgeLength, const Vector3< real_t >& observationDomainSize)
+   {
+      const real_t maxParticleSeepageHeight = computeMaxParticleSeepageHeight(accessor, ps, boxPosition, boxEdgeLength);
+      const Vector3< real_t > upliftDomainCenter(boxPosition[0] + boxEdgeLength[0] / 2 + observationDomainSize[0] / 2,
+                                                 boxPosition[1],
+                                                 maxParticleSeepageHeight - observationDomainSize[2] / 2);
+      const Vector3< real_t > subsidenceDomainCenter(
+         boxPosition[0] - boxEdgeLength[0] / 2 - observationDomainSize[0] / 2, boxPosition[1],
+         maxParticleSeepageHeight - observationDomainSize[2] / 2);
+
+      // WALBERLA_LOG_DEVEL_VAR_ON_ROOT(upliftDomainCenter)
+      // WALBERLA_LOG_DEVEL_VAR_ON_ROOT(subsidenceDomainCenter)
+      // WALBERLA_LOG_DEVEL_VAR_ON_ROOT(observationDomainSize)
+
+      std::vector< walberla::id_t > upliftParticlesUIDsLocal;
+      std::vector< walberla::id_t > subsidenceParticlesUIDsLocal;
+      ps->forEachParticle(
+         false, SphereSelectorExcludeGhost(), *accessor,
+         [this, &upliftDomainCenter, &subsidenceDomainCenter, &observationDomainSize, &upliftParticlesUIDsLocal,
+          &subsidenceParticlesUIDsLocal](const size_t idx, auto& ac) {
+            const real_t particleRadius =
+               static_cast< mesa_pd::data::Sphere* >(ac.getBaseShape(idx).get())->getRadius();
+            if (sphereBoxOverlap(ac.getPosition(idx), particleRadius, upliftDomainCenter, observationDomainSize))
+            {
+               upliftParticlesUIDsLocal.push_back(ac.getUid(idx));
+               initialUpliftPosition_ += ac.getPosition(idx)[2];
+            }
+            if (sphereBoxOverlap(ac.getPosition(idx), particleRadius, subsidenceDomainCenter, observationDomainSize))
+            {
+               subsidenceParticlesUIDsLocal.push_back(ac.getUid(idx));
+               initialSubsidencePosition_ += ac.getPosition(idx)[2];
+            }
+         },
+         *accessor);
+
+      WALBERLA_MPI_SECTION()
+      {
+         upliftParticlesUIDs_ = walberla::mpi::allGatherv(upliftParticlesUIDsLocal);
+         walberla::mpi::allReduceInplace(initialUpliftPosition_, walberla::mpi::SUM);
+         subsidenceParticlesUIDs_ = walberla::mpi::allGatherv(subsidenceParticlesUIDsLocal);
+         walberla::mpi::allReduceInplace(initialSubsidencePosition_, walberla::mpi::SUM);
+      }
+
+      initialUpliftPosition_ /= real_t(upliftParticlesUIDs_.size());
+      initialSubsidencePosition_ /= real_t(subsidenceParticlesUIDs_.size());
+
+      // WALBERLA_LOG_DEVEL_VAR_ON_ROOT(upliftParticlesUIDs_.size())
+      // WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initialUpliftPosition_)
+      // WALBERLA_LOG_DEVEL_VAR_ON_ROOT(subsidenceParticlesUIDs_.size())
+      // WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initialSubsidencePosition_)
+
+      outFile_.open("upliftSubsidenceEvaluation.dat", std::ios::out);
+      outFile_ << "# HydraulicGradient Uplift Subsidence" << std::endl;
+   }
+
+   ~UpliftSubsidenceEvaluator() { outFile_.close(); };
+
+   void operator()(const real_t hydraulicGradient, const shared_ptr< ParticleAccessor_T >& accessor,
+                   const shared_ptr< mesa_pd::data::ParticleStorage >& ps)
+   {
+      outFile_ << hydraulicGradient << " ";
+
+      real_t upliftPosition     = real_t(0);
+      real_t subsidencePosition = real_t(0);
+
+      ps->forEachParticle(
+         false, SphereSelectorExcludeGhost(), *accessor,
+         [this, &upliftPosition, &subsidencePosition](const size_t idx, auto& ac) {
+            if (std::find(upliftParticlesUIDs_.begin(), upliftParticlesUIDs_.end(), ac.getUid(idx)) !=
+                upliftParticlesUIDs_.end())
+            {
+               upliftPosition += ac.getPosition(idx)[2];
+            }
+            if (std::find(subsidenceParticlesUIDs_.begin(), subsidenceParticlesUIDs_.end(), ac.getUid(idx)) !=
+                subsidenceParticlesUIDs_.end())
+            {
+               subsidencePosition += ac.getPosition(idx)[2];
+            }
+         },
+         *accessor);
+
+      WALBERLA_MPI_SECTION()
+      {
+         walberla::mpi::allReduceInplace(upliftPosition, walberla::mpi::SUM);
+         walberla::mpi::allReduceInplace(subsidencePosition, walberla::mpi::SUM);
+      }
+
+      upliftPosition /= real_t(upliftParticlesUIDs_.size());
+      subsidencePosition /= real_t(subsidenceParticlesUIDs_.size());
+
+      outFile_ << upliftPosition - initialUpliftPosition_ << " " << subsidencePosition - initialSubsidencePosition_
+               << std::endl;
+   }
+
+ private:
+   std::vector< walberla::id_t > upliftParticlesUIDs_;
+   real_t initialUpliftPosition_ = real_t(0);
+   std::vector< walberla::id_t > subsidenceParticlesUIDs_;
+   real_t initialSubsidencePosition_ = real_t(0);
+   std::ofstream outFile_;
+};
 
 } // namespace piping
 } // namespace walberla
