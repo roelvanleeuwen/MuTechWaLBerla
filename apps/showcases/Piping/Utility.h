@@ -84,7 +84,7 @@ bool sphereBoxOverlap(const mesa_pd::Vec3& spherePosition, const real_t sphereRa
 void initSpheresFromFile(const std::string& fileName, walberla::mesa_pd::data::ParticleStorage& ps,
                          const walberla::mesa_pd::domain::IDomain& domain, walberla::real_t particleDensity,
                          math::AABB& simulationDomain, const Vector3< uint_t >& domainSize,
-                         const mesa_pd::Vec3& boxPosition, const mesa_pd::Vec3& boxEdgeLength)
+                         const mesa_pd::Vec3& boxPosition, const mesa_pd::Vec3& boxEdgeLength, real_t& maxDiameter)
 {
    using namespace walberla::mesa_pd::data;
 
@@ -152,6 +152,8 @@ void initSpheresFromFile(const std::string& fileName, walberla::mesa_pd::data::P
    WALBERLA_MPI_SECTION() { walberla::mpi::allReduceInplace(maxParticleDiameter, walberla::mpi::MAX); }
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(minParticleDiameter)
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(maxParticleDiameter)
+   // Maximum particle diameter is used for the size of the linked cells
+   maxDiameter = maxParticleDiameter;
 }
 
 template< typename ParticleAccessor_T >

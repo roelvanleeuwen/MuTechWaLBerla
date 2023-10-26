@@ -210,8 +210,9 @@ int main(int argc, char** argv)
    createBox(*ps, boxPosition, boxEdgeLength);
 
    // Read spheres
+   real_t maxParticleDiameter;
    initSpheresFromFile(particleInFileName, *ps, *rpdDomain, particleDensityRatio, simulationDomain, domainSize,
-                       boxPosition, boxEdgeLength);
+                       boxPosition, boxEdgeLength, maxParticleDiameter);
 
    UpliftSubsidenceEvaluator upliftSubsidenceEvaluator(accessor, ps, boxPosition, boxEdgeLength, observationDomainSize);
 
