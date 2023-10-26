@@ -131,6 +131,17 @@ int main(int argc, char** argv)
    createPlane(*ps, simulationDomain_SI.minCorner(), Vec3(real_t(0), real_t(0), real_t(1)));
    createPlane(*ps, simulationDomain_SI.maxCorner(), Vec3(real_t(0), real_t(0), real_t(-1)));
 
+   if (!isPeriodic[0])
+   {
+      createPlane(*ps, simulationDomain_SI.minCorner(), Vector3< real_t >(1, 0, 0));
+      createPlane(*ps, simulationDomain_SI.maxCorner(), Vector3< real_t >(-1, 0, 0));
+   }
+   if (!isPeriodic[1])
+   {
+      createPlane(*ps, simulationDomain_SI.minCorner(), Vector3< real_t >(0, 1, 0));
+      createPlane(*ps, simulationDomain_SI.maxCorner(), Vector3< real_t >(0, -1, 0));
+   }
+
    // VTK
    auto vtkDomainOutput = walberla::vtk::createVTKOutput_DomainDecomposition(forest, "domain_decomposition", 1,
                                                                              "vtk_settling_spheres", "simulation_step");
