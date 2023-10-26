@@ -154,6 +154,34 @@ void initSpheresFromFile(const std::string& fileName, walberla::mesa_pd::data::P
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(maxParticleDiameter)
 }
 
+template< typename ParticleAccessor_T >
+void getParticleVelocities(const ParticleAccessor_T& ac, real_t& maxVelocity, real_t& averageVelocity)
+{
+   maxVelocity         = real_t(0);
+   averageVelocity     = real_t(0);
+   uint_t numParticles = uint_t(0);
+
+   for (uint_t i = 0; i < ac.size(); ++i)
+   {
+      if (isSet(ac.getFlags(i), walberla::mesa_pd::data::particle_flags::GHOST)) continue;
+      if (isSet(ac.getFlags(i), walberla::mesa_pd::data::particle_flags::GLOBAL)) continue;
+
+      ++numParticles;
+      real_t velMagnitude = ac.getLinearVelocity(i).length();
+      maxVelocity         = std::max(maxVelocity, velMagnitude);
+      averageVelocity += velMagnitude;
+   }
+
+   WALBERLA_MPI_SECTION()
+   {
+      walberla::mpi::allReduceInplace(maxVelocity, walberla::mpi::MAX);
+      walberla::mpi::allReduceInplace(averageVelocity, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(numParticles, walberla::mpi::SUM);
+   }
+
+   averageVelocity /= real_t(numParticles);
+}
+
 // TODO: maybe set different types and density for plane and sphere
 auto createPlane(mesa_pd::data::ParticleStorage& ps, const mesa_pd::Vec3& pos, const mesa_pd::Vec3& normal)
 {
