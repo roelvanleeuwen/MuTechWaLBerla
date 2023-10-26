@@ -104,6 +104,7 @@ int main(int argc, char** argv)
    math::AABB generationDomain_SI(simulationDomain_SI.xMin() + domainOffset, simulationDomain_SI.yMin() + domainOffset,
                                   simulationDomain_SI.zMin() + domainOffset, simulationDomain_SI.xMax() - domainOffset,
                                   simulationDomain_SI.yMax() - domainOffset, simulationDomain_SI.zMax() - domainOffset);
+   math::seedRandomGenerator(42);
 
    for (auto pt :
         grid_generator::SCGrid(generationDomain_SI, Vec3(generationSpacing_SI) * real_c(0.5), generationSpacing_SI))
