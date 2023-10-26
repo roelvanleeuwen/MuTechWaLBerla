@@ -209,6 +209,18 @@ int main(int argc, char** argv)
                                          simulationDomain.zMax() * bucketSizeFraction[2]);
    createBox(*ps, boxPosition, boxEdgeLength);
 
+   // Create planes
+   createPlane(*ps, simulationDomain.minCorner(), Vector3< real_t >(0, 0, 1));
+   createPlane(*ps, simulationDomain.maxCorner(), Vector3< real_t >(0, 0, -1));
+   createPlane(*ps, simulationDomain.minCorner(), Vector3< real_t >(1, 0, 0));
+   createPlane(*ps, simulationDomain.maxCorner(), Vector3< real_t >(-1, 0, 0));
+
+   if (!periodicInY)
+   {
+      createPlane(*ps, simulationDomain.minCorner(), Vector3< real_t >(0, 1, 0));
+      createPlane(*ps, simulationDomain.maxCorner(), Vector3< real_t >(0, -1, 0));
+   }
+
    // Read spheres
    real_t maxParticleDiameter;
    initSpheresFromFile(particleInFileName, *ps, *rpdDomain, particleDensityRatio, simulationDomain, domainSize,
