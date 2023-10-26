@@ -60,7 +60,6 @@ typedef field::GhostLayerField< fracSize, 1 > FracField_T;
 
 class ObjectRotator
 {
-   typedef std::function< real_t(const Vector3< real_t >&) > DistanceFunction;
    typedef field::GhostLayerField< real_t, 3 > VectorField_T;
 
  public:
@@ -74,14 +73,11 @@ class ObjectRotator
       fractionFieldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
       fractionFieldOldId_ = field::addToStorage< FracField_T >(blocks, "fractionField_" + meshName_, fracSize(0.0), field::fzyx, uint_c(1));
 
-      meshCenter = computeCentroid(*mesh_);
-      initObjectVelocityField();
+      auto meshCenterPoint = computeCentroid(*mesh_);
+      meshCenter = Vector3<real_t> (meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
 
-      getFractionFieldFromMesh();
-      swapFractionFields();
-      rotate();
-      getFractionFieldFromMesh();
-      //fillDistanceField(fractionFieldOldId_);
+      initObjectVelocityField();
+      getFractionFieldFromMesh(0);
    }
 
    void operator()(uint_t timestep) {
@@ -89,10 +85,8 @@ class ObjectRotator
          if (timestep % frequency_ == 0)
          {
             swapFractionFields();
-            rotate();
             resetFractionField();
-            getFractionFieldFromMesh();
-            //fillDistanceField(fractionFieldOldId_);
+            getFractionFieldFromMesh(timestep+frequency_);
          }
       }
    }
@@ -110,9 +104,6 @@ class ObjectRotator
    {
       const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0], meshCenter[1], meshCenter[2]);
       mesh::rotate(*mesh_, rotationAxis_, rotationAngle_, axis_foot);
-
-      distOctree_ = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(
-         make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh_));
    }
 
    void resetFractionField()
@@ -188,10 +179,13 @@ class ObjectRotator
    }
 
 
-   void getFractionFieldFromMesh()
+
+   void getFractionFieldFromMesh(uint_t timestep)
    {
       auto aabbMesh = computeAABB(*mesh_);
       const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
+
+      Matrix3< real_t > rotationMat(rotationAxis_, (real_t(timestep) / real_t(frequency_)) * -rotationAngle_);
 
       for (auto& block : *blocks_)
       {
@@ -218,6 +212,11 @@ class ObjectRotator
             WALBERLA_ASSERT(!curAABB.empty(), "AABB: " << curAABB);
 
             Vector3< real_t > cellCenter = curAABB.center();
+
+            cellCenter -= meshCenter;
+            cellCenter = rotationMat * cellCenter;
+            cellCenter += meshCenter;
+
             blocks_->mapToPeriodicDomain(cellCenter);
             const real_t sqSignedDistance = (*distFunct)(cellCenter);
 
@@ -322,7 +321,7 @@ class ObjectRotator
    shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>> distOctree_;
    std::string meshName_;
    const bool isRotating_;
-   mesh::TriangleMesh::Point meshCenter;
+   Vector3<real_t> meshCenter;
 
    shared_ptr<GeometryOctreeNode> geometryOctree_;
    };
@@ -348,7 +347,6 @@ void fuseFractionFields(shared_ptr< StructuredBlockForest >& blocks, BlockDataID
           for (uint_t i = 0; i < srcFracFields.size(); ++i) {
             fracSize interpolatedDistance = partOld * srcFracFieldsOld[i]->get(x,y,z) + partNew * srcFracFields[i]->get(x,y,z);
             dstFractionField->get(x,y,z) = std::min(1.0, dstFractionField->get(x,y,z) + interpolatedDistance);
-            //dstFractionField->get(x,y,z) = srcFracFieldsOld[i]->get(x,y,z);
           }
       )
    }

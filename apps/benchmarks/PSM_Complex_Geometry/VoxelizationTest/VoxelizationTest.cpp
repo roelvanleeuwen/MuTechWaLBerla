@@ -185,8 +185,8 @@ int main(int argc, char** argv)
 
    auto meshBunny = make_shared< mesh::TriangleMesh >();
 
-   //mesh::readAndBroadcast("../Meshfiles/CROR_rotor.obj", *meshBunny);
-   mesh::readAndBroadcast("../Meshfiles/sphere.obj", *meshBunny);
+   mesh::readAndBroadcast("../Meshfiles/CROR_rotor_downScaled100.obj", *meshBunny);
+   //mesh::readAndBroadcast("../Meshfiles/sphere.obj", *meshBunny);
 
    WcTimer distOctimer;
    distOctimer.start();
@@ -213,7 +213,7 @@ int main(int argc, char** argv)
 
 
 
-   real_t radiusInCells = (aabbBase.ySize() * 0.5) / dx ;
+   real_t radiusInCells = (aabbBase.ySize() * 0.5) / fullRefinedMeshSize ;
    real_t maxCellsRotatedOver = radiusInCells * rotationAngle;
 
    uint_t optimizedRotationFreq = uint_c(1.0 / (radPerTimestep * radiusInCells));
@@ -305,15 +305,17 @@ int main(int argc, char** argv)
    const std::function< void() > objectRotatorFunc = [&]() {
       WcTimer simTimer;
       simTimer.start();
-      (*objectRotator)(timeloop.getCurrentTimeStep());
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      //gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldId);
+      resetFractionFieldGPUCall(blocks, fractionFieldGPUId);
+      (*objectRotator)(timeloop.getCurrentTimeStep());
+      WALBERLA_GPU_CHECK( gpuDeviceSynchronize() )
 #else
+      (*objectRotator)(timeloop.getCurrentTimeStep());
       fuseFractionFields(blocks, fractionFieldId, std::vector<shared_ptr<ObjectRotator>>{objectRotator}, timeloop.getCurrentTimeStep(), rotationFrequency);
 #endif
       simTimer.end();
-      WALBERLA_LOG_INFO_ON_ROOT("Finished Rotation in " << simTimer.max() << "s")
+      //WALBERLA_LOG_INFO_ON_ROOT("Finished Rotation in " << simTimer.max() << "s")
    };
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -346,7 +348,7 @@ int main(int argc, char** argv)
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
       gpu::fieldCpy( *dst, *src );
 #endif
-      sweepCollection.initialise(&block, 10);
+      sweepCollection.initialise(&block, 1);
    }
 
 
@@ -374,10 +376,10 @@ int main(int argc, char** argv)
       timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
       timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
    }
-   /*timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
+   timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
                   << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
    timeloop.add() << Sweep(sweepCollection.streamCollide(), "PSMSweep");
-   */
+
    // Time logger
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
                                  "remaining time logger");

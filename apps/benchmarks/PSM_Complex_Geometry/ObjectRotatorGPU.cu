@@ -21,7 +21,6 @@
 
 #if ( defined WALBERLA_CXX_COMPILER_IS_GNU ) || ( defined WALBERLA_CXX_COMPILER_IS_CLANG )
 #   pragma GCC diagnostic push
-#   pragma GCC diagnostic ignored "-Wfloat-equal"
 #   pragma GCC diagnostic ignored "-Wshadow"
 #   pragma GCC diagnostic ignored "-Wconversion"
 #   pragma GCC diagnostic ignored "-Wunused-variable"
@@ -37,7 +36,7 @@
 
 #define DOT2(v1,v2) (v1.x*v2.x+v1.y*v2.y)
 
-#define SQNORM2(v1) (sqrtf(v1.x*v1.x + v1.y*v1.y))
+#define SQNORM2(v1) (v1.x*v1.x + v1.y*v1.y)
 
 #define SUB(dest,v1,v2) \
          dest.x=v1.x-v2.x; \
@@ -66,120 +65,105 @@
 namespace walberla
 {
 
-/*
-__global__ static void rotateGPU(float * vertices, int numVertices, float3 rotationMatrixX, float3 rotationMatrixY, float3 rotationMatrixZ, float3 axis_foot) {
 
-   const int64_t x = blockDim.x*blockIdx.x + threadIdx.x;
-   if (x < numVertices) {
-      float3 vertex = {vertices[x * 3], vertices[x * 3 + 1], vertices[x * 3 + 2]};
-      float3 newVertex;
+__global__ void resetFractionFieldGPU( fracSize * RESTRICT const fractionFieldData, int3 fieldSize, int3 stride) {
+   const int64_t x = blockDim.x*blockIdx.x + threadIdx.x ;
+   const int64_t y = blockDim.y*blockIdx.y + threadIdx.y ;
+   const int64_t z = blockDim.z*blockIdx.z + threadIdx.z ;
+   if (x < fieldSize.x  && y < fieldSize.y  && z < fieldSize.z )
+   {
+      const int idx = (x) + (y) * stride.y + (z) * stride.z;
 
-      SUB(vertex, vertex, axis_foot)
+      fractionFieldData[idx] = 0;
+   }
+}
 
-      newVertex.x = rotationMatrixX.x * vertex.x + rotationMatrixX.y * vertex.y + rotationMatrixX.z * vertex.z;
-      newVertex.y = rotationMatrixY.x * vertex.x + rotationMatrixY.y * vertex.y + rotationMatrixY.z * vertex.z;
-      newVertex.z = rotationMatrixZ.x * vertex.x + rotationMatrixZ.y * vertex.y + rotationMatrixZ.z * vertex.z;
+void resetFractionFieldGPUCall(shared_ptr< StructuredBlockForest >& blocks, BlockDataID fractionFieldGPUId) {
+   for (auto& block : *blocks) {
+      auto fractionFieldGPU = block.getData< gpu::GPUField<fracSize> >(fractionFieldGPUId);
+      fracSize * RESTRICT const _data_FractionFieldGPU = fractionFieldGPU->dataAt(0, 0, 0, 0);
+      int3 size = {int(fractionFieldGPU->xSizeWithGhostLayer()), int(fractionFieldGPU->ySizeWithGhostLayer()), int(fractionFieldGPU->zSizeWithGhostLayer()) };
+      int3 stride_frac_field = {int(fractionFieldGPU->xStride()), int(fractionFieldGPU->yStride()), int(fractionFieldGPU->zStride())};
 
-      ADD(newVertex, newVertex, axis_foot)
+      dim3 _block(uint64_c(((16 < size.x - 2) ? 16 : size.x - 2)), uint64_c(((1024 < ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))) ? 1024 : ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))), uint64_c(((64 < ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))))) ? 64 : ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))))));
+      dim3 _grid(uint64_c(( (size.x - 2) % (((16 < size.x - 2) ? 16 : size.x - 2)) == 0 ? (int64_t)(size.x - 2) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)) : ( (int64_t)(size.x - 2) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)) ) +1 )), uint64_c(( (size.y - 2) % (((1024 < ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))) ? 1024 : ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))) == 0 ? (int64_t)(size.y - 2) / (int64_t)(((1024 < ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))) ? 1024 : ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))) : ( (int64_t)(size.y - 2) / (int64_t)(((1024 < ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))) ? 1024 : ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))) ) +1 )), uint64_c(( (size.z - 2) % (((64 < ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))))) ? 64 : ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))))) == 0 ? (int64_t)(size.z - 2) / (int64_t)(((64 < ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))))) ? 64 : ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))))) : ( (int64_t)(size.z - 2) / (int64_t)(((64 < ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))))) ? 64 : ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))))) ) +1 )));
 
-      vertices[x * 3] = newVertex.x;
-      vertices[x * 3 + 1] = newVertex.y;
-      vertices[x * 3 + 2] = newVertex.z;
+      resetFractionFieldGPU<<<_grid, _block>>>(_data_FractionFieldGPU, size, stride_frac_field);
    }
 }
 
 
-void ObjectRotatorGPU::rotateGPUCall()
-{
-   float3 axis_foot = {float(meshCenter[0]), float(meshCenter[1]), float(meshCenter[2])};
-   const float sina( std::sin(rotationAngle_) );
-   const float cosa( std::cos(rotationAngle_) );
-   const float tmp( 1.f - cosa );
-   float3 rotationAxis = {float(rotationAxis_[0]), float(rotationAxis_[1]), float(rotationAxis_[2])};
-   float3 rotationMatrixX;
-   float3 rotationMatrixY;
-   float3 rotationMatrixZ;
-
-   rotationMatrixX.x = cosa + rotationAxis.x*rotationAxis.x*tmp;
-   rotationMatrixX.y = rotationAxis.x*rotationAxis.y*tmp - rotationAxis.z*sina;
-   rotationMatrixX.z = rotationAxis.x*rotationAxis.z*tmp + rotationAxis.y*sina;
-
-   rotationMatrixY.x = rotationAxis.y*rotationAxis.x*tmp + rotationAxis.z*sina;
-   rotationMatrixY.y = cosa + rotationAxis.y*rotationAxis.y*tmp;
-   rotationMatrixY.z = rotationAxis.y*rotationAxis.z*tmp - rotationAxis.x*sina;
-
-   rotationMatrixZ.x = rotationAxis.z*rotationAxis.x*tmp - rotationAxis.y*sina;
-   rotationMatrixZ.y = rotationAxis.z*rotationAxis.y*tmp + rotationAxis.x*sina;
-   rotationMatrixZ.z = cosa + rotationAxis.z*rotationAxis.z*tmp;
-
-   int threads = 1024;
-   int blocks = numVertices_ / threads + 1;
-   rotateGPU<<<threads, blocks>>>(verticesGPU_, numVertices_, rotationMatrixX, rotationMatrixY, rotationMatrixZ, axis_foot);
-
-}
-*/
-
-__global__ static void resetFractionFieldGPU(fracSize * RESTRICT const fractionFieldData, fracSize * RESTRICT const tmpFractionFieldData, int3 cellBBSize, int3 cellBBLocalMin, int3 stride_frac_field) {
+__global__ void interpolateFractionFields(fracSize * RESTRICT const fractionFieldData, fracSize * RESTRICT const tmpFractionFieldData, fracSize * RESTRICT const tmpFractionFieldOldData, int3 fieldSize, int3 stride_frac_field, double interpolFactor) {
 
    const int64_t x = blockDim.x*blockIdx.x + threadIdx.x;
    const int64_t y = blockDim.y*blockIdx.y + threadIdx.y;
    const int64_t z = blockDim.z*blockIdx.z + threadIdx.z;
-   if (x < cellBBSize.x && y < cellBBSize.y && z < cellBBSize.z )
+   if (x < fieldSize.x && y < fieldSize.y && z < fieldSize.z )
    {
-      const int idx = (x + cellBBLocalMin.x) + (y + cellBBLocalMin.y) * stride_frac_field.y + (z + cellBBLocalMin.z) * stride_frac_field.z;
-      fractionFieldData[idx] -= tmpFractionFieldData[idx];
+      const int idx = x  + y * stride_frac_field.y + z  * stride_frac_field.z;
+      fractionFieldData[idx] += (interpolFactor * tmpFractionFieldOldData[idx] + (1.0 - interpolFactor) * tmpFractionFieldData[idx]);
+   }
+}
+
+void ObjectRotatorGPU::interpolateFractionFieldsCall(uint_t timestep) {
+
+   double interpolFactor = double(frequency_ - (timestep % frequency_)) / double(frequency_);
+
+   for (auto& block : *blocks_)
+   {
+      auto tmpFractionFieldGPU = block.getData< gpu::GPUField<fracSize> >(tmpFracFieldGPUId);
+      fracSize * RESTRICT const _data_tmpFractionFieldGPU = tmpFractionFieldGPU->dataAt(0, 0, 0, 0);
+
+      auto tmpFractionFieldGPUOld = block.getData< gpu::GPUField<fracSize> >(tmpFracFieldGPUOldId);
+      fracSize * RESTRICT const _data_tmpFractionFieldGPUOld = tmpFractionFieldGPUOld->dataAt(0, 0, 0, 0);
+
+      auto fractionFieldGPU = block.getData< gpu::GPUField<fracSize> >(fractionFieldGPUId_);
+      fracSize * RESTRICT const _data_fractionFieldGPU = fractionFieldGPU->dataAt(0, 0, 0, 0);
+
+      int3 stride_frac_field = {int(tmpFractionFieldGPU->xStride()), int(tmpFractionFieldGPU->yStride()), int(tmpFractionFieldGPU->zStride())};
+      int3 size = {int(tmpFractionFieldGPU->xSizeWithGhostLayer()), int(tmpFractionFieldGPU->ySizeWithGhostLayer()), int(tmpFractionFieldGPU->zSizeWithGhostLayer()) };
+
+      dim3 _block(uint64_c(((16 < size.x - 2) ? 16 : size.x - 2)), uint64_c(((1024 < ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))) ? 1024 : ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))), uint64_c(((64 < ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))))) ? 64 : ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))))));
+      dim3 _grid(uint64_c(( (size.x - 2) % (((16 < size.x - 2) ? 16 : size.x - 2)) == 0 ? (int64_t)(size.x - 2) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)) : ( (int64_t)(size.x - 2) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)) ) +1 )), uint64_c(( (size.y - 2) % (((1024 < ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))) ? 1024 : ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))) == 0 ? (int64_t)(size.y - 2) / (int64_t)(((1024 < ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))) ? 1024 : ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))) : ( (int64_t)(size.y - 2) / (int64_t)(((1024 < ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))) ? 1024 : ((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))) ) +1 )), uint64_c(( (size.z - 2) % (((64 < ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))))) ? 64 : ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))))) == 0 ? (int64_t)(size.z - 2) / (int64_t)(((64 < ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))))) ? 64 : ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))))) : ( (int64_t)(size.z - 2) / (int64_t)(((64 < ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))))))) ? 64 : ((size.z - 2 < ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))) ? size.z - 2 : ((int64_t)(256) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)*((size.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2)))) ? size.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2) ? 16 : size.x - 2))))))))) ) +1 )));
+
+      interpolateFractionFields<<<_grid, _block>>>(_data_fractionFieldGPU, _data_tmpFractionFieldGPU, _data_tmpFractionFieldGPUOld, size, stride_frac_field, interpolFactor);
    }
 }
 
 
-
-__global__ void writeToActualFractionField(fracSize * RESTRICT const fractionFieldData, fracSize * RESTRICT const tmpFractionFieldData, int3 cellBBSize, int3 cellBBLocalMin, int3 stride_frac_field) {
-
-   const int64_t x = blockDim.x*blockIdx.x + threadIdx.x;
-   const int64_t y = blockDim.y*blockIdx.y + threadIdx.y;
-   const int64_t z = blockDim.z*blockIdx.z + threadIdx.z;
-   if (x < cellBBSize.x && y < cellBBSize.y && z < cellBBSize.z )
-   {
-      const int idx = (x + cellBBLocalMin.x) + (y + cellBBLocalMin.y) * stride_frac_field.y + (z + cellBBLocalMin.z) * stride_frac_field.z;
-      fractionFieldData[idx] += tmpFractionFieldData[idx];
-   }
-}
-
-
-__device__ float getSqSignedDistance(DistancePropertiesGPU * distancePropertiesGpu, int numFaces, float3 cellCenter) {
+__device__ double getSqSignedDistance(DistancePropertiesGPU * distancePropertiesGpu, int numFaces, double3 cellCenter) {
    // get sqDistance
-   float final_sqDistance = INFINITY;
-   float3 final_closestPoint;
-   float3 final_normal;
+   double final_sqDistance = INFINITY;
+   double3 final_closestPoint;
+   double3 final_normal;
 
    for (int i = 0; i < numFaces; ++i) {
       DistancePropertiesGPU dp = distancePropertiesGpu[i];
-      float3 closestPoint;
+      double3 closestPoint;
       int region;
-      float3 temp;
-      float2 temp2;
+      double3 temp;
+      double2 temp2;
 
-      float3 pt3;
+      double3 pt3;
       ADD(temp, cellCenter, dp.translation)
       MATVECMUL(pt3, dp.rotation, temp)
 
       closestPoint.z = 0.0;
 
-      float sqDistance = pt3.z * pt3.z;
-      //printf("dp.translation[0] is %f, [1] is %f, [2] is %f, [3] is %f, [4] is %f, [5] is %f, [6] is %f, [7] is %f, [8] is %f \n", dp.rotation[0], dp.rotation[1], dp.rotation[2], dp.rotation[3], dp.rotation[4], dp.rotation[5], dp.rotation[6], dp.rotation[7], dp.rotation[8]);
+      double sqDistance = pt3.z * pt3.z;
 
-      float2 pt = {pt3.x, pt3.y};
+      double2 pt = {pt3.x, pt3.y};
 
-      float e0p = DOT2(dp.e0_normalized, pt);
-      float e1p = DOT2(dp.e1_normalized, pt);
+      double e0p = DOT2(dp.e0_normalized, pt);
+      double e1p = DOT2(dp.e1_normalized, pt);
       SUB2(temp2, pt, dp.e0)
-      float e2p = DOT2(dp.e2_normalized, temp2);
+      double e2p = DOT2(dp.e2_normalized, temp2);
 
       temp2 = {-1,0};
-      float e0d = DOT2(temp2, pt);
-      float e1d = DOT2(dp.e1_normal, pt);
+      double e0d = DOT2(temp2, pt);
+      double e1d = DOT2(dp.e1_normal, pt);
       SUB2(temp2, pt, dp.e0)
-      float e2d = DOT2(dp.e2_normal, temp2);
+      double e2d = DOT2(dp.e2_normal, temp2);
 
       if( e0p <= 0 && e1p <= 0  )
       {
@@ -247,7 +231,7 @@ __device__ float getSqSignedDistance(DistancePropertiesGPU * distancePropertiesG
 
       if(sqDistance <= final_sqDistance) {
          final_sqDistance = sqDistance;
-         float transpose[9];
+         double transpose[9];
          TRANSPOSE(transpose, dp.rotation)
          MATVECMUL(temp, transpose, closestPoint)
          SUB(final_closestPoint, temp, dp.translation)
@@ -255,16 +239,17 @@ __device__ float getSqSignedDistance(DistancePropertiesGPU * distancePropertiesG
       }
    }
    //printf("final_sqDistance is %f\n", final_sqDistance);
-   float3 temp;
+   double3 temp;
    SUB(temp, cellCenter, final_closestPoint)
-   float dot = DOT(temp, final_normal);
-   //return dot >= 0.0 ? final_sqDistance : -final_sqDistance;
-   return final_sqDistance;
-
+   double dot = DOT(temp, final_normal);
+   return dot >= 0.0 ? final_sqDistance : -final_sqDistance;
 }
 
 
-__global__ void voxelizeGPU(DistancePropertiesGPU * distancePropertiesGpu, fracSize * RESTRICT const fractionFieldData, float3 minAABB, int3 cellBBSize, int3 cellBBLocalMin, int3 stride_frac_field, float dx, int numFaces)
+__global__ void voxelizeGPU(DistancePropertiesGPU * distancePropertiesGpu, fracSize * RESTRICT const fractionFieldData,
+                            double3 minAABB, int3 cellBBSize, int3 cellBBLocalMin, int3 stride_frac_field, double dx,
+                            int numFaces, double3 rotationMatrixX, double3 rotationMatrixY, double3 rotationMatrixZ,
+                            double3 meshCenter)
 {
    const int64_t x = blockDim.x*blockIdx.x + threadIdx.x ;
    const int64_t y = blockDim.y*blockIdx.y + threadIdx.y ;
@@ -273,62 +258,72 @@ __global__ void voxelizeGPU(DistancePropertiesGPU * distancePropertiesGpu, fracS
    {
       const int idx = (x + cellBBLocalMin.x) + (y + cellBBLocalMin.y) * stride_frac_field.y + (z + cellBBLocalMin.z) * stride_frac_field.z;
 
-      float dxHalf        = 0.0;    //0.5f * dx;
-      float3 cellCenter = { minAABB.x + float(x) * dx + dxHalf, minAABB.y + float(y) * dx + dxHalf,
-                            minAABB.z + float(z) * dx + dxHalf };
+      double dxHalf = 0.5 * dx;    //0.5f * dx;
+      real_t sqDx = dx * dx;
+      real_t sqDxHalf = (0.5 * dx) * (0.5 * dx);
+      double3 cellCenter = { minAABB.x + double(x) * dx + dxHalf, minAABB.y + double(y) * dx + dxHalf,
+                            minAABB.z + double(z) * dx + dxHalf };
 
-      float sqSignedDistance = getSqSignedDistance(distancePropertiesGpu, numFaces, cellCenter);
-      //printf("sqSignedDistance is %f \n", sqSignedDistance);
+      //rotate cell center instead of mesh
+      double3 newCellCenter;
+      SUB(cellCenter, cellCenter, meshCenter)
+      newCellCenter.x = cellCenter.x * rotationMatrixX.x + cellCenter.y * rotationMatrixX.y + cellCenter.z * rotationMatrixX.z;
+      newCellCenter.y = cellCenter.x * rotationMatrixY.x + cellCenter.y * rotationMatrixY.y + cellCenter.z * rotationMatrixY.z;
+      newCellCenter.z = cellCenter.x * rotationMatrixZ.x + cellCenter.y * rotationMatrixZ.y + cellCenter.z * rotationMatrixZ.z;
+      ADD(newCellCenter, newCellCenter, meshCenter)
+
+      double sqSignedDistance = getSqSignedDistance(distancePropertiesGpu, numFaces, newCellCenter);
 
       fracSize fraction;
-      fraction = max(0.0, min(1.0, (dx - (sqrt(sqSignedDistance) + (dx * 0.5)) ) / dx));
-      fractionFieldData[idx] = sqSignedDistance;
+      fraction = max(0.0, min(1.0, (sqDx - (sqSignedDistance + sqDxHalf) ) / sqDx));
+      fractionFieldData[idx] = fraction;
    }
 }
 
 
 
-void ObjectRotatorGPU::voxelizeGPUCall() {
+void ObjectRotatorGPU::voxelizeGPUCall(uint_t timestep) {
+   double3 rotationMatrixX;
+   double3 rotationMatrixY;
+   double3 rotationMatrixZ;
+   Matrix3< real_t > rotationMat(rotationAxis_, (timestep / frequency_) * -rotationAngle_);
+   rotationMatrixX = {rotationMat[0], rotationMat[1], rotationMat[2]};
+   rotationMatrixY = {rotationMat[3], rotationMat[4], rotationMat[5]};
+   rotationMatrixZ = {rotationMat[6], rotationMat[7], rotationMat[8]};
+   double interpolFactor = double(frequency_ - (timestep % frequency_)) / double(frequency_);
+
    for (auto& block : *blocks_)
    {
       auto tmpFractionFieldGPU = block.getData< gpu::GPUField<fracSize> >(tmpFracFieldGPUId);
       fracSize * RESTRICT const _data_tmpFractionFieldGPU = tmpFractionFieldGPU->dataAt(0, 0, 0, 0);
 
+      auto tmpFractionFieldGPUOld = block.getData< gpu::GPUField<fracSize> >(tmpFracFieldGPUOldId);
+      fracSize * RESTRICT const _data_tmpFractionFieldGPUOld = tmpFractionFieldGPUOld->dataAt(0, 0, 0, 0);
+
       auto fractionFieldGPU = block.getData< gpu::GPUField<fracSize> >(fractionFieldGPUId_);
       fracSize * RESTRICT const _data_fractionFieldGPU = fractionFieldGPU->dataAt(0, 0, 0, 0);
 
       auto level         = blocks_->getLevel(block);
-      auto dx     = float(blocks_->dx(level));
+      auto dx     = double(blocks_->dx(level));
       auto blockAABB = block.getAABB();
 
-      //blockAABB.intersect(meshAABB); //TODO get meshAABB after every rotation???
       if(blockAABB.empty())
          continue;
-      
+
+      double3 meshCenterGPU = {meshCenter[0], meshCenter[1], meshCenter[2]};
       CellInterval cellBB = blocks_->getCellBBFromAABB(blockAABB);
-      int3 cellBBSize = {int(cellBB.xSize() + 2), int(cellBB.ySize() ), int(cellBB.zSize() + 2)}; //TODO +2 ??
+      int3 cellBBSize = {int(cellBB.xSize() + 2), int(cellBB.ySize() + 2), int(cellBB.zSize() + 2)}; //TODO +2 ??
       Cell cellBBGlobalMin = cellBB.min();
       blocks_->transformGlobalToBlockLocalCell(cellBBGlobalMin, block);
       int3 cellBBLocalMin = {int(cellBBGlobalMin[0]), int(cellBBGlobalMin[1]), int(cellBBGlobalMin[2])};
-      
-      float3 minAABB = {float(blockAABB.minCorner()[0]), float(blockAABB.minCorner()[1]), float(blockAABB.minCorner()[2])};
-      int3 stride_frac_field = {int(tmpFractionFieldGPU->xStride()), int(tmpFractionFieldGPU->yStride()), int(tmpFractionFieldGPU->zStride())};
-      
-      //WALBERLA_LOG_INFO("stride_frac_field is (" <<  stride_frac_field.x << "," << stride_frac_field.y << "," << stride_frac_field.z << ")" << " fstride " << tmpFractionFieldGPU->fStride())
-      //WALBERLA_LOG_INFO("Cell BB is (" <<  cellBBSize.x << "," << cellBBSize.y << "," << cellBBSize.z << ")" )
+      double3 minAABB = {double(blockAABB.minCorner()[0]), double(blockAABB.minCorner()[1]), double(blockAABB.minCorner()[2])};
 
+      int3 stride_frac_field = {int(tmpFractionFieldGPU->xStride()), int(tmpFractionFieldGPU->yStride()), int(tmpFractionFieldGPU->zStride())};
 
       dim3 _block(uint64_c(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)), uint64_c(((1024 < ((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))) ? 1024 : ((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))))), uint64_c(((64 < ((cellBBSize.z - 2 < ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))) ? cellBBSize.z - 2 : ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))))))) ? 64 : ((cellBBSize.z - 2 < ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))) ? cellBBSize.z - 2 : ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))))));
       dim3 _grid(uint64_c(( (cellBBSize.x - 2) % (((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)) == 0 ? (int64_t)(cellBBSize.x - 2) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)) : ( (int64_t)(cellBBSize.x - 2) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)) ) +1 )), uint64_c(( (cellBBSize.y - 2) % (((1024 < ((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))) ? 1024 : ((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))))) == 0 ? (int64_t)(cellBBSize.y - 2) / (int64_t)(((1024 < ((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))) ? 1024 : ((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))))) : ( (int64_t)(cellBBSize.y - 2) / (int64_t)(((1024 < ((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))) ? 1024 : ((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))))) ) +1 )), uint64_c(( (cellBBSize.z - 2) % (((64 < ((cellBBSize.z - 2 < ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))) ? cellBBSize.z - 2 : ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))))))) ? 64 : ((cellBBSize.z - 2 < ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))) ? cellBBSize.z - 2 : ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))))) == 0 ? (int64_t)(cellBBSize.z - 2) / (int64_t)(((64 < ((cellBBSize.z - 2 < ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))) ? cellBBSize.z - 2 : ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))))))) ? 64 : ((cellBBSize.z - 2 < ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))) ? cellBBSize.z - 2 : ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))))) : ( (int64_t)(cellBBSize.z - 2) / (int64_t)(((64 < ((cellBBSize.z - 2 < ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))) ? cellBBSize.z - 2 : ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))))))) ? 64 : ((cellBBSize.z - 2 < ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))) ? cellBBSize.z - 2 : ((int64_t)(256) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)*((cellBBSize.y - 2 < 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2)))) ? cellBBSize.y - 2 : 16*((int64_t)(16) / (int64_t)(((16 < cellBBSize.x - 2) ? 16 : cellBBSize.x - 2))))))))) ) +1 )));
-      
-      //WALBERLA_LOG_INFO("Grid is (" <<  _grid.x << "," << _grid.y << "," << _grid.z << ") and Block is (" << _block.x << "," << _block.y << "," << _block.z << ")")
-      //WALBERLA_LOG_INFO("Num trinagles is " << numTriangles_ << " num vertices is " << numVertices_)
 
-      //resetFractionFieldGPU<<<_grid, _block>>>(_data_fractionFieldGPU, _data_tmpFractionFieldGPU, cellBBSize, cellBBLocalMin, stride_frac_field);
-
-      voxelizeGPU<<<_grid, _block>>>(distancePropertiesGPUPtr, _data_tmpFractionFieldGPU, minAABB, cellBBSize, cellBBLocalMin, stride_frac_field, dx, numFaces_);
-
-      writeToActualFractionField<<<_grid, _block>>>(_data_fractionFieldGPU, _data_tmpFractionFieldGPU, cellBBSize, cellBBLocalMin, stride_frac_field);
+      voxelizeGPU<<<_grid, _block>>>(distancePropertiesGPUPtr, _data_tmpFractionFieldGPU, minAABB, cellBBSize, cellBBLocalMin, stride_frac_field, dx, numFaces_, rotationMatrixX, rotationMatrixY, rotationMatrixZ, meshCenterGPU);
    }
 }
 

@@ -62,6 +62,7 @@
 #define RESTRICT
 #endif
 
+
 namespace walberla
 {
 typedef field::GhostLayerField< real_t, 1 > ScalarField_T;
@@ -72,15 +73,15 @@ typedef field::GhostLayerField< fracSize, 1 > FracField_T;
 
 struct DistancePropertiesGPU
 {
-   float2 e0, e1, e2;
-   float2 e1_normal, e2_normal;
-   float2 e1_normalized, e2_normalized, e0_normalized;
-   float e0l, e1l, e2l;
+   double2 e0, e1, e2;
+   double2 e1_normal, e2_normal;
+   double2 e1_normalized, e2_normalized, e0_normalized;
+   double e0l, e1l, e2l;
 
-   float3 translation;
-   float rotation[9];
+   double3 translation;
+   double rotation[9];
 
-   float3 region_normal[7];
+   double3 region_normal[7];
 };
 
 
@@ -100,31 +101,39 @@ class ObjectRotatorGPU
         rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis), meshName_(meshName), rotate_(rotate)
    {
       tmpFracFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks_, fractionFieldCPUId, meshName_ + "_fracFieldGPU", true );
-      meshCenter = computeCentroid(*mesh_);
+      tmpFracFieldGPUOldId = gpu::addGPUFieldToStorage< FracField_T >(blocks_, fractionFieldCPUId, meshName_ + "_fracFieldOldGPU", true );
 
-      WALBERLA_LOG_INFO_ON_ROOT("convertDistancePropertiesToGPU")
+      meshCenter = computeCentroid(*mesh_);
       convertDistancePropertiesToGPU();
 
-      WALBERLA_LOG_INFO_ON_ROOT("initObjectVelocityField")
       initObjectVelocityField();
-
-      WALBERLA_LOG_INFO_ON_ROOT("Start Voxelization")
-      WcTimer simTimer;
-      simTimer.start();
-      voxelizeGPUCall();
-      WALBERLA_GPU_CHECK( gpuDeviceSynchronize() )
-      simTimer.end();
-      WALBERLA_LOG_INFO_ON_ROOT("Finished Voxelization in " << simTimer.max() << "s")
+      voxelizeGPUCall(0);
+      if(!rotate) {
+         swapFractionFields();
+      }
    }
 
 
    void operator()(uint_t timestep) {
-      if (timestep % frequency_ == 0)
-      {
-         if(rotate_) {
-            //rotateGPUCall();
-            //voxelizeGPUCall();
+      if(rotate_) {
+         if (timestep % frequency_ == 0)
+         {
+            swapFractionFields();
+            voxelizeGPUCall(timestep + frequency_);
          }
+         interpolateFractionFieldsCall(timestep);
+      }
+      else{
+         interpolateFractionFieldsCall(0);
+      }
+   }
+
+   void swapFractionFields() {
+      for (auto& block : *blocks_)
+      {
+         auto tmpFractionFieldGPU = block.getData< gpu::GPUField<fracSize> >(tmpFracFieldGPUId);
+         auto tmpFractionFieldGPUOld = block.getData< gpu::GPUField<fracSize> >(tmpFracFieldGPUOldId);
+         tmpFractionFieldGPU->swapDataPointers(tmpFractionFieldGPUOld);
       }
    }
 
@@ -134,50 +143,49 @@ class ObjectRotatorGPU
          mesh::DistanceProperties<mesh::TriangleMesh> dp = distanceProperties[*f_it];
          DistancePropertiesGPU dpGPU;
 
-         dpGPU.e0 = {float(dp.e0[0]), float(dp.e0[1])};
-         dpGPU.e1 = {float(dp.e1[0]), float(dp.e1[1])};
-         dpGPU.e2 = {float(dp.e2[0]), float(dp.e2[1])};
+         dpGPU.e0 = {double(dp.e0[0]), double(dp.e0[1])};
+         dpGPU.e1 = {double(dp.e1[0]), double(dp.e1[1])};
+         dpGPU.e2 = {double(dp.e2[0]), double(dp.e2[1])};
 
-         dpGPU.e1_normal = {float(dp.e1_normal[0]), float(dp.e1_normal[1])};
-         dpGPU.e2_normal = {float(dp.e2_normal[0]), float(dp.e2_normal[1])};
+         dpGPU.e1_normal = {double(dp.e1_normal[0]), double(dp.e1_normal[1])};
+         dpGPU.e2_normal = {double(dp.e2_normal[0]), double(dp.e2_normal[1])};
 
-         dpGPU.e0_normalized = {float(dp.e0_normalized[0]), float(dp.e0_normalized[1])};
-         dpGPU.e1_normalized = {float(dp.e1_normalized[0]), float(dp.e1_normalized[1])};
-         dpGPU.e2_normalized = {float(dp.e2_normalized[0]), float(dp.e2_normalized[1])};
+         dpGPU.e0_normalized = {double(dp.e0_normalized[0]), double(dp.e0_normalized[1])};
+         dpGPU.e1_normalized = {double(dp.e1_normalized[0]), double(dp.e1_normalized[1])};
+         dpGPU.e2_normalized = {double(dp.e2_normalized[0]), double(dp.e2_normalized[1])};
 
-         dpGPU.e0l = float(dp.e0l);
-         dpGPU.e1l = float(dp.e1l);
-         dpGPU.e2l = float(dp.e2l);
+         dpGPU.e0l = double(dp.e0l);
+         dpGPU.e1l = double(dp.e1l);
+         dpGPU.e2l = double(dp.e2l);
 
-         dpGPU.translation = {float(dp.translation[0]), float(dp.translation[1]), float(dp.translation[2])};
+         dpGPU.translation = {double(dp.translation[0]), double(dp.translation[1]), double(dp.translation[2])};
 
          for (int i = 0; i < 9; ++i)
-            dpGPU.rotation[i] = float(dp.rotation[i]);
+            dpGPU.rotation[i] = double(dp.rotation[i]);
 
          //also save normals of faces, edges and vertices to compute sign (Voronoi areas)
          auto normal = mesh_->normal( *f_it );
-         dpGPU.region_normal[0] = {float(normal[0]), float(normal[1]), float(normal[2])};
+         dpGPU.region_normal[0] = {double(normal[0]), double(normal[1]), double(normal[2])};
          normal = mesh_->normal( getVertexHandle( *mesh_, *f_it, 0U ) );
-         dpGPU.region_normal[1] = {float(normal[0]), float(normal[1]), float(normal[2])};
+         dpGPU.region_normal[1] = {double(normal[0]), double(normal[1]), double(normal[2])};
          normal = mesh_->normal( getVertexHandle( *mesh_, *f_it, 1U ) );
-         dpGPU.region_normal[2] = {float(normal[0]), float(normal[1]), float(normal[2])};
+         dpGPU.region_normal[2] = {double(normal[0]), double(normal[1]), double(normal[2])};
          normal = mesh_->normal( getVertexHandle( *mesh_, *f_it, 2U ) );
-         dpGPU.region_normal[3] = {float(normal[0]), float(normal[1]), float(normal[2])};
+         dpGPU.region_normal[3] = {double(normal[0]), double(normal[1]), double(normal[2])};
          normal = mesh_->normal( getHalfedgeHandle( *mesh_, *f_it, 0U, 1U ) );
-         dpGPU.region_normal[4] = {float(normal[0]), float(normal[1]), float(normal[2])};
+         dpGPU.region_normal[4] = {double(normal[0]), double(normal[1]), double(normal[2])};
          normal = mesh_->normal( getHalfedgeHandle( *mesh_, *f_it, 0U, 2U ) );
-         dpGPU.region_normal[5] = {float(normal[0]), float(normal[1]), float(normal[2])};
+         dpGPU.region_normal[5] = {double(normal[0]), double(normal[1]), double(normal[2])};
          normal = mesh_->normal( getHalfedgeHandle( *mesh_, *f_it, 1U, 2U ) );
-         dpGPU.region_normal[6] = {float(normal[0]), float(normal[1]), float(normal[2])};
+         dpGPU.region_normal[6] = {double(normal[0]), double(normal[1]), double(normal[2])};
 
          distancePropertiesCPUPtr.push_back(dpGPU);
       }
 
-      numFaces_ = distancePropertiesCPUPtr.size();
+      numFaces_ = uint(distancePropertiesCPUPtr.size());
       cudaMalloc((void **)&distancePropertiesGPUPtr, numFaces_ * sizeof(DistancePropertiesGPU));
       cudaMemcpy(distancePropertiesGPUPtr, &distancePropertiesCPUPtr[0],  numFaces_ * sizeof(DistancePropertiesGPU), cudaMemcpyHostToDevice);
    }
-
 
    void initObjectVelocityField() {
       for (auto& block : *blocks_)
@@ -220,14 +228,16 @@ class ObjectRotatorGPU
       }
    }
 
-   //void rotateGPUCall();
+   void voxelizeGPUCall(uint_t timestep);
 
-   void voxelizeGPUCall();
+   void interpolateFractionFieldsCall(uint_t timestep);
+
 
  private:
    shared_ptr< StructuredBlockForest > blocks_;
    BlockDataID fractionFieldGPUId_;
    BlockDataID tmpFracFieldGPUId;
+   BlockDataID tmpFracFieldGPUOldId;
 
    shared_ptr< mesh::TriangleMesh > mesh_;
    shared_ptr< mesh::TriangleDistance<mesh::TriangleMesh> >& triangleDistance_;
@@ -243,6 +253,8 @@ class ObjectRotatorGPU
    const bool rotate_;
    mesh::TriangleMesh::Point meshCenter;
 };
+
+void resetFractionFieldGPUCall(shared_ptr< StructuredBlockForest >& blocks, BlockDataID fractionFieldGPUId);
 
 
 }//namespace waLBerla
