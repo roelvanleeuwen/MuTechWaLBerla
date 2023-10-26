@@ -25,6 +25,8 @@
 #include "core/mpi/MPITextFile.h"
 #include "core/mpi/Reduce.h"
 
+#include "field/FlagField.h"
+
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 
 #include "mesa_pd/data/ParticleStorage.h"
