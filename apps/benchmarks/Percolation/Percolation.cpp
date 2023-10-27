@@ -182,17 +182,16 @@ int main(int argc, char** argv)
       real_t particleOffset = particleGenerationSpacing / real_t(2);
       for (auto pt : grid_generator::SCGrid(generationDomain, generationDomain.center(), particleGenerationSpacing))
       {
+         // Offset every second particle layer in flow direction to avoid channels in flow direction
+         if (uint_t(round(math::abs(generationDomain.center()[0] - pt[0]) / (particleGenerationSpacing))) % uint_t(2) !=
+             uint_t(0))
+         {
+            pt = pt + Vector3(real_t(0), particleOffset, particleOffset);
+         }
          if (rpdDomain->isContainedInProcessSubdomain(uint_c(mpi::MPIManager::instance()->rank()), pt))
          {
             mesa_pd::data::Particle&& p = *ps->create();
-            // Offset every second particle layer in flow direction to avoid channels in flow direction
-            if (uint_t(round(math::abs(generationDomain.center()[0] - pt[0]) / (particleGenerationSpacing))) %
-                   uint_t(2) ==
-                uint_t(0))
-            {
-               p.setPosition(pt);
-            }
-            else { p.setPosition(pt + Vector3(real_t(0), particleOffset, particleOffset)); }
+            p.setPosition(pt);
             p.setInteractionRadius(particleDiameter * real_t(0.5));
             p.setOwner(mpi::MPIManager::instance()->rank());
             p.setShapeID(sphereShape);
