@@ -1,0 +1,51 @@
+Domain
+{
+    domainSize <300, 60, 150>;
+    numBlocks <1, 1, 1>; // if periodicInY true, then one needs at least two blocks in y direction
+    periodicInY false;
+}
+
+Physics
+{
+    timeSteps 6000000;
+    hydraulicGradient 2.915; // final hydraulic gradient (see Fukumoto et al., 2021)
+    finalGradientTimeStep 6000000; // time step in which the final hydraulic gradient is reached, 0 means instantly
+    kinematicViscosityFluid_SI 1e-6;
+    dx_SI 5e-5;
+    dt_SI 5e-7;
+    gravitationalAcceleration_SI 9.81;
+}
+
+Bucket
+{
+    bucketSizeFraction <0.1, 1.0, 0.5>; // bucket size as a fraction of the domain size
+}
+
+Particles
+{
+    inFileName spheres_out.dat;
+    densityRatio 2.5;
+    frictionCoefficient 0.6;
+    restitutionCoefficient 0.97;
+    numSubCycles 10;
+    useLubricationCorrection true;
+    poissonsRatio 0.22;
+    observationDomainFraction <0.1, 1.0, 0.2>; // uplift/subsidence observation domain size as a fraction of the domain size
+    numPreSteps 10000; // number of time steps in the beginning without fluid to let the particles settle
+}
+
+Output
+{
+    vtkSpacing 500;
+    vtkFolder vtk_piping;
+    fluidSlice true;
+    performanceLogFrequency 500;
+    upliftSubsidenceFrequency 200000;
+}
+
+StabilityChecker
+{
+   checkFrequency 10000;
+   streamOutput   false;
+   vtkOutput      true;
+}
