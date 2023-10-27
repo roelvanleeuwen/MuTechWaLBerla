@@ -41,13 +41,21 @@
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
 
+#include "mesa_pd/collision_detection/AnalyticContactDetection.h"
 #include "mesa_pd/data/DataTypes.h"
 #include "mesa_pd/data/ParticleAccessorWithBaseShape.h"
 #include "mesa_pd/data/ParticleStorage.h"
-#include "mesa_pd/data/ShapeStorage.h"
 #include "mesa_pd/data/shape/Sphere.h"
 #include "mesa_pd/domain/BlockForestDomain.h"
+#include "mesa_pd/kernel/DoubleCast.h"
+#include "mesa_pd/kernel/InsertParticleIntoLinkedCells.h"
+#include "mesa_pd/kernel/LinearSpringDashpot.h"
+#include "mesa_pd/kernel/VelocityVerlet.h"
+#include "mesa_pd/mpi/ContactFilter.h"
+#include "mesa_pd/mpi/ReduceContactHistory.h"
+#include "mesa_pd/mpi/ReduceProperty.h"
 #include "mesa_pd/mpi/SyncNextNeighbors.h"
+#include "mesa_pd/mpi/notifications/ForceTorqueNotification.h"
 #include "mesa_pd/vtk/ParticleVtkOutput.h"
 
 #include "vtk/all.h"
@@ -167,8 +175,10 @@ int main(int argc, char** argv)
    const Vector3< real_t > observationDomainSize(real_c(domainSize[0]) * observationDomainFraction[0],
                                                  real_c(domainSize[1]) * observationDomainFraction[1],
                                                  real_c(domainSize[2]) * observationDomainFraction[2]);
-   const real_t kappa = real_c(2) * (real_c(1) - poissonsRatio) / (real_c(2) - poissonsRatio);
-   bool useOpenMP     = false;
+   const uint_t numPreSteps           = particlesParameters.getParameter< uint_t >("numPreSteps");
+   const real_t kappa                 = real_c(2) * (real_c(1) - poissonsRatio) / (real_c(2) - poissonsRatio);
+   const real_t particleCollisionTime = real_t(10); // same resolution as in SettlingSpheres.prm
+   bool useOpenMP                     = false;
 
    Config::BlockHandle outputParameters   = cfgFile->getBlock("Output");
    const uint_t vtkSpacing                = outputParameters.getParameter< uint_t >("vtkSpacing");
@@ -226,6 +236,27 @@ int main(int argc, char** argv)
    initSpheresFromFile(particleInFileName, *ps, *rpdDomain, particleDensityRatio, simulationDomain, domainSize,
                        boxPosition, boxEdgeLength, maxParticleDiameter);
 
+   // Set up RPD functionality
+   // Synchronize particles between the blocks for the correct mapping of ghost particles
+   // TODO: use overlap for synchronization due to lubrication
+   mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
+   syncNextNeighborFunc(*ps, *rpdDomain);
+
+   mesa_pd::kernel::LinearSpringDashpot collisionResponse(2);
+   collisionResponse.setFrictionCoefficientDynamic(0, 0, particleFrictionCoefficient);
+
+   real_t linkedCellWidth = 1.01_r * maxParticleDiameter;
+   mesa_pd::data::LinkedCells linkedCells(rpdDomain->getUnionOfLocalAABBs().getExtended(linkedCellWidth),
+                                          linkedCellWidth);
+
+   settleParticles(
+      numPreSteps, accessor, ps, *rpdDomain, linkedCells, syncNextNeighborFunc, collisionResponse, particleDensityRatio,
+      particleRestitutionCoefficient, kappa,
+      gravitationalAcceleration *
+         real_t(10000), // this factor comes from the smaller time step size compared to the SettlingSpheres.cpp
+      particleCollisionTime, useOpenMP);
+
+   // Evaluate initial soil properties
    UpliftSubsidenceEvaluator upliftSubsidenceEvaluator(accessor, ps, boxPosition, boxEdgeLength, observationDomainSize);
 
    real_t seepageLength = computeSeepageLength(accessor, ps, boxPosition, boxEdgeLength);
@@ -247,11 +278,6 @@ int main(int argc, char** argv)
    BlockDataID velFieldID  = field::addToStorage< VelocityField_T >(blocks, "velocity field", real_t(0), field::fzyx);
    BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
    BlockDataID BFieldID    = field::addToStorage< BField_T >(blocks, "B field", real_t(0), field::fzyx);
-
-   // Synchronize particles between the blocks for the correct mapping of ghost particles
-   // TODO: use overlap for synchronization due to lubrication
-   mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
-   syncNextNeighborFunc(*ps, *rpdDomain);
 
    // Boundary handling
    assembleBoundaryBlock(domainSize, boxPosition, boxEdgeLength, periodicInY);
@@ -421,7 +447,7 @@ int main(int argc, char** argv)
       timeloopTiming["Uplift/Subsidence evaluation"].start();
       if (upliftSubsidenceFrequency > 0 && timeStep % upliftSubsidenceFrequency == 0)
       {
-         upliftSubsidenceEvaluator(hydraulicGradient * timeStep / finalGradientTimeStep, accessor, ps);
+         upliftSubsidenceEvaluator(hydraulicGradient * real_t(timeStep / finalGradientTimeStep), accessor, ps);
       }
       timeloopTiming["Uplift/Subsidence evaluation"].end();
    }

@@ -25,12 +25,13 @@ Particles
 {
     inFileName spheres_out.dat;
     densityRatio 2.5;
-    frictionCoefficient 0.5;
+    frictionCoefficient 0.6;
     restitutionCoefficient 0.97;
     numSubCycles 10;
     useLubricationCorrection true;
     poissonsRatio 0.22;
     observationDomainFraction <0.1, 1.0, 0.2>; // uplift/subsidence observation domain size as a fraction of the domain size
+    numPreSteps 10000; // number of time steps in the beginning without fluid to let the particles settle
 }
 
 Output

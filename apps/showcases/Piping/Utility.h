@@ -356,6 +356,71 @@ real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, cons
    return real_t(1) - sumOverlapFractions / real_t(numFluidCells);
 }
 
+template< typename ParticleAccessor_T, typename Sync_T, typename CollisionResponse_T >
+void settleParticles(const uint_t numTimeSteps, const shared_ptr< ParticleAccessor_T >& accessor,
+                     const shared_ptr< mesa_pd::data::ParticleStorage >& ps,
+                     const walberla::mesa_pd::domain::IDomain& domain, mesa_pd::data::LinkedCells& linkedCells,
+                     Sync_T& syncNextNeighborFunc, CollisionResponse_T& collisionResponse,
+                     const real_t& particleDensityRatio, const real_t& particleRestitutionCoefficient,
+                     const real_t& kappa, const real_t& gravitationalAcceleration, const real_t& particleCollisionTime,
+                     const bool& useOpenMP)
+{
+   const real_t timeStepSizeParticles = real_t(1.0);
+   mesa_pd::kernel::VelocityVerletPreForceUpdate vvIntegratorPreForce(timeStepSizeParticles);
+   mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(timeStepSizeParticles);
+   mesa_pd::mpi::ReduceProperty reduceProperty;
+   mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
+   mesa_pd::kernel::InsertParticleIntoLinkedCells ipilc;
+
+   for (uint_t t = uint_t(0); t < numTimeSteps; ++t)
+   {
+      ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPreForce, *accessor);
+      syncNextNeighborFunc(*ps, domain);
+
+      linkedCells.clear();
+      ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, ipilc, *accessor, linkedCells);
+
+      // collision
+      linkedCells.forEachParticlePairHalf(
+         useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
+         [&collisionResponse, &domain, &particleRestitutionCoefficient, &timeStepSizeParticles, &particleCollisionTime,
+          kappa](const size_t idx1, const size_t idx2, auto& ac) {
+            mesa_pd::collision_detection::AnalyticContactDetection acd;
+            mesa_pd::kernel::DoubleCast double_cast;
+            mesa_pd::mpi::ContactFilter contact_filter;
+            if (double_cast(idx1, idx2, ac, acd, ac))
+            {
+               if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), domain))
+               {
+                  auto meff = real_c(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
+                  collisionResponse.setStiffnessAndDamping(0, 0, particleRestitutionCoefficient, particleCollisionTime,
+                                                           kappa, meff);
+                  collisionResponse(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), acd.getContactNormal(),
+                                    acd.getPenetrationDepth(), timeStepSizeParticles);
+               }
+            }
+         },
+         *accessor);
+      reduceAndSwapContactHistory(*ps);
+
+      // gravity - buoyancy
+      ps->forEachParticle(
+         useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor,
+         [particleDensityRatio, gravitationalAcceleration](const size_t idx, auto& ac) {
+            mesa_pd::addForceAtomic(
+               idx, ac,
+               Vector3< real_t >(real_t(0), real_t(0),
+                                 -(particleDensityRatio - real_c(1)) * ac.getVolume(idx) * gravitationalAcceleration));
+         },
+         *accessor);
+
+      reduceProperty.operator()< mesa_pd::ForceTorqueNotification >(*ps);
+
+      ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPostForce, *accessor);
+      syncNextNeighborFunc(*ps, domain);
+   }
+}
+
 template< typename ParticleAccessor_T >
 real_t computeMaxParticleSeepageHeight(const shared_ptr< ParticleAccessor_T >& accessor,
                                        const shared_ptr< mesa_pd::data::ParticleStorage >& ps,
