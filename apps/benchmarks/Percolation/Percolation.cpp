@@ -89,9 +89,21 @@ const FlagUID NoSlip_Flag("NoSlip");
 //////////
 
 //*******************************************************************************************************************
-/*!\brief Benchmark of a granular bed setup
+/*!\brief Benchmark of a percolation setup
  *
-
+ * This code can be used as a percolation (useParticles=true) or as a channel flow (useParticles=false) benchmark.
+ * For the percolation, mono-sized fixed spherical particles are generated on a structured grid with an offset for
+ * every second particle layer in flow direction to avoid channels in flow direction. Different pressure boundary
+ * conditions are set at the west and east boundary. The flow is described by Darcy's law.
+ * For the channel flow, a pressure boundary condition is set at the west and a constant outflow from east is applied.
+ * The flow is described by the Hagen–Poiseuille equation.
+ *
+ * The domain is either periodic or bounded by (no slip) walls in the vertical directions (y and z).
+ *
+ * For the percolation, the PSM is used in combination with a two-way coupling, but no particle dynamics.
+ * For the channel flow, only the LBM is used.
+ *
+ * The parameters can be changed via the input file.
  *
  */
 //*******************************************************************************************************************
