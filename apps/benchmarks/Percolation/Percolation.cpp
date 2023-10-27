@@ -83,6 +83,7 @@ const FlagUID Fluid_Flag("Fluid");
 const FlagUID Density0_Flag("Density0");
 const FlagUID Density1_Flag("Density1");
 const FlagUID NoSlip_Flag("NoSlip");
+const FlagUID Inflow_Flag("Outflow");
 
 //////////
 // MAIN //
@@ -140,6 +141,10 @@ int main(int argc, char** argv)
    const real_t particleGenerationSpacing = numericalSetup.getParameter< real_t >("particleGenerationSpacing");
    const real_t pressureDifference        = numericalSetup.getParameter< real_t >("pressureDifference");
    const real_t relaxationRate            = numericalSetup.getParameter< real_t >("relaxationRate");
+   if ((periodicInY && numYBlocks == 1) || (periodicInZ && numZBlocks == 1))
+   {
+      WALBERLA_LOG_WARNING_ON_ROOT("Using only 1 block in periodic dimensions can lead to unexpected behavior.")
+   }
 
    Config::BlockHandle outputSetup      = cfgFile->getBlock("Output");
    const uint_t vtkSpacing              = outputSetup.getParameter< uint_t >("vtkSpacing");
@@ -220,8 +225,9 @@ int main(int argc, char** argv)
    // Assemble boundary block string
    std::string boundariesBlockString = " Boundaries"
                                        "{"
-                                       "Border { direction W;    walldistance -1;  flag Density0; }"
-                                       "Border { direction E;    walldistance -1;  flag Density1; }";
+                                       "Border { direction W;    walldistance -1;  flag Density0; }";
+   if (useParticles) { boundariesBlockString += "Border { direction E;    walldistance -1;  flag Density1; }"; }
+   else { boundariesBlockString += "Border { direction E;    walldistance -1;  flag Outflow; }"; }
 
    if (!periodicInY)
    {
@@ -251,12 +257,16 @@ int main(int argc, char** argv)
    // map boundaries into the LBM simulation
    geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldID, boundariesConfig);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldID, Fluid_Flag);
-   lbm::PSM_Density density0_bc(blocks, pdfFieldGPUID, real_t(1.0) + pressureDifference / real_t(2));
+   lbm::PSM_Density density0_bc(blocks, pdfFieldGPUID, real_t(1.0));
    density0_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Density0_Flag, Fluid_Flag);
-   lbm::PSM_Density density1_bc(blocks, pdfFieldGPUID, real_t(1.0) - pressureDifference / real_t(2));
+   lbm::PSM_Density density1_bc(blocks, pdfFieldGPUID, real_t(1.0) - pressureDifference);
    density1_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Density1_Flag, Fluid_Flag);
    lbm::PSM_NoSlip noSlip(blocks, pdfFieldGPUID);
    noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, NoSlip_Flag, Fluid_Flag);
+   const real_t uOutflow = real_t(0.02);
+   if (!useParticles) { WALBERLA_LOG_DEVEL_VAR_ON_ROOT(uOutflow) }
+   lbm::PSM_UBB ubb(blocks, pdfFieldGPUID, uOutflow, real_t(0), real_t(0));
+   ubb.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Inflow_Flag, Fluid_Flag);
 
    ///////////////
    // TIME LOOP //
@@ -344,7 +354,11 @@ int main(int argc, char** argv)
    // TODO: use split sweeps to hide communication
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
                   << Sweep(deviceSyncWrapper(density0_bc.getSweep()), "Boundary Handling (Density0)");
-   timeloop.add() << Sweep(deviceSyncWrapper(density1_bc.getSweep()), "Boundary Handling (Density1)");
+   if (useParticles)
+   {
+      timeloop.add() << Sweep(deviceSyncWrapper(density1_bc.getSweep()), "Boundary Handling (Density1)");
+   }
+   else { timeloop.add() << Sweep(deviceSyncWrapper(ubb.getSweep()), "Boundary Handling (UBB)"); }
    if (!periodicInY || !periodicInZ)
    {
       timeloop.add() << Sweep(deviceSyncWrapper(noSlip.getSweep()), "Boundary Handling (NoSlip)");
