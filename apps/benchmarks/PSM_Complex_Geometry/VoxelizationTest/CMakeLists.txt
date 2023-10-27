@@ -23,6 +23,6 @@ if(WALBERLA_BUILD_WITH_GPU_SUPPORT)
             DEPENDS blockforest gpu core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk VoxelizationTestCodeGen )
 else()
     walberla_add_executable ( NAME VoxelizationTest
-            FILES VoxelizationTest.cpp ../ObjectRotator.h
+            FILES VoxelizationTest.cpp ../ObjectRotator.h ../ObjectRotatorOpenLB.h
             DEPENDS blockforest core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk VoxelizationTestCodeGen )
 endif()
