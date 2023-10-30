@@ -257,7 +257,7 @@ int main(int argc, char** argv)
    mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(timeStepSizeRPD);
    mesa_pd::kernel::LinearSpringDashpot collisionResponse(2);
    collisionResponse.setFrictionCoefficientDynamic(0, 0, particleFrictionCoefficient);
-   // mesa_pd::kernel::AssocToBlock assoc(blocks->getBlockForestPointer());
+   mesa_pd::kernel::AssocToBlock assoc(blocks->getBlockForestPointer());
    mesa_pd::mpi::ReduceProperty reduceProperty;
    mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
    mesa_pd::kernel::InsertParticleIntoLinkedCells ipilc;
@@ -451,8 +451,7 @@ int main(int argc, char** argv)
       density1_bc.bc_density_ = std::max(real_t(1.0) - pressureDifference,
                                          density1_bc.bc_density_ - pressureDifference / real_t(finalGradientTimeStep));
 
-      // TODO: check why assoc crashes
-      // ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, assoc, *accessor);
+      ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, assoc, *accessor);
       reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*ps);
 
       if (timeStep == 0)
