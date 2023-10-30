@@ -289,7 +289,8 @@ int main(int argc, char** argv)
    ////////////////////////
 
    // Setting initial PDFs to nan helps to detect bugs in the initialization/BC handling
-   // TODO: setting pdf values to nan does not work because they propagate inside the domain from above the bucket
+   // Setting pdf values to nan (for debugging purposes) does not work because they propagate inside the domain from
+   // above the bucket
    BlockDataID pdfFieldID     = field::addToStorage< PdfField_T >(blocks, "pdf field (fzyx)", real_t(0), field::fzyx);
    BlockDataID pdfFieldGPUID  = gpu::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
    BlockDataID densityFieldID = field::addToStorage< DensityField_T >(blocks, "density field", real_t(0), field::fzyx);
@@ -412,7 +413,7 @@ int main(int argc, char** argv)
       combinedSliceFilter.addFilter(fluidFilter);
       if (fluidSlice) { combinedSliceFilter.addFilter(aabbSliceFilter); }
       pdfFieldVTK->addCellInclusionFilter(combinedSliceFilter);
-
+      pdfFieldVTK->setSamplingResolution(outputParameters.getParameter< real_t >("resolutionSpacing"));
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(pdfFieldVTK), "VTK (fluid field data)");
    }
 
