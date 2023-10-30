@@ -227,6 +227,19 @@ int main(int argc, char** argv)
       RP.operator()< ForceTorqueNotification >(*ps);
 
       ps->forEachParticle(false, kernel::SelectLocal(), accessor, vvIntegratorPostForce, accessor);
+
+      // Log particle velocities every 10% of progress. Turn logging off for benchmark run (i.e., no vtk output).
+      if (i % (timeSteps / uint_t(10)) == 0 && visSpacing != 0)
+      {
+         real_t maxVelocity;
+         real_t averageVelocity;
+         uint_t numAveragedParticles;
+
+         getParticleVelocities(accessor, numAveragedParticles, maxVelocity, averageVelocity);
+         WALBERLA_LOG_INFO_ON_ROOT("Timestep " << i << " / " << timeSteps << ", average velocity = " << averageVelocity
+                                               << ", max velocity = " << maxVelocity
+                                               << ", #particles = " << numAveragedParticles);
+      }
    }
    timer.end();
 

@@ -157,11 +157,12 @@ void initSpheresFromFile(const std::string& fileName, walberla::mesa_pd::data::P
 }
 
 template< typename ParticleAccessor_T >
-void getParticleVelocities(const ParticleAccessor_T& ac, real_t& maxVelocity, real_t& averageVelocity)
+void getParticleVelocities(const ParticleAccessor_T& ac, uint_t& numParticles, real_t& maxVelocity,
+                           real_t& averageVelocity)
 {
-   maxVelocity         = real_t(0);
-   averageVelocity     = real_t(0);
-   uint_t numParticles = uint_t(0);
+   maxVelocity     = real_t(0);
+   averageVelocity = real_t(0);
+   numParticles    = uint_t(0);
 
    for (uint_t i = 0; i < ac.size(); ++i)
    {
