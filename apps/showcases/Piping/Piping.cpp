@@ -249,12 +249,9 @@ int main(int argc, char** argv)
    mesa_pd::data::LinkedCells linkedCells(rpdDomain->getUnionOfLocalAABBs().getExtended(linkedCellWidth),
                                           linkedCellWidth);
 
-   settleParticles(
-      numPreSteps, accessor, ps, *rpdDomain, linkedCells, syncNextNeighborFunc, collisionResponse, particleDensityRatio,
-      particleRestitutionCoefficient, kappa,
-      gravitationalAcceleration *
-         real_t(10000), // this factor comes from the smaller time step size compared to the SettlingSpheres.cpp
-      particleCollisionTime, useOpenMP);
+   settleParticles(numPreSteps, accessor, ps, *rpdDomain, linkedCells, syncNextNeighborFunc, collisionResponse,
+                   particleDensityRatio, particleRestitutionCoefficient, kappa, gravitationalAcceleration,
+                   particleCollisionTime, useOpenMP);
 
    // Evaluate initial soil properties
    UpliftSubsidenceEvaluator upliftSubsidenceEvaluator(accessor, ps, boxPosition, boxEdgeLength, observationDomainSize);
