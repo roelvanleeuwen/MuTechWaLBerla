@@ -43,7 +43,7 @@ namespace piping
 // Some functions in this file (as the one below) are based on showcases/Antidunes/Utility.cpp
 
 void writeSphereInformationToFile(const std::string& filename, walberla::mesa_pd::data::ParticleStorage& ps,
-                                  Vector3< real_t >& domainSize, int precision = 12)
+                                  const Vector3< real_t >& domainSize, const int precision = 12)
 {
    std::ostringstream ossData;
    ossData << std::setprecision(precision);
