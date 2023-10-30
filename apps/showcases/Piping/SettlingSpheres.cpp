@@ -70,6 +70,8 @@ int main(int argc, char** argv)
 
    Vec3 domainSize_SI            = bedGenerationConf.getParameter< Vec3 >("domainSize_SI");
    Vector3< int > blocks         = bedGenerationConf.getParameter< Vector3< int > >("blocks");
+   bool periodicInX              = bedGenerationConf.getParameter< bool >("periodicInX");
+   bool periodicInY              = bedGenerationConf.getParameter< bool >("periodicInY");
    real_t minDiameter_SI         = bedGenerationConf.getParameter< real_t >("minDiameter_SI");
    real_t maxDiameter_SI         = bedGenerationConf.getParameter< real_t >("maxDiameter_SI");
    real_t gravity_SI             = bedGenerationConf.getParameter< real_t >("gravity_SI");
@@ -89,7 +91,7 @@ int main(int argc, char** argv)
    // BlockForest
    math::AABB simulationDomain_SI(real_t(0.0), real_t(0.0), real_t(0.0), domainSize_SI[0], domainSize_SI[1],
                                   domainSize_SI[2]);
-   Vector3< bool > isPeriodic{ true, true, false };
+   Vector3< bool > isPeriodic{ periodicInX, periodicInY, false };
 
    shared_ptr< BlockForest > forest = blockforest::createBlockForest(simulationDomain_SI, blocks, isPeriodic);
    auto domain                      = std::make_shared< mesa_pd::domain::BlockForestDomain >(forest);
