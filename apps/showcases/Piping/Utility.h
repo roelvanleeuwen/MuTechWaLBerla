@@ -277,6 +277,16 @@ struct SphereSelector
    }
 };
 
+struct SphereSphereSelector
+{
+   template< typename ParticleAccessor_T >
+   bool inline operator()(const size_t particleIdx0, const size_t particleIdx1, const ParticleAccessor_T& ac) const
+   {
+      return ac.getBaseShape(particleIdx0)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE &&
+             ac.getBaseShape(particleIdx1)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE;
+   }
+};
+
 struct SphereSelectorExcludeGhost
 {
    template< typename ParticleAccessor_T >
