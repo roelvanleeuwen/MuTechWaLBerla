@@ -74,9 +74,9 @@ public:
    void writeVTKVoxelfile( const std::string & identifier = "voxelization", bool writeGhostLayers = false, const std::string & baseFolder = std::string("vtk_out"),
                            const std::string & executionFolder = std::string("voxelization") );
 
-private:
+   static void divideAndPushCellInterval( const CellInterval & ci, std::queue< CellInterval > & outputQueue );
 
-   void divideAndPushCellInterval( const CellInterval & ci, std::queue< CellInterval > & outputQueue );
+private:
 
    void allocateOrResetVoxelizationField();
    void deallocateVoxelizationField();

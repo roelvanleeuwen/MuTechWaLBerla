@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ObjectRotatorOpenLB.h
+//! \file ObjectRotatorGPUOpenLB.h
 //! \author Philipp Suffa <philipp.suffa@fau.de>
 //
 //======================================================================================================================
@@ -47,8 +47,16 @@
 #include "gpu/HostFieldAllocator.h"
 #include "gpu/ParallelStreams.h"
 #include "gpu/communication/UniformGPUScheme.h"
+#include <cuda_runtime.h>
 #endif
-#include "GeometryOctree.h"
+
+#ifdef __GNUC__
+#define RESTRICT __restrict__
+#elif _MSC_VER
+#define RESTRICT __restrict
+#else
+#define RESTRICT
+#endif
 
 
 namespace walberla
@@ -90,13 +98,15 @@ class GeometryFieldHandling : public field::BlockDataHandling< GeometryField_T >
 }; // class GeometryFieldHandling
 
 
-class ObjectRotatorOpenLB
+class ObjectRotatorGPUOpenLB
 {
  public:
-   ObjectRotatorOpenLB(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh, BlockDataID fractionFieldId, const BlockDataID objectVelocityId, Vector3<real_t> translation,
-                 const real_t rotationAngle, const uint_t frequency, Vector3<uint_t> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree,
-                 std::string meshName, const bool isRotating = true)
-      : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId),translation_(translation),
+   ObjectRotatorGPUOpenLB(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
+                          BlockDataID fractionFieldGPUId, const BlockDataID objectVelocityId,
+                          Vector3<real_t> translation, const real_t rotationAngle, const uint_t frequency,
+                          Vector3<uint_t> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree,
+                          std::string meshName, const bool isRotating = true)
+      : blocks_(blocks), mesh_(mesh), fractionFieldGPUId_(fractionFieldGPUId), objectVelocityId_(objectVelocityId),translation_(translation),
         rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis), distOctree_(distOctree),
         meshName_(meshName), isRotating_(isRotating)
    {
@@ -110,15 +120,18 @@ class ObjectRotatorOpenLB
          initObjectVelocityField();
          std::shared_ptr< GeometryFieldHandling< GeometryField_T > > geometryFieldDataHandling = std::make_shared< GeometryFieldHandling< GeometryField_T > >(blocks_, meshAABB_);
          geometryFieldId_ = blocks_->addBlockData( geometryFieldDataHandling, "geometryField_" + meshName_ );
+         geometryFieldGPUId_ = gpu::addGPUFieldToStorage< FracField_T >(blocks_, geometryFieldId_, "geometryFieldGPU_" + meshName_, true );
          buildGeometryMesh();
+         gpu::fieldCpy< gpu::GPUField< real_t >, GeometryField_T >(blocks, geometryFieldGPUId_, geometryFieldId_);
          getFractionFieldFromGeometryMesh(0);
       }
       else {
          staticFractionFieldId_ = field::addToStorage< FracField_T >(blocks, "staticFractionField_" + meshName_, real_t(0.0), field::fzyx, uint_c(1));
+         staticFractionFieldGPUId_ = gpu::addGPUFieldToStorage< FracField_T >(blocks_, staticFractionFieldId_, "staticFractionFieldGPU_" + meshName_, true );
          buildStaticFractionField();
+         gpu::fieldCpy< gpu::GPUField< real_t >, FracField_T >(blocks, staticFractionFieldGPUId_, staticFractionFieldId_);
          addStaticGeometryToFractionField();
       }
-
    }
 
    void operator()(uint_t timestep) {
@@ -132,6 +145,10 @@ class ObjectRotatorOpenLB
       }
    }
 
+   void getFractionFieldFromGeometryMesh(uint_t timestep);
+
+   void addStaticGeometryToFractionField();
+
    void moveTriangleMesh(uint_t timestep, uint_t vtk_frequency) {
       if(vtk_frequency > 0 && timestep % vtk_frequency == 0 && isRotating_) {
          mesh::translate(*mesh_, translation_ * vtk_frequency);
@@ -142,7 +159,6 @@ class ObjectRotatorOpenLB
       }
    }
 
-   //TODO what about translation?
    void initObjectVelocityField() {
       for (auto& block : *blocks_)
       {
@@ -160,45 +176,28 @@ class ObjectRotatorOpenLB
 
          const real_t dx = blocks_->dx(level);
          WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(objVelField,
-            Cell cell(x,y,z);
-            blocks_->transformBlockLocalToGlobalCell(cell, block);
+                                                          Cell cell(x,y,z);
+                                                          blocks_->transformBlockLocalToGlobalCell(cell, block);
 
-            // Set velocity only in aabb of mesh for x dir
-            if(cell[0] < cellBB.xMin() || cell[0] > cellBB.xMax())
-               continue;
+                                                          // Set velocity only in aabb of mesh for x dir
+                                                          if(cell[0] < cellBB.xMin() || cell[0] > cellBB.xMax())
+                                                             continue;
 
-            Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
-            Vector3< real_t > distance((cellCenter[0] - meshCenter[0]) / dx, (cellCenter[1] - meshCenter[1]) / dx, (cellCenter[2] - meshCenter[2]) / dx);
-            real_t velX = angularVel[1] * distance[2] - angularVel[2] * distance[1];
-            real_t velY = angularVel[2] * distance[0] - angularVel[0] * distance[2];
-            real_t velZ = angularVel[0] * distance[1] - angularVel[1] * distance[0];
+                                                          Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
+                                                          Vector3< real_t > distance((cellCenter[0] - meshCenter[0]) / dx, (cellCenter[1] - meshCenter[1]) / dx, (cellCenter[2] - meshCenter[2]) / dx);
+                                                          real_t velX = angularVel[1] * distance[2] - angularVel[2] * distance[1];
+                                                          real_t velY = angularVel[2] * distance[0] - angularVel[0] * distance[2];
+                                                          real_t velZ = angularVel[0] * distance[1] - angularVel[1] * distance[0];
 
-            blocks_->transformGlobalToBlockLocalCell(cell, block);
-            objVelField->get(cell, 0) = velX;
-            objVelField->get(cell, 1) = velY;
-            objVelField->get(cell, 2) = velZ;
+                                                          blocks_->transformGlobalToBlockLocalCell(cell, block);
+                                                          objVelField->get(cell, 0) = velX;
+                                                          objVelField->get(cell, 1) = velY;
+                                                          objVelField->get(cell, 2) = velZ;
          )
       }
    }
 
-   void resetFractionField() {
-      for (auto& block : *blocks_)
-      {
-         FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId_);
-         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(fractionField, fractionField->get(x, y, z) = 0.0;)
-      }
-   }
-
-   void addStaticGeometryToFractionField() {
-      for (auto& block : *blocks_)
-      {
-         FracField_T* fractionField       = block.getData< FracField_T >(fractionFieldId_);
-         FracField_T* staticFractionField = block.getData< FracField_T >(staticFractionFieldId_);
-         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(
-            fractionField, fractionField->get(x, y, z) =
-                              std::min(1.0, fractionField->get(x, y, z) + staticFractionField->get(x, y, z));)
-      }
-   }
+   void resetFractionField();
 
    void buildStaticFractionField() {
       const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
@@ -275,51 +274,6 @@ class ObjectRotatorOpenLB
       }
    }
 
-   void getFractionFieldFromGeometryMesh(uint_t timestep)
-   {
-      Matrix3< real_t > rotationMat(rotationAxis_, (real_t(timestep) / real_t(frequency_)) * -rotationAngle_);
-
-      for (auto& block : *blocks_)
-      {
-         FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId_);
-         GeometryField_T* geometryField = block.getData< GeometryField_T >(geometryFieldId_);
-
-         auto level = blocks_->getLevel(block);
-         const real_t dx = blocks_->dx(level);
-         CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
-
-         for (auto cellIt = blockCi.begin(); cellIt != blockCi.end(); cellIt++) {
-            Cell globalCell;
-            blocks_->transformBlockLocalToGlobalCell(globalCell, block, *cellIt);
-            Vector3< real_t > cellCenter = blocks_->getCellCenter(globalCell, level);
-
-            //translation
-            cellCenter -= translation_ * timestep;
-
-            //rotation
-            cellCenter -= meshCenter;
-            cellCenter = rotationMat * cellCenter;
-            cellCenter += meshCenter;
-
-            //get corresponding geometryField cell
-            auto cellCenterInGeometrySpace = cellCenter - meshAABB_.min() - Vector3<real_t> (0.5 * dx);
-            auto cellInGeometrySpace = Vector3<int32_t> (int32_t(std::round(cellCenterInGeometrySpace[0] / dx)), int32_t(std::round(cellCenterInGeometrySpace[1] / dx)), int32_t(std::round(cellCenterInGeometrySpace[2] / dx)));
-            real_t fraction;
-
-            if (cellInGeometrySpace[0] < 0 || cellInGeometrySpace[0] >= int32_t(geometryField->xSize()) ||
-                cellInGeometrySpace[1] < 0 || cellInGeometrySpace[1] >= int32_t(geometryField->ySize()) ||
-                cellInGeometrySpace[2] < 0 || cellInGeometrySpace[2] >= int32_t(geometryField->zSize())  ) {
-               fraction = 0.0;
-            }
-            else {
-               fraction = geometryField->get(cellInGeometrySpace[0], cellInGeometrySpace[1], cellInGeometrySpace[2]);
-            }
-            fractionField->get(*cellIt) = std::min(1.0, fractionField->get(*cellIt) + fraction);
-         }
-      }
-   }
-
-
    void buildGeometryMesh() {
       const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
       for (auto& block : *blocks_)
@@ -346,9 +300,12 @@ class ObjectRotatorOpenLB
    shared_ptr< StructuredBlockForest > blocks_;
    shared_ptr< mesh::TriangleMesh > mesh_;
 
-   BlockDataID fractionFieldId_;
+   BlockDataID fractionFieldGPUId_;
    BlockDataID geometryFieldId_;
    BlockDataID staticFractionFieldId_;
+
+   BlockDataID geometryFieldGPUId_;
+   BlockDataID staticFractionFieldGPUId_;
 
    const BlockDataID objectVelocityId_;
    Vector3<real_t> translation_;
