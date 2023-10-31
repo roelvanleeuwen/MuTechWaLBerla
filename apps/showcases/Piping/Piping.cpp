@@ -40,6 +40,11 @@
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
+#include "lbm_mesapd_coupling/utility/AddHydrodynamicInteractionKernel.h"
+#include "lbm_mesapd_coupling/utility/AverageHydrodynamicForceTorqueKernel.h"
+#include "lbm_mesapd_coupling/utility/InitializeHydrodynamicForceTorqueForAveragingKernel.h"
+#include "lbm_mesapd_coupling/utility/LubricationCorrectionKernel.h"
+#include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
 
 #include "mesa_pd/collision_detection/AnalyticContactDetection.h"
 #include "mesa_pd/data/DataTypes.h"
@@ -47,6 +52,7 @@
 #include "mesa_pd/data/ParticleStorage.h"
 #include "mesa_pd/data/shape/Sphere.h"
 #include "mesa_pd/domain/BlockForestDomain.h"
+#include "mesa_pd/kernel/AssocToBlock.h"
 #include "mesa_pd/kernel/DoubleCast.h"
 #include "mesa_pd/kernel/InsertParticleIntoLinkedCells.h"
 #include "mesa_pd/kernel/LinearSpringDashpot.h"
@@ -56,6 +62,7 @@
 #include "mesa_pd/mpi/ReduceProperty.h"
 #include "mesa_pd/mpi/SyncNextNeighbors.h"
 #include "mesa_pd/mpi/notifications/ForceTorqueNotification.h"
+#include "mesa_pd/mpi/notifications/HydrodynamicForceTorqueNotification.h"
 #include "mesa_pd/vtk/ParticleVtkOutput.h"
 
 #include "vtk/all.h"
@@ -177,7 +184,7 @@ int main(int argc, char** argv)
                                                  real_c(domainSize[2]) * observationDomainFraction[2]);
    const uint_t numPreSteps           = particlesParameters.getParameter< uint_t >("numPreSteps");
    const real_t kappa                 = real_c(2) * (real_c(1) - poissonsRatio) / (real_c(2) - poissonsRatio);
-   const real_t particleCollisionTime = real_t(10); // same resolution as in SettlingSpheres.prm
+   const real_t particleCollisionTime = real_t(1000); // TODO: check why it works with this value but not with 10
    bool useOpenMP                     = false;
 
    Config::BlockHandle outputParameters   = cfgFile->getBlock("Output");
@@ -241,20 +248,31 @@ int main(int argc, char** argv)
    // TODO: use overlap for synchronization due to lubrication
    mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
    syncNextNeighborFunc(*ps, *rpdDomain);
+   std::function< void(void) > syncCall = [&ps, &rpdDomain, &syncNextNeighborFunc]() {
+      syncNextNeighborFunc(*ps, *rpdDomain);
+   };
 
+   real_t timeStepSizeRPD = real_t(1) / real_t(particleNumSubCycles);
+   mesa_pd::kernel::VelocityVerletPreForceUpdate vvIntegratorPreForce(timeStepSizeRPD);
+   mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(timeStepSizeRPD);
    mesa_pd::kernel::LinearSpringDashpot collisionResponse(2);
    collisionResponse.setFrictionCoefficientDynamic(0, 0, particleFrictionCoefficient);
+   mesa_pd::kernel::AssocToBlock assoc(blocks->getBlockForestPointer());
+   mesa_pd::mpi::ReduceProperty reduceProperty;
+   mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
+   mesa_pd::kernel::InsertParticleIntoLinkedCells ipilc;
+   lbm_mesapd_coupling::ResetHydrodynamicForceTorqueKernel resetHydrodynamicForceTorque;
+   lbm_mesapd_coupling::AverageHydrodynamicForceTorqueKernel averageHydrodynamicForceTorque;
+   lbm_mesapd_coupling::LubricationCorrectionKernel lubricationCorrectionKernel(
+      viscosity, [](real_t r) { return (real_t(0.001 + real_t(0.00007) * r)) * r; });
 
    real_t linkedCellWidth = 1.01_r * maxParticleDiameter;
    mesa_pd::data::LinkedCells linkedCells(rpdDomain->getUnionOfLocalAABBs().getExtended(linkedCellWidth),
                                           linkedCellWidth);
 
-   settleParticles(
-      numPreSteps, accessor, ps, *rpdDomain, linkedCells, syncNextNeighborFunc, collisionResponse, particleDensityRatio,
-      particleRestitutionCoefficient, kappa,
-      gravitationalAcceleration *
-         real_t(10000), // this factor comes from the smaller time step size compared to the SettlingSpheres.cpp
-      particleCollisionTime, useOpenMP);
+   settleParticles(numPreSteps, accessor, ps, *rpdDomain, linkedCells, syncNextNeighborFunc, collisionResponse,
+                   particleDensityRatio, particleRestitutionCoefficient, kappa, gravitationalAcceleration,
+                   particleCollisionTime, useOpenMP);
 
    // Evaluate initial soil properties
    UpliftSubsidenceEvaluator upliftSubsidenceEvaluator(accessor, ps, boxPosition, boxEdgeLength, observationDomainSize);
@@ -271,7 +289,8 @@ int main(int argc, char** argv)
    ////////////////////////
 
    // Setting initial PDFs to nan helps to detect bugs in the initialization/BC handling
-   // TODO: setting pdf values to nan does not work because they propagate inside the domain from above the bucket
+   // Setting pdf values to nan (for debugging purposes) does not work because they propagate inside the domain from
+   // above the bucket
    BlockDataID pdfFieldID     = field::addToStorage< PdfField_T >(blocks, "pdf field (fzyx)", real_t(0), field::fzyx);
    BlockDataID pdfFieldGPUID  = gpu::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldID, "pdf field GPU");
    BlockDataID densityFieldID = field::addToStorage< DensityField_T >(blocks, "density field", real_t(0), field::fzyx);
@@ -394,7 +413,7 @@ int main(int argc, char** argv)
       combinedSliceFilter.addFilter(fluidFilter);
       if (fluidSlice) { combinedSliceFilter.addFilter(aabbSliceFilter); }
       pdfFieldVTK->addCellInclusionFilter(combinedSliceFilter);
-
+      pdfFieldVTK->setSamplingResolution(outputParameters.getParameter< real_t >("resolutionSpacing"));
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(pdfFieldVTK), "VTK (fluid field data)");
    }
 
@@ -432,6 +451,101 @@ int main(int argc, char** argv)
       // If pressure difference did not yet reach the limit, decrease the pressure on the right hand side
       density1_bc.bc_density_ = std::max(real_t(1.0) - pressureDifference,
                                          density1_bc.bc_density_ - pressureDifference / real_t(finalGradientTimeStep));
+
+      ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, assoc, *accessor);
+      reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*ps);
+
+      if (timeStep == 0)
+      {
+         lbm_mesapd_coupling::InitializeHydrodynamicForceTorqueForAveragingKernel
+            initializeHydrodynamicForceTorqueForAveragingKernel;
+         ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor,
+                             initializeHydrodynamicForceTorqueForAveragingKernel, *accessor);
+      }
+      ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, averageHydrodynamicForceTorque,
+                          *accessor);
+
+      for (auto subCycle = uint_t(0); subCycle < particleNumSubCycles; ++subCycle)
+      {
+         timeloopTiming["RPD"].start();
+
+         ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPreForce, *accessor);
+         syncCall();
+
+         linkedCells.clear();
+         ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, ipilc, *accessor, linkedCells);
+
+         if (useLubricationCorrection)
+         {
+            // lubrication correction (currently only used for sphere-sphere interaction)
+            linkedCells.forEachParticlePairHalf(
+               useOpenMP, SphereSphereSelector(), *accessor,
+               [&lubricationCorrectionKernel, &rpdDomain](const size_t idx1, const size_t idx2, auto& ac) {
+                  mesa_pd::collision_detection::AnalyticContactDetection acd;
+                  acd.getContactThreshold() = lubricationCorrectionKernel.getNormalCutOffDistance();
+                  mesa_pd::kernel::DoubleCast double_cast;
+                  mesa_pd::mpi::ContactFilter contact_filter;
+                  if (double_cast(idx1, idx2, ac, acd, ac))
+                  {
+                     if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *rpdDomain))
+                     {
+                        double_cast(acd.getIdx1(), acd.getIdx2(), ac, lubricationCorrectionKernel, ac,
+                                    acd.getContactNormal(), acd.getPenetrationDepth());
+                     }
+                  }
+               },
+               *accessor);
+         }
+
+         // collision response
+         linkedCells.forEachParticlePairHalf(
+            useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
+            [&collisionResponse, &rpdDomain, timeStepSizeRPD, particleRestitutionCoefficient, particleCollisionTime,
+             kappa](const size_t idx1, const size_t idx2, auto& ac) {
+               mesa_pd::collision_detection::AnalyticContactDetection acd;
+               mesa_pd::kernel::DoubleCast double_cast;
+               mesa_pd::mpi::ContactFilter contact_filter;
+               if (double_cast(idx1, idx2, ac, acd, ac))
+               {
+                  if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *rpdDomain))
+                  {
+                     // TODO: rewrite this kernel such that it also works with OpenMP (remove race condition)
+                     auto meff = real_t(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
+                     collisionResponse.setStiffnessAndDamping(0, 0, particleRestitutionCoefficient,
+                                                              particleCollisionTime, kappa, meff);
+                     collisionResponse(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), acd.getContactNormal(),
+                                       acd.getPenetrationDepth(), timeStepSizeRPD);
+                  }
+               }
+            },
+            *accessor);
+
+         reduceAndSwapContactHistory(*ps);
+
+         // add hydrodynamic force
+         lbm_mesapd_coupling::AddHydrodynamicInteractionKernel addHydrodynamicInteraction;
+         ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addHydrodynamicInteraction,
+                             *accessor);
+
+         ps->forEachParticle(
+            useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor,
+            [particleDensityRatio, gravitationalAcceleration](const size_t idx, auto& ac) {
+               mesa_pd::addForceAtomic(idx, ac,
+                                       Vector3< real_t >(real_t(0), real_t(0),
+                                                         -(particleDensityRatio - real_c(1)) * ac.getVolume(idx) *
+                                                            gravitationalAcceleration));
+            },
+            *accessor);
+
+         reduceProperty.operator()< mesa_pd::ForceTorqueNotification >(*ps);
+
+         ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPostForce, *accessor);
+         syncCall();
+
+         timeloopTiming["RPD"].end();
+      }
+
+      ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor);
 
       // LBM stability check (check for NaNs in the PDF field)
       timeloopTiming["LBM stability check"].start();

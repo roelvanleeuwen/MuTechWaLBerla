@@ -1,6 +1,6 @@
 Domain
 {
-    domainSize <300, 60, 150>;
+    domainSize <300, 60, 240>;
     numBlocks <1, 1, 1>; // if periodicInY true, then one needs at least two blocks in y direction
     periodicInY false;
 }
@@ -18,7 +18,7 @@ Physics
 
 Bucket
 {
-    bucketSizeFraction <0.1, 1.0, 0.5>; // bucket size as a fraction of the domain size
+    bucketSizeFraction <0.1, 1.0, 0.75>; // bucket size as a fraction of the domain size
 }
 
 Particles
@@ -27,19 +27,20 @@ Particles
     densityRatio 2.5;
     frictionCoefficient 0.6;
     restitutionCoefficient 0.97;
-    numSubCycles 10;
+    numSubCycles 1; // due to the limited particle movement, the number of sub cycles is set low
     useLubricationCorrection true;
     poissonsRatio 0.22;
     observationDomainFraction <0.1, 1.0, 0.2>; // uplift/subsidence observation domain size as a fraction of the domain size
-    numPreSteps 10000; // number of time steps in the beginning without fluid to let the particles settle
+    numPreSteps 20000; // number of time steps in the beginning without fluid to let the particles settle
 }
 
 Output
 {
-    vtkSpacing 500;
+    vtkSpacing 10000;
     vtkFolder vtk_piping;
     fluidSlice true;
-    performanceLogFrequency 500;
+    resolutionSpacing 1;
+    performanceLogFrequency 10000;
     upliftSubsidenceFrequency 200000;
 }
 

@@ -43,7 +43,7 @@ namespace piping
 // Some functions in this file (as the one below) are based on showcases/Antidunes/Utility.cpp
 
 void writeSphereInformationToFile(const std::string& filename, walberla::mesa_pd::data::ParticleStorage& ps,
-                                  Vector3< real_t >& domainSize, int precision = 12)
+                                  const Vector3< real_t >& domainSize, const int precision = 12)
 {
    std::ostringstream ossData;
    ossData << std::setprecision(precision);
@@ -157,11 +157,12 @@ void initSpheresFromFile(const std::string& fileName, walberla::mesa_pd::data::P
 }
 
 template< typename ParticleAccessor_T >
-void getParticleVelocities(const ParticleAccessor_T& ac, real_t& maxVelocity, real_t& averageVelocity)
+void getParticleVelocities(const ParticleAccessor_T& ac, uint_t& numParticles, real_t& maxVelocity,
+                           real_t& averageVelocity)
 {
-   maxVelocity         = real_t(0);
-   averageVelocity     = real_t(0);
-   uint_t numParticles = uint_t(0);
+   maxVelocity     = real_t(0);
+   averageVelocity = real_t(0);
+   numParticles    = uint_t(0);
 
    for (uint_t i = 0; i < ac.size(); ++i)
    {
@@ -276,6 +277,16 @@ struct SphereSelector
    }
 };
 
+struct SphereSphereSelector
+{
+   template< typename ParticleAccessor_T >
+   bool inline operator()(const size_t particleIdx0, const size_t particleIdx1, const ParticleAccessor_T& ac) const
+   {
+      return ac.getBaseShape(particleIdx0)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE &&
+             ac.getBaseShape(particleIdx1)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE;
+   }
+};
+
 struct SphereSelectorExcludeGhost
 {
    template< typename ParticleAccessor_T >
@@ -365,12 +376,15 @@ void settleParticles(const uint_t numTimeSteps, const shared_ptr< ParticleAccess
                      const real_t& kappa, const real_t& gravitationalAcceleration, const real_t& particleCollisionTime,
                      const bool& useOpenMP)
 {
-   const real_t timeStepSizeParticles = real_t(1.0);
+   // Increase the settling speed
+   const real_t timeStepSizeParticles = real_t(10);
    mesa_pd::kernel::VelocityVerletPreForceUpdate vvIntegratorPreForce(timeStepSizeParticles);
    mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(timeStepSizeParticles);
    mesa_pd::mpi::ReduceProperty reduceProperty;
    mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
    mesa_pd::kernel::InsertParticleIntoLinkedCells ipilc;
+
+   WALBERLA_LOG_INFO_ON_ROOT("Starting initial particle settling...")
 
    for (uint_t t = uint_t(0); t < numTimeSteps; ++t)
    {
@@ -418,6 +432,18 @@ void settleParticles(const uint_t numTimeSteps, const shared_ptr< ParticleAccess
 
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPostForce, *accessor);
       syncNextNeighborFunc(*ps, domain);
+
+      if (t % (numTimeSteps / uint_t(10)) == 0)
+      {
+         real_t maxVelocity;
+         real_t averageVelocity;
+         uint_t numAveragedParticles;
+
+         getParticleVelocities(*accessor, numAveragedParticles, maxVelocity, averageVelocity);
+         WALBERLA_LOG_INFO_ON_ROOT("Timestep "
+                                   << t << " / " << numTimeSteps << ", average velocity = " << averageVelocity
+                                   << ", max velocity = " << maxVelocity << ", #particles = " << numAveragedParticles);
+      }
    }
 }
 

@@ -68,28 +68,30 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT(*cfg);
    const Config::BlockHandle bedGenerationConf = cfg->getBlock("BedGeneration");
 
-   Vec3 domainSize_SI            = bedGenerationConf.getParameter< Vec3 >("domainSize_SI");
-   Vector3< int > blocks         = bedGenerationConf.getParameter< Vector3< int > >("blocks");
-   real_t minDiameter_SI         = bedGenerationConf.getParameter< real_t >("minDiameter_SI");
-   real_t maxDiameter_SI         = bedGenerationConf.getParameter< real_t >("maxDiameter_SI");
-   real_t gravity_SI             = bedGenerationConf.getParameter< real_t >("gravity_SI");
-   real_t densityFluid_SI        = bedGenerationConf.getParameter< real_t >("densityFluid_SI");
-   real_t densityParticle_SI     = bedGenerationConf.getParameter< real_t >("densityParticle_SI");
-   real_t generationSpacing_SI   = bedGenerationConf.getParameter< real_t >("generationSpacing_SI");
-   real_t initialVelocity_SI     = bedGenerationConf.getParameter< real_t >("initialVelocity_SI");
-   real_t dt_SI                  = bedGenerationConf.getParameter< real_t >("dt_SI");
-   real_t frictionCoefficient    = bedGenerationConf.getParameter< real_t >("frictionCoefficient");
-   real_t restitutionCoefficient = bedGenerationConf.getParameter< real_t >("restitutionCoefficient");
-   real_t collisionTime_SI       = bedGenerationConf.getParameter< real_t >("collisionTime_SI");
-   real_t poissonsRatio          = bedGenerationConf.getParameter< real_t >("poissonsRatio");
-   uint_t timeSteps              = bedGenerationConf.getParameter< uint_t >("timeSteps");
-   uint_t visSpacing             = bedGenerationConf.getParameter< uint_t >("visSpacing");
-   std::string outFileName       = bedGenerationConf.getParameter< std::string >("outFileName");
+   const Vec3 domainSize_SI            = bedGenerationConf.getParameter< Vec3 >("domainSize_SI");
+   const Vector3< int > blocks         = bedGenerationConf.getParameter< Vector3< int > >("blocks");
+   const bool periodicInX              = bedGenerationConf.getParameter< bool >("periodicInX");
+   const bool periodicInY              = bedGenerationConf.getParameter< bool >("periodicInY");
+   const real_t minDiameter_SI         = bedGenerationConf.getParameter< real_t >("minDiameter_SI");
+   const real_t maxDiameter_SI         = bedGenerationConf.getParameter< real_t >("maxDiameter_SI");
+   const real_t gravity_SI             = bedGenerationConf.getParameter< real_t >("gravity_SI");
+   const real_t densityFluid_SI        = bedGenerationConf.getParameter< real_t >("densityFluid_SI");
+   const real_t densityParticle_SI     = bedGenerationConf.getParameter< real_t >("densityParticle_SI");
+   const real_t generationSpacing_SI   = bedGenerationConf.getParameter< real_t >("generationSpacing_SI");
+   const real_t initialVelocity_SI     = bedGenerationConf.getParameter< real_t >("initialVelocity_SI");
+   const real_t dt_SI                  = bedGenerationConf.getParameter< real_t >("dt_SI");
+   const real_t frictionCoefficient    = bedGenerationConf.getParameter< real_t >("frictionCoefficient");
+   const real_t restitutionCoefficient = bedGenerationConf.getParameter< real_t >("restitutionCoefficient");
+   const real_t collisionTime_SI       = bedGenerationConf.getParameter< real_t >("collisionTime_SI");
+   const real_t poissonsRatio          = bedGenerationConf.getParameter< real_t >("poissonsRatio");
+   const uint_t timeSteps              = bedGenerationConf.getParameter< uint_t >("timeSteps");
+   const uint_t visSpacing             = bedGenerationConf.getParameter< uint_t >("visSpacing");
+   const std::string outFileName       = bedGenerationConf.getParameter< std::string >("outFileName");
 
    // BlockForest
-   math::AABB simulationDomain_SI(real_t(0.0), real_t(0.0), real_t(0.0), domainSize_SI[0], domainSize_SI[1],
-                                  domainSize_SI[2]);
-   Vector3< bool > isPeriodic{ true, true, false };
+   const math::AABB simulationDomain_SI(real_t(0.0), real_t(0.0), real_t(0.0), domainSize_SI[0], domainSize_SI[1],
+                                        domainSize_SI[2]);
+   const Vector3< bool > isPeriodic{ periodicInX, periodicInY, false };
 
    shared_ptr< BlockForest > forest = blockforest::createBlockForest(simulationDomain_SI, blocks, isPeriodic);
    auto domain                      = std::make_shared< mesa_pd::domain::BlockForestDomain >(forest);
@@ -100,10 +102,11 @@ int main(int argc, char** argv)
 
    // Init spheres
    // Use offset to domain boundary to prevent the spheres from touching in the beginning
-   real_t domainOffset = maxDiameter_SI / real_t(2);
-   math::AABB generationDomain_SI(simulationDomain_SI.xMin() + domainOffset, simulationDomain_SI.yMin() + domainOffset,
-                                  simulationDomain_SI.zMin() + domainOffset, simulationDomain_SI.xMax() - domainOffset,
-                                  simulationDomain_SI.yMax() - domainOffset, simulationDomain_SI.zMax() - domainOffset);
+   const real_t domainOffset = maxDiameter_SI / real_t(2);
+   const math::AABB generationDomain_SI(
+      simulationDomain_SI.xMin() + domainOffset, simulationDomain_SI.yMin() + domainOffset,
+      simulationDomain_SI.zMin() + domainOffset, simulationDomain_SI.xMax() - domainOffset,
+      simulationDomain_SI.yMax() - domainOffset, simulationDomain_SI.zMax() - domainOffset);
    math::seedRandomGenerator(42);
 
    for (auto pt :
@@ -227,6 +230,19 @@ int main(int argc, char** argv)
       RP.operator()< ForceTorqueNotification >(*ps);
 
       ps->forEachParticle(false, kernel::SelectLocal(), accessor, vvIntegratorPostForce, accessor);
+
+      // Log particle velocities every 10% of progress. Turn logging off for benchmark run (i.e., no vtk output).
+      if (i % (timeSteps / uint_t(10)) == 0 && visSpacing != 0)
+      {
+         real_t maxVelocity;
+         real_t averageVelocity;
+         uint_t numAveragedParticles;
+
+         getParticleVelocities(accessor, numAveragedParticles, maxVelocity, averageVelocity);
+         WALBERLA_LOG_INFO_ON_ROOT("Timestep " << i << " / " << timeSteps << ", average velocity = " << averageVelocity
+                                               << ", max velocity = " << maxVelocity
+                                               << ", #particles = " << numAveragedParticles);
+      }
    }
    timer.end();
 
