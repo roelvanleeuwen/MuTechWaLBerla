@@ -27,12 +27,8 @@
 #include "field/all.h"
 #include "field/vtk/VTKWriter.h"
 #include "geometry/all.h"
-
-//#include "lbm_generated/communication/UniformGeneratedPdfPackInfo.h"
 #include "stencil/D3Q19.h"
-
 #include "timeloop/all.h"
-
 #include "VoxelizationTest_InfoHeader.h"
 #include "lbm_generated/evaluation/PerformanceEvaluation.h"
 #include "lbm_generated/field/AddToStorage.h"
@@ -41,16 +37,12 @@
 
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-#include "lbm_generated/gpu/AddToStorage.h"
-#include "lbm_generated/gpu/GPUPdfField.h"
-#include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
-#include "gpu/communication/UniformGPUScheme.h"
-
-#include "../ObjectRotatorGPUOpenLB.h"
-#else
-#include "../ObjectRotatorOpenLB.h"
-
+#   include "gpu/communication/UniformGPUScheme.h"
+#   include "lbm_generated/gpu/AddToStorage.h"
+#   include "lbm_generated/gpu/GPUPdfField.h"
+#   include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
 #endif
+#include "../MovingGeometry.h"
 
 namespace walberla
 {
@@ -243,14 +235,14 @@ int main(int argc, char** argv)
 
    //Setting up Object Rotator
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   //auto objectRotatorBase = make_shared<ObjectRotatorGPUOpenLB> (blocks, meshBase, fractionFieldGPUId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationFrequency, rotationAxis,  distanceOctreeMeshBase, "base", false);
-   auto objectRotatorRotor = make_shared<ObjectRotatorGPUOpenLB> (blocks, meshRotor, fractionFieldGPUId, objectVelocitiesFieldId,
-                                                                   Vector3<real_t>(0,-0 ,0), rotationAngle, rotationFrequency,
-                                                                   rotationAxis,  distanceOctreeMeshRotor, "rotor", true);
+   //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldGPUId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", false);
+   auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldGPUId, objectVelocitiesFieldId,
+                                                           Vector3<real_t>(0,-0 ,0), rotationAngle,
+                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", true);
 #else
-   //auto objectRotatorBase = make_shared<ObjectRotatorOpenLB> (blocks, meshBase, fractionFieldId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationFrequency, rotationAxis,  distanceOctreeMeshBase, "base", false);
-   auto objectRotatorRotor = make_shared<ObjectRotatorOpenLB> (blocks, meshRotor, fractionFieldId, objectVelocitiesFieldId,
-                                                                Vector3<real_t>(0,-0.1 * dx,0), rotationAngle, rotationFrequency,
+   //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", false);
+   auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldId, objectVelocitiesFieldId,
+                                                                Vector3<real_t>(0,0,0), rotationAngle,
                                                                 rotationAxis,  distanceOctreeMeshRotor, "rotor", true);
 
 #endif

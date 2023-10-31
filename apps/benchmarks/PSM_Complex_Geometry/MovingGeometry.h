@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ObjectRotatorGPUOpenLB.h
+//! \file MovingGeometry.h
 //! \author Philipp Suffa <philipp.suffa@fau.de>
 //
 //======================================================================================================================
@@ -98,16 +98,16 @@ class GeometryFieldHandling : public field::BlockDataHandling< GeometryField_T >
 }; // class GeometryFieldHandling
 
 
-class ObjectRotatorGPUOpenLB
+class MovingGeometry
 {
  public:
-   ObjectRotatorGPUOpenLB(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
-                          BlockDataID fractionFieldGPUId, const BlockDataID objectVelocityId,
-                          Vector3<real_t> translation, const real_t rotationAngle, const uint_t frequency,
+   MovingGeometry(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
+                          BlockDataID fractionFieldId, const BlockDataID objectVelocityId,
+                          Vector3<real_t> translation, const real_t rotationAngle,
                           Vector3<uint_t> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree,
                           std::string meshName, const bool isRotating = true)
-      : blocks_(blocks), mesh_(mesh), fractionFieldGPUId_(fractionFieldGPUId), objectVelocityId_(objectVelocityId),translation_(translation),
-        rotationAngle_(rotationAngle), frequency_(frequency), rotationAxis_(rotationAxis), distOctree_(distOctree),
+      : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId),translation_(translation),
+        rotationAngle_(rotationAngle), rotationAxis_(rotationAxis), distOctree_(distOctree),
         meshName_(meshName), isRotating_(isRotating)
    {
       auto meshCenterPoint = computeCentroid(*mesh_);
@@ -120,34 +120,107 @@ class ObjectRotatorGPUOpenLB
          initObjectVelocityField();
          std::shared_ptr< GeometryFieldHandling< GeometryField_T > > geometryFieldDataHandling = std::make_shared< GeometryFieldHandling< GeometryField_T > >(blocks_, meshAABB_);
          geometryFieldId_ = blocks_->addBlockData( geometryFieldDataHandling, "geometryField_" + meshName_ );
-         geometryFieldGPUId_ = gpu::addGPUFieldToStorage< FracField_T >(blocks_, geometryFieldId_, "geometryFieldGPU_" + meshName_, true );
          buildGeometryMesh();
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+         geometryFieldGPUId_ = gpu::addGPUFieldToStorage< FracField_T >(blocks_, geometryFieldId_, "geometryFieldGPU_" + meshName_, true );
          gpu::fieldCpy< gpu::GPUField< real_t >, GeometryField_T >(blocks, geometryFieldGPUId_, geometryFieldId_);
+#endif
          getFractionFieldFromGeometryMesh(0);
       }
       else {
          staticFractionFieldId_ = field::addToStorage< FracField_T >(blocks, "staticFractionField_" + meshName_, real_t(0.0), field::fzyx, uint_c(1));
-         staticFractionFieldGPUId_ = gpu::addGPUFieldToStorage< FracField_T >(blocks_, staticFractionFieldId_, "staticFractionFieldGPU_" + meshName_, true );
          buildStaticFractionField();
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+         staticFractionFieldGPUId_ = gpu::addGPUFieldToStorage< FracField_T >(blocks_, staticFractionFieldId_, "staticFractionFieldGPU_" + meshName_, true );
          gpu::fieldCpy< gpu::GPUField< real_t >, FracField_T >(blocks, staticFractionFieldGPUId_, staticFractionFieldId_);
+#endif
          addStaticGeometryToFractionField();
       }
    }
 
    void operator()(uint_t timestep) {
       if(isRotating_) {
-         if (timestep % frequency_ == 0)
-            getFractionFieldFromGeometryMesh(timestep);
+         getFractionFieldFromGeometryMesh(timestep);
       }
       else {
-         if (timestep % frequency_ == 0)
-            addStaticGeometryToFractionField();
+         addStaticGeometryToFractionField();
       }
    }
+
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 
    void getFractionFieldFromGeometryMesh(uint_t timestep);
 
    void addStaticGeometryToFractionField();
+
+   void resetFractionField();
+
+#else
+
+   void getFractionFieldFromGeometryMesh(uint_t timestep)
+   {
+      Matrix3< real_t > rotationMat(rotationAxis_, real_t(timestep) * -rotationAngle_);
+
+      for (auto& block : *blocks_)
+      {
+         FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId_);
+         GeometryField_T* geometryField = block.getData< GeometryField_T >(geometryFieldId_);
+
+         auto level = blocks_->getLevel(block);
+         const real_t dx = blocks_->dx(level);
+         CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
+
+         for (auto cellIt = blockCi.begin(); cellIt != blockCi.end(); cellIt++) {
+            Cell globalCell;
+            blocks_->transformBlockLocalToGlobalCell(globalCell, block, *cellIt);
+            Vector3< real_t > cellCenter = blocks_->getCellCenter(globalCell, level);
+
+            //translation
+            cellCenter -= translation_ * timestep;
+
+            //rotation
+            cellCenter -= meshCenter;
+            cellCenter = rotationMat * cellCenter;
+            cellCenter += meshCenter;
+
+            //get corresponding geometryField cell
+            auto cellCenterInGeometrySpace = cellCenter - meshAABB_.min() - Vector3<real_t> (0.5 * dx);
+            auto cellInGeometrySpace = Vector3<int32_t> (int32_t(std::round(cellCenterInGeometrySpace[0] / dx)), int32_t(std::round(cellCenterInGeometrySpace[1] / dx)), int32_t(std::round(cellCenterInGeometrySpace[2] / dx)));
+            real_t fraction;
+
+            if (cellInGeometrySpace[0] < 0 || cellInGeometrySpace[0] >= int32_t(geometryField->xSize()) ||
+                cellInGeometrySpace[1] < 0 || cellInGeometrySpace[1] >= int32_t(geometryField->ySize()) ||
+                cellInGeometrySpace[2] < 0 || cellInGeometrySpace[2] >= int32_t(geometryField->zSize())  ) {
+               fraction = 0.0;
+            }
+            else {
+               fraction = geometryField->get(cellInGeometrySpace[0], cellInGeometrySpace[1], cellInGeometrySpace[2]);
+            }
+            fractionField->get(*cellIt) = std::min(1.0, fractionField->get(*cellIt) + fraction);
+         }
+      }
+   }
+
+   void addStaticGeometryToFractionField() {
+      for (auto& block : *blocks_)
+      {
+         FracField_T* fractionField       = block.getData< FracField_T >(fractionFieldId_);
+         FracField_T* staticFractionField = block.getData< FracField_T >(staticFractionFieldId_);
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(
+            fractionField, fractionField->get(x, y, z) =
+                              std::min(1.0, fractionField->get(x, y, z) + staticFractionField->get(x, y, z));)
+      }
+   }
+
+   void resetFractionField() {
+      for (auto& block : *blocks_)
+      {
+         FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId_);
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(fractionField, fractionField->get(x, y, z) = 0.0;)
+      }
+   }
+
+#endif
 
    void moveTriangleMesh(uint_t timestep, uint_t vtk_frequency) {
       if(vtk_frequency > 0 && timestep % vtk_frequency == 0 && isRotating_) {
@@ -155,7 +228,7 @@ class ObjectRotatorGPUOpenLB
          const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0] + real_t(timestep+vtk_frequency) * translation_[0],
                                                                meshCenter[1] + real_t(timestep+vtk_frequency) * translation_[1],
                                                                meshCenter[2] + real_t(timestep+vtk_frequency) * translation_[2]);
-         mesh::rotate(*mesh_, rotationAxis_, rotationAngle_ * vtk_frequency, axis_foot);
+         mesh::rotate(*mesh_, rotationAxis_, rotationAngle_ * real_t(vtk_frequency), axis_foot);
       }
    }
 
@@ -168,11 +241,11 @@ class ObjectRotatorGPUOpenLB
          auto objVelField = block.getData< VectorField_T >(objectVelocityId_);
          Vector3< real_t > angularVel;
 
-         if (isRotating_ == false || frequency_ == 0) {
+         if (isRotating_ == false) {
             angularVel = Vector3< real_t >(0,0,0);
          }
          else
-            angularVel = Vector3< real_t > (rotationAxis_[0] * rotationAngle_ / real_c(frequency_), rotationAxis_[1] * rotationAngle_ / real_c(frequency_), rotationAxis_[2] * rotationAngle_ / real_c(frequency_));
+            angularVel = Vector3< real_t > (rotationAxis_[0] * rotationAngle_, rotationAxis_[1] * rotationAngle_, rotationAxis_[2] * rotationAngle_);
 
          const real_t dx = blocks_->dx(level);
          WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(objVelField,
@@ -197,7 +270,6 @@ class ObjectRotatorGPUOpenLB
       }
    }
 
-   void resetFractionField();
 
    void buildStaticFractionField() {
       const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
@@ -300,17 +372,18 @@ class ObjectRotatorGPUOpenLB
    shared_ptr< StructuredBlockForest > blocks_;
    shared_ptr< mesh::TriangleMesh > mesh_;
 
-   BlockDataID fractionFieldGPUId_;
+   BlockDataID fractionFieldId_;
    BlockDataID geometryFieldId_;
    BlockDataID staticFractionFieldId_;
+   BlockDataID objectVelocityId_;
 
+#if defined(WALBERLA_BUILD_WITH_CUDA)
    BlockDataID geometryFieldGPUId_;
    BlockDataID staticFractionFieldGPUId_;
+#endif
 
-   const BlockDataID objectVelocityId_;
    Vector3<real_t> translation_;
    const real_t rotationAngle_;
-   const uint_t frequency_;
    Vector3< mesh::TriangleMesh::Scalar > rotationAxis_;
    shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>> distOctree_;
    std::string meshName_;
