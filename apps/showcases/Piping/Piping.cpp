@@ -561,7 +561,7 @@ int main(int argc, char** argv)
       timeloopTiming["Uplift/Subsidence evaluation"].start();
       if (upliftSubsidenceFrequency > 0 && timeStep % upliftSubsidenceFrequency == 0)
       {
-         upliftSubsidenceEvaluator(hydraulicGradient * real_t(timeStep / finalGradientTimeStep), accessor, ps);
+         upliftSubsidenceEvaluator(hydraulicGradient * real_t(timeStep) / real_t(finalGradientTimeStep), accessor, ps);
       }
       timeloopTiming["Uplift/Subsidence evaluation"].end();
    }
