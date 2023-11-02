@@ -73,7 +73,9 @@
 #include "PSM_InfoHeader.h"
 #include "PSM_MacroGetter.h"
 #include "PSM_NoSlip.h"
-#include "Utility.h"
+#include "utility/BoundaryCondition.h"
+#include "utility/ParticleUtility.h"
+#include "utility/PipingEvaluators.h"
 
 namespace walberla
 {
