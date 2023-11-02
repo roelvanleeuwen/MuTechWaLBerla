@@ -17,6 +17,7 @@ from lbmpy.advanced_streaming.communication import _extend_dir
 from lbmpy.enums import Stencil
 from lbmpy.stencils import LBStencil
 
+from pystencils_walberla.cmake_integration import CodeGenerationContext
 from pystencils_walberla.kernel_selection import KernelFamily, KernelCallNode, SwitchNode
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
 from pystencils_walberla.utility import config_from_context
@@ -25,7 +26,8 @@ from lbmpy_walberla.alternating_sweeps import EvenIntegerCondition
 from lbmpy_walberla.utility import timestep_suffix
 
 
-def generate_packing_kernels(generation_context, class_name: str, stencil: LBStencil, streaming_pattern: str = 'pull',
+def generate_packing_kernels(generation_context: CodeGenerationContext, class_name: str,
+                             stencil: LBStencil, streaming_pattern: str = 'pull',
                              namespace='lbm', nonuniform: bool = False,
                              target: Target = Target.CPU, data_type=None, cpu_openmp: bool = False,
                              **create_kernel_params):
@@ -72,7 +74,7 @@ def generate_packing_kernels(generation_context, class_name: str, stencil: LBSte
     header = env.get_template(f"{template_name}.tmpl.h").render(**jinja_context)
     source = env.get_template(f"{template_name}.tmpl.cpp").render(**jinja_context)
 
-    source_extension = "cpp" if target == Target.CPU else "cu"
+    source_extension = "cu" if target == Target.GPU and generation_context.cuda else "cpp"
     generation_context.write_file(f"{class_name}.h", header)
     generation_context.write_file(f"{class_name}.{source_extension}", source)
 
@@ -81,7 +83,8 @@ def generate_packing_kernels(generation_context, class_name: str, stencil: LBSte
 
 class PackingKernelsCodegen:
 
-    def __init__(self, stencil, streaming_pattern, class_name, config: CreateKernelConfig):
+    def __init__(self, stencil, streaming_pattern, class_name, config: CreateKernelConfig,
+                 src_field=None, dst_field=None):
         self.stencil = stencil
         self.dim = stencil.D
         self.values_per_cell = stencil.Q
@@ -92,10 +95,11 @@ class PackingKernelsCodegen:
         self.config = config
         self.data_type = config.data_type['pdfs'].numpy_dtype
 
-        self.src_field, self.dst_field = fields(
-            f'pdfs_src({self.values_per_cell}), pdfs_dst({self.values_per_cell}) :{self.data_type}[{self.dim}D]')
+        self.src_field = src_field if src_field else fields(f'pdfs_src({stencil.Q}) :{self.data_type}[{stencil.D}D]')
+        self.dst_field = dst_field if dst_field else fields(f'pdfs_dst({stencil.Q}) :{self.data_type}[{stencil.D}D]')
+
         self.accessors = [get_accessor(streaming_pattern, t) for t in get_timesteps(streaming_pattern)]
-        self.mask_field = fields(f'mask : uint32 [{self.dim}D]')
+        self.mask_field = fields(f'mask : uint32 [{self.dim}D]', layout=src_field.layout)
 
     def create_uniform_kernel_families(self, kernels_dict=None):
         kernels = dict() if kernels_dict is None else kernels_dict
