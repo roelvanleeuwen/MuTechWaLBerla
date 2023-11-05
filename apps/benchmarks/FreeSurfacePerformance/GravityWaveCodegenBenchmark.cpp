@@ -777,28 +777,11 @@ int main(int argc, char** argv)
    {
       timeloop.singleStep(timingPool, true);
 
-      WALBERLA_ROOT_SECTION()
-      {
-         // non-dimensionalize time and surface position
-         const real_t tNonDimensional        = real_c(t) * waveFrequency;
-         const real_t positionNonDimensional = (*surfaceYPosition - liquidDepth) / initialAmplitude;
-
-         const std::vector< real_t > resultVector{ tNonDimensional, positionNonDimensional, *symmetryNorm };
-         if (t % evaluationFrequency == uint_c(0))
-         {
-            WALBERLA_LOG_DEVEL("time step = " << t << "\n\t\ttNonDimensional = " << tNonDimensional
-                                              << "\n\t\tpositionNonDimensional = " << positionNonDimensional
-                                              << "\n\t\tsymmetryNorm = " << *symmetryNorm << "\n\t\ttotal mass = "
-                                              << *totalMass << "\n\t\texcess mass = " << *excessMass);
-
-            writeVectorToFile(resultVector, filename);
-         }
-      }
-
       if (t % performanceLogFrequency == uint_c(0) && t > uint_c(0)) { timingPool.logResultOnRoot(); }
    }
 
    //uint_t runId = uint_c(-1);
+   WALBERLA_LOG_INFO_ON_ROOT("*** SQL OUTPUT - START ***")
    WALBERLA_ROOT_SECTION()
    {
       std::map< std::string, walberla::int64_t > integerProperties;
@@ -808,12 +791,36 @@ int main(int argc, char** argv)
       std::string sqlFile = "GravityWaveCodegen.sqlite";
 
       // GENERAL INFORMATION
-      stringProperties["walberla_git"]          = WALBERLA_GIT_SHA1;
       stringProperties["tag"]                   = "free_surface";
-      integerProperties["mpi_num_processes"]    = mpi::MPIManager::instance()->numProcesses();
+
+      // BLOCKFOREST PARAMETERS
+      integerProperties["loadBalancingFrequency"] = loadBalancingFrequency;
+
+      // DOMAIN PARAMETERS
+      integerProperties["nrWaves"] = nrWaves;
       realProperties["initialAmplitude"]        = initialAmplitude;
 
-      // SETUP
+      // PHYSICS PARAMETERS
+      realProperties["reynoldsNumber"] = reynoldsNumber;
+      realProperties["relaxationRate"] = relaxationRate;
+      integerProperties["enableWetting"] = enableWetting;
+      if (enableWetting)
+         realProperties["contactAngle"] = contactAngle;
+      integerProperties["timesteps"] = timesteps;
+
+      // MODEL PARAMETERS
+      stringProperties["pdfReconstructionModel"] = pdfReconstructionModel;
+      stringProperties["pdfRefillingModel"] = pdfRefillingModel;
+      stringProperties["excessMassDistributionModel"] = excessMassDistributionModel;
+      stringProperties["curvatureModel"] = curvatureModel;
+      integerProperties["useSimpleMassExchange"] = useSimpleMassExchange;
+      realProperties["cellConversionThreshold"] = cellConversionThreshold;
+      realProperties["cellConversionForceThreshold"] = cellConversionForceThreshold;
+      integerProperties["enableBubbleModel"] = enableBubbleModel;
+      if (enableBubbleModel)
+         integerProperties["enableBubbleSplits"] = enableBubbleSplits;
+
+      //- PERFORMANCE RESULTS - MISSING
 
       addBuildInfoToSQL( integerProperties, realProperties, stringProperties );
       addDomainPropertiesToSQL(blockForest, integerProperties, realProperties, stringProperties);
