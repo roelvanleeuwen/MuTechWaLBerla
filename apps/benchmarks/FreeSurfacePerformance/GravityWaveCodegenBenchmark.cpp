@@ -783,8 +783,13 @@ int main(int argc, char** argv)
    WcTimingPool timingPool;
 
    if(benchmark) {
-      for (uint_t t = uint_c(0); t != timesteps; ++t)
-         timeloop.singleStep(timingPool, true);
+      // execute warmup steps to load relevant data into the Cache
+      const uint_t warmupSteps = benchmarkParameters.getParameter< uint_t >("warmupSteps", uint_c(2));
+      for (uint_t i = 0; i < warmupSteps; ++i)
+         timeloop.singleStep();
+
+      timeloop.setCurrentTimeStepToZero();
+      timeloop.run(timingPool);
    } else { // normal simulation
       for (uint_t t = uint_c(0); t != timesteps; ++t)
       {
@@ -794,9 +799,9 @@ int main(int argc, char** argv)
       }
    }
 
-   //uint_t runId = uint_c(-1);
-   WALBERLA_LOG_INFO_ON_ROOT("*** SQL OUTPUT - START ***")
    auto tp_reduced = timingPool.getReduced();
+   WALBERLA_LOG_INFO_ON_ROOT(*tp_reduced)
+   WALBERLA_LOG_INFO_ON_ROOT("*** SQL OUTPUT - START ***")
    WALBERLA_ROOT_SECTION()
    {
       std::map< std::string, walberla::int64_t > integerProperties;

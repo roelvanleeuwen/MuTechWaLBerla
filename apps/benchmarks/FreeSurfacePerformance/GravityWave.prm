@@ -21,7 +21,7 @@ PhysicsParameters
    relaxationRate    1.8;
    enableWetting     false;
    contactAngle      0; // only used if enableWetting=true
-   timesteps         43200; //86400;
+   timesteps         1000; //86400;
 }
 
 ModelParameters
@@ -40,7 +40,7 @@ ModelParameters
 
 EvaluationParameters
 {
-   performanceLogFrequency 21600;
+   performanceLogFrequency 1000;
    evaluationFrequency     864;
    filename                gravity-wave.txt;
 }
@@ -48,6 +48,7 @@ EvaluationParameters
 BenchmarkParameters
 {
     benchmark true;
+    warmupSteps 2;
 }
 
 BoundaryParameters
