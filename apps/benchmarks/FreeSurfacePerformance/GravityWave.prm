@@ -1,6 +1,6 @@
 BlockForestParameters
 {
-   cellsPerBlock                 < 32, 32, 32 >;
+   cellsPerBlock                 < 16, 16, 16 >;
    periodicity                   < 1, 0, 1 >;
    loadBalancingFrequency        0;
    printLoadBalancingStatistics  false;
@@ -8,11 +8,11 @@ BlockForestParameters
 
 DomainParameters
 {
-   domainSize       < 128, 32, 32 >;
-   nrWaves         4;
+   //domainSize       < 128, 32, 32 >;
+   //nrWaves         4;
    //domainWidth       400; // equivalent to wavelength
    //liquidDepth       50;
-   initialAmplitude  1;
+   //initialAmplitude  8;
 }
 
 PhysicsParameters
@@ -21,7 +21,7 @@ PhysicsParameters
    relaxationRate    1.8;
    enableWetting     false;
    contactAngle      0; // only used if enableWetting=true
-   timesteps         8640; //86400;
+   timesteps         43200; //86400;
 }
 
 ModelParameters
@@ -40,9 +40,14 @@ ModelParameters
 
 EvaluationParameters
 {
-   performanceLogFrequency 43200;
+   performanceLogFrequency 21600;
    evaluationFrequency     864;
    filename                gravity-wave.txt;
+}
+
+BenchmarkParameters
+{
+    benchmark true;
 }
 
 BoundaryParameters

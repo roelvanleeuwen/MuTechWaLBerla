@@ -61,7 +61,7 @@ using PdfCommunication_T    = blockforest::SimpleCommunication< LatticeModelSten
 // the geometry computations in SurfaceGeometryHandler require meaningful values in the ghost layers in corner
 // directions (flag field and fill level field); this holds, even if the lattice model uses a D3Q19 stencil
 using CommunicationStencil_T =
-   typename std::conditional< LatticeModel_T::Stencil::D == uint_t(2), stencil::D2Q9, stencil::D3Q27 >::type;
+   std::conditional_t< LatticeModel_T::Stencil::D == uint_t(2), stencil::D2Q9, stencil::D3Q27 >;
 using Communication_T = blockforest::SimpleCommunication< CommunicationStencil_T >;
 
 using flag_t                        = uint32_t;
@@ -101,13 +101,13 @@ class SymmetryXEvaluator
         symmetryNorm_(symmetryNorm), executionCounter_(uint_c(0))
    {
       auto blockForestPtr = blockForest_.lock();
-      WALBERLA_CHECK_NOT_NULLPTR(blockForestPtr);
+      WALBERLA_CHECK_NOT_NULLPTR(blockForestPtr)
    }
 
    void operator()()
    {
       auto blockForest = blockForest_.lock();
-      WALBERLA_CHECK_NOT_NULLPTR(blockForest);
+      WALBERLA_CHECK_NOT_NULLPTR(blockForest)
 
       ++executionCounter_;
 
@@ -129,7 +129,7 @@ class SymmetryXEvaluator
       WALBERLA_ROOT_SECTION()
       {
          // get field's center-coordinate in x-direction
-         uint_t fieldXCenter = fillFieldGathered->xSize() / uint_c(2);
+         const uint_t fieldXCenter = fillFieldGathered->xSize() / uint_c(2);
 
          WALBERLA_FOR_ALL_CELLS_XYZ(fillFieldGathered, {
             // skip cells in the right half of the field in x-direction, as they are treated
@@ -137,7 +137,7 @@ class SymmetryXEvaluator
             if (x >= cell_idx_c(fieldXCenter)) { continue; }
 
             // get this cell's x-distance to the field's center
-            uint_t cellDistXCenter = uint_c(std::abs(int_c(fieldXCenter) - int_c(x)));
+            const uint_t cellDistXCenter = uint_c(std::abs(int_c(fieldXCenter) - int_c(x)));
 
             // get x-coordinate of (mirrored) cell in the right half of the field
             cell_idx_t fieldRightX = cell_idx_c(fieldXCenter + cellDistXCenter);
@@ -193,10 +193,10 @@ class SurfaceYPositionEvaluator
    void operator()()
    {
       auto blockForest = blockForest_.lock();
-      WALBERLA_CHECK_NOT_NULLPTR(blockForest);
+      WALBERLA_CHECK_NOT_NULLPTR(blockForest)
 
       auto freeSurfaceBoundaryHandling = freeSurfaceBoundaryHandling_.lock();
-      WALBERLA_CHECK_NOT_NULLPTR(freeSurfaceBoundaryHandling);
+      WALBERLA_CHECK_NOT_NULLPTR(freeSurfaceBoundaryHandling)
 
       ++executionCounter_;
 
@@ -212,7 +212,7 @@ class SurfaceYPositionEvaluator
       {
          real_t maxSurfaceYPosition = real_c(0);
 
-         CellInterval globalSearchInterval(globalXCoordinate_, cell_idx_c(0), cell_idx_c(0), globalXCoordinate_,
+         const CellInterval globalSearchInterval(globalXCoordinate_, cell_idx_c(0), cell_idx_c(0), globalXCoordinate_,
                                            cell_idx_c(domainSize_[1]), cell_idx_c(0));
 
          if (blockForest->getBlockCellBB(*blockIt).overlaps(globalSearchInterval))
@@ -267,7 +267,7 @@ int main(int argc, char** argv)
    if (argc < 2) { WALBERLA_ABORT("Please specify a parameter file as input argument.") }
 
    // print content of parameter file
-   WALBERLA_LOG_INFO_ON_ROOT(*walberlaEnv.config());
+   WALBERLA_LOG_INFO_ON_ROOT(*walberlaEnv.config())
 
    // get block forest parameters from parameter file
    auto blockForestParameters              = walberlaEnv.config()->getOneBlock("BlockForestParameters");
@@ -281,21 +281,6 @@ int main(int argc, char** argv)
    Vector3< uint_t > domainSize   = domainParameters.getParameter< Vector3< uint_t > >("domainSize", Vector3< uint_t >(0, 0, 0));
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(domainSize)
 
-   //const uint_t domainWidth      = domainParameters.getParameter< uint_t >("domainWidth");
-   //const real_t liquidDepth      = domainParameters.getParameter< real_t >("liquidDepth");
-   //auto domainParameters         = walberlaEnv.config()->getOneBlock("DomainParameters");
-   //const real_t initialAmplitude = domainParameters.getParameter< real_t >("initialAmplitude");
-
-   // define domain size
-   //Vector3< uint_t > domainSize;
-   //domainSize[0] = domainWidth;
-   //domainSize[1] = uint_c(liquidDepth * real_c(2));
-   //domainSize[2] = uint_c(1);
-
-   const uint_t nrWaves = domainParameters.getParameter< uint_t >("nrWaves", uint_t(1));
-   const real_t wavelength = real_t(domainSize[0]) / real_t(nrWaves);
-   const real_t initialAmplitude = domainParameters.getParameter< real_t >("initialAmplitude");
-
    if (domainSize[0] == uint_t(0))
    {
       const uint_t nrOfProcesses = uint_c(MPIManager::instance()->numProcesses());
@@ -305,7 +290,15 @@ int main(int argc, char** argv)
       Vector3< uint_t > cellsPerBlockDummy;
       blockforest::calculateCellDistribution(cellsPerBlock, nrOfProcesses, blocksPerDimension, cellsPerBlockDummy);
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocksPerDimension)
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellsPerBlockDummy)
+      //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellsPerBlockDummy)
+
+      // modify resulting block decomposition, s.t. #y-blocks = 1
+      if(blocksPerDimension[1] != uint_c(1))
+      {
+         blocksPerDimension[0] *= blocksPerDimension[1];
+         blocksPerDimension[1] = uint_c(1);
+      }
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocksPerDimension)
 
       // define domain size
       domainSize[0] = blocksPerDimension[0] * cellsPerBlock[0]; // domainWidth;
@@ -321,22 +314,30 @@ int main(int argc, char** argv)
    numBlocks[2] = uint_c(std::ceil(real_c(domainSize[2]) / real_c(cellsPerBlock[2])));
 
    // get number of (MPI) processes
-   uint_t numProcesses = uint_c(MPIManager::instance()->numProcesses());
+   const uint_t numProcesses = uint_c(MPIManager::instance()->numProcesses());
    WALBERLA_CHECK_LESS_EQUAL(numProcesses, numBlocks[0] * numBlocks[1] * numBlocks[2],
                              "The number of MPI processes is greater than the number of blocks as defined by "
                              "\"domainSize/cellsPerBlock\". This would result in unused MPI processes. Either decrease "
                              "the number of MPI processes or increase \"cellsPerBlock\".")
 
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(numProcesses);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellsPerBlock);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(domainSize);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(numBlocks);
+   //const uint_t nrWaves = domainParameters.getParameter< uint_t >("nrWaves", uint_t(1));
+   const uint_t nrWaves = numBlocks[0];
+   const real_t wavelength = real_t(domainSize[0]) / real_t(nrWaves);
+   const real_t initialAmplitude = real_t(domainSize[1]) / real_t(4);
+   //const real_t initialAmplitude = domainParameters.getParameter< real_t >("initialAmplitude");
+
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(numProcesses)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellsPerBlock)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(domainSize)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(numBlocks)
    //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(domainWidth);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(liquidDepth);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initialAmplitude);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(periodicity);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(loadBalancingFrequency);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(printLoadBalancingStatistics);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(liquidDepth)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initialAmplitude)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(wavelength)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(nrWaves)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(periodicity)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(loadBalancingFrequency)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(printLoadBalancingStatistics)
 
    // get physics parameters from parameter file
    auto physicsParameters = walberlaEnv.config()->getOneBlock("PhysicsParameters");
@@ -349,18 +350,20 @@ int main(int argc, char** argv)
    const real_t waveNumber     = real_c(2) * math::pi / real_c(wavelength);
    const real_t waveFrequency  = reynoldsNumber * viscosity / real_c(wavelength) / initialAmplitude;
    const real_t accelerationY  = -(waveFrequency * waveFrequency) / waveNumber / std::tanh(waveNumber * liquidDepth);
-   shared_ptr< Vector3< real_t > > acceleration = std::make_shared< Vector3< real_t > >(real_c(0), accelerationY, real_c(0));
+   // accelerate fluid with half of the gravity in positive x-direction (otherwise, we get a perfect seperation of
+   // gas and fluid after a few thousand time steps and the free surface does not move anymore)
+   const shared_ptr< Vector3< real_t > > acceleration = std::make_shared< Vector3< real_t > >(abs(real_c(accelerationY/2)), accelerationY, real_c(0));
 
    const bool enableWetting  = physicsParameters.getParameter< bool >("enableWetting");
    const real_t contactAngle = physicsParameters.getParameter< real_t >("contactAngle");
 
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(reynoldsNumber);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(relaxationRate);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(enableWetting);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(contactAngle);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(timesteps);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(viscosity);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(*acceleration);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(reynoldsNumber)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(relaxationRate)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(enableWetting)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(contactAngle)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(timesteps)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(viscosity)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(*acceleration)
 
    // read model parameters from parameter file
    const auto modelParameters               = walberlaEnv.config()->getOneBlock("ModelParameters");
@@ -376,15 +379,15 @@ int main(int argc, char** argv)
    const bool enableBubbleModel              = modelParameters.getParameter< bool >("enableBubbleModel");
    const bool enableBubbleSplits             = modelParameters.getParameter< bool >("enableBubbleSplits");
 
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(pdfReconstructionModel);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(pdfRefillingModel);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(excessMassDistributionModel);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(curvatureModel);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(useSimpleMassExchange);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellConversionThreshold);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellConversionForceThreshold);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(enableBubbleModel);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(enableBubbleSplits);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(pdfReconstructionModel)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(pdfRefillingModel)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(excessMassDistributionModel)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(curvatureModel)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(useSimpleMassExchange)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellConversionThreshold)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellConversionForceThreshold)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(enableBubbleModel)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(enableBubbleSplits)
 
    // read evaluation parameters from parameter file
    const auto evaluationParameters      = walberlaEnv.config()->getOneBlock("EvaluationParameters");
@@ -392,9 +395,13 @@ int main(int argc, char** argv)
    const uint_t evaluationFrequency     = evaluationParameters.getParameter< uint_t >("evaluationFrequency");
    const std::string filename           = evaluationParameters.getParameter< std::string >("filename");
 
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(performanceLogFrequency);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(evaluationFrequency);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(filename);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(performanceLogFrequency)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(evaluationFrequency)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(filename)
+
+   const auto benchmarkParameters      = walberlaEnv.config()->getOneBlock("BenchmarkParameters");
+   const bool benchmark  = benchmarkParameters.getParameter< bool >("benchmark", false);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(benchmark)
 
    // create non-uniform block forest (non-uniformity required for load balancing)
    const std::shared_ptr< StructuredBlockForest > blockForest =
@@ -496,7 +503,8 @@ int main(int argc, char** argv)
    else { bubbleModel = std::make_shared< bubble_model::BubbleModelConstantPressure >(real_c(1)); }
 
    // initialize hydrostatic pressure
-   initHydrostaticPressure< PdfField_T >(blockForest, pdfFieldID, *acceleration, liquidDepth);
+   //initHydrostaticPressure< PdfField_T >(blockForest, pdfFieldID, *acceleration, liquidDepth);
+   initHydrostaticPressure< PdfField_T >(blockForest, pdfFieldID, Vector3<real_t>(real_c(0), (*acceleration)[1], real_c(0)), liquidDepth);
 
    // initialize force density field
    initForceDensityFieldCodegen< PdfField_T, FlagField_T, VectorFieldFlattened_T, ScalarField_T >(
@@ -671,9 +679,8 @@ int main(int argc, char** argv)
       cellConvSweep(freeSurfaceBoundaryHandling->getHandlingID(), pdfFieldID, flagInfo, bubbleModel.get());
    timeloop.add() << Sweep(cellConvSweep, "Sweep: cell conversion", StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: cell conversion")
-                  //<< AfterFunction(PdfCommunication_T(blockForest, pdfFieldID),
-                  //
-                  //                 "Communication: after cell conversion sweep (PDF field)")
+                  << AfterFunction(PdfCommunication_T(blockForest, pdfFieldID),
+                                   "Communication: after cell conversion sweep (PDF field)")
                   // communicate the flag field also in corner directions
                   << AfterFunction(Communication_T(blockForest, flagFieldID),
                                    "Communication: after cell conversion sweep (flag field)")
@@ -733,62 +740,70 @@ int main(int argc, char** argv)
       loadBalancingFrequency, printLoadBalancingStatistics);
    timeloop.addFuncAfterTimeStep(loadBalancer, "Sweep: load balancing");
 
-   // add sweep for evaluating the surface position in y-direction
-   const std::shared_ptr< real_t > surfaceYPosition = std::make_shared< real_t >(real_c(0));
-   const SurfaceYPositionEvaluator< FreeSurfaceBoundaryHandling_T > positionEvaluator(
-      blockForest, freeSurfaceBoundaryHandling, fillFieldID, domainSize, cell_idx_c(real_c(domainSize[0]) * real_c(0.5)),
-      evaluationFrequency, surfaceYPosition);
-   timeloop.addFuncAfterTimeStep(positionEvaluator, "Evaluator: surface position");
+   if (!benchmark)
+   {
+      // add sweep for evaluating the surface position in y-direction
+      const std::shared_ptr< real_t > surfaceYPosition = std::make_shared< real_t >(real_c(0));
+      const SurfaceYPositionEvaluator< FreeSurfaceBoundaryHandling_T > positionEvaluator(
+         blockForest, freeSurfaceBoundaryHandling, fillFieldID, domainSize,
+         cell_idx_c(real_c(domainSize[0]) * real_c(0.5)), evaluationFrequency, surfaceYPosition);
+      timeloop.addFuncAfterTimeStep(positionEvaluator, "Evaluator: surface position");
 
-   // add sweep for evaluating the symmetry of the fill level field in x-direction
-   const std::shared_ptr< real_t > symmetryNorm = std::make_shared< real_t >(real_c(0));
-   const SymmetryXEvaluator< ScalarField_T > symmetryEvaluator(blockForest, fillFieldID, domainSize,
-                                                               evaluationFrequency, symmetryNorm);
-   timeloop.addFuncAfterTimeStep(symmetryEvaluator, "Evaluator: symmetry norm");
+      // add sweep for evaluating the symmetry of the fill level field in x-direction
+      const std::shared_ptr< real_t > symmetryNorm = std::make_shared< real_t >(real_c(0));
+      const SymmetryXEvaluator< ScalarField_T > symmetryEvaluator(blockForest, fillFieldID, domainSize,
+                                                                  evaluationFrequency, symmetryNorm);
+      timeloop.addFuncAfterTimeStep(symmetryEvaluator, "Evaluator: symmetry norm");
 
-   // add evaluator for total and excessive mass (mass that is currently undistributed)
-   const std::shared_ptr< real_t > totalMass  = std::make_shared< real_t >(real_c(0));
-   const std::shared_ptr< real_t > excessMass = std::make_shared< real_t >(real_c(0));
-   //const TotalMassComputer< FreeSurfaceBoundaryHandling_T, PdfField_T, FlagField_T, ScalarField_T > totalMassComputer(
-   //   blockForest, freeSurfaceBoundaryHandling, pdfFieldID, fillFieldID, dynamicsHandler.getConstExcessMassFieldID(),
-   //   evaluationFrequency, totalMass, excessMass);
-   //timeloop.addFuncAfterTimeStep(totalMassComputer, "Evaluator: total mass");
+      // add evaluator for total and excessive mass (mass that is currently undistributed)
+      const std::shared_ptr< real_t > totalMass  = std::make_shared< real_t >(real_c(0));
+      const std::shared_ptr< real_t > excessMass = std::make_shared< real_t >(real_c(0));
+      // const TotalMassComputer< FreeSurfaceBoundaryHandling_T, PdfField_T, FlagField_T, ScalarField_T > totalMassComputer(
+      //    blockForest, freeSurfaceBoundaryHandling, pdfFieldID, fillFieldID, dynamicsHandler.getConstExcessMassFieldID(), evaluationFrequency, totalMass, excessMass);
+      // timeloop.addFuncAfterTimeStep(totalMassComputer, "Evaluator: total mass");
 
-   // add VTK output
-   addVTKOutput< LatticeModel_T, FreeSurfaceBoundaryHandling_T, PdfField_T, FlagField_T, ScalarField_T, VectorField_T,
-                 true, VectorFieldFlattened_T >(
-      blockForest, timeloop, walberlaEnv.config(), flagInfo, pdfFieldID, flagFieldID, fillFieldID, forceDensityFieldID,
-      curvatureFieldID, normalFieldID,obstacleNormalFieldID);
+      // add VTK output
+      addVTKOutput< LatticeModel_T, FreeSurfaceBoundaryHandling_T, PdfField_T, FlagField_T, ScalarField_T,
+                    VectorField_T, true, VectorFieldFlattened_T >(
+         blockForest, timeloop, walberlaEnv.config(), flagInfo, pdfFieldID, flagFieldID, fillFieldID,
+         forceDensityFieldID, curvatureFieldID, normalFieldID, obstacleNormalFieldID);
 
-   // add triangle mesh output of free surface
-   SurfaceMeshWriter< ScalarField_T, FlagField_T > surfaceMeshWriter(
-      blockForest, fillFieldID, flagFieldID, flagIDs::liquidInterfaceGasFlagIDs, real_c(0), walberlaEnv.config());
-   surfaceMeshWriter(); // write initial mesh
-   timeloop.addFuncAfterTimeStep(surfaceMeshWriter, "Writer: surface mesh");
+      // add triangle mesh output of free surface
+      SurfaceMeshWriter< ScalarField_T, FlagField_T > surfaceMeshWriter(
+         blockForest, fillFieldID, flagFieldID, flagIDs::liquidInterfaceGasFlagIDs, real_c(0), walberlaEnv.config());
+      surfaceMeshWriter(); // write initial mesh
+      timeloop.addFuncAfterTimeStep(surfaceMeshWriter, "Writer: surface mesh");
 
-   // add logging for computational performance
-   const lbm::PerformanceLogger< FlagField_T > performanceLogger(
-      blockForest, flagFieldID, flagIDs::liquidInterfaceFlagIDs, performanceLogFrequency);
-   timeloop.addFuncAfterTimeStep(performanceLogger, "Evaluator: performance logging");
+      // add logging for computational performance
+      const lbm::PerformanceLogger< FlagField_T > performanceLogger(
+         blockForest, flagFieldID, flagIDs::liquidInterfaceFlagIDs, performanceLogFrequency);
+      timeloop.addFuncAfterTimeStep(performanceLogger, "Evaluator: performance logging");
+   }
 
    WcTimingPool timingPool;
 
-   for (uint_t t = uint_c(0); t != timesteps; ++t)
-   {
-      timeloop.singleStep(timingPool, true);
+   if(benchmark) {
+      for (uint_t t = uint_c(0); t != timesteps; ++t)
+         timeloop.singleStep(timingPool, true);
+   } else { // normal simulation
+      for (uint_t t = uint_c(0); t != timesteps; ++t)
+      {
+         timeloop.singleStep(timingPool, true);
 
-      if (t % performanceLogFrequency == uint_c(0) && t > uint_c(0)) { timingPool.logResultOnRoot(); }
+         if (t % performanceLogFrequency == uint_c(0) && t > uint_c(0)) { timingPool.logResultOnRoot(); }
+      }
    }
 
    //uint_t runId = uint_c(-1);
    WALBERLA_LOG_INFO_ON_ROOT("*** SQL OUTPUT - START ***")
+   auto tp_reduced = timingPool.getReduced();
    WALBERLA_ROOT_SECTION()
    {
       std::map< std::string, walberla::int64_t > integerProperties;
       std::map< std::string, double >            realProperties;
       std::map< std::string, std::string >       stringProperties;
 
-      std::string sqlFile = "GravityWaveCodegen.sqlite";
+      const std::string sqlFile = "GravityWaveCodegen.sqlite";
 
       // GENERAL INFORMATION
       stringProperties["tag"]                   = "free_surface";
@@ -820,14 +835,12 @@ int main(int argc, char** argv)
       if (enableBubbleModel)
          integerProperties["enableBubbleSplits"] = enableBubbleSplits;
 
-      //- PERFORMANCE RESULTS - MISSING
-
       addBuildInfoToSQL( integerProperties, realProperties, stringProperties );
       addDomainPropertiesToSQL(blockForest, integerProperties, realProperties, stringProperties);
       addSlurmPropertiesToSQL(integerProperties, realProperties, stringProperties);
 
       uint_t runId = sqlite::storeRunInSqliteDB( sqlFile, integerProperties, stringProperties, realProperties );
-      //sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *tp_reduced, "Timeloop" );
+      sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *tp_reduced, "Timeloop" );
       WALBERLA_LOG_DEVEL_VAR(runId)
    }
    WALBERLA_LOG_INFO_ON_ROOT("*** SQL OUTPUT - END ***")
