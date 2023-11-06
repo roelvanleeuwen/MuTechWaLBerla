@@ -416,12 +416,12 @@ gcc_8_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -441,12 +441,12 @@ gcc_8_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -464,12 +464,12 @@ gcc_8_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -486,12 +486,12 @@ gcc_8_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -512,12 +512,12 @@ gcc_8_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -536,12 +536,12 @@ gcc_8_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -559,12 +559,12 @@ gcc_8_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:8
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -585,12 +585,12 @@ gcc_9_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -610,12 +610,12 @@ gcc_9_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -633,12 +633,12 @@ gcc_9_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -655,12 +655,12 @@ gcc_9_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -681,12 +681,12 @@ gcc_9_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -705,12 +705,12 @@ gcc_9_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -728,12 +728,12 @@ gcc_9_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:9
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -754,12 +754,12 @@ gcc_10_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -779,12 +779,12 @@ gcc_10_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -802,12 +802,12 @@ gcc_10_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -824,12 +824,12 @@ gcc_10_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -850,12 +850,12 @@ gcc_10_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -874,12 +874,12 @@ gcc_10_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -897,12 +897,12 @@ gcc_10_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:10
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -923,12 +923,12 @@ gcc_11_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -948,12 +948,12 @@ gcc_11_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -971,12 +971,12 @@ gcc_11_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -993,12 +993,12 @@ gcc_11_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -1019,12 +1019,12 @@ gcc_11_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1043,12 +1043,12 @@ gcc_11_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1066,12 +1066,12 @@ gcc_11_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/gcc:11
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1372,12 +1372,12 @@ clang_11.0_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -1397,12 +1397,12 @@ clang_11.0_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -1420,12 +1420,12 @@ clang_11.0_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -1442,12 +1442,12 @@ clang_11.0_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -1468,12 +1468,12 @@ clang_11.0_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1492,12 +1492,12 @@ clang_11.0_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1515,12 +1515,12 @@ clang_11.0_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:11.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1541,12 +1541,12 @@ clang_12.0_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -1566,12 +1566,12 @@ clang_12.0_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -1589,12 +1589,12 @@ clang_12.0_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -1611,12 +1611,12 @@ clang_12.0_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -1637,12 +1637,12 @@ clang_12.0_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1661,12 +1661,12 @@ clang_12.0_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1684,12 +1684,12 @@ clang_12.0_hybrid_dbg_sp:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:12.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1710,12 +1710,12 @@ clang_13.0_serial:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -1735,12 +1735,12 @@ clang_13.0_mpionly:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_OPENMP: "OFF"
@@ -1758,12 +1758,12 @@ clang_13.0_hybrid:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_CODEGEN: "ON"
@@ -1777,12 +1777,12 @@ clang_13.0_serial_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       WALBERLA_BUILD_WITH_MPI: "OFF"
@@ -1800,12 +1800,12 @@ clang_13.0_mpionly_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1821,12 +1821,12 @@ clang_13.0_hybrid_dbg:
    extends: .build_template
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -1842,12 +1842,12 @@ clang_13.0_hybrid_dbg_sp:
    image: i10git.cs.fau.de:5005/walberla/buildenvs/clang:13.0
    stage: pretest
    before_script:
-      - pip3 install lbmpy==1.2 jinja2 pytest
+      - pip3 install lbmpy==1.3.2 jinja2 pytest
       - cd python
       - python3 -m pytest --junitxml=report.xml pystencils_walberla lbmpy_walberla
       - pip3 list
       - cd ..
-      - CC=gcc CXX=g++ pip3 install pycuda
+      - CC=gcc CXX=g++ pip3 install cupy-cuda11x
    variables:
       WALBERLA_BUILD_WITH_CUDA: "ON"
       CMAKE_BUILD_TYPE: "DebugOptimized"
@@ -2122,6 +2122,9 @@ coverage:
 
 mac_Serial_Dbg:
    extends: .mac_build_template
+   before_script:
+      - pip3 install pystencils==1.3.2
+      - pip3 install lbmpy==1.3.2
    variables:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       CTEST_EXCLUDE_LABELS: "longrun"
@@ -2132,6 +2135,9 @@ mac_Serial_Dbg:
 
 mac_Serial:
    extends: .mac_build_template
+   before_script:
+      - pip3 install pystencils==1.3.2
+      - pip3 install lbmpy==1.3.2
    variables:
       CMAKE_BUILD_TYPE: "Release"
       CTEST_EXCLUDE_LABELS: "longrun"
@@ -2142,6 +2148,9 @@ mac_Serial:
 
 mac_MpiOnly_Dbg:
    extends: .mac_build_template
+   before_script:
+      - pip3 install pystencils==1.3.2
+      - pip3 install lbmpy==1.3.2
    variables:
       CMAKE_BUILD_TYPE: "DebugOptimized"
       CTEST_EXCLUDE_LABELS: "longrun"
@@ -2153,6 +2162,9 @@ mac_MpiOnly_Dbg:
 
 mac_MpiOnly:
    extends: .mac_build_template
+   before_script:
+      - pip3 install pystencils==1.3.2
+      - pip3 install lbmpy==1.3.2
    variables:
       CMAKE_BUILD_TYPE: "Release"
       CTEST_EXCLUDE_LABELS: "longrun"

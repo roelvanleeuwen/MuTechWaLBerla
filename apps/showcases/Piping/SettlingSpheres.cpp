@@ -48,7 +48,7 @@
 
 #include "vtk/VTKOutput.h"
 
-#include "Utility.h"
+#include "utility/ParticleUtility.h"
 
 namespace walberla
 {

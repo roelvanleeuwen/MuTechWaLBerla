@@ -73,7 +73,9 @@
 #include "PSM_InfoHeader.h"
 #include "PSM_MacroGetter.h"
 #include "PSM_NoSlip.h"
-#include "Utility.h"
+#include "utility/BoundaryCondition.h"
+#include "utility/ParticleUtility.h"
+#include "utility/PipingEvaluators.h"
 
 namespace walberla
 {
@@ -561,7 +563,7 @@ int main(int argc, char** argv)
       timeloopTiming["Uplift/Subsidence evaluation"].start();
       if (upliftSubsidenceFrequency > 0 && timeStep % upliftSubsidenceFrequency == 0)
       {
-         upliftSubsidenceEvaluator(hydraulicGradient * real_t(timeStep / finalGradientTimeStep), accessor, ps);
+         upliftSubsidenceEvaluator(hydraulicGradient * real_t(timeStep) / real_t(finalGradientTimeStep), accessor, ps);
       }
       timeloopTiming["Uplift/Subsidence evaluation"].end();
    }
