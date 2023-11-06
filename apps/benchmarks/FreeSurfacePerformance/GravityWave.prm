@@ -43,6 +43,8 @@ EvaluationParameters
    performanceLogFrequency 1000;
    evaluationFrequency     864;
    filename                gravity-wave.txt;
+   dbPath                  ./;
+   dbFilename              GravityWaveCodegen.sqlite;
 }
 
 BenchmarkParameters

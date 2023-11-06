@@ -394,6 +394,8 @@ int main(int argc, char** argv)
    const uint_t performanceLogFrequency = evaluationParameters.getParameter< uint_t >("performanceLogFrequency");
    const uint_t evaluationFrequency     = evaluationParameters.getParameter< uint_t >("evaluationFrequency");
    const std::string filename           = evaluationParameters.getParameter< std::string >("filename");
+   const std::string dbPath             = evaluationParameters.getParameter< std::string >("dbPath");
+   const std::string dbFilename         = evaluationParameters.getParameter< std::string >("dbFilename");
 
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(performanceLogFrequency)
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(evaluationFrequency)
@@ -781,6 +783,9 @@ int main(int argc, char** argv)
    }
 
    WcTimingPool timingPool;
+   WcTimer simTimer;
+
+   double time = 0.;
 
    if(benchmark) {
       // execute warmup steps to load relevant data into the Cache
@@ -789,7 +794,18 @@ int main(int argc, char** argv)
          timeloop.singleStep();
 
       timeloop.setCurrentTimeStepToZero();
+      WALBERLA_MPI_WORLD_BARRIER()
+      WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps")
+
+      simTimer.start();
       timeloop.run(timingPool);
+      simTimer.end();
+
+      WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
+      time = simTimer.max();
+      WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
+      WALBERLA_LOG_INFO_ON_ROOT("Simulation took " << time << " seconds")
+
    } else { // normal simulation
       for (uint_t t = uint_c(0); t != timesteps; ++t)
       {
@@ -808,7 +824,12 @@ int main(int argc, char** argv)
       std::map< std::string, double >            realProperties;
       std::map< std::string, std::string >       stringProperties;
 
-      const std::string sqlFile = "GravityWaveCodegen.sqlite";
+      //const std::string sqlFile = "GravityWaveCodegen.sqlite";
+      std::string sqlFile = dbPath + dbFilename;
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(sqlFile)
+
+      // BENCHMARK QUANTITIES
+      realProperties["simulationTime"] = time;
 
       // GENERAL INFORMATION
       stringProperties["tag"]                   = "free_surface";
