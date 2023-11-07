@@ -162,7 +162,10 @@ int main(int argc, char** argv)
 
    auto meshRotor = make_shared< mesh::TriangleMesh >();
    mesh::readAndBroadcast("../Meshfiles/CROR_rotor_downScaled10.obj", *meshRotor);
+   //mesh::readAndBroadcast("../Meshfiles/sphere.obj", *meshRotor);
    auto distanceOctreeMeshRotor = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshRotor));
+
+
 
    //auto aabbBase = computeAABB(*meshBase);
    auto aabbBase = computeAABB(*meshRotor);
@@ -235,15 +238,15 @@ int main(int argc, char** argv)
 
    //Setting up Object Rotator
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldGPUId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", false);
+   //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldGPUId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", 1,  false);
    auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldGPUId, objectVelocitiesFieldId,
                                                            Vector3<real_t>(0,-0 ,0), rotationAngle,
-                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", true);
+                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, true);
 #else
-   //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", false);
+   //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", 1, false);
    auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldId, objectVelocitiesFieldId,
                                                                 Vector3<real_t>(0,0,0), rotationAngle,
-                                                                rotationAxis,  distanceOctreeMeshRotor, "rotor", true);
+                                                                rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, true);
 
 #endif
 
