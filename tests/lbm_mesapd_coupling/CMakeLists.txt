@@ -50,7 +50,7 @@ waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_UTIL_HydForceMultBlocks_VVNoAvg 
 waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMapping FILES partially_saturated_cells_method/ParticleAndVolumeFractionMappingPSM.cpp DEPENDS blockforest boundary core field lbm_mesapd_coupling stencil mesa_pd )
 waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMapping COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMapping> PROCESSES 27 )
 
-if( WALBERLA_BUILD_WITH_CUDA )
+if( WALBERLA_BUILD_WITH_GPU_SUPPORT )
     waLBerla_compile_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMappingGPU FILES partially_saturated_cells_method/gpu/ParticleAndVolumeFractionMappingPSMGPU.cpp DEPENDS blockforest boundary core gpu field lbm_mesapd_coupling stencil mesa_pd )
     waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMappingGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_ParticleAndVolumeFractionMappingGPU> PROCESSES 27 )
 endif()
@@ -79,7 +79,7 @@ waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereSC3W2FuncTest   
 waLBerla_execute_test( NAME LBM_MESAPD_COUPLING_PSM_TorqueSphereSC3W2SingleTest   COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_TorqueSphere> --SC3W2              PROCESSES 1 LABELS longrun     CONFIGURATIONS Release RelWithDbgInfo )
 
 
-if (WALBERLA_BUILD_WITH_CUDA AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60)
+if (WALBERLA_BUILD_WITH_GPU_SUPPORT AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60)
     waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/gpu/DragForceSpherePSMGPU.cpp DEPENDS blockforest core gpu field lbm lbm_mesapd_coupling mesa_pd timeloop PSMCodegenPython_srt_sc1_s0)
     waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU> PROCESSES 1)
 

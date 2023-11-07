@@ -21,8 +21,8 @@
 
 #pragma once
 
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMWrapperSweepsGPU.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/ParticleAndVolumeFractionMappingGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/gpu/PSMWrapperSweepsGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/gpu/ParticleAndVolumeFractionMappingGPU.h"
 
 namespace walberla
 {

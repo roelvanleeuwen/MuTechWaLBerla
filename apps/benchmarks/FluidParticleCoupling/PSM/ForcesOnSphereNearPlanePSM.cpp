@@ -40,7 +40,7 @@
 #include "lbm/vtk/all.h"
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/gpu/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/AverageHydrodynamicForceTorqueKernel.h"
 #include "lbm_mesapd_coupling/utility/InitializeHydrodynamicForceTorqueForAveragingKernel.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
@@ -271,7 +271,7 @@ int main(int argc, char** argv)
    // physical setup
    real_t diameter = real_t(20); // cells per diameter -> determines overall resolution
    real_t normalizedWallDistance =
-      real_t(1);                 // distance of the sphere center to the bottom wall, normalized by the diameter
+      real_t(1); // distance of the sphere center to the bottom wall, normalized by the diameter
    real_t ReynoldsNumberShear = real_t(1); // = shearRate * wallDistance * diameter / viscosity
 
    // numerical parameters

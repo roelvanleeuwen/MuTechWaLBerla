@@ -38,7 +38,7 @@
 #include "gpu/communication/UniformGPUScheme.h"
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/gpu/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
 
 #include "mesa_pd/data/ParticleAccessorWithShape.h"

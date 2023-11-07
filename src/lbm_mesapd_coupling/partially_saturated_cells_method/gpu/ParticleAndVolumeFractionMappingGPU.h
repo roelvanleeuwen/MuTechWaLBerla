@@ -34,7 +34,7 @@
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
 #include "lbm_mesapd_coupling/mapping/ParticleBoundingBox.h"
-#include "lbm_mesapd_coupling/overlapping/cuda/ParticleAndVolumeFractionMappingKernels.h"
+#include "lbm_mesapd_coupling/overlapping/gpu/ParticleAndVolumeFractionMappingKernels.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 
 #include "mesa_pd/common/AABBConversion.h"

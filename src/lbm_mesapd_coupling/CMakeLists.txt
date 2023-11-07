@@ -11,7 +11,7 @@ target_sources( lbm_mesapd_coupling
       PRIVATE
       DataTypes.h
       )
-if( WALBERLA_BUILD_WITH_CUDA )
+if( WALBERLA_BUILD_WITH_GPU_SUPPORT )
     target_sources( lbm_mesapd_coupling
             PRIVATE
             DataTypesGPU.h
