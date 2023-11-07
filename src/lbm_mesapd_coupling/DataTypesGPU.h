@@ -99,7 +99,7 @@ struct ParticleAndVolumeFractionSoA_T
 
    ~ParticleAndVolumeFractionSoA_T()
    {
-      if (positions != nullptr) { cudaFree(positions); }
+      if (positions != nullptr) { gpuFree(positions); }
    }
 };
 

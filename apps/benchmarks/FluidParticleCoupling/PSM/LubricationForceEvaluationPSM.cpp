@@ -43,7 +43,7 @@
 
 #include "lbm_mesapd_coupling/DataTypes.h"
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/gpu/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/LubricationCorrectionKernel.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"

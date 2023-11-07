@@ -38,7 +38,7 @@
 #include "gpu/communication/UniformGPUScheme.h"
 
 #include "lbm_mesapd_coupling/DataTypesGPU.h"
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/gpu/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/ResetHydrodynamicForceTorqueKernel.h"
 
 #include "mesa_pd/data/ParticleAccessorWithShape.h"
@@ -275,8 +275,8 @@ int main(int argc, char** argv)
    setup.tau            = real_c(1.5);  // relaxation time
    setup.angularVel     = real_c(1e-5); // angular velocity of the sphere
    setup.checkFrequency = uint_t(100);  // evaluate the torque only every checkFrequency time steps
-   setup.radius         = real_c(0.5) * chi * real_c(setup.length);  // sphere radius
-   setup.visc           = (setup.tau - real_c(0.5)) / real_c(3);     // viscosity in lattice units
+   setup.radius         = real_c(0.5) * chi * real_c(setup.length); // sphere radius
+   setup.visc           = (setup.tau - real_c(0.5)) / real_c(3);    // viscosity in lattice units
    setup.phi            = real_c(4.0 / 3.0) * math::pi * setup.radius * setup.radius * setup.radius /
                (real_c(setup.length * setup.length * setup.length)); // solid volume fraction
    const real_t omega            = real_c(1) / setup.tau;            // relaxation rate

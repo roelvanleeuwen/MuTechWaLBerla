@@ -57,7 +57,7 @@ namespace gpu
 auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
    return [sweep](IBlock* b) {
       sweep(b);
-      cudaDeviceSynchronize();
+      gpuDeviceSynchronize();
    };
 };
 
@@ -92,11 +92,11 @@ class SetParticleVelocitiesSweep
       // Allocate unified memory for the particle information required for computing the velocity at a WF point (used in
       // the solid collision operator)
       real_t* linearVelocities;
-      cudaMallocManaged(&linearVelocities, arraySizes);
-      cudaMemset(linearVelocities, 0, arraySizes);
+      gpuMallocManaged(&linearVelocities, arraySizes);
+      gpuMemset(linearVelocities, 0, arraySizes);
       real_t* angularVelocities;
-      cudaMallocManaged(&angularVelocities, arraySizes);
-      cudaMemset(angularVelocities, 0, arraySizes);
+      gpuMallocManaged(&angularVelocities, arraySizes);
+      gpuMemset(angularVelocities, 0, arraySizes);
 
       // Store particle information inside unified memory to communicate information to the GPU
       size_t idxMapped = 0;
@@ -133,8 +133,8 @@ class SetParticleVelocitiesSweep
       velocitiesKernel.addParam(block->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));
       velocitiesKernel();
 
-      cudaFree(linearVelocities);
-      cudaFree(angularVelocities);
+      gpuFree(linearVelocities);
+      gpuFree(angularVelocities);
    }
 
  private:
@@ -178,11 +178,11 @@ class ReduceParticleForcesSweep
       // TODO: for multiple blocks per process, this data is transferred multiple times per time step (unnecessarily)
       // Allocate unified memory for the reduction of the particle forces and torques on the GPU
       real_t* hydrodynamicForces;
-      cudaMallocManaged(&hydrodynamicForces, arraySizes);
-      cudaMemset(hydrodynamicForces, 0, arraySizes);
+      gpuMallocManaged(&hydrodynamicForces, arraySizes);
+      gpuMemset(hydrodynamicForces, 0, arraySizes);
       real_t* hydrodynamicTorques;
-      cudaMallocManaged(&hydrodynamicTorques, arraySizes);
-      cudaMemset(hydrodynamicTorques, 0, arraySizes);
+      gpuMallocManaged(&hydrodynamicTorques, arraySizes);
+      gpuMemset(hydrodynamicTorques, 0, arraySizes);
 
       auto nOverlappingParticlesField =
          block->getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA_.nOverlappingParticlesFieldID);
@@ -206,7 +206,7 @@ class ReduceParticleForcesSweep
       forcesKernel.addParam(forceScalingFactor);
       forcesKernel();
 
-      cudaDeviceSynchronize();
+      gpuDeviceSynchronize();
 
       // Copy forces and torques of particles from GPU to CPU
       size_t idxMapped = 0;
@@ -223,8 +223,8 @@ class ReduceParticleForcesSweep
          }
       }
 
-      cudaFree(hydrodynamicForces);
-      cudaFree(hydrodynamicTorques);
+      gpuFree(hydrodynamicForces);
+      gpuFree(hydrodynamicTorques);
    }
 
  private:

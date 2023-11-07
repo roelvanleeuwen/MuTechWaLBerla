@@ -31,7 +31,7 @@
 #include "gpu/FieldCopy.h"
 #include "gpu/GPUField.h"
 
-#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMSweepCollectionGPU.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/gpu/PSMSweepCollectionGPU.h"
 #include "lbm_mesapd_coupling/utility/ParticleSelector.h"
 
 #include "mesa_pd/data/ParticleAccessorWithShape.h"
