@@ -4,5 +4,5 @@ target_sources(lbm_mesapd_coupling
         )
 
 if( WALBERLA_BUILD_WITH_CUDA )
-    add_subdirectory(cuda)
+    add_subdirectory(gpu)
 endif()
