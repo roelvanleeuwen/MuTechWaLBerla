@@ -344,7 +344,7 @@ with CodeGeneration() as ctx:
         pdfs_setter.subexpressions.remove(sub_exp)
         pdfs_setter.subexpressions.append(Assignment(sub_exp.lhs, Add(*rhs)))
 
-    if ctx.cuda:
+    if ctx.gpu:
         target = ps.Target.GPU
     else:
         target = ps.Target.CPU

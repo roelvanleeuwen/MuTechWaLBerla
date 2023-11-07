@@ -125,12 +125,12 @@ class ParticleAndVolumeFractionMappingGPU
       // Allocate unified memory storing the particle information needed for the overlap fraction computations
       const size_t scalarArraySize = numMappedParticles * sizeof(real_t);
 
-      if (particleAndVolumeFractionSoA_.positions != nullptr) { cudaFree(particleAndVolumeFractionSoA_.positions); }
-      cudaMallocManaged(&(particleAndVolumeFractionSoA_.positions), 3 * scalarArraySize);
+      if (particleAndVolumeFractionSoA_.positions != nullptr) { gpuFree(particleAndVolumeFractionSoA_.positions); }
+      gpuMallocManaged(&(particleAndVolumeFractionSoA_.positions), 3 * scalarArraySize);
       real_t* radii;
-      cudaMallocManaged(&radii, scalarArraySize);
+      gpuMallocManaged(&radii, scalarArraySize);
       real_t* f_r; // f_r is described in https://doi.org/10.1108/EC-02-2016-0052
-      cudaMallocManaged(&f_r, scalarArraySize);
+      gpuMallocManaged(&f_r, scalarArraySize);
 
       particleAndVolumeFractionSoA_.mappingUIDs.clear();
 
@@ -161,7 +161,7 @@ class ParticleAndVolumeFractionMappingGPU
 
       // Update fraction mapping
       // Split the block into sub-blocks and sort the particle indices into each overlapping sub-block. This way, in
-      // the particle mapping, each CUDA thread only has to check the potentially overlapping particles.
+      // the particle mapping, each gpu thread only has to check the potentially overlapping particles.
       auto blockAABB            = block->getAABB();
       const size_t numSubBlocks = subBlocksPerDim_ * subBlocksPerDim_ * subBlocksPerDim_;
       std::vector< std::vector< size_t > > subBlocks(numSubBlocks);
@@ -203,9 +203,9 @@ class ParticleAndVolumeFractionMappingGPU
       });
 
       size_t* numParticlesPerSubBlock;
-      cudaMallocManaged(&numParticlesPerSubBlock, numSubBlocks * sizeof(size_t));
+      gpuMallocManaged(&numParticlesPerSubBlock, numSubBlocks * sizeof(size_t));
       size_t* particleIDsSubBlocks;
-      cudaMallocManaged(&particleIDsSubBlocks, numSubBlocks * maxParticlesPerSubBlock * sizeof(size_t));
+      gpuMallocManaged(&particleIDsSubBlocks, numSubBlocks * maxParticlesPerSubBlock * sizeof(size_t));
 
       // Copy data from std::vector to unified memory
       for (size_t z = 0; z < subBlocksPerDim_; ++z)
@@ -227,11 +227,11 @@ class ParticleAndVolumeFractionMappingGPU
       mapParticles(*block, particleAndVolumeFractionSoA_, particleAndVolumeFractionSoA_.positions, radii, f_r,
                    numParticlesPerSubBlock, particleIDsSubBlocks, subBlocksPerDim_);
 
-      cudaFree(numParticlesPerSubBlock);
-      cudaFree(particleIDsSubBlocks);
+      gpuFree(numParticlesPerSubBlock);
+      gpuFree(particleIDsSubBlocks);
 
-      cudaFree(radii);
-      cudaFree(f_r);
+      gpuFree(radii);
+      gpuFree(f_r);
    }
 
    shared_ptr< StructuredBlockStorage > blockStorage_;
