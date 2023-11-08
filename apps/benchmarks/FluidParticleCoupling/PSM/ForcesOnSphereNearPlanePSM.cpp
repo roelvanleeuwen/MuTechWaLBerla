@@ -543,7 +543,7 @@ int main(int argc, char** argv)
       blocks, lbm::collision_model::omegaFromViscosity(viscosity));
    // map particles and calculate solid volume fraction initially
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
-                                            particleAndVolumeFractionSoA, 1);
+                                            particleAndVolumeFractionSoA, Vector3(1));
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));

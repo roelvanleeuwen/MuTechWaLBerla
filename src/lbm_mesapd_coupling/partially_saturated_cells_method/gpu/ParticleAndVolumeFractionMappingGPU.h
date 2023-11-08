@@ -59,7 +59,7 @@ template< int Weighting_T >
 void mapParticles(const IBlock& blockIt,
                   const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
                   real_t* spherePositions, real_t* sphereRadii, real_t* f_rs, size_t* numParticlesSubBlocks,
-                  size_t* particleIDsSubBlocks, const size_t subBlocksPerDim)
+                  size_t* particleIDsSubBlocks, const Vector3< uint_t > subBlocksPerDim)
 {
    auto nOverlappingParticlesField =
       blockIt.getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA.nOverlappingParticlesFieldID);
@@ -81,7 +81,7 @@ void mapParticles(const IBlock& blockIt,
    myKernel.addParam(blockIt.getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));
    myKernel.addParam(numParticlesSubBlocks);
    myKernel.addParam(particleIDsSubBlocks);
-   myKernel.addParam(subBlocksPerDim);
+   myKernel.addParam(uint3{ uint(subBlocksPerDim[0]), uint(subBlocksPerDim[1]), uint(subBlocksPerDim[2]) });
    myKernel();
 }
 
@@ -93,7 +93,7 @@ class ParticleAndVolumeFractionMappingGPU
                                        const shared_ptr< ParticleAccessor_T >& ac,
                                        const ParticleSelector_T& mappingParticleSelector,
                                        ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
-                                       const size_t subBlocksPerDim)
+                                       const Vector3< uint_t > subBlocksPerDim)
       : blockStorage_(blockStorage), ac_(ac), mappingParticleSelector_(mappingParticleSelector),
         particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA), subBlocksPerDim_(subBlocksPerDim)
    {
@@ -102,8 +102,8 @@ class ParticleAndVolumeFractionMappingGPU
       for (auto blockIt = blockStorage_->begin(); blockIt != blockStorage_->end(); ++blockIt)
       {
          auto aabb = blockIt->getAABB();
-         if (size_t(aabb.xSize()) % subBlocksPerDim_ != 0 || size_t(aabb.ySize()) % subBlocksPerDim_ != 0 ||
-             size_t(aabb.zSize()) % subBlocksPerDim_ != 0)
+         if (size_t(aabb.xSize()) % subBlocksPerDim_[0] != 0 || size_t(aabb.ySize()) % subBlocksPerDim_[1] != 0 ||
+             size_t(aabb.zSize()) % subBlocksPerDim_[2] != 0)
          {
             WALBERLA_ABORT("Number of cells per block (" << aabb << ") is not divisible by subBlocksPerDim ("
                                                          << subBlocksPerDim_ << ").")
@@ -164,7 +164,7 @@ class ParticleAndVolumeFractionMappingGPU
       // Split the block into sub-blocks and sort the particle indices into each overlapping sub-block. This way, in
       // the particle mapping, each gpu thread only has to check the potentially overlapping particles.
       auto blockAABB            = block->getAABB();
-      const size_t numSubBlocks = subBlocksPerDim_ * subBlocksPerDim_ * subBlocksPerDim_;
+      const size_t numSubBlocks = subBlocksPerDim_[0] * subBlocksPerDim_[1] * subBlocksPerDim_[2];
       std::vector< std::vector< size_t > > subBlocks(numSubBlocks);
 
       idxMapped = 0;
@@ -177,7 +177,9 @@ class ParticleAndVolumeFractionMappingGPU
             {
                auto intersectionAABB = blockAABB.getIntersection(sphereAABB);
                intersectionAABB.translate(-blockAABB.minCorner());
-               mesa_pd::Vec3 blockScaling = real_t(subBlocksPerDim_) / blockAABB.sizes();
+               mesa_pd::Vec3 blockScaling = mesa_pd::Vec3(real_t(subBlocksPerDim_[0]) / blockAABB.sizes()[0],
+                                                          real_t(subBlocksPerDim_[1]) / blockAABB.sizes()[1],
+                                                          real_t(subBlocksPerDim_[2]) / blockAABB.sizes()[2]);
 
                for (size_t z = size_t(intersectionAABB.zMin() * blockScaling[2]);
                     z < size_t(ceil(intersectionAABB.zMax() * blockScaling[2])); ++z)
@@ -188,7 +190,7 @@ class ParticleAndVolumeFractionMappingGPU
                      for (size_t x = size_t(intersectionAABB.xMin() * blockScaling[0]);
                           x < size_t(ceil(intersectionAABB.xMax() * blockScaling[0])); ++x)
                      {
-                        size_t index = z * subBlocksPerDim_ * subBlocksPerDim_ + y * subBlocksPerDim_ + x;
+                        size_t index = z * subBlocksPerDim_[0] * subBlocksPerDim_[1] + y * subBlocksPerDim_[0] + x;
                         subBlocks[index].push_back(idxMapped);
                      }
                   }
@@ -209,13 +211,13 @@ class ParticleAndVolumeFractionMappingGPU
       gpuMallocManaged(&particleIDsSubBlocks, numSubBlocks * maxParticlesPerSubBlock * sizeof(size_t));
 
       // Copy data from std::vector to unified memory
-      for (size_t z = 0; z < subBlocksPerDim_; ++z)
+      for (size_t z = 0; z < subBlocksPerDim_[2]; ++z)
       {
-         for (size_t y = 0; y < subBlocksPerDim_; ++y)
+         for (size_t y = 0; y < subBlocksPerDim_[1]; ++y)
          {
-            for (size_t x = 0; x < subBlocksPerDim_; ++x)
+            for (size_t x = 0; x < subBlocksPerDim_[0]; ++x)
             {
-               size_t index                   = z * subBlocksPerDim_ * subBlocksPerDim_ + y * subBlocksPerDim_ + x;
+               size_t index = z * subBlocksPerDim_[0] * subBlocksPerDim_[1] + y * subBlocksPerDim_[0] + x;
                numParticlesPerSubBlock[index] = subBlocks[index].size();
                for (size_t k = 0; k < subBlocks[index].size(); k++)
                {
@@ -239,7 +241,7 @@ class ParticleAndVolumeFractionMappingGPU
    const shared_ptr< ParticleAccessor_T > ac_;
    const ParticleSelector_T& mappingParticleSelector_;
    ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA_;
-   const uint_t subBlocksPerDim_;
+   const Vector3< uint_t > subBlocksPerDim_;
 };
 
 } // namespace gpu

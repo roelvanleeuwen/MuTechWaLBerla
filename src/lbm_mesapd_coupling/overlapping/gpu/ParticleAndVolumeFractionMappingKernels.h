@@ -52,7 +52,7 @@ __global__ void linearApproximation(walberla::gpu::FieldAccessor< uint_t > nOver
                                     real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
                                     real_t* __restrict__ const f_rs, double3 blockStart, real_t dx,
                                     size_t* __restrict__ const numParticlesSubBlocks,
-                                    size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim);
+                                    size_t* __restrict__ const particleIDsSubBlocks, const uint3 subBlocksPerDim);
 
 } // namespace gpu
 } // namespace psm

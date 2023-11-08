@@ -468,7 +468,7 @@ int main(int argc, char** argv)
          characteristicVelocity / ug_SI *
             dx_SI : // this uses Ga for parameterization, where ug is the characteristic velocity
          characteristicVelocity / expectedSettlingVelocity_SI *
-            dx_SI;  // this uses Re for parameterization (only possible since settling velocity is known)
+            dx_SI; // this uses Re for parameterization (only possible since settling velocity is known)
 
    const real_t viscosity      = kinematicViscosityFluid_SI * dt_SI / (dx_SI * dx_SI);
    const real_t omega          = lbm::collision_model::omegaFromViscosity(viscosity);
@@ -647,7 +647,7 @@ int main(int argc, char** argv)
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(
       blocks, lbm::collision_model::omegaFromViscosity(viscosity));
    // map particles and calculate solid volume fraction initially
-   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, 1);
+   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, Vector3(1));
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));

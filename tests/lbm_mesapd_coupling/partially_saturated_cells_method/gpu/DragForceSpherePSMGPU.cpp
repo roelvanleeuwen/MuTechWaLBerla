@@ -412,7 +412,7 @@ int main(int argc, char** argv)
 
    // map particles and calculate solid volume fraction initially
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::GlobalParticlesSelector(),
-                                            particleAndVolumeFractionSoA, 4);
+                                            particleAndVolumeFractionSoA, Vector3(4));
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));

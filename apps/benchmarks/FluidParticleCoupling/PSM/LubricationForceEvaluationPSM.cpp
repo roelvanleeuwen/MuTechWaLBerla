@@ -198,9 +198,9 @@ int main(int argc, char** argv)
    uint_t ySize = uint_c(real_t(24) * radius);
    uint_t zSize = uint_c(real_t(24) * radius);
 
-   uint_t xBlocks = uint_c(1);      // number of blocks in x-direction
-   uint_t yBlocks = uint_c(1);      // number of blocks in y-direction
-   uint_t zBlocks = uint_c(1);      // number of blocks in z-direction
+   uint_t xBlocks = uint_c(1); // number of blocks in x-direction
+   uint_t yBlocks = uint_c(1); // number of blocks in y-direction
+   uint_t zBlocks = uint_c(1); // number of blocks in z-direction
 
    uint_t xCells = xSize / xBlocks; // number of cells in x-direction on each block
    uint_t yCells = ySize / yBlocks; // number of cells in y-direction on each block
@@ -492,7 +492,8 @@ int main(int argc, char** argv)
    ///////////////
 
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, omega);
-   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, 10);
+   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, sphereSelector, particleAndVolumeFractionSoA,
+                                            Vector3(10));
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));

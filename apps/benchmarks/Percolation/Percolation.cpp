@@ -139,8 +139,10 @@ int main(int argc, char** argv)
    const bool useParticles                = numericalSetup.getParameter< bool >("useParticles");
    const real_t particleDiameter          = numericalSetup.getParameter< real_t >("particleDiameter");
    const real_t particleGenerationSpacing = numericalSetup.getParameter< real_t >("particleGenerationSpacing");
-   const real_t pressureDifference        = numericalSetup.getParameter< real_t >("pressureDifference");
-   const real_t relaxationRate            = numericalSetup.getParameter< real_t >("relaxationRate");
+   const Vector3< uint_t > particleNumSubBlocks =
+      numericalSetup.getParameter< Vector3< uint_t > >("particleNumSubBlocks");
+   const real_t pressureDifference = numericalSetup.getParameter< real_t >("pressureDifference");
+   const real_t relaxationRate     = numericalSetup.getParameter< real_t >("relaxationRate");
    if ((periodicInY && numYBlocks == 1) || (periodicInZ && numZBlocks == 1))
    {
       WALBERLA_LOG_WARNING_ON_ROOT("Using only 1 block in periodic dimensions can lead to unexpected behavior.")
@@ -275,7 +277,7 @@ int main(int argc, char** argv)
    // Map particles into the fluid domain
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, relaxationRate);
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
-                                            particleAndVolumeFractionSoA, uint_t(25));
+                                            particleAndVolumeFractionSoA, particleNumSubBlocks);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));

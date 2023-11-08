@@ -177,7 +177,7 @@ int main(int argc, char** argv)
    const real_t particleFrictionCoefficient    = particlesParameters.getParameter< real_t >("frictionCoefficient");
    const real_t particleRestitutionCoefficient = particlesParameters.getParameter< real_t >("restitutionCoefficient");
    const uint_t particleNumSubCycles           = particlesParameters.getParameter< uint_t >("numSubCycles");
-   const uint_t numSubBlocks                   = particlesParameters.getParameter< uint_t >("numSubBlocks");
+   const Vector3< uint_t > numSubBlocks        = particlesParameters.getParameter< Vector3< uint_t > >("numSubBlocks");
    const bool useLubricationCorrection         = particlesParameters.getParameter< bool >("useLubricationCorrection");
    const real_t poissonsRatio                  = particlesParameters.getParameter< real_t >("poissonsRatio");
    const Vector3< real_t > observationDomainFraction =

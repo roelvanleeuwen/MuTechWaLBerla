@@ -328,8 +328,8 @@ int main(int argc, char** argv)
    }
    const bool useLubricationForces        = numericalSetup.getParameter< bool >("useLubricationForces");
    const uint_t numberOfParticleSubCycles = numericalSetup.getParameter< uint_t >("numberOfParticleSubCycles");
-   const uint_t numberOfParticleSubBlocksPerDim =
-      numericalSetup.getParameter< uint_t >("numberOfParticleSubBlocksPerDim");
+   const Vector3< uint_t > numberOfParticleSubBlocksPerDim =
+      numericalSetup.getParameter< Vector3< uint_t > >("numberOfParticleSubBlocksPerDim");
    const real_t linkedCellWidthRation = numericalSetup.getParameter< real_t >("linkedCellWidthRation");
    const bool particleBarriers        = numericalSetup.getParameter< bool >("particleBarriers");
 
