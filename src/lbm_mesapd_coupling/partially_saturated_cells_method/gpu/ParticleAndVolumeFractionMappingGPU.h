@@ -105,7 +105,8 @@ class ParticleAndVolumeFractionMappingGPU
          if (size_t(aabb.xSize()) % subBlocksPerDim_ != 0 || size_t(aabb.ySize()) % subBlocksPerDim_ != 0 ||
              size_t(aabb.zSize()) % subBlocksPerDim_ != 0)
          {
-            WALBERLA_ABORT("Number of cells per block is not divisible by subBlocksPerDim.")
+            WALBERLA_ABORT("Number of cells per block (" << aabb << ") is not divisible by subBlocksPerDim ("
+                                                         << subBlocksPerDim_ << ").")
          }
       }
    }

@@ -1,5 +1,5 @@
 BedGeneration{
-    domainSize_SI < 0.015, 0.003, 0.015 >; // for Fukumoto: < 0.2, 0.003, 0.1 >
+    domainSize_SI < 0.015, 0.003, 0.015 >; // for Fukumoto: < 0.2, 0.003, 0.133 > (results in bed height of ~0.05)
     blocks < 3, 3, 1 >;
     periodicInX false;
     periodicInY false;
