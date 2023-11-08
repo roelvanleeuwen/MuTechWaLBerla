@@ -292,13 +292,19 @@ int main(int argc, char** argv)
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocksPerDimension)
       //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellsPerBlockDummy)
 
-      // modify resulting block decomposition, s.t. #y-blocks = 1
-      if(blocksPerDimension[1] != uint_c(1))
+      const auto benchmarkParameters       = walberlaEnv.config()->getOneBlock("BenchmarkParameters");
+      const std::string blockDecomposition = benchmarkParameters.getParameter< std::string >("blockDecomposition", "3D");
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blockDecomposition)
+      if (blockDecomposition == "2D")
       {
-         blocksPerDimension[0] *= blocksPerDimension[1];
-         blocksPerDimension[1] = uint_c(1);
+         // modify resulting block decomposition, s.t. #y-blocks = 1
+         if (blocksPerDimension[1] != uint_c(1))
+         {
+            blocksPerDimension[0] *= blocksPerDimension[1];
+            blocksPerDimension[1] = uint_c(1);
+         }
+         WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocksPerDimension)
       }
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocksPerDimension)
 
       // define domain size
       domainSize[0] = blocksPerDimension[0] * cellsPerBlock[0]; // domainWidth;
@@ -400,6 +406,8 @@ int main(int argc, char** argv)
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(performanceLogFrequency)
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(evaluationFrequency)
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(filename)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(dbPath)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(dbFilename)
 
    const auto benchmarkParameters      = walberlaEnv.config()->getOneBlock("BenchmarkParameters");
    const bool benchmark  = benchmarkParameters.getParameter< bool >("benchmark", false);
