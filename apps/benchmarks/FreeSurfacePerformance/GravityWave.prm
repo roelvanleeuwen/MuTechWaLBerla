@@ -52,6 +52,7 @@ BenchmarkParameters
     benchmark true;
     warmupSteps 2;
     blockDecomposition 3D; //2D, 3D
+    barrier_after_sweep true;
 }
 
 BoundaryParameters

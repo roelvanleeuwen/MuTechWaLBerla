@@ -281,6 +281,17 @@ int main(int argc, char** argv)
    Vector3< uint_t > domainSize   = domainParameters.getParameter< Vector3< uint_t > >("domainSize", Vector3< uint_t >(0, 0, 0));
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(domainSize)
 
+   // get benchmarking parameters from parameter file
+   const auto benchmarkParameters      = walberlaEnv.config()->getOneBlock("BenchmarkParameters");
+   const bool benchmark  = benchmarkParameters.getParameter< bool >("benchmark", false);
+   const uint_t warmupSteps = benchmarkParameters.getParameter< uint_t >("warmupSteps", uint_c(2));
+   const std::string blockDecomposition = benchmarkParameters.getParameter< std::string >("blockDecomposition", "3D");
+   const bool barrierAfterSweep  = benchmarkParameters.getParameter< bool >("barrier_after_sweep", false);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(benchmark)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(warmupSteps)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blockDecomposition)
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(barrierAfterSweep)
+
    if (domainSize[0] == uint_t(0))
    {
       const uint_t nrOfProcesses = uint_c(MPIManager::instance()->numProcesses());
@@ -292,8 +303,6 @@ int main(int argc, char** argv)
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocksPerDimension)
       //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(cellsPerBlockDummy)
 
-      const auto benchmarkParameters       = walberlaEnv.config()->getOneBlock("BenchmarkParameters");
-      const std::string blockDecomposition = benchmarkParameters.getParameter< std::string >("blockDecomposition", "3D");
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blockDecomposition)
       if (blockDecomposition == "2D")
       {
@@ -409,10 +418,6 @@ int main(int argc, char** argv)
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(dbPath)
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(dbFilename)
 
-   const auto benchmarkParameters      = walberlaEnv.config()->getOneBlock("BenchmarkParameters");
-   const bool benchmark  = benchmarkParameters.getParameter< bool >("benchmark", false);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(benchmark)
-
    // create non-uniform block forest (non-uniformity required for load balancing)
    const std::shared_ptr< StructuredBlockForest > blockForest =
       createNonUniformBlockForest(domainSize, cellsPerBlock, numBlocks, periodicity);
@@ -523,6 +528,14 @@ int main(int argc, char** argv)
    // set density in non-liquid or non-interface cells to 1 (after initializing with hydrostatic pressure)
    setDensityInNonFluidCellsToOne< FlagField_T, PdfField_T >(blockForest, flagInfo, flagFieldID, pdfFieldID);
 
+   auto MPIBarrierAfterSweep = [barrierAfterSweep](std::function< void(IBlock*) > sweep) {
+      return [sweep, barrierAfterSweep](IBlock* b) {
+         sweep(b);
+         if (barrierAfterSweep)
+            WALBERLA_MPI_WORLD_BARRIER()
+      };
+   };
+
    // create timeloop
    SweepTimeloop timeloop(blockForest, timesteps);
 
@@ -565,7 +578,7 @@ int main(int argc, char** argv)
    // interface and gas cells. This is necessary since the normals are not only computed in interface cells, but also
    // in the neighborhood of interface cells. Therefore, meaningful values for the fill levels of the second
    // neighbors of interface cells are also required in NormalSweep.
-   timeloop.add() << Sweep(smoothingSweep, "Sweep: fill level smoothing")
+   timeloop.add() << Sweep(MPIBarrierAfterSweep(smoothingSweep), "Sweep: fill level smoothing")
                   << AfterFunction(Communication_T(blockForest, smoothFillFieldID),
                                    "Communication: after smoothing sweep");
 
@@ -574,7 +587,7 @@ int main(int argc, char** argv)
       normalFieldID, smoothFillFieldID, flagFieldID, walberla::free_surface::flagIDs::interfaceFlagID,
       walberla::free_surface::flagIDs::liquidInterfaceGasFlagIDs, flagInfo.getObstacleIDSet(), true, false, true,
       false);
-   timeloop.add() << Sweep(normalSweep, "Sweep: normal computation", StateSweep::fullFreeSurface)
+   timeloop.add() << Sweep(MPIBarrierAfterSweep(normalSweep), "Sweep: normal computation", StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: normal")
                   << AfterFunction(Communication_T(blockForest, normalFieldID), "Communication: after normal sweep");
 
@@ -587,7 +600,7 @@ int main(int argc, char** argv)
                    walberla::free_surface::flagIDs::interfaceFlagID,
                    walberla::free_surface::flagIDs::liquidInterfaceGasFlagIDs, flagInfo.getObstacleIDSet(), false,
                    real_c(0));
-      timeloop.add() << Sweep(curvSweep, "Sweep: curvature computation (finite difference method)",
+      timeloop.add() << Sweep(MPIBarrierAfterSweep(curvSweep), "Sweep: curvature computation (finite difference method)",
                               StateSweep::fullFreeSurface)
                      << Sweep(emptySweep(), "Empty sweep: curvature")
                      << AfterFunction(Communication_T(blockForest, curvatureFieldID),
@@ -615,7 +628,7 @@ int main(int argc, char** argv)
    // add surface dynamics handler
 
    // add standard waLBerla boundary handling
-   timeloop.add() << Sweep(freeSurfaceBoundaryHandling->getBoundarySweep(), "Sweep: boundary handling",
+   timeloop.add() << Sweep(MPIBarrierAfterSweep(freeSurfaceBoundaryHandling->getBoundarySweep()), "Sweep: boundary handling",
                            Set< SUID >::emptySet(), StateSweep::onlyGasAndBoundary)
                   << Sweep(emptySweep(), "Empty sweep: boundary handling", StateSweep::onlyGasAndBoundary);
 
@@ -623,7 +636,7 @@ int main(int argc, char** argv)
    // different version for codegen because pystencils does not support 'Ghostlayerfield<Vector3(), 1>'
    const ForceDensityCodegenSweep< LatticeModel_T, FlagField_T, VectorFieldFlattened_T, ScalarField_T >
       forceDensityCodegenSweep(forceDensityFieldID, pdfFieldID, flagFieldID, fillFieldID, flagInfo, acceleration);
-   timeloop.add() << Sweep(forceDensityCodegenSweep, "Sweep: force weighting", Set< SUID >::emptySet(),
+   timeloop.add() << Sweep(MPIBarrierAfterSweep(forceDensityCodegenSweep), "Sweep: force weighting", Set< SUID >::emptySet(),
                            StateSweep::onlyGasAndBoundary)
                   << Sweep(emptySweep(), "Empty sweep: force weighting", StateSweep::onlyGasAndBoundary)
                   << AfterFunction(Communication_T(blockForest, forceDensityFieldID),
@@ -643,7 +656,7 @@ int main(int argc, char** argv)
                                    pdfReconstructionModel, useSimpleMassExchange, cellConversionThreshold,
                                    cellConversionForceThreshold);
    // sweep acts only on blocks with at least one interface cell (due to StateSweep::fullFreeSurface)
-   timeloop.add() << Sweep(streamReconstructAdvectSweep, "Sweep: StreamReconstructAdvect", StateSweep::fullFreeSurface)
+   timeloop.add() << Sweep(MPIBarrierAfterSweep(streamReconstructAdvectSweep), "Sweep: StreamReconstructAdvect", StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: StreamReconstructAdvect")
                   // do not communicate PDFs here:
                   // - stream on blocks with "StateSweep::fullFreeSurface" was performed here using post-collision PDFs
@@ -673,9 +686,10 @@ int main(int argc, char** argv)
       typename LatticeModel_T::Sweep sweep_;
    };
 
-   timeloop.add() << Sweep(CollideSweep(lbmSweepGenerated), "Sweep: collision (generated)", StateSweep::fullFreeSurface)
-                  << Sweep(lbmSweepGenerated, "Sweep: streamCollide (generated)", StateSweep::onlyLBM)
+   timeloop.add() << Sweep(MPIBarrierAfterSweep(CollideSweep(lbmSweepGenerated)), "Sweep: collision (generated)", StateSweep::fullFreeSurface)
+                  << Sweep(MPIBarrierAfterSweep(lbmSweepGenerated), "Sweep: streamCollide (generated)", StateSweep::onlyLBM)
                   << Sweep(emptySweep(), "Empty sweep: streamCollide (generated)")
+                  //<< Sweep(deviceSyncWrapper(lbmSweepGenerated), "Empty sweep: streamCollide (generated)")
                   << AfterFunction(PdfCommunication_T(blockForest, pdfFieldID),
                                    "Communication: after streamCollide (generated)");
 
@@ -687,7 +701,7 @@ int main(int argc, char** argv)
    const walberla::free_surface::CellConversionSweep< LatticeModel_T, FreeSurfaceBoundaryHandling_T::BoundaryHandling_T,
                                                       ScalarField_T >
       cellConvSweep(freeSurfaceBoundaryHandling->getHandlingID(), pdfFieldID, flagInfo, bubbleModel.get());
-   timeloop.add() << Sweep(cellConvSweep, "Sweep: cell conversion", StateSweep::fullFreeSurface)
+   timeloop.add() << Sweep(MPIBarrierAfterSweep(cellConvSweep), "Sweep: cell conversion", StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: cell conversion")
                   << AfterFunction(PdfCommunication_T(blockForest, pdfFieldID),
                                    "Communication: after cell conversion sweep (PDF field)")
@@ -702,7 +716,7 @@ int main(int argc, char** argv)
    // - according to the method specified with pdfRefillingModel_
    const walberla::free_surface::EquilibriumRefillingSweep< LatticeModel_T, FlagField_T > equilibriumRefillingSweep(
       pdfFieldID, flagFieldID, flagInfo, true);
-   timeloop.add() << Sweep(equilibriumRefillingSweep, "Sweep: EquilibriumRefilling", StateSweep::fullFreeSurface)
+   timeloop.add() << Sweep(MPIBarrierAfterSweep(equilibriumRefillingSweep), "Sweep: EquilibriumRefilling", StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: EquilibriumRefilling")
                   << AfterFunction(PdfCommunication_T(blockForest, pdfFieldID),
                                    "Communication: after EquilibriumRefilling sweep");
@@ -718,7 +732,7 @@ int main(int argc, char** argv)
                                                                                 ScalarField_T, VectorField_T >
          distributeMassSweep(excessMassModel, fillFieldID, flagFieldID, pdfFieldID, flagInfo);
       timeloop.add()
-         << Sweep(distributeMassSweep, "Sweep: excess mass distribution", StateSweep::fullFreeSurface)
+         << Sweep(MPIBarrierAfterSweep(distributeMassSweep), "Sweep: excess mass distribution", StateSweep::fullFreeSurface)
          << Sweep(emptySweep(), "Empty sweep: distribute excess mass")
          << AfterFunction(Communication_T(blockForest, fillFieldID),
                           "Communication: after excess mass distribution sweep")
@@ -732,7 +746,7 @@ int main(int argc, char** argv)
 
    // reset all flags that signal cell conversions (except "keepInterfaceForWettingFlag")
    walberla::free_surface::ConversionFlagsResetSweep< FlagField_T > resetConversionFlagsSweep(flagFieldID, flagInfo);
-   timeloop.add() << Sweep(resetConversionFlagsSweep, "Sweep: conversion flag reset", StateSweep::fullFreeSurface)
+   timeloop.add() << Sweep(MPIBarrierAfterSweep(resetConversionFlagsSweep), "Sweep: conversion flag reset", StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: conversion flag reset")
                   << AfterFunction(Communication_T(blockForest, flagFieldID),
                                    "Communication: after excess mass distribution sweep")
@@ -797,7 +811,6 @@ int main(int argc, char** argv)
 
    if(benchmark) {
       // execute warmup steps to load relevant data into the Cache
-      const uint_t warmupSteps = benchmarkParameters.getParameter< uint_t >("warmupSteps", uint_c(2));
       for (uint_t i = 0; i < warmupSteps; ++i)
          timeloop.singleStep();
 
@@ -833,7 +846,7 @@ int main(int argc, char** argv)
       std::map< std::string, std::string >       stringProperties;
 
       //const std::string sqlFile = "GravityWaveCodegen.sqlite";
-      std::string sqlFile = dbPath + dbFilename;
+      const std::string sqlFile = dbPath + dbFilename;
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(sqlFile)
 
       // BENCHMARK QUANTITIES
@@ -843,10 +856,10 @@ int main(int argc, char** argv)
       stringProperties["tag"]                   = "free_surface";
 
       // BLOCKFOREST PARAMETERS
-      integerProperties["loadBalancingFrequency"] = loadBalancingFrequency;
+      integerProperties["loadBalancingFrequency"] = long(loadBalancingFrequency);
 
       // DOMAIN PARAMETERS
-      integerProperties["nrWaves"] = nrWaves;
+      integerProperties["nrWaves"] = long(nrWaves);
       realProperties["initialAmplitude"]        = initialAmplitude;
 
       // PHYSICS PARAMETERS
@@ -855,7 +868,7 @@ int main(int argc, char** argv)
       integerProperties["enableWetting"] = enableWetting;
       if (enableWetting)
          realProperties["contactAngle"] = contactAngle;
-      integerProperties["timesteps"] = timesteps;
+      integerProperties["timesteps"] = long(timesteps);
 
       // MODEL PARAMETERS
       stringProperties["pdfReconstructionModel"] = pdfReconstructionModel;
@@ -869,11 +882,17 @@ int main(int argc, char** argv)
       if (enableBubbleModel)
          integerProperties["enableBubbleSplits"] = enableBubbleSplits;
 
+      // BENCHMARK PARAMETERS
+      integerProperties["benchmark"] = benchmark;
+      integerProperties["warmupSteps"] = long(warmupSteps);
+      stringProperties["blockDecomposition"] = blockDecomposition;
+      integerProperties["barrierAfterSweep"] = barrierAfterSweep;
+
       addBuildInfoToSQL( integerProperties, realProperties, stringProperties );
       addDomainPropertiesToSQL(blockForest, integerProperties, realProperties, stringProperties);
       addSlurmPropertiesToSQL(integerProperties, realProperties, stringProperties);
 
-      uint_t runId = sqlite::storeRunInSqliteDB( sqlFile, integerProperties, stringProperties, realProperties );
+      const uint_t runId = sqlite::storeRunInSqliteDB( sqlFile, integerProperties, stringProperties, realProperties );
       sqlite::storeTimingPoolInSqliteDB( sqlFile, runId, *tp_reduced, "Timeloop" );
       WALBERLA_LOG_DEVEL_VAR(runId)
    }
