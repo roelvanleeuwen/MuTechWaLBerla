@@ -30,42 +30,41 @@ namespace piping
 void assembleBoundaryBlock(const Vector3< uint_t >& domainSize, const mesa_pd::Vec3& boxPosition,
                            const mesa_pd::Vec3& boxEdgeLength, const bool periodicInY)
 {
-   // TODO: improve readability of boundary conditions
    std::string boundariesBlockString =
-      " Boundaries"
-      "{"
-      "Border { direction W;    walldistance -1;  flag NoSlip; }"
-      "Border { direction E;    walldistance -1;  flag NoSlip; }"
-      "Border { direction B;    walldistance -1;  flag NoSlip; }"
-      "CellInterval { min < 0,-1," +
+      " Boundaries\n"
+      "{\n"
+      "\t Border { direction W;    walldistance -1;  flag NoSlip; }\n"
+      "\t Border { direction E;    walldistance -1;  flag NoSlip; }\n"
+      "\t Border { direction B;    walldistance -1;  flag NoSlip; }\n"
+      "\t CellInterval { min < 0,-1," +
       std::to_string(domainSize[2]) + ">; max < " + std::to_string(uint_t(boxPosition[0] - boxEdgeLength[0] / 2 - 1)) +
       "," + std::to_string(domainSize[1] + 1) + "," + std::to_string(domainSize[2] + 1) +
-      ">; flag Density0; }"
-      "CellInterval { min < " +
+      ">; flag Density0; }\n"
+      "\t CellInterval { min < " +
       std::to_string(uint_t(boxPosition[0] - boxEdgeLength[0] / 2)) + ",-1," + std::to_string(domainSize[2]) +
       ">; max < " + std::to_string(uint_t(boxPosition[0] + boxEdgeLength[0] / 2 - 1)) + "," +
       std::to_string(domainSize[1] + 1) + "," + std::to_string(domainSize[2] + 1) +
-      ">; flag NoSlip; }"
-      "CellInterval { min < " +
+      ">; flag NoSlip; }\n"
+      "\t CellInterval { min < " +
       std::to_string(uint_t(boxPosition[0] + boxEdgeLength[0] / 2)) + ",-1," + std::to_string(domainSize[2]) +
       ">; max < " + std::to_string(domainSize[0]) + "," + std::to_string(domainSize[1] + 1) + "," +
       std::to_string(domainSize[2] + 1) +
-      ">; flag Density1; }"
-      "Body { shape box; min <" +
+      ">; flag Density1; }\n"
+      "\t Body { shape box; min <" +
       std::to_string(boxPosition[0] - boxEdgeLength[0] / 2) + "," +
       std::to_string(boxPosition[1] - boxEdgeLength[1] / 2) + "," +
       std::to_string(boxPosition[2] - boxEdgeLength[2] / 2) + ">; max <" +
       std::to_string(boxPosition[0] + boxEdgeLength[0] / 2) + "," +
       std::to_string(boxPosition[1] + boxEdgeLength[1] / 2) + "," +
-      std::to_string(boxPosition[2] + boxEdgeLength[2] / 2) + ">; flag NoSlip; }";
+      std::to_string(boxPosition[2] + boxEdgeLength[2] / 2) + ">; flag NoSlip; }\n";
 
    if (!periodicInY)
    {
-      boundariesBlockString += "Border { direction S;    walldistance -1;  flag NoSlip; }"
-                               "Border { direction N;    walldistance -1;  flag NoSlip; }";
+      boundariesBlockString += "\t Border { direction S;    walldistance -1;  flag NoSlip; }\n"
+                               "\t Border { direction N;    walldistance -1;  flag NoSlip; }\n";
    }
 
-   boundariesBlockString += "}";
+   boundariesBlockString += "}\n";
 
    WALBERLA_ROOT_SECTION()
    {
