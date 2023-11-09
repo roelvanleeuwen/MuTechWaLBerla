@@ -121,7 +121,7 @@ int main(int argc, char** argv)
    const bool loadFractionFieldsFromFile = parameters.getParameter< bool >("loadFractionFieldsFromFile", false);
    const bool preProcessFractionFields = parameters.getParameter< bool >("preProcessFractionFields", false);
    const uint_t maxSuperSamplingDepth = parameters.getParameter< uint_t >("maxSuperSamplingDepth", uint_c(1));
-   const std::string fractionFieldFolderName = "savedFractionFields";
+   const std::string meshFile = parameters.getParameter< std::string >("meshFile",std::string());
 
 
    const std::string timeStepStrategy = parameters.getParameter<std::string>("timeStepStrategy", "noOverlap");
@@ -161,8 +161,7 @@ int main(int argc, char** argv)
    auto distanceOctreeMeshBase = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshBase));
 
    auto meshRotor = make_shared< mesh::TriangleMesh >();
-   mesh::readAndBroadcast("../Meshfiles/CROR_rotor_downScaled10.obj", *meshRotor);
-   //mesh::readAndBroadcast("../Meshfiles/sphere.obj", *meshRotor);
+   mesh::readAndBroadcast(meshFile, *meshRotor);
    auto distanceOctreeMeshRotor = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshRotor));
 
 

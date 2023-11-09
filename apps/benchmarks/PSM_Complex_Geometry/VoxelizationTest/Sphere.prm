@@ -13,10 +13,11 @@ Parameters
     timeStepStrategy   refinement;
     innerOuterSplit    <1,1,1>;
 
-    maxSuperSamplingDepth 2;
+    meshFile            ../Meshfiles/sphere.obj;
+    maxSuperSamplingDepth 0;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 1;
+	VTKwriteFrequency 10;
 	writeDomainDecompositionAndReturn false;
 }
 

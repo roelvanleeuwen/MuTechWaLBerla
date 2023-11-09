@@ -32,7 +32,7 @@
 
 #include "timeloop/all.h"
 
-#include "../ObjectRotator.h"
+#include "../MovingGeometry.h"
 #include "CROR_InfoHeader.h"
 #include "lbm_generated/communication/NonuniformGeneratedPdfPackInfo.h"
 #include "lbm_generated/evaluation/PerformanceEvaluation.h"
@@ -68,63 +68,36 @@ using gpu::communication::NonUniformGPUScheme;
 typedef walberla::uint8_t flag_t;
 typedef FlagField< flag_t > FlagField_T;
 using BoundaryCollection_T = lbm::CRORBoundaryCollection< FlagField_T >;
-
 using SweepCollection_T = lbm::CRORSweepCollection;
-
 const FlagUID fluidFlagUID("Fluid");
+const uint_t ghostLayers = 2;
+
 
 class LDCRefinement
 {
  private:
    const uint_t refinementDepth_;
-   const std::vector<AABB> meshAABBs_;
+   const AABB baseMeshAABB_;
+   const AABB rotorMeshAABB_;
 
  public:
-   explicit LDCRefinement(const uint_t depth, std::vector<AABB> meshAABBs) : refinementDepth_(depth), meshAABBs_(meshAABBs){};
+   explicit LDCRefinement(const uint_t depth, AABB baseMeshAABB, AABB rotorMeshAABB) : refinementDepth_(depth), baseMeshAABB_(baseMeshAABB), rotorMeshAABB_(rotorMeshAABB){};
 
    void operator()(SetupBlockForest& forest) const
    {
       for(auto & block : forest) {
          auto & aabb = block.getAABB();
-         for (auto meshAABB : meshAABBs_) {
-            if (meshAABB.intersects(aabb)) {
-               if( block.getLevel() < refinementDepth_)
-                  block.setMarker( true );
-            }
+
+         AABB zoneOfInterest = rotorMeshAABB_.getScaled(Vector3<real_t> (15.0, 1.5, 1.5));
+         zoneOfInterest = zoneOfInterest.getTranslated(Vector3<real_t>(rotorMeshAABB_.minCorner()[0] - zoneOfInterest.minCorner()[0], 0, 0));
+
+         if (baseMeshAABB_.intersects(aabb) || zoneOfInterest.intersects(aabb)) {
+            if( block.getLevel() < refinementDepth_)
+               block.setMarker( true );
          }
       }
    }
 };
-
-
-// data handling for loading a field of type ScalarField_T from file
-template< typename FracField_T >
-class FractionFieldHandling : public field::BlockDataHandling< FracField_T >
-{
- public:
-   FractionFieldHandling(const weak_ptr< StructuredBlockStorage >& blocks)
-      : blocks_(blocks)
-   {}
-
- protected:
-   FracField_T* allocate(IBlock* const block) override { return allocateDispatch(block); }
-
-   FracField_T* reallocate(IBlock* const block) override { return allocateDispatch(block); }
-
- private:
-   weak_ptr< StructuredBlockStorage > blocks_;
-
-   FracField_T* allocateDispatch(IBlock* const block)
-   {
-      WALBERLA_ASSERT_NOT_NULLPTR(block)
-
-      auto blocks = blocks_.lock();
-      WALBERLA_CHECK_NOT_NULLPTR(blocks)
-
-      return new FracField_T(blocks->getNumberOfXCells(*block), blocks->getNumberOfYCells(*block),
-                               blocks->getNumberOfZCells(*block), uint_t(1), fracSize(0), field::fzyx);
-   }
-}; // class FractionFieldHandling
 
 
 /////////////////////
@@ -161,7 +134,7 @@ int main(int argc, char** argv)
    const Vector3< bool > periodicity = domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
    const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
    const uint_t refinementDepth = domainParameters.getParameter< uint_t >("refinementDepth");
-
+   const uint_t maxSuperSamplingDepth = parameters.getParameter< uint_t >("maxSuperSamplingDepth", uint_c(1));
 
    const Vector3< real_t > initialVelocity = parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >(0.0));
    const uint_t timestepsFixed = parameters.getParameter< uint_t >("timesteps", uint_c(10));
@@ -190,7 +163,7 @@ int main(int argc, char** argv)
       timesteps = uint_c(sim_time / Ct);
    else {
       timesteps = timestepsFixed;
-      sim_time = Ct * timesteps;
+      sim_time = Ct * real_t(timesteps);
    }
 
    const real_t rotPerSec = rotationSpeed * (2 * M_PI) / 360;
@@ -227,23 +200,18 @@ int main(int argc, char** argv)
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx), mesh::makeExcludeMeshInteriorRefinement(distanceOctreeMeshBase, dx));
    bfc.setPeriodicity(periodicity);
 
-   const std::vector<AABB> meshAABBs{aabbBase, computeAABB(*meshRotor), computeAABB(*meshStator)};
-   bfc.setRefinementSelectionFunction(LDCRefinement(refinementDepth, meshAABBs));
+   bfc.setRefinementSelectionFunction(LDCRefinement(refinementDepth, aabbBase, computeAABB(*meshRotor)));
 
    auto setupForest = bfc.createSetupBlockForest( cellsPerBlock, 1 );
 
-   const uint_t numCells = setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize() * cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2];
+   const uint_t numCells = setupForest->getNumberOfBlocks() * cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2];
    const AABB domainAABB = setupForest->getDomain();
    const real_t fullRefinedMeshSize = mesh_size / pow(2, real_c(refinementDepth));
    const uint_t numFullRefinedCell = uint_c((domainAABB.xSize() / fullRefinedMeshSize) * (domainAABB.ySize() / fullRefinedMeshSize) * (domainAABB.zSize() / fullRefinedMeshSize));
 
-   auto aabbRotor = computeAABB(*meshRotor);
-
-   real_t radiusInCells = (aabbRotor.ySize() * 0.5) / dx ;
-   real_t maxCellsRotatedOver = radiusInCells * rotationAngle;
-
-   uint_t optimizedRotationFreq = uint_c(1.0 / (radPerTimestep * radiusInCells));
-   WALBERLA_LOG_INFO_ON_ROOT("Your current rotation Frequency is " << rotationFrequency << " with which you rotate over " << maxCellsRotatedOver << " cells per rotation\n" << "An optimal frequency would be <=" << optimizedRotationFreq)
+   AABB rotorAABB =  computeAABB(*meshRotor);
+   Vector3<uint_t> cellsForGeometryMesh = rotorAABB.sizes() / (fullRefinedMeshSize / pow(2, maxSuperSamplingDepth));
+   real_t geoFieldSize = cellsForGeometryMesh[0] * cellsForGeometryMesh[1] * cellsForGeometryMesh[2] / (1000 * 1000);
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter \n"
                              << "Domain Decomposition <" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << "> = " << setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize()  << " root Blocks \n"
@@ -267,6 +235,7 @@ int main(int argc, char** argv)
                              << "Rotations per second " << rotPerSec << " 1/s \n"
                              << "Rad per second " << radPerTimestep << " rad \n"
                              << "Rotation Angle per Rotation " << rotationAngle / (2 * M_PI) * 360  << " ° \n"
+                             << "Size of geometry Field is " << geoFieldSize << " MB per block \n"
    )
 
    if(writeDomainDecompositionAndReturn) {
@@ -281,51 +250,65 @@ int main(int argc, char** argv)
    /// Boundary Handling ///
    /////////////////////////
 
-   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterBase(meshBase, "meshBase", VTKWriteFrequency);
-   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterRotor(meshRotor, "meshRotor", VTKWriteFrequency);
-   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterStator(meshStator, "meshStator", VTKWriteFrequency);
-   const std::function< void() > meshWritingFunc = [&]() { meshWriterBase(); meshWriterRotor(); meshWriterStator(); };
-   //meshWritingFunc();
-
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    auto allocator = make_shared< gpu::HostFieldAllocator<real_t> >(); // use pinned memory allocator for faster CPU-GPU memory transfers
 #else
    auto allocator = make_shared< field::AllocateAligned< real_t, 64 > >();
 #endif
 
-   const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", fracSize(0.0), field::fzyx, uint_c(1));
-   const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1), allocator);
+   const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", real_t(0.0), field::fzyx, ghostLayers);
+   const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, ghostLayers, allocator);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fractionFieldGPU", true);
 #endif
 
    //Setting up Object Rotator
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   //ObjectRotatorGPU objectRotatorMeshBase(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, "CROR_base", maxSuperSamplingDepth, false);
-   //ObjectRotatorGPU objectRotatorMeshRotor(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, "CROR_rotor", maxSuperSamplingDepth, true);
-   //ObjectRotatorGPU objectRotatorMeshStator(blocks, meshStator, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis * -1,  "CROR_stator", maxSuperSamplingDepth, true);
-
-   ObjectRotatorGPU objectRotatorMeshBase(blocks, fractionFieldGPUId, fractionFieldId, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis,  "CROR_base", maxSuperSamplingDepth, false);
-   ObjectRotatorGPU objectRotatorMeshRotor(blocks, fractionFieldGPUId, fractionFieldId, meshRotor, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis,  "CROR_rotor", maxSuperSamplingDepth, true);
-   ObjectRotatorGPU objectRotatorMeshStator(blocks, fractionFieldGPUId, fractionFieldId, meshStator, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis * -1,  "CROR_stator", maxSuperSamplingDepth, true);
+   auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldGPUId, objectVelocitiesFieldId,
+                                                          Vector3<real_t>(0,0,0), 0,
+                                                          rotationAxis,  distanceOctreeMeshBase, "rotor", maxSuperSamplingDepth, false);
+   auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldGPUId, objectVelocitiesFieldId,
+                                                           Vector3<real_t>(0,0,0), rotationAngle,
+                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, true);
+   auto objectRotatorStator = make_shared<MovingGeometry> (blocks, meshStator, fractionFieldGPUId, objectVelocitiesFieldId,
+                                                            Vector3<real_t>(0,0,0), -rotationAngle,
+                                                            rotationAxis,  distanceOctreeMeshStator, "rotor", maxSuperSamplingDepth, true);
 
 #else
-   auto objectRotatorMeshBase = make_shared<ObjectRotator>(blocks, meshBase, objectVelocitiesFieldId, 0, rotationFrequency, rotationAxis, distanceOctreeMeshBase, "CROR_base", false);
-   auto objectRotatorMeshRotor = make_shared<ObjectRotator>(blocks, meshRotor, objectVelocitiesFieldId, rotationAngle, rotationFrequency, rotationAxis, distanceOctreeMeshRotor, "CROR_rotor", true);
-   auto objectRotatorMeshStator = make_shared<ObjectRotator>(blocks, meshStator, objectVelocitiesFieldId, rotationAngle * -1, rotationFrequency, rotationAxis,  distanceOctreeMeshStator, "CROR_stator", true);
+   auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldId, objectVelocitiesFieldId,
+                                                           Vector3<real_t>(0,0,0), 0,
+                                                           rotationAxis,  distanceOctreeMeshBase, "rotor", maxSuperSamplingDepth, false);
+   auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldId, objectVelocitiesFieldId,
+                                                           Vector3<real_t>(0,0,0), rotationAngle,
+                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, true);
+   auto objectRotatorStator = make_shared<MovingGeometry> (blocks, meshStator, fractionFieldId, objectVelocitiesFieldId,
+                                                           Vector3<real_t>(0,0,0), -rotationAngle,
+                                                           rotationAxis,  distanceOctreeMeshStator, "rotor", maxSuperSamplingDepth, true);
+
 
 #endif
-   fuseFractionFields(blocks, fractionFieldId, std::vector<shared_ptr<ObjectRotator>>{objectRotatorMeshBase, objectRotatorMeshRotor, objectRotatorMeshStator}, 0, rotationFrequency);
+
+   //VTK Mesh
+   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterBase(meshBase, "meshBase", VTKWriteFrequency);
+   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterRotor(meshRotor, "meshRotor", VTKWriteFrequency);
+   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterStator(meshStator, "meshStator", VTKWriteFrequency);
+   const std::function< void() > meshWritingFunc = [&]() {
+      meshWriterBase();
+      meshWriterRotor();
+      objectRotatorRotor->moveTriangleMesh(timeloop.getCurrentTimeStep(), VTKWriteFrequency);
+      meshWriterStator();
+      objectRotatorStator->moveTriangleMesh(timeloop.getCurrentTimeStep(), VTKWriteFrequency);
+   };
 
    /////////////////////////
    /// Fields Creation   ///
    /////////////////////////
 
    const StorageSpecification_T StorageSpec = StorageSpecification_T();
-   const BlockDataID pdfFieldId  = lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, uint_c(1), field::fzyx, allocator);
-   const BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_t(0.0), field::fzyx, uint_c(1), allocator);
-   const BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, uint_c(1), allocator);
-   const BlockDataID flagFieldId     = field::addFlagFieldToStorage< FlagField_T >(blocks, "flagField");
+   const BlockDataID pdfFieldId  = lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, ghostLayers, field::fzyx, allocator);
+   const BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_t(0.0), field::fzyx, ghostLayers, allocator);
+   const BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, ghostLayers, allocator);
+   const BlockDataID flagFieldId     = field::addFlagFieldToStorage< FlagField_T >(blocks, "flagField", ghostLayers);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const BlockDataID pdfFieldGPUId = lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldId, StorageSpec, "pdf field on GPU", true);
@@ -340,13 +323,12 @@ int main(int argc, char** argv)
    /////////////////////////
 
    const std::function< void() > objectRotatorFunc = [&]() {
-      (*objectRotatorMeshBase)(timeloop.getCurrentTimeStep());
-      (*objectRotatorMeshRotor)(timeloop.getCurrentTimeStep());
-      (*objectRotatorMeshStator)(timeloop.getCurrentTimeStep());
-      fuseFractionFields(blocks, fractionFieldId, std::vector<shared_ptr<ObjectRotator>>{objectRotatorMeshBase, objectRotatorMeshRotor, objectRotatorMeshStator}, timeloop.getCurrentTimeStep(), rotationFrequency);
-
+      objectRotatorBase->resetFractionField();
+      (*objectRotatorBase)(timeloop.getCurrentTimeStep());
+      (*objectRotatorRotor)(timeloop.getCurrentTimeStep());
+      (*objectRotatorStator)(timeloop.getCurrentTimeStep());
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      //gpu::fieldCpy< gpu::GPUField< fracSize >, FracField_T >(blocks, fractionFieldGPUId, fractionFieldId);
+      WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #endif
    };
 
@@ -371,8 +353,7 @@ int main(int argc, char** argv)
 
 #else
    SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
-   //SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID, initialVelocity[0]);
 #endif
 
    for (auto& block : *blocks)
@@ -384,7 +365,7 @@ int main(int argc, char** argv)
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
       gpu::fieldCpy( *dst, *src );
 #endif
-      sweepCollection.initialise(&block, 1);
+      sweepCollection.initialise(&block, ghostLayers);
    }
 
 
@@ -402,7 +383,6 @@ int main(int argc, char** argv)
    //auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
    communication->addPackInfo(packInfo);
    lbm_generated::BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldId, sweepCollection, boundaryCollection, communication, packInfo);
-   communication->communicate();
 #endif
 
 
@@ -433,7 +413,7 @@ int main(int argc, char** argv)
             sweepCollection.calculateMacroscopicParameters(&block);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
          gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, velocityFieldId, velocityFieldGPUId);
-         gpu::fieldCpy< FracField_T, gpu::GPUField< fracSize > >(blocks, fractionFieldId, fractionFieldGPUId);
+         gpu::fieldCpy< FracField_T, gpu::GPUField< real_t > >(blocks, fractionFieldId, fractionFieldGPUId);
 #endif
       });
 
@@ -448,12 +428,14 @@ int main(int argc, char** argv)
       //vtkOutput->addCellDataWriter(objVeldWriter);
 
 
-      const AABB sliceAABB(real_c(domainAABB.xMin() + domainAABB.xSize() * 0.15), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.2), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.2),
+      /*const AABB sliceAABB(real_c(domainAABB.xMin() + domainAABB.xSize() * 0.15), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.2), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.2),
                      real_c(domainAABB.xMin() + domainAABB.xSize() * 0.8), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.8), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.8));
 
-      vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
+      vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));*/
 
-      timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      //timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+
       vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
    }
 

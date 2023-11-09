@@ -62,7 +62,6 @@
 namespace walberla
 {
 using geoSize = bool;
-typedef field::GhostLayerField< real_t, 1 > ScalarField_T;
 typedef field::GhostLayerField< real_t, 3 > VectorField_T;
 
 typedef field::GhostLayerField< real_t, 1 > FracField_T;
@@ -98,7 +97,7 @@ class GeometryFieldHandling : public field::BlockDataHandling< GeometryField_T >
 
       auto fieldSize = Vector3<uint_t> (uint_t(meshAABB_.xSize() / dxSS ), uint_t(meshAABB_.ySize() / dxSS ), uint_t(meshAABB_.zSize() / dxSS ));
       WALBERLA_LOG_INFO_ON_ROOT("Size of Geometry Field will be " << fieldSize[0] * fieldSize[1] * fieldSize[2] * sizeof(geoSize) / (1000*1000) << " MB per process")
-      return new GeometryField_T(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(stencilSize), geoSize(0), field::fzyx);
+      return new GeometryField_T(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(std::ceil(real_t(stencilSize) * 0.5 )), geoSize(0), field::fzyx);
    }
 }; // class GeometryFieldHandling
 
@@ -125,7 +124,12 @@ class MovingGeometry
          initObjectVelocityField();
          std::shared_ptr< GeometryFieldHandling< GeometryField_T > > geometryFieldDataHandling = std::make_shared< GeometryFieldHandling< GeometryField_T > >(blocks_, meshAABB_, superSamplingDepth_);
          geometryFieldId_ = blocks_->addBlockData( geometryFieldDataHandling, "geometryField_" + meshName_ );
+         WcTimer simTimer;
+         simTimer.start();
          buildGeometryMesh();
+         simTimer.end();
+         double time = simTimer.max();
+         WALBERLA_LOG_INFO_ON_ROOT("Finished building Geometry Mesh in " << time << "s")
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
          geometryFieldGPUId_ = gpu::addGPUFieldToStorage< GeometryField_T >(blocks_, geometryFieldId_, "geometryFieldGPU_" + meshName_, true );
          gpu::fieldCpy< gpu::GPUField< geoSize >, GeometryField_T >(blocks, geometryFieldGPUId_, geometryFieldId_);
@@ -153,21 +157,16 @@ class MovingGeometry
    }
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-
    void getFractionFieldFromGeometryMesh(uint_t timestep);
-
    void addStaticGeometryToFractionField();
-
    void resetFractionField();
-
 #else
 
    void getFractionFieldFromGeometryMesh(uint_t timestep)
    {
       Matrix3< real_t > rotationMat(rotationAxis_, real_t(timestep) * -rotationAngle_);
-      const real_t oneThird = 1.0 / 3.0;
-      uint_t interpolationArea = uint_t(pow(2, real_t(superSamplingDepth_)));
-      auto oneOverInterpolArea = 1.0 / pow(real_t(interpolationArea), 3);
+      uint_t interpolationStencilSize = uint_t( pow(2, real_t(superSamplingDepth_)) + 1);
+      auto oneOverInterpolArea = 1.0 / real_t( interpolationStencilSize * interpolationStencilSize * interpolationStencilSize);
 
       for (auto& block : *blocks_)
       {
@@ -193,10 +192,10 @@ class MovingGeometry
             cellCenter += meshCenter;
 
             //get corresponding geometryField cell
-            auto pointInGeometrySpace = cellCenter - meshAABB_.min();
-            auto cellInGeometrySpace = Vector3<int32_t> ( int32_t(std::round((pointInGeometrySpace[0] - 0.5 * dx) / dxSS)),
-                                                          int32_t(std::round((pointInGeometrySpace[1] - 0.5 * dx) / dxSS)),
-                                                          int32_t(std::round((pointInGeometrySpace[2] - 0.5 * dx) / dxSS)));
+            auto pointInGeometrySpace = cellCenter - meshAABB_.min() - Vector3<real_t>(0.5 * dxSS);
+            auto cellInGeometrySpace = Vector3<int32_t> ( int32_t(pointInGeometrySpace[0] / dxSS),
+                                                          int32_t(pointInGeometrySpace[1] / dxSS),
+                                                          int32_t(pointInGeometrySpace[2] / dxSS));
             real_t fraction = 0.0;
 
             //rotated cell outside of geometry field
@@ -206,24 +205,31 @@ class MovingGeometry
             {
                fraction = 0.0;
             }
-            //just get fraction of cell
+            //2x2x2 interpolation for superSamplingDepth_=0
             else if(superSamplingDepth_ == 0) {
-               fraction = geometryField->get(cellInGeometrySpace[0], cellInGeometrySpace[1], cellInGeometrySpace[2]);
-            }
-            //interpolate
-            else {
-               auto cellCenterInGeometrySpace = Vector3<real_t>(cellInGeometrySpace) * dxSS + Vector3<real_t>(0.5 * dxSS);
+               //fraction += geometryField->get(cellInGeometrySpace[0] , cellInGeometrySpace[1] , cellInGeometrySpace[2] );
+
+               auto cellCenterInGeometrySpace = Vector3<real_t>(cellInGeometrySpace); // * dxSS + Vector3<real_t>(0.5 * dxSS);
                auto distanceToCellCenter = pointInGeometrySpace - cellCenterInGeometrySpace;
                auto offset = Vector3<int> (int(distanceToCellCenter[0] / abs(distanceToCellCenter[0])), int(distanceToCellCenter[1] / abs(distanceToCellCenter[1])), int(distanceToCellCenter[2] / abs(distanceToCellCenter[2])));
-
-               auto iterationStart = Vector3<int> ((offset[0] < 0) ? -1 : 0, (offset[1] < 0) ? -1 : 0, (offset[2] < 0) ? -1 : 0);
-               iterationStart -= Vector3<int>(superSamplingDepth_ - 1);
-               auto iterationEnd = iterationStart + Vector3<int>(interpolationArea);
-               //WALBERLA_LOG_INFO_ON_ROOT(iterationStart << " " << iterationEnd)
-
+               Vector3<int> iterationStart = Vector3<int> ((offset[0] <= 0) ? -1 : 0, (offset[1] <= 0) ? -1 : 0, (offset[2] <= 0) ? -1 : 0);
+               Vector3<int> iterationEnd = iterationStart + Vector3<int>(interpolationStencilSize);
+               //WALBERLA_LOG_INFO_ON_ROOT("distanceToCellCenter " << distanceToCellCenter << " offset " << offset )
                for (int z = iterationStart[2]; z < iterationEnd[2]; ++z) {
                   for (int y = iterationStart[1]; y < iterationEnd[1]; ++y) {
                      for (int x = iterationStart[0]; x < iterationEnd[0]; ++x) {
+                        fraction += geometryField->get(cellInGeometrySpace[0] + x, cellInGeometrySpace[1] + y, cellInGeometrySpace[2] + z);
+                     }
+                  }
+               }
+               fraction *= oneOverInterpolArea;
+            }
+            //interpolate
+            else {
+               int halfInterpolationStencilSize = int(real_t(interpolationStencilSize) * 0.5);
+               for (int z = -halfInterpolationStencilSize; z <= halfInterpolationStencilSize; ++z) {
+                  for (int y = -halfInterpolationStencilSize; y <= halfInterpolationStencilSize; ++y) {
+                     for (int x = -halfInterpolationStencilSize; x <= halfInterpolationStencilSize; ++x) {
                         fraction += geometryField->get(cellInGeometrySpace[0] + x, cellInGeometrySpace[1] + y, cellInGeometrySpace[2] + z);
                      }
                   }
@@ -386,18 +392,16 @@ class MovingGeometry
          GeometryField_T * geometryField = block.getData< GeometryField_T >(geometryFieldId_);
          auto level = blocks_->getLevel(block);
          const real_t dx = blocks_->dx(level);
-         const real_t SSdx = dx / pow(2, real_t(superSamplingDepth_));
-         real_t sqDx = SSdx * SSdx;
-         real_t sqDxHalf = (0.5 * SSdx) * (0.5 * SSdx);
+         const real_t dxSS = dx / pow(2, real_t(superSamplingDepth_));
+         real_t sqDx = dxSS * dxSS;
+         real_t sqDxHalf = (0.5 * dxSS) * (0.5 * dxSS);
 
          CellInterval blockCi = geometryField->xyzSizeWithGhostLayer();
          for (auto cellIt = blockCi.begin(); cellIt != blockCi.end(); cellIt++) {
-            Vector3<real_t> cellCenter = meshAABB_.min() + Vector3<real_t> (cellIt->x() * SSdx, cellIt->y() * SSdx, cellIt->z() * SSdx) + Vector3<real_t> (0.5 * SSdx);
+            Vector3<real_t> cellCenter = meshAABB_.min() + Vector3<real_t> (cellIt->x() * dxSS, cellIt->y() * dxSS, cellIt->z() * dxSS) + Vector3<real_t> (0.5 * dxSS);
             const real_t sqSignedDistance = (*distFunct)(cellCenter);
 
             geoSize fraction = geoSize(std::max(0.0, std::min(1.0, (sqDx - (sqSignedDistance + sqDxHalf) ) / sqDx)));
-            //real_t fraction = (((sqDx - (sqSignedDistance + sqDxHalf) ) / sqDx) > 0.0) ? 1.0 : 0.0;
-
             geometryField->get(*cellIt) = fraction;
          }
       }
