@@ -163,8 +163,10 @@ int main(int argc, char** argv)
    // Init kernels
    mesa_pd::kernel::VelocityVerletPreForceUpdate vvIntegratorPreForce(dt_SI);
    mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(dt_SI);
-   kernel::LinearSpringDashpot dem(1);
+   kernel::LinearSpringDashpot dem(2);
    dem.setFrictionCoefficientDynamic(0, 0, frictionCoefficient);
+   // No friction between spheres and (artificial) bounding planes
+   dem.setFrictionCoefficientDynamic(0, 1, real_t(0));
    real_t kappa = real_t(2) * (real_t(1) - poissonsRatio) / (real_t(2) - poissonsRatio); // from Thornton et al
 
    kernel::AssocToBlock assoc(forest);
@@ -217,7 +219,8 @@ int main(int argc, char** argv)
                if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *domain))
                {
                   auto meff = real_t(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
-                  dem.setStiffnessAndDamping(0, 0, restitutionCoefficient, collisionTime_SI, kappa, meff);
+                  dem.setStiffnessAndDamping(ac.getType(idx1), ac.getType(idx2), restitutionCoefficient,
+                                             collisionTime_SI, kappa, meff);
                   dem(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), acd.getContactNormal(),
                       acd.getPenetrationDepth(), dt_SI);
                }

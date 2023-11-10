@@ -260,6 +260,8 @@ int main(int argc, char** argv)
    mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(timeStepSizeRPD);
    mesa_pd::kernel::LinearSpringDashpot collisionResponse(2);
    collisionResponse.setFrictionCoefficientDynamic(0, 0, particleFrictionCoefficient);
+   // No friction between spheres and (artificial) bounding planes
+   collisionResponse.setFrictionCoefficientDynamic(0, 1, real_t(0));
    mesa_pd::kernel::AssocToBlock assoc(blocks->getBlockForestPointer());
    mesa_pd::mpi::ReduceProperty reduceProperty;
    mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
@@ -350,7 +352,7 @@ int main(int argc, char** argv)
    }
 
    // Setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   // TODO: set sendDirectlyFromGPU to true for performance measurements on cluster
+   // sendDirectlyFromGPU should be true if GPUDirect is available
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, false, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
@@ -514,8 +516,9 @@ int main(int argc, char** argv)
                   {
                      // TODO: rewrite this kernel such that it also works with OpenMP (remove race condition)
                      auto meff = real_t(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
-                     collisionResponse.setStiffnessAndDamping(0, 0, particleRestitutionCoefficient,
-                                                              particleCollisionTime, kappa, meff);
+                     collisionResponse.setStiffnessAndDamping(ac.getType(idx1), ac.getType(idx2),
+                                                              particleRestitutionCoefficient, particleCollisionTime,
+                                                              kappa, meff);
                      collisionResponse(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), acd.getContactNormal(),
                                        acd.getPenetrationDepth(), timeStepSizeRPD);
                   }
