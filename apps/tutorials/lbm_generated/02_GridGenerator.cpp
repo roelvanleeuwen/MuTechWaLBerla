@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 
    if (mpi::MPIManager::instance()->numProcesses() > 1)
    {
-      WALBERLA_ABORT("Commandment: Thou shalt not run thy grid generator with more than one process.");
+      WALBERLA_ABORT("The grid generator cannot be run with more than one process!");
    }
 
    auto config      = env.config();
