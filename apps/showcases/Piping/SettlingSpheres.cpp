@@ -165,8 +165,8 @@ int main(int argc, char** argv)
    mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(dt_SI);
    kernel::LinearSpringDashpot dem(2);
    dem.setFrictionCoefficientDynamic(0, 0, frictionCoefficient);
-   // No friction between spheres and (artificial) bounding planes
-   dem.setFrictionCoefficientDynamic(0, 1, real_t(0));
+   // Use friction between spheres and planes to speed up the settling
+   dem.setFrictionCoefficientDynamic(0, 1, frictionCoefficient);
    real_t kappa = real_t(2) * (real_t(1) - poissonsRatio) / (real_t(2) - poissonsRatio); // from Thornton et al
 
    kernel::AssocToBlock assoc(forest);
