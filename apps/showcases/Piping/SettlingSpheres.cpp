@@ -185,7 +185,7 @@ int main(int argc, char** argv)
    timer.start();
    for (uint_t i = 0; i < timeSteps; ++i)
    {
-      if (i % visSpacing == 0) { vtkWriter->write(); }
+      if (visSpacing > 0 && i % visSpacing == 0) { vtkWriter->write(); }
 
       ps->forEachParticle(false, kernel::SelectLocal(), accessor, assoc, accessor);
 
