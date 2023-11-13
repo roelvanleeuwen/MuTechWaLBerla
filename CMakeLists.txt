@@ -395,6 +395,8 @@ if( WALBERLA_CXX_COMPILER_IS_INTEL )
    # system headers are also supported by intel, but cmake does not recognize that
    set( CMAKE_INCLUDE_SYSTEM_FLAG_CXX "-isystem " )
    add_flag ( CMAKE_CXX_FLAGS "-wd2928,2504,2259,1682,597" )
+   # disable icc/icpc deprecation warning
+   add_flag ( CMAKE_CXX_FLAGS "-diag-disable=10441" )
 elseif( WALBERLA_CXX_COMPILER_IS_GNU )
    add_flag ( CMAKE_CXX_FLAGS "-Wfloat-equal -Wextra" )
 elseif( WALBERLA_CXX_COMPILER_IS_NEC )
@@ -607,7 +609,7 @@ endif ()
 ##
 #############################################################################################################################
 if ( WALBERLA_BUILD_WITH_CODEGEN )
-   set(LBMPY_MIN_VERSION 1.2)
+   set(LBMPY_MIN_VERSION 1.3.2)
    execute_process(COMMAND ${Python_EXECUTABLE} -c "import lbmpy; print(lbmpy.__version__)"
          RESULT_VARIABLE LBMPY_FOUND OUTPUT_VARIABLE LBMPY_VERSION)
     if(NOT LBMPY_FOUND EQUAL 0)
