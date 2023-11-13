@@ -147,6 +147,8 @@ int main(int argc, char** argv)
    {
       WALBERLA_LOG_WARNING_ON_ROOT("Using only 1 block in periodic dimensions can lead to unexpected behavior.")
    }
+   const real_t viscosity = lbm::collision_model::viscosityFromOmega(relaxationRate);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(viscosity)
 
    Config::BlockHandle outputSetup      = cfgFile->getBlock("Output");
    const uint_t vtkSpacing              = outputSetup.getParameter< uint_t >("vtkSpacing");
