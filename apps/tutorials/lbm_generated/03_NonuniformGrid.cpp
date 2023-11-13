@@ -37,6 +37,7 @@
 #include "lbm_generated/field/AddToStorage.h"
 #include "lbm_generated/field/PdfField.h"
 #include "lbm_generated/refinement/BasicRecursiveTimeStep.h"
+#include "lbm_generated/refinement/FixBoundaries.h"
 
 namespace walberla
 {
@@ -119,7 +120,8 @@ void main(int argc, char** argv)
       WALBERLA_LOG_INFO_ON_ROOT("Setting boundary conditions")
       geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldID, boundariesConfig);
    }
-   geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldID, fluidFlagUID);
+   geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldID, fluidFlagUID, 2);
+   fixBoundaryFlagFieldForRefinedGrid< FlagField_T >(*blocks, flagFieldID);
 
    // Simulation Method Setup
    SweepCollection_T lbmSweeps(blocks, pdfFieldID, densityFieldId, velFieldId, omega);
