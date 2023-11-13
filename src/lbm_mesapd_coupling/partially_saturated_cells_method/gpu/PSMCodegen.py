@@ -81,6 +81,7 @@ with CodeGeneration() as ctx:
         force=sp.symbols("F_:3"),
         force_model=ForceModel.LUO,
         compressible=True,
+        smagorinsky=True,
     )
 
     # =====================
