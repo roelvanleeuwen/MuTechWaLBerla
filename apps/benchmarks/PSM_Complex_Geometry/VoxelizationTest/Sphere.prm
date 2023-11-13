@@ -14,7 +14,7 @@ Parameters
     innerOuterSplit    <1,1,1>;
 
     meshFile            ../Meshfiles/sphere.obj;
-    maxSuperSamplingDepth 0;
+    maxSuperSamplingDepth 1;
 
 	remainingTimeLoggerFrequency 10; // in seconds
 	VTKwriteFrequency 10;

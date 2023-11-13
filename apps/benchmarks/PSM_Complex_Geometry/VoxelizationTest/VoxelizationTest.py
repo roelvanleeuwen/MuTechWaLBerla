@@ -39,6 +39,8 @@ with CodeGeneration() as ctx:
     else:
         cpu_vec = None
 
+    openmp = True if ctx.openmp else False
+
     #   PDF Fields
     pdfs, pdfs_tmp = ps.fields(f'pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {data_type}[3D]', layout=layout)
 
@@ -95,7 +97,7 @@ with CodeGeneration() as ctx:
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
                          nonuniform=False, boundaries=[no_slip, ubb, fixedDensity, extrapolOutflow],
                          macroscopic_fields=macroscopic_fields,
-                         cpu_vectorize_info=cpu_vec, target=target)
+                         cpu_openmp=openmp, cpu_vectorize_info=cpu_vec, target=target)
 
 
     field_typedefs = {'VectorField_T': velocity,

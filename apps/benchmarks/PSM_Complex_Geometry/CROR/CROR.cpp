@@ -75,28 +75,38 @@ const uint_t ghostLayers = 2;
 
 class LDCRefinement
 {
- private:
-   const uint_t refinementDepth_;
-   const AABB baseMeshAABB_;
-   const AABB rotorMeshAABB_;
+
 
  public:
-   explicit LDCRefinement(const uint_t depth, AABB baseMeshAABB, AABB rotorMeshAABB) : refinementDepth_(depth), baseMeshAABB_(baseMeshAABB), rotorMeshAABB_(rotorMeshAABB){};
+   explicit LDCRefinement(const uint_t depth, AABB rotorMeshAABB, AABB statorMeshAABB, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctreeBase) : refinementDepth_(depth), rotorMeshAABB_(rotorMeshAABB), statorMeshAABB_(statorMeshAABB), distOctreeBase_(distOctreeBase){};
 
    void operator()(SetupBlockForest& forest) const
    {
+      const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctreeBase_ );
+
       for(auto & block : forest) {
-         auto & aabb = block.getAABB();
+         auto blockAABB = block.getAABB();
 
-         AABB zoneOfInterest = rotorMeshAABB_.getScaled(Vector3<real_t> (15.0, 1.5, 1.5));
-         zoneOfInterest = zoneOfInterest.getTranslated(Vector3<real_t>(rotorMeshAABB_.minCorner()[0] - zoneOfInterest.minCorner()[0], 0, 0));
-
-         if (baseMeshAABB_.intersects(aabb) || zoneOfInterest.intersects(aabb)) {
+         if (rotorMeshAABB_.intersects(blockAABB) || statorMeshAABB_.intersects(blockAABB)) {
+            if( block.getLevel() < refinementDepth_)
+               block.setMarker( true );
+         }
+         auto blockCenter = blockAABB.center();
+         const real_t sqSignedDistance = (*distFunct)(blockCenter);
+         const real_t circumRadius   = blockAABB.sizes().length() * real_t(0.5);
+         const real_t sqCircumRadius = circumRadius * circumRadius;
+         if (! (sqSignedDistance > sqCircumRadius)) {
             if( block.getLevel() < refinementDepth_)
                block.setMarker( true );
          }
       }
    }
+
+ private:
+   const uint_t refinementDepth_;
+   const AABB rotorMeshAABB_;
+   const AABB statorMeshAABB_;
+   shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctreeBase_;
 };
 
 
@@ -200,7 +210,7 @@ int main(int argc, char** argv)
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx), mesh::makeExcludeMeshInteriorRefinement(distanceOctreeMeshBase, dx));
    bfc.setPeriodicity(periodicity);
 
-   bfc.setRefinementSelectionFunction(LDCRefinement(refinementDepth, aabbBase, computeAABB(*meshRotor)));
+   bfc.setRefinementSelectionFunction(LDCRefinement(refinementDepth, computeAABB(*meshRotor), computeAABB(*meshStator), distanceOctreeMeshBase));
 
    auto setupForest = bfc.createSetupBlockForest( cellsPerBlock, 1 );
 
@@ -210,8 +220,10 @@ int main(int argc, char** argv)
    const uint_t numFullRefinedCell = uint_c((domainAABB.xSize() / fullRefinedMeshSize) * (domainAABB.ySize() / fullRefinedMeshSize) * (domainAABB.zSize() / fullRefinedMeshSize));
 
    AABB rotorAABB =  computeAABB(*meshRotor);
-   Vector3<uint_t> cellsForGeometryMesh = rotorAABB.sizes() / (fullRefinedMeshSize / pow(2, maxSuperSamplingDepth));
-   real_t geoFieldSize = cellsForGeometryMesh[0] * cellsForGeometryMesh[1] * cellsForGeometryMesh[2] / (1000 * 1000);
+   Vector3<uint_t> cellsForGeometryMesh = rotorAABB.sizes() / (fullRefinedMeshSize / pow(2, real_t(maxSuperSamplingDepth)));
+   real_t geoFieldSize = real_t(cellsForGeometryMesh[0] * cellsForGeometryMesh[1] * cellsForGeometryMesh[2]) / (1000 * 1000);
+
+   WALBERLA_LOG_INFO_ON_ROOT("Rotor AABB is "<< computeAABB(*meshRotor))
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter \n"
                              << "Domain Decomposition <" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << "> = " << setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize()  << " root Blocks \n"
@@ -235,7 +247,7 @@ int main(int argc, char** argv)
                              << "Rotations per second " << rotPerSec << " 1/s \n"
                              << "Rad per second " << radPerTimestep << " rad \n"
                              << "Rotation Angle per Rotation " << rotationAngle / (2 * M_PI) * 360  << " ° \n"
-                             << "Size of geometry Field is " << geoFieldSize << " MB per block \n"
+                             << "Size of geometry Field is " << geoFieldSize << " MB per process \n"
    )
 
    if(writeDomainDecompositionAndReturn) {
@@ -428,10 +440,10 @@ int main(int argc, char** argv)
       //vtkOutput->addCellDataWriter(objVeldWriter);
 
 
-      /*const AABB sliceAABB(real_c(domainAABB.xMin() + domainAABB.xSize() * 0.15), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.2), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.2),
-                     real_c(domainAABB.xMin() + domainAABB.xSize() * 0.8), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.8), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.8));
+      const AABB sliceAABB(real_c(domainAABB.xMin() + domainAABB.xSize() * 0.18), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.2), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.2),
+                     real_c(domainAABB.xMin() + domainAABB.xSize() * 0.6), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.8), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.8));
 
-      vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));*/
+      vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
 
       //timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");

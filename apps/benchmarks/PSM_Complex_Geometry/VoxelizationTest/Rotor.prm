@@ -13,12 +13,12 @@ Parameters
     timeStepStrategy   refinement;
     innerOuterSplit    <1,1,1>;
 
-    maxSuperSamplingDepth 0;
+    maxSuperSamplingDepth 1;
     meshFile            ../Meshfiles/CROR_rotor_downScaled100.obj;
 
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 10;
+	VTKwriteFrequency 0;
 	writeDomainDecompositionAndReturn false;
 }
 

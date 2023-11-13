@@ -6,7 +6,7 @@ Parameters
     initialVelocity   <0.01, 0.0, 0.0>;
     ref_velocity  69.15;    // m/s
     ref_length 1.0;         //rotor radius according to mesh file
-    viscosity  1.0;         //1.49e-5;
+    viscosity  1.49e-5;         //1.49e-5;
     sim_time   0.0;         //set to 0, then timesteps is used
     mesh_size  0.0048;    // Goal = 0.3 mm = 0.0003 m;
 
@@ -26,7 +26,7 @@ DomainSetup
 
    domainScaling      <  0.3, 5, 5 >;   //<  0.3, 5, 5 >;
    domainTransforming <  0.4 , 0,  0 >;
-   cellsPerBlock      < 64, 64, 64 >;
+   cellsPerBlock      < 32, 32, 32 >;
    periodic           <  0,  1,  1 >;
    refinementDepth    4 ;
 }
