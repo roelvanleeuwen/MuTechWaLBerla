@@ -115,14 +115,13 @@ def lbm_kernel_family(class_name, kernel_name,
     default_dtype = config.data_type.default_factory()
     if kernel_name == "streamCollide":
         def lbm_kernel(field_accessor, lb_stencil):
-            return create_lbm_kernel(collision_rule, src_field, dst_field, field_accessor, data_type=default_dtype)
+            return create_lbm_kernel(collision_rule, src_field, dst_field, field_accessor)
         advance_timestep = {"field_name": src_field.name, "function": "advanceTimestep"}
         temporary_fields = ['pdfs_tmp']
         field_swaps = [('pdfs', 'pdfs_tmp')]
     elif kernel_name == "collide":
         def lbm_kernel(field_accessor, lb_stencil):
-            return create_lbm_kernel(collision_rule, src_field, dst_field, CollideOnlyInplaceAccessor(),
-                                     data_type=default_dtype)
+            return create_lbm_kernel(collision_rule, src_field, dst_field, CollideOnlyInplaceAccessor())
         advance_timestep = {"field_name": src_field.name, "function": "advanceTimestep"}
         temporary_fields = ()
         field_swaps = ()

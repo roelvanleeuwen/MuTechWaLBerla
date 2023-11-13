@@ -64,6 +64,7 @@ with CodeGeneration() as ctx:
         compressible=True,
         zero_centered=True,
         psm_config=psm_config,
+        streaming_pattern="aa"
     )
 
     lbm_opt = LBMOptimisation(cse_global=True,

@@ -21,19 +21,14 @@
 #include "blockforest/Initialization.h"
 #include "blockforest/SetupBlockForest.h"
 #include "core/all.h"
-
+#include "core/MemoryUsage.h"
 #include "domain_decomposition/all.h"
 #include "field/all.h"
 #include "field/vtk/VTKWriter.h"
 #include "geometry/all.h"
-
-//#include "lbm_generated/communication/UniformGeneratedPdfPackInfo.h"
 #include "stencil/D3Q19.h"
-
 #include "timeloop/all.h"
 
-#include "../MovingGeometry.h"
-#include "CROR_InfoHeader.h"
 #include "lbm_generated/communication/NonuniformGeneratedPdfPackInfo.h"
 #include "lbm_generated/evaluation/PerformanceEvaluation.h"
 #include "lbm_generated/field/AddToStorage.h"
@@ -46,9 +41,10 @@
 #include "lbm_generated/gpu/BasicRecursiveTimeStepGPU.h"
 #include "lbm_generated/gpu/NonuniformGeneratedGPUPdfPackInfo.h"
 #include "gpu/communication/NonUniformGPUScheme.h"
-
-#include "ObjectRotatorGPU.h"
 #endif
+
+#include "../MovingGeometry.h"
+#include "CROR_InfoHeader.h"
 
 namespace walberla
 {
@@ -474,7 +470,7 @@ int main(int argc, char** argv)
    const auto reducedTimeloopTiming = timeloopTiming.getReduced();
    WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
 
-   //printResidentMemoryStatistics();
+   printResidentMemoryStatistics();
 
    return EXIT_SUCCESS;
 }
