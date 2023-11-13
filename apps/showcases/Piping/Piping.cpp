@@ -70,6 +70,7 @@
 #include "PSMPackInfo.h"
 #include "PSMSweep.h"
 #include "PSM_Density.h"
+#include "PSM_FreeSlip.h"
 #include "PSM_InfoHeader.h"
 #include "PSM_MacroGetter.h"
 #include "PSM_NoSlip.h"
@@ -100,6 +101,7 @@ const FlagUID Fluid_Flag("Fluid");
 const FlagUID Density0_Flag("Density0");
 const FlagUID Density1_Flag("Density1");
 const FlagUID NoSlip_Flag("NoSlip");
+const FlagUID FreeSlip_Flag("FreeSlip");
 
 //////////
 // MAIN //
@@ -320,6 +322,8 @@ int main(int argc, char** argv)
    density1_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Density1_Flag, Fluid_Flag);
    lbm::PSM_NoSlip noSlip(blocks, pdfFieldGPUID);
    noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, NoSlip_Flag, Fluid_Flag);
+   lbm::PSM_FreeSlip freeSlip(blocks, pdfFieldGPUID);
+   freeSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, FreeSlip_Flag, Fluid_Flag);
 
    ///////////////
    // TIME LOOP //
@@ -439,6 +443,7 @@ int main(int argc, char** argv)
                   << Sweep(deviceSyncWrapper(density0_bc.getSweep()), "Boundary Handling (Density0)");
    timeloop.add() << Sweep(deviceSyncWrapper(density1_bc.getSweep()), "Boundary Handling (Density1)");
    timeloop.add() << Sweep(deviceSyncWrapper(noSlip.getSweep()), "Boundary Handling (NoSlip)");
+   timeloop.add() << Sweep(deviceSyncWrapper(freeSlip.getSweep()), "Boundary Handling (FreeSlip)");
 
    // PSM kernel
    pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
