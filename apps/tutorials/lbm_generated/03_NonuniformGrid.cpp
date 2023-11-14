@@ -149,6 +149,7 @@ void main(int argc, char** argv)
    });
 
    vtkOutput->addCellExclusionFilter(field::FlagFieldCellFilter< FlagField_T >(flagFieldID, FlagUID("NoSlip")));
+   vtkOutput->addCellExclusionFilter(field::FlagFieldCellFilter< FlagField_T >(flagFieldID, FlagUID("FreeSlip")));
    vtkOutput->addCellExclusionFilter(field::FlagFieldCellFilter< FlagField_T >(flagFieldID, FlagUID("UBB")));
    vtkOutput->addCellExclusionFilter(field::FlagFieldCellFilter< FlagField_T >(flagFieldID, FlagUID("Outflow")));
 

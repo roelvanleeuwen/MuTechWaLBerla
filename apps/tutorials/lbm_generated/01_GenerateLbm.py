@@ -3,7 +3,7 @@ import sympy as sp
 from pystencils import fields
 
 from lbmpy import Stencil, LBStencil, Method, LBMConfig, LBMOptimisation, create_lb_collision_rule
-from lbmpy.boundaries import NoSlip, UBB, ExtrapolationOutflow
+from lbmpy.boundaries import NoSlip, FreeSlip, UBB, ExtrapolationOutflow
 
 from pystencils_walberla import CodeGeneration
 from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator
@@ -35,6 +35,7 @@ lb_method = collision_rule.method
 #   Set up boundary condition objects
 
 noslip = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip', boundary_object=NoSlip())
+freeslip = lbm_boundary_generator(class_name='FreeSlip', flag_uid='FreeSlip', boundary_object=FreeSlip(stencil))
 
 ubb_velocity = sp.symbols(f'boundary_velocity_:{stencil.D}')
 ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB', boundary_object=UBB(ubb_velocity))
@@ -55,5 +56,5 @@ with CodeGeneration() as ctx:
                          lbm_config=lbm_config,
                          lbm_optimisation=lbm_opt,
                          nonuniform=True,
-                         boundaries=[noslip, ubb, outflow],
+                         boundaries=[noslip, freeslip, ubb, outflow],
                          macroscopic_fields=macroscopic_fields)

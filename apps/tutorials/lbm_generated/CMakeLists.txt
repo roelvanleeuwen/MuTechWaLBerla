@@ -8,6 +8,7 @@ waLBerla_generate_target_from_python(
         GeneratedLbmSweepCollection.cpp GeneratedLbmSweepCollection.h
         GeneratedLbmBoundaryCollection.h
         NoSlip.h NoSlip.cpp
+        FreeSlip.h FreeSlip.cpp
         UBB.h UBB.cpp
         OutflowD3Q19.h OutflowD3Q19.cpp
 )
@@ -19,18 +20,6 @@ waLBerla_add_executable( NAME 01_GeneratedLbmExe
 waLBerla_add_executable( NAME 02_GridGenerator
         FILES 02_GridGenerator.cpp
         DEPENDS blockforest core geometry vtk python_coupling)
-
-#waLBerla_generate_target_from_python(
-#        NAME 03_NonuniformLbmLib
-#        FILE 03_NonuniformLbm.py
-#        OUT_FILES
-#        NonuniformLbmStorageSpecification.cpp NonuniformLbmStorageSpecification.h
-#        NonuniformLbmSweepCollection.cpp NonuniformLbmSweepCollection.h
-#        NonuniformLbmBoundaryCollection.h
-#        NoSlip.h NoSlip.cpp
-#        UBB.h UBB.cpp
-#        OutflowD3Q19.h OutflowD3Q19.cpp
-#)
 
 waLBerla_add_executable( NAME 03_NonuniformGrid
         FILES 03_NonuniformGrid.cpp
