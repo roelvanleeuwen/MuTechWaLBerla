@@ -218,8 +218,7 @@ int main(int argc, char** argv)
    AABB rotorAABB =  computeAABB(*meshRotor);
    Vector3<uint_t> cellsForGeometryMesh = rotorAABB.sizes() / (fullRefinedMeshSize / pow(2, real_t(maxSuperSamplingDepth)));
    real_t geoFieldSize = real_t(cellsForGeometryMesh[0] * cellsForGeometryMesh[1] * cellsForGeometryMesh[2]) / (1000 * 1000);
-
-   WALBERLA_LOG_INFO_ON_ROOT("Rotor AABB is "<< computeAABB(*meshRotor))
+   real_t memoryPerBlock = real_t(cellsPerBlock[0]) * real_t(cellsPerBlock[1]) * real_t(cellsPerBlock[2]) * 8 * (19 * 2 + 3 + 3 + 1 + 1 + 1) / (1000 * 1000);
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter \n"
                              << "Domain Decomposition <" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << "> = " << setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize()  << " root Blocks \n"
@@ -228,8 +227,6 @@ int main(int argc, char** argv)
                              << "Number of cells "  << numCells << ", number of potential Cells (full refined) " << numFullRefinedCell <<  ", Saved computation " << (1.0 - (real_c(numCells) / real_c(numFullRefinedCell))) * 100 << "% \n"
                              << "Mesh_size " << mesh_size << " m \n"
                              << "Refined Mesh size " << fullRefinedMeshSize << " m \n"
-                             << "Timestep Strategy " << timeStepStrategy << " \n"
-                             << "Inner Outer Split " << innerOuterSplit << " \n"
                              << "Reynolds_number " << reynolds_number << "\n"
                              << "Inflow velocity " << ref_velocity << " m/s \n"
                              << "Lattice velocity " << initialVelocity[0] << "\n"
@@ -241,9 +238,12 @@ int main(int argc, char** argv)
                              << "Ct " << Ct << " \n"
                              << "Rotation Speed " << rotationSpeed << " rad/s \n"
                              << "Rotations per second " << rotPerSec << " 1/s \n"
-                             << "Rad per second " << radPerTimestep << " rad \n"
                              << "Rotation Angle per Rotation " << rotationAngle / (2 * M_PI) * 360  << " ° \n"
                              << "Size of geometry Field is " << geoFieldSize << " MB per process \n"
+                             << "Memory per block " << memoryPerBlock << " MB \n"
+                             << "Memory per process " << memoryPerBlock *  real_t(setupForest->getNumberOfBlocks()) / mpi::MPIManager::instance()->numProcesses() << " MB \n"
+
+
    )
 
    if(writeDomainDecompositionAndReturn) {
@@ -434,6 +434,7 @@ int main(int argc, char** argv)
       //vtkOutput->addCellDataWriter(flagWriter);
       vtkOutput->addCellDataWriter(fractionFieldWriter);
       //vtkOutput->addCellDataWriter(objVeldWriter);
+      //vtkOutput->setSamplingResolution(2);
 
 
       const AABB sliceAABB(real_c(domainAABB.xMin() + domainAABB.xSize() * 0.18), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.2), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.2),

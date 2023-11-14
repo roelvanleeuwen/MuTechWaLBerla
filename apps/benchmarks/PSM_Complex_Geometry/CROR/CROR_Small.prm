@@ -1,7 +1,7 @@
 
 Parameters 
 {
-	timesteps       1;
+	timesteps       101;
 
     initialVelocity   <0.01, 0.0, 0.0>;
     ref_velocity  69.15;    // m/s
@@ -14,7 +14,7 @@ Parameters
     innerOuterSplit    <1,1,1>;
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 1;
+	VTKwriteFrequency 100;
 	writeDomainDecompositionAndReturn false;
     maxSuperSamplingDepth 0;
 }

@@ -92,6 +92,7 @@ class MovingGeometry
          buildGeometryMeshes();
          simTimer.end();
          double time = simTimer.max();
+         WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
          WALBERLA_LOG_INFO_ON_ROOT("Finished building Geometry Mesh in " << time << "s")
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
          //TODO add geometryField toGPU and copy
@@ -390,6 +391,7 @@ class MovingGeometry
          WALBERLA_LOG_INFO_ON_ROOT("Size of Geometry Field will be " << fieldSize[0] * fieldSize[1] * fieldSize[2] * sizeof(geoSize) / (1000*1000) << " MB per process")
          auto geometryField = make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(std::ceil(real_t(stencilSize) * 0.5 )), geoSize(0), field::fzyx);
 
+
          const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
          real_t sqDx = dxSS * dxSS;
          real_t sqDxHalf = (0.5 * dxSS) * (0.5 * dxSS);
@@ -421,6 +423,7 @@ class MovingGeometry
                }
             }
          }
+
          geometryFields_.insert(std::pair<uint_t, shared_ptr<GeometryField_T>> (levelPair.first, geometryField));
       }
    }
