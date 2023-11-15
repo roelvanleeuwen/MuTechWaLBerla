@@ -1,6 +1,6 @@
 BlockForestParameters
 {
-   cellsPerBlock                 < 16, 16, 16 >;
+   cellsPerBlock                 < 32, 32, 32 >;
    periodicity                   < 1, 0, 1 >;
    loadBalancingFrequency        0;
    printLoadBalancingStatistics  false;

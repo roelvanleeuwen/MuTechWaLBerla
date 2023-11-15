@@ -40,21 +40,27 @@ void addBuildInfoToSQL( std::map< std::string, int64_t > &       /*integerProper
 
 void addDomainPropertiesToSQL( const std::shared_ptr< StructuredBlockForest > & forest,
                                std::map< std::string, int64_t > &          integerProperties,
-                               std::map< std::string, double > &           realProperties,
-                               std::map< std::string, std::string > &    /*stringProperties*/ )
+                               std::map< std::string, double > &           /*realProperties*/,
+                               std::map< std::string, std::string > &      /*stringProperties*/ )
 {
    integerProperties["numMPIProcesses"]  = ::walberla::mpi::MPIManager::instance()->numProcesses();
 
-   realProperties[ "domainXMin" ] = forest->getDomain().xMin();
-   realProperties[ "domainXMax" ] = forest->getDomain().xMax();
-   realProperties[ "domainYMin" ] = forest->getDomain().yMin();
-   realProperties[ "domainYMax" ] = forest->getDomain().yMax();
-   realProperties[ "domainZMin" ] = forest->getDomain().zMin();
-   realProperties[ "domainZMax" ] = forest->getDomain().zMax();
+   integerProperties[ "domainXMin" ] = ::walberla::int_c(forest->getDomain().xMin());
+   integerProperties[ "domainXMax" ] = ::walberla::int_c(forest->getDomain().xMax());
+
+   integerProperties[ "domainYMin" ] = ::walberla::int_c(forest->getDomain().yMin());
+   integerProperties[ "domainYMax" ] = ::walberla::int_c(forest->getDomain().yMax());
+
+   integerProperties[ "domainZMin" ] = ::walberla::int_c(forest->getDomain().zMin());
+   integerProperties[ "domainZMax" ] = ::walberla::int_c(forest->getDomain().zMax());
 
    integerProperties[ "xBlocks" ] = ::walberla::int_c( forest->getXSize() );
    integerProperties[ "yBlocks" ] = ::walberla::int_c( forest->getYSize() );
    integerProperties[ "zBlocks" ] = ::walberla::int_c( forest->getZSize() );
+
+   integerProperties["xCellsPerBlock"] = ::walberla::int_c(forest->getNumberOfXCellsPerBlock());
+   integerProperties["yCellsPerBlock"] = ::walberla::int_c(forest->getNumberOfYCellsPerBlock());
+   integerProperties["zCellsPerBlock"] = ::walberla::int_c(forest->getNumberOfZCellsPerBlock());
 
    integerProperties[ "xPeriodic" ] = ( forest->isXPeriodic() ? 1 : 0 );
    integerProperties[ "yPeriodic" ] = ( forest->isYPeriodic() ? 1 : 0 );
