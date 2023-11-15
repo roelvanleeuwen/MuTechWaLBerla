@@ -149,8 +149,18 @@ with CodeGeneration() as ctx:
         inner_outer_split=True,
     )
 
-    config_without_psm = copy.deepcopy(lbm_config)
-    config_without_psm.psm_config = None
+    config_without_psm = LBMConfig(
+        stencil=stencil,
+        method=methods[config_tokens[0]],
+        relaxation_rate=omega,
+        force=sp.symbols("F_:3"),
+        force_model=ForceModel.LUO,
+        compressible=True,
+    )
+
+    if config_tokens[0] == "smagorinsky":
+        config_without_psm.smagorinsky = True
+
     generate_sweep(
         ctx,
         "LBMSweep",
