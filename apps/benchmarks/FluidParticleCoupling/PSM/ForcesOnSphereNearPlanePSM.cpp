@@ -493,6 +493,9 @@ int main(int argc, char** argv)
    // add flag field
    BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field", FieldGhostLayers);
 
+   BlockDataID BFieldID =
+      field::addToStorage< lbm_mesapd_coupling::psm::gpu::BField_T >(blocks, "B field", 0, field::fzyx);
+
    // set up coupling functionality
    lbm_mesapd_coupling::ResetHydrodynamicForceTorqueKernel resetHydrodynamicForceTorque;
    lbm_mesapd_coupling::AverageHydrodynamicForceTorqueKernel averageHydrodynamicForceTorque;
@@ -502,7 +505,8 @@ int main(int argc, char** argv)
    {
       WALBERLA_LOG_INFO_ON_ROOT("Initializing Couette velocity profile.");
       initializeCouetteProfile(blocks, velFieldID, domainHeight, wallVelocity);
-      pystencils::PSM_MacroSetter setterSweep(pdfFieldID, velFieldID, real_t(0), real_t(0), real_t(0));
+      // BField is zero at this point in time
+      pystencils::PSM_MacroSetter setterSweep(BFieldID, pdfFieldID, velFieldID, real_t(0), real_t(0), real_t(0));
       for (auto& block : *blocks)
          setterSweep(&block);
    }
@@ -564,7 +568,7 @@ int main(int argc, char** argv)
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 
-   pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
+   pystencils::PSM_MacroGetter getterSweep(BFieldID, densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
                                            real_t(0.0));
    if (vtkIOFreq != uint_t(0))
    {
@@ -582,6 +586,7 @@ int main(int argc, char** argv)
 
       pdfFieldVTK->addBeforeFunction([&]() {
          gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
+         gpu::fieldCpy< BField_T, gpu::GPUField< real_t > >(blocks, BFieldID, particleAndVolumeFractionSoA.BFieldID);
          for (auto& block : *blocks)
             getterSweep(&block);
       });

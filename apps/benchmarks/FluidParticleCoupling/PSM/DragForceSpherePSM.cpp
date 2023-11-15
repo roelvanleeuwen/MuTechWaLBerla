@@ -422,6 +422,9 @@ int main(int argc, char** argv)
    BlockDataID densityFieldID = field::addToStorage< DensityField_T >(blocks, "Density", real_t(0), field::fzyx);
    BlockDataID velFieldID     = field::addToStorage< VelocityField_T >(blocks, "Velocity", real_t(0), field::fzyx);
 
+   BlockDataID BFieldID =
+      field::addToStorage< lbm_mesapd_coupling::psm::gpu::BField_T >(blocks, "B field", 0, field::fzyx);
+
    ///////////////
    // TIME LOOP //
    ///////////////
@@ -457,8 +460,8 @@ int main(int argc, char** argv)
       pdfSetter(&(*blockIt));
    }
 
-   pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, setup.extForce, real_t(0.0),
-                                           real_t(0.0));
+   pystencils::PSM_MacroGetter getterSweep(BFieldID, densityFieldID, pdfFieldID, velFieldID, setup.extForce,
+                                           real_t(0.0), real_t(0.0));
    if (vtkIOFreq != uint_t(0))
    {
       // spheres
@@ -474,6 +477,7 @@ int main(int argc, char** argv)
 
       pdfFieldVTK->addBeforeFunction([&]() {
          gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
+         gpu::fieldCpy< BField_T, gpu::GPUField< real_t > >(blocks, BFieldID, particleAndVolumeFractionSoA.BFieldID);
          for (auto& block : *blocks)
             getterSweep(&block);
       });
@@ -501,6 +505,9 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(deviceSyncWrapper(psmSweepCollection.reduceParticleForcesSweep), "Reduce particle forces");
    timeloop.add() << Sweep(gpu::fieldCpyFunctor< PdfField_T, gpu::GPUField< real_t > >(pdfFieldID, pdfFieldGPUID),
                            "copy pdf from GPU to CPU");
+   timeloop.add() << Sweep(
+      gpu::fieldCpyFunctor< BField_T, gpu::GPUField< real_t > >(BFieldID, particleAndVolumeFractionSoA.BFieldID),
+      "copy B Field from GPU to CPU");
    timeloop.add() << Sweep(getterSweep, "compute velocity")
                   << AfterFunction(SharedFunctor< DragForceEval_T >(forceEval), "drag force evaluation");
 

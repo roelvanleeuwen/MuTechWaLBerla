@@ -586,6 +586,9 @@ int main(int argc, char** argv)
    // add flag field
    BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
 
+   BlockDataID BFieldID =
+      field::addToStorage< lbm_mesapd_coupling::psm::gpu::BField_T >(blocks, "B field", 0, field::fzyx);
+
    // set up RPD functionality
    std::function< void(void) > syncCall = [ps, rpdDomain]() {
       mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
@@ -680,7 +683,7 @@ int main(int argc, char** argv)
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 
-   pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
+   pystencils::PSM_MacroGetter getterSweep(BFieldID, densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
                                            real_t(0.0));
    // vtk output
    if (vtkIOFreq != uint_t(0))
@@ -711,6 +714,7 @@ int main(int argc, char** argv)
 
       pdfFieldVTK->addBeforeFunction([&]() {
          gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
+         gpu::fieldCpy< BField_T, gpu::GPUField< real_t > >(blocks, BFieldID, particleAndVolumeFractionSoA.BFieldID);
          for (auto& block : *blocks)
             getterSweep(&block);
       });

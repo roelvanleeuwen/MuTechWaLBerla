@@ -70,6 +70,7 @@
 #include "PSMPackInfo.h"
 #include "PSMSweep.h"
 #include "PSM_Density.h"
+#include "PSM_FreeSlip.h"
 #include "PSM_InfoHeader.h"
 #include "PSM_MacroGetter.h"
 #include "PSM_NoSlip.h"
@@ -100,6 +101,7 @@ const FlagUID Fluid_Flag("Fluid");
 const FlagUID Density0_Flag("Density0");
 const FlagUID Density1_Flag("Density1");
 const FlagUID NoSlip_Flag("NoSlip");
+const FlagUID FreeSlip_Flag("FreeSlip");
 
 //////////
 // MAIN //
@@ -260,6 +262,8 @@ int main(int argc, char** argv)
    mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(timeStepSizeRPD);
    mesa_pd::kernel::LinearSpringDashpot collisionResponse(2);
    collisionResponse.setFrictionCoefficientDynamic(0, 0, particleFrictionCoefficient);
+   // No friction between spheres and (artificial) bounding planes
+   collisionResponse.setFrictionCoefficientDynamic(0, 1, real_t(0));
    mesa_pd::kernel::AssocToBlock assoc(blocks->getBlockForestPointer());
    mesa_pd::mpi::ReduceProperty reduceProperty;
    mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
@@ -318,6 +322,8 @@ int main(int argc, char** argv)
    density1_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Density1_Flag, Fluid_Flag);
    lbm::PSM_NoSlip noSlip(blocks, pdfFieldGPUID);
    noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, NoSlip_Flag, Fluid_Flag);
+   lbm::PSM_FreeSlip freeSlip(blocks, pdfFieldGPUID);
+   freeSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, FreeSlip_Flag, Fluid_Flag);
 
    ///////////////
    // TIME LOOP //
@@ -350,7 +356,7 @@ int main(int argc, char** argv)
    }
 
    // Setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   // TODO: set sendDirectlyFromGPU to true for performance measurements on cluster
+   // sendDirectlyFromGPU should be true if GPUDirect is available
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, false, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
@@ -359,7 +365,7 @@ int main(int argc, char** argv)
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 
-   pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
+   pystencils::PSM_MacroGetter getterSweep(BFieldID, densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
                                            real_t(0.0));
    // VTK output
    if (vtkSpacing != uint_t(0))
@@ -437,6 +443,7 @@ int main(int argc, char** argv)
                   << Sweep(deviceSyncWrapper(density0_bc.getSweep()), "Boundary Handling (Density0)");
    timeloop.add() << Sweep(deviceSyncWrapper(density1_bc.getSweep()), "Boundary Handling (Density1)");
    timeloop.add() << Sweep(deviceSyncWrapper(noSlip.getSweep()), "Boundary Handling (NoSlip)");
+   timeloop.add() << Sweep(deviceSyncWrapper(freeSlip.getSweep()), "Boundary Handling (FreeSlip)");
 
    // PSM kernel
    pystencils::PSMSweep PSMSweep(particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
@@ -514,8 +521,9 @@ int main(int argc, char** argv)
                   {
                      // TODO: rewrite this kernel such that it also works with OpenMP (remove race condition)
                      auto meff = real_t(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
-                     collisionResponse.setStiffnessAndDamping(0, 0, particleRestitutionCoefficient,
-                                                              particleCollisionTime, kappa, meff);
+                     collisionResponse.setStiffnessAndDamping(ac.getType(idx1), ac.getType(idx2),
+                                                              particleRestitutionCoefficient, particleCollisionTime,
+                                                              kappa, meff);
                      collisionResponse(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), acd.getContactNormal(),
                                        acd.getPenetrationDepth(), timeStepSizeRPD);
                   }

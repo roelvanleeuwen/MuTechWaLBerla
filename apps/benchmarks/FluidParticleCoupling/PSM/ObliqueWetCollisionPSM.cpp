@@ -691,6 +691,9 @@ int main(int argc, char** argv)
    BlockDataID densityFieldID = field::addToStorage< DensityField_T >(blocks, "Density", real_t(0), field::fzyx);
    BlockDataID velFieldID     = field::addToStorage< VelocityField_T >(blocks, "Velocity", real_t(0), field::fzyx);
 
+   BlockDataID BFieldID =
+      field::addToStorage< lbm_mesapd_coupling::psm::gpu::BField_T >(blocks, "B field", 0, field::fzyx);
+
    // assemble boundary block string
    std::string boundariesBlockString = " Boundaries { Border { direction B;    walldistance -1;  flag NoSlip; }";
 
@@ -799,7 +802,7 @@ int main(int argc, char** argv)
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 
-   pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
+   pystencils::PSM_MacroGetter getterSweep(BFieldID, densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
                                            real_t(0.0));
 
    // vtk output
@@ -823,6 +826,7 @@ int main(int argc, char** argv)
       pdfFieldVTK->addBeforeFunction(communication);
       pdfFieldVTK->addBeforeFunction([&]() {
          gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
+         gpu::fieldCpy< BField_T, gpu::GPUField< real_t > >(blocks, BFieldID, particleAndVolumeFractionSoA.BFieldID);
          for (auto& block : *blocks)
             getterSweep(&block);
       });

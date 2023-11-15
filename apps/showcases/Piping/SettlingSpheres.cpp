@@ -163,8 +163,10 @@ int main(int argc, char** argv)
    // Init kernels
    mesa_pd::kernel::VelocityVerletPreForceUpdate vvIntegratorPreForce(dt_SI);
    mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(dt_SI);
-   kernel::LinearSpringDashpot dem(1);
+   kernel::LinearSpringDashpot dem(2);
    dem.setFrictionCoefficientDynamic(0, 0, frictionCoefficient);
+   // Use friction between spheres and planes to speed up the settling
+   dem.setFrictionCoefficientDynamic(0, 1, frictionCoefficient);
    real_t kappa = real_t(2) * (real_t(1) - poissonsRatio) / (real_t(2) - poissonsRatio); // from Thornton et al
 
    kernel::AssocToBlock assoc(forest);
@@ -185,7 +187,7 @@ int main(int argc, char** argv)
    timer.start();
    for (uint_t i = 0; i < timeSteps; ++i)
    {
-      if (i % visSpacing == 0) { vtkWriter->write(); }
+      if (visSpacing > 0 && i % visSpacing == 0) { vtkWriter->write(); }
 
       ps->forEachParticle(false, kernel::SelectLocal(), accessor, assoc, accessor);
 
@@ -217,7 +219,8 @@ int main(int argc, char** argv)
                if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *domain))
                {
                   auto meff = real_t(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
-                  dem.setStiffnessAndDamping(0, 0, restitutionCoefficient, collisionTime_SI, kappa, meff);
+                  dem.setStiffnessAndDamping(ac.getType(idx1), ac.getType(idx2), restitutionCoefficient,
+                                             collisionTime_SI, kappa, meff);
                   dem(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), acd.getContactNormal(),
                       acd.getPenetrationDepth(), dt_SI);
                }
