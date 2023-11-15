@@ -549,6 +549,9 @@ int main(int argc, char** argv)
    // add flag field
    BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
 
+   BlockDataID BFieldID  = field::addToStorage< BField_T >(blocks, "B field CPU", 0, field::fzyx, 1);
+   BlockDataID BsFieldID = field::addToStorage< BsField_T >(blocks, "Bs field CPU", 0, field::fzyx, 1);
+
    // set up RPD functionality
    std::function< void(void) > syncCall = [ps, rpdDomain]() {
       mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
@@ -643,7 +646,7 @@ int main(int argc, char** argv)
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
 
-   pystencils::PSM_MacroGetter getterSweep(densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
+   pystencils::PSM_MacroGetter getterSweep(BFieldID, densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
                                            real_t(0.0));
    // vtk output
    if (vtkIOFreq != uint_t(0))
@@ -671,8 +674,6 @@ int main(int argc, char** argv)
       pdfGhostLayerSync.addPackInfo(make_shared< field::communication::PackInfo< PdfField_T > >(pdfFieldID));
       pdfFieldVTK->addBeforeFunction(pdfGhostLayerSync);
 
-      BlockDataID BFieldID  = field::addToStorage< BField_T >(blocks, "B field CPU", 0, field::fzyx, 1);
-      BlockDataID BsFieldID = field::addToStorage< BsField_T >(blocks, "Bs field CPU", 0, field::fzyx, 1);
       pdfFieldVTK->addBeforeFunction([&]() {
          gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
          gpu::fieldCpy< BField_T, BFieldGPU_T >(blocks, BFieldID, particleAndVolumeFractionSoA.BFieldID);
