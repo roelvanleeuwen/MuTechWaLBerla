@@ -48,7 +48,13 @@ with CodeGeneration() as ctx:
     layout = "fzyx"
     MaxParticlesPerCell = 2
     config_tokens = ctx.config.split("_")
-    methods = {"srt": Method.SRT, "trt": Method.TRT}
+    methods = {
+        "srt": Method.SRT,
+        "trt": Method.TRT,
+        "mrt": Method.MRT,
+        "cumulant": Method.MONOMIAL_CUMULANT,
+        "smagorinsky": Method.SRT,
+    }
     # Solid collision variant
     SC = int(config_tokens[1][2])
 
@@ -90,6 +96,9 @@ with CodeGeneration() as ctx:
         compressible=True,
         psm_config=psm_config,
     )
+
+    if config_tokens[0] == "smagorinsky":
+        lbm_config.smagorinsky = True
 
     # =====================
     # Generate method

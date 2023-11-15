@@ -13,7 +13,7 @@ if (WALBERLA_BUILD_WITH_GPU_SUPPORT)
                 PSMWrapperSweepsGPU.h
         )
         if (WALBERLA_BUILD_WITH_CODEGEN)
-            foreach (collision_setup srt trt)
+            foreach (collision_setup srt trt mrt cumulant smagorinsky)
                 foreach (solid_collision 1 2 3)
                     set(config ${collision_setup}_sc${solid_collision})
                     walberla_generate_target_from_python(NAME PSMCodegenPython_${config}
