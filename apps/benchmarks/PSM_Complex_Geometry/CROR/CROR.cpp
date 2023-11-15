@@ -274,24 +274,24 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldGPUId, objectVelocitiesFieldId,
                                                           Vector3<real_t>(0,0,0), 0,
-                                                          rotationAxis,  distanceOctreeMeshBase, "rotor", maxSuperSamplingDepth, false);
+                                                          rotationAxis,  distanceOctreeMeshBase, "base", maxSuperSamplingDepth, false);
    auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldGPUId, objectVelocitiesFieldId,
                                                            Vector3<real_t>(0,0,0), rotationAngle,
-                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, true);
+                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, false);
    auto objectRotatorStator = make_shared<MovingGeometry> (blocks, meshStator, fractionFieldGPUId, objectVelocitiesFieldId,
                                                             Vector3<real_t>(0,0,0), -rotationAngle,
-                                                            rotationAxis,  distanceOctreeMeshStator, "rotor", maxSuperSamplingDepth, true);
+                                                            rotationAxis,  distanceOctreeMeshStator, "stator", maxSuperSamplingDepth, false);
 
 #else
    auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldId, objectVelocitiesFieldId,
-                                                           Vector3<real_t>(0,0,0), 0,
-                                                           rotationAxis,  distanceOctreeMeshBase, "rotor", maxSuperSamplingDepth, false);
+                                                          Vector3<real_t>(0,0,0), 0, rotationAxis,  distanceOctreeMeshBase,
+                                                          "base", maxSuperSamplingDepth, false);
    auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldId, objectVelocitiesFieldId,
-                                                           Vector3<real_t>(0,0,0), rotationAngle,
-                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, true);
+                                                           Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshRotor,
+                                                           "rotor", maxSuperSamplingDepth, true);
    auto objectRotatorStator = make_shared<MovingGeometry> (blocks, meshStator, fractionFieldId, objectVelocitiesFieldId,
-                                                           Vector3<real_t>(0,0,0), -rotationAngle,
-                                                           rotationAxis,  distanceOctreeMeshStator, "rotor", maxSuperSamplingDepth, true);
+                                                           Vector3<real_t>(0,0,0), -rotationAngle, rotationAxis,  distanceOctreeMeshStator,
+                                                            "stator", maxSuperSamplingDepth, true);
 
 
 #endif
@@ -357,7 +357,7 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    SweepCollection_T sweepCollection(blocks, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
    //pystencils::PSMSweep PSMSweep(fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega, /*real_t(0.0),*/ innerOuterSplit);
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID, initialVelocity[0]);
 
 #else
    SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
@@ -437,10 +437,10 @@ int main(int argc, char** argv)
       //vtkOutput->setSamplingResolution(0.05);
 
 
-      const AABB sliceAABB(real_c(domainAABB.xMin() + domainAABB.xSize() * 0.18), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.2), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.2),
-                     real_c(domainAABB.xMin() + domainAABB.xSize() * 0.6), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.8), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.8));
+      //const AABB sliceAABB(real_c(domainAABB.xMin() + domainAABB.xSize() * 0.18), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.2), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.2),
+      //               real_c(domainAABB.xMin() + domainAABB.xSize() * 0.6), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.8), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.8));
 
-      vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
+      //vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
 
       //timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");

@@ -66,6 +66,7 @@ typedef field::GhostLayerField< real_t, 3 > VectorField_T;
 
 typedef field::GhostLayerField< real_t, 1 > FracField_T;
 typedef field::GhostLayerField< geoSize, 1 > GeometryField_T;
+typedef gpu::GPUField< geoSize > GeometryFieldGPU_T;
 
 class MovingGeometry
 {
@@ -95,7 +96,22 @@ class MovingGeometry
          WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
          WALBERLA_LOG_INFO_ON_ROOT("Finished building Geometry Mesh in " << time << "s")
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-         //TODO add geometryField toGPU and copy
+         gpuMalloc(geometryFieldsGPU_, geometryFields_.size());
+         gpuDeviceSynchronize();
+         for (size_t i = 0; i < geometryFields_.size(); ++i) {
+            if(geometryFields_[i] != nullptr)
+            {
+               geometryFieldsGPU_[i] =
+                  new GeometryFieldGPU_T(geometryFields_[i]->xSize(), geometryFields_[i]->ySize(),
+                                         geometryFields_[i]->zSize(), geometryFields_[i]->fSize(),
+                                         geometryFields_[i]->nrOfGhostLayers(), geometryFields_[i]->layout(), true);
+
+               gpu::fieldCpy(*geometryFieldsGPU_[i], *geometryFields_[i]);
+            }
+         }
+         WALBERLA_LOG_INFO_ON_ROOT("Finished all allocations and Memory transfer ")
+
+
  #endif
          getFractionFieldFromGeometryMesh(0);
       }
@@ -260,6 +276,7 @@ class MovingGeometry
       {
          auto level = blocks_->getLevel(block);
          auto cellBB = blocks_->getCellBBFromAABB( meshAABB_, level );
+         const real_t dx = blocks_->dx(level);
 
          auto objVelField = block.getData< VectorField_T >(objectVelocityId_);
          Vector3< real_t > angularVel;
@@ -270,7 +287,6 @@ class MovingGeometry
          else
             angularVel = Vector3< real_t > (rotationAxis_[0] * rotationAngle_, rotationAxis_[1] * rotationAngle_, rotationAxis_[2] * rotationAngle_);
 
-         const real_t dx = blocks_->dx(level);
          WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(objVelField,
                                                           Cell cell(x,y,z);
                                                           blocks_->transformBlockLocalToGlobalCell(cell, block);
@@ -383,14 +399,14 @@ class MovingGeometry
       }
       std::sort (levels.begin(), levels.end());
 
-      uint_t stencilSize = uint_t(pow(2, real_t(superSamplingDepth_)));
+      uint_t maxLevel = levels.back().first;
+      geometryFields_.resize(maxLevel+1);
 
+      uint_t stencilSize = uint_t(pow(2, real_t(superSamplingDepth_)));
       for (auto levelPair : levels) {
          real_t dxSS = levelPair.second / real_t(stencilSize);
          auto fieldSize = Vector3<uint_t> (uint_t(meshAABB_.xSize() / dxSS ), uint_t(meshAABB_.ySize() / dxSS ), uint_t(meshAABB_.zSize() / dxSS ));
-         WALBERLA_LOG_INFO_ON_ROOT("Size of Geometry Field will be " << fieldSize[0] * fieldSize[1] * fieldSize[2] * sizeof(geoSize) / (1000*1000) << " MB per process")
          auto geometryField = make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(std::ceil(real_t(stencilSize) * 0.5 )), geoSize(0), field::fzyx);
-
 
          const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
          real_t sqDx = dxSS * dxSS;
@@ -413,18 +429,17 @@ class MovingGeometry
                   geoSize fraction;
                   if(sizeof(geoSize) == 1) {
                      if(fraction_real_t > 0.0) {
-                        fraction = 1;
+                        fraction = true;
                      }
                      else {
-                        fraction = 0;
+                        fraction = false;
                      }
                   }
                   geometryField->get(cell) = fraction;
                }
             }
          }
-
-         geometryFields_.insert(std::pair<uint_t, shared_ptr<GeometryField_T>> (levelPair.first, geometryField));
+         geometryFields_[levelPair.first] = shared_ptr<GeometryField_T> (geometryField);
       }
    }
 
@@ -434,12 +449,13 @@ class MovingGeometry
    shared_ptr< mesh::TriangleMesh > mesh_;
 
    BlockDataID fractionFieldId_;
-   std::map<uint_t, shared_ptr <GeometryField_T>> geometryFields_;
+   std::vector<shared_ptr <GeometryField_T>> geometryFields_;
    BlockDataID staticFractionFieldId_;
    BlockDataID objectVelocityId_;
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
    BlockDataID staticFractionFieldGPUId_;
+   GeometryFieldGPU_T **geometryFieldsGPU_;
 #endif
 
    Vector3<real_t> translation_;
