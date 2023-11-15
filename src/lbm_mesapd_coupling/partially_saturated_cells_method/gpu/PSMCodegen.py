@@ -51,9 +51,6 @@ with CodeGeneration() as ctx:
     methods = {"srt": Method.SRT, "trt": Method.TRT}
     # Solid collision variant
     SC = int(config_tokens[1][2])
-    split = bool(
-        int(config_tokens[2][1])
-    )  # Splitting scheme was introduced in the following paper: https://doi.org/10.1016/j.powtec.2022.117556
 
     pdfs, pdfs_tmp, velocity_field, density_field = ps.fields(
         f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}), velocity_field({stencil.D}), density_field({1}): {data_type}[3D]",
