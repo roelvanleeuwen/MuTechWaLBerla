@@ -434,7 +434,7 @@ int main(int argc, char** argv)
       //vtkOutput->addCellDataWriter(flagWriter);
       vtkOutput->addCellDataWriter(fractionFieldWriter);
       //vtkOutput->addCellDataWriter(objVeldWriter);
-      //vtkOutput->setSamplingResolution(2);
+      //vtkOutput->setSamplingResolution(0.05);
 
 
       const AABB sliceAABB(real_c(domainAABB.xMin() + domainAABB.xSize() * 0.18), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.2), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.2),
