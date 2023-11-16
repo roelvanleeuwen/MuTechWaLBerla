@@ -130,6 +130,9 @@ int main(int argc, char** argv)
    }
 
    WALBERLA_LOG_DEVEL_VAR(overlap)
+   const real_t expectedOverlap = force_SI / normalSpringConstant_SI;
+   WALBERLA_LOG_DEVEL_VAR(expectedOverlap)
+   WALBERLA_CHECK_FLOAT_EQUAL(overlap, expectedOverlap)
 
    return EXIT_SUCCESS;
 }
