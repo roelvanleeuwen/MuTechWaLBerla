@@ -350,9 +350,12 @@ int main(int argc, char** argv)
    if (vtkSpacing != uint_t(0)) { vtk::writeDomainDecomposition(blocks, "domain_decomposition", vtkFolder); }
 
    // Add performance logging
-   const lbm::PerformanceLogger< FlagField_T > performanceLogger(blocks, flagFieldID, Fluid_Flag,
-                                                                 performanceLogFrequency);
-   timeloop.addFuncAfterTimeStep(performanceLogger, "Evaluate performance logging");
+   if (performanceLogFrequency > 0)
+   {
+      const lbm::PerformanceLogger< FlagField_T > performanceLogger(blocks, flagFieldID, Fluid_Flag,
+                                                                    performanceLogFrequency);
+      timeloop.addFuncAfterTimeStep(performanceLogger, "Evaluate performance logging");
+   }
 
    // Add LBM communication function and boundary handling sweep
    // TODO: use split sweeps to hide communication
