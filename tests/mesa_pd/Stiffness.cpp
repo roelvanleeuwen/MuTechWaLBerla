@@ -64,8 +64,9 @@ int main(int argc, char** argv)
    const math::AABB simulationDomain_SI(real_t(0.0), real_t(0.0), real_t(0.0), domainSize_SI[0], domainSize_SI[1],
                                         domainSize_SI[2]);
 
-   shared_ptr< BlockForest > forest = blockforest::createBlockForest(simulationDomain_SI, Vec3(uint(1)), Vec3(false));
-   auto domain                      = std::make_shared< mesa_pd::domain::BlockForestDomain >(forest);
+   shared_ptr< BlockForest > forest =
+      blockforest::createBlockForest(simulationDomain_SI, Vec3(uint(1)), Vector3< bool >(false));
+   auto domain = std::make_shared< mesa_pd::domain::BlockForestDomain >(forest);
 
    // MesaPD data structures
    auto ps = std::make_shared< data::ParticleStorage >(1);
