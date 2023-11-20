@@ -99,23 +99,11 @@ class MovingGeometry
          WALBERLA_LOG_INFO_ON_ROOT("Finished building Geometry Mesh in " << time << "s")
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-         GeometryFieldGPU_T**  tempHostPointer;
-         tempHostPointer = (GeometryFieldGPU_T**) malloc(sizeof(GeometryFieldGPU_T*) * geometryFields_.size());
-         for (size_t i = 0; i < geometryFields_.size(); ++i) {
-            if(geometryFields_[i] != nullptr)
-            {
-               tempHostPointer[i] = new GeometryFieldGPU_T(geometryFields_[i]->xSize(), geometryFields_[i]->ySize(), geometryFields_[i]->zSize(), geometryFields_[i]->fSize(), geometryFields_[i]->nrOfGhostLayers(), geometryFields_[i]->layout(), true);
-               gpu::fieldCpy(*tempHostPointer[i], *geometryFields_[i]);
-            }
-         }
-         gpuMalloc(&geometryFieldsGPU_, sizeof(GeometryFieldGPU_T*) * geometryFields_.size());
-         gpuMemcpy(geometryFieldsGPU_, tempHostPointer, sizeof(GeometryFieldGPU_T*) * geometryFields_.size(), cudaMemcpyHostToDevice);
-#endif
-         gpuDeviceSynchronize();
-         WALBERLA_LOG_INFO_ON_ROOT("Finished allocating and copying Fields")
-         getFractionFieldFromGeometryMesh(0);
-         WALBERLA_LOG_INFO_ON_ROOT("Finished getFractionFieldFromGeometryMesh(0);")
 
+         geometryFieldGPU_ = new GeometryFieldGPU_T(geometryField_->xSize(), geometryField_->ySize(), geometryField_->zSize(), geometryField_->fSize(), geometryField_->nrOfGhostLayers(), geometryField_->layout(), true);
+         gpu::fieldCpy(*geometryFieldGPU_, *geometryField_);
+#endif
+         getFractionFieldFromGeometryMesh(0);
       }
       else {
          staticFractionFieldId_ = field::addToStorage< FracField_T >(blocks, "staticFractionField_" + meshName_, real_t(0.0), field::fzyx, ghostLayers_);
@@ -156,8 +144,7 @@ class MovingGeometry
 
          FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId_);
          auto level = blocks_->getLevel(block);
-         const real_t dx = blocks_->dx(level);
-         real_t dxSS = dx / pow(2, real_t(superSamplingDepth_));
+         real_t dxSS = maxRefinementLevelPair_.second / pow(2, real_t(superSamplingDepth_));
          CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
 
 #ifdef _OPENMP
@@ -187,10 +174,10 @@ class MovingGeometry
 
                   // rotated cell outside of geometry field
                   if (cellInGeometrySpace[0] < 0 ||
-                      cellInGeometrySpace[0] >= int32_t(geometryFields_[level]->xSize()) ||
+                      cellInGeometrySpace[0] >= int32_t(geometryField_->xSize()) ||
                       cellInGeometrySpace[1] < 0 ||
-                      cellInGeometrySpace[1] >= int32_t(geometryFields_[level]->ySize()) ||
-                      cellInGeometrySpace[2] < 0 || cellInGeometrySpace[2] >= int32_t(geometryFields_[level]->zSize()))
+                      cellInGeometrySpace[1] >= int32_t(geometryField_->ySize()) ||
+                      cellInGeometrySpace[2] < 0 || cellInGeometrySpace[2] >= int32_t(geometryField_->zSize()))
                   {
                      fraction = 0.0;
                   }
@@ -202,17 +189,15 @@ class MovingGeometry
                      auto offset = Vector3< int >(int(distanceToCellCenter[0] / abs(distanceToCellCenter[0])),
                                                   int(distanceToCellCenter[1] / abs(distanceToCellCenter[1])),
                                                   int(distanceToCellCenter[2] / abs(distanceToCellCenter[2])));
+
                      Vector3< int > iterationStart =
                         Vector3< int >((offset[0] < 0) ? -1 : 0, (offset[1] < 0) ? -1 : 0, (offset[2] < 0) ? -1 : 0);
                      Vector3< int > iterationEnd = iterationStart + Vector3< int >(interpolationStencilSize);
-                     for (int z = iterationStart[2]; z < iterationEnd[2]; ++z)
-                     {
-                        for (int y = iterationStart[1]; y < iterationEnd[1]; ++y)
-                        {
-                           for (int x = iterationStart[0]; x < iterationEnd[0]; ++x)
-                           {
-                              fraction += geometryFields_[level]->get(
-                                 cellInGeometrySpace[0] + x, cellInGeometrySpace[1] + y, cellInGeometrySpace[2] + z);
+
+                     for (int z = iterationStart[2]; z < iterationEnd[2]; ++z) {
+                        for (int y = iterationStart[1]; y < iterationEnd[1]; ++y) {
+                           for (int x = iterationStart[0]; x < iterationEnd[0]; ++x) {
+                              fraction += geometryField_->get(cellInGeometrySpace[0] + x, cellInGeometrySpace[1] + y, cellInGeometrySpace[2] + z);
                            }
                         }
                      }
@@ -228,7 +213,7 @@ class MovingGeometry
                         {
                            for (int x = -halfInterpolationStencilSize; x <= halfInterpolationStencilSize; ++x)
                            {
-                              fraction += geometryFields_[level]->get(
+                              fraction += geometryField_->get(
                                  cellInGeometrySpace[0] + x, cellInGeometrySpace[1] + y, cellInGeometrySpace[2] + z);
                            }
                         }
@@ -401,47 +386,34 @@ class MovingGeometry
       }
       std::sort (levels.begin(), levels.end());
 
-      uint_t maxLevel = levels.back().first;
-      geometryFields_.resize(maxLevel+1);
+      maxRefinementLevelPair_ = levels.back();
 
       uint_t stencilSize = uint_t(pow(2, real_t(superSamplingDepth_)));
-      for (auto levelPair : levels) {
-         real_t dxSS = levelPair.second / real_t(stencilSize);
-         auto fieldSize = Vector3<uint_t> (uint_t(meshAABB_.xSize() / dxSS ), uint_t(meshAABB_.ySize() / dxSS ), uint_t(meshAABB_.zSize() / dxSS ));
-         auto geometryField = make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(std::ceil(real_t(stencilSize) * 0.5 )), geoSize(0), field::fzyx);
+      real_t dxSS = maxRefinementLevelPair_.second / real_t(stencilSize);
+      auto fieldSize = Vector3<uint_t> (uint_t(meshAABB_.xSize() / dxSS ), uint_t(meshAABB_.ySize() / dxSS ), uint_t(meshAABB_.zSize() / dxSS ));
+      geometryField_= make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(std::ceil(real_t(stencilSize) * 0.5 )), geoSize(0), field::fzyx);
 
-         const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
-         real_t sqDx = dxSS * dxSS;
-         real_t sqDxHalf = (0.5 * dxSS) * (0.5 * dxSS);
+      const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
+      real_t sqDx = dxSS * dxSS;
+      real_t sqDxHalf = (0.5 * dxSS) * (0.5 * dxSS);
 
-         CellInterval blockCi = geometryField->xyzSizeWithGhostLayer();
+      CellInterval blockCi = geometryField_->xyzSizeWithGhostLayer();
 
 #ifdef _OPENMP
-         #pragma omp parallel for schedule(static)
+      #pragma omp parallel for schedule(static)
 #endif
-         for (cell_idx_t cellZ = blockCi.zMin(); cellZ < blockCi.zMax(); ++cellZ) {
-            for (cell_idx_t cellY = blockCi.yMin(); cellY < blockCi.yMax(); ++cellY) {
-               for (cell_idx_t cellX = blockCi.xMin(); cellX < blockCi.xMax(); ++cellX) {
-                  Cell cell(cellX, cellY, cellZ);
+      for (cell_idx_t cellZ = blockCi.zMin(); cellZ < blockCi.zMax(); ++cellZ) {
+         for (cell_idx_t cellY = blockCi.yMin(); cellY < blockCi.yMax(); ++cellY) {
+            for (cell_idx_t cellX = blockCi.xMin(); cellX < blockCi.xMax(); ++cellX) {
+               Cell cell(cellX, cellY, cellZ);
 
-                  Vector3< real_t > cellCenter = meshAABB_.min() + Vector3< real_t >(cell.x() * dxSS, cell.y() * dxSS, cell.z() * dxSS) + Vector3< real_t >(0.5 * dxSS);
-                  const real_t sqSignedDistance = (*distFunct)(cellCenter);
+               Vector3< real_t > cellCenter = meshAABB_.min() + Vector3< real_t >(cell.x() * dxSS, cell.y() * dxSS, cell.z() * dxSS) + Vector3< real_t >(0.5 * dxSS);
+               const real_t sqSignedDistance = (*distFunct)(cellCenter);
 
-                  geoSize fraction = std::max(0.0, std::min(1.0, (sqDx - (sqSignedDistance + sqDxHalf)) / sqDx));
-                  //geoSize fraction;
-                  /*if(sizeof(geoSize) == 1) {
-                     if(fraction_real_t > 0.0) {
-                        fraction = true;
-                     }
-                     else {
-                        fraction = false;
-                     }
-                  }*/
-                  geometryField->get(cell) = fraction;
-               }
+               geoSize fraction = geoSize(std::max(0.0, std::min(1.0, (sqDx - (sqSignedDistance + sqDxHalf)) / sqDx)));
+               geometryField_->get(cell) = fraction;
             }
          }
-         geometryFields_[levelPair.first] = shared_ptr<GeometryField_T> (geometryField);
       }
    }
 
@@ -451,13 +423,13 @@ class MovingGeometry
    shared_ptr< mesh::TriangleMesh > mesh_;
 
    BlockDataID fractionFieldId_;
-   std::vector<shared_ptr <GeometryField_T>> geometryFields_;
+   shared_ptr <GeometryField_T> geometryField_;
    BlockDataID staticFractionFieldId_;
    BlockDataID objectVelocityId_;
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
    BlockDataID staticFractionFieldGPUId_;
-   GeometryFieldGPU_T **geometryFieldsGPU_;
+   GeometryFieldGPU_T *geometryFieldGPU_;
 #endif
 
    Vector3<real_t> translation_;
@@ -470,5 +442,6 @@ class MovingGeometry
    const bool isRotating_;
    Vector3<real_t> meshCenter;
    AABB meshAABB_;
+   std::pair<uint_t, real_t>  maxRefinementLevelPair_;
 };
 }//namespace waLBerla
