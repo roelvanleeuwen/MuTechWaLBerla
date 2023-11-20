@@ -141,10 +141,11 @@ int main(int argc, char** argv)
    const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
    const uint_t refinementDepth = domainParameters.getParameter< uint_t >("refinementDepth");
    const uint_t maxSuperSamplingDepth = parameters.getParameter< uint_t >("maxSuperSamplingDepth", uint_c(1));
-
    const Vector3< real_t > initialVelocity = parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >(0.0));
    const uint_t timestepsFixed = parameters.getParameter< uint_t >("timesteps", uint_c(10));
+
    const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
+   const real_t VTKwriteDx = parameters.getParameter< real_t >("VTKwriteDx", real_c(0.01));
    const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0));
    const bool writeDomainDecompositionAndReturn = parameters.getParameter< bool >("writeDomainDecompositionAndReturn", false);
 
@@ -274,24 +275,24 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldGPUId, objectVelocitiesFieldId,
                                                           Vector3<real_t>(0,0,0), 0,
-                                                          rotationAxis,  distanceOctreeMeshBase, "base", maxSuperSamplingDepth, false);
+                                                          rotationAxis,  distanceOctreeMeshBase, "base", maxSuperSamplingDepth, ghostLayers, false);
    auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldGPUId, objectVelocitiesFieldId,
                                                            Vector3<real_t>(0,0,0), rotationAngle,
-                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, false);
+                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, ghostLayers, true);
    auto objectRotatorStator = make_shared<MovingGeometry> (blocks, meshStator, fractionFieldGPUId, objectVelocitiesFieldId,
                                                             Vector3<real_t>(0,0,0), -rotationAngle,
-                                                            rotationAxis,  distanceOctreeMeshStator, "stator", maxSuperSamplingDepth, false);
+                                                            rotationAxis,  distanceOctreeMeshStator, "stator", maxSuperSamplingDepth, ghostLayers, true);
 
 #else
    auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldId, objectVelocitiesFieldId,
                                                           Vector3<real_t>(0,0,0), 0, rotationAxis,  distanceOctreeMeshBase,
-                                                          "base", maxSuperSamplingDepth, false);
+                                                          "base", maxSuperSamplingDepth, ghostLayers, false);
    auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldId, objectVelocitiesFieldId,
                                                            Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshRotor,
-                                                           "rotor", maxSuperSamplingDepth, true);
+                                                           "rotor", maxSuperSamplingDepth, ghostLayers, true);
    auto objectRotatorStator = make_shared<MovingGeometry> (blocks, meshStator, fractionFieldId, objectVelocitiesFieldId,
                                                            Vector3<real_t>(0,0,0), -rotationAngle, rotationAxis,  distanceOctreeMeshStator,
-                                                            "stator", maxSuperSamplingDepth, true);
+                                                            "stator", maxSuperSamplingDepth, ghostLayers, true);
 
 
 #endif
@@ -434,7 +435,7 @@ int main(int argc, char** argv)
       //vtkOutput->addCellDataWriter(flagWriter);
       vtkOutput->addCellDataWriter(fractionFieldWriter);
       //vtkOutput->addCellDataWriter(objVeldWriter);
-      //vtkOutput->setSamplingResolution(0.05);
+      vtkOutput->setSamplingResolution(VTKwriteDx);
 
 
       //const AABB sliceAABB(real_c(domainAABB.xMin() + domainAABB.xSize() * 0.18), real_c(domainAABB.yMin() + domainAABB.ySize() * 0.2), real_c(domainAABB.zMin() + domainAABB.zSize() * 0.2),

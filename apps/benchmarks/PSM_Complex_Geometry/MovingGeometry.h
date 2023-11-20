@@ -66,7 +66,9 @@ typedef field::GhostLayerField< real_t, 3 > VectorField_T;
 
 typedef field::GhostLayerField< real_t, 1 > FracField_T;
 typedef field::GhostLayerField< geoSize, 1 > GeometryField_T;
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 typedef gpu::GPUField< geoSize > GeometryFieldGPU_T;
+#endif
 
 class MovingGeometry
 {
@@ -75,10 +77,10 @@ class MovingGeometry
                           BlockDataID fractionFieldId, const BlockDataID objectVelocityId,
                           Vector3<real_t> translation, const real_t rotationAngle,
                           Vector3<uint_t> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree,
-                          std::string meshName, uint_t superSamplingDepth, const bool isRotating = true)
+                          std::string meshName, uint_t superSamplingDepth, uint_t ghostLayers, const bool isRotating = true)
       : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId),translation_(translation),
         rotationAngle_(rotationAngle), rotationAxis_(rotationAxis), distOctree_(distOctree),
-        meshName_(meshName), superSamplingDepth_(superSamplingDepth), isRotating_(isRotating)
+        meshName_(meshName), superSamplingDepth_(superSamplingDepth), ghostLayers_(ghostLayers), isRotating_(isRotating)
    {
       auto meshCenterPoint = computeCentroid(*mesh_);
       meshCenter = Vector3<real_t> (meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
@@ -95,28 +97,28 @@ class MovingGeometry
          double time = simTimer.max();
          WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
          WALBERLA_LOG_INFO_ON_ROOT("Finished building Geometry Mesh in " << time << "s")
+
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-         gpuMalloc(geometryFieldsGPU_, geometryFields_.size());
-         gpuDeviceSynchronize();
+         GeometryFieldGPU_T**  tempHostPointer;
+         tempHostPointer = (GeometryFieldGPU_T**) malloc(sizeof(GeometryFieldGPU_T*) * geometryFields_.size());
          for (size_t i = 0; i < geometryFields_.size(); ++i) {
             if(geometryFields_[i] != nullptr)
             {
-               geometryFieldsGPU_[i] =
-                  new GeometryFieldGPU_T(geometryFields_[i]->xSize(), geometryFields_[i]->ySize(),
-                                         geometryFields_[i]->zSize(), geometryFields_[i]->fSize(),
-                                         geometryFields_[i]->nrOfGhostLayers(), geometryFields_[i]->layout(), true);
-
-               gpu::fieldCpy(*geometryFieldsGPU_[i], *geometryFields_[i]);
+               tempHostPointer[i] = new GeometryFieldGPU_T(geometryFields_[i]->xSize(), geometryFields_[i]->ySize(), geometryFields_[i]->zSize(), geometryFields_[i]->fSize(), geometryFields_[i]->nrOfGhostLayers(), geometryFields_[i]->layout(), true);
+               gpu::fieldCpy(*tempHostPointer[i], *geometryFields_[i]);
             }
          }
-         WALBERLA_LOG_INFO_ON_ROOT("Finished all allocations and Memory transfer ")
-
-
- #endif
+         gpuMalloc(&geometryFieldsGPU_, sizeof(GeometryFieldGPU_T*) * geometryFields_.size());
+         gpuMemcpy(geometryFieldsGPU_, tempHostPointer, sizeof(GeometryFieldGPU_T*) * geometryFields_.size(), cudaMemcpyHostToDevice);
+#endif
+         gpuDeviceSynchronize();
+         WALBERLA_LOG_INFO_ON_ROOT("Finished allocating and copying Fields")
          getFractionFieldFromGeometryMesh(0);
+         WALBERLA_LOG_INFO_ON_ROOT("Finished getFractionFieldFromGeometryMesh(0);")
+
       }
       else {
-         staticFractionFieldId_ = field::addToStorage< FracField_T >(blocks, "staticFractionField_" + meshName_, real_t(0.0), field::fzyx, uint_c(1));
+         staticFractionFieldId_ = field::addToStorage< FracField_T >(blocks, "staticFractionField_" + meshName_, real_t(0.0), field::fzyx, ghostLayers_);
          buildStaticFractionField();
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
          staticFractionFieldGPUId_ = gpu::addGPUFieldToStorage< FracField_T >(blocks_, staticFractionFieldId_, "staticFractionFieldGPU_" + meshName_, true );
@@ -195,13 +197,13 @@ class MovingGeometry
                   // 2x2x2 interpolation for superSamplingDepth_=0
                   else if (superSamplingDepth_ == 0)
                   {
-                     auto cellCenterInGeometrySpace = Vector3< real_t >(cellInGeometrySpace);
+                     auto cellCenterInGeometrySpace = Vector3< real_t >(cellInGeometrySpace) * dxSS;
                      auto distanceToCellCenter      = pointInGeometrySpace - cellCenterInGeometrySpace;
                      auto offset = Vector3< int >(int(distanceToCellCenter[0] / abs(distanceToCellCenter[0])),
                                                   int(distanceToCellCenter[1] / abs(distanceToCellCenter[1])),
                                                   int(distanceToCellCenter[2] / abs(distanceToCellCenter[2])));
                      Vector3< int > iterationStart =
-                        Vector3< int >((offset[0] <= 0) ? -1 : 0, (offset[1] <= 0) ? -1 : 0, (offset[2] <= 0) ? -1 : 0);
+                        Vector3< int >((offset[0] < 0) ? -1 : 0, (offset[1] < 0) ? -1 : 0, (offset[2] < 0) ? -1 : 0);
                      Vector3< int > iterationEnd = iterationStart + Vector3< int >(interpolationStencilSize);
                      for (int z = iterationStart[2]; z < iterationEnd[2]; ++z)
                      {
@@ -425,16 +427,16 @@ class MovingGeometry
                   Vector3< real_t > cellCenter = meshAABB_.min() + Vector3< real_t >(cell.x() * dxSS, cell.y() * dxSS, cell.z() * dxSS) + Vector3< real_t >(0.5 * dxSS);
                   const real_t sqSignedDistance = (*distFunct)(cellCenter);
 
-                  real_t fraction_real_t = std::max(0.0, std::min(1.0, (sqDx - (sqSignedDistance + sqDxHalf)) / sqDx));
-                  geoSize fraction;
-                  if(sizeof(geoSize) == 1) {
+                  geoSize fraction = std::max(0.0, std::min(1.0, (sqDx - (sqSignedDistance + sqDxHalf)) / sqDx));
+                  //geoSize fraction;
+                  /*if(sizeof(geoSize) == 1) {
                      if(fraction_real_t > 0.0) {
                         fraction = true;
                      }
                      else {
                         fraction = false;
                      }
-                  }
+                  }*/
                   geometryField->get(cell) = fraction;
                }
             }
@@ -464,6 +466,7 @@ class MovingGeometry
    shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>> distOctree_;
    std::string meshName_;
    uint_t superSamplingDepth_;
+   uint_t ghostLayers_;
    const bool isRotating_;
    Vector3<real_t> meshCenter;
    AABB meshAABB_;

@@ -13,12 +13,12 @@ Parameters
     timeStepStrategy   refinement;
     innerOuterSplit    <1,1,1>;
 
-    maxSuperSamplingDepth 1;
+    maxSuperSamplingDepth 0;
     meshFile            ../Meshfiles/CROR_rotor_downScaled100.obj;
 
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 0;
+	VTKwriteFrequency 100;
 	writeDomainDecompositionAndReturn false;
 }
 
@@ -28,7 +28,7 @@ DomainSetup
    rotationSpeed      6000;     //rad/s
    rotationAxis       < 1, 0, 0 >;
 
-   cellsPerBlock      < 10, 128, 128 >;
+   cellsPerBlock      < 10, 32, 32 >;
    periodic           <  0,  1,  1 >;
    refinementDepth    0 ;
 }
