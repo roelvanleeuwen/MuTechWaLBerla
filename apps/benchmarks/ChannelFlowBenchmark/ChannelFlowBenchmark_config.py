@@ -7,6 +7,7 @@ class Scenario:
     def __init__(self, benchmark=True,
                  cells=(32, 32, 32),
                  blockDecomposition="3D",
+                 barrier_after_sweep=False,
                  timesteps=1000,
                  run_on_cluster=False):
         self.periodic = (1, 0, 1)
@@ -25,7 +26,7 @@ class Scenario:
         self.benchmark = benchmark
         self.warmupSteps = 2
         self.blockDecomposition = blockDecomposition
-        self.barrier_after_sweep = False  # ANPASSEN!
+        self.barrier_after_sweep = barrier_after_sweep  # ANPASSEN!
 
         if run_on_cluster:
             self.dbPath = "/home/hpc/b144dc/b144dc11/repos/walberla-origin/build/apps/benchmarks/ChannelFlowBenchmark/"
@@ -91,18 +92,21 @@ def weakScalingBenchmark():
 
     if run_on_cluster:
         block_sizes = [(i, i, i) for i in (32, 64)]
-        timesteps = [1000, 10000]
-        blockDecompositions = ["3D", "2D"]
+        barriers = [False, True]
+        timesteps = 1000
+        blockDecomposition = "3D"
 
+        #    for timestep in timesteps:
+        #        for blockDecomposition in blockDecompositions:
         for block_size in block_sizes:
-            for timestep in timesteps:
-                for blockDecomposition in blockDecompositions:
-                    scenario = Scenario(benchmark=True,
-                                        blockDecomposition=blockDecomposition,
-                                        cells=block_size,
-                                        timesteps=timestep,
-                                        run_on_cluster=run_on_cluster)
-                    scenarios.add(scenario)
+            for barrier in barriers:
+                scenario = Scenario(benchmark=True,
+                                    blockDecomposition=blockDecomposition,
+                                    barrier_after_sweep=barrier,
+                                    cells=block_size,
+                                    timesteps=timesteps,
+                                    run_on_cluster=run_on_cluster)
+                scenarios.add(scenario)
     else:
         block_size = (32,32,32)
         timesteps = 1000
