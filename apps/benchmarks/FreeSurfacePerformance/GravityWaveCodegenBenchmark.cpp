@@ -339,7 +339,10 @@ int main(int argc, char** argv)
    // const uint_t nrWaves = domainParameters.getParameter< uint_t >("nrWaves", uint_t(1));
    const uint_t nrWaves          = numBlocks[0];
    const real_t wavelength       = real_t(domainSize[0]) / real_t(nrWaves);
-   const real_t initialAmplitude = real_t(domainSize[1]) / real_t(4);
+   //--------------
+   //--const real_t initialAmplitude = real_t(domainSize[1]) / real_t(4);
+   const real_t initialAmplitude = real_t(0); //real_t(domainSize[1]) / real_t(4);
+   //--------------
    // const real_t initialAmplitude = domainParameters.getParameter< real_t >("initialAmplitude");
 
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(numProcesses)
@@ -365,7 +368,8 @@ int main(int argc, char** argv)
    const real_t reynoldsNumber = physicsParameters.getParameter< real_t >("reynoldsNumber");
    const real_t waveNumber     = real_c(2) * math::pi / real_c(wavelength);
    const real_t waveFrequency  = reynoldsNumber * viscosity / real_c(wavelength) / initialAmplitude;
-   const real_t accelerationY  = -(waveFrequency * waveFrequency) / waveNumber / std::tanh(waveNumber * liquidDepth);
+   //--const real_t accelerationY  = -(waveFrequency * waveFrequency) / waveNumber / std::tanh(waveNumber * liquidDepth);
+   const real_t accelerationY  = -real_t(2e-6);
    // accelerate fluid with half of the gravity in positive x-direction (otherwise, we get a perfect seperation of
    // gas and fluid after a few thousand time steps and the free surface does not move anymore)
    const shared_ptr< Vector3< real_t > > acceleration =
@@ -531,14 +535,16 @@ int main(int argc, char** argv)
    // set density in non-liquid or non-interface cells to 1 (after initializing with hydrostatic pressure)
    setDensityInNonFluidCellsToOne< FlagField_T, PdfField_T >(blockForest, flagInfo, flagFieldID, pdfFieldID);
 
-   auto MPIBarrierAfterSweep = [barrierAfterSweep](std::function< void(IBlock*) > sweep,
+   /*auto MPIBarrierAfterSweep = [barrierAfterSweep](std::function< void(IBlock*) > sweep,
                                                    const std::string& identifier) {
       return [sweep, barrierAfterSweep, identifier](IBlock* b) {
          WALBERLA_LOG_DEVEL_VAR(identifier)
          sweep(b);
          if (barrierAfterSweep) { WALBERLA_MPI_BARRIER() }
       };
-   };
+   };*/
+
+   auto MPIBarrierAfterSweep = std::function< void() >([barrierAfterSweep]() { if(barrierAfterSweep) WALBERLA_MPI_BARRIER() });
 
    // create timeloop
    SweepTimeloop timeloop(blockForest, timesteps);
@@ -594,9 +600,7 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(normalSweep, "Sweep: normal computation",
                            StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: normal")
-                  << AfterFunction([](){
-                        WALBERLA_MPI_BARRIER()
-                     }, "MPI Barrier: after normal computation sweep")
+                  << AfterFunction(MPIBarrierAfterSweep, "MPI Barrier: after normal computation sweep")
                   << AfterFunction(Communication_T(blockForest, normalFieldID), "Communication: after normal sweep");
 
    if (computeCurvature)
@@ -608,9 +612,10 @@ int main(int argc, char** argv)
                    walberla::free_surface::flagIDs::interfaceFlagID,
                    walberla::free_surface::flagIDs::liquidInterfaceGasFlagIDs, flagInfo.getObstacleIDSet(), false,
                    real_c(0));
-      timeloop.add() << Sweep(
+      /*timeloop.add() << Sweep(
                            MPIBarrierAfterSweep(curvSweep, "Sweep: curvature computation (finite difference method)"),
-                           "Sweep: curvature computation (finite difference method)", StateSweep::fullFreeSurface)
+                           "Sweep: curvature computation (finite difference method)", StateSweep::fullFreeSurface)*/
+      timeloop.add() << Sweep(curvSweep, "Sweep: curvature computation (finite difference method)", StateSweep::fullFreeSurface)
                      << Sweep(emptySweep(), "Empty sweep: curvature")
                      << AfterFunction(Communication_T(blockForest, curvatureFieldID),
                                       "Communication: after curvature sweep");
@@ -640,9 +645,7 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(freeSurfaceBoundaryHandling->getBoundarySweep(),
                            "Sweep: boundary handling", Set< SUID >::emptySet(), StateSweep::onlyGasAndBoundary)
                   << Sweep(emptySweep(), "Empty sweep: boundary handling", StateSweep::onlyGasAndBoundary)
-                  << AfterFunction([](){
-                        WALBERLA_MPI_BARRIER()
-                     }, "MPI Barrier: after boundary handling sweep");
+                  << AfterFunction(MPIBarrierAfterSweep, "MPI Barrier: after boundary handling sweep");
 
    // add sweep for weighting force in interface cells with fill level and density
    // different version for codegen because pystencils does not support 'Ghostlayerfield<Vector3(), 1>'
@@ -651,9 +654,7 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(forceDensityCodegenSweep,"Sweep: force weighting",
                            Set< SUID >::emptySet(), StateSweep::onlyGasAndBoundary)
                   << Sweep(emptySweep(), "Empty sweep: force weighting", StateSweep::onlyGasAndBoundary)
-                  << AfterFunction([](){
-                        WALBERLA_MPI_BARRIER()
-                     }, "MPI Barrier: after force weighting sweep")
+                  << AfterFunction(MPIBarrierAfterSweep, "MPI Barrier: after force weighting sweep")
                   << AfterFunction(Communication_T(blockForest, forceDensityFieldID),
                                    "Communication: after force weighting sweep");
 
@@ -674,9 +675,7 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(streamReconstructAdvectSweep,
                            "Sweep: StreamReconstructAdvect", StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: StreamReconstructAdvect")
-                  << AfterFunction([](){
-                        WALBERLA_MPI_BARRIER()
-                     }, "MPI Barrier: after StreamReconstructAdvect sweep")
+                  << AfterFunction(MPIBarrierAfterSweep, "MPI Barrier: after StreamReconstructAdvect sweep")
                   // do not communicate PDFs here:
                   // - stream on blocks with "StateSweep::fullFreeSurface" was performed here using post-collision PDFs
                   // - stream on other blocks is performed below and should also use post-collision PDFs
@@ -710,9 +709,7 @@ int main(int argc, char** argv)
                   << Sweep(lbmSweepGenerated,
                            "Sweep: streamCollide (generated)", StateSweep::onlyLBM)
                   << Sweep(emptySweep(), "Empty sweep: collision (generated) / streamCollide (generated)")
-                  << AfterFunction([](){
-                        WALBERLA_MPI_BARRIER()
-                     }, "MPI Barrier: after collision (generated) / streamCollide (generated) sweep")
+                  << AfterFunction(MPIBarrierAfterSweep, "MPI Barrier: after collision (generated) / streamCollide (generated) sweep")
                   //<< Sweep(deviceSyncWrapper(lbmSweepGenerated), "Empty sweep: streamCollide (generated)")
                   << AfterFunction(PdfCommunication_T(blockForest, pdfFieldID),
                                    "Communication: after collision (generated) / streamCollide (generated)");
@@ -728,9 +725,7 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(cellConvSweep, "Sweep: cell conversion",
                            StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: cell conversion")
-                  << AfterFunction([](){
-                        WALBERLA_MPI_BARRIER()
-                     }, "MPI Barrier: after cell conversion sweep")
+                  << AfterFunction(MPIBarrierAfterSweep, "MPI Barrier: after cell conversion sweep")
                   << AfterFunction(PdfCommunication_T(blockForest, pdfFieldID),
                                    "Communication: after cell conversion sweep (PDF field)")
                   // communicate the flag field also in corner directions
@@ -747,9 +742,7 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(equilibriumRefillingSweep,
                            "Sweep: EquilibriumRefilling", StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: EquilibriumRefilling")
-                  << AfterFunction([](){
-                        WALBERLA_MPI_BARRIER()
-                     }, "MPI Barrier: after EquilibriumRefilling sweep")
+                  << AfterFunction(MPIBarrierAfterSweep, "MPI Barrier: after EquilibriumRefilling sweep")
                   << AfterFunction(PdfCommunication_T(blockForest, pdfFieldID),
                                    "Communication: after EquilibriumRefilling sweep");
 
@@ -766,9 +759,7 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(distributeMassSweep,
                            "Sweep: excess mass distribution", StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: distribute excess mass")
-                  << AfterFunction([](){
-                        WALBERLA_MPI_BARRIER()
-                     }, "MPI Barrier: after distribute excess mass sweep")
+                  << AfterFunction(MPIBarrierAfterSweep, "MPI Barrier: after distribute excess mass sweep")
                   << AfterFunction(Communication_T(blockForest, fillFieldID),
                                    "Communication: after excess mass distribution sweep")
                   << AfterFunction(blockforest::UpdateSecondGhostLayer< ScalarField_T >(blockForest, fillFieldID),
@@ -785,9 +776,7 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(resetConversionFlagsSweep,
                            "Sweep: conversion flag reset", StateSweep::fullFreeSurface)
                   << Sweep(emptySweep(), "Empty sweep: conversion flag reset")
-                  << AfterFunction([](){
-                        WALBERLA_MPI_BARRIER()
-                     }, "MPI Barrier: after conversion flag reset sweep")
+                  << AfterFunction(MPIBarrierAfterSweep, "MPI Barrier: after conversion flag reset sweep")
                   << AfterFunction(Communication_T(blockForest, flagFieldID),
                                    "Communication: after excess mass distribution sweep")
                   << AfterFunction(blockforest::UpdateSecondGhostLayer< FlagField_T >(blockForest, flagFieldID),
