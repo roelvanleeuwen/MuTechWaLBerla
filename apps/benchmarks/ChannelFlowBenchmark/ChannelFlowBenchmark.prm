@@ -1,0 +1,41 @@
+DomainSetup
+{
+    //blocks blocks;
+    //domainSize domain_size;
+    //cellsPerBlock cells;
+    cellsPerBlock <32, 32, 32>;
+    //blocks blocks;
+    periodic <1, 0, 1>;
+    dx 1.0;
+}
+
+Parameters
+{
+    timesteps 1000;
+    vtkWriteFrequency 864;
+    remainingTimeLoggerFrequency 10.0;
+}
+
+PhysicalParameters
+{
+    omegaFluid 1.8;
+    forceInX 2e-6;
+}
+
+BenchmarkParameters
+{
+    //weakScaling weakScaling;
+    //scalingType scalingType;  //"fluid"; "thermal"; "rbc"
+    //benchmarkingIterations benchmarkingIterations;
+    benchmark true;
+    warmupSteps 2;
+    blockDecomposition "3D";  //"2D"; "3D"
+    barrier_after_sweep true;
+}
+
+Boundaries_Hydro {
+    Border [
+         { direction N; walldistance -1; BC_fluid_NoSlip }
+         { direction S; walldistance -1; BC_fluid_NoSlip }
+     ]
+}
