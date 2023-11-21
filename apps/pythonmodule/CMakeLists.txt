@@ -17,7 +17,8 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
         set ( pythonModules "-Wl,-whole-archive" ${PYTHON_MODULE_DEPENDENCIES}  "-Wl,-no-whole-archive" )
     endif()
 
-    add_library( walberla_cpp SHARED PythonModule.cpp )
+    add_library( walberla_cpp SHARED PythonModule.cpp
+            ../showcases/FlowAroundSphere/FlowAroundSphere.cpp)
 
     target_link_libraries( walberla_cpp ${WALBERLA_LINK_LIBRARIES_KEYWORD} ${pythonModules} ${SERVICE_LIBS} )
 

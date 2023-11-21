@@ -158,6 +158,7 @@ public:
    void startCommunication();
    void wait();
 
+   std::function<void()> getCommunicateFunctor();
    std::function<void()> getStartCommunicateFunctor();
    std::function<void()> getWaitFunctor();
    //@}
@@ -531,6 +532,12 @@ void UniformBufferedScheme<Stencil>::localBufferUnpacking( const uint_t index, c
    RecvBuffer recvBuffer( sendBuffer );
 
    packInfo->unpackData( receiver, stencil::inverseDir[dir], recvBuffer );
+}
+
+template< typename Stencil >
+std::function<void()> UniformBufferedScheme<Stencil>::getCommunicateFunctor()
+{
+   return std::bind( &UniformBufferedScheme::communicate, this );
 }
 
 template< typename Stencil >

@@ -15,5 +15,6 @@ if ( WALBERLA_BUILD_WITH_CODEGEN AND NOT WALBERLA_BUILD_WITH_OPENMP)
 endif()
 if ( WALBERLA_BUILD_WITH_CODEGEN )
    add_subdirectory( Antidunes )
+   add_subdirectory( FlowAroundSphere )
 endif()
 

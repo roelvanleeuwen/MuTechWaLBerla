@@ -1,0 +1,71 @@
+Parameters
+{
+    referenceVelocity  78;
+    maximumLatticeVelocity 0.01;
+    referenceLength 0.3;
+    viscosity  1.49e-5;
+    simulationTime 0.3;
+    timeStepsForBenchmarking 30001;   // if set to zero the timesteps will be calculated from the simulationTime
+    coarseMeshSize  0.078125;
+
+    relaxationRateOutlet  1.9;
+    SpongeZoneStart 15;
+
+    innerOuterSplit <1, 1, 1>;
+    timeStepStrategy Overlap;
+
+    remainingTimeLoggerFrequency 60; // in seconds
+    vtkWriteFrequency 5000;
+
+    // GPU related Parameters, only used if GPU is enabled
+    sendDirectlyFromGPU true;
+    gpuBlockSize <128, 1, 1>;
+}
+
+//! [domainSetup]
+DomainSetup
+{
+    meshFile      sphere.obj;
+    cellsPerBlock < 256, 128, 128 >;
+    periodic      <  0,  1,  1 >;
+
+    domainSize    < 20, 10, 10 >;
+
+    refinementLevels 0;
+    numberProcesses 1;
+
+    weakScaling false;
+}
+//! [domainSetup]
+
+StabilityChecker
+{
+    checkFrequency 0;
+    streamOutput   false;
+    vtkOutput      true;
+}
+
+Boundaries
+{
+    Border { direction W;    walldistance -1;  flag UBB; }
+    Border { direction E;    walldistance -1;  flag Outflow; }
+    Border { direction W;    walldistance -2;  flag UBB; }
+    Border { direction E;    walldistance -2;  flag Outflow; }
+}
+
+VTKWriter
+{
+    velocity true;
+    density false;
+    omega true;
+    flag false;
+    writeOnlySlice true;
+}
+
+Logging
+{
+    logLevel info;  // info progress detail tracing
+    writeDistanceOctree false;
+    writeSetupForestAndReturn false;
+    writeMeshBoundaries false;
+}
