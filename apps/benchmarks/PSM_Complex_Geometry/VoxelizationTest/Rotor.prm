@@ -1,7 +1,7 @@
 
 Parameters 
 {
-	timesteps       101;
+	timesteps       1001;
 
     initialVelocity   <0.02, 0.0, 0.0>;
     ref_velocity  69.15;    // m/s
@@ -18,25 +18,25 @@ Parameters
 
 
 	remainingTimeLoggerFrequency 10; // in seconds
-	VTKwriteFrequency 100;
+	VTKwriteFrequency 0;
 	writeDomainDecompositionAndReturn false;
 }
 
 DomainSetup
 {
-   rotationFrequency  1;
+   rotationFrequency  0;
    rotationSpeed      6000;     //rad/s
    rotationAxis       < 1, 0, 0 >;
 
-   cellsPerBlock      < 10, 32, 32 >;
+   cellsPerBlock      < 128, 128, 128 >;
    periodic           <  0,  1,  1 >;
    refinementDepth    0 ;
 }
 
 Boundaries
 {
-	Border { direction W;    walldistance -1;  flag UBB; }
-	Border { direction E;    walldistance -1;  flag ExtrapolationOutflow; }
+	//Border { direction W;    walldistance -1;  flag UBB; }
+	//Border { direction E;    walldistance -1;  flag ExtrapolationOutflow; }
 	//Border { direction E,W,T,B;  walldistance -1;  flag NoSlip; }
 
 }

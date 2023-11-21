@@ -117,9 +117,6 @@ int main(int argc, char** argv)
    const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
    const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0));
    const bool writeDomainDecompositionAndReturn = parameters.getParameter< bool >("writeDomainDecompositionAndReturn", false);
-   const bool writeFractionFieldAndReturn = parameters.getParameter< bool >("writeFractionFieldAndReturn", false);
-   const bool loadFractionFieldsFromFile = parameters.getParameter< bool >("loadFractionFieldsFromFile", false);
-   const bool preProcessFractionFields = parameters.getParameter< bool >("preProcessFractionFields", false);
    const uint_t maxSuperSamplingDepth = parameters.getParameter< uint_t >("maxSuperSamplingDepth", uint_c(1));
    const std::string meshFile = parameters.getParameter< std::string >("meshFile",std::string());
 
@@ -240,12 +237,12 @@ int main(int argc, char** argv)
    //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldGPUId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", 1,  false);
    auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldGPUId, objectVelocitiesFieldId,
                                                            Vector3<real_t>(0,-0 ,0), rotationAngle,
-                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, true);
+                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, 1, true);
 #else
    //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", 1, false);
    auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldId, objectVelocitiesFieldId,
                                                                 Vector3<real_t>(0,0,0), rotationAngle,
-                                                                rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, true);
+                                                                rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, 1, true);
 
 #endif
 
@@ -293,8 +290,19 @@ int main(int argc, char** argv)
 
 #endif
 
+   for (auto& block : *blocks)
+   {
+      FlagField_T *flagField = block.getData<FlagField_T>(flagFieldId);
+      flagField->registerFlag(fluidFlagUID);
+      flagField->registerFlag(FlagUID("NoSlip"));
+   }
+
+
    auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
+   mesh::BoundarySetup boundarySetup(blocks, makeMeshDistanceFunction(distanceOctreeMeshRotor), 1);
    geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
+   boundarySetup.setFlag<FlagField_T>(flagFieldId, fluidFlagUID, mesh::BoundarySetup::OUTSIDE);
+   boundarySetup.setFlag<FlagField_T>(flagFieldId, FlagUID("NoSlip"), mesh::BoundarySetup::INSIDE);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
    /////////////
@@ -303,10 +311,11 @@ int main(int argc, char** argv)
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    SweepCollection_T sweepCollection(blocks, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
+   //SweepCollection_T sweepCollection(blocks, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
 #else
-   SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
-   //SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
+   //SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
 #endif
 
@@ -347,8 +356,8 @@ int main(int argc, char** argv)
       timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
       timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
    }
-   timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
-                  << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");
+   /*timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
+                  << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");*/
    timeloop.add() << Sweep(deviceSyncWrapper(sweepCollection.streamCollide()), "PSMSweep");
 
    // Time logger
@@ -381,6 +390,10 @@ int main(int argc, char** argv)
       //vtkOutput->addCellDataWriter(flagWriter);
       vtkOutput->addCellDataWriter(fractionFieldWriter);
       //vtkOutput->addCellDataWriter(objVeldWriter);
+
+      /*field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
+      fluidFilter.addFlag(fluidFlagUID);
+      vtkOutput->addCellInclusionFilter(fluidFilter);*/
 
       timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);

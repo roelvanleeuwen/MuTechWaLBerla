@@ -74,10 +74,10 @@ class MovingGeometry
 {
  public:
    MovingGeometry(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
-                          BlockDataID fractionFieldId, const BlockDataID objectVelocityId,
-                          Vector3<real_t> translation, const real_t rotationAngle,
-                          Vector3<uint_t> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree,
-                          std::string meshName, uint_t superSamplingDepth, uint_t ghostLayers, const bool isRotating = true)
+                  const BlockDataID fractionFieldId, const BlockDataID objectVelocityId,
+                  const Vector3<real_t> translation, const real_t rotationAngle,
+                  const Vector3<uint_t> rotationAxis, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree,
+                  const std::string meshName, const uint_t superSamplingDepth, const uint_t ghostLayers, const bool isRotating)
       : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId),translation_(translation),
         rotationAngle_(rotationAngle), rotationAxis_(rotationAxis), distOctree_(distOctree),
         meshName_(meshName), superSamplingDepth_(superSamplingDepth), ghostLayers_(ghostLayers), isRotating_(isRotating)
