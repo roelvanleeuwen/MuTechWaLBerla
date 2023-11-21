@@ -92,7 +92,8 @@ class MovingGeometry
          initObjectVelocityField();
          WcTimer simTimer;
          simTimer.start();
-         buildGeometryMeshes();
+         WALBERLA_LOG_PROGRESS("Building geometry field")
+         buildGeometryField();
          simTimer.end();
          double time = simTimer.max();
          WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
@@ -103,7 +104,9 @@ class MovingGeometry
          geometryFieldGPU_ = new GeometryFieldGPU_T(geometryField_->xSize(), geometryField_->ySize(), geometryField_->zSize(), geometryField_->fSize(), geometryField_->nrOfGhostLayers(), geometryField_->layout(), true);
          gpu::fieldCpy(*geometryFieldGPU_, *geometryField_);
 #endif
+         WALBERLA_LOG_PROGRESS("Filling fraction Field from geometry field ")
          getFractionFieldFromGeometryMesh(0);
+         WALBERLA_LOG_PROGRESS("Finished creation of MovingGeometry of " << meshName_)
       }
       else {
          staticFractionFieldId_ = field::addToStorage< FracField_T >(blocks, "staticFractionField_" + meshName_, real_t(0.0), field::fzyx, ghostLayers_);
@@ -371,7 +374,7 @@ class MovingGeometry
       }
    }
 
-   void buildGeometryMeshes() {
+   void buildGeometryField() {
       std::vector<std::pair<uint_t, real_t>> levels;
       for (auto& block : *blocks_) {
          if(!meshAABB_.intersects(block.getAABB()) )
@@ -384,8 +387,10 @@ class MovingGeometry
             levels.push_back(levelDxPair);
          }
       }
-      std::sort (levels.begin(), levels.end());
+      if(levels.size() == 0)
+         return;
 
+      std::sort (levels.begin(), levels.end());
       maxRefinementLevelPair_ = levels.back();
 
       uint_t stencilSize = uint_t(pow(2, real_t(superSamplingDepth_)));

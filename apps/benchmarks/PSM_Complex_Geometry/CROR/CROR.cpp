@@ -293,8 +293,6 @@ int main(int argc, char** argv)
    auto objectRotatorStator = make_shared<MovingGeometry> (blocks, meshStator, fractionFieldId, objectVelocitiesFieldId,
                                                            Vector3<real_t>(0,0,0), -rotationAngle, rotationAxis,  distanceOctreeMeshStator,
                                                             "stator", maxSuperSamplingDepth, ghostLayers, true);
-
-
 #endif
 
    //VTK Mesh
