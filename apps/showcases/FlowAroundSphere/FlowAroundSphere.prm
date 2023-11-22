@@ -1,24 +1,17 @@
 Parameters
 {
-    referenceVelocity  78;
+    reynoldsNumber 10000;
     maximumLatticeVelocity 0.01;
-    referenceLength 0.3;
-    viscosity  1.49e-5;
-    simulationTime 0.3;
-    timeStepsForBenchmarking 30001;   // if set to zero the timesteps will be calculated from the simulationTime
-    coarseMeshSize  0.078125;
+    timesteps 100000;
 
+    coarseMeshSize  0.078125;
     relaxationRateOutlet  1.9;
     SpongeZoneStart 15;
 
     innerOuterSplit <1, 1, 1>;
-    timeStepStrategy Overlap;
-
-    remainingTimeLoggerFrequency 60; // in seconds
-    vtkWriteFrequency 5000;
 
     // GPU related Parameters, only used if GPU is enabled
-    sendDirectlyFromGPU true;
+    sendDirectlyFromGPU false;
     gpuBlockSize <128, 1, 1>;
 }
 
@@ -55,11 +48,12 @@ Boundaries
 
 VTKWriter
 {
+    vtkWriteFrequency 5000;
     velocity true;
     density false;
-    omega true;
+    omega false;
     flag false;
-    writeOnlySlice true;
+    writeOnlySlice false;
 }
 
 Logging
@@ -68,4 +62,5 @@ Logging
     writeDistanceOctree false;
     writeSetupForestAndReturn false;
     writeMeshBoundaries false;
+    remainingTimeLoggerFrequency 60; // in seconds
 }

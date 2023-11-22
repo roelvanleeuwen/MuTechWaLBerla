@@ -3,6 +3,7 @@ import numpy as np
 from pystencils import TypedSymbol, Target
 
 from pystencils.field import fields
+from pystencils.simp.subexpression_insertion import insert_constants, insert_aliases
 
 from lbmpy import Stencil, LBStencil, Method, LBMConfig, LBMOptimisation
 from lbmpy.boundaries.boundaryconditions import ExtrapolationOutflow, UBB, NoSlipLinearBouzidi
@@ -21,15 +22,16 @@ omega = sp.symbols("omega")
 inlet_velocity = sp.symbols("u_x")
 
 with CodeGeneration() as ctx:
-    dtype = 'float64' if ctx.double_accuracy else 'float32'
+    dtype = 'float64'
+    pdf_dtype = 'float32'
 
     stencil = LBStencil(Stencil.D3Q27)
     q = stencil.Q
     dim = stencil.D
 
-    streaming_pattern = 'pull'
+    streaming_pattern = 'aa'
 
-    pdfs, pdfs_tmp = fields(f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {dtype}[3D]", layout='fzyx')
+    pdfs, pdfs_tmp = fields(f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {pdf_dtype}[3D]", layout='fzyx')
     velocity_field, density_field = fields(f"velocity({dim}), density(1) : {dtype}[{dim}D]", layout='fzyx')
     omega_field = fields(f"omega(1) : {dtype}[{dim}D]", layout='fzyx')
 
@@ -41,6 +43,7 @@ with CodeGeneration() as ctx:
         relaxation_rate=omega_field.center,
         compressible=True,
         galilean_correction=True,
+        fourth_order_correction=False,
         field_name='pdfs',
         streaming_pattern=streaming_pattern,
     )
@@ -49,6 +52,8 @@ with CodeGeneration() as ctx:
                               symbolic_field=pdfs, symbolic_temporary_field=pdfs_tmp)
 
     collision_rule = create_lb_collision_rule(lbm_config=lbm_config, lbm_optimisation=lbm_opt)
+    collision_rule = insert_constants(collision_rule)
+    collision_rule = insert_aliases(collision_rule)
     lb_method = collision_rule.method
 
     if ctx.gpu:
@@ -77,18 +82,20 @@ with CodeGeneration() as ctx:
         vp = ()
 
     no_slip_interpolated = lbm_boundary_generator(class_name='NoSlipBouzidi', flag_uid='NoSlipBouzidi',
-                                                  boundary_object=NoSlipLinearBouzidi())
+                                                  boundary_object=NoSlipLinearBouzidi(), field_data_type=pdf_dtype)
     ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
-                                 boundary_object=UBB((inlet_velocity, 0.0, 0.0), data_type=dtype))
+                                 boundary_object=UBB((inlet_velocity, 0.0, 0.0), data_type=dtype),
+                                 field_data_type=pdf_dtype)
 
     outflow = lbm_boundary_generator(class_name='Outflow', flag_uid='Outflow',
-                                     boundary_object=ExtrapolationOutflow(stencil[4], lb_method))
+                                     boundary_object=ExtrapolationOutflow(stencil[4], lb_method),
+                                     field_data_type=pdf_dtype)
 
     generate_lbm_package(ctx, name="FlowAroundSphere", collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
                          nonuniform=True, boundaries=[no_slip_interpolated, ubb, outflow],
                          macroscopic_fields=macroscopic_fields, gpu_indexing_params=sweep_params,
-                         target=target)
+                         target=target, data_type=dtype, pdfs_data_type=pdf_dtype)
 
     field_typedefs = {'VelocityField_T': velocity_field,
                       'ScalarField_T': density_field}

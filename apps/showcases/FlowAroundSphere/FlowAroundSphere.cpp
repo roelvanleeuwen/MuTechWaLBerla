@@ -85,6 +85,7 @@
 #include "mesh_common/vtk/VTKMeshWriter.h"
 
 #include "FlowAroundSphereInfoHeader.h"
+#include "wallDistance.h"
 
 using namespace walberla;
 
@@ -142,160 +143,6 @@ void vertexToFaceColor(MeshType &mesh, const typename MeshType::Color &defaultCo
    }
 }
 
-class wallDistance
-{
- public:
-
-   wallDistance( const std::shared_ptr<mesh::TriangleMesh>& mesh ) : mesh_( mesh )
-   {
-      auto n_of_faces = mesh->n_faces();
-      if(n_of_faces == 0)
-         WALBERLA_LOG_INFO_ON_ROOT("The mesh contains no triangles!")
-
-      size_t index_tr = 0;
-      for(auto it_f = mesh->faces_begin(); it_f != mesh->faces_end(); ++it_f){
-         auto vertexIt = mesh->fv_iter(*it_f);
-         Vector3<real_t> vert(0.0);
-         triangles_.emplace_back();
-         while(vertexIt.is_valid()){
-            auto v = mesh->point(*vertexIt);
-            for(size_t i = 0; i!= 3; ++i){vert[i] = v[i];}
-            triangles_[index_tr].push_back(vert);
-            ++vertexIt;
-         }
-         ++index_tr;
-      }
-      if(triangles_.size() != n_of_faces){
-         WALBERLA_LOG_INFO_ON_ROOT("Wrong number of found triangles!")
-         WALBERLA_LOG_INFO_ON_ROOT("Return an empty triangles vector!")
-         triangles_.clear();
-      }
-   }
-
-   real_t operator()( const Cell& fluidCell, const Cell& boundaryCell, const shared_ptr< StructuredBlockForest >& SbF, IBlock& block ) const;
-   bool computePointToMeshDistance(const Vector3<real_t> pf, const Vector3<real_t> ps, const std::vector< Vector3<real_t> >& triangle, real_t& q) const;
-   Vector3<real_t> cell2GlobalCCPosition(const shared_ptr<StructuredBlockStorage>& blocks, const Cell loc, IBlock& block) const;
-
- private:
-
-   const std::shared_ptr<mesh::TriangleMesh> mesh_;
-   std::vector< std::vector< Vector3<real_t> > > triangles_;
-}; // class wallDistance
-
-real_t wallDistance::operator()( const Cell& fluidCell, const Cell& boundaryCell, const shared_ptr< StructuredBlockForest >& SbF, IBlock& block ) const
-{
-
-   real_t q = 0.0;
-
-   const Vector3<real_t> pf = cell2GlobalCCPosition(SbF, fluidCell, block);
-   const Vector3<real_t> ps = cell2GlobalCCPosition(SbF, boundaryCell, block);
-
-   WALBERLA_CHECK_GREATER( triangles_.size(), std::size_t(0) )
-
-   for (std::size_t x = 0; x != triangles_.size(); ++x){
-      const bool intersects = computePointToMeshDistance(pf, ps, triangles_[x], q);
-      if(intersects && q > -1.0){
-         break;
-      }
-   }
-
-   WALBERLA_CHECK_GREATER_EQUAL( q, real_t(0) )
-   WALBERLA_CHECK_LESS_EQUAL( q, real_t(1) )
-   return q;
-}
-
-bool wallDistance::computePointToMeshDistance(const Vector3<real_t> pf, const Vector3<real_t> ps, const std::vector< Vector3<real_t> >& triangle, real_t& q) const
-{
-   Vector3<real_t> v0;
-   Vector3<real_t> e0;
-   Vector3<real_t> e1;
-
-   Vector3<real_t> normal;
-   Vector3<real_t> dir;
-   Vector3<real_t> intersection;
-   Vector3<real_t> tmp;
-
-   real_t a[2][2];
-   real_t b[2];
-   real_t num;
-   real_t den;
-   real_t t;
-   real_t u;
-   real_t v;
-   real_t det;
-   real_t upv;
-   real_t norm;
-   const real_t eps = 100.0 * std::numeric_limits<real_t>::epsilon();
-
-   v0 = triangle[0];
-   e0 = triangle[1] - v0; //triangle edge from triangle[1] to triangle[0]
-   e1 = triangle[2] - v0; //triangle edge from triangle[2] to triangle[0]
-   normal = e0 % e1;
-   norm = std::sqrt(normal*normal);
-   if (std::fabs(norm) < eps){
-      q = -1;
-      return false;
-   }
-   normal /= norm;
-   dir = ps - pf;
-   num = v0 * normal - pf * normal;
-   den = dir * normal;
-   t = num / den;
-   //
-   if(std::fabs(t) < eps || std::fabs(t-1) < eps){
-      v0 = v0 + 2.0*eps*normal;
-      num = v0 * normal - pf*normal;
-      t = num / den;
-   }
-   //
-   if (std::fabs(den) < eps){
-      return std::fabs(num) < eps;
-   }
-
-   if(t < 0.0 || t > 1.0){
-      q = -1.0;
-      return false;
-   }
-   intersection = pf + dir*t;
-
-   a[0][0] = e0 * e0;
-   a[0][1] = e0 * e1;
-   a[1][0] = a[0][1];
-   a[1][1] = e1 * e1;
-   tmp[0]  = intersection[0] - v0[0];
-   tmp[1]  = intersection[1] - v0[1];
-   tmp[2]  = intersection[2] - v0[2];
-   b[0]    = tmp * e0;
-   b[1]    = tmp * e1;
-   det     = a[0][0] * a[1][1] - a[0][1] * a[1][0];
-   u       = (a[1][1] * b[0] - a[0][1] * b[1]) / det;
-   v       = (a[0][0] * b[1] - a[1][0] * b[0]) / det;
-   upv     = u + v;
-   const bool ueq0 = std::fabs(u) < eps;
-   const bool ueq1 = std::fabs(u-1.0) < eps;
-   const bool veq0 = std::fabs(v) < eps;
-   const bool veq1 = std::fabs(v-1.0) < eps;
-   const bool upveq1 = std::fabs(upv - 1) < eps;
-   if( (u < 0.0 && !ueq0) || (u > 1.0 && !ueq1) || (v < 0.0 && !veq0) || (v>1.0 && !veq1)  || (upv > 1 && !upveq1)){
-      q = -1;
-      return false;
-   }
-   else{
-      q = std::fabs(t);
-      return true;
-   }
-   return true;
-}
-
-Vector3<real_t> wallDistance::cell2GlobalCCPosition(const shared_ptr<StructuredBlockStorage>& blocks, const Cell loc, IBlock& block) const{
-   CellInterval globalCell(loc.x(),loc.y(),loc.z(),loc.x(),loc.y(),loc.z()); //At this level globalCell is a CellInterval which contains ONLY the cell provided in input. At the moment everything is local.
-   blocks->transformBlockLocalToGlobalCellInterval(globalCell, block); //Now globalCell contains the global cell interval
-   math::GenericAABB<real_t> const cellAABB = blocks->getAABBFromCellBB(globalCell,blocks->getLevel(block)); //cellAABB is the AABB around the cell (x_loc,y_loc,z_loc) in global coordinates!
-   Vector3<real_t> p = cellAABB.center(); // this Vector contains the center of the precedent AABB, corresponding to the global c.c. of the cell (x_loc,y_loc,z_loc)
-   blocks->mapToPeriodicDomain(p);
-   return p;
-}//end cell2GlobalCC_Position
-
 
 //////////////////////
 // Parameter Struct //
@@ -309,7 +156,6 @@ struct Setup
    real_t omega; // on the coarsest grid
    real_t inletVelocity;
    uint_t refinementLevels;
-   uint_t timeSteps;
 
    void logSetup() const
    {
@@ -318,9 +164,7 @@ struct Setup
                                 "\n   + kin. viscosity:    " << viscosity << " (on the coarsest grid)" <<
                                 "\n   + relaxation rate:   " << std::setprecision(16) << omega << " (on the coarsest grid)" <<
                                 "\n   + inlet velocity:    " << inletVelocity << " (in lattice units)" <<
-                                "\n   + refinement Levels: " << refinementLevels <<
-                                "\n   + #time steps:       " << timeSteps << " (on the coarsest grid)" )
-
+                                "\n   + refinement Levels: " << refinementLevels)
    }
 };
 
@@ -341,26 +185,30 @@ int main(int argc, char **argv) {
    // read general simulation parameters
    auto parameters = walberlaEnv.config()->getOneBlock("Parameters");
 
-   const real_t referenceVelocity = parameters.getParameter<real_t>("referenceVelocity");
-   const real_t maximumLatticeVelocity = parameters.getParameter<real_t>("maximumLatticeVelocity");
-   const real_t referenceLength = parameters.getParameter<real_t>("referenceLength");
-   const real_t viscosity = parameters.getParameter<real_t>("viscosity");
-   const real_t simulationTime = parameters.getParameter<real_t>("simulationTime");
-   const uint_t timeStepsForBenchmarking = parameters.getParameter<uint_t>("timeStepsForBenchmarking", 0);
-   const real_t coarseMeshSize = parameters.getParameter<real_t>("coarseMeshSize");
-   auto resolution = Vector3<real_t>(coarseMeshSize);
-   const real_t relaxationRateOutlet = parameters.getParameter<real_t>("relaxationRateOutlet");
-   const cell_idx_t spongeZoneStart = parameters.getParameter<cell_idx_t>("SpongeZoneStart");
+   const real_t reynoldsNumber           = parameters.getParameter<real_t>("reynoldsNumber");
+   const real_t maximumLatticeVelocity   = parameters.getParameter<real_t>("maximumLatticeVelocity");
+
+   const uint_t timesteps                = parameters.getParameter<uint_t>("timesteps", 0);
+   const real_t coarseMeshSize           = parameters.getParameter<real_t>("coarseMeshSize");
+   auto resolution                       = Vector3<real_t>(coarseMeshSize);
+
+   const real_t relaxationRateOutlet     = parameters.getParameter<real_t>("relaxationRateOutlet");
+   const cell_idx_t spongeZoneStart      = parameters.getParameter<cell_idx_t>("SpongeZoneStart");
 
 
    // read domain parameters
    auto domainParameters = walberlaEnv.config()->getOneBlock("DomainSetup");
 
-   const std::string meshFile = domainParameters.getParameter<std::string>("meshFile");
-   const Vector3<uint_t> blockSize = domainParameters.getParameter<Vector3<uint_t>>("cellsPerBlock");
+   const std::string meshFile       = domainParameters.getParameter<std::string>("meshFile");
+   const Vector3<uint_t> blockSize  = domainParameters.getParameter<Vector3<uint_t>>("cellsPerBlock");
    const Vector3<real_t> domainSize = domainParameters.getParameter<Vector3<real_t> >("domainSize");
-   const Vector3<bool> periodicity = domainParameters.getParameter<Vector3<bool> >("periodic", Vector3<bool>(false));
-   const bool weakScaling = domainParameters.getParameter<bool>("weakScaling", false);
+   const Vector3<bool> periodicity  = domainParameters.getParameter<Vector3<bool> >("periodic", Vector3<bool>(false));
+   const bool weakScaling           = domainParameters.getParameter<bool>("weakScaling", false);
+   const uint_t refinementLevels    = domainParameters.getParameter< uint_t >( "refinementLevels");
+
+   bool uniformGrid = true;
+   auto numGhostLayers = uint_c(2);
+   if (refinementLevels > 0) {uniformGrid = false; numGhostLayers = 2;}
 
    if(weakScaling)
    {
@@ -371,20 +219,13 @@ int main(int argc, char **argv) {
       WALBERLA_LOG_INFO_ON_ROOT("Setting up a weak scaling benchmark with a resolution of: " << resolution)
    }
 
-   const real_t reynoldsNumber = (referenceVelocity * referenceLength) / viscosity;
-   const real_t Cu = referenceVelocity / maximumLatticeVelocity;
-   const real_t Ct = resolution.min() / Cu;
+   const real_t fineMeshSize = resolution.min() / real_c(std::pow(2, refinementLevels));
+   const real_t diameterSphere = (real_c(1.0) / coarseMeshSize) * real_c(2.0); // the sphere has a radius of 1m in physical units
 
-   const real_t inletVelocity = referenceVelocity / Cu;
-   const real_t viscosityLattice = viscosity * Ct / (resolution.min() * resolution.min());
-   const real_t omega = real_c(1.0 / (3.0 * viscosityLattice + 0.5));
-   uint_t timesteps = uint_c(simulationTime / Ct);
-   if (timeStepsForBenchmarking > 0) {timesteps = timeStepsForBenchmarking;}
+   const real_t kinematicViscosity = (diameterSphere * maximumLatticeVelocity) / reynoldsNumber;
+   const real_t omega = real_c(1.0 / (3.0 * kinematicViscosity + 0.5));
 
-   const uint_t refinementLevels = domainParameters.getParameter< uint_t >( "refinementLevels");
-   bool uniformGrid = true;
-   auto numGhostLayers = uint_c(2);
-   if (refinementLevels > 0) {uniformGrid = false; numGhostLayers = 2;}
+   const real_t inletVelocity = maximumLatticeVelocity;
 
    const uint_t numProcesses = domainParameters.getParameter< uint_t >( "numberProcesses");
 
@@ -393,8 +234,8 @@ int main(int argc, char **argv) {
    const bool writeDistanceOctree = loggingParameters.getParameter<bool>("writeDistanceOctree", false);
    const bool writeMeshBoundaries = loggingParameters.getParameter<bool>("writeMeshBoundaries", false);
 
-   const Setup setup{reynoldsNumber, viscosity, omega, inletVelocity, refinementLevels, uint_c(simulationTime / Ct)};
-   const real_t fineMeshSize = resolution.min() / real_c(std::pow(2, refinementLevels));
+   const Setup setup{reynoldsNumber, kinematicViscosity, omega, inletVelocity, refinementLevels};
+
 
    ////////////////////
    /// PROCESS MESH ///
@@ -465,7 +306,7 @@ int main(int argc, char **argv) {
       {
          const uint_t numberOfBlocks = setupForest->getNumberOfBlocks(level);
          const uint_t numberOfCells = numberOfBlocks * blockSize[0] * blockSize[1] * blockSize[2];
-         totalCellUpdates += double_c( setup.timeSteps * math::uintPow2(level) ) * double_c( numberOfCells );
+         totalCellUpdates += double_c( timesteps * math::uintPow2(level) ) * double_c( numberOfCells );
          WALBERLA_LOG_INFO_ON_ROOT("Level " << level << " Blocks: " << numberOfBlocks)
       }
 
@@ -478,7 +319,7 @@ int main(int argc, char **argv) {
 
       WALBERLA_LOG_INFO_ON_ROOT( "Total number of cells will be " << totalNumberCells << " fluid cells (in total on all levels)")
       WALBERLA_LOG_INFO_ON_ROOT( "Expected total memory demand will be " << expectedMemory << " GB")
-      WALBERLA_LOG_INFO_ON_ROOT( "The total cell updates after " << setup.timeSteps << " timesteps (on the coarse level) will be " << totalCellUpdates)
+      WALBERLA_LOG_INFO_ON_ROOT( "The total cell updates after " << timesteps << " timesteps (on the coarse level) will be " << totalCellUpdates)
 
       setup.logSetup();
 
@@ -712,9 +553,8 @@ int main(int argc, char **argv) {
    //////////////////
    WALBERLA_LOG_INFO_ON_ROOT("SWEEPS AND TIMELOOP done")
 
-   const uint_t vtkWriteFrequency = parameters.getParameter<uint_t>("vtkWriteFrequency", 0);
-
    auto VTKWriter = walberlaEnv.config()->getOneBlock("VTKWriter");
+   const uint_t vtkWriteFrequency = VTKWriter.getParameter<uint_t>("vtkWriteFrequency", 0);
    const bool writeVelocity = VTKWriter.getParameter<bool>("velocity");
    const bool writeDensity = VTKWriter.getParameter<bool>("density");
    const bool writeOmega = VTKWriter.getParameter<bool>("omega");
@@ -768,7 +608,7 @@ int main(int argc, char **argv) {
    }
 
    // log remaining time
-   const real_t remainingTimeLoggerFrequency = parameters.getParameter<real_t>("remainingTimeLoggerFrequency", 3.0); // in seconds
+   const real_t remainingTimeLoggerFrequency = loggingParameters.getParameter<real_t>("remainingTimeLoggerFrequency", 3.0); // in seconds
    if (uint_c(remainingTimeLoggerFrequency) > 0)
    {
       timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency), "remaining time logger");
