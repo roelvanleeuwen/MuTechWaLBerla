@@ -64,16 +64,16 @@ void MovingGeometry::resetFractionField() {
    }
 }
 
-__global__ void getFractionFieldFromGeometryMeshKernel(real_t * RESTRICT const _data_fractionFieldGPU, geoSize * RESTRICT const _data_geometryFieldGPU, int3 field_size, int3 field_stride, int3 geometry_field_size, int3 geometry_field_stride, double3 blockAABBMin, double3 meshAABBMin, double dx, int superSamplingDepth, int interpolationStencilSize, double oneOverInterpolArea, double dxSS, double3 meshCenter, double3 rotationMatrixX, double3 rotationMatrixY, double3 rotationMatrixZ, double3 translation) {
+__global__ void getFractionFieldFromGeometryMeshKernel(real_t * RESTRICT const _data_fractionFieldGPU, geoSize * RESTRICT const _data_geometryFieldGPU, int3 field_size, int3 field_stride, int3 geometry_field_size, int3 geometry_field_stride, double3 blockAABBMin, double3 meshAABBMin, float3 dxyz, int superSamplingDepth, int interpolationStencilSize, double oneOverInterpolArea, float3 dxyzSS, double3 meshCenter, double3 rotationMatrixX, double3 rotationMatrixY, double3 rotationMatrixZ, double3 translation) {
    const int64_t x = blockDim.x*blockIdx.x + threadIdx.x ;
    const int64_t y = blockDim.y*blockIdx.y + threadIdx.y ;
    const int64_t z = blockDim.z*blockIdx.z + threadIdx.z ;
    if (x < field_size.x  && y < field_size.y  && z < field_size.z ) {
       const int idx = (x) + (y) * field_stride.y + (z) * field_stride.z;
 
-      double dxHalf = 0.5 * dx;
-      double3 vecDxSSHalf = {0.5 * dxSS, 0.5 * dxSS, 0.5 * dxSS};
-      double3 cellCenter = { blockAABBMin.x + double(x) * dx + dxHalf, blockAABBMin.y + double(y) * dx + dxHalf, blockAABBMin.z + double(z) * dx + dxHalf };
+      double dxHalf = 0.5 * dxyz.x;
+      double3 vecDxSSHalf = {0.5 * dxyzSS.x, 0.5 * dxyzSS.y, 0.5 * dxyzSS.z};
+      double3 cellCenter = { blockAABBMin.x + double(x) * dxyz.x + dxHalf, blockAABBMin.y + double(y) * dxyz.y + dxHalf, blockAABBMin.z + double(z) * dxyz.z + dxHalf };
       double3 rotatedCellCenter;
 
       //translation
@@ -92,9 +92,9 @@ __global__ void getFractionFieldFromGeometryMeshKernel(real_t * RESTRICT const _
 
       //get cell of geometry field
       int3 cellInGeometrySpace;
-      cellInGeometrySpace.x = int((pointInGeometrySpace.x) / dxSS);
-      cellInGeometrySpace.y = int((pointInGeometrySpace.y) / dxSS);
-      cellInGeometrySpace.z = int((pointInGeometrySpace.z) / dxSS);
+      cellInGeometrySpace.x = int((pointInGeometrySpace.x) / dxyzSS.x);
+      cellInGeometrySpace.y = int((pointInGeometrySpace.y) / dxyzSS.y);
+      cellInGeometrySpace.z = int((pointInGeometrySpace.z) / dxyzSS.z);
 
       double fraction = 0.0;
 
@@ -106,7 +106,7 @@ __global__ void getFractionFieldFromGeometryMeshKernel(real_t * RESTRICT const _
       }
       else if (superSamplingDepth == 0){
 
-         double3 cellCenterInGeometrySpace = {double(cellInGeometrySpace.x) * dxSS, double(cellInGeometrySpace.y) * dxSS, double(cellInGeometrySpace.z) * dxSS};
+         double3 cellCenterInGeometrySpace = {double(cellInGeometrySpace.x) * dxyzSS.x, double(cellInGeometrySpace.y) * dxyzSS.y, double(cellInGeometrySpace.z) * dxyzSS.z};
          double3 distanceToCellCenter;
          SUB(distanceToCellCenter, pointInGeometrySpace, cellCenterInGeometrySpace)
          int3 offset = {int(distanceToCellCenter.x / abs(distanceToCellCenter.x)), int(distanceToCellCenter.y / abs(distanceToCellCenter.y)), int(distanceToCellCenter.z / abs(distanceToCellCenter.z))};
@@ -153,7 +153,7 @@ void MovingGeometry::getFractionFieldFromGeometryMesh(uint_t timestep)  {
       real_t * RESTRICT const _data_fractionFieldGPU = fractionFieldGPU->dataAt(0, 0, 0, 0);
       geoSize * RESTRICT const _data_geometryFieldGPU = geometryFieldGPU_->dataAt(0, 0, 0, 0);
 
-      auto dx     = double(blocks_->dx(level));
+      float3 dxyz = {float(blocks_->dx(level)), float(blocks_->dy(level)), float(blocks_->dz(level))};
       double3 meshCenterGPU = {meshCenter[0], meshCenter[1], meshCenter[2]};
       auto blockAABB = block.getAABB();
       double3 blockAABBmin = {blockAABB.minCorner()[0], blockAABB.minCorner()[1], blockAABB.minCorner()[2]};
@@ -161,7 +161,8 @@ void MovingGeometry::getFractionFieldFromGeometryMesh(uint_t timestep)  {
 
       uint_t interpolationStencilSize = uint_t( pow(2, real_t(superSamplingDepth_)) + 1);
       auto oneOverInterpolArea = 1.0 / real_t( interpolationStencilSize * interpolationStencilSize * interpolationStencilSize);
-      real_t dxSS = maxRefinementLevelPair_.second / pow(2, real_t(superSamplingDepth_));
+      Vector3<real_t> dxyzSSreal_t = maxRefinementDxyz_ / pow(2, real_t(superSamplingDepth_));
+      float3 dxyzSS = {float(dxyzSSreal_t[0]), float(dxyzSSreal_t[1]), float(dxyzSSreal_t[2])};
 
       int3 field_size = {int(fractionFieldGPU->xSizeWithGhostLayer()), int(fractionFieldGPU->ySizeWithGhostLayer()), int(fractionFieldGPU->zSizeWithGhostLayer()) };
       int3 field_stride = {int(fractionFieldGPU->xStride()), int(fractionFieldGPU->yStride()), int(fractionFieldGPU->zStride())};
@@ -174,7 +175,7 @@ void MovingGeometry::getFractionFieldFromGeometryMesh(uint_t timestep)  {
 
       getFractionFieldFromGeometryMeshKernel<<<_grid, _block>>>(_data_fractionFieldGPU, _data_geometryFieldGPU, field_size, field_stride,
                                                                       geometry_field_size, geometry_field_stride, blockAABBmin, meshAABBmin,
-                                                                      dx, superSamplingDepth_, interpolationStencilSize, oneOverInterpolArea, dxSS, meshCenterGPU,
+                                                                      dxyz, superSamplingDepth_, interpolationStencilSize, oneOverInterpolArea, dxyzSS, meshCenterGPU,
                                                                       rotationMatrixX, rotationMatrixY, rotationMatrixZ, translation);
    }
 }

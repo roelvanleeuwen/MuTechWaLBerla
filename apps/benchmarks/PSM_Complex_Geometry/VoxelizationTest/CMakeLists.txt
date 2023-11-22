@@ -14,6 +14,7 @@ walberla_generate_target_from_python( NAME VoxelizationTestCodeGen
         FixedDensity.${CODEGEN_FILE_SUFFIX} FixedDensity.h
         ExtrapolationOutflow.${CODEGEN_FILE_SUFFIX} ExtrapolationOutflow.h
         VoxelizationTest_InfoHeader.h
+        PSM_Conditional_Sweep.${CODEGEN_FILE_SUFFIX} PSM_Conditional_Sweep.h
         )
 
 

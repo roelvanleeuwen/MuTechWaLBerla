@@ -22,18 +22,16 @@
 #include "blockforest/SetupBlockForest.h"
 #include "blockforest/communication/UniformBufferedScheme.h"
 #include "core/all.h"
-
 #include "domain_decomposition/all.h"
 #include "field/all.h"
 #include "field/vtk/VTKWriter.h"
 #include "geometry/all.h"
-#include "stencil/D3Q19.h"
-#include "timeloop/all.h"
-#include "VoxelizationTest_InfoHeader.h"
 #include "lbm_generated/evaluation/PerformanceEvaluation.h"
 #include "lbm_generated/field/AddToStorage.h"
 #include "lbm_generated/field/PdfField.h"
 #include "lbm_generated/communication/UniformGeneratedPdfPackInfo.h"
+#include "stencil/D3Q19.h"
+#include "timeloop/all.h"
 
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -43,6 +41,7 @@
 #   include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
 #endif
 #include "../MovingGeometry.h"
+#include "VoxelizationTest_InfoHeader.h"
 
 namespace walberla
 {
@@ -165,12 +164,19 @@ int main(int argc, char** argv)
 
    //auto aabbBase = computeAABB(*meshBase);
    auto aabbBase = computeAABB(*meshRotor);
+   WALBERLA_LOG_INFO_ON_ROOT(aabbBase.sizes())
+   auto targetBlocks = Vector3<uint_t> (2,8,8);
+   auto dxyz = Vector3<real_t> ( aabbBase.xSize() / real_t(cellsPerBlock[0] * targetBlocks[0]),
+                                 aabbBase.ySize() / real_t(cellsPerBlock[1] * targetBlocks[1]),
+                                 aabbBase.zSize() / real_t(cellsPerBlock[2] * targetBlocks[2]));
+   WALBERLA_LOG_INFO_ON_ROOT(dxyz)
+   //dxyz = Vector3<real_t>(dx);
 
    AABB aabb = aabbBase;
    aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
    aabb.scale(domainScaling);
 
-   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx), mesh::makeExcludeMeshInteriorRefinement(distanceOctreeMeshBase, dx));
+   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, dxyz, mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx), mesh::makeExcludeMeshInteriorRefinement(distanceOctreeMeshBase, dx));
    bfc.setPeriodicity(periodicity);
 
    auto setupForest = bfc.createSetupBlockForest( cellsPerBlock, 1 );
@@ -313,10 +319,12 @@ int main(int argc, char** argv)
    SweepCollection_T sweepCollection(blocks, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
    //SweepCollection_T sweepCollection(blocks, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
+   pystencils::PSM_Conditional_Sweep psmConditionalSweep( fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega );
 #else
-   //SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
-   SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
+   //SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
    BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
+   pystencils::PSM_Conditional_Sweep psmConditionalSweep( fractionFieldId, objectVelocitiesFieldId, pdfFieldId, omega );
 #endif
 
    for (auto& block : *blocks)
@@ -358,7 +366,8 @@ int main(int argc, char** argv)
    }
    /*timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
                   << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");*/
-   timeloop.add() << Sweep(deviceSyncWrapper(sweepCollection.streamCollide()), "PSMSweep");
+   //timeloop.add() << Sweep(deviceSyncWrapper(sweepCollection.streamCollide()), "PSMSweep");
+   timeloop.add() << Sweep(deviceSyncWrapper(psmConditionalSweep), "PSMConditionalSweep");
 
    // Time logger
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),

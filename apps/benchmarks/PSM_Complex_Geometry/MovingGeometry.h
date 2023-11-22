@@ -85,8 +85,8 @@ class MovingGeometry
       auto meshCenterPoint = computeCentroid(*mesh_);
       meshCenter = Vector3<real_t> (meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
       meshAABB_ = computeAABB(*mesh_);
-      const real_t dx = blocks_->dx(0);
-      meshAABB_.extend(dx);
+      const Vector3<real_t> dxyz = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
+      meshAABB_.extend(dxyz);
 
       if(isRotating_) {
          initObjectVelocityField();
@@ -134,8 +134,8 @@ class MovingGeometry
    void resetFractionField();
 #else
 
-   void getFractionFieldFromGeometryMesh(uint_t timestep)
-   {
+   void getFractionFieldFromGeometryMesh(uint_t timestep) {
+
       Matrix3< real_t > rotationMat(rotationAxis_, real_t(timestep) * -rotationAngle_);
       uint_t interpolationStencilSize = uint_t( pow(2, real_t(superSamplingDepth_)) + 1);
       auto oneOverInterpolArea = 1.0 / real_t( interpolationStencilSize * interpolationStencilSize * interpolationStencilSize);
@@ -147,7 +147,7 @@ class MovingGeometry
 
          FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId_);
          auto level = blocks_->getLevel(block);
-         real_t dxSS = maxRefinementLevelPair_.second / pow(2, real_t(superSamplingDepth_));
+         Vector3<real_t> dxyzSS = maxRefinementDxyz_ / pow(2, real_t(superSamplingDepth_));
          CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
 
 #ifdef _OPENMP
@@ -169,10 +169,10 @@ class MovingGeometry
                   cellCenter += meshCenter;
 
                   // get corresponding geometryField_ cell
-                  auto pointInGeometrySpace = cellCenter - meshAABB_.min() - Vector3< real_t >(0.5 * dxSS);
-                  auto cellInGeometrySpace  = Vector3< int32_t >(int32_t(pointInGeometrySpace[0] / dxSS),
-                                                                int32_t(pointInGeometrySpace[1] / dxSS),
-                                                                int32_t(pointInGeometrySpace[2] / dxSS));
+                  auto pointInGeometrySpace = cellCenter - meshAABB_.min() - 0.5 * dxyzSS;
+                  auto cellInGeometrySpace  = Vector3< int32_t >(int32_t(pointInGeometrySpace[0] / dxyzSS[0]),
+                                                                int32_t(pointInGeometrySpace[1] / dxyzSS[1]),
+                                                                int32_t(pointInGeometrySpace[2] / dxyzSS[2]));
                   real_t fraction           = 0.0;
 
                   // rotated cell outside of geometry field
@@ -187,7 +187,7 @@ class MovingGeometry
                   // 2x2x2 interpolation for superSamplingDepth_=0
                   else if (superSamplingDepth_ == 0)
                   {
-                     auto cellCenterInGeometrySpace = Vector3< real_t >(cellInGeometrySpace) * dxSS;
+                     auto cellCenterInGeometrySpace = Vector3< real_t > (cellInGeometrySpace[0] * dxyzSS[0], cellInGeometrySpace[1] * dxyzSS[1], cellInGeometrySpace[2] * dxyzSS[2]);
                      auto distanceToCellCenter      = pointInGeometrySpace - cellCenterInGeometrySpace;
                      auto offset = Vector3< int >(int(distanceToCellCenter[0] / abs(distanceToCellCenter[0])),
                                                   int(distanceToCellCenter[1] / abs(distanceToCellCenter[1])),
@@ -266,7 +266,7 @@ class MovingGeometry
       {
          auto level = blocks_->getLevel(block);
          auto cellBB = blocks_->getCellBBFromAABB( meshAABB_, level );
-         const real_t dx = blocks_->dx(level);
+         const Vector3<real_t> dxyz = Vector3<real_t>(blocks_->dx(level), blocks_->dy(level), blocks_->dz(level));
 
          auto objVelField = block.getData< VectorField_T >(objectVelocityId_);
          Vector3< real_t > angularVel;
@@ -286,7 +286,7 @@ class MovingGeometry
                                                              continue;
 
                                                           Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
-                                                          Vector3< real_t > distance((cellCenter[0] - meshCenter[0]) / dx, (cellCenter[1] - meshCenter[1]) / dx, (cellCenter[2] - meshCenter[2]) / dx);
+                                                          Vector3< real_t > distance((cellCenter[0] - meshCenter[0]) / dxyz[0], (cellCenter[1] - meshCenter[1]) / dxyz[1], (cellCenter[2] - meshCenter[2]) / dxyz[2]);
                                                           real_t velX = angularVel[1] * distance[2] - angularVel[2] * distance[1];
                                                           real_t velY = angularVel[2] * distance[0] - angularVel[0] * distance[2];
                                                           real_t velZ = angularVel[0] * distance[1] - angularVel[1] * distance[0];
@@ -306,7 +306,7 @@ class MovingGeometry
       {
          FracField_T* staticFractionField = block.getData< FracField_T >(staticFractionFieldId_);
          auto level = blocks_->getLevel(block);
-         const real_t dx = blocks_->dx(level);
+         const Vector3<real_t> dxyz = Vector3<real_t>(blocks_->dx(level), blocks_->dy(level), blocks_->dz(level));
          auto cellBBMesh = blocks_->getCellBBFromAABB( meshAABB_, level );
 
          CellInterval blockCi = staticFractionField->xyzSizeWithGhostLayer();
@@ -335,8 +335,8 @@ class MovingGeometry
             {
                //real_t fraction = recursiveSuperSampling(distFunct, cellCenter, dx, 0);
                real_t fraction;
-               real_t sqDx = dx * dx;
-               real_t sqDxHalf = (0.5 * dx) * (0.5 * dx);
+               real_t sqDx = dxyz[0] * dxyz[0];
+               real_t sqDxHalf = (0.5 * dxyz[0]) * (0.5 * dxyz[0]);
                fraction = std::max(0.0, std::min(1.0, (sqDx - (sqSignedDistance + sqDxHalf) ) / sqDx));
 
                Cell localCell;
@@ -375,44 +375,41 @@ class MovingGeometry
    }
 
    void buildGeometryField() {
-      std::vector<std::pair<uint_t, real_t>> levels;
+      int maxLevel = -1;
       for (auto& block : *blocks_) {
-         if(!meshAABB_.intersects(block.getAABB()) )
+         if(!meshAABB_.intersects(block.getAABB()))
             continue;
 
-         const uint_t level = blocks_->getLevel(block);
-         const real_t dx = blocks_->dx(level);
-         auto levelDxPair = std::pair<uint_t, real_t>(level, dx);
-         if (std::find(levels.begin(), levels.end(), levelDxPair) == levels.end()) {
-            levels.push_back(levelDxPair);
+         const int level = int(blocks_->getLevel(block));
+         if(level > maxLevel) {
+            maxLevel = level;
+            maxRefinementDxyz_ = Vector3<real_t>(blocks_->dx(level), blocks_->dy(level), blocks_->dz(level));
          }
       }
-      if(levels.size() == 0)
+      if(maxLevel <= -1)
          return;
 
-      std::sort (levels.begin(), levels.end());
-      maxRefinementLevelPair_ = levels.back();
-
       uint_t stencilSize = uint_t(pow(2, real_t(superSamplingDepth_)));
-      real_t dxSS = maxRefinementLevelPair_.second / real_t(stencilSize);
-      auto fieldSize = Vector3<uint_t> (uint_t(meshAABB_.xSize() / dxSS ), uint_t(meshAABB_.ySize() / dxSS ), uint_t(meshAABB_.zSize() / dxSS ));
+      Vector3<real_t> dxyzSS = maxRefinementDxyz_ / real_t(stencilSize);
+      auto fieldSize = Vector3<uint_t> (uint_t(meshAABB_.xSize() / dxyzSS[0] ), uint_t(meshAABB_.ySize() / dxyzSS[1] ), uint_t(meshAABB_.zSize() / dxyzSS[2] ));
       geometryField_= make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(std::ceil(real_t(stencilSize) * 0.5 )), geoSize(0), field::fzyx);
 
       const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
-      real_t sqDx = dxSS * dxSS;
-      real_t sqDxHalf = (0.5 * dxSS) * (0.5 * dxSS);
+      real_t sqDx = dxyzSS[0] * dxyzSS[0];
+      real_t sqDxHalf = (0.5 * dxyzSS[0]) * (0.5 * dxyzSS[0]);
 
       CellInterval blockCi = geometryField_->xyzSizeWithGhostLayer();
 
 #ifdef _OPENMP
-      #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
 #endif
       for (cell_idx_t cellZ = blockCi.zMin(); cellZ < blockCi.zMax(); ++cellZ) {
          for (cell_idx_t cellY = blockCi.yMin(); cellY < blockCi.yMax(); ++cellY) {
             for (cell_idx_t cellX = blockCi.xMin(); cellX < blockCi.xMax(); ++cellX) {
+
                Cell cell(cellX, cellY, cellZ);
 
-               Vector3< real_t > cellCenter = meshAABB_.min() + Vector3< real_t >(cell.x() * dxSS, cell.y() * dxSS, cell.z() * dxSS) + Vector3< real_t >(0.5 * dxSS);
+               Vector3< real_t > cellCenter = meshAABB_.min() + Vector3< real_t >(cell.x() * dxyzSS[0], cell.y() * dxyzSS[1], cell.z() * dxyzSS[2]) + dxyzSS * 0.5;
                const real_t sqSignedDistance = (*distFunct)(cellCenter);
 
                geoSize fraction = geoSize(std::max(0.0, std::min(1.0, (sqDx - (sqSignedDistance + sqDxHalf)) / sqDx)));
@@ -447,6 +444,6 @@ class MovingGeometry
    const bool isRotating_;
    Vector3<real_t> meshCenter;
    AABB meshAABB_;
-   std::pair<uint_t, real_t>  maxRefinementLevelPair_;
+   Vector3<real_t> maxRefinementDxyz_;
 };
 }//namespace waLBerla

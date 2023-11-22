@@ -9,7 +9,7 @@ import pystencils as ps
 from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil, ForceModel
 from lbmpy.partially_saturated_cells import PSMConfig
 
-from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method, create_lb_collision_rule
+from lbmpy.creationfunctions import create_lb_update_rule, create_lb_method, create_lb_collision_rule, create_psm_update_rule
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter, macroscopic_values_getter
 from lbmpy.boundaries import NoSlip, UBB, FixedDensity, SimpleExtrapolationOutflow
 
@@ -20,6 +20,8 @@ from pystencils import TypedSymbol
 from pystencils_walberla import CodeGeneration, generate_sweep, generate_info_header
 from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator
 
+from pystencils.cache import clear_cache
+clear_cache()
 
 #   =====================
 #      Code Generation
@@ -103,5 +105,12 @@ with CodeGeneration() as ctx:
     field_typedefs = {'VectorField_T': velocity,
                       'ScalarField_T': density}
 
+    psm_condition_update_rule = create_psm_update_rule(lbm_config, lbm_opt)
+
+    generate_sweep(ctx, "PSM_Conditional_Sweep", psm_condition_update_rule, field_swaps=[(pdfs, pdfs_tmp)],
+                   cpu_openmp=openmp, cpu_vectorize_info=cpu_vec, target=target)
+
     generate_info_header(ctx, 'VoxelizationTest_InfoHeader',
                          field_typedefs=field_typedefs)
+
+
