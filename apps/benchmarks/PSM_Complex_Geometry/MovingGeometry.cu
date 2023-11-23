@@ -148,6 +148,8 @@ void MovingGeometry::getFractionFieldFromGeometryMesh(uint_t timestep)  {
    double3 translation = {translation_[0] * real_t(timestep), translation_[1] * real_t(timestep), translation_[2] * real_t(timestep)};
 
    for (auto& block : *blocks_) {
+      if(!meshAABB_.intersects(block.getAABB()) )
+         continue;
       uint_t level = blocks_->getLevel(block);
       auto fractionFieldGPU = block.getData< gpu::GPUField<real_t> >(fractionFieldId_);
       real_t * RESTRICT const _data_fractionFieldGPU = fractionFieldGPU->dataAt(0, 0, 0, 0);

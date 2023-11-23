@@ -94,15 +94,18 @@ class MovingGeometry
          simTimer.start();
          WALBERLA_LOG_PROGRESS("Building geometry field")
          buildGeometryField();
+         WALBERLA_LOG_PROGRESS("Finished building geometry field")
          simTimer.end();
          double time = simTimer.max();
+         WALBERLA_LOG_PROGRESS("Try reduce in place")
          WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
          WALBERLA_LOG_INFO_ON_ROOT("Finished building Geometry Mesh in " << time << "s")
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-
-         geometryFieldGPU_ = new GeometryFieldGPU_T(geometryField_->xSize(), geometryField_->ySize(), geometryField_->zSize(), geometryField_->fSize(), geometryField_->nrOfGhostLayers(), geometryField_->layout(), true);
-         gpu::fieldCpy(*geometryFieldGPU_, *geometryField_);
+         if(geometryField_) {
+            geometryFieldGPU_ = new GeometryFieldGPU_T(geometryField_->xSize(), geometryField_->ySize(), geometryField_->zSize(), geometryField_->fSize(), geometryField_->nrOfGhostLayers(), geometryField_->layout(), true);
+            gpu::fieldCpy(*geometryFieldGPU_, *geometryField_);
+         }
 #endif
          WALBERLA_LOG_PROGRESS("Filling fraction Field from geometry field ")
          getFractionFieldFromGeometryMesh(0);
@@ -375,23 +378,39 @@ class MovingGeometry
    }
 
    void buildGeometryField() {
-      int maxLevel = -1;
-      for (auto& block : *blocks_) {
-         if(!meshAABB_.intersects(block.getAABB()))
-            continue;
 
-         const int level = int(blocks_->getLevel(block));
-         if(level > maxLevel) {
-            maxLevel = level;
-            maxRefinementDxyz_ = Vector3<real_t>(blocks_->dx(level), blocks_->dy(level), blocks_->dz(level));
+      WALBERLA_LOG_PROGRESS("Getting max level for geometry field size")
+      int maxLevel = -1;
+      WALBERLA_LOG_PROGRESS("Size of blocls_ is " << blocks_->size())
+
+      for (auto& block : *blocks_) {
+         WALBERLA_LOG_PROGRESS("Testing  aabb for block " << block.getId())
+
+         if(meshAABB_.intersects(block.getAABB()))
+         {
+            WALBERLA_LOG_PROGRESS("Getting level for block " << block.getId())
+
+            const int level = int(blocks_->getLevel(block));
+            if (level > maxLevel)
+            {
+               maxLevel           = level;
+               maxRefinementDxyz_ = Vector3< real_t >(blocks_->dx(level), blocks_->dy(level), blocks_->dz(level));
+            }
          }
       }
-      if(maxLevel <= -1)
+      WALBERLA_LOG_PROGRESS("Testing maxlevel")
+
+      if(maxLevel <= -1) {
+         WALBERLA_LOG_PROGRESS("Maxlevel <= -1")
          return;
+      }
+      WALBERLA_LOG_PROGRESS("Still here")
+
 
       uint_t stencilSize = uint_t(pow(2, real_t(superSamplingDepth_)));
       Vector3<real_t> dxyzSS = maxRefinementDxyz_ / real_t(stencilSize);
       auto fieldSize = Vector3<uint_t> (uint_t(meshAABB_.xSize() / dxyzSS[0] ), uint_t(meshAABB_.ySize() / dxyzSS[1] ), uint_t(meshAABB_.zSize() / dxyzSS[2] ));
+      WALBERLA_LOG_PROGRESS("Building geometry field with size " << fieldSize)
       geometryField_= make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(std::ceil(real_t(stencilSize) * 0.5 )), geoSize(0), field::fzyx);
 
       const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
@@ -399,6 +418,8 @@ class MovingGeometry
       real_t sqDxHalf = (0.5 * dxyzSS[0]) * (0.5 * dxyzSS[0]);
 
       CellInterval blockCi = geometryField_->xyzSizeWithGhostLayer();
+
+      WALBERLA_LOG_PROGRESS("Filling geometry field")
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)

@@ -3,6 +3,7 @@ import sympy as sp
 from sympy.core.add import Add
 from sympy.core.mul import Mul
 from sympy.codegen.ast import Assignment
+from dataclasses import replace
 
 import pystencils as ps
 
@@ -68,6 +69,8 @@ with CodeGeneration() as ctx:
         zero_centered=True,
         psm_config=psm_config,
     )
+
+    lbm_config_no_psm = replace(lbm_config, psm_config=None)
 
     lbm_opt = LBMOptimisation(cse_global=True,
                               symbolic_field=pdfs,

@@ -88,7 +88,7 @@ int main(int argc, char** argv)
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #endif
 
-   logging::Logging::instance()->setLogLevel( logging::Logging::INFO );
+   logging::Logging::instance()->setLogLevel( logging::Logging::PROGRESS );
 
    mpi::MPIManager::instance()->useWorldComm();
 
@@ -162,8 +162,8 @@ int main(int argc, char** argv)
 
 
 
-   //auto aabbBase = computeAABB(*meshBase);
-   auto aabbBase = computeAABB(*meshRotor);
+   auto aabbBase = computeAABB(*meshBase);
+   //auto aabbBase = computeAABB(*meshRotor);
    /*WALBERLA_LOG_INFO_ON_ROOT(aabbBase.sizes())
    auto targetBlocks = Vector3<uint_t> (8,4,4);
    auto dxyz = Vector3<real_t> ( aabbBase.xSize() / real_t(cellsPerBlock[0] * targetBlocks[0]),
@@ -242,7 +242,7 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldGPUId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", 1,  false);
    auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldGPUId, objectVelocitiesFieldId,
-                                                           Vector3<real_t>(0,-0 ,0), rotationAngle,
+                                                           Vector3<real_t>(0,0 ,0), rotationAngle,
                                                            rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, 1, true);
 #else
    //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", 1, false);
