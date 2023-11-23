@@ -264,7 +264,7 @@ int main(int argc, char** argv)
    mesa_pd::kernel::LinearSpringDashpot collisionResponse(2);
    collisionResponse.setFrictionCoefficientDynamic(0, 0, particleFrictionCoefficient);
    // No friction between spheres and (artificial) bounding planes
-   collisionResponse.setFrictionCoefficientDynamic(0, 1, real_t(0));
+   collisionResponse.setFrictionCoefficientDynamic(0, 1, particleFrictionCoefficient);
    mesa_pd::kernel::AssocToBlock assoc(blocks->getBlockForestPointer());
    mesa_pd::mpi::ReduceProperty reduceProperty;
    mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
