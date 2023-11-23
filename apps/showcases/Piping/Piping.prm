@@ -7,12 +7,12 @@ Domain
 
 Physics
 {
-    timeSteps 6000000;
+    timeSteps 600000; // for Fukumoto: 6000000
     hydraulicGradient 2.915; // final hydraulic gradient (see Fukumoto et al., 2021)
-    finalGradientTimeStep 6000000; // time step in which the final hydraulic gradient is reached, 0 means instantly
+    finalGradientTimeStep 600000; // time step in which the final hydraulic gradient is reached, 0 means instantly
     kinematicViscosityFluid_SI 1e-6;
     dx_SI 5e-5;
-    dt_SI 5e-7;
+    dt_SI 5e-6; // for Fukumoto: 5e-7
     gravitationalAcceleration_SI 9.81;
 }
 

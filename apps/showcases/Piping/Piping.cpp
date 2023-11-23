@@ -187,10 +187,11 @@ int main(int argc, char** argv)
    const Vector3< real_t > observationDomainSize(real_c(domainSize[0]) * observationDomainFraction[0],
                                                  real_c(domainSize[1]) * observationDomainFraction[1],
                                                  real_c(domainSize[2]) * observationDomainFraction[2]);
-   const uint_t numPreSteps           = particlesParameters.getParameter< uint_t >("numPreSteps");
-   const real_t kappa                 = real_c(2) * (real_c(1) - poissonsRatio) / (real_c(2) - poissonsRatio);
-   const real_t particleCollisionTime = real_t(1000); // TODO: check why it works with this value but not with 10
-   bool useOpenMP                     = false;
+   const uint_t numPreSteps = particlesParameters.getParameter< uint_t >("numPreSteps");
+   const real_t kappa       = real_c(2) * (real_c(1) - poissonsRatio) / (real_c(2) - poissonsRatio);
+   const real_t particleCollisionTime =
+      real_t(100); // TODO: check why it works with this value but not with 10, depends on dt
+   bool useOpenMP = false;
 
    Config::BlockHandle outputParameters   = cfgFile->getBlock("Output");
    const uint_t vtkSpacing                = outputParameters.getParameter< uint_t >("vtkSpacing");
