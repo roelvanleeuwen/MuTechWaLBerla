@@ -164,19 +164,19 @@ int main(int argc, char** argv)
 
    //auto aabbBase = computeAABB(*meshBase);
    auto aabbBase = computeAABB(*meshRotor);
-   WALBERLA_LOG_INFO_ON_ROOT(aabbBase.sizes())
-   auto targetBlocks = Vector3<uint_t> (2,8,8);
+   /*WALBERLA_LOG_INFO_ON_ROOT(aabbBase.sizes())
+   auto targetBlocks = Vector3<uint_t> (8,4,4);
    auto dxyz = Vector3<real_t> ( aabbBase.xSize() / real_t(cellsPerBlock[0] * targetBlocks[0]),
                                  aabbBase.ySize() / real_t(cellsPerBlock[1] * targetBlocks[1]),
                                  aabbBase.zSize() / real_t(cellsPerBlock[2] * targetBlocks[2]));
    WALBERLA_LOG_INFO_ON_ROOT(dxyz)
    //dxyz = Vector3<real_t>(dx);
-
+*/
    AABB aabb = aabbBase;
    aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
    aabb.scale(domainScaling);
 
-   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, dxyz, mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx), mesh::makeExcludeMeshInteriorRefinement(distanceOctreeMeshBase, dx));
+   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3<real_t>(dx));//, mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx), mesh::makeExcludeMeshInteriorRefinement(distanceOctreeMeshBase, dx));
    bfc.setPeriodicity(periodicity);
 
    auto setupForest = bfc.createSetupBlockForest( cellsPerBlock, 1 );
