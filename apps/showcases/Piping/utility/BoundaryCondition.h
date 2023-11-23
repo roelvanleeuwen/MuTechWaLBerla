@@ -33,9 +33,9 @@ void assembleBoundaryBlock(const Vector3< uint_t >& domainSize, const mesa_pd::V
    std::string boundariesBlockString =
       " Boundaries\n"
       "{\n"
-      "\t Border { direction W;    walldistance -1;  flag FreeSlip; }\n"
-      "\t Border { direction E;    walldistance -1;  flag FreeSlip; }\n"
-      "\t Border { direction B;    walldistance -1;  flag FreeSlip; }\n"
+      "\t Border { direction W;    walldistance -1;  flag NoSlip; }\n"
+      "\t Border { direction E;    walldistance -1;  flag NoSlip; }\n"
+      "\t Border { direction B;    walldistance -1;  flag NoSlip; }\n"
       "\t CellInterval { min < 0,-1," +
       std::to_string(domainSize[2]) + ">; max < " + std::to_string(uint_t(boxPosition[0] - boxEdgeLength[0] / 2 - 1)) +
       "," + std::to_string(domainSize[1] + 1) + "," + std::to_string(domainSize[2] + 1) +
@@ -60,8 +60,8 @@ void assembleBoundaryBlock(const Vector3< uint_t >& domainSize, const mesa_pd::V
 
    if (!periodicInY)
    {
-      boundariesBlockString += "\t Border { direction S;    walldistance -1;  flag FreeSlip; }\n"
-                               "\t Border { direction N;    walldistance -1;  flag FreeSlip; }\n";
+      boundariesBlockString += "\t Border { direction S;    walldistance -1;  flag NoSlip; }\n"
+                               "\t Border { direction N;    walldistance -1;  flag NoSlip; }\n";
    }
 
    boundariesBlockString += "}\n";
