@@ -299,6 +299,7 @@ void settleParticles(const uint_t numTimeSteps, const shared_ptr< ParticleAccess
          ac.setAngularVelocity(idx, Vector3(real_t(0)));
       },
       *accessor);
+   syncNextNeighborFunc(*ps, domain);
 }
 
 } // namespace piping
