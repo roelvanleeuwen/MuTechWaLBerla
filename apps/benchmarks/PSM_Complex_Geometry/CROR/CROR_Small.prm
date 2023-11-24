@@ -1,7 +1,7 @@
 
 Parameters 
 {
-	timesteps       3001;
+	timesteps       101;
 
     initialVelocity   <0.01, 0.0, 0.0>;
     ref_velocity  69.15;    // m/s
@@ -10,7 +10,7 @@ Parameters
     sim_time   0.0;         //set to 0, then timesteps is used
     mesh_size  0.07;    // 3 mm;
 
-    timeStepStrategy   refinement;
+    timeStepStrategy   Overlap;
     innerOuterSplit    <1,1,1>;
 
 	remainingTimeLoggerFrequency 10; // in seconds

@@ -88,7 +88,7 @@ int main(int argc, char** argv)
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #endif
 
-   logging::Logging::instance()->setLogLevel( logging::Logging::PROGRESS );
+   logging::Logging::instance()->setLogLevel( logging::Logging::INFO );
 
    mpi::MPIManager::instance()->useWorldComm();
 
@@ -162,8 +162,8 @@ int main(int argc, char** argv)
 
 
 
-   auto aabbBase = computeAABB(*meshBase);
-   //auto aabbBase = computeAABB(*meshRotor);
+   //auto aabbBase = computeAABB(*meshBase);
+   auto aabbBase = computeAABB(*meshRotor);
    /*WALBERLA_LOG_INFO_ON_ROOT(aabbBase.sizes())
    auto targetBlocks = Vector3<uint_t> (8,4,4);
    auto dxyz = Vector3<real_t> ( aabbBase.xSize() / real_t(cellsPerBlock[0] * targetBlocks[0]),

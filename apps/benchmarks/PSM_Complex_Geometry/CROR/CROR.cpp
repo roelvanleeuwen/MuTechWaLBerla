@@ -29,11 +29,12 @@
 #include "stencil/D3Q19.h"
 #include "timeloop/all.h"
 
-#include "lbm_generated/communication/NonuniformGeneratedPdfPackInfo.h"
 #include "lbm_generated/evaluation/PerformanceEvaluation.h"
 #include "lbm_generated/field/AddToStorage.h"
 #include "lbm_generated/field/PdfField.h"
 #include "lbm_generated/refinement/BasicRecursiveTimeStep.h"
+#include "lbm_generated/communication/NonuniformGeneratedPdfPackInfo.h"
+#include "lbm_generated/communication/UniformGeneratedPdfPackInfo.h"
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 #include "lbm_generated/gpu/AddToStorage.h"
@@ -41,6 +42,8 @@
 #include "lbm_generated/gpu/BasicRecursiveTimeStepGPU.h"
 #include "lbm_generated/gpu/NonuniformGeneratedGPUPdfPackInfo.h"
 #include "gpu/communication/NonUniformGPUScheme.h"
+#include "gpu/communication/UniformGPUScheme.h"
+#include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
 #endif
 
 #include "../MovingGeometry.h"
@@ -379,35 +382,26 @@ int main(int argc, char** argv)
    // Communication
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const bool sendDirectlyFromGPU = false;
-   auto communication = std::make_shared< NonUniformGPUScheme <CommunicationStencil_T>> (blocks, sendDirectlyFromGPU);
-   auto packInfo = lbm_generated::setupNonuniformGPUPdfCommunication<GPUPdfField_T>(blocks, pdfFieldGPUId);
-   communication->addPackInfo(packInfo);
-   lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldGPUId, sweepCollection, boundaryCollection, communication, packInfo);
+   /*auto non_uniform_communication = std::make_shared< NonUniformGPUScheme <CommunicationStencil_T>> (blocks, sendDirectlyFromGPU);
+   auto non_uniform_packInfo = lbm_generated::setupNonuniformGPUPdfCommunication<GPUPdfField_T>(blocks, pdfFieldGPUId);
+   non_uniform_communication->addPackInfo(non_uniform_packInfo);
+   lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldGPUId, sweepCollection, boundaryCollection, non_uniform_communication, non_uniform_packInfo);
+*/
+   gpu::communication::UniformGPUScheme< Stencil_T > uniform_communication(blocks, sendDirectlyFromGPU);
+   auto uniform_packInfo = std::make_shared<lbm_generated::UniformGeneratedGPUPdfPackInfo< GPUPdfField_T >>(pdfFieldGPUId);
+   uniform_communication.addPackInfo(uniform_packInfo);
+
 #else
-   auto communication = std::make_shared< NonUniformBufferedScheme< CommunicationStencil_T > >(blocks);
-   auto packInfo      = lbm_generated::setupNonuniformPdfCommunication< PdfField_T >(blocks, pdfFieldId);
-   //blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
-   //auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
-   communication->addPackInfo(packInfo);
-   lbm_generated::BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldId, sweepCollection, boundaryCollection, communication, packInfo);
+   /*auto non_uniform_communication = std::make_shared< NonUniformBufferedScheme< CommunicationStencil_T > >(blocks);
+   auto non_uniform_packInfo      = lbm_generated::setupNonuniformPdfCommunication< PdfField_T >(blocks, pdfFieldId);
+   non_uniform_communication->addPackInfo(non_uniform_packInfo);
+   lbm_generated::BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldId, sweepCollection, boundaryCollection, non_uniform_communication, non_uniform_packInfo);
+*/
+   blockforest::communication::UniformBufferedScheme< Stencil_T > uniform_communication(blocks);
+   auto uniform_packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
+   uniform_communication.addPackInfo(uniform_packInfo);
 #endif
 
-
-   /////////////////
-   /// Time Loop ///
-   /////////////////
-
-   const auto emptySweep = [](IBlock*) {};
-   if( rotationFrequency > 0) {
-      timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
-      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
-   }
-
-   // Time logger
-   timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
-                                 "remaining time logger");
-
-   //timeloop.addFuncAfterTimeStep( makeSharedFunctor( field::makeStabilityChecker< PdfField_T >( blocks, pdfFieldId, VTKWriteFrequency ) ), "LBM stability check" );
 
    if (VTKWriteFrequency > 0)
    {
@@ -449,8 +443,37 @@ int main(int argc, char** argv)
    }
 
 
+
+   /////////////////
+   /// Time Loop ///
+   /////////////////
+
+   const auto emptySweep = [](IBlock*) {};
+   if( rotationFrequency > 0) {
+      timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
+      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
+   }
+
+   // Time logger
+   timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
+                                 "remaining time logger");
+
+   //timeloop.addFuncAfterTimeStep( makeSharedFunctor( field::makeStabilityChecker< PdfField_T >( blocks, pdfFieldId, VTKWriteFrequency ) ), "LBM stability check" );
+
    if(timeStepStrategy == "refinement")  {
-      LBMMeshRefinement.addRefinementToTimeLoop(timeloop);
+      //LBMMeshRefinement.addRefinementToTimeLoop(timeloop);
+   }
+   else if(timeStepStrategy == "noOverlap"){
+      timeloop.add() << BeforeFunction(uniform_communication.getCommunicateFunctor(), "communication")
+                     << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
+      timeloop.add() << Sweep(sweepCollection.streamCollide(SweepCollection_T::ALL), "LBM StreamCollide");
+   }
+   else if(timeStepStrategy == "Overlap"){
+      timeloop.add() << BeforeFunction(uniform_communication.getStartCommunicateFunctor(), "Start Communication")
+                     << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
+      timeloop.add() << Sweep(sweepCollection.streamCollide(SweepCollection_T::INNER), "LBM StreamCollide Inner Frame");
+      timeloop.add() << BeforeFunction(uniform_communication.getWaitFunctor(), "Wait for Communication")
+                     << Sweep(sweepCollection.streamCollide(SweepCollection_T::OUTER), "LBM StreamCollide Outer Frame");
    }
    else {
       WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")
