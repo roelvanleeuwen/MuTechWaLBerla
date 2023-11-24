@@ -32,7 +32,7 @@ Particles
     useLubricationCorrection true;
     poissonsRatio 0.22;
     observationDomainFraction <0.1, 1.0, 0.2>; // uplift/subsidence observation domain size as a fraction of the domain size (for Fukumoto: <0.075, 1.0, 0.15>)
-    numPreSteps 20000; // number of time steps in the beginning without fluid to let the particles settle
+    numPreSteps 20000; // number of time steps in the beginning without fluid to let the particles settle again to the bucket wall
     movingParticles true;
 }
 

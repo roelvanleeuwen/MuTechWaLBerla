@@ -279,6 +279,7 @@ int main(int argc, char** argv)
    mesa_pd::data::LinkedCells linkedCells(rpdDomain->getUnionOfLocalAABBs().getExtended(linkedCellWidth),
                                           linkedCellWidth);
 
+   // Settle particles to the bucket wall
    settleParticles(numPreSteps, accessor, ps, *rpdDomain, linkedCells, syncNextNeighborFunc, collisionResponse,
                    particleDensityRatio, particleRestitutionCoefficient, kappa, gravitationalAcceleration,
                    particleCollisionTime, useOpenMP);

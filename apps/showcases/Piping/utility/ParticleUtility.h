@@ -290,6 +290,15 @@ void settleParticles(const uint_t numTimeSteps, const shared_ptr< ParticleAccess
                                    << ", max velocity = " << maxVelocity << ", #particles = " << numAveragedParticles);
       }
    }
+
+   // Velocities should be 0 after settling such that the simulation starts from rest
+   ps->forEachParticle(
+      useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor,
+      [](const size_t idx, auto& ac) {
+         ac.setLinearVelocity(idx, Vector3(real_t(0)));
+         ac.setAngularVelocity(idx, Vector3(real_t(0)));
+      },
+      *accessor);
 }
 
 } // namespace piping
