@@ -52,11 +52,13 @@ void assembleBoundaryBlock(const Vector3< uint_t >& domainSize, const mesa_pd::V
       ">; flag Density1; }\n"
       "\t Body { shape box; min <" +
       std::to_string(boxPosition[0] - boxEdgeLength[0] / 2) + "," +
-      std::to_string(boxPosition[1] - boxEdgeLength[1] / 2) + "," +
-      std::to_string(boxPosition[2] - boxEdgeLength[2] / 2) + ">; max <" +
+      std::to_string(boxPosition[1] - boxEdgeLength[1] / 2 -
+                     real_t(1)) // - 1 to avoid small gap in bucket if periodic in y-direction
+      + "," + std::to_string(boxPosition[2] - boxEdgeLength[2] / 2) + ">; max <" +
       std::to_string(boxPosition[0] + boxEdgeLength[0] / 2) + "," +
-      std::to_string(boxPosition[1] + boxEdgeLength[1] / 2) + "," +
-      std::to_string(boxPosition[2] + boxEdgeLength[2] / 2) + ">; flag NoSlip; }\n";
+      std::to_string(boxPosition[1] + boxEdgeLength[1] / 2 +
+                     real_t(1)) // + 1 to avoid small gap in bucket if periodic in y-direction
+      + "," + std::to_string(boxPosition[2] + boxEdgeLength[2] / 2) + ">; flag NoSlip; }\n";
 
    if (!periodicInY)
    {
