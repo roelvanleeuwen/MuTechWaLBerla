@@ -52,6 +52,7 @@
 #include "lbm_generated/field/AddToStorage.h"
 #include "lbm_generated/field/PdfField.h"
 #include "lbm_generated/refinement/BasicRecursiveTimeStep.h"
+#include "lbm_generated/refinement/RefinementScaling.h"
 #include "lbm_generated/evaluation/PerformanceEvaluation.h"
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -117,6 +118,14 @@ using lbm_generated::NonuniformGeneratedPdfPackInfo;
 
 using RefinementSelectionFunctor = SetupBlockForest::RefinementSelectionFunction;
 
+static void workloadAndMemoryAssignment( SetupBlockForest& forest, const memory_t memoryPerBlock )
+{
+   for( auto block = forest.begin(); block != forest.end(); ++block )
+   {
+      block->setWorkload( numeric_cast< workload_t >( uint_t(1) << block->getLevel() ) );
+      block->setMemory( memoryPerBlock );
+   }
+}
 
 template<typename MeshType>
 void vertexToFaceColor(MeshType &mesh, const typename MeshType::Color &defaultColor) {
@@ -236,6 +245,13 @@ int main(int argc, char **argv) {
 
    const Setup setup{reynoldsNumber, kinematicViscosity, omega, inletVelocity, refinementLevels};
 
+   const uint_t valuesPerCell = (Stencil_T::Q + VelocityField_T::F_SIZE + uint_c(2) * ScalarField_T::F_SIZE);
+   const uint_t sizePerValue = sizeof(PdfField_T::value_type);
+   const memory_t memoryPerCell =  memory_t( valuesPerCell * sizePerValue + uint_c(1) );
+   const Vector3<uint_t> blockSizeWithGL{blockSize[0] + uint_c(2) * numGhostLayers,
+                                            blockSize[1] + uint_c(2) * numGhostLayers,
+                                            blockSize[2] + uint_c(2) * numGhostLayers};
+   const memory_t memoryPerBlock = numeric_cast< memory_t >( blockSizeWithGL[0] * blockSizeWithGL[1] * blockSizeWithGL[2] ) * memoryPerCell;
 
    ////////////////////
    /// PROCESS MESH ///
@@ -272,12 +288,9 @@ int main(int argc, char **argv) {
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, resolution);
 
    bfc.setRootBlockExclusionFunction(mesh::makeExcludeMeshInterior(distanceOctree, resolution.min()));
+   bfc.setRootBlockExclusionFunction(mesh::makeExcludeMeshInterior(distanceOctree, resolution.min()));
    bfc.setBlockExclusionFunction(mesh::makeExcludeMeshInteriorRefinement(distanceOctree, fineMeshSize));
-
-   auto meshWorkloadMemory = mesh::makeMeshWorkloadMemory( distanceOctree, resolution.min() );
-   meshWorkloadMemory.setInsideCellWorkload(1);
-   meshWorkloadMemory.setOutsideCellWorkload(1);
-   bfc.setWorkloadMemorySUIDAssignmentFunction( meshWorkloadMemory );
+   bfc.setWorkloadMemorySUIDAssignmentFunction( std::bind( workloadAndMemoryAssignment, std::placeholders::_1, memoryPerBlock ) );
    bfc.setPeriodicity(periodicity);
 
    if( !uniformGrid ) {
@@ -310,14 +323,13 @@ int main(int argc, char **argv) {
          WALBERLA_LOG_INFO_ON_ROOT("Level " << level << " Blocks: " << numberOfBlocks)
       }
 
-      const uint_t totalNumberCells = setupForest->getNumberOfBlocks() * blockSize[0] * blockSize[1] * blockSize[2];
-
-      const uint_t valuesPerCell = (Stencil_T::Q + VelocityField_T::F_SIZE + uint_c(2) * ScalarField_T::F_SIZE);
-      const uint_t sizePerValue = sizeof(PdfField_T::value_type);
+      const uint_t totalNumberFluidCells = setupForest->getNumberOfBlocks() * blockSize[0] * blockSize[1] * blockSize[2];
+      const uint_t totalNumberCells = setupForest->getNumberOfBlocks() * blockSizeWithGL[0] * blockSizeWithGL[1] * blockSizeWithGL[2];
       const uint_t conversionFactor = uint_c(1024) * uint_c(1024) * uint_c(1024);
       const uint_t expectedMemory = (totalNumberCells * valuesPerCell * sizePerValue) / conversionFactor;
 
-      WALBERLA_LOG_INFO_ON_ROOT( "Total number of cells will be " << totalNumberCells << " fluid cells (in total on all levels)")
+      WALBERLA_LOG_INFO_ON_ROOT( "Total number of cells will be " << totalNumberFluidCells << " fluid cells (in total on all levels)")
+      WALBERLA_LOG_INFO_ON_ROOT( "Total number of cells will be " << totalNumberCells << " cells (in total on all levels with Ghostlayers)")
       WALBERLA_LOG_INFO_ON_ROOT( "Expected total memory demand will be " << expectedMemory << " GB")
       WALBERLA_LOG_INFO_ON_ROOT( "The total cell updates after " << timesteps << " timesteps (on the coarse level) will be " << totalCellUpdates)
 
@@ -409,12 +421,7 @@ int main(int argc, char **argv) {
             omegaField->get(x, y, z) = omega - omega_diff * ((real_c(cellCenter[0]) - real_c(spongeZoneStart)) / spongeZoneLength);
          }
          // Adaption due to level scaling
-         const real_t level_scale_factor = real_c(uint_t(1) << level);
-         const real_t one                = real_c(1.0);
-         const real_t half               = real_c(0.5);
-         const real_t oldOmega = omegaField->get(x, y, z);
-
-         omegaField->get(x, y, z) = real_c(oldOmega / (level_scale_factor * (-oldOmega * half + one) + oldOmega * half));
+         omegaField->get(x, y, z) = lbm_generated::relaxationRateScaling( omegaField->get(x, y, z), level);
       )
    }
 
@@ -496,13 +503,14 @@ int main(int argc, char **argv) {
 
    const wallDistance wallDistanceCallback{mesh};
    std::function<real_t(const Cell&, const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) > wallDistanceFunctor = wallDistanceCallback;
+   const real_t omegaFinestLevel = lbm_generated::relaxationRateScaling(omega, refinementLevels);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldGPUID, fluidFlagUID, inletVelocity, wallDistanceFunctor, pdfFieldID);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldGPUID, fluidFlagUID, omegaFinestLevel, inletVelocity, wallDistanceFunctor, pdfFieldID);
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID, inletVelocity, wallDistanceFunctor);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID, omegaFinestLevel, inletVelocity, wallDistanceFunctor);
 #endif
    WALBERLA_MPI_BARRIER()
    WALBERLA_LOG_INFO_ON_ROOT("BOUNDARY HANDLING done")

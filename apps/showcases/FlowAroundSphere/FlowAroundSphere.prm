@@ -2,7 +2,7 @@ Parameters
 {
     reynoldsNumber 10000;
     maximumLatticeVelocity 0.01;
-    timesteps 100000;
+    timesteps 301;
 
     coarseMeshSize  0.078125;
     relaxationRateOutlet  1.9;
@@ -19,12 +19,12 @@ Parameters
 DomainSetup
 {
     meshFile      sphere.obj;
-    cellsPerBlock < 256, 128, 128 >;
+    cellsPerBlock < 16, 16, 16 >;
     periodic      <  0,  1,  1 >;
 
     domainSize    < 20, 10, 10 >;
 
-    refinementLevels 0;
+    refinementLevels 3;
     numberProcesses 1;
 
     weakScaling false;
@@ -48,7 +48,7 @@ Boundaries
 
 VTKWriter
 {
-    vtkWriteFrequency 5000;
+    vtkWriteFrequency 100;
     velocity true;
     density false;
     omega false;
@@ -60,7 +60,7 @@ Logging
 {
     logLevel info;  // info progress detail tracing
     writeDistanceOctree false;
-    writeSetupForestAndReturn false;
+    writeSetupForestAndReturn False;
     writeMeshBoundaries false;
     remainingTimeLoggerFrequency 60; // in seconds
 }

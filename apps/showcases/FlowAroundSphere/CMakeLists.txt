@@ -9,7 +9,7 @@ waLBerla_generate_target_from_python(NAME FlowAroundSphereCodeGen
         FILE FlowAroundSphere.py
         OUT_FILES FlowAroundSphereSweepCollection.h FlowAroundSphereSweepCollection.${CODEGEN_FILE_SUFFIX}
         FlowAroundSphereStorageSpecification.h FlowAroundSphereStorageSpecification.${CODEGEN_FILE_SUFFIX}
-        NoSlipBouzidi.h NoSlipBouzidi.${CODEGEN_FILE_SUFFIX}
+        NoSlip.h NoSlip.${CODEGEN_FILE_SUFFIX}
         UBB.h UBB.${CODEGEN_FILE_SUFFIX}
         Outflow.h Outflow.${CODEGEN_FILE_SUFFIX}
         FlowAroundSphereBoundaryCollection.h

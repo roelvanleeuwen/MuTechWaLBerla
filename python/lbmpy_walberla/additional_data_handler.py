@@ -5,7 +5,7 @@ from pystencils.typing import BasicType
 from lbmpy.advanced_streaming import AccessPdfValues, numeric_offsets, numeric_index, Timestep, is_inplace
 from lbmpy.advanced_streaming.indexing import MirroredStencilDirections
 from lbmpy.boundaries.boundaryconditions import LbBoundary
-from lbmpy.boundaries import ExtrapolationOutflow, FreeSlip, UBB, NoSlipLinearBouzidi
+from lbmpy.boundaries import ExtrapolationOutflow, FreeSlip, UBB, NoSlipLinearBouzidi, QuadraticBounceBack
 
 from pystencils_walberla.additional_data_handler import AdditionalDataHandler
 
@@ -20,6 +20,7 @@ if(!isFlagSet(it.neighbor({cx}, {cy}, {cz}, 0), domainFlag)){{
 }} //end if to check Bouzidi applicability  
 """
 
+
 def default_additional_data_handler(boundary_obj: LbBoundary, lb_method, field_name, target=Target.CPU,
                                     pdfs_data_type=None, zeroth_timestep=None):
     if not boundary_obj.additional_data:
@@ -33,6 +34,8 @@ def default_additional_data_handler(boundary_obj: LbBoundary, lb_method, field_n
                                             pdfs_data_type=pdfs_data_type, zeroth_timestep=zeroth_timestep)
     elif isinstance(boundary_obj, NoSlipLinearBouzidi):
         return NoSlipLinearBouzidiAdditionalDataHandler(lb_method.stencil, boundary_obj)
+    elif isinstance(boundary_obj, QuadraticBounceBack):
+        return QuadraticBounceBackAdditionalDataHandler(lb_method.stencil, boundary_obj)
     else:
         raise ValueError(f"No default AdditionalDataHandler available for boundary of type {boundary_obj.__class__}")
 
@@ -181,6 +184,52 @@ class NoSlipLinearBouzidiAdditionalDataHandler(AdditionalDataHandler):
         init_list = [f"const {self._dtype} q = (({self._dtype}) {init_element});",
                      "element.q = q;",
                      check_str]
+
+        return "\n".join(init_list)
+
+    @property
+    def additional_member_variable(self):
+        return f"std::function<{self._dtype}(const Cell &, const Cell &, {self._blocks} elementInitialiser; "
+
+
+class QuadraticBounceBackAdditionalDataHandler(AdditionalDataHandler):
+    def __init__(self, stencil, boundary_object):
+        assert isinstance(boundary_object, QuadraticBounceBack)
+
+        self._dtype = BasicType(boundary_object.data_type).c_name
+        self._blocks = "const shared_ptr<StructuredBlockForest>&, IBlock&)>"
+        super(QuadraticBounceBackAdditionalDataHandler, self).__init__(stencil=stencil)
+
+    @property
+    def constructor_argument_name(self):
+        return "wallDistance"
+
+    @property
+    def constructor_arguments(self):
+        return f", std::function<{self._dtype}(const Cell &, const Cell &, {self._blocks}&" \
+               f"{self.constructor_argument_name} "
+
+    @property
+    def initialiser_list(self):
+        return "elementInitialiser(wallDistance),"
+
+    @property
+    def additional_arguments_for_fill_function(self):
+        return "blocks, "
+
+    @property
+    def additional_parameters_for_fill_function(self):
+        return " const shared_ptr<StructuredBlockForest> &blocks, "
+
+    def data_initialisation(self, direction):
+        cx = self._walberla_stencil[direction][0]
+        cy = self._walberla_stencil[direction][1]
+        cz = self._walberla_stencil[direction][2]
+        fluid_cell = "Cell(it.x(), it.y(), it.z())"
+        boundary_cell = f"Cell(it.x() + {cx}, it.y() + {cy}, it.z() + {cz})"
+        init_element = f"elementInitialiser({fluid_cell}, {boundary_cell}, blocks, *block)"
+        init_list = [f"const {self._dtype} q = (({self._dtype}) {init_element});",
+                     "element.q = q;"]
 
         return "\n".join(init_list)
 
