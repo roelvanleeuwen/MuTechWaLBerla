@@ -23,7 +23,7 @@ inlet_velocity = sp.symbols("u_x")
 
 with CodeGeneration() as ctx:
     dtype = 'float64'
-    pdf_dtype = 'float32'
+    pdf_dtype = 'float64'
 
     stencil = LBStencil(Stencil.D3Q27)
     q = stencil.Q
@@ -71,7 +71,7 @@ with CodeGeneration() as ctx:
 
     else:
         if ctx.optimize_for_localhost:
-            cpu_vec = {"nontemporal": True, "assume_aligned": True}
+            cpu_vec = {"instruction_set": None}
         else:
             cpu_vec = None
 
@@ -95,7 +95,8 @@ with CodeGeneration() as ctx:
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
                          nonuniform=True, boundaries=[no_slip_interpolated, ubb, outflow],
                          macroscopic_fields=macroscopic_fields, gpu_indexing_params=sweep_params,
-                         target=target, data_type=dtype, pdfs_data_type=pdf_dtype)
+                         target=target, data_type=dtype, pdfs_data_type=pdf_dtype,
+                         cpu_vectorize_info=cpu_vec)
 
     field_typedefs = {'VelocityField_T': velocity_field,
                       'ScalarField_T': density_field}

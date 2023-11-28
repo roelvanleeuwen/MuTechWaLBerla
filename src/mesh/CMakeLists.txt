@@ -12,6 +12,7 @@ endif()
 target_sources( mesh
       PRIVATE
       MeshConversion.h
+      Utility.h
       )
 
 add_subdirectory( blockforest )

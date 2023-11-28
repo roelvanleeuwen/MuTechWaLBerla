@@ -2,9 +2,9 @@ Parameters
 {
     reynoldsNumber 10000;
     maximumLatticeVelocity 0.01;
-    timesteps 301;
+    timesteps 2001;
 
-    coarseMeshSize  0.078125;
+    coarseMeshSize  0.15;
     relaxationRateOutlet  1.9;
     SpongeZoneStart 15;
 
@@ -48,7 +48,7 @@ Boundaries
 
 VTKWriter
 {
-    vtkWriteFrequency 100;
+    vtkWriteFrequency 500;
     velocity true;
     density false;
     omega false;
@@ -60,7 +60,7 @@ Logging
 {
     logLevel info;  // info progress detail tracing
     writeDistanceOctree false;
-    writeSetupForestAndReturn False;
+    writeSetupForestAndReturn false;
     writeMeshBoundaries false;
     remainingTimeLoggerFrequency 60; // in seconds
 }

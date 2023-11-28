@@ -63,6 +63,7 @@
 #include "lbm_generated/gpu/BasicRecursiveTimeStepGPU.h"
 #endif
 
+#include "mesh/Utility.h"
 #include "mesh/blockforest/BlockExclusion.h"
 #include "mesh/blockforest/BlockForestInitialization.h"
 #include "mesh/blockforest/RefinementSelection.h"
@@ -126,32 +127,6 @@ static void workloadAndMemoryAssignment( SetupBlockForest& forest, const memory_
       block->setMemory( memoryPerBlock );
    }
 }
-
-template<typename MeshType>
-void vertexToFaceColor(MeshType &mesh, const typename MeshType::Color &defaultColor) {
-   WALBERLA_CHECK(mesh.has_vertex_colors())
-   mesh.request_face_colors();
-
-   for (auto faceIt = mesh.faces_begin(); faceIt != mesh.faces_end(); ++faceIt) {
-      typename MeshType::Color vertexColor;
-
-      bool useVertexColor = true;
-
-      auto vertexIt = mesh.fv_iter(*faceIt);
-      WALBERLA_ASSERT(vertexIt.is_valid())
-
-      vertexColor = mesh.color(*vertexIt);
-
-      ++vertexIt;
-      while (vertexIt.is_valid() && useVertexColor) {
-         if (vertexColor != mesh.color(*vertexIt)) useVertexColor = false;
-         ++vertexIt;
-      }
-
-      mesh.set_color(*faceIt, useVertexColor ? vertexColor : defaultColor);
-   }
-}
-
 
 //////////////////////
 // Parameter Struct //
@@ -263,7 +238,7 @@ int main(int argc, char **argv) {
    auto mesh = make_shared<mesh::TriangleMesh>();
    mesh->request_vertex_colors();
    mesh::readAndBroadcast(meshFile, *mesh);
-   vertexToFaceColor(*mesh, mesh::TriangleMesh::Color(255, 255, 255));
+   mesh::vertexToFaceColor(*mesh, mesh::TriangleMesh::Color(255, 255, 255));
 
    // building distanceOctree
    auto triDist = make_shared<mesh::TriangleDistance<mesh::TriangleMesh> >(mesh);
@@ -471,10 +446,10 @@ int main(int argc, char **argv) {
    WALBERLA_LOG_INFO_ON_ROOT("Start BOUNDARY HANDLING")
    // create and initialize boundary handling
    const FlagUID fluidFlagUID("Fluid");
-   static const walberla::BoundaryUID wallFlagUID("NoSlipBouzidi");
+   static const walberla::BoundaryUID wallFlagUID("NoSlip");
    for (auto &block: *blocks) {
       auto flagField = block.getData<FlagField_T>( flagFieldID );
-      flagField->registerFlag(FlagUID("NoSlipBouzidi"));
+      flagField->registerFlag(FlagUID("NoSlip"));
    }
 
    // write mesh info to file
@@ -498,7 +473,7 @@ int main(int argc, char **argv) {
 
    auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
    geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldID, boundariesConfig);
-   boundarySetup.setFlag<FlagField_T>(flagFieldID, FlagUID("NoSlipBouzidi"), mesh::BoundarySetup::INSIDE);
+   boundarySetup.setFlag<FlagField_T>(flagFieldID, FlagUID("NoSlip"), mesh::BoundarySetup::INSIDE);
    geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldID, fluidFlagUID, cell_idx_c(numGhostLayers));
 
    const wallDistance wallDistanceCallback{mesh};
