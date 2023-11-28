@@ -19,7 +19,7 @@ NumericalSetup
     useParticles true; // if true, PSM/particle mapping/velocity computation/hydrodynamic force reduction is used, else LBM is used
     particleDiameter 10.0;
     particleGenerationSpacing 11.0;
-    useParticleOffset true;
+    useParticleOffset true; // offset every second particle layer in flow direction
     particleNumSubBlocks <25, 25, 25>;
 
     // fluid quantities in LBM units
