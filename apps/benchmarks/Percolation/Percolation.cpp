@@ -137,6 +137,7 @@ int main(int argc, char** argv)
    const bool useParticles                = numericalSetup.getParameter< bool >("useParticles");
    const real_t particleDiameter          = numericalSetup.getParameter< real_t >("particleDiameter");
    const real_t particleGenerationSpacing = numericalSetup.getParameter< real_t >("particleGenerationSpacing");
+   const bool useParticleOffset           = numericalSetup.getParameter< bool >("useParticleOffset");
    const Vector3< uint_t > particleNumSubBlocks =
       numericalSetup.getParameter< Vector3< uint_t > >("particleNumSubBlocks");
    const real_t uInflow        = numericalSetup.getParameter< real_t >("uInflow");
@@ -190,8 +191,9 @@ int main(int argc, char** argv)
       for (auto pt : grid_generator::SCGrid(generationDomain, generationDomain.center(), particleGenerationSpacing))
       {
          // Offset every second particle layer in flow direction to avoid channels in flow direction
-         if (uint_t(round(math::abs(generationDomain.center()[0] - pt[0]) / (particleGenerationSpacing))) % uint_t(2) !=
-             uint_t(0))
+         if (useParticleOffset &&
+             uint_t(round(math::abs(generationDomain.center()[0] - pt[0]) / (particleGenerationSpacing))) % uint_t(2) !=
+                uint_t(0))
          {
             pt = pt + Vector3(real_t(0), particleOffset, particleOffset);
          }
