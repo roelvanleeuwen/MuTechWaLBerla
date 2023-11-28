@@ -6,8 +6,8 @@ NumericalSetup
     numYBlocks 1;
     numZBlocks 1;
 
-    periodicInY true;
-    periodicInZ true;
+    periodicInY false;
+    periodicInZ false;
 
     numXCellsPerBlock 200;
     numYCellsPerBlock 100;
@@ -22,7 +22,7 @@ NumericalSetup
     particleNumSubBlocks <25, 25, 25>;
 
     // fluid quantities in LBM units
-    pressureDifference 0.1;
+    uInflow 0.00008;
     relaxationRate 0.9;
 }
 

@@ -80,10 +80,9 @@ using FlagField_T = FlagField< flag_t >;
 ///////////
 
 const FlagUID Fluid_Flag("Fluid");
-const FlagUID Density0_Flag("Density0");
-const FlagUID Density1_Flag("Density1");
+const FlagUID Density_Flag("Density");
 const FlagUID NoSlip_Flag("NoSlip");
-const FlagUID Inflow_Flag("Outflow");
+const FlagUID Inflow_Flag("Inflow");
 
 //////////
 // MAIN //
@@ -93,11 +92,10 @@ const FlagUID Inflow_Flag("Outflow");
 /*!\brief Benchmark of a percolation setup
  *
  * This code can be used as a percolation (useParticles=true) or as a channel flow (useParticles=false) benchmark.
+ * A constant inflow from west is applied and a pressure boundary condition is set at the east.
  * For the percolation, mono-sized fixed spherical particles are generated on a structured grid with an offset for
- * every second particle layer in flow direction to avoid channels in flow direction. Different pressure boundary
- * conditions are set at the west and east boundary. The flow is described by Darcy's law.
- * For the channel flow, a pressure boundary condition is set at the west and a constant outflow from east is applied.
- * The flow is described by the Hagen–Poiseuille equation.
+ * every second particle layer in flow direction to avoid channels in flow direction. The flow is described by Darcy's
+ * law. For the channel flow, the flow is described by the Hagen–Poiseuille equation.
  *
  * The domain is either periodic or bounded by (no slip) walls in the vertical directions (y and z).
  *
@@ -141,8 +139,8 @@ int main(int argc, char** argv)
    const real_t particleGenerationSpacing = numericalSetup.getParameter< real_t >("particleGenerationSpacing");
    const Vector3< uint_t > particleNumSubBlocks =
       numericalSetup.getParameter< Vector3< uint_t > >("particleNumSubBlocks");
-   const real_t pressureDifference = numericalSetup.getParameter< real_t >("pressureDifference");
-   const real_t relaxationRate     = numericalSetup.getParameter< real_t >("relaxationRate");
+   const real_t uInflow        = numericalSetup.getParameter< real_t >("uInflow");
+   const real_t relaxationRate = numericalSetup.getParameter< real_t >("relaxationRate");
    if ((periodicInY && numYBlocks == 1) || (periodicInZ && numZBlocks == 1))
    {
       WALBERLA_LOG_WARNING_ON_ROOT("Using only 1 block in periodic dimensions can lead to unexpected behavior.")
@@ -229,9 +227,8 @@ int main(int argc, char** argv)
    // Assemble boundary block string
    std::string boundariesBlockString = " Boundaries"
                                        "{"
-                                       "Border { direction W;    walldistance -1;  flag Density0; }";
-   if (useParticles) { boundariesBlockString += "Border { direction E;    walldistance -1;  flag Density1; }"; }
-   else { boundariesBlockString += "Border { direction E;    walldistance -1;  flag Outflow; }"; }
+                                       "Border { direction W;    walldistance -1;  flag Inflow; }"
+                                       "Border { direction E;    walldistance -1;  flag Density; }";
 
    if (!periodicInY)
    {
@@ -261,15 +258,11 @@ int main(int argc, char** argv)
    // map boundaries into the LBM simulation
    geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldID, boundariesConfig);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldID, Fluid_Flag);
-   lbm::PSM_Density density0_bc(blocks, pdfFieldGPUID, real_t(1.0));
-   density0_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Density0_Flag, Fluid_Flag);
-   lbm::PSM_Density density1_bc(blocks, pdfFieldGPUID, real_t(1.0) - pressureDifference);
-   density1_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Density1_Flag, Fluid_Flag);
+   lbm::PSM_Density density_bc(blocks, pdfFieldGPUID, real_t(1.0));
+   density_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Density_Flag, Fluid_Flag);
    lbm::PSM_NoSlip noSlip(blocks, pdfFieldGPUID);
    noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, NoSlip_Flag, Fluid_Flag);
-   const real_t uOutflow = real_t(0.02);
-   if (!useParticles) { WALBERLA_LOG_DEVEL_VAR_ON_ROOT(uOutflow) }
-   lbm::PSM_UBB ubb(blocks, pdfFieldGPUID, uOutflow, real_t(0), real_t(0));
+   lbm::PSM_UBB ubb(blocks, pdfFieldGPUID, uInflow, real_t(0), real_t(0));
    ubb.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Inflow_Flag, Fluid_Flag);
 
    ///////////////
@@ -277,7 +270,7 @@ int main(int argc, char** argv)
    ///////////////
 
    // Map particles into the fluid domain
-   ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, relaxationRate);
+   ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, relaxationRate);
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
                                             particleAndVolumeFractionSoA, particleNumSubBlocks);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
@@ -360,12 +353,8 @@ int main(int argc, char** argv)
    // Add LBM communication function and boundary handling sweep
    // TODO: use split sweeps to hide communication
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
-                  << Sweep(deviceSyncWrapper(density0_bc.getSweep()), "Boundary Handling (Density0)");
-   if (useParticles)
-   {
-      timeloop.add() << Sweep(deviceSyncWrapper(density1_bc.getSweep()), "Boundary Handling (Density1)");
-   }
-   else { timeloop.add() << Sweep(deviceSyncWrapper(ubb.getSweep()), "Boundary Handling (UBB)"); }
+                  << Sweep(deviceSyncWrapper(density_bc.getSweep()), "Boundary Handling (Density)");
+   timeloop.add() << Sweep(deviceSyncWrapper(ubb.getSweep()), "Boundary Handling (UBB)");
    if (!periodicInY || !periodicInZ)
    {
       timeloop.add() << Sweep(deviceSyncWrapper(noSlip.getSweep()), "Boundary Handling (NoSlip)");
