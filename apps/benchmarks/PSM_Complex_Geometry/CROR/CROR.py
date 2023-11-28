@@ -91,7 +91,7 @@ with CodeGeneration() as ctx:
     generate_lbm_package(ctx, name="CROR",
                          collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=True, boundaries=[no_slip, ubb, fixedDensity, extrapolOutflow],
+                         nonuniform=False, boundaries=[no_slip, ubb, fixedDensity, extrapolOutflow],
                          macroscopic_fields=macroscopic_fields, cpu_openmp=openmp,
                          cpu_vectorize_info=cpu_vec, target=target)
 

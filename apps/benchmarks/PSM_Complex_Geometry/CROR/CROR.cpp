@@ -69,7 +69,6 @@ typedef FlagField< flag_t > FlagField_T;
 using BoundaryCollection_T = lbm::CRORBoundaryCollection< FlagField_T >;
 using SweepCollection_T = lbm::CRORSweepCollection;
 const FlagUID fluidFlagUID("Fluid");
-const uint_t ghostLayers = 2;
 
 
 class LDCRefinement
@@ -106,6 +105,17 @@ class LDCRefinement
    const AABB rotorMeshAABB_;
    const AABB statorMeshAABB_;
    shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctreeBase_;
+};
+
+
+
+auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
+   return [sweep](IBlock* b) {
+      sweep(b);
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      cudaDeviceSynchronize();
+#endif
+   };
 };
 
 
@@ -180,6 +190,11 @@ int main(int argc, char** argv)
 
    const real_t radPerTimestep = rotationSpeed * Ct;
    const real_t rotationAngle = radPerTimestep * real_c(rotationFrequency);
+
+
+   uint_t ghostLayers = 1;
+   if(timeStepStrategy == "refinement")
+      ghostLayers = 2;
 
 
    ////////////////////
@@ -465,15 +480,15 @@ int main(int argc, char** argv)
    }
    else if(timeStepStrategy == "noOverlap"){
       timeloop.add() << BeforeFunction(uniform_communication.getCommunicateFunctor(), "communication")
-                     << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
-      timeloop.add() << Sweep(sweepCollection.streamCollide(SweepCollection_T::ALL), "LBM StreamCollide");
+                     << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");
+      timeloop.add() << Sweep(deviceSyncWrapper(sweepCollection.streamCollide(SweepCollection_T::ALL)), "LBM StreamCollide");
    }
-   else if(timeStepStrategy == "Overlap"){
+   else if(timeStepStrategy == "overlap"){
       timeloop.add() << BeforeFunction(uniform_communication.getStartCommunicateFunctor(), "Start Communication")
-                     << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
-      timeloop.add() << Sweep(sweepCollection.streamCollide(SweepCollection_T::INNER), "LBM StreamCollide Inner Frame");
+                     << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");
+      timeloop.add() << Sweep(deviceSyncWrapper(sweepCollection.streamCollide(SweepCollection_T::INNER)), "LBM StreamCollide Inner Frame");
       timeloop.add() << BeforeFunction(uniform_communication.getWaitFunctor(), "Wait for Communication")
-                     << Sweep(sweepCollection.streamCollide(SweepCollection_T::OUTER), "LBM StreamCollide Outer Frame");
+                     << Sweep(deviceSyncWrapper(sweepCollection.streamCollide(SweepCollection_T::OUTER)), "LBM StreamCollide Outer Frame");
    }
    else {
       WALBERLA_ABORT("timeStepStrategy " << timeStepStrategy << " not supported")

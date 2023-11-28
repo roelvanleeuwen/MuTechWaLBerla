@@ -10,7 +10,7 @@ Parameters
     sim_time   0.0;         //set to 0, then timesteps is used
     mesh_size  0.0015;    // Goal = 0.3 mm = 0.0003 m;
 
-    timeStepStrategy   refinement;
+    timeStepStrategy   overlap;
     innerOuterSplit    <1,1,1>;
 
 	remainingTimeLoggerFrequency 60; // in seconds
