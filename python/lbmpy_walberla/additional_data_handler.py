@@ -228,8 +228,7 @@ class QuadraticBounceBackAdditionalDataHandler(AdditionalDataHandler):
         fluid_cell = "Cell(it.x(), it.y(), it.z())"
         boundary_cell = f"Cell(it.x() + {cx}, it.y() + {cy}, it.z() + {cz})"
         init_element = f"elementInitialiser({fluid_cell}, {boundary_cell}, blocks, *block)"
-        init_list = [f"const {self._dtype} q = (({self._dtype}) {init_element});",
-                     "element.q = q;"]
+        init_list = [f"const {self._dtype} q = (({self._dtype}) {init_element});", "element.q = q;"]
 
         return "\n".join(init_list)
 

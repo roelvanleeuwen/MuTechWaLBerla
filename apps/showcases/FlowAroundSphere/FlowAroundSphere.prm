@@ -1,18 +1,19 @@
 Parameters
 {
-    reynoldsNumber 10000;
-    maximumLatticeVelocity 0.01;
-    timesteps 2001;
+    diameterSphere 0.2;
+    reynoldsNumber 100000;
+    velocity 1.0;
+    timestepSize 0.5e-3;
+    coarseMeshSize  0.15625;
 
-    coarseMeshSize  0.15;
-    relaxationRateOutlet  1.9;
-    SpongeZoneStart 15;
+    timesteps 2001;
 
     innerOuterSplit <1, 1, 1>;
 
     // GPU related Parameters, only used if GPU is enabled
     sendDirectlyFromGPU false;
     gpuBlockSize <128, 1, 1>;
+
 }
 
 //! [domainSetup]
@@ -22,7 +23,7 @@ DomainSetup
     cellsPerBlock < 16, 16, 16 >;
     periodic      <  0,  1,  1 >;
 
-    domainSize    < 20, 10, 10 >;
+    domainSize    < 25, 15, 15 >;
 
     refinementLevels 3;
     numberProcesses 1;
@@ -51,7 +52,6 @@ VTKWriter
     vtkWriteFrequency 500;
     velocity true;
     density false;
-    omega false;
     flag false;
     writeOnlySlice false;
 }
@@ -60,7 +60,7 @@ Logging
 {
     logLevel info;  // info progress detail tracing
     writeDistanceOctree false;
-    writeSetupForestAndReturn false;
+    writeSetupForestAndReturn true;
     writeMeshBoundaries false;
     remainingTimeLoggerFrequency 60; // in seconds
 }

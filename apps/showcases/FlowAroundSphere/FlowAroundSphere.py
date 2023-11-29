@@ -40,7 +40,7 @@ with CodeGeneration() as ctx:
     lbm_config = LBMConfig(
         method=Method.CUMULANT,
         stencil=stencil,
-        relaxation_rate=omega_field.center,
+        relaxation_rate=omega,
         compressible=True,
         galilean_correction=True,
         fourth_order_correction=False,

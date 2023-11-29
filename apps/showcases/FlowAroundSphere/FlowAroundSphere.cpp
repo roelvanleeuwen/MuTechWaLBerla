@@ -119,13 +119,15 @@ using lbm_generated::NonuniformGeneratedPdfPackInfo;
 
 using RefinementSelectionFunctor = SetupBlockForest::RefinementSelectionFunction;
 
-static void workloadAndMemoryAssignment( SetupBlockForest& forest, const memory_t memoryPerBlock )
+namespace{
+void workloadAndMemoryAssignment(SetupBlockForest& forest, const memory_t memoryPerBlock)
 {
-   for( auto block = forest.begin(); block != forest.end(); ++block )
+   for (auto block = forest.begin(); block != forest.end(); ++block)
    {
-      block->setWorkload( numeric_cast< workload_t >( uint_t(1) << block->getLevel() ) );
-      block->setMemory( memoryPerBlock );
+      block->setWorkload(numeric_cast< workload_t >(uint_t(1) << block->getLevel()));
+      block->setMemory(memoryPerBlock);
    }
+}
 }
 
 //////////////////////
@@ -145,7 +147,7 @@ struct Setup
    {
       WALBERLA_LOG_INFO_ON_ROOT( "FlowAroundSphere simulation properties:"
                                 "\n   + Reynolds number:   " << Re <<
-                                "\n   + kin. viscosity:    " << viscosity << " (on the coarsest grid)" <<
+                                "\n   + lattice viscosity: " << viscosity << " (on the coarsest grid)" <<
                                 "\n   + relaxation rate:   " << std::setprecision(16) << omega << " (on the coarsest grid)" <<
                                 "\n   + inlet velocity:    " << inletVelocity << " (in lattice units)" <<
                                 "\n   + refinement Levels: " << refinementLevels)
@@ -169,16 +171,14 @@ int main(int argc, char **argv) {
    // read general simulation parameters
    auto parameters = walberlaEnv.config()->getOneBlock("Parameters");
 
-   const real_t reynoldsNumber           = parameters.getParameter<real_t>("reynoldsNumber");
-   const real_t maximumLatticeVelocity   = parameters.getParameter<real_t>("maximumLatticeVelocity");
+   const real_t diameterSphere   = parameters.getParameter<real_t>("diameterSphere");
+   const real_t reynoldsNumber   = parameters.getParameter<real_t>("reynoldsNumber");
+   const real_t velocity   = parameters.getParameter<real_t>("velocity");
+   const real_t timestepSize   = parameters.getParameter<real_t>("timestepSize");
 
    const uint_t timesteps                = parameters.getParameter<uint_t>("timesteps", 0);
    const real_t coarseMeshSize           = parameters.getParameter<real_t>("coarseMeshSize");
    auto resolution                       = Vector3<real_t>(coarseMeshSize);
-
-   const real_t relaxationRateOutlet     = parameters.getParameter<real_t>("relaxationRateOutlet");
-   const cell_idx_t spongeZoneStart      = parameters.getParameter<cell_idx_t>("SpongeZoneStart");
-
 
    // read domain parameters
    auto domainParameters = walberlaEnv.config()->getOneBlock("DomainSetup");
@@ -204,12 +204,12 @@ int main(int argc, char **argv) {
    }
 
    const real_t fineMeshSize = resolution.min() / real_c(std::pow(2, refinementLevels));
-   const real_t diameterSphere = (real_c(1.0) / coarseMeshSize) * real_c(2.0); // the sphere has a radius of 1m in physical units
 
-   const real_t kinematicViscosity = (diameterSphere * maximumLatticeVelocity) / reynoldsNumber;
-   const real_t omega = real_c(1.0 / (3.0 * kinematicViscosity + 0.5));
+   const real_t latticeVelocity = velocity * timestepSize / coarseMeshSize;
+   const real_t latticeViscosity =  (diameterSphere / coarseMeshSize) * latticeVelocity / reynoldsNumber;
+   const real_t omega = real_c(real_c(1.0) / (real_c(3.0) * latticeViscosity + real_c(0.5)));
 
-   const real_t inletVelocity = maximumLatticeVelocity;
+   const real_t inletVelocity = latticeVelocity;
 
    const uint_t numProcesses = domainParameters.getParameter< uint_t >( "numberProcesses");
 
@@ -218,14 +218,14 @@ int main(int argc, char **argv) {
    const bool writeDistanceOctree = loggingParameters.getParameter<bool>("writeDistanceOctree", false);
    const bool writeMeshBoundaries = loggingParameters.getParameter<bool>("writeMeshBoundaries", false);
 
-   const Setup setup{reynoldsNumber, kinematicViscosity, omega, inletVelocity, refinementLevels};
+   const Setup setup{reynoldsNumber, latticeViscosity, omega, inletVelocity, refinementLevels};
 
    const uint_t valuesPerCell = (Stencil_T::Q + VelocityField_T::F_SIZE + uint_c(2) * ScalarField_T::F_SIZE);
    const uint_t sizePerValue = sizeof(PdfField_T::value_type);
    const memory_t memoryPerCell =  memory_t( valuesPerCell * sizePerValue + uint_c(1) );
    const Vector3<uint_t> blockSizeWithGL{blockSize[0] + uint_c(2) * numGhostLayers,
-                                            blockSize[1] + uint_c(2) * numGhostLayers,
-                                            blockSize[2] + uint_c(2) * numGhostLayers};
+                                         blockSize[1] + uint_c(2) * numGhostLayers,
+                                         blockSize[2] + uint_c(2) * numGhostLayers};
    const memory_t memoryPerBlock = numeric_cast< memory_t >( blockSizeWithGL[0] * blockSizeWithGL[1] * blockSizeWithGL[2] ) * memoryPerCell;
 
    ////////////////////
@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
    auto aabb = computeAABB(*mesh);
    auto domainScaling = Vector3<real_t> (domainSize[0] / aabb.xSize(), domainSize[1] / aabb.ySize(), domainSize[2] / aabb.zSize());
    aabb.scale( domainScaling );
-   aabb.setCenter(Vector3<real_t >(5.0,0.0,0.0));
+   aabb.setCenter(Vector3<real_t >(real_c(5.0), real_c(0.0), real_c(0.0)));
 
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, resolution);
 
@@ -338,13 +338,11 @@ int main(int argc, char **argv) {
    const BlockDataID pdfFieldID = lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, numGhostLayers, field::fzyx);
    const BlockDataID velFieldID = field::addToStorage< VelocityField_T >(blocks, "velocity", real_c(0.0), field::fzyx, numGhostLayers);
    const BlockDataID densityFieldID = field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, numGhostLayers);
-   const BlockDataID omegaFieldID = field::addToStorage<ScalarField_T>(blocks, "omega", omega, field::fzyx, numGhostLayers);
    const BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "Boundary Flag Field", uint_c(2));
 
    const BlockDataID pdfFieldGPUID = lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldID, StorageSpec, "pdfs on GPU", true);
    const BlockDataID velFieldGPUID = gpu::addGPUFieldToStorage< VelocityField_T >(blocks, velFieldID, "velocity on GPU", true);
    const BlockDataID densityFieldGPUID = gpu::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldID, "density on GPU", true);
-   const BlockDataID omegaFieldGPUID = gpu::addGPUFieldToStorage< ScalarField_T >(blocks, omegaFieldID, "omega on GPU", true);
 
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
@@ -353,7 +351,6 @@ int main(int argc, char **argv) {
    const BlockDataID velFieldID = field::addToStorage< VelocityField_T >(blocks, "vel", real_c(0.0), field::fzyx, numGhostLayers);
    const BlockDataID densityFieldID = field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, numGhostLayers);
    const BlockDataID flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "Boundary Flag Field", uint_c(2));
-   const BlockDataID omegaFieldID = field::addToStorage<ScalarField_T>(blocks, "omega", omega, field::fzyx, numGhostLayers);
 #endif
 
    WALBERLA_MPI_BARRIER()
@@ -361,47 +358,21 @@ int main(int argc, char **argv) {
    const Cell innerOuterSplit = Cell(parameters.getParameter< Vector3< cell_idx_t > >("innerOuterSplit", Vector3< cell_idx_t >(1, 1, 1)));
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const Vector3<int64_t> gpuBlockSize = parameters.getParameter<Vector3<int64_t>>("gpuBlockSize");
-   SweepCollection_T sweepCollection(blocks, omegaFieldGPUID, pdfFieldGPUID, densityFieldGPUID, velFieldGPUID, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, pdfFieldGPUID, densityFieldGPUID, velFieldGPUID, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], innerOuterSplit);
    for (auto& block : *blocks)
    {
       sweepCollection.initialise(&block, cell_idx_c(numGhostLayers - uint_c(1)));
    }
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #else
-   SweepCollection_T sweepCollection(blocks, omegaFieldID, pdfFieldID, densityFieldID, velFieldID, innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, pdfFieldID, densityFieldID, velFieldID, omega, innerOuterSplit);
    for (auto& block : *blocks)
    {
       sweepCollection.initialise(&block, cell_idx_c(numGhostLayers));
    }
 #endif
-   WALBERLA_MPI_BARRIER()
-   const real_t omega_diff = omega - relaxationRateOutlet;
-   const real_t offset = std::abs(finalDomain.xMin());
-   const real_t sizeX = finalDomain.xSize();
-   const real_t spongeZoneLength = sizeX - real_c(spongeZoneStart);
-
-   for (auto &iBlock: *blocks) {
-      auto & block = dynamic_cast< blockforest::Block & >( iBlock );
-      const uint_t level = block.getLevel();
-
-      auto omegaField = block.getData< ScalarField_T >(omegaFieldID);
-      WALBERLA_FOR_ALL_CELLS_XYZ(
-         omegaField, Cell globalCell;
-         blocks->transformBlockLocalToGlobalCell(globalCell, block, Cell(x, y, z));
-         Vector3<real_t> cellCenter = blocks->getCellCenter(globalCell, level);
-         cellCenter[0] += offset;
-         // Adaption due to sponge layer
-         if(cellCenter[0] > spongeZoneStart)
-         {
-            omegaField->get(x, y, z) = omega - omega_diff * ((real_c(cellCenter[0]) - real_c(spongeZoneStart)) / spongeZoneLength);
-         }
-         // Adaption due to level scaling
-         omegaField->get(x, y, z) = lbm_generated::relaxationRateScaling( omegaField->get(x, y, z), level);
-      )
-   }
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   gpu::fieldCpy< gpu::GPUField< real_t >, ScalarField_T >(blocks, omegaFieldGPUID, omegaFieldID);
    WALBERLA_LOG_INFO_ON_ROOT("Setting up communication")
    std::shared_ptr<UniformGPUScheme< CommunicationStencil_T >> uniformCommunication;
    std::shared_ptr<UniformGeneratedGPUPdfPackInfo< GPUPdfField_T >> uniformPackInfo;
@@ -540,7 +511,6 @@ int main(int argc, char **argv) {
    const uint_t vtkWriteFrequency = VTKWriter.getParameter<uint_t>("vtkWriteFrequency", 0);
    const bool writeVelocity = VTKWriter.getParameter<bool>("velocity");
    const bool writeDensity = VTKWriter.getParameter<bool>("density");
-   const bool writeOmega = VTKWriter.getParameter<bool>("omega");
    const bool writeFlag = VTKWriter.getParameter<bool>("flag");
    const bool writeOnlySlice = VTKWriter.getParameter<bool>("writeOnlySlice", true);
    if (vtkWriteFrequency > 0)
@@ -576,11 +546,6 @@ int main(int argc, char **argv) {
       {
          auto densityWriter = make_shared<field::VTKWriter<ScalarField_T> >(densityFieldID, "density");
          vtkOutput->addCellDataWriter(densityWriter);
-      }
-      if (writeOmega)
-      {
-         auto omegaWriter = make_shared<field::VTKWriter<ScalarField_T> >(omegaFieldID, "omega");
-         vtkOutput->addCellDataWriter(omegaWriter);
       }
       if (writeFlag)
       {
