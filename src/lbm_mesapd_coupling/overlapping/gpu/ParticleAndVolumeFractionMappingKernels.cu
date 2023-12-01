@@ -219,6 +219,7 @@ __global__ void linearApproximation(walberla::gpu::FieldAccessor< uint_t > nOver
          // Store overlap fraction only if there is an intersection
          if (epsilon > 0.0)
          {
+            // Check that the maximum number of overlapping particles has not yet been reached
             assert(nOverlappingParticlesField.get() < MaxParticlesPerCell);
             BsField.get(nOverlappingParticlesField.get()) = epsilon;
             calculateWeighting< Weighting_T >(&BsField.get(nOverlappingParticlesField.get()),

@@ -200,9 +200,9 @@ auto createBox(mesa_pd::data::ParticleStorage& ps, const mesa_pd::Vec3& pos, con
    auto p0 = ps.create(true);
    p0->setPosition(pos);
    p0->setBaseShape(std::make_shared< mesa_pd::data::Box >(edgeLength));
-   p0->getBaseShapeRef()->updateMassAndInertia(real_t(1));
+   p0->getBaseShapeRef()->updateMassAndInertia(std::numeric_limits< real_t >::infinity());
    p0->setOwner(walberla::mpi::MPIManager::instance()->rank());
-   p0->setType(0);
+   p0->setType(1);
    p0->setInteractionRadius(std::numeric_limits< real_t >::infinity());
    mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::GLOBAL);
    mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::INFINITE);
@@ -250,10 +250,6 @@ void settleParticles(const uint_t numTimeSteps, const shared_ptr< ParticleAccess
             {
                if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), domain))
                {
-                  auto meff = real_c(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
-                  collisionResponse.setStiffnessAndDamping(ac.getType(idx1), ac.getType(idx2),
-                                                           particleRestitutionCoefficient, particleCollisionTime, kappa,
-                                                           meff);
                   collisionResponse(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), acd.getContactNormal(),
                                     acd.getPenetrationDepth(), timeStepSizeParticles);
                }

@@ -192,7 +192,8 @@ int main(int argc, char** argv)
    const real_t kappa         = real_c(2) * (real_c(1) - poissonsRatio) / (real_c(2) - poissonsRatio);
    const real_t particleCollisionTime =
       real_t(100); // TODO: check why it works with this value but not with 10, depends on dt
-   bool useOpenMP = false;
+   // Set useOpenMP always to true, will only have an effect once MesaPD is built with OpenMP
+   bool useOpenMP = true;
 
    Config::BlockHandle outputParameters   = cfgFile->getBlock("Output");
    const uint_t vtkSpacing                = outputParameters.getParameter< uint_t >("vtkSpacing");
@@ -266,6 +267,21 @@ int main(int argc, char** argv)
    collisionResponse.setFrictionCoefficientDynamic(0, 0, particleFrictionCoefficient);
    // No friction between spheres and (artificial) bounding planes
    collisionResponse.setFrictionCoefficientDynamic(0, 1, particleFrictionCoefficient);
+
+   // Set stiffness and damping globally
+   const real_t maxParticleRadius  = maxParticleDiameter / real_t(2);
+   const real_t invMaxParticleMass = real_t(1) / (real_t(4) / real_t(3) * maxParticleRadius * maxParticleRadius *
+                                                  maxParticleRadius * math::pi * particleDensityRatio);
+   collisionResponse.setStiffnessAndDamping(0, 0, particleRestitutionCoefficient, particleCollisionTime, kappa,
+                                            real_t(1) / (invMaxParticleMass + invMaxParticleMass));
+   collisionResponse.setStiffnessAndDamping(0, 1, particleRestitutionCoefficient, particleCollisionTime, kappa,
+                                            real_t(1) / (invMaxParticleMass));
+
+   WALBERLA_LOG_INFO_ON_ROOT("stiffnessN = " << collisionResponse.getStiffnessN(0, 0))
+   WALBERLA_LOG_INFO_ON_ROOT("stiffnessT = " << collisionResponse.getStiffnessT(0, 0))
+   WALBERLA_LOG_INFO_ON_ROOT("dampingN = " << collisionResponse.getDampingN(0, 0))
+   WALBERLA_LOG_INFO_ON_ROOT("dampingT = " << collisionResponse.getDampingT(0, 0))
+
    mesa_pd::kernel::AssocToBlock assoc(blocks->getBlockForestPointer());
    mesa_pd::mpi::ReduceProperty reduceProperty;
    mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
@@ -524,11 +540,6 @@ int main(int argc, char** argv)
                   {
                      if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *rpdDomain))
                      {
-                        // TODO: rewrite this kernel such that it also works with OpenMP (remove race condition)
-                        auto meff = real_t(1) / (ac.getInvMass(idx1) + ac.getInvMass(idx2));
-                        collisionResponse.setStiffnessAndDamping(ac.getType(idx1), ac.getType(idx2),
-                                                                 particleRestitutionCoefficient, particleCollisionTime,
-                                                                 kappa, meff);
                         collisionResponse(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(),
                                           acd.getContactNormal(), acd.getPenetrationDepth(), timeStepSizeRPD);
                      }
