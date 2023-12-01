@@ -8,14 +8,14 @@ Parameters
     ref_length 1.0;         //rotor radius according to mesh file
     viscosity  1.0;         //1.49e-5;
     sim_time   0.0;         //set to 0, then timesteps is used
-    mesh_size  0.002;    // Goal = 0.3 mm = 0.0003 m;
+    mesh_size  0.004;    // Goal = 0.3 mm = 0.0003 m;
 
     timeStepStrategy   overlap;
     innerOuterSplit    <1,1,1>;
 
 	remainingTimeLoggerFrequency 60; // in seconds
 	VTKwriteFrequency 0;
-	writeDomainDecompositionAndReturn false;
+	writeDomainDecompositionAndReturn true;
     maxSuperSamplingDepth 0;
 }
 
@@ -24,10 +24,10 @@ DomainSetup
    rotationSpeed      738.173;     //rad/s
    rotationAxis       < 1, 0, 0 >;
 
-   domainScaling      <  0.91, 2, 2 >;   //<  0.3, 5, 5 >;
+   domainScaling      <  0.84, 2, 2 >;   //<  0.3, 5, 5 >;
    domainTransforming <  0.45 , 0,  0 >;
-   cellsPerBlock      < 128, 128, 128 >;
-   periodic           <  0,  1,  1 >;
+   cellsPerBlock      < 59, 59, 59 >;
+   periodic           <  0,  0,  0 >;
    refinementDepth    0 ;
 }
 
@@ -35,4 +35,6 @@ Boundaries
 {
 	Border { direction W;    walldistance -1;  flag UBB; }
 	Border { direction E;    walldistance -1;  flag ExtrapolationOutflow; }
+	Border { direction N,S,T,B ;   walldistance -1;  flag NoSlip; }
+
 }

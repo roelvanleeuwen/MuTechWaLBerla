@@ -397,21 +397,21 @@ int main(int argc, char** argv)
    // Communication
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const bool sendDirectlyFromGPU = false;
-   /*auto non_uniform_communication = std::make_shared< NonUniformGPUScheme <CommunicationStencil_T>> (blocks, sendDirectlyFromGPU);
+   auto non_uniform_communication = std::make_shared< NonUniformGPUScheme <CommunicationStencil_T>> (blocks, sendDirectlyFromGPU);
    auto non_uniform_packInfo = lbm_generated::setupNonuniformGPUPdfCommunication<GPUPdfField_T>(blocks, pdfFieldGPUId);
    non_uniform_communication->addPackInfo(non_uniform_packInfo);
    lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldGPUId, sweepCollection, boundaryCollection, non_uniform_communication, non_uniform_packInfo);
-*/
+
    gpu::communication::UniformGPUScheme< Stencil_T > uniform_communication(blocks, sendDirectlyFromGPU);
    auto uniform_packInfo = std::make_shared<lbm_generated::UniformGeneratedGPUPdfPackInfo< GPUPdfField_T >>(pdfFieldGPUId);
    uniform_communication.addPackInfo(uniform_packInfo);
 
 #else
-   /*auto non_uniform_communication = std::make_shared< NonUniformBufferedScheme< CommunicationStencil_T > >(blocks);
+   auto non_uniform_communication = std::make_shared< NonUniformBufferedScheme< CommunicationStencil_T > >(blocks);
    auto non_uniform_packInfo      = lbm_generated::setupNonuniformPdfCommunication< PdfField_T >(blocks, pdfFieldId);
    non_uniform_communication->addPackInfo(non_uniform_packInfo);
    lbm_generated::BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T > LBMMeshRefinement(blocks, pdfFieldId, sweepCollection, boundaryCollection, non_uniform_communication, non_uniform_packInfo);
-*/
+
    blockforest::communication::UniformBufferedScheme< Stencil_T > uniform_communication(blocks);
    auto uniform_packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
    uniform_communication.addPackInfo(uniform_packInfo);
@@ -476,7 +476,7 @@ int main(int argc, char** argv)
    //timeloop.addFuncAfterTimeStep( makeSharedFunctor( field::makeStabilityChecker< PdfField_T >( blocks, pdfFieldId, VTKWriteFrequency ) ), "LBM stability check" );
 
    if(timeStepStrategy == "refinement")  {
-      //LBMMeshRefinement.addRefinementToTimeLoop(timeloop);
+      LBMMeshRefinement.addRefinementToTimeLoop(timeloop);
    }
    else if(timeStepStrategy == "noOverlap"){
       timeloop.add() << BeforeFunction(uniform_communication.getCommunicateFunctor(), "communication")
