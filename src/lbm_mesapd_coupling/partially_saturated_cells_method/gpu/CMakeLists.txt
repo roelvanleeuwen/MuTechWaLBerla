@@ -7,9 +7,9 @@ if (WALBERLA_BUILD_WITH_GPU_SUPPORT)
     if (CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60)
         target_sources(lbm_mesapd_coupling
                 PRIVATE
-                PSMWrapperKernels.cu
+                PSMWrapperKernels.${CODEGEN_FILE_SUFFIX}
                 PSMWrapperKernels.h
-                PSMUtilityGPU.cuh
+                PSMUtilityGPU.h
                 PSMWrapperSweepsGPU.h
         )
         if (WALBERLA_BUILD_WITH_CODEGEN)
@@ -19,10 +19,10 @@ if (WALBERLA_BUILD_WITH_GPU_SUPPORT)
                     walberla_generate_target_from_python(NAME PSMCodegenPython_${config}
                             FILE PSMCodegen.py
                             CODEGEN_CFG ${config}
-                            OUT_FILES LBMSweep.cu LBMSweep.h PSMSweep.cu PSMSweep.h PSMSweepSplit.cu PSMSweepSplit.h
-                            PSMPackInfo.cu PSMPackInfo.h InitializeDomainForPSM.cu InitializeDomainForPSM.h
-                            PSM_NoSlip.cu PSM_NoSlip.h PSM_UBB.cu PSM_UBB.h PSM_Density.cu PSM_Density.h
-                            PSM_FreeSlip.cu PSM_FreeSlip.h PSM_InfoHeader.h PSM_MacroGetter.cpp PSM_MacroGetter.h
+                            OUT_FILES LBMSweep.${CODEGEN_FILE_SUFFIX} LBMSweep.h PSMSweep.${CODEGEN_FILE_SUFFIX} PSMSweep.h PSMSweepSplit.${CODEGEN_FILE_SUFFIX} PSMSweepSplit.h
+                            PSMPackInfo.${CODEGEN_FILE_SUFFIX} PSMPackInfo.h InitializeDomainForPSM.${CODEGEN_FILE_SUFFIX} InitializeDomainForPSM.h
+                            PSM_NoSlip.${CODEGEN_FILE_SUFFIX} PSM_NoSlip.h PSM_UBB.${CODEGEN_FILE_SUFFIX} PSM_UBB.h PSM_Density.${CODEGEN_FILE_SUFFIX} PSM_Density.h
+                            PSM_FreeSlip.${CODEGEN_FILE_SUFFIX} PSM_FreeSlip.h PSM_InfoHeader.h PSM_MacroGetter.cpp PSM_MacroGetter.h
                             PSM_MacroSetter.cpp PSM_MacroSetter.h)
                 endforeach ()
             endforeach ()

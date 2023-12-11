@@ -20,7 +20,7 @@
 //
 //======================================================================================================================
 
-#include "PSMUtilityGPU.cuh"
+#include "PSMUtilityGPU.h"
 #include "PSMWrapperKernels.h"
 
 namespace walberla

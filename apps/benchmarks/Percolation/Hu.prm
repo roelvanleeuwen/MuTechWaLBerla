@@ -1,0 +1,44 @@
+// This parameter file reproduces the simulation conditions of Hu et al. (https://doi.org/10.1016/j.compgeo.2023.105722)
+// dx = 2.5e-5 m
+// dt = 2e-6 s
+// viscosity (kinematic) = 1e-6 m^2/s
+// u_inflow = 0.001 m/s
+//
+// relaxation_time = 0.5096
+// conversion velocity: U_SI = U_LBM * 12.5
+
+NumericalSetup
+{
+    // product of number of blocks should be equal to number of used processes
+    numXBlocks 1;
+    numYBlocks 1;
+    numZBlocks 1;
+
+    periodicInY false;
+    periodicInZ false;
+
+    numXCellsPerBlock 80; // 180 for setup with 27 spheres (little bit bigger than Hu, but needed to have three particle rows)
+    numYCellsPerBlock 40; // 120 for setup with 27 spheres
+    numZCellsPerBlock 40; // 120 for setup with 27 spheres
+
+    timeSteps 100000;
+
+    // particle distribution in LBM units
+    useParticles true; // if true, PSM/particle mapping/velocity computation/hydrodynamic force reduction is used, else LBM is used
+    particleDiameter 40.0;
+    particleGenerationSpacing 40.0;
+    useParticleOffset false;
+    particleNumSubBlocks <10, 10, 10>;
+
+    // fluid quantities in LBM units
+    uInflow 0.00008;
+    relaxationRate 1.96232339089;
+}
+
+Output
+{
+    vtkSpacing 5000;
+    vtkFolder vtk_out;
+
+    performanceLogFrequency 5000;
+}
