@@ -8,7 +8,7 @@ Parameters
     ref_length 1.0;         //rotor radius according to mesh file
     viscosity  1.0;         //1.49e-5;
     sim_time   0.0;         //set to 0, then timesteps is used
-    mesh_size  0.008;    // Goal = 0.3 mm = 0.0003 m;
+    mesh_size  0.0048;    // Goal = 0.3 mm = 0.0003 m;
 
     timeStepStrategy   refinement;
     innerOuterSplit    <1,1,1>;
@@ -28,7 +28,7 @@ DomainSetup
    domainTransforming <  0.45 , 0,  0 >;
    cellsPerBlock      < 24, 24, 24 >;
    periodic           <  0,  1,  1 >;
-   refinementDepth    3 ;
+   refinementDepth    4 ;
 }
 
 Boundaries

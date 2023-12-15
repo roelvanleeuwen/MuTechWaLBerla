@@ -21,12 +21,12 @@ Parameters
 
 DomainSetup
 {
-   rotationSpeed      738.173;     //rad/s
+   rotationSpeed      7.38173;     //rad/s
    rotationAxis       < 1, 0, 0 >;
 
-   domainScaling      <  0.84, 2, 2 >;   //<  0.3, 5, 5 >;
+   domainScaling      <  0.23, 4, 4 >;   //<  0.3, 5, 5 >;
    domainTransforming <  0.45 , 0,  0 >;
-   cellsPerBlock      < 59, 59, 59 >;
+   cellsPerBlock      < 128, 128, 128 >;
    periodic           <  0,  0,  0 >;
    refinementDepth    0 ;
 }
