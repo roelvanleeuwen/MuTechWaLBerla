@@ -126,7 +126,7 @@ with CodeGeneration() as ctx:
     # Write method to files
     # =====================
 
-    if ctx.cuda:
+    if ctx.gpu:
         target = ps.Target.GPU
     else:
         target = ps.Target.CPU
