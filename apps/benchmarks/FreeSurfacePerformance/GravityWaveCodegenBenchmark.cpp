@@ -340,8 +340,8 @@ int main(int argc, char** argv)
    const uint_t nrWaves          = numBlocks[0];
    const real_t wavelength       = real_t(domainSize[0]) / real_t(nrWaves);
    //--------------
-   //--const real_t initialAmplitude = real_t(domainSize[1]) / real_t(4);
-   const real_t initialAmplitude = real_t(0); //real_t(domainSize[1]) / real_t(4);
+   const real_t initialAmplitude = real_t(domainSize[1]) / real_t(4);
+   //--const real_t initialAmplitude = real_t(0); //real_t(domainSize[1]) / real_t(4);
    //--------------
    // const real_t initialAmplitude = domainParameters.getParameter< real_t >("initialAmplitude");
 
@@ -368,8 +368,8 @@ int main(int argc, char** argv)
    const real_t reynoldsNumber = physicsParameters.getParameter< real_t >("reynoldsNumber");
    const real_t waveNumber     = real_c(2) * math::pi / real_c(wavelength);
    const real_t waveFrequency  = reynoldsNumber * viscosity / real_c(wavelength) / initialAmplitude;
-   //--const real_t accelerationY  = -(waveFrequency * waveFrequency) / waveNumber / std::tanh(waveNumber * liquidDepth);
-   const real_t accelerationY  = -real_t(2e-6);
+   const real_t accelerationY  = -(waveFrequency * waveFrequency) / waveNumber / std::tanh(waveNumber * liquidDepth);
+   //--const real_t accelerationY  = -real_t(2e-6);
    // accelerate fluid with half of the gravity in positive x-direction (otherwise, we get a perfect seperation of
    // gas and fluid after a few thousand time steps and the free surface does not move anymore)
    const shared_ptr< Vector3< real_t > > acceleration =
@@ -846,9 +846,10 @@ int main(int argc, char** argv)
       for (uint_t i = 0; i < warmupSteps; ++i)
          timeloop.singleStep();
 
+      WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps")
+
       timeloop.setCurrentTimeStepToZero();
       WALBERLA_MPI_WORLD_BARRIER()
-      WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps")
 
       simTimer.start();
       timeloop.run(timingPool);
