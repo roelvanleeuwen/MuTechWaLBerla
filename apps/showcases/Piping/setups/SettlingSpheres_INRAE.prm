@@ -1,0 +1,21 @@
+BedGeneration{
+    domainSize_SI < 0.1, 0.021, 0.34 >; // for Fukumoto: < 0.2, 0.003, 0.133 > (results in bed height of ~0.05)
+    blocks < 3, 3, 1 >;
+    periodicInX false;
+    periodicInY true;
+    minDiameter_SI 2.7e-3;
+    maxDiameter_SI 3.3e-3;
+    gravity_SI 9.81;
+    densityFluid_SI 1179;
+    densityParticle_SI 2200;
+    generationSpacing_SI 5e-3;
+    initialVelocity_SI 0.05;
+    dt_SI 5e-5; // decrease dt_SI to get lower particle velocity in the end
+    frictionCoefficient 0.6;
+    restitutionCoefficient 0.1;
+    collisionTime_SI 5e-4;
+    poissonsRatio 0.22;
+    timeSteps 10000;
+    visSpacing 100;
+    outFileName spheres_out.dat;
+}

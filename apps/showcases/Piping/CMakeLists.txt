@@ -1,4 +1,4 @@
-waLBerla_link_files_to_builddir(*.prm)
+add_subdirectory(setups)
 
 waLBerla_add_executable(NAME SettlingSpheres
         FILES SettlingSpheres.cpp

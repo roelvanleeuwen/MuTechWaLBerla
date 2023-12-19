@@ -1,0 +1,54 @@
+Domain
+{
+    domainSize <330, 70, 300>; // for Fukumoto: <4000, 60, 2000>
+    numBlocks <2, 2, 2>; // if periodicInY true, then one needs at least two blocks in y direction
+    periodicInY true;
+}
+
+Physics
+{
+    timeSteps 600000; // for Fukumoto: 6000000
+    hydraulicGradient 29.15; // final hydraulic gradient (see Fukumoto et al., 2021)
+    finalGradientTimeStep 600000; // time step in which the final hydraulic gradient is reached, 0 means instantly
+    kinematicViscosityFluid_SI 2.12e-5;
+    dx_SI 3e-4;
+    dt_SI 5e-6; // for Fukumoto: 5e-7
+    gravitationalAcceleration_SI 9.81;
+}
+
+Bucket
+{
+    bucketSizeFraction <0.1, 1.0, 0.56>; // bucket size as a fraction of the domain size (for Fukumoto: <0.025, 1.0, 0.65>)
+}
+
+Particles
+{
+    inFileName spheres_out.dat;
+    densityRatio 2.5;
+    frictionCoefficient 0.6;
+    restitutionCoefficient 0.97;
+    numSubCycles 1; // due to the limited particle movement, the number of sub cycles is set low
+    numSubBlocks <11, 1, 6>; // numerical parameter for the particle mapping
+    useLubricationCorrection true;
+    poissonsRatio 0.22;
+    observationDomainFraction <0.2, 1.0, 0.22>; // uplift/subsidence observation domain size as a fraction of the domain size (for Fukumoto: <0.075, 1.0, 0.15>)
+    numPreSteps 20000; // number of time steps in the beginning without fluid to let the particles settle again to the bucket wall
+    movingParticles true;
+}
+
+Output
+{
+    vtkSpacing 10000;
+    vtkFolder vtk_piping;
+    fluidSlice true;
+    resolutionSpacing 1;
+    performanceLogFrequency 10000;
+    upliftSubsidenceFrequency 10000;
+}
+
+StabilityChecker
+{
+   checkFrequency 10000;
+   streamOutput   false;
+   vtkOutput      true;
+}
