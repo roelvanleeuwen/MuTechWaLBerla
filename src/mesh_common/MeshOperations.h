@@ -203,6 +203,18 @@ void rotate( MeshType& mesh, Vector3<typename  MeshType::Scalar > axis, typename
 }
 
 template< typename MeshType >
+void rotate( MeshType& mesh, Matrix3<typename  MeshType::Scalar > rotationMatrix, Vector3< typename MeshType::Scalar> axis_foot)
+{
+    for( auto v_it = mesh.vertices_begin(); v_it != mesh.vertices_end(); ++v_it)
+    {
+        auto &p = mesh.point(*v_it);
+        p -= mesh::toOpenMesh(axis_foot);
+        p = rotationMatrix*p;
+        p += mesh::toOpenMesh(axis_foot);
+    }
+}
+
+template< typename MeshType >
 void rotateByColor( MeshType& mesh, Vector3<typename  MeshType::Scalar > axis, typename MeshType::Scalar angle, Vector3< typename MeshType::Scalar> axis_foot, const std::vector<typename MeshType::Color> &colors)
 {
     WALBERLA_CHECK(mesh.has_vertex_colors())

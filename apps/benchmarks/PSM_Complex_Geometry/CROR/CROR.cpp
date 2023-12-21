@@ -73,8 +73,6 @@ const FlagUID fluidFlagUID("Fluid");
 
 class LDCRefinement
 {
-
-
  public:
    explicit LDCRefinement(const uint_t depth, AABB rotorMeshAABB, AABB statorMeshAABB, shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctreeBase) : refinementDepth_(depth), rotorMeshAABB_(rotorMeshAABB), statorMeshAABB_(statorMeshAABB), distOctreeBase_(distOctreeBase){};
 
