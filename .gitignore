@@ -34,7 +34,7 @@ qrc_*
 
 # CLion
 *.idea
-
+*.clion*
 
 # QtCreator
 CMakeLists.txt.user.*
