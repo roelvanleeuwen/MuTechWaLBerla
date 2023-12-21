@@ -74,6 +74,7 @@
 #include "PSM_InfoHeader.h"
 #include "PSM_MacroGetter.h"
 #include "PSM_NoSlip.h"
+#include "PSM_UBB.h"
 #include "utility/BoundaryCondition.h"
 #include "utility/ParticleUtility.h"
 #include "utility/PipingEvaluators.h"
@@ -100,6 +101,7 @@ using FlagField_T = FlagField< flag_t >;
 const FlagUID Fluid_Flag("Fluid");
 const FlagUID Density0_Flag("Density0");
 const FlagUID Density1_Flag("Density1");
+const FlagUID Velocity_Flag("Velocity");
 const FlagUID NoSlip_Flag("NoSlip");
 const FlagUID FreeSlip_Flag("FreeSlip");
 
@@ -155,8 +157,10 @@ int main(int argc, char** argv)
 
    Config::BlockHandle physicsParameters     = cfgFile->getBlock("Physics");
    const uint_t timeSteps                    = physicsParameters.getParameter< uint_t >("timeSteps");
+   const bool pressureDrivenFlow             = physicsParameters.getParameter< bool >("pressureDrivenFlow");
    const real_t hydraulicGradient            = physicsParameters.getParameter< real_t >("hydraulicGradient");
-   const uint_t finalGradientTimeStep        = physicsParameters.getParameter< uint_t >("finalGradientTimeStep");
+   const real_t outflowVelocity_SI           = physicsParameters.getParameter< real_t >("outflowVelocity_SI");
+   const uint_t maxSuctionTimeStep           = physicsParameters.getParameter< uint_t >("maxSuctionTimeStep");
    const real_t kinematicViscosityFluid_SI   = physicsParameters.getParameter< real_t >("kinematicViscosityFluid_SI");
    const real_t dx_SI                        = physicsParameters.getParameter< real_t >("dx_SI");
    const real_t dt_SI                        = physicsParameters.getParameter< real_t >("dt_SI");
@@ -308,10 +312,15 @@ int main(int argc, char** argv)
 
    // TODO: check formula again
    const real_t pressureDifference = hydraulicGradient * gravitationalAcceleration * seepageLength;
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(pressureDifference)
    // TODO: check formula again
    const real_t densityDifference = pressureDifference * real_t(3); // d_p = d_rho * c_s^2
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(densityDifference)
+   const real_t outflowVelocity   = outflowVelocity_SI * dt_SI / dx_SI;
+   if (pressureDrivenFlow)
+   {
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(pressureDifference)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(densityDifference)
+   }
+   else { WALBERLA_LOG_DEVEL_VAR_ON_ROOT(outflowVelocity) }
 
    ///////////////////////
    // ADD DATA TO BLOCKS //
@@ -328,7 +337,7 @@ int main(int argc, char** argv)
    BlockDataID BFieldID    = field::addToStorage< BField_T >(blocks, "B field", real_t(0), field::fzyx);
 
    // Boundary handling
-   assembleBoundaryBlock(domainSize, boxPosition, boxEdgeLength, periodicInY);
+   assembleBoundaryBlock(domainSize, boxPosition, boxEdgeLength, periodicInY, pressureDrivenFlow);
 
    auto boundariesCfgFile = Config();
    boundariesCfgFile.readParameterFile("boundaries.prm");
@@ -340,8 +349,11 @@ int main(int argc, char** argv)
    lbm::PSM_Density density0_bc(blocks, pdfFieldGPUID, real_t(1.0));
    density0_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Density0_Flag, Fluid_Flag);
    lbm::PSM_Density density1_bc(blocks, pdfFieldGPUID, real_t(1.0));
-   if (finalGradientTimeStep == 0) { density1_bc.bc_density_ = real_t(1.0) - densityDifference; }
+   if (maxSuctionTimeStep == 0) { density1_bc.bc_density_ = real_t(1.0) - densityDifference; }
    density1_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Density1_Flag, Fluid_Flag);
+   lbm::PSM_UBB velocity_bc(blocks, pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0));
+   if (maxSuctionTimeStep == 0) { velocity_bc.bc_velocity_2_ = outflowVelocity; }
+   velocity_bc.fillFromFlagField< FlagField_T >(blocks, flagFieldID, Velocity_Flag, Fluid_Flag);
    lbm::PSM_NoSlip noSlip(blocks, pdfFieldGPUID);
    noSlip.fillFromFlagField< FlagField_T >(blocks, flagFieldID, NoSlip_Flag, Fluid_Flag);
    lbm::PSM_FreeSlip freeSlip(blocks, pdfFieldGPUID);
@@ -464,6 +476,7 @@ int main(int argc, char** argv)
    timeloop.add() << BeforeFunction(communication, "LBM Communication")
                   << Sweep(deviceSyncWrapper(density0_bc.getSweep()), "Boundary Handling (Density0)");
    timeloop.add() << Sweep(deviceSyncWrapper(density1_bc.getSweep()), "Boundary Handling (Density1)");
+   timeloop.add() << Sweep(deviceSyncWrapper(velocity_bc.getSweep()), "Boundary Handling (Velocity)");
    timeloop.add() << Sweep(deviceSyncWrapper(noSlip.getSweep()), "Boundary Handling (NoSlip)");
    timeloop.add() << Sweep(deviceSyncWrapper(freeSlip.getSweep()), "Boundary Handling (FreeSlip)");
 
@@ -482,7 +495,9 @@ int main(int argc, char** argv)
       timeloop.singleStep(timeloopTiming);
       // If pressure difference did not yet reach the limit, decrease the pressure on the right hand side
       density1_bc.bc_density_ = std::max(real_t(1.0) - densityDifference,
-                                         density1_bc.bc_density_ - densityDifference / real_t(finalGradientTimeStep));
+                                         density1_bc.bc_density_ - densityDifference / real_t(maxSuctionTimeStep));
+      velocity_bc.bc_velocity_2_ =
+         std::min(outflowVelocity, velocity_bc.bc_velocity_2_ + outflowVelocity / real_t(maxSuctionTimeStep));
 
       if (movingParticles)
       {
@@ -592,7 +607,7 @@ int main(int argc, char** argv)
       timeloopTiming["Uplift/Subsidence evaluation"].start();
       if (upliftSubsidenceFrequency > 0 && timeStep % upliftSubsidenceFrequency == 0)
       {
-         upliftSubsidenceEvaluator(hydraulicGradient * real_t(timeStep) / real_t(finalGradientTimeStep), accessor, ps);
+         upliftSubsidenceEvaluator(hydraulicGradient * real_t(timeStep) / real_t(maxSuctionTimeStep), accessor, ps);
       }
       timeloopTiming["Uplift/Subsidence evaluation"].end();
    }

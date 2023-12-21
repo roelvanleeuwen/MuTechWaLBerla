@@ -28,8 +28,10 @@ namespace piping
 {
 
 void assembleBoundaryBlock(const Vector3< uint_t >& domainSize, const mesa_pd::Vec3& boxPosition,
-                           const mesa_pd::Vec3& boxEdgeLength, const bool periodicInY)
+                           const mesa_pd::Vec3& boxEdgeLength, const bool periodicInY, const bool pressureDrivenFlow)
 {
+   const std::string outflowFlag = pressureDrivenFlow ? "Density1" : "Velocity";
+
    std::string boundariesBlockString =
       " Boundaries\n"
       "{\n"
@@ -48,8 +50,8 @@ void assembleBoundaryBlock(const Vector3< uint_t >& domainSize, const mesa_pd::V
       "\t CellInterval { min < " +
       std::to_string(uint_t(boxPosition[0] + boxEdgeLength[0] / 2)) + ",-1," + std::to_string(domainSize[2]) +
       ">; max < " + std::to_string(domainSize[0]) + "," + std::to_string(domainSize[1] + 1) + "," +
-      std::to_string(domainSize[2] + 1) +
-      ">; flag Density1; }\n"
+      std::to_string(domainSize[2] + 1) + ">; flag " + outflowFlag +
+      "; }\n"
       "\t Body { shape box; min <" +
       std::to_string(boxPosition[0] - boxEdgeLength[0] / 2) + "," +
       std::to_string(boxPosition[1] - boxEdgeLength[1] / 2 -
