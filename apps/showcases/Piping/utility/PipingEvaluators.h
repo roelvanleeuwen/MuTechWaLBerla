@@ -41,7 +41,7 @@ template< typename ParticleAccessor_T >
 real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, const BlockDataID& BFieldID,
                         const BlockDataID& BFieldGPUID, const BlockDataID& flagFieldID, field::FlagUID fluidFlagID,
                         const shared_ptr< ParticleAccessor_T >& accessor,
-                        const shared_ptr< mesa_pd::data::ParticleStorage >& ps)
+                        const shared_ptr< mesa_pd::data::ParticleStorage >& ps, const real_t tau)
 {
    using namespace lbm_mesapd_coupling::psm::gpu;
 
@@ -73,7 +73,15 @@ real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, cons
          // Only consider cells inside the soil (< maxParticleHeight) and outside the bucket (= fluidFlag)
          if (globalCellCenter[2] < maxParticleHeight && flagField->get(x, y, z) == fluidFlag) {
             // TODO: fix this if BField does not contain overlap fraction if weighting=2
-            sumOverlapFractions += BField->get(x, y, z);
+            auto overlapFraction = BField->get(x, y, z);
+            // If Weighting == 2, the BField is not equal to the solid volume fraction
+            // TODO: check why e_init is not exactly the same for both weightings
+            if (Weighting == 2)
+            {
+               overlapFraction = ((real_t(2) * tau + real_t(1)) * overlapFraction) /
+                                 (real_t(2) * tau + real_t(2) * overlapFraction - real_t(1));
+            }
+            sumOverlapFractions += overlapFraction;
             ++numFluidCells;
          })
    }
