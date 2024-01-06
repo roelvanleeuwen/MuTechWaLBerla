@@ -358,7 +358,7 @@ int main(int argc, char **argv) {
    const Cell innerOuterSplit = Cell(parameters.getParameter< Vector3< cell_idx_t > >("innerOuterSplit", Vector3< cell_idx_t >(1, 1, 1)));
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const Vector3<int64_t> gpuBlockSize = parameters.getParameter<Vector3<int64_t>>("gpuBlockSize");
-   SweepCollection_T sweepCollection(blocks, pdfFieldGPUID, densityFieldGPUID, velFieldGPUID, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, pdfFieldGPUID, densityFieldGPUID, velFieldGPUID, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], omega, innerOuterSplit);
    for (auto& block : *blocks)
    {
       sweepCollection.initialise(&block, cell_idx_c(numGhostLayers - uint_c(1)));
