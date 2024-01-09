@@ -161,7 +161,7 @@ class MovingGeometry
 
    void getFractionFieldFromGeometryMesh(uint_t timestep) {
       auto geometryMovement = movementFunction_(timestep);
-      Matrix3<real_t>rotationMatrix(geometryMovement.rotationAxis, real_t(timestep) * -geometryMovement.rotationAngle);
+      Matrix3<real_t> rotationMatrix(geometryMovement.rotationAxis, -geometryMovement.rotationAngle);
 
       uint_t interpolationStencilSize = uint_t( pow(2, real_t(superSamplingDepth_)) + 1);
       auto oneOverInterpolArea = 1.0 / real_t( interpolationStencilSize * interpolationStencilSize * interpolationStencilSize);
@@ -340,16 +340,19 @@ class MovingGeometry
    }
 
 #endif
-   //TODO
    void moveTriangleMesh(uint_t timestep, uint_t vtk_frequency) {
       if(vtk_frequency > 0 && timestep % vtk_frequency == 0 && movementType_ > 0) {
          auto geometryMovement = movementFunction_(timestep);
-         uint_t old_timestep;
-         if (timestep == 0) old_timestep = 0;
-         else old_timestep = timestep - vtk_frequency;
-         auto geometryMovementLastTimestep = movementFunction_( old_timestep );
-         auto rotationSpeed = geometryMovement.rotationAngle - geometryMovementLastTimestep.rotationAngle;
-         auto translationSpeed = geometryMovement.translationVector - geometryMovementLastTimestep.translationVector;
+         Vector3<real_t> translationSpeed;
+         real_t rotationSpeed;
+         if (timestep == 0) {
+            rotationSpeed = geometryMovement.rotationAngle;
+            translationSpeed = geometryMovement.translationVector;
+         } else {
+            auto geometryMovementLastTimestep = movementFunction_( timestep - vtk_frequency );
+            rotationSpeed = geometryMovement.rotationAngle - geometryMovementLastTimestep.rotationAngle;
+            translationSpeed = geometryMovement.translationVector - geometryMovementLastTimestep.translationVector;
+         }
 
          mesh::translate(*mesh_, translationSpeed);
          const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0] + geometryMovement.translationVector[0],

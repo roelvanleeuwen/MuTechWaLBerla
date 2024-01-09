@@ -141,7 +141,7 @@ __global__ void getFractionFieldFromGeometryMeshKernel(real_t * RESTRICT const _
 void MovingGeometry::getFractionFieldFromGeometryMesh(uint_t timestep)  {
 
    auto geometryMovement = movementFunction_(timestep);
-   Matrix3<real_t>rotationMat(geometryMovement.rotationAxis, real_t(timestep) * -geometryMovement.rotationAngle);
+   Matrix3<real_t>rotationMat(geometryMovement.rotationAxis, -geometryMovement.rotationAngle);
    double3 rotationMatrixX = {rotationMat[0], rotationMat[1], rotationMat[2]};
    double3 rotationMatrixY = {rotationMat[3], rotationMat[4], rotationMat[5]};
    double3 rotationMatrixZ = {rotationMat[6], rotationMat[7], rotationMat[8]};

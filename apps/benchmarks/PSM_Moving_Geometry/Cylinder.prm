@@ -1,0 +1,33 @@
+
+Parameters 
+{
+	timesteps       20001;
+
+    initialVelocity   <0.02, 0.0, 0.0>;
+    dx  0.1;
+    omega       1.97;
+
+
+	remainingTimeLoggerFrequency 10; // in seconds
+	VTKwriteFrequency 100;
+	maxSuperSamplingDepth 1;
+}
+
+DomainSetup
+{
+   meshFile                 Cylinder.obj;
+   rotationAxis             < 0, 1, 0 >;
+   rotationPerTimestep      0.001;     // rad/timestep
+   translationPerTimestep   < 0.01, 0, 0 >;
+   cellsPerBlock            < 64, 1, 64 >;
+   periodic                 <  0,  1,  1 >;
+
+   domainScaling            < 10, 0.001, 5 >;
+   domainTransforming       < -3, 0, 0 >;
+}
+
+Boundaries
+{
+	Border { direction W;    walldistance -1;  flag UBB; }
+	Border { direction E;    walldistance -1;  flag ExtrapolationOutflow; }
+}
