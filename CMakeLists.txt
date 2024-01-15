@@ -82,7 +82,9 @@ option ( WALBERLA_BUILD_WITH_CODEGEN        "Enable pystencils code generation" 
 option ( WALBERLA_BUILD_WITH_LIKWID_MARKERS "Compile in markers for likwid-perfctr"              )
 
 option ( WALBERLA_BUILD_WITH_CUDA	        "Enable CUDA support"                                )
-option ( WALBERLA_BUILD_WITH_HIP	           "Enable ROCm HIP support"                            )
+option ( WALBERLA_BUILD_WITH_HIP	        "Enable ROCm HIP support"                            )
+option ( WALBERLA_BUILD_WITH_SYCL	        "Enable oneAPI SYCL"                                 )
+
 
 
 option ( WALBERLA_BUILD_WITH_FASTMATH       "Fast math"                                          )
@@ -1134,6 +1136,19 @@ if ( WALBERLA_BUILD_WITH_HIP )
     endif ( )
 endif ( )
 
+############################################################################################################################
+
+
+############################################################################################################################
+##
+## Intel oneAPI SYCL
+##
+############################################################################################################################
+if ( WALBERLA_BUILD_WITH_SYCL )
+    set(CMAKE_CXX_COMPILER "/opt/intel/oneapi/compiler/2024.0/bin/icpx")
+
+    add_flag ( CMAKE_CXX_FLAGS "-O3 -fsycl -fsycl-targets=nvptx64-nvidia-cuda -Wno-unused-parameter" )
+endif ( )
 ############################################################################################################################
 
 

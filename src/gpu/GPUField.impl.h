@@ -32,14 +32,22 @@ namespace gpu
 
 template<typename T>
 GPUField<T>::GPUField( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSize,
-                       uint_t _nrOfGhostLayers, const Layout & _layout, bool usePitchedMem )
+                       uint_t _nrOfGhostLayers, const Layout & _layout, bool usePitchedMem
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+                        ,shared_ptr<sycl::queue> syclQueue
+#endif
+                        )
    : nrOfGhostLayers_( _nrOfGhostLayers ),
      xSize_( _xSize), ySize_( _ySize ), zSize_( _zSize ), fSize_( _fSize ),
      layout_( _layout ), usePitchedMem_( usePitchedMem ), timestepCounter_(0)
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+     ,syclQueue_(syclQueue)
+#endif
 {
    WALBERLA_NON_DEVICE_SECTION() {
-      WALBERLA_ABORT(__FUNCTION__ << "Instantiating GPU field without WALBERLA_BUILD_WITH_GPU_SUPPORT being enabled.")
+      //WALBERLA_ABORT(__FUNCTION__ << "Instantiating GPU field without WALBERLA_BUILD_WITH_GPU_SUPPORT being enabled.")
    }
+
 
    gpuExtent extent;
    if (layout_ == zyxf)
@@ -57,19 +65,31 @@ GPUField<T>::GPUField( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSiz
 
    if (usePitchedMem_)
    {
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      WALBERLA_ABORT("Using pitched memory for SYCL not supported.")
+#else
       size_t pitch;
       const size_t alignment = 256;
       void* mem = allocate_pitched_with_offset(pitch, extent.width, extent.height * extent.depth, alignment,
                                                sizeof(T) * nrOfGhostLayers_);
       WALBERLA_ASSERT_EQUAL(size_t((char*) (mem) + sizeof(T) * nrOfGhostLayers_) % alignment, 0)
       pitchedPtr_ = make_gpuPitchedPtr(mem, pitch, extent.width, extent.height);
+#endif
    }
    else
    {
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      pitchedPtr_ = cl::sycl::malloc_device<T>(extent.width * extent.height * extent.depth, *syclQueue_);
+#else
       pitchedPtr_ = make_gpuPitchedPtr(nullptr, extent.width, extent.width, extent.height);
       WALBERLA_GPU_CHECK(gpuMalloc(&pitchedPtr_.ptr, extent.width * extent.height * extent.depth))
+#endif
    }
 
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+   xAllocSize_ = xSize_ + 2 * nrOfGhostLayers_;
+   fAllocSize_ = fSize_;
+#else
    // allocation size is stored in pitched pointer
    // pitched pointer stores the amount of padded region in bytes
    // but we keep track of the size in #elements
@@ -84,18 +104,22 @@ GPUField<T>::GPUField( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSiz
       fAllocSize_ = pitchedPtr_.pitch / sizeof(T);
       xAllocSize_ = xSize_ + 2 * nrOfGhostLayers_;
    }
+#endif
 }
 
 
 template<typename T>
 GPUField<T>::~GPUField()
 {
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+   cl::sycl::free(pitchedPtr_, *syclQueue_);
+#else
    if( usePitchedMem_ )
       free_aligned_with_offset(pitchedPtr_.ptr );
-   else
-   {
-      WALBERLA_GPU_CHECK( gpuFree( pitchedPtr_.ptr ) )
+   else {
+      WALBERLA_GPU_CHECK(gpuFree(pitchedPtr_.ptr))
    }
+#endif
 }
 
 
@@ -106,7 +130,12 @@ T * GPUField<T>::dataAt(cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f)
                  (y + cell_idx_c(nrOfGhostLayers_)) * yStride() +
                  (z + cell_idx_c(nrOfGhostLayers_)) * zStride() +
                  f * fStride();
+
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+   return pitchedPtr_ + offset;
+#else
    return static_cast<T*>(pitchedPtr_.ptr) + offset;
+#endif
 }
 
 template<typename T>
@@ -116,7 +145,12 @@ const T * GPUField<T>::dataAt(cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx
                  (y + cell_idx_c(nrOfGhostLayers_)) * yStride() +
                  (z + cell_idx_c(nrOfGhostLayers_)) * zStride() +
                  f * fStride();
+
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+   return pitchedPtr_ + offset;
+#else
    return static_cast<T*>(pitchedPtr_.ptr) + offset;
+#endif
 }
 
 
@@ -260,7 +294,11 @@ GPUField<T> * GPUField<T>::cloneUninitialized() const
 template<typename T>
 bool GPUField<T>::operator==( const GPUField & o ) const
 {
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+   return pitchedPtr_  == o.pitchedPtr_  &&
+#else
    return pitchedPtr_.ptr  == o.pitchedPtr_.ptr  &&
+#endif
           nrOfGhostLayers_ == o.nrOfGhostLayers_ &&
           xSize_           == o.xSize_           &&
           ySize_           == o.ySize_           &&

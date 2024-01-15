@@ -98,6 +98,20 @@ namespace gpu
    template<typename T, uint_t fs>
    void fieldCpy(gpu::GPUField<T> & dst, const field::Field<T,fs> & src )
    {
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+
+      if (dst.layout() != src.layout()) { WALBERLA_ABORT("Cannot copy fields with different layout") }
+
+      bool canCopy =
+         (src.layout() == fzyx && dst.fAllocSize() == src.fAllocSize() && dst.zAllocSize() == src.zAllocSize() &&
+          dst.yAllocSize() == src.yAllocSize() && dst.xSize() == src.xSize()) ||
+         (src.layout() == zyxf && dst.zAllocSize() == src.zAllocSize() && dst.yAllocSize() == src.yAllocSize() &&
+          dst.xAllocSize() == src.xAllocSize() && dst.fSize() == src.fSize());
+      if (!canCopy) { WALBERLA_ABORT("Field have to have the same size ") }
+
+      auto syclQueue = dst.getSYCLQueue();
+      (*syclQueue).memcpy(dst.data(), src.data(), dst.allocSize() * sizeof(T));
+#else
       WALBERLA_DEVICE_SECTION()
       {
          gpuMemcpy3DParms p;
@@ -140,6 +154,7 @@ namespace gpu
          p.kind   = gpuMemcpyHostToDevice;
          WALBERLA_GPU_CHECK(gpuMemcpy3D(&p))
       }
+#endif
    }
 
 
@@ -147,6 +162,20 @@ namespace gpu
    template<typename T, uint_t fs>
    void fieldCpy( field::Field<T,fs> & dst, const gpu::GPUField<T> & src )
    {
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+
+      if (dst.layout() != src.layout()) { WALBERLA_ABORT("Cannot copy fields with different layout") }
+
+      bool canCopy =
+         (src.layout() == fzyx && dst.fAllocSize() == src.fAllocSize() && dst.zAllocSize() == src.zAllocSize() &&
+          dst.yAllocSize() == src.yAllocSize() && dst.xSize() == src.xSize()) ||
+         (src.layout() == zyxf && dst.zAllocSize() == src.zAllocSize() && dst.yAllocSize() == src.yAllocSize() &&
+          dst.xAllocSize() == src.xAllocSize() && dst.fSize() == src.fSize());
+      if (!canCopy) { WALBERLA_ABORT("Field have to have the same size ") }
+
+      auto syclQueue = src.getSYCLQueue();
+      (*syclQueue).memcpy(dst.data(), src.data(), dst.allocSize() * sizeof(T));
+#else
       WALBERLA_DEVICE_SECTION()
       {
          gpuMemcpy3DParms p;
@@ -189,6 +218,7 @@ namespace gpu
          p.kind   = gpuMemcpyDeviceToHost;
          WALBERLA_GPU_CHECK(gpuMemcpy3D(&p))
       }
+#endif
    }
 
 } // namespace gpu

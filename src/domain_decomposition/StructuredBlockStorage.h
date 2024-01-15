@@ -31,6 +31,9 @@
 
 #include <functional>
 
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+#include <CL/sycl.hpp>
+#endif
 
 namespace walberla {
 namespace domain_decomposition {
@@ -420,6 +423,16 @@ public:
                                               const Set<SUID>& requiredSelectors     = Set<SUID>::emptySet(),
                                               const Set<SUID>& incompatibleSelectors = Set<SUID>::emptySet() );
 
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+   void setSYCLQueue(shared_ptr<sycl::queue> syclQueue) {
+      syclQueue_ = syclQueue;
+   }
+
+   shared_ptr<sycl::queue> getSYCLQueue() const {
+      return syclQueue_;
+   }
+#endif
+
 protected:
 
    /// Every derived class must call this constructor!
@@ -464,6 +477,10 @@ private:
 
    bool        blockCellBBCreated_; ///< flag for checking whether or not a cell bounding box has already been added as a block data "item" to all blocks
    BlockDataID blockCellBBId_;      ///< block data ID for accessing a block's cell bounding box
+
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+   shared_ptr<sycl::queue> syclQueue_;
+#endif
 
 }; // class StructuredBlockStorage
 

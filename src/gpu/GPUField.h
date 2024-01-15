@@ -30,6 +30,10 @@
 
 #include "gpu/DeviceWrapper.h"
 
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+#include <CL/sycl.hpp>
+#endif
+
 namespace walberla {
 namespace gpu
 {
@@ -64,7 +68,11 @@ namespace gpu
       typedef T value_type;
 
       GPUField( uint_t _xSize, uint_t _ySize, uint_t _zSize, uint_t _fSize,
-                uint_t _nrOfGhostLayers, const Layout & _layout = fzyx, bool usePitchedMem = true );
+                uint_t _nrOfGhostLayers, const Layout & _layout = fzyx, bool usePitchedMem = true
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+               ,shared_ptr<sycl::queue> syclQueue = nullptr
+#endif
+                );
 
       ~GPUField();
 
@@ -72,7 +80,11 @@ namespace gpu
 
       bool isPitchedMem() const { return usePitchedMem_; }
 
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      T* pitchedPtr() const { return pitchedPtr_; }
+#else
       gpuPitchedPtr pitchedPtr() const { return pitchedPtr_; }
+#endif
 
 
       inline uint_t  xSize() const  { return xSize_; }
@@ -134,8 +146,17 @@ namespace gpu
       void getSlice(stencil::Direction d, CellInterval & ci,
                     cell_idx_t distance, cell_idx_t thickness, bool fullSlice ) const;
 
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      shared_ptr<sycl::queue> getSYCLQueue() const {
+         return syclQueue_;
+      }
+
+            void * data()            { return pitchedPtr_; }
+      const void * data() const      { return pitchedPtr_; }
+#else
             void * data()            { return pitchedPtr_.ptr; }
       const void * data() const      { return pitchedPtr_.ptr; }
+#endif
 
       T       * dataAt(cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f);
       const T * dataAt(cell_idx_t x, cell_idx_t y, cell_idx_t z, cell_idx_t f) const;
@@ -155,7 +176,11 @@ namespace gpu
       //****************************************************************************************************************
 
    protected:
-      gpuPitchedPtr  pitchedPtr_;
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+     T* pitchedPtr_;
+#else
+     gpuPitchedPtr  pitchedPtr_;
+#endif
       uint_t         nrOfGhostLayers_;
       uint_t         xSize_;
       uint_t         ySize_;
@@ -166,7 +191,11 @@ namespace gpu
       uint_t         fAllocSize_;
       Layout         layout_;
       bool           usePitchedMem_;
+
       uint8_t        timestepCounter_;
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      shared_ptr<sycl::queue> syclQueue_;
+#endif
    };
 
 

@@ -41,13 +41,17 @@ namespace gpu
          return new GPUField_T( bs->getNumberOfXCells( *block ),
                                 bs->getNumberOfYCells( *block ),
                                 bs->getNumberOfZCells( *block ),
-                                fSize, ghostLayers, layout, usePitchedMem );
+                                fSize, ghostLayers, layout, usePitchedMem
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+                               ,bs->getSYCLQueue()
+#endif
+                               );
       }
 
       template< typename Field_T>
       GPUField< typename Field_T::value_type> *
       createGPUFieldFromCPUField( const IBlock * const block,
-                                  const StructuredBlockStorage * const,
+                                  const StructuredBlockStorage * const bs,
                                   ConstBlockDataID cpuFieldID,
                                   bool usePitchedMem
                                 )
@@ -56,7 +60,11 @@ namespace gpu
 
          const Field_T * f = block->getData<Field_T>( cpuFieldID );
          auto gpuField = new GPUField_T( f->xSize(), f->ySize(), f->zSize(), f->fSize(),
-                                         f->nrOfGhostLayers(), f->layout(), usePitchedMem );
+                                         f->nrOfGhostLayers(), f->layout(), usePitchedMem
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+                                          ,bs->getSYCLQueue()
+#endif
+                                            );
 
          gpu::fieldCpy( *gpuField, *f );
 
