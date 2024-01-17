@@ -60,7 +60,7 @@ void addPSMSweepsToTimeloop(SweepTimeloop& timeloop, SweepCollection& psmSweepCo
 {
    if (synchronize)
    {
-      timeloop.add() << Sweep(psmSweepCollection.particleMappingSweep, "Particle mapping");
+      timeloop.add() << Sweep(deviceSyncWrapper(psmSweepCollection.particleMappingSweep), "Particle mapping");
       timeloop.add() << Sweep(deviceSyncWrapper(psmSweepCollection.setParticleVelocitiesSweep),
                               "Set particle velocities");
       timeloop.add() << Sweep(deviceSyncWrapper(psmSweep), "PSM sweep");
