@@ -1146,8 +1146,9 @@ endif ( )
 ############################################################################################################################
 if ( WALBERLA_BUILD_WITH_SYCL )
     set(CMAKE_CXX_COMPILER "/opt/intel/oneapi/compiler/2024.0/bin/icpx")
-
-    add_flag ( CMAKE_CXX_FLAGS "-O3 -fsycl -fsycl-targets=nvptx64-nvidia-cuda -Wno-unused-parameter" )
+    #set(CMAKE_CXX_COMPILER "/opt/intel/oneapi/mpi/2021.11/bin/mpicxx")
+    #add_flag ( CMAKE_CXX_FLAGS " -fsycl -Wno-unused-parameter" )
+    add_flag ( CMAKE_CXX_FLAGS "-fsycl -fsycl-targets=nvptx64-nvidia-cuda" )
 endif ( )
 ############################################################################################################################
 

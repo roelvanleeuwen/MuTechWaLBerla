@@ -111,9 +111,9 @@ def config_from_context(ctx: CodeGenerationContext, target: Target = Target.CPU,
         kwargs: keyword arguments that can be taken by :class: `pystencils.config.CreateKernelConfig`
     """
 
-    if target == Target.GPU and not ctx.gpu:
-        raise ValueError("can not generate gpu code if waLBerla is not build with GPU support. Please use "
-                         "-DWALBERLA_BUILD_WITH_CUDA=1 or -DWALBERLA_BUILD_WITH_HIP=1 for configuring cmake")
+#    if target == Target.GPU and not ctx.gpu:
+#        raise ValueError("can not generate gpu code if waLBerla is not build with GPU support. Please use "
+#                         "-DWALBERLA_BUILD_WITH_CUDA=1 or -DWALBERLA_BUILD_WITH_HIP=1 for configuring cmake")
 
     default_dtype = "float64" if ctx.double_accuracy else "float32"
     if data_type is None:

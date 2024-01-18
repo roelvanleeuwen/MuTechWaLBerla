@@ -47,9 +47,10 @@ namespace communication {
          WALBERLA_CHECK(!sendDirectlyFromGPU)
 #endif
       }
-
+#if not defined(WALBERLA_BUILD_WITH_SYCL)
       for (uint_t i = 0; i < Stencil::Q; ++i)
          WALBERLA_GPU_CHECK(gpuStreamCreate(&streams_[i]))
+#endif
    }
 
    template<typename Stencil>
@@ -76,8 +77,10 @@ namespace communication {
 #endif
       }
 
+#if not defined(WALBERLA_BUILD_WITH_SYCL)
       for (uint_t i = 0; i < Stencil::Q; ++i)
          WALBERLA_GPU_CHECK(gpuStreamCreate(&streams_[i]))
+#endif
    }
 
 
@@ -86,6 +89,10 @@ namespace communication {
    {
       WALBERLA_ASSERT( !communicationInProgress_ )
       auto forest = blockForest_.lock();
+
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      auto syclQueue = forest->getSYCLQueue();
+#endif
 
       auto currentBlockForestStamp = forest->getBlockForest().getModificationStamp();
       if( setupBeforeNextCommunication_ || currentBlockForestStamp != forestModificationStamp_ )
@@ -103,7 +110,9 @@ namespace communication {
             bufferSystemGPU_.sendBuffer( it.first ).clear();
 
       // wait until communication dependent kernels are finished
+#if not defined(WALBERLA_BUILD_WITH_SYCL)
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
+#endif
 
       // Start filling send buffers
       {
@@ -129,7 +138,11 @@ namespace communication {
                   auto receiverBlock = dynamic_cast< Block * >( forest->getBlock( senderBlock->getNeighborId( neighborIdx, uint_t(0) )) );
                   for (auto& pi : packInfos_)
                   {
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+                     pi->communicateLocal(*dir, senderBlock, receiverBlock);
+#else
                      pi->communicateLocal(*dir, senderBlock, receiverBlock, streams_[*dir]);
+#endif
                   }
                }
                else
@@ -139,26 +152,42 @@ namespace communication {
                   for( auto &pi : packInfos_ )
                   {
                      auto size = pi->size( *dir, senderBlock );
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+                     auto gpuDataPtr = syclDeviceBuffers[nProcess];
+                     WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr )
+                     pi->pack( *dir, gpuDataPtr, senderBlock);
+                     (*syclQueue).wait();  //TODO necessary for sync but probably very slow here
+                     if( !sendFromGPU_ )
+                     {
+                        auto cpuDataPtr = bufferSystemCPU_.sendBuffer( nProcess ).advanceNoResize( size );
+                        WALBERLA_ASSERT_NOT_NULLPTR( cpuDataPtr )
+                        (*syclQueue).memcpy(cpuDataPtr, gpuDataPtr, size);
+                     }
+#else
                      auto gpuDataPtr = bufferSystemGPU_.sendBuffer( nProcess ).advanceNoResize( size );
                      WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr )
                      pi->pack( *dir, gpuDataPtr, senderBlock, streams_[*dir] );
-
                      if( !sendFromGPU_ )
                      {
                         auto cpuDataPtr = bufferSystemCPU_.sendBuffer( nProcess ).advanceNoResize( size );
                         WALBERLA_ASSERT_NOT_NULLPTR( cpuDataPtr )
                         WALBERLA_GPU_CHECK( gpuMemcpyAsync( cpuDataPtr, gpuDataPtr, size, gpuMemcpyDeviceToHost, streams_[*dir] ))
                      }
+#endif
                   }
                }
             }
          }
       }
       // wait for packing to finish
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      (*syclQueue).wait();
+#else
       for (uint_t i = 0; i < Stencil::Q; ++i)
       {
          WALBERLA_GPU_CHECK(gpuStreamSynchronize(streams_[i]))
       }
+#endif
 
       if( sendFromGPU_ )
          bufferSystemGPU_.sendAll();
@@ -176,6 +205,10 @@ namespace communication {
 
       auto forest = blockForest_.lock();
 
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      auto syclQueue = forest->getSYCLQueue();
+#endif
+
       if( sendFromGPU_ )
       {
          for( auto recvInfo = bufferSystemGPU_.begin(); recvInfo != bufferSystemGPU_.end(); ++recvInfo )
@@ -188,9 +221,15 @@ namespace communication {
                for( auto &pi : packInfos_ )
                {
                   auto size = pi->size( header.dir, block );
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+                  auto gpuDataPtr = syclDeviceBuffers[recvInfo.rank()];
+                  WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr )
+                  pi->unpack( stencil::inverseDir[header.dir], gpuDataPtr, block );
+#else
                   auto gpuDataPtr = recvInfo.buffer().advanceNoResize( size );
                   WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr )
                   pi->unpack( stencil::inverseDir[header.dir], gpuDataPtr, block, streams_[header.dir] );
+#endif
                }
             }
          }
@@ -210,20 +249,32 @@ namespace communication {
                {
                   auto size = pi->size( header.dir, block );
                   auto cpuDataPtr = recvInfo.buffer().advanceNoResize( size );
-                  auto gpuDataPtr = gpuBuffer.advanceNoResize( size );
                   WALBERLA_ASSERT_NOT_NULLPTR( cpuDataPtr )
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+                  auto gpuDataPtr = syclDeviceBuffers[recvInfo.rank()];
                   WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr )
-                     WALBERLA_GPU_CHECK( gpuMemcpyAsync( gpuDataPtr, cpuDataPtr, size,
-                                                           gpuMemcpyHostToDevice, streams_[header.dir] ))
-                     pi->unpack( stencil::inverseDir[header.dir], gpuDataPtr, block, streams_[header.dir] );
+                  (*syclQueue).memcpy(gpuDataPtr, cpuDataPtr, size);
+                  (*syclQueue).wait();
+                  pi->unpack( stencil::inverseDir[header.dir], gpuDataPtr, block );
+#else
+                  auto gpuDataPtr = gpuBuffer.advanceNoResize( size );
+                  WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr )
+                  WALBERLA_GPU_CHECK( gpuMemcpyAsync( gpuDataPtr, cpuDataPtr, size, gpuMemcpyHostToDevice,
+                                                    streams_[header.dir] ))
+                  pi->unpack( stencil::inverseDir[header.dir], gpuDataPtr, block, streams_[header.dir] );
+#endif
                }
             }
          }
       }
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      (*syclQueue).wait();
+#else
       for (uint_t i = 0; i < Stencil::Q; ++i)
       {
          WALBERLA_GPU_CHECK(gpuStreamSynchronize(streams_[i]))
       }
+#endif
       communicationInProgress_ = false;
    }
 
@@ -232,6 +283,10 @@ namespace communication {
    void UniformGPUScheme<Stencil>::setupCommunication()
    {
       auto forest = blockForest_.lock();
+
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      auto syclQueue = forest->getSYCLQueue();
+#endif
 
       headers_.clear();
 
@@ -294,7 +349,11 @@ namespace communication {
 
       for( auto it : receiverInfo ) {
          bufferSystemCPU_.sendBuffer( it.first ).resize( size_t(it.second) );
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+         syclDeviceBuffers[it.first] = cl::sycl::malloc_device<uint8_t>(it.second, *syclQueue);
+#else
          bufferSystemGPU_.sendBuffer( it.first ).resize( size_t(it.second) );
+#endif
       }
 
       forestModificationStamp_ = forest->getBlockForest().getModificationStamp();

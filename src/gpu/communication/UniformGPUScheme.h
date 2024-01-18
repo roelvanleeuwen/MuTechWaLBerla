@@ -59,8 +59,10 @@ namespace communication {
                                   const int tag = 5432 );
        ~UniformGPUScheme()
        {
+#if not defined(WALBERLA_BUILD_WITH_SYCL)
           for (uint_t i = 0; i < Stencil::Q; ++i)
              WALBERLA_GPU_CHECK(gpuStreamDestroy(streams_[i]))
+#endif
        }
 
        void addPackInfo( const shared_ptr<GeneratedGPUPackInfo> &pi );
@@ -92,6 +94,10 @@ namespace communication {
        mpi::GenericBufferSystem<CpuBuffer_T, CpuBuffer_T> bufferSystemCPU_;
        mpi::GenericBufferSystem<GpuBuffer_T, GpuBuffer_T> bufferSystemGPU_;
 
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+       std::map<int, uint8_t*> syclDeviceBuffers;
+#endif
+
        std::vector<shared_ptr<GeneratedGPUPackInfo> > packInfos_;
 
        struct Header
@@ -104,7 +110,9 @@ namespace communication {
        Set<SUID> requiredBlockSelectors_;
        Set<SUID> incompatibleBlockSelectors_;
 
+#if not defined(WALBERLA_BUILD_WITH_SYCL)
        gpuStream_t streams_[Stencil::Q];
+#endif
    };
 
 

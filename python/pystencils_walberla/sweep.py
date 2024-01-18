@@ -110,8 +110,8 @@ def generate_selective_sweep(generation_context, class_name, selection_tree, int
     elif target != kernel_family.get_ast_attr('target'):
         raise ValueError('Mismatch between target parameter and AST targets.')
 
-    if not generation_context.gpu and target == Target.GPU:
-        return
+    #if not generation_context.gpu and target == Target.GPU:
+    #    return
 
     representative_field = {p.field_name for p in kernel_family.parameters if p.is_field_parameter}
     representative_field = sorted(representative_field)[0]

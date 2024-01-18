@@ -34,9 +34,15 @@ public:
   GeneratedGPUPackInfo() = default;
   virtual ~GeneratedGPUPackInfo() = default;
 
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+  virtual void pack  ( stencil::Direction dir, unsigned char *buffer, IBlock *block ) = 0;
+  virtual void communicateLocal  ( stencil::Direction dir, const IBlock *sender, IBlock *receiver ) = 0;
+  virtual void unpack( stencil::Direction dir, unsigned char *buffer, IBlock *block ) = 0;
+#else
    virtual void pack  ( stencil::Direction dir, unsigned char *buffer, IBlock *block, gpuStream_t stream ) = 0;
    virtual void communicateLocal  ( stencil::Direction dir, const IBlock *sender, IBlock *receiver, gpuStream_t stream ) = 0;
    virtual void unpack( stencil::Direction dir, unsigned char *buffer, IBlock *block, gpuStream_t stream ) = 0;
+#endif
    virtual uint_t size( stencil::Direction dir, IBlock *block ) = 0;
 };
 

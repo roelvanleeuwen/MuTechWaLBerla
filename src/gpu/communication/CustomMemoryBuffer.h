@@ -100,6 +100,24 @@ namespace communication {
 
    struct HostMemoryAllocator
    {
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      static void *allocate( size_t size )
+      {
+         void *p;
+         p = std::malloc(size);
+         return p;
+      }
+
+      static void deallocate( void *ptr )
+      {
+         std::free(ptr);
+      }
+
+      static void memcpy( void *dst, void *src, size_t count )
+      {
+         std::memcpy( dst, src, count );
+      }
+#else
       static void *allocate( size_t size )
       {
          void *p;
@@ -116,10 +134,26 @@ namespace communication {
       {
          std::memcpy( dst, src, count );
       }
+#endif
    };
 
    struct DeviceMemoryAllocator
    {
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      static void *allocate( size_t size )
+      {
+         void *p;
+         return p;
+      }
+
+      static void deallocate( void *ptr )
+      {
+      }
+
+      static void memcpy( void *dst, void *src, size_t count )
+      {
+      }
+#else
       static void *allocate( size_t size )
       {
          void *p;
@@ -136,6 +170,7 @@ namespace communication {
       {
          WALBERLA_GPU_CHECK( gpuMemcpy( dst, src, count, gpuMemcpyDeviceToHost ) )
       }
+#endif
    };
 
 
