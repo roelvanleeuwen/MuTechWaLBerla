@@ -233,10 +233,10 @@ int main(int argc, char** argv)
 
    // Create bucket slice
    const Vector3< real_t > boxPosition(simulationDomain.xMax() * real_t(0.5), simulationDomain.yMax() * real_t(0.5),
-                                       simulationDomain.zMax() * real_t(1 - bucketSizeFraction[2] / 2));
+                                       simulationDomain.zMax() * (real_t(0.5) + (real_t(1) - bucketSizeFraction[2])));
+   // Bucket has full size in z direction to be long enough to move downwards (if movingBucket is true)
    const Vector3< real_t > boxEdgeLength(simulationDomain.xMax() * bucketSizeFraction[0],
-                                         simulationDomain.yMax() * bucketSizeFraction[1],
-                                         simulationDomain.zMax() * bucketSizeFraction[2]);
+                                         simulationDomain.yMax() * bucketSizeFraction[1], simulationDomain.zMax());
    const uint_t boxUid = createBox(*ps, boxPosition, boxEdgeLength);
 
    // Create planes
@@ -367,8 +367,7 @@ int main(int argc, char** argv)
    // Map particles into the fluid domain
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, omega);
    auto psmSelector = PSMSelector(movingBucket);
-   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, psmSelector, particleAndVolumeFractionSoA,
-                                            numSubBlocks);
+   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, psmSelector, particleAndVolumeFractionSoA, numSubBlocks);
    BoxFractionMappingGPU boxFractionMapping(blocks, accessor, boxUid, boxEdgeLength, particleAndVolumeFractionSoA);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
