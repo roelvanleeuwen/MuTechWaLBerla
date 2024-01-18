@@ -86,14 +86,14 @@ void mapParticles(const IBlock& blockIt,
 }
 
 template< typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
-class ParticleAndVolumeFractionMappingGPU
+class SphereFractionMappingGPU
 {
  public:
-   ParticleAndVolumeFractionMappingGPU(const shared_ptr< StructuredBlockStorage >& blockStorage,
-                                       const shared_ptr< ParticleAccessor_T >& ac,
-                                       const ParticleSelector_T& mappingParticleSelector,
-                                       ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
-                                       const Vector3< uint_t > subBlocksPerDim)
+   SphereFractionMappingGPU(const shared_ptr< StructuredBlockStorage >& blockStorage,
+                            const shared_ptr< ParticleAccessor_T >& ac,
+                            const ParticleSelector_T& mappingParticleSelector,
+                            ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
+                            const Vector3< uint_t > subBlocksPerDim)
       : blockStorage_(blockStorage), ac_(ac), mappingParticleSelector_(mappingParticleSelector),
         particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA), subBlocksPerDim_(subBlocksPerDim)
    {

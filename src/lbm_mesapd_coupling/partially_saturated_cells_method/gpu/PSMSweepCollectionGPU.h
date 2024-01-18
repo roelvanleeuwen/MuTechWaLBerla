@@ -41,7 +41,7 @@ class PSMSweepCollectionGPU
                          const ParticleSelector_T& ps,
                          ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
                          const Vector3< uint_t > numberOfParticleSubBlocksPerDim)
-      : particleMappingSweep(ParticleAndVolumeFractionMappingGPU< ParticleAccessor_T, ParticleSelector_T, Weighting_T >(
+      : particleMappingSweep(SphereFractionMappingGPU< ParticleAccessor_T, ParticleSelector_T, Weighting_T >(
            bs, ac, ps, particleAndVolumeFractionSoA, numberOfParticleSubBlocksPerDim)),
         setParticleVelocitiesSweep(SetParticleVelocitiesSweep< ParticleAccessor_T, ParticleSelector_T, Weighting_T >(
            bs, ac, ps, particleAndVolumeFractionSoA)),
@@ -49,7 +49,7 @@ class PSMSweepCollectionGPU
            bs, ac, ps, particleAndVolumeFractionSoA))
    {}
 
-   ParticleAndVolumeFractionMappingGPU< ParticleAccessor_T, ParticleSelector_T, Weighting_T > particleMappingSweep;
+   SphereFractionMappingGPU< ParticleAccessor_T, ParticleSelector_T, Weighting_T > particleMappingSweep;
    SetParticleVelocitiesSweep< ParticleAccessor_T, ParticleSelector_T, Weighting_T > setParticleVelocitiesSweep;
    ReduceParticleForcesSweep< ParticleAccessor_T, ParticleSelector_T, Weighting_T > reduceParticleForcesSweep;
 };
