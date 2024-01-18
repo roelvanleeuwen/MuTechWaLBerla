@@ -58,8 +58,9 @@ namespace gpu
 template< int Weighting_T >
 void mapParticles(const IBlock& blockIt,
                   const ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
-                  real_t* spherePositions, real_t* sphereRadii, real_t* f_rs, size_t* numParticlesSubBlocks,
-                  size_t* particleIDsSubBlocks, const Vector3< uint_t > subBlocksPerDim)
+                  const real_t* const spherePositions, const real_t* const sphereRadii, const real_t* const f_rs,
+                  const size_t* const numParticlesSubBlocks, const size_t* const particleIDsSubBlocks,
+                  const Vector3< uint_t > subBlocksPerDim)
 {
    auto nOverlappingParticlesField =
       blockIt.getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA.nOverlappingParticlesFieldID);
