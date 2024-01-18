@@ -79,7 +79,7 @@ class SetParticleVelocitiesSweep
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
          if (mappingParticleSelector_(idx, *ac_) &&
-             ac_->getBaseShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
+             ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
          {
             currentUIDs.push_back(ac_->getUid(idx));
          }
@@ -165,7 +165,7 @@ class ReduceParticleForcesSweep
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
          if (mappingParticleSelector_(idx, *ac_) &&
-             ac_->getBaseShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
+             ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
          {
             currentUIDs.push_back(ac_->getUid(idx));
          }

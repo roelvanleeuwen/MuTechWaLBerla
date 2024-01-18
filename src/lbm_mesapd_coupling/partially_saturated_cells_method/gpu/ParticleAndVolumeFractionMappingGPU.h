@@ -118,7 +118,7 @@ class ParticleAndVolumeFractionMappingGPU
       {
          // If other shapes than spheres are mapped, ignore them here in the sphere mapping (same holds below)
          if (mappingParticleSelector_(idx, *ac_) &&
-             ac_->getBaseShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
+             ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
          {
             WALBERLA_ASSERT(dynamic_cast< mesa_pd::data::Sphere* >(ac_->getShape(idx)) != nullptr);
             numMappedParticles++;
@@ -142,7 +142,7 @@ class ParticleAndVolumeFractionMappingGPU
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
          if (mappingParticleSelector_(idx, *ac_) &&
-             ac_->getBaseShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
+             ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
          {
             // Store uids to make sure that the particles have not changed between the mapping and the PSM sweep
             particleAndVolumeFractionSoA_.mappingUIDs.push_back(ac_->getUid(idx));
@@ -174,7 +174,7 @@ class ParticleAndVolumeFractionMappingGPU
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
          if (mappingParticleSelector_(idx, *ac_) &&
-             ac_->getBaseShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
+             ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
          {
             auto sphereAABB = mesa_pd::getParticleAABB(idx, *ac_);
             if (blockAABB.intersects(sphereAABB))
