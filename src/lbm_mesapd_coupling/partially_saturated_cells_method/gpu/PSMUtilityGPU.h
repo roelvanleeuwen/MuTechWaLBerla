@@ -32,8 +32,8 @@ namespace psm
 namespace gpu
 {
 
-__device__ void cross(real_t* __restrict__ const crossResult, const real_t* __restrict__ lhs,
-                      const real_t* __restrict__ rhs)
+__device__ void cross(real_t* __restrict__ const crossResult, const real_t* __restrict__ const lhs,
+                      const real_t* __restrict__ const rhs)
 {
    crossResult[0] = lhs[1] * rhs[2] - lhs[2] * rhs[1];
    crossResult[1] = lhs[2] * rhs[0] - lhs[0] * rhs[2];
@@ -41,9 +41,9 @@ __device__ void cross(real_t* __restrict__ const crossResult, const real_t* __re
 }
 
 __device__ void getVelocityAtWFPoint(real_t* __restrict__ const velocityAtWFPoint,
-                                     const real_t* __restrict__ linearVelocity,
-                                     const real_t* __restrict__ angularVelocity, const real_t* __restrict__ position,
-                                     const real_t* __restrict__ wf_pt)
+                                     const real_t* __restrict__ const linearVelocity,
+                                     const real_t* __restrict__ const angularVelocity,
+                                     const real_t* __restrict__ const position, const real_t* __restrict__ const wf_pt)
 {
    real_t crossResult[3];
    real_t rhs[] = { wf_pt[0] - position[0], wf_pt[1] - position[1], wf_pt[2] - position[2] };
@@ -55,8 +55,9 @@ __device__ void getVelocityAtWFPoint(real_t* __restrict__ const velocityAtWFPoin
 
 __device__ void addHydrodynamicForceAtWFPosAtomic(real_t* __restrict__ const particleForce,
                                                   real_t* __restrict__ const particleTorque,
-                                                  const real_t* __restrict__ f, const real_t* __restrict__ pos,
-                                                  const real_t* __restrict__ wf_pt)
+                                                  const real_t* __restrict__ const f,
+                                                  const real_t* __restrict__ const pos,
+                                                  const real_t* __restrict__ const wf_pt)
 {
    atomicAdd(&(particleForce[0]), f[0]);
    atomicAdd(&(particleForce[1]), f[1]);

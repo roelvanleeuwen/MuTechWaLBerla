@@ -54,13 +54,14 @@ __device__ void calculateWeighting< 2 >(real_t* __restrict__ const weighting, co
 }
 
 template< int Weighting_T >
-__global__ void
-   superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
-                 walberla::gpu::FieldAccessor< real_t > BsField, walberla::gpu::FieldAccessor< id_t > idxField,
-                 walberla::gpu::FieldAccessor< real_t > BField, real_t omega,
-                 real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii, double3 blockStart,
-                 real_t dx, int3 nSamples, size_t* __restrict__ const numParticlesSubBlocks,
-                 size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim)
+__global__ void superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
+                              walberla::gpu::FieldAccessor< real_t > BsField,
+                              walberla::gpu::FieldAccessor< id_t > idxField,
+                              walberla::gpu::FieldAccessor< real_t > BField, const real_t omega,
+                              const real_t* __restrict__ const spherePositions,
+                              const real_t* __restrict__ const sphereRadii, const double3 blockStart, const real_t dx,
+                              const int3 nSamples, const size_t* __restrict__ const numParticlesSubBlocks,
+                              const size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim)
 {
    nOverlappingParticlesField.set(blockIdx, threadIdx);
    BsField.set(blockIdx, threadIdx);
@@ -159,14 +160,14 @@ __global__ void
 
 // Based on the following paper: https://doi.org/10.1108/EC-02-2016-0052
 template< int Weighting_T >
-__global__ void linearApproximation(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
-                                    walberla::gpu::FieldAccessor< real_t > BsField,
-                                    walberla::gpu::FieldAccessor< id_t > idxField,
-                                    walberla::gpu::FieldAccessor< real_t > BField, real_t omega,
-                                    real_t* __restrict__ const spherePositions, real_t* __restrict__ const sphereRadii,
-                                    real_t* __restrict__ const f_rs, double3 blockStart, real_t dx,
-                                    size_t* __restrict__ const numParticlesSubBlocks,
-                                    size_t* __restrict__ const particleIDsSubBlocks, const uint3 subBlocksPerDim)
+__global__ void
+   linearApproximation(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
+                       walberla::gpu::FieldAccessor< real_t > BsField, walberla::gpu::FieldAccessor< id_t > idxField,
+                       walberla::gpu::FieldAccessor< real_t > BField, const real_t omega,
+                       const real_t* __restrict__ const spherePositions, const real_t* __restrict__ const sphereRadii,
+                       const real_t* __restrict__ const f_rs, const double3 blockStart, const real_t dx,
+                       const size_t* __restrict__ const numParticlesSubBlocks,
+                       const size_t* __restrict__ const particleIDsSubBlocks, const uint3 subBlocksPerDim)
 {
    nOverlappingParticlesField.set(blockIdx, threadIdx);
    BsField.set(blockIdx, threadIdx);
@@ -246,8 +247,8 @@ template< int Weighting_T >
 __global__ void boxMapping(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
                            walberla::gpu::FieldAccessor< real_t > BsField,
                            walberla::gpu::FieldAccessor< id_t > idxField, walberla::gpu::FieldAccessor< real_t > BField,
-                           real_t omega, double3 boxPositionMin, double3 boxPositionMax, double3 blockStart, real_t dx,
-                           id_t idxMapped)
+                           const real_t omega, const double3 boxPositionMin, const double3 boxPositionMax,
+                           const double3 blockStart, const real_t dx, const id_t idxMapped)
 {
    nOverlappingParticlesField.set(blockIdx, threadIdx);
    BsField.set(blockIdx, threadIdx);

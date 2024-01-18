@@ -32,13 +32,13 @@ namespace psm
 namespace gpu
 {
 
-// TODO: check correct usage of const
 __global__ void SetParticleVelocities(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
                                       walberla::gpu::FieldAccessor< uint_t > idxField,
                                       walberla::gpu::FieldAccessor< real_t > particleVelocitiesField,
                                       real_t* __restrict__ const linearVelocities,
                                       real_t* __restrict__ const angularVelocities,
-                                      real_t* __restrict__ const positions, const double3 blockStart, const real_t dx)
+                                      const real_t* __restrict__ const positions, const double3 blockStart,
+                                      const real_t dx)
 {
    nOverlappingParticlesField.set(blockIdx, threadIdx);
    idxField.set(blockIdx, threadIdx);
@@ -65,8 +65,8 @@ __global__ void ReduceParticleForces(walberla::gpu::FieldAccessor< uint_t > nOve
                                      walberla::gpu::FieldAccessor< real_t > particleForcesField,
                                      real_t* __restrict__ const hydrodynamicForces,
                                      real_t* __restrict__ const hydrodynamicTorques,
-                                     real_t* __restrict__ const positions, const double3 blockStart, const real_t dx,
-                                     const real_t forceScalingFactor)
+                                     const real_t* __restrict__ const positions, const double3 blockStart,
+                                     const real_t dx, const real_t forceScalingFactor)
 {
    nOverlappingParticlesField.set(blockIdx, threadIdx);
    idxField.set(blockIdx, threadIdx);
