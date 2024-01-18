@@ -83,7 +83,7 @@ option ( WALBERLA_BUILD_WITH_LIKWID_MARKERS "Compile in markers for likwid-perfc
 
 option ( WALBERLA_BUILD_WITH_CUDA	        "Enable CUDA support"                                )
 option ( WALBERLA_BUILD_WITH_HIP	        "Enable ROCm HIP support"                            )
-option ( WALBERLA_BUILD_WITH_SYCL	        "Enable oneAPI SYCL"                                 )
+#option ( WALBERLA_BUILD_WITH_SYCL_FOR       "Enable oneAPI SYCL for CPU, NVIDIA, AMD or INTEL"   )
 
 
 
@@ -1144,12 +1144,36 @@ endif ( )
 ## Intel oneAPI SYCL
 ##
 ############################################################################################################################
-if ( WALBERLA_BUILD_WITH_SYCL )
-    set(CMAKE_CXX_COMPILER "/opt/intel/oneapi/compiler/2024.0/bin/icpx")
-    #set(CMAKE_CXX_COMPILER "/opt/intel/oneapi/mpi/2021.11/bin/mpicxx")
-    #add_flag ( CMAKE_CXX_FLAGS " -fsycl -Wno-unused-parameter" )
-    add_flag ( CMAKE_CXX_FLAGS "-fsycl -fsycl-targets=nvptx64-nvidia-cuda" )
-endif ( )
+
+set(WALBERLA_BUILD_WITH_SYCL_FOR "OFF" CACHE STRING "WALBERLA_BUILD_WITH_SYCL_FOR chosen by the user at CMake configure time")
+SET_PROPERTY( CACHE WALBERLA_BUILD_WITH_SYCL_FOR PROPERTY STRINGS OFF x86 NVIDIA AMD INTEL )
+
+if ( WALBERLA_BUILD_WITH_SYCL_FOR STREQUAL x86 OR WALBERLA_BUILD_WITH_SYCL_FOR STREQUAL NVIDIA OR WALBERLA_BUILD_WITH_SYCL_FOR STREQUAL AMD OR WALBERLA_BUILD_WITH_SYCL_FOR STREQUAL INTEL )
+    if (NOT WALBERLA_CXX_COMPILER_IS_INTELLLVM)
+        message(FATAL_ERROR "SYCL compiler not found. SYCL support is not possible")
+    endif ()
+    if (WALBERLA_BUILD_WITH_CUDA OR WALBERLA_BUILD_WITH_HIP)
+        message(FATAL_ERROR "Turn off WALBERLA_BUILD_WITH_CUDA or WALBERLA_BUILD_WITH_HIP when using SYCL")
+    endif()
+
+    set ( WALBERLA_BUILD_WITH_SYCL TRUE )
+
+    if ( WALBERLA_BUILD_WITH_SYCL_FOR STREQUAL x86)
+        add_flag ( CMAKE_CXX_FLAGS "-fsycl" )
+        message("Building SCYL for x86 CPU")
+    elseif ( WALBERLA_BUILD_WITH_SYCL_FOR STREQUAL NVIDIA)
+        add_flag ( CMAKE_CXX_FLAGS "-fsycl -fsycl-targets=nvptx64-nvidia-cuda" )
+        message("Building SYCL for NVIDIA GPUs")
+    elseif ( WALBERLA_BUILD_WITH_SYCL_FOR STREQUAL AMD)
+        add_flag ( CMAKE_CXX_FLAGS "-fsycl -fsycl-targets=amdgcn-amd-amdhsa" )
+        message("Building SYCL for AMD GPUs")
+    elseif ( WALBERLA_BUILD_WITH_SYCL_FOR STREQUAL INTEL)
+        add_flag ( CMAKE_CXX_FLAGS "-fsycl -fsycl-targets=spir64_gen" )
+        message("Building SYCL for INTEL GPUs")
+    endif ( )
+else()
+    message("No SYCL support")
+endif()
 ############################################################################################################################
 
 

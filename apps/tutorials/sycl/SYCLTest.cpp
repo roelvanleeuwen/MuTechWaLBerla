@@ -120,9 +120,9 @@ int main(int argc, char** argv)
    auto blocks = blockforest::createUniformBlockGridFromConfig(walberlaEnv.config());
 
    WALBERLA_LOG_PROGRESS("Create SYCL queue")
-   //auto syclQueue = make_shared<sycl::queue> (sycl::default_selector_v);
-   auto syclQueue = make_shared<sycl::queue> (sycl::cpu_selector_v);
-   WALBERLA_LOG_INFO("Running SYCL on " << (*syclQueue).get_device().get_info<cl::sycl::info::device::name>())
+   auto syclQueue = make_shared<sycl::queue> (sycl::default_selector_v);
+   //auto syclQueue = make_shared<sycl::queue> (sycl::cpu_selector_v);
+   WALBERLA_LOG_INFO("Running SYCL for MPI process " << mpi::MPIManager::instance()->worldRank() << " on " << (*syclQueue).get_device().get_info<cl::sycl::info::device::name>())
    blocks->setSYCLQueue(syclQueue);
 
    // read parameters
@@ -188,7 +188,6 @@ int main(int argc, char** argv)
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
    // Communication
-
    const bool sendDirectlyFromGPU = false;
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, sendDirectlyFromGPU,  false);
    com.addPackInfo(make_shared< PackInfo_T >(syclQueue, pdfFieldGPUId));
