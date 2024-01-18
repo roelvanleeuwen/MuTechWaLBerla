@@ -28,7 +28,8 @@ namespace piping
 {
 
 void assembleBoundaryBlock(const Vector3< uint_t >& domainSize, const mesa_pd::Vec3& boxPosition,
-                           const mesa_pd::Vec3& boxEdgeLength, const bool periodicInY, const bool pressureDrivenFlow)
+                           const mesa_pd::Vec3& boxEdgeLength, const bool movingBox, const bool periodicInY,
+                           const bool pressureDrivenFlow)
 {
    const std::string outflowFlag = pressureDrivenFlow ? "Density1" : "Velocity";
 
@@ -50,17 +51,21 @@ void assembleBoundaryBlock(const Vector3< uint_t >& domainSize, const mesa_pd::V
       "\t CellInterval { min < " +
       std::to_string(uint_t(boxPosition[0] + boxEdgeLength[0] / 2)) + ",-1," + std::to_string(domainSize[2]) +
       ">; max < " + std::to_string(domainSize[0]) + "," + std::to_string(domainSize[1] + 1) + "," +
-      std::to_string(domainSize[2] + 1) + ">; flag " + outflowFlag +
-      "; }\n"
-      "\t Body { shape box; min <" +
-      std::to_string(boxPosition[0] - boxEdgeLength[0] / 2) + "," +
-      std::to_string(boxPosition[1] - boxEdgeLength[1] / 2 -
-                     real_t(1)) // - 1 to avoid small gap in bucket if periodic in y-direction
-      + "," + std::to_string(boxPosition[2] - boxEdgeLength[2] / 2) + ">; max <" +
-      std::to_string(boxPosition[0] + boxEdgeLength[0] / 2) + "," +
-      std::to_string(boxPosition[1] + boxEdgeLength[1] / 2 +
-                     real_t(1)) // + 1 to avoid small gap in bucket if periodic in y-direction
-      + "," + std::to_string(boxPosition[2] + boxEdgeLength[2] / 2) + ">; flag NoSlip; }\n";
+      std::to_string(domainSize[2] + 1) + ">; flag " + outflowFlag + "; }\n";
+
+   // If movingBox is true, the BC handling for the box is carried out by the PSM
+   if (!movingBox)
+   {
+      boundariesBlockString += "\t Body { shape box; min <" + std::to_string(boxPosition[0] - boxEdgeLength[0] / 2) +
+                               "," +
+                               std::to_string(boxPosition[1] - boxEdgeLength[1] / 2 -
+                                              real_t(1)) // - 1 to avoid small gap in bucket if periodic in y-direction
+                               + "," + std::to_string(boxPosition[2] - boxEdgeLength[2] / 2) + ">; max <" +
+                               std::to_string(boxPosition[0] + boxEdgeLength[0] / 2) + "," +
+                               std::to_string(boxPosition[1] + boxEdgeLength[1] / 2 +
+                                              real_t(1)) // + 1 to avoid small gap in bucket if periodic in y-direction
+                               + "," + std::to_string(boxPosition[2] + boxEdgeLength[2] / 2) + ">; flag NoSlip; }\n";
+   }
 
    if (!periodicInY)
    {

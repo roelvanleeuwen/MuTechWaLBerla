@@ -46,6 +46,22 @@ struct SphereSphereSelector
    }
 };
 
+struct PSMSelector
+{
+   PSMSelector(const bool movingBucket) : movingBucket_(movingBucket) { }
+   template< typename ParticleAccessor_T >
+   bool inline operator()(const size_t particleIdx, const ParticleAccessor_T& ac) const
+   {
+      if (movingBucket_)
+      {
+         return ac.getBaseShape(particleIdx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE ||
+                ac.getBaseShape(particleIdx)->getShapeType() == mesa_pd::data::Box::SHAPE_TYPE;
+      }
+      else { return ac.getBaseShape(particleIdx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE; }
+   }
+   const bool movingBucket_;
+};
+
 struct SphereSelectorExcludeGhost
 {
    template< typename ParticleAccessor_T >

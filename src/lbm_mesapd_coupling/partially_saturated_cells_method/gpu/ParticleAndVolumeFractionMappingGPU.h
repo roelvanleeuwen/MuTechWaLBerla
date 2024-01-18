@@ -116,7 +116,9 @@ class ParticleAndVolumeFractionMappingGPU
       size_t numMappedParticles = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
-         if (mappingParticleSelector_(idx, *ac_))
+         // If other shapes than spheres are mapped, ignore them here in the sphere mapping (same holds below)
+         if (mappingParticleSelector_(idx, *ac_) &&
+             ac_->getBaseShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
          {
             WALBERLA_ASSERT(dynamic_cast< mesa_pd::data::Sphere* >(ac_->getShape(idx)) != nullptr);
             numMappedParticles++;
@@ -139,7 +141,8 @@ class ParticleAndVolumeFractionMappingGPU
       size_t idxMapped = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
-         if (mappingParticleSelector_(idx, *ac_))
+         if (mappingParticleSelector_(idx, *ac_) &&
+             ac_->getBaseShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
          {
             // Store uids to make sure that the particles have not changed between the mapping and the PSM sweep
             particleAndVolumeFractionSoA_.mappingUIDs.push_back(ac_->getUid(idx));
@@ -170,7 +173,8 @@ class ParticleAndVolumeFractionMappingGPU
       idxMapped = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
-         if (mappingParticleSelector_(idx, *ac_))
+         if (mappingParticleSelector_(idx, *ac_) &&
+             ac_->getBaseShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
          {
             auto sphereAABB = mesa_pd::getParticleAABB(idx, *ac_);
             if (blockAABB.intersects(sphereAABB))
@@ -242,6 +246,56 @@ class ParticleAndVolumeFractionMappingGPU
    const ParticleSelector_T& mappingParticleSelector_;
    ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA_;
    const Vector3< uint_t > subBlocksPerDim_;
+};
+
+template< typename ParticleAccessor_T, int Weighting_T >
+class BoxFractionMappingGPU
+{
+ public:
+   BoxFractionMappingGPU(const shared_ptr< StructuredBlockStorage >& blockStorage,
+                         const shared_ptr< ParticleAccessor_T >& ac, const uint_t boxUid,
+                         const Vector3< real_t > boxEdgeLength,
+                         ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
+      : blockStorage_(blockStorage), ac_(ac), boxUid_(boxUid), boxEdgeLength_(boxEdgeLength),
+        particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA)
+   {
+      static_assert(std::is_base_of< mesa_pd::data::IAccessor, ParticleAccessor_T >::value,
+                    "Provide a valid accessor as template");
+   }
+
+   void operator()(IBlock* block)
+   {
+      auto nOverlappingParticlesField =
+         block->getData< nOverlappingParticlesFieldGPU_T >(particleAndVolumeFractionSoA_.nOverlappingParticlesFieldID);
+      auto BsField  = block->getData< BsFieldGPU_T >(particleAndVolumeFractionSoA_.BsFieldID);
+      auto idxField = block->getData< idxFieldGPU_T >(particleAndVolumeFractionSoA_.idxFieldID);
+      auto BField   = block->getData< BFieldGPU_T >(particleAndVolumeFractionSoA_.BFieldID);
+
+      auto myKernel = walberla::gpu::make_kernel(&(boxMapping< Weighting_T >) );
+      myKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< uint_t >::xyz(*nOverlappingParticlesField));
+      myKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< real_t >::xyz(*BsField));
+      myKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< id_t >::xyz(*idxField));
+      myKernel.addFieldIndexingParam(walberla::gpu::FieldIndexing< real_t >::xyz(*BField));
+      myKernel.addParam(particleAndVolumeFractionSoA_.omega_);
+      const Vector3< real_t > boxPosition = ac_->getPosition(ac_->uidToIdx(boxUid_));
+      myKernel.addParam(double3{ boxPosition[0] - boxEdgeLength_[0] / real_t(2),
+                                 boxPosition[1] - boxEdgeLength_[1] / real_t(2),
+                                 boxPosition[2] - boxEdgeLength_[2] / real_t(2) });
+      myKernel.addParam(double3{ boxPosition[0] + boxEdgeLength_[0] / real_t(2),
+                                 boxPosition[1] + boxEdgeLength_[1] / real_t(2),
+                                 boxPosition[2] + boxEdgeLength_[2] / real_t(2) });
+      Vector3< real_t > blockStart = block->getAABB().minCorner();
+      myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });
+      myKernel.addParam(block->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));
+      myKernel.addParam(ac_->uidToIdx(boxUid_));
+      myKernel();
+   }
+
+   shared_ptr< StructuredBlockStorage > blockStorage_;
+   const shared_ptr< ParticleAccessor_T > ac_;
+   const uint_t boxUid_;
+   const Vector3< real_t > boxEdgeLength_;
+   ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA_;
 };
 
 } // namespace gpu

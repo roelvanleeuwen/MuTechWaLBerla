@@ -208,7 +208,7 @@ auto createBox(mesa_pd::data::ParticleStorage& ps, const mesa_pd::Vec3& pos, con
    mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::INFINITE);
    mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::FIXED);
    mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::NON_COMMUNICATING);
-   return p0;
+   return p0->getUid();
 }
 
 template< typename ParticleAccessor_T, typename Sync_T, typename CollisionResponse_T >

@@ -176,6 +176,7 @@ int main(int argc, char** argv)
    Config::BlockHandle bucketParameters = cfgFile->getBlock("Bucket");
    const Vector3< real_t > bucketSizeFraction =
       bucketParameters.getParameter< Vector3< real_t > >("bucketSizeFraction");
+   const bool movingBucket = bucketParameters.getParameter< bool >("movingBucket");
 
    Config::BlockHandle particlesParameters     = cfgFile->getBlock("Particles");
    const std::string particleInFileName        = particlesParameters.getParameter< std::string >("inFileName");
@@ -236,7 +237,7 @@ int main(int argc, char** argv)
    const Vector3< real_t > boxEdgeLength(simulationDomain.xMax() * bucketSizeFraction[0],
                                          simulationDomain.yMax() * bucketSizeFraction[1],
                                          simulationDomain.zMax() * bucketSizeFraction[2]);
-   createBox(*ps, boxPosition, boxEdgeLength);
+   const uint_t boxUid = createBox(*ps, boxPosition, boxEdgeLength);
 
    // Create planes
    createPlane(*ps, simulationDomain.minCorner(), Vector3< real_t >(0, 0, 1));
@@ -337,7 +338,7 @@ int main(int argc, char** argv)
    BlockDataID BFieldID    = field::addToStorage< BField_T >(blocks, "B field", real_t(0), field::fzyx);
 
    // Boundary handling
-   assembleBoundaryBlock(domainSize, boxPosition, boxEdgeLength, periodicInY, pressureDrivenFlow);
+   assembleBoundaryBlock(domainSize, boxPosition, boxEdgeLength, movingBucket, periodicInY, pressureDrivenFlow);
 
    auto boundariesCfgFile = Config();
    boundariesCfgFile.readParameterFile("boundaries.prm");
@@ -365,11 +366,14 @@ int main(int argc, char** argv)
 
    // Map particles into the fluid domain
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, omega);
-   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, SphereSelector(), particleAndVolumeFractionSoA,
+   auto psmSelector = PSMSelector(movingBucket);
+   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, psmSelector, particleAndVolumeFractionSoA,
                                             numSubBlocks);
+   BoxFractionMappingGPU boxFractionMapping(blocks, accessor, boxUid, boxEdgeLength, particleAndVolumeFractionSoA);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));
+      if (movingBucket) { boxFractionMapping(&(*blockIt)); }
    }
 
    real_t e_init = computeVoidRatio(blocks, BFieldID, particleAndVolumeFractionSoA.BFieldID, flagFieldID, Fluid_Flag,
@@ -486,7 +490,12 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
                                  real_t(0.0), real_t(0.0), omega);
 
-   addPSMSweepsToTimeloop(timeloop, psmSweepCollection, PSMSweep);
+   // Particle mapping overwrites the fields, therefore bucket mapping has to be called second
+   timeloop.add() << Sweep(deviceSyncWrapper(psmSweepCollection.particleMappingSweep), "Particle mapping");
+   if (movingBucket) { timeloop.add() << Sweep(deviceSyncWrapper(boxFractionMapping), "Bucket mapping"); }
+   timeloop.add() << Sweep(deviceSyncWrapper(psmSweepCollection.setParticleVelocitiesSweep), "Set particle velocities");
+   timeloop.add() << Sweep(deviceSyncWrapper(PSMSweep), "PSM sweep");
+   timeloop.add() << Sweep(deviceSyncWrapper(psmSweepCollection.reduceParticleForcesSweep), "Reduce particle forces");
 
    WcTimingPool timeloopTiming;
 

@@ -242,10 +242,60 @@ __global__ void linearApproximation(walberla::gpu::FieldAccessor< uint_t > nOver
    }
 }
 
+template< int Weighting_T >
+__global__ void boxMapping(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
+                           walberla::gpu::FieldAccessor< real_t > BsField,
+                           walberla::gpu::FieldAccessor< id_t > idxField, walberla::gpu::FieldAccessor< real_t > BField,
+                           real_t omega, double3 boxPositionMin, double3 boxPositionMax, double3 blockStart, real_t dx,
+                           id_t idxMapped)
+{
+   nOverlappingParticlesField.set(blockIdx, threadIdx);
+   BsField.set(blockIdx, threadIdx);
+   idxField.set(blockIdx, threadIdx);
+   BField.set(blockIdx, threadIdx);
+
+   const double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
+                                (blockStart.z + (blockIdx.y + 0.5) * dx) };
+   const double3 cellMin    = { cellCenter.x - dx * real_t(0.5), cellCenter.y - dx * real_t(0.5),
+                                cellCenter.z - dx * real_t(0.5) };
+   const double3 cellMax    = { cellCenter.x + dx * real_t(0.5), cellCenter.y + dx * real_t(0.5),
+                                cellCenter.z + dx * real_t(0.5) };
+
+   const real_t xOverlap        = max(real_t(0), min(boxPositionMax.x, cellMax.x) - max(boxPositionMin.x, cellMin.x));
+   const real_t yOverlap        = max(real_t(0), min(boxPositionMax.y, cellMax.y) - max(boxPositionMin.y, cellMin.y));
+   const real_t zOverlap        = max(real_t(0), min(boxPositionMax.z, cellMax.z) - max(boxPositionMin.z, cellMin.z));
+   const real_t overlapFraction = xOverlap * yOverlap * zOverlap / (dx * dx * dx);
+
+   if (overlapFraction > real_t(0))
+   {
+      assert(nOverlappingParticlesField.get() < MaxParticlesPerCell);
+
+      BsField.get(nOverlappingParticlesField.get()) = overlapFraction;
+      calculateWeighting< Weighting_T >(&BsField.get(nOverlappingParticlesField.get()),
+                                        BsField.get(nOverlappingParticlesField.get()), real_t(1.0) / omega);
+      idxField.get(nOverlappingParticlesField.get()) = idxMapped;
+      BField.get() += BsField.get(nOverlappingParticlesField.get());
+      nOverlappingParticlesField.get() += 1;
+
+      // TODO: it can happen that the BsField for spheres is normalized twice, one here and in the sphere mapping
+      // Normalize fraction field (Bs) if sum over all fractions (B) > 1
+      if (BField.get() > 1)
+      {
+         for (uint i = 0; i < nOverlappingParticlesField.get(); i++)
+         {
+            BsField.get(i) /= BField.get();
+         }
+         BField.get() = 1.0;
+      }
+   }
+}
+
 auto instance0_with_weighting_1 = superSampling< 1 >;
 auto instance1_with_weighting_2 = superSampling< 2 >;
 auto instance2_with_weighting_1 = linearApproximation< 1 >;
 auto instance3_with_weighting_2 = linearApproximation< 2 >;
+auto instance4_with_weighting_1 = boxMapping< 1 >;
+auto instance5_with_weighting_2 = boxMapping< 2 >;
 
 } // namespace gpu
 } // namespace psm

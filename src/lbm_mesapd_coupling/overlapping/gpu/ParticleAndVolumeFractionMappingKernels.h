@@ -54,6 +54,13 @@ __global__ void linearApproximation(walberla::gpu::FieldAccessor< uint_t > nOver
                                     size_t* __restrict__ const numParticlesSubBlocks,
                                     size_t* __restrict__ const particleIDsSubBlocks, const uint3 subBlocksPerDim);
 
+template< int Weighting_T >
+__global__ void boxMapping(walberla::gpu::FieldAccessor< uint_t > nOverlappingParticlesField,
+                           walberla::gpu::FieldAccessor< real_t > BsField,
+                           walberla::gpu::FieldAccessor< id_t > idxField, walberla::gpu::FieldAccessor< real_t > BField,
+                           real_t omega, double3 boxPositionMin, double3 boxPositionMax, double3 blockStart, real_t dx,
+                           id_t idxMapped);
+
 } // namespace gpu
 } // namespace psm
 } // namespace lbm_mesapd_coupling
