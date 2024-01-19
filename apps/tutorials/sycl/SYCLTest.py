@@ -46,9 +46,9 @@ with CodeGeneration() as ctx:
     lbm_method = lbm_update_rule.method
 
 
-    target = ps.Target.GPU
-    #generate_sweep(ctx, "SYCLTestSweep", lbm_update_rule, field_swaps=[(pdfs, pdfs_tmp)], target=target)
-    #generate_pack_info_from_kernel(ctx, "SYCLTestPackInfo", lbm_update_rule, target=target)
+    target = ps.Target.GPU if ctx.gpu else ps.Target.CPU
+    generate_sweep(ctx, "SYCLTestSweep", lbm_update_rule, field_swaps=[(pdfs, pdfs_tmp)], target=target)
+    generate_pack_info_from_kernel(ctx, "SYCLTestPackInfo", lbm_update_rule, target=target)
 
     initial_rho = sp.Symbol('rho_0')
     pdfs_setter = macroscopic_values_setter(lbm_method, initial_rho, velocity.center_vector, pdfs.center_vector)

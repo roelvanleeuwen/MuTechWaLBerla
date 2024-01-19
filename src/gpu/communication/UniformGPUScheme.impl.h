@@ -110,7 +110,9 @@ namespace communication {
             bufferSystemGPU_.sendBuffer( it.first ).clear();
 
       // wait until communication dependent kernels are finished
-#if not defined(WALBERLA_BUILD_WITH_SYCL)
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+      (*syclQueue).wait();
+#else
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #endif
 

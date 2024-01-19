@@ -22,9 +22,11 @@
 
 #include "core/all.h"
 
-#   include "gpu/AddGPUFieldToStorage.h"
-#   include "gpu/ParallelStreams.h"
-#   include "gpu/communication/UniformGPUScheme.h"
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT) or defined(WALBERLA_BUILD_WITH_SYCL)
+#include "gpu/AddGPUFieldToStorage.h"
+#include "gpu/ParallelStreams.h"
+#include "gpu/communication/UniformGPUScheme.h"
+#endif
 
 #include "domain_decomposition/all.h"
 
@@ -39,9 +41,15 @@
 #include "timeloop/all.h"
 
 //    Codegen Includes
+#if defined(WALBERLA_BUILD_WITH_SYCL)
 #include "modified_codeGen/SYCLTestPackInfo.h"
 #include "modified_codeGen/SYCLTestSweep.h"
+#include "modified_codeGen/InitialPDFsSetter.h"
+#else
+#include "SYCLTestPackInfo.h"
+#include "SYCLTestSweep.h"
 #include "InitialPDFsSetter.h"
+#endif
 
 
 
@@ -67,7 +75,19 @@ typedef field::GhostLayerField< real_t, Stencil_T::D > VectorField_T;
 typedef walberla::uint8_t flag_t;
 typedef FlagField< flag_t > FlagField_T;
 
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT) or defined(WALBERLA_BUILD_WITH_SYCL)
 typedef gpu::GPUField< real_t > GPUField;
+#endif
+
+auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
+   return [sweep](IBlock* b) {
+      sweep(b);
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      gpuDeviceSynchronize();
+#endif
+   };
+};
+
 
 //////////////////////////////////////////
 /// Shear Flow Velocity Initialization ///
@@ -118,21 +138,21 @@ int main(int argc, char** argv)
    ///////////////////////////////////////////////////////
 
    auto blocks = blockforest::createUniformBlockGridFromConfig(walberlaEnv.config());
-
+#if defined(WALBERLA_BUILD_WITH_SYCL)
    WALBERLA_LOG_PROGRESS("Create SYCL queue")
    auto syclQueue = make_shared<sycl::queue> (sycl::default_selector_v);
    //auto syclQueue = make_shared<sycl::queue> (sycl::cpu_selector_v);
    WALBERLA_LOG_INFO("Running SYCL for MPI process " << mpi::MPIManager::instance()->worldRank() << " on " << (*syclQueue).get_device().get_info<cl::sycl::info::device::name>())
    blocks->setSYCLQueue(syclQueue);
+#endif
 
    // read parameters
    auto parameters = walberlaEnv.config()->getOneBlock("Parameters");
-
    const uint_t timesteps = parameters.getParameter< uint_t >("timesteps", uint_c(10));
    const real_t omega     = parameters.getParameter< real_t >("omega", real_c(1.8));
-   const real_t remainingTimeLoggerFrequency =
-      parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0)); // in seconds
+   const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0)); // in seconds
    const uint_t VTKwriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", 1000);
+   const std::string timestepStrategy = parameters.getParameter< std::string >("timestepStrategy");
 
    ////////////////////////////////////
    /// PDF Field and Velocity Setup ///
@@ -143,11 +163,11 @@ int main(int argc, char** argv)
    BlockDataID const flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
    BlockDataID pdfFieldId = field::addToStorage< PdfField_T >(blocks, "pdf field", real_c(0.0), field::fzyx);
 
-   // GPU Field for PDFs
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT) or defined(WALBERLA_BUILD_WITH_SYCL)
+   // Device Fields
    BlockDataID const pdfFieldGPUId = gpu::addGPUFieldToStorage< gpu::GPUField< real_t > >(blocks, "pdf field on GPU", Stencil_T::Size, field::fzyx, uint_t(1), false);
-   BlockDataID const pdfFieldTmpGPUId = gpu::addGPUFieldToStorage< gpu::GPUField< real_t > >(blocks, "pdf field tmp on GPU", Stencil_T::Size, field::fzyx, uint_t(1), false);
-
    BlockDataID velocityFieldIdGPU = gpu::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity on GPU", false);
+#endif
 
    // Velocity field setup
    auto shearFlowSetup = walberlaEnv.config()->getOneBlock("ShearFlowSetup");
@@ -159,43 +179,61 @@ int main(int argc, char** argv)
    {
       pdfSetter(&(*blockIt));
    }
-   // pdfs setup
-   gpu::fieldCpy< GPUField, PdfField_T >(blocks, pdfFieldGPUId, pdfFieldId);
 
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT) or defined(WALBERLA_BUILD_WITH_SYCL)
+   gpu::fieldCpy< GPUField, PdfField_T >(blocks, pdfFieldGPUId, pdfFieldId);
+#endif
 
    /////////////
    /// Sweep ///
    /////////////
 
+#if defined(WALBERLA_BUILD_WITH_SYCL)
+   BlockDataID const pdfFieldTmpGPUId = gpu::addGPUFieldToStorage< gpu::GPUField< real_t > >(blocks, "pdf field tmp on GPU", Stencil_T::Size, field::fzyx, uint_t(1), false);
    SYCLTestSweep const SYCLTestSweep(syclQueue, pdfFieldGPUId, pdfFieldTmpGPUId, velocityFieldIdGPU, omega);
-
-   /////////////////////////
-   /// Boundary Handling ///
-   /////////////////////////
+#elif defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   pystencils::SYCLTestSweep const SYCLTestSweep(pdfFieldGPUId, velocityFieldIdGPU, omega);
+#else
+   pystencils::SYCLTestSweep const SYCLTestSweep(pdfFieldId, velocityFieldId, omega);
+#endif
 
    const FlagUID fluidFlagUID("Fluid");
-
    //auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
-
    //geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
 
-   /////////////////
-   /// Time Loop ///
-   /////////////////
-
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
-   // Communication
+
+#if defined(WALBERLA_BUILD_WITH_SYCL)
    const bool sendDirectlyFromGPU = false;
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, sendDirectlyFromGPU,  false);
    com.addPackInfo(make_shared< PackInfo_T >(syclQueue, pdfFieldGPUId));
-   //auto communication = std::function< void() >([&]() { com.communicate(); });
+   auto communication = std::function< void() >([&]() { com.communicate(); });
+#elif defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   const bool sendDirectlyFromGPU = false;
+   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, sendDirectlyFromGPU,  false);
+   com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUId));
+   auto communication = std::function< void() >([&]() { com.communicate(); });
+#else
+   blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
+   communication.addPackInfo(make_shared< PackInfo_T >(pdfFieldId));
+#endif
+   communication();
+
 
 
    // Timeloop
-   timeloop.add() << BeforeFunction(com, "communication") << Sweep(SYCLTestSweep, "SYCL Sweep");
+   if (timestepStrategy == "fullSim") {
+      timeloop.add() << BeforeFunction(communication, "communication") << Sweep(deviceSyncWrapper(SYCLTestSweep), "SYCL Sweep");
+   }
+   else if (timestepStrategy == "kernelOnly") {
+      timeloop.add() << Sweep(deviceSyncWrapper(SYCLTestSweep), "SYCL Sweep");
+   }
+   else {
+      WALBERLA_ABORT("Timestepstrategy " << timestepStrategy << " not supported")
+   }
 
    // Time logger
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
@@ -208,13 +246,15 @@ int main(int argc, char** argv)
                                                       false, path, "simulation_step", false, true, true, false, 0);
 
       // Copy velocity data to CPU before output
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT) or defined(WALBERLA_BUILD_WITH_SYCL)
       vtkOutput->addBeforeFunction(
          [&]() { gpu::fieldCpy< VectorField_T, GPUField >(blocks, velocityFieldId, velocityFieldIdGPU); });
+#endif
 
       auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
       vtkOutput->addCellDataWriter(velWriter);
 
-      timeloop.addFuncBeforeTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+      timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
    }
 
@@ -225,6 +265,9 @@ int main(int argc, char** argv)
 
    simTimer.start();
    timeloop.run(timeloopTiming);
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   gpuDeviceSynchronize();
+#endif
    simTimer.end();
    double time = simTimer.max();
    WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
