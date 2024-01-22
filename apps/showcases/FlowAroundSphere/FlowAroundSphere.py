@@ -38,12 +38,12 @@ with CodeGeneration() as ctx:
     macroscopic_fields = {'density': density_field, 'velocity': velocity_field}
 
     lbm_config = LBMConfig(
-        method=Method.MRT,
+        method=Method.CUMULANT,
         stencil=stencil,
         relaxation_rate=omega,
         compressible=True,
         galilean_correction=False,
-        fourth_order_correction=False,
+        fourth_order_correction=0.1,
         field_name='pdfs',
         streaming_pattern=streaming_pattern,
     )

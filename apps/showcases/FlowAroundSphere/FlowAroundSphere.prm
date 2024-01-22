@@ -6,7 +6,7 @@ Parameters
     timestepSize 0.5e-3;
     coarseMeshSize  0.078125;  //0.078125
 
-    timesteps 20001;
+    timesteps 10001;
 
     innerOuterSplit <1, 1, 1>;
 

@@ -130,6 +130,81 @@ void workloadAndMemoryAssignment(SetupBlockForest& forest, const memory_t memory
 }
 }
 
+template< typename DistanceObject >
+class CustomRefinementSelection
+{
+ public:
+   typedef typename DistanceObject::Scalar Scalar;
+
+   CustomRefinementSelection( const shared_ptr< DistanceObject > & distanceObject, const uint_t level, const real_t distance, real_t maxError, AABB & sphereAABB) : distanceObject_( distanceObject ), level_( level ), distance_( distance ), maxError_( maxError ), sphereAABB_(sphereAABB)  {  }
+
+   void operator()( blockforest::SetupBlockForest & forest ) const;
+
+ private:
+
+   shared_ptr< DistanceObject > distanceObject_;
+
+   uint_t level_;
+   real_t distance_;
+   real_t maxError_;
+   AABB sphereAABB_;
+};
+
+template< typename DistanceObject >
+inline void CustomRefinementSelection<DistanceObject>::operator()( blockforest::SetupBlockForest & forest ) const
+{
+   std::vector< blockforest::SetupBlock* > blocks;
+   forest.getBlocks( blocks );
+
+   const uint_t numBlocks    = uint_c( blocks.size() );
+   const uint_t numProcesses = uint_c( MPIManager::instance()->numProcesses() );
+   const uint_t chunkSize    = uint_c( std::ceil( real_c( numBlocks ) / real_c( numProcesses ) ) );
+
+   const uint_t rank    = uint_c( MPIManager::instance()->rank() );
+   const int chunkBegin = int_c( rank * chunkSize );
+   const int chunkEnd   = std::min( int_c( ( rank + 1 ) * chunkSize ), int_c( numBlocks ) );
+
+   std::vector<size_t> shuffle( numBlocks );
+   for( size_t i = 0; i < shuffle.size(); ++i )
+   {
+      shuffle[i] = i;
+   }
+
+   std::mt19937 g( 42 );
+   std::shuffle( shuffle.begin(), shuffle.end(), g );
+
+   std::vector<uint8_t> refine( numBlocks, uint_t( 0 ) );
+
+#ifdef _OPENMP
+#pragma omp parallel for schedule( dynamic )
+#endif
+   for( int i = chunkBegin; i < chunkEnd; ++i )
+   {
+      const size_t ii = numeric_cast<size_t>( i );
+      const uint_t blockLevel = blocks[ shuffle[ii] ]->getLevel();
+      if( blockLevel >= level_ )
+         continue;
+
+      walberla::optional< bool > intersects = intersectsSurface( *distanceObject_, blocks[ shuffle[ii] ]->getAABB(), maxError_, distance_ );
+      if( !intersects || intersects.value() )
+         refine[ shuffle[ ii ] ] = uint8_t( 1 );
+   }
+
+   allReduceInplace( refine, mpi::LOGICAL_OR );
+
+   const AABB refinement_box(sphereAABB_.xMin(),sphereAABB_.yMin(),sphereAABB_.zMin(),
+                             sphereAABB_.xMax() + 5.0, sphereAABB_.yMax(), sphereAABB_.zMax());
+
+
+   for( uint_t i = 0; i != blocks.size(); ++i )
+   {
+      blocks[i]->setMarker( refine[ i ] ==  uint8_t( 1 ) );
+      if(blocks[i]->getAABB().intersects(refinement_box) && blocks[i]->getLevel() < level_)
+         blocks[i]->setMarker( true );
+   }
+}
+
+
 //////////////////////
 // Parameter Struct //
 //////////////////////
@@ -258,12 +333,14 @@ int main(int argc, char **argv) {
    /// CREATE BLOCK FOREST ///
    ///////////////////////////
 
-   auto aabb = computeAABB(*mesh);
-   auto domainScaling = Vector3<real_t> (domainSize[0] / aabb.xSize(), domainSize[1] / aabb.ySize(), domainSize[2] / aabb.zSize());
-   aabb.scale( domainScaling );
-   aabb.setCenter(Vector3<real_t >(real_c(5.0), real_c(0.0), real_c(0.0)));
+   auto sphereAABB = computeAABB(*mesh);
+   WALBERLA_LOG_DEVEL_VAR(sphereAABB)
+   auto domainScaling = Vector3<real_t> (domainSize[0] / sphereAABB.xSize(), domainSize[1] / sphereAABB.ySize(), domainSize[2] / sphereAABB.zSize());
+   auto domainAABB = sphereAABB.getScaled( domainScaling );
+   domainAABB.setCenter(Vector3<real_t >(real_c(10.0), real_c(0.0), real_c(0.0)));
+   WALBERLA_LOG_DEVEL_VAR(domainAABB)
 
-   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, resolution);
+   mesh::ComplexGeometryStructuredBlockforestCreator bfc(domainAABB, resolution);
 
    bfc.setRootBlockExclusionFunction(mesh::makeExcludeMeshInterior(distanceOctree, resolution.min()));
    bfc.setWorkloadMemorySUIDAssignmentFunction( std::bind( workloadAndMemoryAssignment, std::placeholders::_1, memoryPerBlock ) );
@@ -271,7 +348,7 @@ int main(int argc, char **argv) {
 
    if( !uniformGrid ) {
       WALBERLA_LOG_INFO_ON_ROOT("Using " << refinementLevels << " refinement levels. The resolution around the object is " << fineMeshSize << " m")
-      bfc.setRefinementSelectionFunction(mesh::RefinementSelection(distanceOctree, refinementLevels, real_c(0.0), resolution.min()));
+      bfc.setRefinementSelectionFunction(CustomRefinementSelection(distanceOctree, refinementLevels, real_c(0.0), resolution.min(), sphereAABB));
       bfc.setBlockExclusionFunction(mesh::makeExcludeMeshInteriorRefinement(distanceOctree, fineMeshSize));
    }
    else {
