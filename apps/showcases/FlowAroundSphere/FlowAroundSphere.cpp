@@ -214,9 +214,12 @@ int main(int argc, char **argv) {
    const uint_t numProcesses = domainParameters.getParameter< uint_t >( "numberProcesses");
 
    auto loggingParameters = walberlaEnv.config()->getOneBlock("Logging");
-   const bool writeSetupForestAndReturn = loggingParameters.getParameter<bool>("writeSetupForestAndReturn", false);
+   bool writeSetupForestAndReturn = loggingParameters.getParameter<bool>("writeSetupForestAndReturn", false);
    const bool writeDistanceOctree = loggingParameters.getParameter<bool>("writeDistanceOctree", false);
    const bool writeMeshBoundaries = loggingParameters.getParameter<bool>("writeMeshBoundaries", false);
+   const bool readSetupFromFile = loggingParameters.getParameter<bool>("readSetupFromFile", false);
+   if (uint_c( MPIManager::instance()->numProcesses() ) > 1)
+      writeSetupForestAndReturn = false;
 
    const Setup setup{reynoldsNumber, latticeViscosity, omega, inletVelocity, refinementLevels};
 
@@ -263,14 +266,13 @@ int main(int argc, char **argv) {
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, resolution);
 
    bfc.setRootBlockExclusionFunction(mesh::makeExcludeMeshInterior(distanceOctree, resolution.min()));
-   bfc.setRootBlockExclusionFunction(mesh::makeExcludeMeshInterior(distanceOctree, resolution.min()));
-   bfc.setBlockExclusionFunction(mesh::makeExcludeMeshInteriorRefinement(distanceOctree, fineMeshSize));
    bfc.setWorkloadMemorySUIDAssignmentFunction( std::bind( workloadAndMemoryAssignment, std::placeholders::_1, memoryPerBlock ) );
    bfc.setPeriodicity(periodicity);
 
    if( !uniformGrid ) {
       WALBERLA_LOG_INFO_ON_ROOT("Using " << refinementLevels << " refinement levels. The resolution around the object is " << fineMeshSize << " m")
       bfc.setRefinementSelectionFunction(mesh::RefinementSelection(distanceOctree, refinementLevels, real_c(0.0), resolution.min()));
+      bfc.setBlockExclusionFunction(mesh::makeExcludeMeshInteriorRefinement(distanceOctree, fineMeshSize));
    }
    else {
       WALBERLA_LOG_INFO_ON_ROOT("Using a uniform Grid. The resolution around the object is " << fineMeshSize << " m")
@@ -310,10 +312,32 @@ int main(int argc, char **argv) {
 
       setup.logSetup();
 
+      std::ostringstream oss;
+      oss << "BlockForest_" << std::to_string(numProcesses) <<  ".bfs";
+      setupForest->saveToFile(oss.str().c_str());
+
       WALBERLA_LOG_INFO_ON_ROOT("Ending program")
       return EXIT_SUCCESS;
+
    }
-   auto blocks = bfc.createStructuredBlockForest(blockSize);
+   std::shared_ptr< StructuredBlockForest > blocks;
+   if(readSetupFromFile)
+   {
+      std::ostringstream oss;
+      oss << "BlockForest_" << std::to_string(uint_c( MPIManager::instance()->numProcesses() )) <<  ".bfs";
+      const std::string setupBlockForestFilepath = oss.str();
+
+      WALBERLA_LOG_INFO_ON_ROOT("Reading structured block forest from file")
+      auto bfs = std::make_shared< BlockForest >(uint_c(MPIManager::instance()->worldRank()),
+                                                 setupBlockForestFilepath.c_str(), false);
+      blocks = std::make_shared< StructuredBlockForest >(bfs, blockSize[0], blockSize[1], blockSize[2]);
+      blocks->createCellBoundingBoxes();
+   }
+   else
+   {
+      blocks = bfc.createStructuredBlockForest(blockSize);
+   }
+
 
    auto finalDomain = blocks->getDomain();
    WALBERLA_LOG_INFO_ON_ROOT("Wind tunnel size in x-direction: " << finalDomain.xSize() << " m")

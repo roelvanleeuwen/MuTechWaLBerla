@@ -29,7 +29,7 @@ with CodeGeneration() as ctx:
     q = stencil.Q
     dim = stencil.D
 
-    streaming_pattern = 'aa'
+    streaming_pattern = 'esotwist'
 
     pdfs, pdfs_tmp = fields(f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {pdf_dtype}[3D]", layout='fzyx')
     velocity_field, density_field = fields(f"velocity({dim}), density(1) : {dtype}[{dim}D]", layout='fzyx')
@@ -38,11 +38,11 @@ with CodeGeneration() as ctx:
     macroscopic_fields = {'density': density_field, 'velocity': velocity_field}
 
     lbm_config = LBMConfig(
-        method=Method.CUMULANT,
+        method=Method.MRT,
         stencil=stencil,
         relaxation_rate=omega,
         compressible=True,
-        galilean_correction=True,
+        galilean_correction=False,
         fourth_order_correction=False,
         field_name='pdfs',
         streaming_pattern=streaming_pattern,

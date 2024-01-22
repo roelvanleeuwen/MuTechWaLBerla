@@ -1,17 +1,17 @@
 Parameters
 {
     diameterSphere 0.2;
-    reynoldsNumber 100000;
+    reynoldsNumber 1000;
     velocity 1.0;
     timestepSize 0.5e-3;
-    coarseMeshSize  0.15625;
+    coarseMeshSize  0.078125;  //0.078125
 
-    timesteps 2001;
+    timesteps 20001;
 
     innerOuterSplit <1, 1, 1>;
 
     // GPU related Parameters, only used if GPU is enabled
-    sendDirectlyFromGPU false;
+    sendDirectlyFromGPU true;
     gpuBlockSize <128, 1, 1>;
 
 }
@@ -20,12 +20,12 @@ Parameters
 DomainSetup
 {
     meshFile      sphere.obj;
-    cellsPerBlock < 16, 16, 16 >;
+    cellsPerBlock < 64, 64, 64 >;
     periodic      <  0,  1,  1 >;
 
-    domainSize    < 25, 15, 15 >;
+    domainSize    < 35, 20, 20 >;
 
-    refinementLevels 3;
+    refinementLevels 1;
     numberProcesses 1;
 
     weakScaling false;
@@ -49,18 +49,19 @@ Boundaries
 
 VTKWriter
 {
-    vtkWriteFrequency 500;
+    vtkWriteFrequency 5000;
     velocity true;
     density false;
     flag false;
-    writeOnlySlice false;
+    writeOnlySlice true;
 }
 
 Logging
 {
     logLevel info;  // info progress detail tracing
     writeDistanceOctree false;
-    writeSetupForestAndReturn true;
+    writeSetupForestAndReturn false;
+    readSetupFromFile false;
     writeMeshBoundaries false;
     remainingTimeLoggerFrequency 60; // in seconds
 }
