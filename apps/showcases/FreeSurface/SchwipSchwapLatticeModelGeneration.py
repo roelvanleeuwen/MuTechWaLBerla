@@ -39,7 +39,7 @@ with CodeGeneration() as ctx:
     collision_rule_fluid = create_lb_collision_rule(lbm_config=lbm_config,
                                               lbm_optimisation=lbm_opt)
 
-    generate_lattice_model(ctx, "ViscousLDCLatticeModel", collision_rule_fluid, field_layout=layout)
+    generate_lattice_model(ctx, "SchwipSchwapLatticeModel", collision_rule_fluid, field_layout=layout)
 
     # -------------------------- THERMAL ---------------------------------------
     stencil_thermal = LBStencil(Stencil.D3Q7)
@@ -65,4 +65,4 @@ with CodeGeneration() as ctx:
 
     collision_rule_thermal = create_lb_collision_rule(lbm_config=lbm_config, lbm_optimisation=lbm_opt)
 
-    generate_lattice_model(ctx, "ViscousLDCLatticeModelThermal", collision_rule_thermal, field_layout=layout)
+    generate_lattice_model(ctx, "SchwipSchwapLatticeModelThermal", collision_rule_thermal, field_layout=layout)

@@ -39,7 +39,7 @@
 #include "lbm/free_surface/surface_geometry/Utility.h"
 #include "lbm/lattice_model/D3Q19.h"
 
-#include "ViscousLDCLatticeModel.h"
+#include "SchwipSchwapLatticeModel.h"
 //-#include "ViscousLDCLatticeModelThermal.h"
 
 #include "GenDefines.h"
@@ -50,7 +50,7 @@ namespace walberla
 {
 namespace free_surface
 {
-namespace ViscousLDCCodegen
+namespace SchwipSchwapCodegen
 {
 using ScalarField_T          = GhostLayerField< real_t, 1 >;
 using VectorField_T          = GhostLayerField< Vector3< real_t >, 1 >;
@@ -58,7 +58,7 @@ using VectorFieldFlattened_T = GhostLayerField< real_t, 3 >;
 using VelocityField_T        = walberla::field::GhostLayerField<double, 3>;
 
 // Fluid
-using LatticeModelFluid_T        = lbm::ViscousLDCLatticeModel;
+using LatticeModelFluid_T        = lbm::SchwipSchwapLatticeModel;
 using LatticeModelFluidStencil_T = LatticeModelFluid_T::Stencil;
 using PdfFieldFluid_T            = lbm::PdfField< LatticeModelFluid_T >;
 using PdfCommunicationFluid_T    = blockforest::SimpleCommunication< LatticeModelFluidStencil_T >;
@@ -528,4 +528,4 @@ int main(int argc, char** argv)
 } // namespace free_surface
 } // namespace walberla
 
-int main(int argc, char** argv) { return walberla::free_surface::ViscousLDCCodegen::main(argc, argv); }
+int main(int argc, char** argv) { return walberla::free_surface::SchwipSchwapCodegen::main(argc, argv); }

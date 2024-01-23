@@ -38,12 +38,12 @@ if( WALBERLA_BUILD_WITH_CODEGEN )
                            DEPENDS blockforest boundary core domain_decomposition field lbm postprocessing sqlite
                                    timeloop vtk GravityWaveLatticeModelGeneration)
 
-   walberla_generate_target_from_python( NAME      ViscousLDCLatticeModelGeneration
-                           FILE      ViscousLDCLatticeModelGeneration.py
-                           OUT_FILES ViscousLDCLatticeModel.cpp ViscousLDCLatticeModel.h ViscousLDCLatticeModelThermal.cpp ViscousLDCLatticeModelThermal.h )
+   walberla_generate_target_from_python( NAME      SchwipSchwapLatticeModelGeneration
+                           FILE SchwipSchwapLatticeModelGeneration.py
+                           OUT_FILES SchwipSchwapLatticeModel.cpp SchwipSchwapLatticeModel.h SchwipSchwapLatticeModelThermal.cpp SchwipSchwapLatticeModelThermal.h )
 
-   waLBerla_generate_target_from_python(NAME ViscousLDC_codegen
-           FILE ViscousLDC_codegen.py
+   waLBerla_generate_target_from_python(NAME SchwipSchwap_codegen
+           FILE SchwipSchwap_codegen.py
            OUT_FILES initialize_thermal_field.cpp initialize_thermal_field.h
            thermal_lb_step.cpp thermal_lb_step.h
            BC_thermal_Thot.cpp BC_thermal_Thot.h
@@ -51,10 +51,10 @@ if( WALBERLA_BUILD_WITH_CODEGEN )
            PackInfo_thermal.cpp PackInfo_thermal.h
            GenDefines.h)
 
-   waLBerla_add_executable(NAME    ViscousLDCCodegen
-                           FILES   ViscousLDCCodegen.cpp SQLProperties.cpp
+   waLBerla_add_executable(NAME    SchwipSchwap
+                           FILES SchwipSchwap.cpp SQLProperties.cpp
                            DEPENDS blockforest boundary core domain_decomposition field lbm postprocessing sqlite
-                                   timeloop vtk ViscousLDCLatticeModelGeneration ViscousLDC_codegen)
+                                   timeloop vtk SchwipSchwapLatticeModelGeneration SchwipSchwap_codegen)
 endif()
 
 waLBerla_add_executable(NAME    MovingDrop
