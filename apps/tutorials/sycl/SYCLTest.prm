@@ -2,12 +2,12 @@
 Parameters 
 {
 	omega           1.8;
-	timesteps       10001;
+	timesteps       1001;
 
 	remainingTimeLoggerFrequency 5; // in seconds
-	VTKwriteFrequency 100;
+	VTKwriteFrequency 0;
 
-	timestepStrategy    fullSim;   //fullSim, kernelOnly
+	timestepStrategy    kernelOnly;   //fullSim, kernelOnly
 }
 
 ShearFlowSetup
@@ -22,9 +22,9 @@ ShearFlowSetup
 
 DomainSetup
 {
-   blocks        <  2,    2, 1 >;
-   cellsPerBlock <  300, 80, 1 >;
-   periodic      <  1,    1, 1 >;
+   blocks        <  1,    1, 1 >;
+   cellsPerBlock <  1000, 1000, 1 >;
+   periodic      <  0,    0, 0 >;
    oneBlockPerProcess      true;
 }
 

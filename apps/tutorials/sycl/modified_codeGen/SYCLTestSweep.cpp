@@ -47,12 +47,12 @@ namespace walberla {
 
 void SYCLTestSweep::sycltestsweep_sycltestsweep(double * RESTRICT const _data_pdfs, double * RESTRICT  _data_pdfs_tmp, double * RESTRICT  _data_velocity, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2, int64_t const _stride_pdfs_tmp_0, int64_t const _stride_pdfs_tmp_1, int64_t const _stride_pdfs_tmp_2, int64_t const _stride_velocity_0, int64_t const _stride_velocity_1, int64_t const _stride_velocity_2, double omega)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0) + 1;
-         const int64_t ctr_1 = it.get_id(1) + 1;
+         const int64_t ctr_0 = it.get_id(1) + 1;
+         const int64_t ctr_1 = it.get_id(0) + 1;
          const double xi_3 = -_data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_0 + _stride_pdfs_1*ctr_1 + 3*_stride_pdfs_2];
          const double xi_4 = -_data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_0 + _stride_pdfs_1*ctr_1 - _stride_pdfs_1 + 5*_stride_pdfs_2];
          const double xi_5 = -_data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_0 + _stride_pdfs_1*ctr_1 + _stride_pdfs_1 + 7*_stride_pdfs_2];

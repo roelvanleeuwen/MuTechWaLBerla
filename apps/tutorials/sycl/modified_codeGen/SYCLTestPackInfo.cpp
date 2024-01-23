@@ -32,12 +32,12 @@ using walberla::stencil::Direction;
 
 void SYCLTestPackInfo::pack_SW(double * RESTRICT  _data_buffer, double * RESTRICT const _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_buffer[_size_pdfs_0*ctr_1 + ctr_0] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 7*_stride_pdfs_2];
       });
 
@@ -50,12 +50,12 @@ void SYCLTestPackInfo::pack_SW(double * RESTRICT  _data_buffer, double * RESTRIC
 
 void SYCLTestPackInfo::pack_W(double * RESTRICT  _data_buffer, double * RESTRICT const _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 3*_stride_pdfs_2];
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 1] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 5*_stride_pdfs_2];
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 2] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 7*_stride_pdfs_2];
@@ -70,12 +70,12 @@ void SYCLTestPackInfo::pack_W(double * RESTRICT  _data_buffer, double * RESTRICT
 
 void SYCLTestPackInfo::pack_NW(double * RESTRICT  _data_buffer, double * RESTRICT const _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_buffer[_size_pdfs_0*ctr_1 + ctr_0] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 5*_stride_pdfs_2];
       });
 
@@ -88,12 +88,12 @@ void SYCLTestPackInfo::pack_NW(double * RESTRICT  _data_buffer, double * RESTRIC
 
 void SYCLTestPackInfo::pack_S(double * RESTRICT  _data_buffer, double * RESTRICT const _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 2*_stride_pdfs_2];
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 1] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 7*_stride_pdfs_2];
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 2] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 8*_stride_pdfs_2];
@@ -108,12 +108,12 @@ void SYCLTestPackInfo::pack_S(double * RESTRICT  _data_buffer, double * RESTRICT
 
 void SYCLTestPackInfo::pack_N(double * RESTRICT  _data_buffer, double * RESTRICT const _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + _stride_pdfs_2];
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 1] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 5*_stride_pdfs_2];
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 2] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 6*_stride_pdfs_2];
@@ -128,12 +128,12 @@ void SYCLTestPackInfo::pack_N(double * RESTRICT  _data_buffer, double * RESTRICT
 
 void SYCLTestPackInfo::pack_SE(double * RESTRICT  _data_buffer, double * RESTRICT const _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_buffer[_size_pdfs_0*ctr_1 + ctr_0] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 8*_stride_pdfs_2];
       });
 
@@ -146,12 +146,12 @@ void SYCLTestPackInfo::pack_SE(double * RESTRICT  _data_buffer, double * RESTRIC
 
 void SYCLTestPackInfo::pack_E(double * RESTRICT  _data_buffer, double * RESTRICT const _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 4*_stride_pdfs_2];
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 1] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 6*_stride_pdfs_2];
          _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 2] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 8*_stride_pdfs_2];
@@ -166,12 +166,12 @@ void SYCLTestPackInfo::pack_E(double * RESTRICT  _data_buffer, double * RESTRICT
 
 void SYCLTestPackInfo::pack_NE(double * RESTRICT  _data_buffer, double * RESTRICT const _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_buffer[_size_pdfs_0*ctr_1 + ctr_0] = _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 6*_stride_pdfs_2];
       });
 
@@ -184,12 +184,12 @@ void SYCLTestPackInfo::pack_NE(double * RESTRICT  _data_buffer, double * RESTRIC
 
 void SYCLTestPackInfo::unpack_SW(double * RESTRICT const _data_buffer, double * RESTRICT  _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 7*_stride_pdfs_2] = _data_buffer[_size_pdfs_0*ctr_1 + ctr_0];
 
       });
@@ -203,12 +203,12 @@ void SYCLTestPackInfo::unpack_SW(double * RESTRICT const _data_buffer, double * 
 
 void SYCLTestPackInfo::unpack_W(double * RESTRICT const _data_buffer, double * RESTRICT  _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 3*_stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0];
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 5*_stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 1];
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 7*_stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 2];
@@ -223,12 +223,12 @@ void SYCLTestPackInfo::unpack_W(double * RESTRICT const _data_buffer, double * R
 
 void SYCLTestPackInfo::unpack_NW(double * RESTRICT const _data_buffer, double * RESTRICT  _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 5*_stride_pdfs_2] = _data_buffer[_size_pdfs_0*ctr_1 + ctr_0];
       });
 
@@ -241,12 +241,12 @@ void SYCLTestPackInfo::unpack_NW(double * RESTRICT const _data_buffer, double * 
 
 void SYCLTestPackInfo::unpack_S(double * RESTRICT const _data_buffer, double * RESTRICT  _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 2*_stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0];
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 7*_stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 1];
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 8*_stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 2];
@@ -260,12 +260,12 @@ void SYCLTestPackInfo::unpack_S(double * RESTRICT const _data_buffer, double * R
 
 void SYCLTestPackInfo::unpack_N(double * RESTRICT const _data_buffer, double * RESTRICT  _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + _stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0];
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 5*_stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 1];
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 6*_stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 2];
@@ -279,12 +279,12 @@ void SYCLTestPackInfo::unpack_N(double * RESTRICT const _data_buffer, double * R
 
 void SYCLTestPackInfo::unpack_SE(double * RESTRICT const _data_buffer, double * RESTRICT  _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 8*_stride_pdfs_2] = _data_buffer[_size_pdfs_0*ctr_1 + ctr_0];
       });
 
@@ -297,12 +297,12 @@ void SYCLTestPackInfo::unpack_SE(double * RESTRICT const _data_buffer, double * 
 
 void SYCLTestPackInfo::unpack_E(double * RESTRICT const _data_buffer, double * RESTRICT  _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 4*_stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0];
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 6*_stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 1];
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 8*_stride_pdfs_2] = _data_buffer[3*_size_pdfs_0*ctr_1 + 3*ctr_0 + 2];
@@ -317,12 +317,12 @@ void SYCLTestPackInfo::unpack_E(double * RESTRICT const _data_buffer, double * R
 
 void SYCLTestPackInfo::unpack_NE(double * RESTRICT const _data_buffer, double * RESTRICT  _data_pdfs, int64_t const _size_pdfs_0, int64_t const _size_pdfs_1, int64_t const _stride_pdfs_0, int64_t const _stride_pdfs_1, int64_t const _stride_pdfs_2)
 {
-   sycl::range global(_size_pdfs_0, _size_pdfs_1);
+   sycl::range global(_size_pdfs_1, _size_pdfs_0);
    try
    {
       (*syclQueue).parallel_for(global, [=](cl::sycl::item< 2 > it) {
-         const int64_t ctr_0 = it.get_id(0);
-         const int64_t ctr_1 = it.get_id(1);
+         const int64_t ctr_0 = it.get_id(1);
+         const int64_t ctr_1 = it.get_id(0);
          _data_pdfs[_stride_pdfs_0*ctr_0 + _stride_pdfs_1*ctr_1 + 6*_stride_pdfs_2] = _data_buffer[_size_pdfs_0*ctr_1 + ctr_0];
       });
 

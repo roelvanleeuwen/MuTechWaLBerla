@@ -13,8 +13,8 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file 03_AdvancedLBMCodegen.cpp
-//! \author Frederik Hennig <frederik.hennig@fau.de>
+//! \file SYCLTest.cpp
+//! \author Philipp Suffa
 //
 //======================================================================================================================
 
@@ -26,6 +26,7 @@
 #include "gpu/AddGPUFieldToStorage.h"
 #include "gpu/ParallelStreams.h"
 #include "gpu/communication/UniformGPUScheme.h"
+#include "gpu/DeviceSelectMPI.h"
 #endif
 
 #include "domain_decomposition/all.h"
@@ -127,9 +128,10 @@ void initShearFlowVelocityField(const shared_ptr< StructuredBlockForest >& block
 
 int main(int argc, char** argv)
 {
-   logging::Logging::instance()->setLogLevel( logging::Logging::INFO );
 
    walberla::Environment walberlaEnv(argc, argv);
+   logging::Logging::instance()->setLogLevel( logging::Logging::INFO );
+
 
    if (!walberlaEnv.config()) { WALBERLA_ABORT("No configuration file specified!"); }
 
@@ -141,8 +143,8 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_SYCL)
    WALBERLA_LOG_PROGRESS("Create SYCL queue")
    auto syclQueue = make_shared<sycl::queue> (sycl::default_selector_v);
-   //auto syclQueue = make_shared<sycl::queue> (sycl::cpu_selector_v);
    WALBERLA_LOG_INFO("Running SYCL for MPI process " << mpi::MPIManager::instance()->worldRank() << " on " << (*syclQueue).get_device().get_info<cl::sycl::info::device::name>())
+   //WALBERLA_LOG_INFO("Max hardware threads are " << sycl::default_selector().select_device().get_info<sycl::info::device::max_compute_units>());
    blocks->setSYCLQueue(syclQueue);
 #endif
 
@@ -169,9 +171,12 @@ int main(int argc, char** argv)
    BlockDataID velocityFieldIdGPU = gpu::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity on GPU", false);
 #endif
 
+   WALBERLA_LOG_PROGRESS("Finished Fields")
    // Velocity field setup
    auto shearFlowSetup = walberlaEnv.config()->getOneBlock("ShearFlowSetup");
    initShearFlowVelocityField(blocks, velocityFieldId, shearFlowSetup);
+   WALBERLA_LOG_PROGRESS("Finished Init shear flow")
+
 
    real_t const rho = shearFlowSetup.getParameter("rho", real_c(1.0));
    pystencils::InitialPDFsSetter pdfSetter(pdfFieldId, velocityFieldId, rho);
@@ -179,10 +184,15 @@ int main(int argc, char** argv)
    {
       pdfSetter(&(*blockIt));
    }
+   WALBERLA_LOG_PROGRESS("Finished PDF setter ")
+
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT) or defined(WALBERLA_BUILD_WITH_SYCL)
    gpu::fieldCpy< GPUField, PdfField_T >(blocks, pdfFieldGPUId, pdfFieldId);
 #endif
+
+   WALBERLA_LOG_PROGRESS("Finished field copy ")
+
 
    /////////////
    /// Sweep ///
@@ -197,11 +207,15 @@ int main(int argc, char** argv)
    pystencils::SYCLTestSweep const SYCLTestSweep(pdfFieldId, velocityFieldId, omega);
 #endif
 
+   WALBERLA_LOG_PROGRESS("Finished creating sweep ")
+
+
    const FlagUID fluidFlagUID("Fluid");
    //auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
    //geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
    geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
 
+   WALBERLA_LOG_PROGRESS("Finished setting boundaries")
 
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
@@ -220,12 +234,12 @@ int main(int argc, char** argv)
    blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
    communication.addPackInfo(make_shared< PackInfo_T >(pdfFieldId));
 #endif
-   communication();
 
 
 
    // Timeloop
    if (timestepStrategy == "fullSim") {
+      communication();
       timeloop.add() << BeforeFunction(communication, "communication") << Sweep(deviceSyncWrapper(SYCLTestSweep), "SYCL Sweep");
    }
    else if (timestepStrategy == "kernelOnly") {
