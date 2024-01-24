@@ -1,6 +1,6 @@
 BlockForestParameters
 {
-   cellsPerBlock                 < 32, 32, 32 >;
+   cellsPerBlock                 < 16, 16, 16 >;
    periodicity                   < 1, 0, 1 >;
    loadBalancingFrequency        0;
    printLoadBalancingStatistics  false;
@@ -21,7 +21,7 @@ PhysicsParameters
    relaxationRate    1.8;
    enableWetting     false;
    contactAngle      0; // only used if enableWetting=true
-   timesteps         1000; //86400;
+   timesteps         11; //86400;
 }
 
 ModelParameters
@@ -40,7 +40,7 @@ ModelParameters
 
 EvaluationParameters
 {
-   performanceLogFrequency 1000;
+   performanceLogFrequency 2;
    evaluationFrequency     864;
    filename                gravity-wave.txt;
    dbPath                  ./;
@@ -52,7 +52,7 @@ BenchmarkParameters
     benchmark true;
     warmupSteps 2;
     blockDecomposition 3D; //2D, 3D
-    barrier_after_sweep true;
+    barrier_after_sweep false;
 }
 
 BoundaryParameters
@@ -80,7 +80,7 @@ VTK
 {
    fluid_field
    {
-      writeFrequency       864;
+      writeFrequency       100;
       ghostLayers          0;
       baseFolder           vtk-out;
       samplingResolution   1;
@@ -113,7 +113,7 @@ VTK
 
    domain_decomposition
    {
-      writeFrequency             0;
+      writeFrequency             100000000000000;
       baseFolder                 vtk-out;
       outputDomainDecomposition  true;
    }
