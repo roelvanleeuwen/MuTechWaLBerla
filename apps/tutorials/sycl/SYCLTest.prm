@@ -22,7 +22,7 @@ ShearFlowSetup
 
 DomainSetup
 {
-   blocks        <  1,    1, 1 >;
+   blocks        <  2,    1, 1 >;
    cellsPerBlock <  1000, 1000, 1 >;
    periodic      <  0,    0, 0 >;
    oneBlockPerProcess      true;

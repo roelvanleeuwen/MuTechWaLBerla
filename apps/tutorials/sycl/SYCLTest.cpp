@@ -142,8 +142,19 @@ int main(int argc, char** argv)
    auto blocks = blockforest::createUniformBlockGridFromConfig(walberlaEnv.config());
 #if defined(WALBERLA_BUILD_WITH_SYCL)
    WALBERLA_LOG_PROGRESS("Create SYCL queue")
-   auto syclQueue = make_shared<sycl::queue> (sycl::default_selector_v);
-   WALBERLA_LOG_INFO("Running SYCL for MPI process " << mpi::MPIManager::instance()->worldRank() << " on " << (*syclQueue).get_device().get_info<cl::sycl::info::device::name>())
+   auto mpiRank = mpi::MPIManager::instance()->worldRank();
+
+   //FOR MULTI GPU
+   std::vector<sycl::device> Devs;
+   for (const auto &plt : sycl::platform::get_platforms()) {
+      if (plt.get_backend() == sycl::backend::ext_oneapi_cuda)
+         Devs.push_back(plt.get_devices()[0]);
+   }
+   auto syclQueue = make_shared<sycl::queue> (Devs[mpiRank]);
+
+   //FOR  CPU
+   //auto syclQueue = make_shared<sycl::queue> (sycl::default_selector_v);
+   WALBERLA_LOG_INFO("Running SYCL for MPI process " << mpiRank << " on " << (*syclQueue).get_device().get_info<cl::sycl::info::device::name>())
    //WALBERLA_LOG_INFO("Max hardware threads are " << sycl::default_selector().select_device().get_info<sycl::info::device::max_compute_units>());
    blocks->setSYCLQueue(syclQueue);
 #endif
@@ -239,7 +250,6 @@ int main(int argc, char** argv)
 
    // Timeloop
    if (timestepStrategy == "fullSim") {
-      communication();
       timeloop.add() << BeforeFunction(communication, "communication") << Sweep(deviceSyncWrapper(SYCLTestSweep), "SYCL Sweep");
    }
    else if (timestepStrategy == "kernelOnly") {
