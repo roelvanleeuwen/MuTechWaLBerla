@@ -74,15 +74,11 @@ class SetParticleVelocitiesSweep
    {}
    void operator()(IBlock* block)
    {
-      // Check that uids of the spheres have not changed since the last mapping to avoid incorrect indices
+      // Check that uids of the particles have not changed since the last mapping to avoid incorrect indices
       std::vector< walberla::id_t > currentUIDs;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
-         if (mappingParticleSelector_(idx, *ac_) &&
-             ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
-         {
-            currentUIDs.push_back(ac_->getUid(idx));
-         }
+         if (mappingParticleSelector_(idx, *ac_)) { currentUIDs.push_back(ac_->getUid(idx)); }
       }
       WALBERLA_ASSERT(particleAndVolumeFractionSoA_.mappingUIDs == currentUIDs);
 
@@ -160,15 +156,11 @@ class ReduceParticleForcesSweep
    {}
    void operator()(IBlock* block)
    {
-      // Check that uids of the spheres have not changed since the last mapping to avoid incorrect indices
+      // Check that uids of the particles have not changed since the last mapping to avoid incorrect indices
       std::vector< walberla::id_t > currentUIDs;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
-         if (mappingParticleSelector_(idx, *ac_) &&
-             ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
-         {
-            currentUIDs.push_back(ac_->getUid(idx));
-         }
+         if (mappingParticleSelector_(idx, *ac_)) { currentUIDs.push_back(ac_->getUid(idx)); }
       }
       WALBERLA_ASSERT(particleAndVolumeFractionSoA_.mappingUIDs == currentUIDs);
 

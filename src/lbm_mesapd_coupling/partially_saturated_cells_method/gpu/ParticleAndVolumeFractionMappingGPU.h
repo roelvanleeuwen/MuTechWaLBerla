@@ -117,13 +117,7 @@ class SphereFractionMappingGPU
       size_t numMappedParticles = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
-         // If other shapes than spheres are mapped, ignore them here in the sphere mapping (same holds below)
-         if (mappingParticleSelector_(idx, *ac_) &&
-             ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
-         {
-            WALBERLA_ASSERT(dynamic_cast< mesa_pd::data::Sphere* >(ac_->getShape(idx)) != nullptr);
-            numMappedParticles++;
-         }
+         if (mappingParticleSelector_(idx, *ac_)) { numMappedParticles++; }
       }
 
       // Allocate unified memory storing the particle information needed for the overlap fraction computations
@@ -142,8 +136,7 @@ class SphereFractionMappingGPU
       size_t idxMapped = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
-         if (mappingParticleSelector_(idx, *ac_) &&
-             ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
+         if (mappingParticleSelector_(idx, *ac_))
          {
             // Store uids to make sure that the particles have not changed between the mapping and the PSM sweep
             particleAndVolumeFractionSoA_.mappingUIDs.push_back(ac_->getUid(idx));
@@ -152,14 +145,18 @@ class SphereFractionMappingGPU
             {
                particleAndVolumeFractionSoA_.positions[idxMapped * 3 + d] = ac_->getPosition(idx)[d];
             }
-            const real_t radius = static_cast< mesa_pd::data::Sphere* >(ac_->getShape(idx))->getRadius();
-            radii[idxMapped]    = radius;
-            real_t Va           = real_t(
-               (1.0 / 12.0 - radius * radius) * atan((0.5 * sqrt(radius * radius - 0.5)) / (0.5 - radius * radius)) +
-               1.0 / 3.0 * sqrt(radius * radius - 0.5) +
-               (radius * radius - 1.0 / 12.0) * atan(0.5 / sqrt(radius * radius - 0.5)) -
-               4.0 / 3.0 * radius * radius * radius * atan(0.25 / (radius * sqrt(radius * radius - 0.5))));
-            f_r[idxMapped] = Va - radius + real_t(0.5);
+            // If other shapes than spheres are mapped, ignore them here
+            if (ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
+            {
+               const real_t radius = static_cast< mesa_pd::data::Sphere* >(ac_->getShape(idx))->getRadius();
+               radii[idxMapped]    = radius;
+               real_t Va           = real_t(
+                  (1.0 / 12.0 - radius * radius) * atan((0.5 * sqrt(radius * radius - 0.5)) / (0.5 - radius * radius)) +
+                  1.0 / 3.0 * sqrt(radius * radius - 0.5) +
+                  (radius * radius - 1.0 / 12.0) * atan(0.5 / sqrt(radius * radius - 0.5)) -
+                  4.0 / 3.0 * radius * radius * radius * atan(0.25 / (radius * sqrt(radius * radius - 0.5))));
+               f_r[idxMapped] = Va - radius + real_t(0.5);
+            }
             idxMapped++;
          }
       }
@@ -174,29 +171,31 @@ class SphereFractionMappingGPU
       idxMapped = 0;
       for (size_t idx = 0; idx < ac_->size(); ++idx)
       {
-         if (mappingParticleSelector_(idx, *ac_) &&
-             ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
+         if (mappingParticleSelector_(idx, *ac_))
          {
-            auto sphereAABB = mesa_pd::getParticleAABB(idx, *ac_);
-            if (blockAABB.intersects(sphereAABB))
+            if (ac_->getShape(idx)->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE)
             {
-               auto intersectionAABB = blockAABB.getIntersection(sphereAABB);
-               intersectionAABB.translate(-blockAABB.minCorner());
-               mesa_pd::Vec3 blockScaling = mesa_pd::Vec3(real_t(subBlocksPerDim_[0]) / blockAABB.sizes()[0],
-                                                          real_t(subBlocksPerDim_[1]) / blockAABB.sizes()[1],
-                                                          real_t(subBlocksPerDim_[2]) / blockAABB.sizes()[2]);
-
-               for (size_t z = size_t(intersectionAABB.zMin() * blockScaling[2]);
-                    z < size_t(ceil(intersectionAABB.zMax() * blockScaling[2])); ++z)
+               auto sphereAABB = mesa_pd::getParticleAABB(idx, *ac_);
+               if (blockAABB.intersects(sphereAABB))
                {
-                  for (size_t y = size_t(intersectionAABB.yMin() * blockScaling[1]);
-                       y < size_t(ceil(intersectionAABB.yMax() * blockScaling[1])); ++y)
+                  auto intersectionAABB = blockAABB.getIntersection(sphereAABB);
+                  intersectionAABB.translate(-blockAABB.minCorner());
+                  mesa_pd::Vec3 blockScaling = mesa_pd::Vec3(real_t(subBlocksPerDim_[0]) / blockAABB.sizes()[0],
+                                                             real_t(subBlocksPerDim_[1]) / blockAABB.sizes()[1],
+                                                             real_t(subBlocksPerDim_[2]) / blockAABB.sizes()[2]);
+
+                  for (size_t z = size_t(intersectionAABB.zMin() * blockScaling[2]);
+                       z < size_t(ceil(intersectionAABB.zMax() * blockScaling[2])); ++z)
                   {
-                     for (size_t x = size_t(intersectionAABB.xMin() * blockScaling[0]);
-                          x < size_t(ceil(intersectionAABB.xMax() * blockScaling[0])); ++x)
+                     for (size_t y = size_t(intersectionAABB.yMin() * blockScaling[1]);
+                          y < size_t(ceil(intersectionAABB.yMax() * blockScaling[1])); ++y)
                      {
-                        size_t index = z * subBlocksPerDim_[0] * subBlocksPerDim_[1] + y * subBlocksPerDim_[0] + x;
-                        subBlocks[index].push_back(idxMapped);
+                        for (size_t x = size_t(intersectionAABB.xMin() * blockScaling[0]);
+                             x < size_t(ceil(intersectionAABB.xMax() * blockScaling[0])); ++x)
+                        {
+                           size_t index = z * subBlocksPerDim_[0] * subBlocksPerDim_[1] + y * subBlocksPerDim_[0] + x;
+                           subBlocks[index].push_back(idxMapped);
+                        }
                      }
                   }
                }
@@ -249,16 +248,17 @@ class SphereFractionMappingGPU
    const Vector3< uint_t > subBlocksPerDim_;
 };
 
-template< typename ParticleAccessor_T, int Weighting_T >
+template< typename ParticleAccessor_T, typename ParticleSelector_T, int Weighting_T >
 class BoxFractionMappingGPU
 {
  public:
    BoxFractionMappingGPU(const shared_ptr< StructuredBlockStorage >& blockStorage,
                          const shared_ptr< ParticleAccessor_T >& ac, const uint_t boxUid,
                          const Vector3< real_t > boxEdgeLength,
-                         ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA)
+                         ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
+                         const ParticleSelector_T& mappingParticleSelector)
       : blockStorage_(blockStorage), ac_(ac), boxUid_(boxUid), boxEdgeLength_(boxEdgeLength),
-        particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA)
+        particleAndVolumeFractionSoA_(particleAndVolumeFractionSoA), mappingParticleSelector_(mappingParticleSelector)
    {
       static_assert(std::is_base_of< mesa_pd::data::IAccessor, ParticleAccessor_T >::value,
                     "Provide a valid accessor as template");
@@ -288,7 +288,18 @@ class BoxFractionMappingGPU
       Vector3< real_t > blockStart = block->getAABB().minCorner();
       myKernel.addParam(double3{ blockStart[0], blockStart[1], blockStart[2] });
       myKernel.addParam(block->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));
-      myKernel.addParam(ac_->uidToIdx(boxUid_));
+
+      // Determine the index of the box among the mapped particles
+      size_t idxMapped = 0;
+      for (size_t idx = 0; idx < ac_->size(); ++idx)
+      {
+         if (mappingParticleSelector_(idx, *ac_))
+         {
+            if (ac_->getUid(idx) == boxUid_) { break; }
+            idxMapped++;
+         }
+      }
+      myKernel.addParam(idxMapped);
       myKernel();
    }
 
@@ -297,6 +308,7 @@ class BoxFractionMappingGPU
    const uint_t boxUid_;
    const Vector3< real_t > boxEdgeLength_;
    ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA_;
+   const ParticleSelector_T& mappingParticleSelector_;
 };
 
 } // namespace gpu
