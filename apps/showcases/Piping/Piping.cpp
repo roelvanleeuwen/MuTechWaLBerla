@@ -368,7 +368,8 @@ int main(int argc, char** argv)
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, omega);
    auto psmSelector = PSMSelector(movingBucket);
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, psmSelector, particleAndVolumeFractionSoA, numSubBlocks);
-   BoxFractionMappingGPU boxFractionMapping(blocks, accessor, boxUid, boxEdgeLength, particleAndVolumeFractionSoA);
+   BoxFractionMappingGPU boxFractionMapping(blocks, accessor, boxUid, boxEdgeLength, particleAndVolumeFractionSoA,
+                                            psmSelector);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));
