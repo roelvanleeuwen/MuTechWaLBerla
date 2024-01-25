@@ -113,7 +113,7 @@ def Artery():
     scenarios = wlb.ScenarioManager()
     #mesh_file = "Artery.obj"
     mesh_file = "coronary_colored_medium.obj"
-    scenario = Scenario(vtk_write_frequency=1000, geometry_setup="artery", mesh_file=mesh_file, timesteps=5001, omega=1.7, cells_per_block=(50, 50, 50), porosity_switch=0.8, run_hybrid=True, time_step_strategy="noOverlap", run_boundaries=True)
+    scenario = Scenario(vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=501, omega=1.7, cells_per_block=(50, 50, 50), porosity_switch=0.8, run_hybrid=True, time_step_strategy="noOverlap", run_boundaries=True)
     scenarios.add(scenario)
 
 def particleBed():

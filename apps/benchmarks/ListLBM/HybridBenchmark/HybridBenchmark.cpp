@@ -147,6 +147,16 @@ void vertexToFaceColor(MeshType &mesh, const typename MeshType::Color &defaultCo
    }
 }
 
+auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
+   return [sweep](IBlock* b) {
+      sweep(b);
+#if defined(WALBERLA_BUILD_WITH_CUDA)
+      cudaDeviceSynchronize();
+#endif
+   };
+};
+
+
 int main(int argc, char **argv)
 {
    walberla::Environment walberlaEnv(argc, argv);
@@ -509,17 +519,17 @@ int main(int argc, char **argv)
       if (timeStepStrategy == "noOverlap") {
          timeloop.add() << BeforeFunction(std::function< void() >([&]() { comm.communicate(); }), "communication") << Sweep(emptySweep);
          if(runBoundaries) {
-            timeloop.add() << Sweep(denseNoSlip.getSweep(tracker), "denseNoslip", sweepSelectHighPorosity, sweepSelectLowPorosity);
-            timeloop.add() << Sweep(sparseUbb.getSweep(tracker), "sparseUbb", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                           << Sweep(denseUbb.getSweep(tracker), "denseUbb", sweepSelectHighPorosity, sweepSelectLowPorosity);
-            timeloop.add() << Sweep(sparsePressureInflow.getSweep(tracker), "sparsePressureInflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                           << Sweep(densePressureInflow.getSweep(tracker), "densePressureInflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
-            timeloop.add() << Sweep(sparsePressureOutflow.getSweep(tracker), "sparsePressureOutflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                           << Sweep(densePressureOutflow.getSweep(tracker), "densePressureOutflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(deviceSyncWrapper(denseNoSlip.getSweep(tracker)), "denseNoslip", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(deviceSyncWrapper(sparseUbb.getSweep(tracker)), "sparseUbb", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(deviceSyncWrapper(denseUbb.getSweep(tracker)), "denseUbb", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(deviceSyncWrapper(sparsePressureInflow.getSweep(tracker)), "sparsePressureInflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(deviceSyncWrapper(densePressureInflow.getSweep(tracker)), "densePressureInflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(deviceSyncWrapper(sparsePressureOutflow.getSweep(tracker)), "sparsePressureOutflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(deviceSyncWrapper(densePressureOutflow.getSweep(tracker)), "densePressureOutflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
          }
          timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
-         timeloop.add() << Sweep(sparseKernel.getSweep(tracker), "sparseKernel", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                        << Sweep(denseKernel.getSweep(tracker), "denseKernel", sweepSelectHighPorosity, sweepSelectLowPorosity);
+         timeloop.add() << Sweep(deviceSyncWrapper(sparseKernel.getSweep(tracker)), "sparseKernel", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                        << Sweep(deviceSyncWrapper(denseKernel.getSweep(tracker)), "denseKernel", sweepSelectHighPorosity, sweepSelectLowPorosity);
       }
       else if (timeStepStrategy == "Overlap"){
          //start communication
@@ -527,18 +537,18 @@ int main(int argc, char **argv)
 
          //run inner boundaries
          if(runBoundaries) {
-            timeloop.add() << Sweep(denseNoSlip.getSweep(tracker), "denseNoslip", sweepSelectHighPorosity, sweepSelectLowPorosity);
-            timeloop.add() << Sweep(sparseUbb.getSweep(tracker), "sparseUbb", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                           << Sweep(denseUbb.getSweep(tracker), "denseUbb", sweepSelectHighPorosity, sweepSelectLowPorosity);
-            timeloop.add() << Sweep(sparsePressureInflow.getSweep(tracker), "sparsePressureInflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                           << Sweep(densePressureInflow.getSweep(tracker), "densePressureInflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
-            timeloop.add() << Sweep(sparsePressureOutflow.getSweep(tracker), "sparsePressureOutflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                           << Sweep(densePressureOutflow.getSweep(tracker), "densePressureOutflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(deviceSyncWrapper(denseNoSlip.getSweep(tracker)), "denseNoslip", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(deviceSyncWrapper(sparseUbb.getSweep(tracker)), "sparseUbb", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(deviceSyncWrapper(denseUbb.getSweep(tracker)), "denseUbb", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(deviceSyncWrapper(sparsePressureInflow.getSweep(tracker)), "sparsePressureInflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(deviceSyncWrapper(densePressureInflow.getSweep(tracker)), "densePressureInflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
+            timeloop.add() << Sweep(deviceSyncWrapper(sparsePressureOutflow.getSweep(tracker)), "sparsePressureOutflow", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                           << Sweep(deviceSyncWrapper(densePressureOutflow.getSweep(tracker)), "densePressureOutflow", sweepSelectHighPorosity, sweepSelectLowPorosity);
          }
          //increase tracker and run inner LBM kernel
          timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
-         timeloop.add() << Sweep(sparseKernel.getInnerSweep(tracker), "sparseKernel inner", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                        << Sweep(denseKernel.getInnerSweep(tracker), "denseKernel inner", sweepSelectHighPorosity, sweepSelectLowPorosity);
+         timeloop.add() << Sweep(deviceSyncWrapper(sparseKernel.getInnerSweep(tracker)), "sparseKernel inner", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                        << Sweep(deviceSyncWrapper(denseKernel.getInnerSweep(tracker)), "denseKernel inner", sweepSelectHighPorosity, sweepSelectLowPorosity);
 
          //decrease tracker and run wait communication and outer boundaries
          timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << BeforeFunction(std::function< void() >([&]() { comm.wait(); }), "communication") << Sweep(emptySweep);
@@ -551,15 +561,15 @@ int main(int argc, char **argv)
          }*/
          //increase tracker again and run outer LBM kernel
          timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
-         timeloop.add() << Sweep(sparseKernel.getOuterSweep(tracker), "sparseKernel outer", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                        << Sweep(denseKernel.getOuterSweep(tracker), "denseKernel outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
+         timeloop.add() << Sweep(deviceSyncWrapper(sparseKernel.getOuterSweep(tracker)), "sparseKernel outer", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                        << Sweep(deviceSyncWrapper(denseKernel.getOuterSweep(tracker)), "denseKernel outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
       }
       else if (timeStepStrategy == "kernelOnly")
       {
          WALBERLA_LOG_INFO_ON_ROOT("Running only compute kernel without boundary - this makes only sense for benchmarking!")
          timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
-         timeloop.add() << Sweep(sparseKernel.getSweep(tracker), "sparseKernel", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                        << Sweep(denseKernel.getSweep(tracker), "denseKernel", sweepSelectHighPorosity, sweepSelectLowPorosity);
+         timeloop.add() << Sweep(deviceSyncWrapper(sparseKernel.getSweep(tracker)), "sparseKernel", sweepSelectLowPorosity, sweepSelectHighPorosity)
+                        << Sweep(deviceSyncWrapper(denseKernel.getSweep(tracker)), "denseKernel", sweepSelectHighPorosity, sweepSelectLowPorosity);
       }
       else if (timeStepStrategy == "communicationOnly")
       {

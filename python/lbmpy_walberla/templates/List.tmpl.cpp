@@ -138,7 +138,6 @@ void {{class_name}}::syncGPU()
 
    WALBERLA_CUDA_CHECK( cudaMalloc( &pullIdxsOuterGPU_, sizeof(uint32_t) * pullIdxsOuter_.size() ));
    WALBERLA_CUDA_CHECK( cudaMemcpy( pullIdxsOuterGPU_, &pullIdxsOuter_[0], sizeof(uint32_t) * pullIdxsOuter_.size(), cudaMemcpyHostToDevice ));
-   WALBERLA_LOG_INFO_ON_ROOT("Synced Data to GPU")
 }
 
 void {{class_name}}::copyPDFSToCPU()
