@@ -387,7 +387,7 @@ int main(int argc, char** argv)
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, 0, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
-   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
+   auto communication = std::function< void() >([&]() { com.communicate(); });
 
    using TorqueEval_T                    = TorqueEval< ParticleAccessor_T >;
    shared_ptr< TorqueEval_T > torqueEval = make_shared< TorqueEval_T >(&timeloop, &setup, blocks, accessor, fileIO);

@@ -788,7 +788,7 @@ int main(int argc, char** argv)
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, 1, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
-   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
+   auto communication = std::function< void() >([&]() { com.communicate(); });
 
    // create the timeloop
    const uint_t timesteps = uint_c(1000000000); // just some large value

@@ -957,7 +957,7 @@ int main(int argc, char** argv)
 
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, 1, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
-   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
+   auto communication = std::function< void() >([&]() { com.communicate(); });
 
    // create the timeloop
    const uint_t timesteps = uint_c(real_t(3) * initialPosition[2] / uIn);

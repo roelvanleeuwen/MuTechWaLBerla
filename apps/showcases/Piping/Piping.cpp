@@ -397,7 +397,7 @@ int main(int argc, char** argv)
    // sendDirectlyFromGPU should be true if GPUDirect is available
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, false, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
-   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
+   auto communication = std::function< void() >([&]() { com.communicate(); });
 
    SweepTimeloop timeloop(blocks->getBlockStorage(), timeSteps);
 

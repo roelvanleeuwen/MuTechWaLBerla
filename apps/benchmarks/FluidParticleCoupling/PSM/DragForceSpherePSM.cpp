@@ -435,7 +435,7 @@ int main(int argc, char** argv)
    // setup of the LBM communication for synchronizing the pdf field between neighboring blocks
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, 0, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
-   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
+   auto communication = std::function< void() >([&]() { com.communicate(); });
 
    // add particle and volume fraction data structures
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, omega);
