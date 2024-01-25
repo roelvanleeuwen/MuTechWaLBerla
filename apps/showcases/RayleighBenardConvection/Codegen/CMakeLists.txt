@@ -16,7 +16,7 @@ if( WALBERLA_BUILD_WITH_CODEGEN )
             PackInfo_hydro.cpp PackInfo_hydro.h
             GenDefines.h)
 
-    waLBerla_add_executable(NAME RayleighBenardConvection
-            FILES RayleighBenardConvection.cpp InitializerFunctions.cpp RayleighBenardConvection_codegen.py
+    waLBerla_add_executable(NAME RayleighBenardConvectionCodegen
+            FILES RayleighBenardConvectionCodegen.cpp InitializerFunctions.cpp RayleighBenardConvection_codegen.py
             DEPENDS blockforest core field postprocessing python_coupling lbm geometry timeloop RayleighBenardConvectionCodeGen)
 endif()
