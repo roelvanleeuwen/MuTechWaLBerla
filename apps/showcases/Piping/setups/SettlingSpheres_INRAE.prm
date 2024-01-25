@@ -7,7 +7,7 @@ BedGeneration{
     maxDiameter_SI 3.3e-3;
     gravity_SI 9.81;
     densityFluid_SI 1179;
-    densityParticle_SI 2200;
+    densityParticle_SI 2650;
     generationSpacing_SI 5e-3;
     initialVelocity_SI 0.05;
     dt_SI 5e-5; // decrease dt_SI to get lower particle velocity in the end
