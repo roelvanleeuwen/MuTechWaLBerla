@@ -6,19 +6,17 @@ import pystencils as ps
 from pystencils.simp.subexpression_insertion import insert_zeros, insert_aliases, insert_constants,\
     insert_symbol_times_minus_one
 
-from lbmpy.advanced_streaming import Timestep, is_inplace
-from lbmpy.advanced_streaming.utility import streaming_patterns
+from lbmpy.advanced_streaming import is_inplace
+from lbmpy.advanced_streaming.utility import streaming_patterns, get_accessor, Timestep
 from lbmpy.boundaries import NoSlip, UBB
 from lbmpy.creationfunctions import LBMConfig, LBMOptimisation, LBStencil, create_lb_collision_rule
 from lbmpy.enums import Method, Stencil
 from lbmpy.fieldaccess import CollideOnlyInplaceAccessor
-from lbmpy.macroscopic_value_kernels import macroscopic_values_getter, macroscopic_values_setter
+from lbmpy.moments import get_default_moment_set_for_stencil
 from lbmpy.updatekernels import create_stream_only_kernel
 
-from pystencils_walberla import CodeGeneration, generate_pack_info_from_kernel, generate_sweep,\
-    generate_mpidtype_info_from_kernel, generate_info_header
-
-from lbmpy_walberla import generate_alternating_lbm_sweep, generate_alternating_lbm_boundary, generate_lb_pack_info
+from pystencils_walberla import CodeGeneration, generate_info_header, generate_sweep
+from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator
 
 omega = sp.symbols('omega')
 omega_free = sp.Symbol('omega_free')
@@ -28,40 +26,40 @@ options_dict = {
     'srt': {
         'method': Method.SRT,
         'relaxation_rate': omega,
-        'compressible': False,
+        'compressible': True,
     },
     'trt': {
         'method': Method.TRT,
         'relaxation_rate': omega,
-        'compressible': False,
+        'compressible': True,
     },
-    'mrt': {
+    'r-w-mrt': {
         'method': Method.MRT,
         'relaxation_rates': [omega, 1, 1, 1, 1, 1, 1],
-        'compressible': False,
+        'compressible': True,
     },
-    'mrt-overrelax': {
+    'w-mrt': {
         'method': Method.MRT,
         'relaxation_rates': [omega] + [1 + x * 1e-2 for x in range(1, 11)],
-        'compressible': False,
+        'compressible': True,
     },
-    'central': {
+    'r-cm': {
         'method': Method.CENTRAL_MOMENT,
         'relaxation_rate': omega,
         'compressible': True,
     },
-    'central-overrelax': {
+    'cm': {
         'method': Method.CENTRAL_MOMENT,
         'relaxation_rates': [omega] + [1 + x * 1e-2 for x in range(1, 11)],
         'compressible': True,
     },
-    'cumulant': {
-        'method': Method.MONOMIAL_CUMULANT,
+    'r-k': {
+        'method': Method.CUMULANT,
         'relaxation_rate': omega,
         'compressible': True,
     },
-    'cumulant-overrelax': {
-        'method': Method.MONOMIAL_CUMULANT,
+    'k': {
+        'method': Method.CUMULANT,
         'relaxation_rates': [omega] + [1 + x * 1e-2 for x in range(1, 18)],
         'compressible': True,
     },
@@ -89,9 +87,6 @@ const bool infoCseGlobal = {cse_global};
 const bool infoCsePdfs = {cse_pdfs};
 """
 
-# DEFAULTS
-optimize = True
-
 with CodeGeneration() as ctx:
     openmp = True if ctx.openmp else False
     field_type = "float64" if ctx.double_accuracy else "float32"
@@ -107,9 +102,6 @@ with CodeGeneration() as ctx:
     streaming_pattern = config_tokens[1]
     collision_setup = config_tokens[2]
 
-    if len(config_tokens) >= 4:
-        optimize = (config_tokens[3] != 'noopt')
-
     if stencil_str == "d3q27":
         stencil = LBStencil(Stencil.D3Q27)
     elif stencil_str == "d3q19":
@@ -121,14 +113,16 @@ with CodeGeneration() as ctx:
 
     options = options_dict[collision_setup]
 
-    q = stencil.Q
-    dim = stencil.D
-    assert dim == 3, "This app supports only three-dimensional stencils"
-    pdfs, pdfs_tmp = ps.fields(f"pdfs({q}), pdfs_tmp({q}): {field_type}[3D]", layout='fzyx')
+    assert stencil.D == 3, "This application supports only three-dimensional stencils"
+    pdfs, pdfs_tmp = ps.fields(f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {field_type}[3D]", layout='fzyx')
     density_field, velocity_field = ps.fields(f"density, velocity(3) : {field_type}[3D]", layout='fzyx')
+    macroscopic_fields = {'density': density_field, 'velocity': velocity_field}
 
     lbm_config = LBMConfig(stencil=stencil, field_name=pdfs.name, streaming_pattern=streaming_pattern, **options)
     lbm_opt = LBMOptimisation(cse_global=True, cse_pdfs=False, symbolic_field=pdfs, field_layout='fzyx')
+
+    if lbm_config.method == Method.CENTRAL_MOMENT:
+        lbm_config = replace(lbm_config, nested_moments=get_default_moment_set_for_stencil(stencil))
 
     if not is_inplace(streaming_pattern):
         lbm_opt = replace(lbm_opt, symbolic_temporary_field=pdfs_tmp)
@@ -139,59 +133,31 @@ with CodeGeneration() as ctx:
     # Sweep for Stream only. This is for benchmarking an empty streaming pattern without LBM.
     # is_inplace is set to False to ensure that the streaming is done with src and dst field.
     # If this is not the case the compiler might simplify the streaming in a way that benchmarking makes no sense.
-    accessor = CollideOnlyInplaceAccessor()
-    accessor.is_inplace = False
-    field_swaps_stream_only = [(pdfs, pdfs_tmp)]
-    stream_only_kernel = create_stream_only_kernel(stencil, pdfs, pdfs_tmp, accessor=accessor)
+    # accessor = CollideOnlyInplaceAccessor()
+    accessor = get_accessor(streaming_pattern, Timestep.EVEN)
+    #accessor.is_inplace = False
+    field_swaps_stream_only = () if accessor.is_inplace else [(pdfs, pdfs_tmp)]
+    stream_only_kernel = create_stream_only_kernel(stencil, pdfs, None if accessor.is_inplace else pdfs_tmp, accessor=accessor)
 
     # LB Sweep
     collision_rule = create_lb_collision_rule(lbm_config=lbm_config, lbm_optimisation=lbm_opt)
 
-    if optimize:
-        collision_rule = insert_constants(collision_rule)
-        collision_rule = insert_zeros(collision_rule)
-        collision_rule = insert_aliases(collision_rule)
-        collision_rule = insert_symbol_times_minus_one(collision_rule)
+    no_slip = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip',
+                                     boundary_object=NoSlip())
+    ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
+                                 boundary_object=UBB([0.05, 0, 0], data_type=field_type))
 
-    lb_method = collision_rule.method
-
-    generate_alternating_lbm_sweep(ctx, 'UniformGridCPU_LbKernel', collision_rule, lbm_config=lbm_config,
-                                   lbm_optimisation=lbm_opt, target=ps.Target.CPU,
-                                   inner_outer_split=True, field_swaps=field_swaps,
-                                   cpu_openmp=openmp, cpu_vectorize_info=cpu_vec)
-    
-    # getter & setter
-    setter_assignments = macroscopic_values_setter(lb_method,
-                                                   density=density_field.center, velocity=velocity_field.center_vector,
-                                                   pdfs=pdfs,
-                                                   streaming_pattern=streaming_pattern,
-                                                   previous_timestep=Timestep.EVEN)
-    getter_assignments = macroscopic_values_getter(lb_method,
-                                                   density=density_field, velocity=velocity_field,
-                                                   pdfs=pdfs,
-                                                   streaming_pattern=streaming_pattern,
-                                                   previous_timestep=Timestep.EVEN)
-
-    generate_sweep(ctx, 'UniformGridCPU_MacroSetter', setter_assignments, target=ps.Target.CPU, cpu_openmp=openmp)
-    generate_sweep(ctx, 'UniformGridCPU_MacroGetter', getter_assignments, target=ps.Target.CPU, cpu_openmp=openmp)
+    generate_lbm_package(ctx, name="UniformGridCPU",
+                         collision_rule=collision_rule,
+                         lbm_config=lbm_config, lbm_optimisation=lbm_opt,
+                         nonuniform=False, boundaries=[no_slip, ubb],
+                         macroscopic_fields=macroscopic_fields,
+                         cpu_openmp=openmp, cpu_vectorize_info=cpu_vec)
 
     # Stream only kernel
-    generate_sweep(ctx, 'UniformGridCPU_StreamOnlyKernel', stream_only_kernel, field_swaps=field_swaps_stream_only,
+    generate_sweep(ctx, 'UniformGridCPU_StreamOnlyKernel', stream_only_kernel,
+                   field_swaps=field_swaps_stream_only,
                    target=ps.Target.CPU, cpu_openmp=openmp)
-
-    # Boundaries
-    noslip = NoSlip()
-    ubb = UBB((0.05, 0, 0), data_type=field_type)
-
-    generate_alternating_lbm_boundary(ctx, 'UniformGridCPU_NoSlip', noslip, lb_method, field_name=pdfs.name,
-                                      streaming_pattern=streaming_pattern, target=ps.Target.CPU, cpu_openmp=openmp)
-    generate_alternating_lbm_boundary(ctx, 'UniformGridCPU_UBB', ubb, lb_method, field_name=pdfs.name,
-                                      streaming_pattern=streaming_pattern, target=ps.Target.CPU, cpu_openmp=openmp)
-
-    # communication
-    generate_lb_pack_info(ctx, 'UniformGridCPU_PackInfo', stencil, pdfs,
-                          streaming_pattern=streaming_pattern, target=ps.Target.CPU,
-                          always_generate_separate_classes=True)
 
     infoHeaderParams = {
         'stencil': stencil_str,
@@ -201,13 +167,10 @@ with CodeGeneration() as ctx:
         'cse_pdfs': int(lbm_opt.cse_pdfs),
     }
 
-    stencil_typedefs = {'Stencil_T': stencil,
-                        'CommunicationStencil_T': stencil}
-    field_typedefs = {'PdfField_T': pdfs,
-                      'VelocityField_T': velocity_field,
+    field_typedefs = {'VelocityField_T': velocity_field,
                       'ScalarField_T': density_field}
 
     # Info header containing correct template definitions for stencil and field
     generate_info_header(ctx, 'UniformGridCPU_InfoHeader',
-                         stencil_typedefs=stencil_typedefs, field_typedefs=field_typedefs,
+                         field_typedefs=field_typedefs,
                          additional_code=info_header.format(**infoHeaderParams))

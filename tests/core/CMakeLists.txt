@@ -21,11 +21,6 @@ waLBerla_execute_test( NAME CellIntervalTest )
 waLBerla_compile_test( FILES config/ConfigTest.cpp )
 waLBerla_execute_test( NAME ConfigTest COMMAND $<TARGET_FILE:ConfigTest> ${CMAKE_CURRENT_SOURCE_DIR}/config/ConfigTest.dat )
 
-if( WALBERLA_BUILD_WITH_BOOST )
-   waLBerla_compile_test( FILES config/MultiArrayIOTest.cpp )
-   waLBerla_execute_test( NAME MultiArrayIOTest COMMAND $<TARGET_FILE:MultiArrayIOTest> )
-endif( WALBERLA_BUILD_WITH_BOOST )
-
 #########
 # debug #
 #########
@@ -81,25 +76,9 @@ waLBerla_execute_test( NAME Matrix3Test )
 waLBerla_compile_test( FILES math/GenericAABBTest.cpp DEPENDS stencil domain_decomposition )
 waLBerla_execute_test( NAME GenericAABBTest )
 
-if( WALBERLA_BUILD_WITH_BOOST )
-   waLBerla_compile_test( FILES math/PhysicalCheckTest.cpp DEPENDS stencil )
-   waLBerla_execute_test( NAME PhysicalCheckTest
-         COMMAND $<TARGET_FILE:PhysicalCheckTest> ${CMAKE_CURRENT_SOURCE_DIR}/math/PhysicalCheckTestInput.prm
-         DEPENDS_ON_TARGETS PhysicalCheckTest )
-endif( WALBERLA_BUILD_WITH_BOOST )
-
 
 waLBerla_compile_test( FILES math/FastInvSqrtTest.cpp )
 waLBerla_execute_test( NAME FastInvSqrtTest )
-
-########################
-# math/equation_system #
-########################
-
-if( WALBERLA_BUILD_WITH_BOOST )
-   waLBerla_compile_test( FILES math/equation_system/EquationSolverTest.cpp )
-   waLBerla_execute_test( NAME EquationSolverTest )
-endif( WALBERLA_BUILD_WITH_BOOST )
 
 #######
 # mpi #
@@ -193,6 +172,9 @@ waLBerla_compile_test( FILES DebugSTLTest.cpp )
 waLBerla_execute_test( NAME DebugSTLTest )
 set_tests_properties(DebugSTLTest PROPERTIES WILL_FAIL TRUE)
 
+waLBerla_compile_test( FILES FP16Test.cpp )
+waLBerla_execute_test( NAME FP16Test )
+
 waLBerla_compile_test( FILES FunctionTraitsTest.cpp )
 waLBerla_execute_test( NAME FunctionTraitsTest )
 
@@ -240,3 +222,17 @@ if( WALBERLA_BUILD_WITH_PARMETIS )
    waLBerla_compile_test( NAME PlainParMetisTest FILES load_balancing/PlainParMetisTest.cpp )
    waLBerla_execute_test( NAME PlainParMetisTest PROCESSES 3 )
 endif()
+
+###################
+# Mixed Precision #
+###################
+
+if ( WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT )
+   waLBerla_compile_test( Name Float16SupportTest FILES Float16SupportTest.cpp DEPENDS core)
+   # Actual support for float16 is available only since C++23
+   #   before is_arithmetic and is_floating_point evaluated to false,
+   #   also many STL functions are compatible with float16 only since C++23.
+   # Which features are actually supported depend on the compiler
+   target_compile_features( Float16SupportTest PUBLIC cxx_std_23 )
+   waLBerla_execute_test(NAME Float16SupportTest)
+endif ()

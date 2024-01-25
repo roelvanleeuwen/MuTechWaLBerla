@@ -26,11 +26,12 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
       add_subdirectory( UniformGridCPU )
       add_subdirectory( PhaseFieldAllenCahn )
       add_subdirectory( ListLBM )
-
+      add_subdirectory( NonUniformGridCPU )
    endif()
 
-   if ( WALBERLA_BUILD_WITH_CODEGEN AND WALBERLA_BUILD_WITH_CUDA )
+   if ( WALBERLA_BUILD_WITH_CODEGEN AND WALBERLA_BUILD_WITH_GPU_SUPPORT )
       add_subdirectory( UniformGridGPU )
+      add_subdirectory( NonUniformGridGPU )
    endif()
 
 endif()

@@ -151,7 +151,7 @@ public:
    void sendAll();
    void send( MPIRank rank );
 
-   iterator begin() { WALBERLA_ASSERT( communicationRunning_); return iterator( *this, true ); }
+   iterator begin() { WALBERLA_ASSERT( communicationRunning_) return iterator( *this, true ); }
    iterator end()   {                                          return iterator( *this, false); }
    //@}
    //*******************************************************************************************************************
@@ -190,7 +190,7 @@ public:
    //@{
    bool isSizeCommunicatedInNextStep() const { return (currentComm_ == &unknownSizeComm_); }
    bool isCommunicationRunning() const       { return communicationRunning_;               }
-   bool isReceiverInformationSet() const     { return currentComm_ != NULL;                }
+   bool isReceiverInformationSet() const     { return currentComm_ != nullptr;                }
    //@}
    //*******************************************************************************************************************
 
@@ -245,9 +245,9 @@ protected:
 
 
    struct SendInfo {
-      SendInfo() : alreadySent(false) {}
+      SendInfo()= default;
       SendBuffer_T buffer;
-      bool alreadySent;
+      bool alreadySent{false};
    };
    std::map<MPIRank, SendInfo> sendInfos_;
 

@@ -66,6 +66,9 @@ namespace mpistubs {
 #   pragma GCC diagnostic ignored "-Wsign-conversion"
 #endif
 #include <mpi.h>
+#if defined(OPEN_MPI) && OPEN_MPI
+#include <mpi-ext.h>
+#endif
 #if ( defined WALBERLA_CXX_COMPILER_IS_GNU ) || ( defined WALBERLA_CXX_COMPILER_IS_CLANG )
 #   pragma GCC diagnostic pop
 #endif
@@ -119,6 +122,8 @@ struct MPI_Status
 
 const int MPI_COMM_NULL  = 0;
 const int MPI_COMM_WORLD = 1;
+
+const int MPI_COMM_TYPE_SHARED = 0;
 
 const int MPI_SUCCESS = 1;
 
@@ -202,11 +207,14 @@ inline int MPI_Comm_size( MPI_Comm, int* ) { WALBERLA_MPI_FUNCTION_ERROR }
 inline int MPI_Comm_rank( MPI_Comm, int* ) { WALBERLA_MPI_FUNCTION_ERROR }
 inline int MPI_Comm_get_name( MPI_Comm, char*, int* ) { WALBERLA_MPI_FUNCTION_ERROR }
 
-inline int MPI_Comm_group ( MPI_Comm, MPI_Group* )           { WALBERLA_MPI_FUNCTION_ERROR }
-inline int MPI_Comm_create( MPI_Comm, MPI_Group, MPI_Comm* ) { WALBERLA_MPI_FUNCTION_ERROR }
-inline int MPI_Comm_free  ( MPI_Comm* )                      { WALBERLA_MPI_FUNCTION_ERROR }
-inline int MPI_Comm_dup   ( MPI_Comm, MPI_Comm *)            { WALBERLA_MPI_FUNCTION_ERROR }
-inline int MPI_Comm_split ( MPI_Comm, int, int, MPI_Comm *)  { WALBERLA_MPI_FUNCTION_ERROR }
+inline int MPI_Info_create ( MPI_Info * ) { WALBERLA_MPI_FUNCTION_ERROR }
+
+inline int MPI_Comm_group ( MPI_Comm, MPI_Group* )                         { WALBERLA_MPI_FUNCTION_ERROR }
+inline int MPI_Comm_create( MPI_Comm, MPI_Group, MPI_Comm* )               { WALBERLA_MPI_FUNCTION_ERROR }
+inline int MPI_Comm_free  ( MPI_Comm* )                                    { WALBERLA_MPI_FUNCTION_ERROR }
+inline int MPI_Comm_dup   ( MPI_Comm, MPI_Comm *)                          { WALBERLA_MPI_FUNCTION_ERROR }
+inline int MPI_Comm_split ( MPI_Comm, int, int, MPI_Comm *)                { WALBERLA_MPI_FUNCTION_ERROR }
+inline int MPI_Comm_split_type ( MPI_Comm, int, int, MPI_Info, MPI_Comm *) { WALBERLA_MPI_FUNCTION_ERROR }
 
 
 inline int MPI_Cart_create( MPI_Comm, int, int*, int*, int, MPI_Comm* ) { WALBERLA_MPI_FUNCTION_ERROR }
@@ -345,6 +353,9 @@ WALBERLA_CREATE_MPITRAIT_SPECIALIZATION( unsigned short int , MPI_UNSIGNED_SHORT
 WALBERLA_CREATE_MPITRAIT_SPECIALIZATION( unsigned int       , MPI_UNSIGNED           );
 WALBERLA_CREATE_MPITRAIT_SPECIALIZATION( unsigned long int  , MPI_UNSIGNED_LONG      );
 WALBERLA_CREATE_MPITRAIT_SPECIALIZATION( unsigned long long , MPI_UNSIGNED_LONG_LONG );
+#ifdef WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT
+   WALBERLA_CREATE_MPITRAIT_SPECIALIZATION( walberla::float16  , MPI_WCHAR              );
+#endif
 WALBERLA_CREATE_MPITRAIT_SPECIALIZATION( float              , MPI_FLOAT              );
 WALBERLA_CREATE_MPITRAIT_SPECIALIZATION( double             , MPI_DOUBLE             );
 WALBERLA_CREATE_MPITRAIT_SPECIALIZATION( long double        , MPI_LONG_DOUBLE        );

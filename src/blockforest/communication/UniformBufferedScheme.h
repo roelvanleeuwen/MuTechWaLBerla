@@ -160,6 +160,7 @@ public:
 
    std::function<void()> getStartCommunicateFunctor();
    std::function<void()> getWaitFunctor();
+   std::function<void()> getCommunicateFunctor();
    //@}
    //*******************************************************************************************************************
 
@@ -314,7 +315,7 @@ void UniformBufferedScheme<Stencil>::startCommunication()
                {
                   if( localMode_ == BUFFER )
                   {
-                     SendBuffer buffer;
+                     SendBuffer const buffer;
                      localBuffers_.push_back( buffer );
                      const uint_t index = uint_c( localBuffers_.size() ) - uint_t(1);
 
@@ -545,6 +546,11 @@ std::function<void()> UniformBufferedScheme<Stencil>::getWaitFunctor()
    return std::bind( &UniformBufferedScheme::wait, this );
 }
 
+template< typename Stencil >
+std::function<void()> UniformBufferedScheme<Stencil>::getCommunicateFunctor()
+{
+   return std::bind( &UniformBufferedScheme::communicate, this );
+}
 
 } // namespace communication
 } // namespace blockforest

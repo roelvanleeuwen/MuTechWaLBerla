@@ -144,7 +144,7 @@ void TimingTree<TP>::swap(TimingTree<TP>& tt)
 template< typename TP >  // Timing policy
 void TimingTree<TP>::start(const std::string& name)
 {
-   if (name.find_first_of(".") != std::string::npos)
+   if (name.find_first_of('.') != std::string::npos)
    {
       WALBERLA_LOG_WARNING("'.' not allowed in timer name!");
    }
@@ -158,7 +158,7 @@ void TimingTree<TP>::start(const std::string& name)
 template< typename TP >  // Timing policy
 void TimingTree<TP>::stop(const std::string& name)
 {
-   if (name.find_first_of(".") != std::string::npos)
+   if (name.find_first_of('.') != std::string::npos)
    {
       WALBERLA_LOG_WARNING("'.' not allowed in timer name!");
    }
@@ -259,5 +259,6 @@ TimingTree< TP > TimingTree< TP >::getCopyWithRemainder() const
 }
 
 using WcTimingTree = timing::TimingTree<timing::WcPolicy>;
+using DeviceSynchronizeTimingTree = timing::TimingTree<timing::DeviceSynchronizePolicy>;
 using CpuTimingTree = timing::TimingTree<timing::CpuPolicy>;
 }

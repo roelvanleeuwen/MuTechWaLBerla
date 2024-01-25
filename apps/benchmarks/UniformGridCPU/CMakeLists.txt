@@ -5,7 +5,7 @@ waLBerla_link_files_to_builddir( "simulation_setup" )
 
 foreach(streaming_pattern pull push aa esotwist)
     foreach(stencil d3q19 d3q27)
-        foreach (collision_setup srt trt mrt mrt-overrelax central central-overrelax cumulant cumulant-overrelax entropic smagorinsky)
+        foreach (collision_setup srt trt w-mrt r-w-mrt cm r-cm k r-k entropic smagorinsky)
 	    # KBC methods only for D2Q9 and D3Q27 defined
 	    if (${collision_setup} STREQUAL "entropic" AND ${stencil} STREQUAL "d3q19")
 		    continue()
@@ -15,13 +15,11 @@ foreach(streaming_pattern pull push aa esotwist)
             waLBerla_generate_target_from_python(NAME UniformGridCPUGenerated_${config}
                     FILE UniformGridCPU.py
                     CODEGEN_CFG ${config}
-                    OUT_FILES   UniformGridCPU_LbKernel.cpp UniformGridCPU_LbKernel.h
-                    UniformGridCPU_PackInfoEven.cpp UniformGridCPU_PackInfoEven.h
-                    UniformGridCPU_PackInfoOdd.cpp UniformGridCPU_PackInfoOdd.h
-                    UniformGridCPU_NoSlip.cpp UniformGridCPU_NoSlip.h
-                    UniformGridCPU_UBB.cpp UniformGridCPU_UBB.h
-                    UniformGridCPU_MacroSetter.cpp UniformGridCPU_MacroSetter.h
-                    UniformGridCPU_MacroGetter.cpp UniformGridCPU_MacroGetter.h
+                    OUT_FILES UniformGridCPUStorageSpecification.h UniformGridCPUStorageSpecification.cpp
+                    UniformGridCPUSweepCollection.h UniformGridCPUSweepCollection.cpp
+                    NoSlip.cpp NoSlip.h
+                    UBB.cpp UBB.h
+                    UniformGridCPUBoundaryCollection.h
                     UniformGridCPU_StreamOnlyKernel.cpp UniformGridCPU_StreamOnlyKernel.h
                     UniformGridCPU_InfoHeader.h
                     )

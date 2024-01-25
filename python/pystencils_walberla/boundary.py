@@ -2,13 +2,10 @@ import numpy as np
 from jinja2 import Environment, PackageLoader, StrictUndefined
 from pystencils import Field, FieldType, Target
 from pystencils.boundaries.boundaryhandling import create_boundary_kernel
-from pystencils.boundaries.createindexlist import (
-    boundary_index_array_coordinate_names, direction_member_name,
-    numpy_data_type_for_boundary_object)
+from pystencils.boundaries.createindexlist import numpy_data_type_for_boundary_object
 from pystencils.typing import TypedSymbol, create_type
-from pystencils.stencil import inverse_direction
 
-from pystencils_walberla.codegen import config_from_context
+from pystencils_walberla.utility import config_from_context, struct_from_numpy_dtype
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
 from pystencils_walberla.additional_data_handler import AdditionalDataHandler
 from pystencils_walberla.kernel_selection import (
@@ -22,7 +19,9 @@ def generate_boundary(generation_context,
                       field_name,
                       neighbor_stencil,
                       index_shape,
+                      spatial_shape=None,
                       field_type=FieldType.GENERIC,
+                      field_data_type=None,
                       kernel_creation_function=None,
                       target=Target.CPU,
                       data_type=None,
@@ -32,6 +31,7 @@ def generate_boundary(generation_context,
                       interface_mappings=(),
                       generate_functor=True,
                       layout='fzyx',
+                      field_timestep=None,
                       **create_kernel_params):
 
     if boundary_object.additional_data and additional_data_handler is None:
@@ -49,14 +49,17 @@ def generate_boundary(generation_context,
     del create_kernel_params['default_number_int']
     del create_kernel_params['skip_independence_check']
 
-    field_data_type = config.data_type[field_name].numpy_dtype
+    if field_data_type is None:
+        field_data_type = config.data_type[field_name].numpy_dtype
 
     index_struct_dtype = numpy_data_type_for_boundary_object(boundary_object, dim)
 
-    field = Field.create_generic(field_name, dim,
-                                 field_data_type,
-                                 index_dimensions=len(index_shape), layout=layout, index_shape=index_shape,
-                                 field_type=field_type)
+    if spatial_shape:
+        field = Field.create_fixed_size(field_name, spatial_shape, index_dimensions=len(index_shape),
+                                        dtype=field_data_type, layout=layout, field_type=field_type)
+    else:
+        field = Field.create_generic(field_name, dim, dtype=field_data_type, index_dimensions=len(index_shape),
+                                     layout=layout, index_shape=index_shape, field_type=field_type)
 
     index_field = Field('indexVector', FieldType.INDEXED, index_struct_dtype, layout=[0],
                         shape=(TypedSymbol("indexVectorSize", create_type("int32")), 1), strides=(1, 1))
@@ -75,8 +78,9 @@ def generate_boundary(generation_context,
     else:
         raise ValueError(f"kernel_creation_function returned wrong type: {kernel.__class__}")
 
-    kernel_family = KernelFamily(selection_tree, class_name)
-    interface_spec = HighLevelInterfaceSpec(kernel_family.kernel_selection_parameters, interface_mappings)
+    kernel_family = KernelFamily(selection_tree, class_name, field_timestep=field_timestep)
+    selection_parameters = kernel_family.kernel_selection_parameters if field_timestep is None else []
+    interface_spec = HighLevelInterfaceSpec(selection_parameters, interface_mappings)
 
     if additional_data_handler is None:
         additional_data_handler = AdditionalDataHandler(stencil=neighbor_stencil)
@@ -98,7 +102,8 @@ def generate_boundary(generation_context,
         'single_link': boundary_object.single_link,
         'additional_data_handler': additional_data_handler,
         'dtype': "double" if is_float else "float",
-        'layout': layout
+        'layout': layout,
+        'index_shape': index_shape
     }
 
     env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)
@@ -107,9 +112,11 @@ def generate_boundary(generation_context,
     header = env.get_template('Boundary.tmpl.h').render(**context)
     source = env.get_template('Boundary.tmpl.cpp').render(**context)
 
-    source_extension = "cpp" if target == Target.CPU else "cu"
+    source_extension = "cu" if target == Target.GPU and generation_context.cuda else "cpp"
     generation_context.write_file(f"{class_name}.h", header)
     generation_context.write_file(f"{class_name}.{source_extension}", source)
+
+    return context
 
 
 def generate_staggered_boundary(generation_context, class_name, boundary_object,
@@ -124,30 +131,3 @@ def generate_staggered_flux_boundary(generation_context, class_name, boundary_ob
     assert dim == len(neighbor_stencil[0])
     generate_boundary(generation_context, class_name, boundary_object, 'flux', neighbor_stencil, index_shape,
                       FieldType.STAGGERED_FLUX, target=target, **kwargs)
-
-
-def struct_from_numpy_dtype(struct_name, numpy_dtype):
-    result = f"struct {struct_name} {{ \n"
-
-    equality_compare = []
-    constructor_params = []
-    constructor_initializer_list = []
-    for name, (sub_type, offset) in numpy_dtype.fields.items():
-        pystencils_type = create_type(sub_type)
-        result += f"    {pystencils_type} {name};\n"
-        if name in boundary_index_array_coordinate_names or name == direction_member_name:
-            constructor_params.append(f"{pystencils_type} {name}_")
-            constructor_initializer_list.append(f"{name}({name}_)")
-        else:
-            constructor_initializer_list.append(f"{name}()")
-        if pystencils_type.is_float():
-            equality_compare.append(f"floatIsEqual({name}, o.{name})")
-        else:
-            equality_compare.append(f"{name} == o.{name}")
-
-    result += "    %s(%s) : %s {}\n" % \
-              (struct_name, ", ".join(constructor_params), ", ".join(constructor_initializer_list))
-    result += "    bool operator==(const %s & o) const {\n        return %s;\n    }\n" % \
-              (struct_name, " && ".join(equality_compare))
-    result += "};\n"
-    return result

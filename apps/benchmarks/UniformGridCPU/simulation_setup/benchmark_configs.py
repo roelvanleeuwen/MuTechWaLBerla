@@ -9,28 +9,30 @@ from math import prod
 # Number of time steps run for a workload of 128^3 per process
 # if double as many cells are on the process, half as many time steps are run etc.
 # increase this to get more reliable measurements
-TIME_STEPS_FOR_128_BLOCK = 5
+TIME_STEPS_FOR_128_BLOCK = 10
 DB_FILE = os.environ.get('DB_FILE', "cpu_benchmark.sqlite3")
 
 
 def num_time_steps(block_size, time_steps_for_128_block=TIME_STEPS_FOR_128_BLOCK):
     cells = block_size[0] * block_size[1] * block_size[2]
     time_steps = (128 ** 3 / cells) * time_steps_for_128_block
+    if time_steps < TIME_STEPS_FOR_128_BLOCK:
+        time_steps = 5
     return int(time_steps)
 
 
 ldc_setup = {'Border': [
-    {'direction': 'N', 'walldistance': -1, 'flag': 'NoSlip'},
-    {'direction': 'S', 'walldistance': -1, 'flag': 'NoSlip'},
     {'direction': 'N', 'walldistance': -1, 'flag': 'UBB'},
+    {'direction': 'W', 'walldistance': -1, 'flag': 'NoSlip'},
     {'direction': 'E', 'walldistance': -1, 'flag': 'NoSlip'},
-    {'direction': 'T', 'walldistance': -1, 'flag': 'NoSlip'},
+    {'direction': 'S', 'walldistance': -1, 'flag': 'NoSlip'},
     {'direction': 'B', 'walldistance': -1, 'flag': 'NoSlip'},
+    {'direction': 'T', 'walldistance': -1, 'flag': 'NoSlip'},
 ]}
 
 
 class Scenario:
-    def __init__(self, cells_per_block=(128, 128, 128), periodic=(1, 1, 1),
+    def __init__(self, cells_per_block=(128, 128, 128), periodic=(1, 1, 1), blocks_per_process=1,
                  timesteps=None, time_step_strategy="normal", omega=1.8, inner_outer_split=(1, 1, 1),
                  warmup_steps=2, outer_iterations=3, init_shear_flow=False, boundary_setup=False,
                  vtk_write_frequency=0, remaining_time_logger_frequency=-1):
@@ -39,7 +41,8 @@ class Scenario:
             init_shear_flow = False
             periodic = (0, 0, 0)
 
-        self.blocks = block_decomposition(wlb.mpi.numProcesses())
+        self.blocks_per_process = blocks_per_process
+        self.blocks = block_decomposition(self.blocks_per_process * wlb.mpi.numProcesses())
 
         self.cells_per_block = cells_per_block
         self.periodic = periodic
@@ -66,6 +69,7 @@ class Scenario:
                 'blocks': self.blocks,
                 'cellsPerBlock': self.cells_per_block,
                 'periodic': self.periodic,
+                'cartesianSetup': (self.blocks_per_process == 1)
             },
             'Parameters': {
                 'omega': self.omega,
@@ -103,7 +107,7 @@ class Scenario:
         sequenceValuesToScalars(result)
         num_tries = 4
         # check multiple times e.g. may fail when multiple benchmark processes are running
-        table_name = f"runs_{data['stencil']}_{data['streamingPattern']}_{data['collisionSetup']}_{prod(self.blocks)}"
+        table_name = f"runs"
         table_name = table_name.replace("-", "_")
         for num_try in range(num_tries):
             try:
@@ -176,6 +180,7 @@ def single_node_benchmark():
     for block_size in block_sizes:
         scenario = Scenario(cells_per_block=block_size,
                             time_step_strategy='kernelOnly',
+                            outer_iterations=1,
                             timesteps=num_time_steps(block_size))
         scenarios.add(scenario)
 
@@ -185,26 +190,26 @@ def validation_run():
     wlb.log_info_on_root("Validation run")
     wlb.log_info_on_root("")
 
-    time_step_strategy = 'simpleOverlap'  # 'noOverlap'
+    time_step_strategy = "noOverlap"  # "noOverlap"
 
     scenarios = wlb.ScenarioManager()
     scenario = Scenario(cells_per_block=(64, 64, 64),
                         time_step_strategy=time_step_strategy,
-                        timesteps=101,
+                        timesteps=201,
                         outer_iterations=1,
                         warmup_steps=0,
-                        init_shear_flow=True,
-                        boundary_setup=False,
-                        vtk_write_frequency=100,
+                        init_shear_flow=False,
+                        boundary_setup=True,
+                        vtk_write_frequency=50,
                         remaining_time_logger_frequency=10)
     scenarios.add(scenario)
 
 
 wlb.log_info_on_root(f"Batch run of benchmark scenarios, saving result to {DB_FILE}")
 # Select the benchmark you want to run
-single_node_benchmark()  # benchmarks different CUDA block sizes and domain sizes and measures single GPU
+# single_node_benchmark()  # benchmarks different CUDA block sizes and domain sizes and measures single GPU
 # performance of compute kernel (no communication)
 # overlap_benchmark()  # benchmarks different communication overlap options
 # profiling()  # run only two timesteps on a smaller domain for profiling only
-# validation_run()
+validation_run()
 # scaling_benchmark()
