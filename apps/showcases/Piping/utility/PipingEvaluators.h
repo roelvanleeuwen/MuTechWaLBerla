@@ -71,6 +71,7 @@ real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, cons
          BField, Cell cell(x, y, z); blocks->transformBlockLocalToGlobalCell(cell, *blockIt);
          const Vector3< real_t > globalCellCenter = blocks->getCellCenter(cell);
          // Only consider cells inside the soil (< maxParticleHeight) and outside the bucket (= fluidFlag)
+         // TODO: estimated void ratio is too small if movingBucket is true because the bucket is also counted
          if (globalCellCenter[2] < maxParticleHeight && flagField->get(x, y, z) == fluidFlag) {
             // TODO: fix this if BField does not contain overlap fraction if weighting=2
             auto overlapFraction = BField->get(x, y, z);

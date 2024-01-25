@@ -411,6 +411,7 @@ int main(int argc, char** argv)
       // Bucket slice
       auto bucketVtkOutput = make_shared< mesa_pd::vtk::ParticleVtkOutput >(ps);
       bucketVtkOutput->addOutput< mesa_pd::data::SelectParticleUid >("uid");
+      bucketVtkOutput->addOutput< mesa_pd::data::SelectParticleLinearVelocity >("velocity");
       bucketVtkOutput->addOutput< SelectBoxEdgeLength >("edgeLength");
       bucketVtkOutput->setParticleSelector([](const mesa_pd::data::ParticleStorage::iterator& pIt) {
          using namespace walberla::mesa_pd::data::particle_flags;
