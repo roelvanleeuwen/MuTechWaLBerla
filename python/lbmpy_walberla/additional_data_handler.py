@@ -3,9 +3,13 @@ from pystencils.stencil import inverse_direction
 from pystencils.typing import BasicType
 
 from lbmpy.advanced_streaming import AccessPdfValues, numeric_offsets, numeric_index, Timestep, is_inplace
-from lbmpy.advanced_streaming.indexing import MirroredStencilDirections
+# until lbmpy version 1.3.2 
+try:
+    from lbmpy.advanced_streaming.indexing import MirroredStencilDirections
+except ImportError:
+    from lbmpy.custom_code_nodes import MirroredStencilDirections
 from lbmpy.boundaries.boundaryconditions import LbBoundary
-from lbmpy.boundaries import ExtrapolationOutflow, FreeSlip, UBB
+from lbmpy.boundaries import ExtrapolationOutflow, FreeSlip, UBB, DiffusionDirichlet
 
 from pystencils_walberla.additional_data_handler import AdditionalDataHandler
 
@@ -72,7 +76,7 @@ class FreeSlipAdditionalDataHandler(AdditionalDataHandler):
                           f"   element.wnx = {inv_offset[0]};",
                           f"   element.wny = {inv_offset[1]};",
                           f"   element.wnz = {inv_offset[2]};",
-                          f"   ref_dir = {direction};",
+                          f"   ref_dir = {self._walberla_stencil.index(inv_offset)};",
                           "}"]
         elif self._dim == 2:
             init_list += ["// concave corner (neighbors are non-fluid)",
@@ -80,7 +84,7 @@ class FreeSlipAdditionalDataHandler(AdditionalDataHandler):
                           "{",
                           f"   element.wnx = {inv_offset[0]};",
                           f"   element.wny = {inv_offset[1]};",
-                          f"   ref_dir = {direction};",
+                          f"   ref_dir = {self._walberla_stencil.index(inv_offset)};",
                           "}"]
         init_list.append("element.ref_dir = ref_dir;")
 
@@ -224,3 +228,38 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
         result['pdf_nd'] = ', '.join(pos)
 
         return result
+
+
+class DiffusionDirichletAdditionalDataHandler(AdditionalDataHandler):
+    def __init__(self, stencil, boundary_object):
+        assert isinstance(boundary_object, DiffusionDirichlet)
+        self._boundary_object = boundary_object
+        super(DiffusionDirichletAdditionalDataHandler, self).__init__(stencil=stencil)
+
+    @property
+    def constructor_arguments(self):
+        return ", std::function<real_t(const Cell &, const shared_ptr<StructuredBlockForest>&, IBlock&)>& " \
+               "diffusionCallback "
+
+    @property
+    def initialiser_list(self):
+        return "elementInitaliser(diffusionCallback),"
+
+    @property
+    def additional_arguments_for_fill_function(self):
+        return "blocks, "
+
+    @property
+    def additional_parameters_for_fill_function(self):
+        return " const shared_ptr<StructuredBlockForest> &blocks, "
+
+    def data_initialisation(self, *_):
+        init_list = ["real_t InitialisatonAdditionalData = elementInitaliser(Cell(it.x(), it.y(), it.z()), "
+                     "blocks, *block);", "element.concentration = InitialisatonAdditionalData;"]
+
+        return "\n".join(init_list)
+
+    @property
+    def additional_member_variable(self):
+        return "std::function<real_t(const Cell &, const shared_ptr<StructuredBlockForest>&, IBlock&)> " \
+               "elementInitaliser; "
