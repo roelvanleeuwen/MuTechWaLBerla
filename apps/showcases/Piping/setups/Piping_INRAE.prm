@@ -27,7 +27,7 @@ Bucket
 Particles
 {
     inFileName spheres_out.dat;
-    densityRatio 2.5;
+    densityRatio 2.248; // silicate glass in mixture of 65% glycerol and 35% distilled water
     frictionCoefficient 0.6;
     restitutionCoefficient 0.97;
     numSubCycles 1; // due to the limited particle movement, the number of sub cycles is set low
