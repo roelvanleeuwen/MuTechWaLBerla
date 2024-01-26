@@ -12,6 +12,7 @@ Physics
     hydraulicGradient 2.915; // final hydraulic gradient (see Fukumoto et al., 2021), only used if pressureDrivenFlow is true
     outflowVelocity_SI 1e-3; // final outflow velocity, only used if pressureDrivenFlow is false
     maxSuctionTimeStep 600000; // time step in which the final suction is reached, 0 means instantly
+    densityFluid_SI 1000; // water
     kinematicViscosityFluid_SI 1e-6;
     dx_SI 5e-5;
     dt_SI 5e-6; // for Fukumoto: 5e-7
@@ -27,7 +28,7 @@ Bucket
 Particles
 {
     inFileName spheres_out.dat;
-    densityRatio 2.5; // stone in water
+    densityParticle_SI 2500; // stone
     frictionCoefficient 0.6;
     restitutionCoefficient 0.97;
     numSubCycles 1; // due to the limited particle movement, the number of sub cycles is set low

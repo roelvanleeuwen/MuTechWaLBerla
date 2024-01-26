@@ -161,6 +161,7 @@ int main(int argc, char** argv)
    const real_t hydraulicGradient            = physicsParameters.getParameter< real_t >("hydraulicGradient");
    const real_t outflowVelocity_SI           = physicsParameters.getParameter< real_t >("outflowVelocity_SI");
    const uint_t maxSuctionTimeStep           = physicsParameters.getParameter< uint_t >("maxSuctionTimeStep");
+   const real_t densityFluid_SI              = physicsParameters.getParameter< real_t >("densityFluid_SI");
    const real_t kinematicViscosityFluid_SI   = physicsParameters.getParameter< real_t >("kinematicViscosityFluid_SI");
    const real_t dx_SI                        = physicsParameters.getParameter< real_t >("dx_SI");
    const real_t dt_SI                        = physicsParameters.getParameter< real_t >("dt_SI");
@@ -180,13 +181,14 @@ int main(int argc, char** argv)
 
    Config::BlockHandle particlesParameters     = cfgFile->getBlock("Particles");
    const std::string particleInFileName        = particlesParameters.getParameter< std::string >("inFileName");
-   const real_t particleDensityRatio           = particlesParameters.getParameter< real_t >("densityRatio");
+   const real_t densityParticle_SI             = particlesParameters.getParameter< real_t >("densityParticle_SI");
    const real_t particleFrictionCoefficient    = particlesParameters.getParameter< real_t >("frictionCoefficient");
    const real_t particleRestitutionCoefficient = particlesParameters.getParameter< real_t >("restitutionCoefficient");
    const uint_t particleNumSubCycles           = particlesParameters.getParameter< uint_t >("numSubCycles");
    const Vector3< uint_t > numSubBlocks        = particlesParameters.getParameter< Vector3< uint_t > >("numSubBlocks");
    const bool useLubricationCorrection         = particlesParameters.getParameter< bool >("useLubricationCorrection");
    const real_t poissonsRatio                  = particlesParameters.getParameter< real_t >("poissonsRatio");
+   const real_t particleDensityRatio           = densityParticle_SI / densityFluid_SI;
    const Vector3< real_t > observationDomainFraction =
       particlesParameters.getParameter< Vector3< real_t > >("observationDomainFraction");
    const Vector3< real_t > observationDomainSize(real_c(domainSize[0]) * observationDomainFraction[0],
