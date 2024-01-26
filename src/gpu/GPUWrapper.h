@@ -134,7 +134,7 @@
 
     #define gpuGetDeviceCount hipGetDeviceCount
     #define gpuSetDevice hipSetDevice
-    #define gpuDeviceProp hipDeviceProp
+    #define gpuDeviceProp hipDeviceProp_t
     #define gpuGetDeviceProperties hipGetDeviceProperties
 
     #define gpuLaunchKernel hipLaunchKernel

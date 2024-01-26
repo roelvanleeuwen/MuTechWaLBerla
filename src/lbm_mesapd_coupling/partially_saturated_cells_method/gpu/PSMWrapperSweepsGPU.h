@@ -127,8 +127,8 @@ class SetParticleVelocitiesSweep
       velocitiesKernel.addParam(linearVelocities);
       velocitiesKernel.addParam(angularVelocities);
       velocitiesKernel.addParam(particleAndVolumeFractionSoA_.positions);
-      __device__ double3 blockStart = { block->getAABB().minCorner()[0], block->getAABB().minCorner()[1],
-                                        block->getAABB().minCorner()[2] };
+      const double3 blockStart = { block->getAABB().minCorner()[0], block->getAABB().minCorner()[1],
+                                   block->getAABB().minCorner()[2] };
       velocitiesKernel.addParam(blockStart);
       velocitiesKernel.addParam(block->getAABB().xSize() / real_t(nOverlappingParticlesField->xSize()));
       velocitiesKernel();
@@ -190,8 +190,8 @@ class ReduceParticleForcesSweep
       auto particleForcesField =
          block->getData< particleForcesFieldGPU_T >(particleAndVolumeFractionSoA_.particleForcesFieldID);
 
-      __device__ double3 blockStart = { block->getAABB().minCorner()[0], block->getAABB().minCorner()[1],
-                                        block->getAABB().minCorner()[2] };
+      const double3 blockStart = { block->getAABB().minCorner()[0], block->getAABB().minCorner()[1],
+                                   block->getAABB().minCorner()[2] };
 
       // For every cell, reduce the hydrodynamic forces and torques of the overlapping particles
       auto forcesKernel = walberla::gpu::make_kernel(&(ReduceParticleForces));

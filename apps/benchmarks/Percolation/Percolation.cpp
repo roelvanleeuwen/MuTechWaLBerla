@@ -297,7 +297,7 @@ int main(int argc, char** argv)
    // TODO: set sendDirectlyFromGPU to true for performance measurements on cluster
    gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, false, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
-   auto communication = std::function< void() >([&]() { com.communicate(nullptr); });
+   auto communication = std::function< void() >([&]() { com.communicate(); });
 
    SweepTimeloop timeloop(blocks->getBlockStorage(), timeSteps);
 

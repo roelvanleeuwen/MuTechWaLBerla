@@ -39,9 +39,12 @@ __global__ void SetParticleVelocities(walberla::gpu::FieldAccessor< uint_t > nOv
                                       real_t* __restrict__ const angularVelocities,
                                       real_t* __restrict__ const positions, const double3 blockStart, const real_t dx)
 {
-   nOverlappingParticlesField.set(blockIdx, threadIdx);
-   idxField.set(blockIdx, threadIdx);
-   particleVelocitiesField.set(blockIdx, threadIdx);
+   const uint3 blockIdx_uint3  = make_uint3(blockIdx.x, blockIdx.y, blockIdx.z);
+   const uint3 threadIdx_uint3 = make_uint3(threadIdx.x, threadIdx.y, threadIdx.z);
+
+   nOverlappingParticlesField.set(blockIdx_uint3, threadIdx_uint3);
+   idxField.set(blockIdx_uint3, threadIdx_uint3);
+   particleVelocitiesField.set(blockIdx_uint3, threadIdx_uint3);
 
    // Cell center is needed in order to compute the particle velocity at this WF point
    const real_t cellCenter[] = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
@@ -67,9 +70,12 @@ __global__ void ReduceParticleForces(walberla::gpu::FieldAccessor< uint_t > nOve
                                      real_t* __restrict__ const positions, const double3 blockStart, const real_t dx,
                                      const real_t forceScalingFactor)
 {
-   nOverlappingParticlesField.set(blockIdx, threadIdx);
-   idxField.set(blockIdx, threadIdx);
-   particleForcesField.set(blockIdx, threadIdx);
+   const uint3 blockIdx_uint3  = make_uint3(blockIdx.x, blockIdx.y, blockIdx.z);
+   const uint3 threadIdx_uint3 = make_uint3(threadIdx.x, threadIdx.y, threadIdx.z);
+
+   nOverlappingParticlesField.set(blockIdx_uint3, threadIdx_uint3);
+   idxField.set(blockIdx_uint3, threadIdx_uint3);
+   particleForcesField.set(blockIdx_uint3, threadIdx_uint3);
 
    // Cell center is needed in order to compute the particle velocity at this WF point
    const real_t cellCenter[] = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),

@@ -63,10 +63,13 @@ __global__ void superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappin
                               const int3 nSamples, const size_t* __restrict__ const numParticlesSubBlocks,
                               const size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim)
 {
-   nOverlappingParticlesField.set(blockIdx, threadIdx);
-   BsField.set(blockIdx, threadIdx);
-   idxField.set(blockIdx, threadIdx);
-   BField.set(blockIdx, threadIdx);
+   const const uint3 blockIdx_uint3 = make_uint3(blockIdx.x, blockIdx.y, blockIdx.z);
+   uint3 threadIdx_uint3            = make_uint3(threadIdx.x, threadIdx.y, threadIdx.z);
+
+   nOverlappingParticlesField.set(blockIdx_uint3, threadIdx_uint3);
+   BsField.set(blockIdx_uint3, threadIdx_uint3);
+   idxField.set(blockIdx_uint3, threadIdx_uint3);
+   BField.set(blockIdx_uint3, threadIdx_uint3);
 
    // Clear the fields
    for (uint i = 0; i < MaxParticlesPerCell; i++)
@@ -169,10 +172,13 @@ __global__ void
                        const size_t* __restrict__ const numParticlesSubBlocks,
                        const size_t* __restrict__ const particleIDsSubBlocks, const uint3 subBlocksPerDim)
 {
-   nOverlappingParticlesField.set(blockIdx, threadIdx);
-   BsField.set(blockIdx, threadIdx);
-   idxField.set(blockIdx, threadIdx);
-   BField.set(blockIdx, threadIdx);
+   const uint3 blockIdx_uint3  = make_uint3(blockIdx.x, blockIdx.y, blockIdx.z);
+   const uint3 threadIdx_uint3 = make_uint3(threadIdx.x, threadIdx.y, threadIdx.z);
+
+   nOverlappingParticlesField.set(blockIdx_uint3, threadIdx_uint3);
+   BsField.set(blockIdx_uint3, threadIdx_uint3);
+   idxField.set(blockIdx_uint3, threadIdx_uint3);
+   BField.set(blockIdx_uint3, threadIdx_uint3);
 
    // Clear the fields
    for (uint i = 0; i < MaxParticlesPerCell; i++)
@@ -250,10 +256,13 @@ __global__ void boxMapping(walberla::gpu::FieldAccessor< uint_t > nOverlappingPa
                            const real_t omega, const double3 boxPositionMin, const double3 boxPositionMax,
                            const double3 blockStart, const real_t dx, const id_t idxMapped)
 {
-   nOverlappingParticlesField.set(blockIdx, threadIdx);
-   BsField.set(blockIdx, threadIdx);
-   idxField.set(blockIdx, threadIdx);
-   BField.set(blockIdx, threadIdx);
+   const uint3 blockIdx_uint3  = make_uint3(blockIdx.x, blockIdx.y, blockIdx.z);
+   const uint3 threadIdx_uint3 = make_uint3(threadIdx.x, threadIdx.y, threadIdx.z);
+
+   nOverlappingParticlesField.set(blockIdx_uint3, threadIdx_uint3);
+   BsField.set(blockIdx_uint3, threadIdx_uint3);
+   idxField.set(blockIdx_uint3, threadIdx_uint3);
+   BField.set(blockIdx_uint3, threadIdx_uint3);
 
    const double3 cellCenter = { (blockStart.x + (threadIdx.x + 0.5) * dx), (blockStart.y + (blockIdx.x + 0.5) * dx),
                                 (blockStart.z + (blockIdx.y + 0.5) * dx) };

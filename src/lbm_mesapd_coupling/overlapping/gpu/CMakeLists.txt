@@ -1,5 +1,5 @@
 target_sources(lbm_mesapd_coupling
         PRIVATE
-        ParticleAndVolumeFractionMappingKernels.cu
+        ParticleAndVolumeFractionMappingKernels.${CODEGEN_FILE_SUFFIX}
         ParticleAndVolumeFractionMappingKernels.h
         )
