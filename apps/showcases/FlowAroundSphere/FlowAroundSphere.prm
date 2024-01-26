@@ -21,11 +21,11 @@ DomainSetup
 {
     meshFile      sphere.obj;
     cellsPerBlock < 64, 64, 64 >;
-    periodic      <  0,  1,  1 >;
+    periodic      <  0,  0,  0 >;
 
-    domainSize    < 35, 20, 20 >;
+    domainSize    < 35, 10, 10 >;
 
-    refinementLevels 1;
+    refinementLevels 0;
     numberProcesses 1;
 
     weakScaling false;
@@ -37,14 +37,6 @@ StabilityChecker
     checkFrequency 0;
     streamOutput   false;
     vtkOutput      true;
-}
-
-Boundaries
-{
-    Border { direction W;    walldistance -1;  flag UBB; }
-    Border { direction E;    walldistance -1;  flag Outflow; }
-    Border { direction W;    walldistance -2;  flag UBB; }
-    Border { direction E;    walldistance -2;  flag Outflow; }
 }
 
 VTKWriter

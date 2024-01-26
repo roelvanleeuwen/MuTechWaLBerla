@@ -204,6 +204,35 @@ inline void CustomRefinementSelection<DistanceObject>::operator()( blockforest::
    }
 }
 
+void setupBoundaryFlagField(StructuredBlockForest& sbfs, const BlockDataID flagFieldID)
+{
+
+   static const walberla::BoundaryUID wallFlagUID("NoSlip");
+
+   const FlagUID ubbFlagUID("UBB");
+   const FlagUID outflowFlagUID("Outflow");
+
+   for (auto bIt = sbfs.begin(); bIt != sbfs.end(); ++bIt)
+   {
+      Block& b           = dynamic_cast< Block& >(*bIt);
+      uint_t level       = b.getLevel();
+      auto flagField     = b.getData< FlagField_T >(flagFieldID);
+      uint8_t ubbFlag    = flagField->registerFlag(ubbFlagUID);
+      uint8_t outflowFlag    = flagField->registerFlag(outflowFlagUID);
+      for (auto cIt = flagField->beginWithGhostLayerXYZ(2); cIt != flagField->end(); ++cIt)
+      {
+         Cell localCell = cIt.cell();
+         Cell globalCell(localCell);
+         sbfs.transformBlockLocalToGlobalCell(globalCell, b);
+         if (globalCell.x() >= cell_idx_c(sbfs.getNumberOfXCells(level))) { flagField->addFlag(localCell, outflowFlag); }
+         else if (globalCell.x() < 0 || globalCell.y() < 0 || globalCell.z() < 0 ||
+                  globalCell.y() >= cell_idx_c(sbfs.getNumberOfYCells(level)) || globalCell.z() >= cell_idx_c(sbfs.getNumberOfZCells(level)))
+         {
+            flagField->addFlag(localCell, ubbFlag);
+         }
+      }
+   }
+}
 
 //////////////////////
 // Parameter Struct //
@@ -543,8 +572,7 @@ int main(int argc, char **argv) {
    mesh::BoundarySetup boundarySetup(blocks, makeMeshDistanceFunction(distanceOctree), numGhostLayers, false);
    WALBERLA_LOG_INFO_ON_ROOT("Voxelize mesh done")
 
-   auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
-   geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldID, boundariesConfig);
+   setupBoundaryFlagField(*blocks, flagFieldID);
    boundarySetup.setFlag<FlagField_T>(flagFieldID, FlagUID("NoSlip"), mesh::BoundarySetup::INSIDE);
    geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldID, fluidFlagUID, cell_idx_c(numGhostLayers));
 
