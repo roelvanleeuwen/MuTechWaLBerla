@@ -87,9 +87,8 @@ struct ParticleAndVolumeFractionSoA_T
       BsFieldID  = walberla::gpu::addGPUFieldToStorage< BsFieldGPU_T >(bs, "Bs field GPU", MaxParticlesPerCell,
                                                                        field::fzyx, uint_t(1), true);
       idxFieldID = walberla::gpu::addGPUFieldToStorage< idxFieldGPU_T >(bs, "idx field GPU", MaxParticlesPerCell,
-                                                                         field::fzyx, uint_t(1), true);
-      BFieldID =
-         walberla::gpu::addGPUFieldToStorage< BFieldGPU_T >(bs, "B field GPU", 1, field::fzyx, uint_t(1), true);
+                                                                        field::fzyx, uint_t(1), true);
+      BFieldID = walberla::gpu::addGPUFieldToStorage< BFieldGPU_T >(bs, "B field GPU", 1, field::fzyx, uint_t(1), true);
       particleVelocitiesFieldID = walberla::gpu::addGPUFieldToStorage< particleVelocitiesFieldGPU_T >(
          bs, "particle velocities field GPU", uint_t(MaxParticlesPerCell * 3), field::fzyx, uint_t(1), true);
       particleForcesFieldID = walberla::gpu::addGPUFieldToStorage< particleForcesFieldGPU_T >(
@@ -99,7 +98,7 @@ struct ParticleAndVolumeFractionSoA_T
 
    ~ParticleAndVolumeFractionSoA_T()
    {
-      if (positions != nullptr) { gpuFree(positions); }
+      if (positions != nullptr) { WALBERLA_GPU_CHECK(gpuFree(positions)); }
    }
 };
 

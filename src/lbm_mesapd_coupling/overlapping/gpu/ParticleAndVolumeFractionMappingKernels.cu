@@ -63,8 +63,8 @@ __global__ void superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappin
                               const int3 nSamples, const size_t* __restrict__ const numParticlesSubBlocks,
                               const size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim)
 {
-   const const uint3 blockIdx_uint3 = make_uint3(blockIdx.x, blockIdx.y, blockIdx.z);
-   uint3 threadIdx_uint3            = make_uint3(threadIdx.x, threadIdx.y, threadIdx.z);
+   const uint3 blockIdx_uint3  = make_uint3(blockIdx.x, blockIdx.y, blockIdx.z);
+   const uint3 threadIdx_uint3 = make_uint3(threadIdx.x, threadIdx.y, threadIdx.z);
 
    nOverlappingParticlesField.set(blockIdx_uint3, threadIdx_uint3);
    BsField.set(blockIdx_uint3, threadIdx_uint3);
