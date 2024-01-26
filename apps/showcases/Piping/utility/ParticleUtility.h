@@ -194,19 +194,18 @@ auto createPlane(mesa_pd::data::ParticleStorage& ps, const mesa_pd::Vec3& pos, c
    return p0;
 }
 
-// TODO: these box flags can only be used for non-moving box
 auto createBox(mesa_pd::data::ParticleStorage& ps, const mesa_pd::Vec3& pos, const mesa_pd::Vec3& edgeLength)
 {
    auto p0 = ps.create(true);
    p0->setPosition(pos);
    p0->setBaseShape(std::make_shared< mesa_pd::data::Box >(edgeLength));
-   p0->getBaseShapeRef()->updateMassAndInertia(std::numeric_limits< real_t >::infinity());
+   // TODO: replace the density of 2.0
+   p0->getBaseShapeRef()->updateMassAndInertia(real_t(2.0));
    p0->setOwner(walberla::mpi::MPIManager::instance()->rank());
    p0->setType(1);
    p0->setInteractionRadius(std::numeric_limits< real_t >::infinity());
    mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::GLOBAL);
    mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::INFINITE);
-   mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::FIXED);
    mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::NON_COMMUNICATING);
    return p0->getUid();
 }

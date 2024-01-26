@@ -23,6 +23,7 @@ Bucket
 {
     bucketSizeFraction <0.1, 1.0, 0.56>; // bucket size as a fraction of the domain size (for Fukumoto: <0.025, 1.0, 0.65>)
     movingBucket false; // allow bucket to move in z direction
+    finalForce_SI 1e-3; // final force applied on bucket in negative z direction at maxSuctionTimeStep, only used if movingBucket is true
 }
 
 Particles

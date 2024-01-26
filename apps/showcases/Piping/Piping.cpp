@@ -177,7 +177,11 @@ int main(int argc, char** argv)
    Config::BlockHandle bucketParameters = cfgFile->getBlock("Bucket");
    const Vector3< real_t > bucketSizeFraction =
       bucketParameters.getParameter< Vector3< real_t > >("bucketSizeFraction");
-   const bool movingBucket = bucketParameters.getParameter< bool >("movingBucket");
+   const bool movingBucket          = bucketParameters.getParameter< bool >("movingBucket");
+   const real_t bucketFinalForce_SI = bucketParameters.getParameter< real_t >("finalForce_SI");
+   const real_t bucketFinalForce =
+      bucketFinalForce_SI * dt_SI * dt_SI / (densityFluid_SI * dx_SI * dx_SI * dx_SI * dx_SI);
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(bucketFinalForce)
 
    Config::BlockHandle particlesParameters     = cfgFile->getBlock("Particles");
    const std::string particleInFileName        = particlesParameters.getParameter< std::string >("inFileName");
@@ -189,6 +193,7 @@ int main(int argc, char** argv)
    const bool useLubricationCorrection         = particlesParameters.getParameter< bool >("useLubricationCorrection");
    const real_t poissonsRatio                  = particlesParameters.getParameter< real_t >("poissonsRatio");
    const real_t particleDensityRatio           = densityParticle_SI / densityFluid_SI;
+   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(particleDensityRatio)
    const Vector3< real_t > observationDomainFraction =
       particlesParameters.getParameter< Vector3< real_t > >("observationDomainFraction");
    const Vector3< real_t > observationDomainSize(real_c(domainSize[0]) * observationDomainFraction[0],
@@ -531,6 +536,7 @@ int main(int argc, char** argv)
             timeloopTiming["RPD"].start();
 
             ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPreForce, *accessor);
+            if (movingBucket) { vvIntegratorPreForce(accessor->uidToIdx(boxUid), *accessor); }
             syncCall();
 
             linkedCells.clear();
@@ -597,6 +603,14 @@ int main(int argc, char** argv)
             reduceProperty.operator()< mesa_pd::ForceTorqueNotification >(*ps);
 
             ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPostForce, *accessor);
+            if (movingBucket)
+            {
+               const size_t bucketIdx = accessor->uidToIdx(boxUid);
+               accessor->setForce(bucketIdx, Vector3(real_t(0), real_t(0),
+                                                     -std::min(bucketFinalForce, real_t(timeStep) * bucketFinalForce /
+                                                                                    real_t(maxSuctionTimeStep))));
+               vvIntegratorPostForce(bucketIdx, *accessor);
+            }
             syncCall();
 
             timeloopTiming["RPD"].end();
