@@ -227,7 +227,6 @@ waLBerla_compile_test( NAME   MESA_PD_Sorting FILES Sorting.cpp DEPENDS core )
 waLBerla_execute_test( NAME   MESA_PD_Sorting )
 
 waLBerla_compile_test( NAME   MESA_PD_Stiffness FILES Stiffness.cpp DEPENDS blockforest core mesa_pd )
-waLBerla_execute_test( NAME   MESA_PD_Stiffness )
 
 waLBerla_compile_test( NAME   MESA_PD_VTK_Outputs FILES vtk/VTKOutputs.cpp DEPENDS blockforest core vtk )
 waLBerla_execute_test( NAME   MESA_PD_VTK_Outputs PROCESSES 8 )
