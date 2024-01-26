@@ -17,9 +17,11 @@ from pystencils.backends.cbackend import get_headers
 from lbmpy_walberla.sparse.jinja_filters import add_sparse_jinja_env
 from lbmpy_walberla.alternating_sweeps import EvenIntegerCondition, OddIntegerCondition, TimestepTrackerMapping
 
-from pystencils_walberla.codegen import generate_selective_sweep, config_from_context, KernelInfo, comm_directions, generate_pack_info
+from pystencils_walberla.utility import config_from_context
+from pystencils_walberla.kernel_info import KernelInfo
 from pystencils_walberla.kernel_selection import AbstractInterfaceArgumentMapping, AbstractConditionNode, KernelCallNode, KernelFamily, HighLevelInterfaceSpec
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
+from pystencils_walberla.pack_info import _comm_directions
 
 
 
@@ -179,7 +181,7 @@ def generate_hybrid_pack_info(generation_context, class_name_prefix: str, stenci
             if all(offset == 0 for offset in fa.offsets):
                 continue
             comm_direction = inverse_direction(fa.offsets)
-            for comm_dir in comm_directions(comm_direction):
+            for comm_dir in _comm_directions(comm_direction):
                 common_spec[(comm_dir,)].add(fa.field.center(*fa.index))
 
     full_stencil = LBStencil(Stencil.D3Q27) if stencil.D == 3 else LBStencil(Stencil.D2Q9)
