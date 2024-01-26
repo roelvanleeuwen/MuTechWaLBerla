@@ -123,12 +123,15 @@ class SphereFractionMappingGPU
       // Allocate unified memory storing the particle information needed for the overlap fraction computations
       const size_t scalarArraySize = numMappedParticles * sizeof(real_t);
 
-      if (particleAndVolumeFractionSoA_.positions != nullptr) { gpuFree(particleAndVolumeFractionSoA_.positions); }
-      gpuMallocManaged(&(particleAndVolumeFractionSoA_.positions), 3 * scalarArraySize);
+      if (particleAndVolumeFractionSoA_.positions != nullptr)
+      {
+         WALBERLA_GPU_CHECK(gpuFree(particleAndVolumeFractionSoA_.positions));
+      }
+      WALBERLA_GPU_CHECK(gpuMallocManaged(&(particleAndVolumeFractionSoA_.positions), 3 * scalarArraySize));
       real_t* radii;
-      gpuMallocManaged(&radii, scalarArraySize);
+      WALBERLA_GPU_CHECK(gpuMallocManaged(&radii, scalarArraySize));
       real_t* f_r; // f_r is described in https://doi.org/10.1108/EC-02-2016-0052
-      gpuMallocManaged(&f_r, scalarArraySize);
+      WALBERLA_GPU_CHECK(gpuMallocManaged(&f_r, scalarArraySize));
 
       particleAndVolumeFractionSoA_.mappingUIDs.clear();
 
@@ -210,9 +213,10 @@ class SphereFractionMappingGPU
       });
 
       size_t* numParticlesPerSubBlock;
-      gpuMallocManaged(&numParticlesPerSubBlock, numSubBlocks * sizeof(size_t));
+      WALBERLA_GPU_CHECK(gpuMallocManaged(&numParticlesPerSubBlock, numSubBlocks * sizeof(size_t)));
       size_t* particleIDsSubBlocks;
-      gpuMallocManaged(&particleIDsSubBlocks, numSubBlocks * maxParticlesPerSubBlock * sizeof(size_t));
+      WALBERLA_GPU_CHECK(
+         gpuMallocManaged(&particleIDsSubBlocks, numSubBlocks * maxParticlesPerSubBlock * sizeof(size_t)));
 
       // Copy data from std::vector to unified memory
       for (size_t z = 0; z < subBlocksPerDim_[2]; ++z)
@@ -234,11 +238,11 @@ class SphereFractionMappingGPU
       mapParticles(*block, particleAndVolumeFractionSoA_, particleAndVolumeFractionSoA_.positions, radii, f_r,
                    numParticlesPerSubBlock, particleIDsSubBlocks, subBlocksPerDim_);
 
-      gpuFree(numParticlesPerSubBlock);
-      gpuFree(particleIDsSubBlocks);
+      WALBERLA_GPU_CHECK(gpuFree(numParticlesPerSubBlock));
+      WALBERLA_GPU_CHECK(gpuFree(particleIDsSubBlocks));
 
-      gpuFree(radii);
-      gpuFree(f_r);
+      WALBERLA_GPU_CHECK(gpuFree(radii));
+      WALBERLA_GPU_CHECK(gpuFree(f_r));
    }
 
    shared_ptr< StructuredBlockStorage > blockStorage_;
