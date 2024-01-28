@@ -72,7 +72,7 @@ __global__ void superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappin
    BField.set(blockIdx_uint3, threadIdx_uint3);
 
    // Clear the fields
-   for (int i = 0; i < int(MaxParticlesPerCell); i++)
+   for (uint i = 0; i < MaxParticlesPerCell; i++)
    {
       BsField.get(i)  = real_t(0.0);
       idxField.get(i) = size_t(0);
@@ -110,13 +110,13 @@ __global__ void superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappin
           startSamplingPoint.y + dx > minCornerSphere.y && startSamplingPoint.y < maxCornerSphere.y &&
           startSamplingPoint.z + dx > minCornerSphere.z && startSamplingPoint.z < maxCornerSphere.z)
       {
-         for (int z = 0; z < nSamples.z; z++)
+         for (uint_t z = 0; z < nSamples.z; z++)
          {
             currentSamplingPoint.y = startSamplingPoint.y;
-            for (int y = 0; y < nSamples.y; y++)
+            for (uint_t y = 0; y < nSamples.y; y++)
             {
                currentSamplingPoint.x = startSamplingPoint.x;
-               for (int x = 0; x < nSamples.x; x++)
+               for (uint_t x = 0; x < nSamples.x; x++)
                {
                   if ((currentSamplingPoint.x - spherePositions[idxMapped * 3]) *
                             (currentSamplingPoint.x - spherePositions[idxMapped * 3]) +
@@ -141,10 +141,10 @@ __global__ void superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappin
             assert(nOverlappingParticlesField.get() < MaxParticlesPerCell);
             BsField.get(nOverlappingParticlesField.get()) = overlapFraction;
             BsField.get(nOverlappingParticlesField.get()) *= 1.0 / (nSamples.x * nSamples.y * nSamples.z);
-            calculateWeighting< Weighting_T >(&BsField.get(int(nOverlappingParticlesField.get())),
-                                              BsField.get(int(nOverlappingParticlesField.get())), real_t(1.0) / omega);
-            idxField.get(int(nOverlappingParticlesField.get())) = idxMapped;
-            BField.get() += BsField.get(int(nOverlappingParticlesField.get()));
+            calculateWeighting< Weighting_T >(&BsField.get(nOverlappingParticlesField.get()),
+                                              BsField.get(nOverlappingParticlesField.get()), real_t(1.0) / omega);
+            idxField.get(nOverlappingParticlesField.get()) = idxMapped;
+            BField.get() += BsField.get(nOverlappingParticlesField.get());
             nOverlappingParticlesField.get() += 1;
          }
       }
@@ -153,7 +153,7 @@ __global__ void superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappin
    // Normalize fraction field (Bs) if sum over all fractions (B) > 1
    if (BField.get() > 1)
    {
-      for (int i = 0; i < int(nOverlappingParticlesField.get()); i++)
+      for (uint i = 0; i < nOverlappingParticlesField.get(); i++)
       {
          BsField.get(i) /= BField.get();
       }
@@ -181,7 +181,7 @@ __global__ void
    BField.set(blockIdx_uint3, threadIdx_uint3);
 
    // Clear the fields
-   for (int i = 0; i < int(MaxParticlesPerCell); i++)
+   for (uint i = 0; i < MaxParticlesPerCell; i++)
    {
       BsField.get(i)  = real_t(0.0);
       idxField.get(i) = size_t(0);
@@ -197,7 +197,7 @@ __global__ void
    size_t linearizedSubBlockIndex =
       subBlockIndex.z * subBlocksPerDim.x * subBlocksPerDim.y + subBlockIndex.y * subBlocksPerDim.x + subBlockIndex.x;
 
-   for (int i = 0; i < int(numParticlesSubBlocks[linearizedSubBlockIndex]); i++)
+   for (int i = 0; i < numParticlesSubBlocks[linearizedSubBlockIndex]; i++)
    {
       int idxMapped =
          particleIDsSubBlocks[linearizedSubBlockIndex + i * subBlocksPerDim.x * subBlocksPerDim.y * subBlocksPerDim.z];
@@ -228,11 +228,11 @@ __global__ void
          {
             // Check that the maximum number of overlapping particles has not yet been reached
             assert(nOverlappingParticlesField.get() < MaxParticlesPerCell);
-            BsField.get(int(nOverlappingParticlesField.get())) = epsilon;
-            calculateWeighting< Weighting_T >(&BsField.get(int(nOverlappingParticlesField.get())),
-                                              BsField.get(int(nOverlappingParticlesField.get())), real_t(1.0) / omega);
-            idxField.get(int(nOverlappingParticlesField.get())) = idxMapped;
-            BField.get() += BsField.get(int(nOverlappingParticlesField.get()));
+            BsField.get(nOverlappingParticlesField.get()) = epsilon;
+            calculateWeighting< Weighting_T >(&BsField.get(nOverlappingParticlesField.get()),
+                                              BsField.get(nOverlappingParticlesField.get()), real_t(1.0) / omega);
+            idxField.get(nOverlappingParticlesField.get()) = idxMapped;
+            BField.get() += BsField.get(nOverlappingParticlesField.get());
             nOverlappingParticlesField.get() += 1;
          }
       }
@@ -241,7 +241,7 @@ __global__ void
    // Normalize fraction field (Bs) if sum over all fractions (B) > 1
    if (BField.get() > 1)
    {
-      for (int i = 0; i < int(nOverlappingParticlesField.get()); i++)
+      for (uint i = 0; i < nOverlappingParticlesField.get(); i++)
       {
          BsField.get(i) /= BField.get();
       }
@@ -291,7 +291,7 @@ __global__ void boxMapping(walberla::gpu::FieldAccessor< uint_t > nOverlappingPa
       // Normalize fraction field (Bs) if sum over all fractions (B) > 1
       if (BField.get() > 1)
       {
-         for (int i = 0; i < int(nOverlappingParticlesField.get()); i++)
+         for (uint i = 0; i < nOverlappingParticlesField.get(); i++)
          {
             BsField.get(i) /= BField.get();
          }

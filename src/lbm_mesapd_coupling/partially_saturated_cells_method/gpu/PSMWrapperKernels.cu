@@ -51,7 +51,7 @@ __global__ void SetParticleVelocities(walberla::gpu::FieldAccessor< uint_t > nOv
                                  (blockStart.z + (blockIdx.y + 0.5) * dx) };
 
    // Compute the particle velocity at the cell center for all overlapping particles
-   for (int p = 0; p < int(nOverlappingParticlesField.get()); p++)
+   for (uint_t p = 0; p < nOverlappingParticlesField.get(); p++)
    {
       real_t particleVelocityAtWFPoint[] = { 0.0, 0.0, 0.0 };
       getVelocityAtWFPoint(particleVelocityAtWFPoint, &linearVelocities[idxField.get(p) * 3],
@@ -82,7 +82,7 @@ __global__ void ReduceParticleForces(walberla::gpu::FieldAccessor< uint_t > nOve
                                  (blockStart.z + (blockIdx.y + 0.5) * dx) };
 
    // Reduce the forces for all overlapping particles
-   for (int p = 0; p < int(nOverlappingParticlesField.get()); p++)
+   for (uint_t p = 0; p < nOverlappingParticlesField.get(); p++)
    {
       real_t forceOnParticle[] = { particleForcesField.get(p * 3 + 0), particleForcesField.get(p * 3 + 1),
                                    particleForcesField.get(p * 3 + 2) };
