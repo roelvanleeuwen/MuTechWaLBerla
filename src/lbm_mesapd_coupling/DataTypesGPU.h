@@ -49,6 +49,7 @@ const uint MaxParticlesPerCell = 2;
 // particleVelocitiesField is used to store the velocities of the overlapping particles evaluated at the cell center
 // particleForcesField is used to store the hydrodynamic forces of the cell acting on the overlapping particles
 
+// TODO: think about changing uint_t to int in this file and remove int casts in .cu files
 using nOverlappingParticlesField_T    = GhostLayerField< uint_t, 1 >;
 using nOverlappingParticlesFieldGPU_T = walberla::gpu::GPUField< uint_t >;
 using BsField_T                       = GhostLayerField< real_t, MaxParticlesPerCell >;
