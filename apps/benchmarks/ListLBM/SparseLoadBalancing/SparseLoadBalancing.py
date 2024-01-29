@@ -49,7 +49,6 @@ with CodeGeneration() as ctx:
     else:
         field_swaps=[]
 
-
     if ctx.cuda:
         target = Target.GPU
         vp = [('int32_t', 'cudaBlockSize0'),

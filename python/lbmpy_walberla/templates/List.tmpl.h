@@ -694,7 +694,6 @@ class ListCommunicationSetup
       for( auto senderIt = forest->begin(); senderIt != forest->end(); ++senderIt )
       {
          blockforest::Block & sender = dynamic_cast<blockforest::Block &>( *senderIt );
-         WALBERLA_ASSERT_NOT_NULLPTR( senderList )
          auto *flagField = sender.getData<FlagField_T>(flagFieldID_);
          auto fluidFlag = flagField->getFlag( fluidFlagUID_ );
 
