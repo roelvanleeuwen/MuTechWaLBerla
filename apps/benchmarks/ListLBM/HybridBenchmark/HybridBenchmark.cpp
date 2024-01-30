@@ -353,7 +353,7 @@ int main(int argc, char **argv)
 
          auto aabb = computeAABB(*mesh);
          //const Vector3< real_t > dx(scalingFactor, scalingFactor, scalingFactor);
-         const Vector3< real_t > dx(0.1, 0.1, 0.1);
+         const Vector3< real_t > dx(0.05, 0.05, 0.05);
 
          mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, dx, mesh::makeExcludeMeshExterior(distanceOctree, dx[0]));
 
@@ -441,11 +441,9 @@ int main(int argc, char **argv)
          }
       }
 
+      // Set state based on porosities
       const Set< SUID > sweepSelectHighPorosity("HighPorosity");
       const Set< SUID > sweepSelectLowPorosity("LowPorosity");
-
-      // Set state based on porosities
-
       for (auto& block : *blocks)
       {
          real_t blockPorosity = calculatePorosity(&block, flagFieldId, fluidFlagUID);
@@ -456,6 +454,7 @@ int main(int argc, char **argv)
             block.setState(sweepSelectLowPorosity);
          }
       }
+
       gatherAndPrintPorosityStats(blocks, flagFieldId, fluidFlagUID, 0);
 
       //Get flags and FlagUIDs to later set them, because they get lost while loadBalancing
@@ -469,11 +468,6 @@ int main(int argc, char **argv)
             flags.push_back(flagfield->getFlag(flagUId));
          }
          break;
-      }
-
-      auto dataIdVector = blocks->getBlockDataIdentifiers();
-      for (auto id : dataIdVector) {
-         WALBERLA_LOG_INFO(id)
       }
 
       //refresh here
@@ -500,7 +494,7 @@ int main(int argc, char **argv)
       vtk::writeDomainDecomposition(blocks, "domain_decompositionDenseAfterRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity);
       vtk::writeDomainDecomposition(blocks, "domain_decompositionSparseAfterRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
-      //Loadbalancing lost FlagUID information while communicating blocks, so set them again
+      //Loadbalancing lost FlagUID information while communicating blocks, so set them back again
       for(auto &block : *blocks) {
          auto flagField = block.getData<FlagField_T>(flagFieldId);
          for(size_t i = 0; i < flagUIDs.size(); ++i) {
@@ -510,11 +504,6 @@ int main(int argc, char **argv)
       }
       gatherAndPrintPorosityStats(blocks, flagFieldId, fluidFlagUID, 1);
 
-
-      dataIdVector = blocks->getBlockDataIdentifiers();
-      for (auto id : dataIdVector) {
-         WALBERLA_LOG_INFO(id)
-      }
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////
       ////////////////////////////////////    SETUP FIELDS      ///////////////////////////////////////

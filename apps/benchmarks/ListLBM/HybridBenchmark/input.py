@@ -111,9 +111,9 @@ def spheres():
 
 def Artery():
     scenarios = wlb.ScenarioManager()
-    mesh_file = "Artery.obj"
-    #mesh_file = "coronary_colored_medium.obj"
-    scenario = Scenario(vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=501, omega=1.7, cells_per_block=(20, 20, 20), porosity_switch=0.8, run_hybrid=True, time_step_strategy="noOverlap", run_boundaries=True)
+    #mesh_file = "Artery.obj"
+    mesh_file = "coronary_colored_medium.obj"
+    scenario = Scenario(vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=1, omega=1.7, cells_per_block=(50, 50, 50), porosity_switch=0.8, run_hybrid=True, time_step_strategy="noOverlap", run_boundaries=True)
     scenarios.add(scenario)
 
 def particleBed():
@@ -128,13 +128,13 @@ def emptyChannel():
     scenarios.add(scenario)
 
 def scalingBenchmark():
-    cells_per_block=(256, 256, 256)
+    cells_per_block=(320, 320, 320)
     scenarios = wlb.ScenarioManager()
-    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", inner_outer_split=(1, 1, 1) ,run_boundaries=True)
+    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porosity_switch=1.0, run_hybrid=False, time_step_strategy="Overlap", inner_outer_split=(1, 1, 1) ,run_boundaries=True)
     scenarios.add(scenario)
-    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porosity_switch=0.0, run_hybrid=True, time_step_strategy="noOverlap", inner_outer_split=(0, 0, 0), run_boundaries=True)
+    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porosity_switch=1.0, run_hybrid=False, time_step_strategy="noOverlap", inner_outer_split=(0, 0, 0), run_boundaries=True)
     scenarios.add(scenario)
-    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", inner_outer_split=(32, 1, 1) ,run_boundaries=True)
+    scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porosity_switch=1.0, run_hybrid=False, time_step_strategy="Overlap", inner_outer_split=(32, 1, 1) ,run_boundaries=True)
     scenarios.add(scenario)
 
 def testGPUComm():
