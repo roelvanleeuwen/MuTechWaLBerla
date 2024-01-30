@@ -34,7 +34,7 @@
 
 #include "field/FlagField.h"
 {% if target is equalto 'gpu' %}
-#include "cuda/FieldCopy.h"
+#include "gpu/FieldCopy.h"
 {% endif %}
 #include "simd/AlignedAllocator.h"
 
@@ -138,15 +138,19 @@ class {{class_name}}
    WALBERLA_FORCE_INLINE(       {{index_type}} * getidxInnerbeginning( ) )       {return &pullIdxsInner_.front(); }
    WALBERLA_FORCE_INLINE(       {{index_type}} * getidxOuterbeginning( ) )       {return &pullIdxsOuter_.front(); }
 
-   WALBERLA_FORCE_INLINE( const real_t * getPDFbegining( ) const)       { return &pdfs_.front(); }
+   WALBERLA_FORCE_INLINE( const real_t * getPDFbegining( ) const)          { return &pdfs_.front(); }
    WALBERLA_FORCE_INLINE( const real_t * gettmpPDFbegining( ) const)       { return &tmpPdfs_.front(); }
-   WALBERLA_FORCE_INLINE( const {{index_type}} * getidxbeginning( ) const)       {return &pullIdxs_.front(); }
-   WALBERLA_FORCE_INLINE( const real_t * getomegasbegining( ) const )       { return &omegas_.front(); }
+   WALBERLA_FORCE_INLINE( const {{index_type}} * getidxbeginning( ) const) { return &pullIdxs_.front(); }
+   WALBERLA_FORCE_INLINE( const real_t * getomegasbegining( ) const )      { return &omegas_.front(); }
 
    {% if target is equalto 'gpu' -%}
-   WALBERLA_FORCE_INLINE(       real_t * getGPUPDFbegining( ) )       { return pdfsGPU_; }
+   WALBERLA_FORCE_INLINE(       real_t * getGPUPDFbegining( ) )          { return pdfsGPU_; }
    WALBERLA_FORCE_INLINE(       real_t * getGPUtmpPDFbegining( ) )       { return tmpPdfsGPU_; }
    WALBERLA_FORCE_INLINE(       real_t * getGPUomegasbegining( ) )       { return &omegas_.front(); }
+
+   WALBERLA_FORCE_INLINE( const real_t * getGPUPDFbegining( ) const )       { return pdfsGPU_; }
+   WALBERLA_FORCE_INLINE( const real_t * getGPUtmpPDFbegining( ) const )    { return tmpPdfsGPU_; }
+   WALBERLA_FORCE_INLINE( const real_t * getGPUomegasbegining( ) const )    { return &omegas_.front(); }
 
 
    WALBERLA_FORCE_INLINE(       {{index_type}} * getGPUidxbeginning( ) )       {return pullIdxsGPU_; }
@@ -636,8 +640,8 @@ class ListCommunicationSetup
 
             {% if target is equalto 'gpu' -%}
             {{index_type}} * sendPDFsVectorGPU;
-            cudaMalloc( &sendPDFsVectorGPU, sizeof({{index_type}}) * sendPDFsVector.size() );
-            cudaMemcpy( sendPDFsVectorGPU, &sendPDFsVector[0], sizeof({{index_type}}) * sendPDFsVector.size(), cudaMemcpyHostToDevice );
+            gpuMalloc( &sendPDFsVectorGPU, sizeof({{index_type}}) * sendPDFsVector.size() );
+            gpuMemcpy( sendPDFsVectorGPU, &sendPDFsVector[0], sizeof({{index_type}}) * sendPDFsVector.size(), gpuMemcpyHostToDevice );
             senderList->setSendPDFsGPU(sendPDFsVectorGPU, dir);
             {%- endif %}
          }
@@ -799,8 +803,8 @@ class ListCommunicationSetup
 
             {% if target is equalto 'gpu' -%}
             {{index_type}} * sendPDFsVectorGPU;
-            cudaMalloc( &sendPDFsVectorGPU, sizeof({{index_type}}) * sendPDFsVector.size() );
-            cudaMemcpy( sendPDFsVectorGPU, &sendPDFsVector[0], sizeof({{index_type}}) * sendPDFsVector.size(), cudaMemcpyHostToDevice );
+            gpuMalloc( &sendPDFsVectorGPU, sizeof({{index_type}}) * sendPDFsVector.size() );
+            gpuMemcpy( sendPDFsVectorGPU, &sendPDFsVector[0], sizeof({{index_type}}) * sendPDFsVector.size(), gpuMemcpyHostToDevice );
             senderList->setSendPDFsGPU(sendPDFsVectorGPU, receiveDir);
             {%- endif %}
          }

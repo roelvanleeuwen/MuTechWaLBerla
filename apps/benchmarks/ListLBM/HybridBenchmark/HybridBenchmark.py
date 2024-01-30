@@ -39,6 +39,8 @@ with CodeGeneration() as ctx:
         streaming_pattern='pull'
     )
 
+
+
     lbm_opt = LBMOptimisation(
         cse_global=True,
         cse_pdfs=True,
@@ -70,6 +72,7 @@ with CodeGeneration() as ctx:
     method = create_lb_method(lbm_config=lbm_config)
     collision_rule = create_lb_collision_rule(lbm_config=lbm_config, lbm_optimisation=lbm_opt)
     inner_outer_split = True
+
 
 
     ########################################## Sparse kernels ###################################################

@@ -1,6 +1,6 @@
 #include "stencil/Directions.h"
 #include "core/cell/CellInterval.h"
-#include "cuda/GPUField.h"
+#include "gpu/GPUField.h"
 #include "core/DataTypes.h"
 #include "{{class_name}}.h"
 
@@ -68,12 +68,6 @@ namespace {{namespace}} {
 
 
 
-
-
-
-
-
-
    {% for kernel in pack_kernels.values() %}
    {{kernel|generate_definition(target)}}
    {% endfor %}
@@ -84,7 +78,7 @@ namespace {{namespace}} {
 
 
 
-   void {{class_name}}::pack(Direction dir, unsigned char * byte_buffer, IBlock * block, cudaStream_t stream)
+   void {{class_name}}::pack(Direction dir, unsigned char * byte_buffer, IBlock * block, gpuStream_t stream)
    {
       {{dtype}} * buffer = reinterpret_cast<{{dtype}}*>(byte_buffer);
 
@@ -157,7 +151,7 @@ namespace {{namespace}} {
    }
 
 
-   void {{class_name}}::unpack(Direction dir, unsigned char * byte_buffer, IBlock * block, cudaStream_t stream)
+   void {{class_name}}::unpack(Direction dir, unsigned char * byte_buffer, IBlock * block, gpuStream_t stream)
    {
       {{dtype}} * buffer = reinterpret_cast<{{dtype}}*>(byte_buffer);
 
@@ -229,6 +223,11 @@ namespace {{namespace}} {
          WALBERLA_ABORT("Block selector is neither Sparse nor Dense, it is " << blockState)
       }
    }
+
+   void {{class_name}}::communicateLocal(Direction dir, const IBlock * sender, IBlock * receiver, gpuStream_t stream) {
+      WALBERLA_ABORT("Local Communication not supported for hybrid pack info")
+   }
+
 
 
    uint_t {{class_name}}::size(stencil::Direction dir, IBlock * block)

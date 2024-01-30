@@ -26,9 +26,9 @@
 #include "ListLBMList.h"
 {%- elif target is equalto 'gpu' -%}
 #include "ListLBMList.h"
-#include "cuda/ErrorChecking.h"
+#include "gpu/ErrorChecking.h"
 {% if inner_outer_split -%}
-#include "cuda/ParallelStreams.h"
+#include "gpu/ParallelStreams.h"
 {%- endif %}
 {%- endif %}
 #include "domain_decomposition/BlockDataID.h"
@@ -61,9 +61,9 @@ namespace {{namespace}} {
       {};
       {{ kernel| generate_destructor(class_name) |indent(4) }}
 
-      void run( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["cudaStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} );
+      void run( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["gpuStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} );
 
-      void operator() ({{- ["IBlock * block", kernel.kernel_selection_parameters, ["cudaStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}})
+      void operator() ({{- ["IBlock * block", kernel.kernel_selection_parameters, ["gpuStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}})
       {
          run( {{- ["block", kernel.kernel_selection_parameters, ["stream"] if target == 'gpu' else []] | identifier_list -}} );
       }
@@ -75,24 +75,24 @@ namespace {{namespace}} {
          { kernel->run( {{- [ ['b'], kernel.kernel_selection_parameters] | identifier_list -}} ); };
       }
 
-      std::function<void (IBlock *)> getSweep( {{- [interface_spec.high_level_args, ["cudaStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} )
+      std::function<void (IBlock *)> getSweep( {{- [interface_spec.high_level_args, ["gpuStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} )
       {
          return [ {{- ["this", interface_spec.high_level_args, ["stream"] if target == 'gpu' else []] | identifier_list -}} ]
             (IBlock * b)
          { this->run( {{- [ ['b'], interface_spec.mapping_codes, ["stream"] if target == 'gpu' else [] ] | identifier_list -}} ); };
       }
 
-      void inner( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["cudaStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} );
-      void outer( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["cudaStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} );
+      void inner( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["gpuStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} );
+      void outer( {{- ["IBlock * block", kernel.kernel_selection_parameters, ["gpuStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} );
 
-      std::function<void (IBlock *)> getInnerSweep( {{- [interface_spec.high_level_args, ["cudaStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} )
+      std::function<void (IBlock *)> getInnerSweep( {{- [interface_spec.high_level_args, ["gpuStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} )
       {
          return [ {{- ["this", interface_spec.high_level_args, ["stream"] if target == 'gpu' else []] | identifier_list -}} ]
             (IBlock * b)
          { this->inner( {{- [ ['b'], interface_spec.mapping_codes, ["stream"] if target == 'gpu' else [] ] | identifier_list -}} ); };
       }
 
-      std::function<void (IBlock *)> getOuterSweep( {{- [interface_spec.high_level_args, ["cudaStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} )
+      std::function<void (IBlock *)> getOuterSweep( {{- [interface_spec.high_level_args, ["gpuStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}} )
       {
          return [ {{- ["this", interface_spec.high_level_args, ["stream"] if target == 'gpu' else []] | identifier_list -}} ]
             (IBlock * b)

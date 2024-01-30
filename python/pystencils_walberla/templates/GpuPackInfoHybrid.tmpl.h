@@ -1,10 +1,10 @@
 #pragma once
 #include "stencil/Directions.h"
 #include "core/cell/CellInterval.h"
-#include "cuda/GPUField.h"
+#include "gpu/GPUField.h"
 #include "core/DataTypes.h"
 #include "domain_decomposition/IBlock.h"
-#include "cuda/communication/GeneratedGPUPackInfo.h"
+#include "gpu/communication/GeneratedGPUPackInfo.h"
 
 #include "ListLBMList.h"
 
@@ -27,7 +27,7 @@ namespace walberla {
 namespace {{namespace}} {
 
 
-class {{class_name}} : public ::walberla::cuda::GeneratedGPUPackInfo
+class {{class_name}} : public ::walberla::gpu::GeneratedGPUPackInfo
 {
  public:
    {{class_name}}( {{fused_kernel|generate_constructor_parameters(parameters_to_ignore=['buffer'])}},  const BlockDataID & listId,
@@ -37,9 +37,9 @@ class {{class_name}} : public ::walberla::cuda::GeneratedGPUPackInfo
    virtual ~{{class_name}}() {}
 
 
-   void pack (stencil::Direction dir, unsigned char * buffer, IBlock * block, cudaStream_t stream) override;
-   void unpack(stencil::Direction dir, unsigned char * buffer, IBlock * block, cudaStream_t stream) override;
-   //void communicateLocal( stencil::Direction dir, IBlock * sender, IBlock * receiver, cudaStream_t stream) override;
+   void pack (stencil::Direction dir, unsigned char * buffer, IBlock * block, gpuStream_t stream) override;
+   void unpack(stencil::Direction dir, unsigned char * buffer, IBlock * block, gpuStream_t stream) override;
+   void communicateLocal( stencil::Direction dir, const IBlock * sender, IBlock * receiver, gpuStream_t stream) override;
    uint_t size (stencil::Direction dir, IBlock * block) override;
 
 

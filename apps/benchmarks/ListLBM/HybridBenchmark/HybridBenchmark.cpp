@@ -68,14 +68,14 @@
 
 #include "timeloop/SweepTimeloop.h"
 
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-#   include "cuda/AddGPUFieldToStorage.h"
-#   include "cuda/DeviceSelectMPI.h"
-#   include "cuda/HostFieldAllocator.h"
-#   include "cuda/NVTX.h"
-#   include "cuda/ParallelStreams.h"
-#   include "cuda/communication/UniformGPUScheme.h"
-#   include "cuda/lbm/CombinedInPlaceGpuPackInfo.h"
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+#   include "gpu/AddGPUFieldToStorage.h"
+#   include "gpu/DeviceSelectMPI.h"
+#   include "gpu/HostFieldAllocator.h"
+#   include "gpu/NVTX.h"
+#   include "gpu/ParallelStreams.h"
+#   include "gpu/communication/UniformGPUScheme.h"
+#   include "gpu/lbm/CombinedInPlaceGpuPackInfo.h"
 #else
 #   include "lbm/communication/CombinedInPlaceCpuPackInfo.h"
 #endif
@@ -96,8 +96,8 @@ uint_t numGhostLayers = uint_t(1);
 using flag_t = walberla::uint8_t;
 //using FlagField_T = FlagField<flag_t>;
 
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-using GPUField = cuda::GPUField< real_t >;
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+using GPUField = gpu::GPUField< real_t >;
 #endif
 
 auto pdfFieldAdder = [](IBlock *const block, StructuredBlockStorage *const storage) {
@@ -223,8 +223,8 @@ void vertexToFaceColor(MeshType &mesh, const typename MeshType::Color &defaultCo
 auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
    return [sweep](IBlock* b) {
       sweep(b);
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-      cudaDeviceSynchronize();
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      gpuDeviceSynchronize();
 #endif
    };
 };
@@ -234,17 +234,17 @@ int main(int argc, char **argv)
 {
    walberla::Environment walberlaEnv(argc, argv);
 
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-   cuda::selectDeviceBasedOnMpiRank();
-   WALBERLA_CUDA_CHECK(cudaPeekAtLastError())
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   gpu::selectDeviceBasedOnMpiRank();
+   WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #endif
 
    for (auto cfg = python_coupling::configBegin(argc, argv); cfg != python_coupling::configEnd(); ++cfg)
    {
       WALBERLA_MPI_WORLD_BARRIER()
 
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-      WALBERLA_CUDA_CHECK(cudaPeekAtLastError())
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #endif
 
       auto config = *cfg;
@@ -269,6 +269,7 @@ int main(int argc, char **argv)
       const std::string timeStepStrategy = parameters.getParameter< std::string >("timeStepStrategy", "noOverlap");
       const real_t porositySwitch = parameters.getParameter< real_t >("porositySwitch");
       const bool runHybrid = parameters.getParameter< bool >("runHybrid", false);
+      const bool balanceLoad = parameters.getParameter< bool >("balanceLoad", false);
 
 
       Vector3< uint_t > cellsPerBlock;
@@ -322,7 +323,6 @@ int main(int argc, char **argv)
                setFlagFieldToPorosity(&block,flagFieldId,porosity,noslipFlagUID);
             }
          }
-
          geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
       }
       else if (geometrySetup == "spheres") {
@@ -457,53 +457,55 @@ int main(int argc, char **argv)
 
       gatherAndPrintPorosityStats(blocks, flagFieldId, fluidFlagUID, 0);
 
-      //Get flags and FlagUIDs to later set them, because they get lost while loadBalancing
-      std::vector<FlagUID> flagUIDs;
-      std::vector<flag_t> flags;
-      for (auto& block : *blocks)
-      {
-         auto flagfield = block.getData< FlagField_T >(flagFieldId);
-         flagfield->getAllRegisteredFlags(flagUIDs);
-         for( auto flagUId : flagUIDs) {
-            flags.push_back(flagfield->getFlag(flagUId));
+      //Balance load based on block porosity with Hilbert space filling curve
+      if(balanceLoad) {
+         //Get flags and FlagUIDs to later set them, because they get lost while loadBalancing
+         std::vector<FlagUID> flagUIDs;
+         std::vector<flag_t> flags;
+         for (auto& block : *blocks)
+         {
+            auto flagfield = block.getData< FlagField_T >(flagFieldId);
+            flagfield->getAllRegisteredFlags(flagUIDs);
+            for( auto flagUId : flagUIDs) {
+               flags.push_back(flagfield->getFlag(flagUId));
+            }
+            break;
          }
-         break;
-      }
 
-      //refresh here
-      vtk::writeDomainDecomposition(blocks, "domain_decompositionDenseBeforeRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity);
-      vtk::writeDomainDecomposition(blocks, "domain_decompositionSparseBeforeRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectLowPorosity, sweepSelectHighPorosity);
+         //refresh here
+         vtk::writeDomainDecomposition(blocks, "domain_decompositionDenseBeforeRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity);
+         vtk::writeDomainDecomposition(blocks, "domain_decompositionSparseBeforeRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
-      //Load Balancing 1
-      auto & blockforest = blocks->getBlockForest();
-      blockforest.recalculateBlockLevelsInRefresh( false );
-      blockforest.alwaysRebalanceInRefresh( true ); //load balancing every time refresh is triggered
-      blockforest.reevaluateMinTargetLevelsAfterForcedRefinement( false );
-      blockforest.allowRefreshChangingDepth( false );
-      blockforest.allowMultipleRefreshCycles( false ); // otherwise info collections are invalid
-      blockforest.setRefreshPhantomBlockDataPackFunction( blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor() );
-      blockforest.setRefreshPhantomBlockDataUnpackFunction( blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor() );
-      blockforest.setRefreshPhantomBlockMigrationPreparationFunction( blockforest::DynamicCurveBalance<blockforest::WeightAssignmentFunctor::PhantomBlockWeight >( true, true, true ) );
+         //Load Balancing 1
+         auto & blockforest = blocks->getBlockForest();
+         blockforest.recalculateBlockLevelsInRefresh( false );
+         blockforest.alwaysRebalanceInRefresh( true ); //load balancing every time refresh is triggered
+         blockforest.reevaluateMinTargetLevelsAfterForcedRefinement( false );
+         blockforest.allowRefreshChangingDepth( false );
+         blockforest.allowMultipleRefreshCycles( false ); // otherwise info collections are invalid
+         blockforest.setRefreshPhantomBlockDataPackFunction( blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor() );
+         blockforest.setRefreshPhantomBlockDataUnpackFunction( blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor() );
+         blockforest.setRefreshPhantomBlockMigrationPreparationFunction( blockforest::DynamicCurveBalance<blockforest::WeightAssignmentFunctor::PhantomBlockWeight >( true, true, true ) );
 
-      shared_ptr<blockforest::InfoCollection> weightsInfoCollection = make_shared<blockforest::InfoCollection>();
-      getBlocksWeights(blocks, *weightsInfoCollection, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
-      blockforest::WeightAssignmentFunctor weightAssignmentFunctor(weightsInfoCollection, real_t(1));
-      blockforest.setRefreshPhantomBlockDataAssignmentFunction(weightAssignmentFunctor);
-      blocks->refresh();
+         shared_ptr<blockforest::InfoCollection> weightsInfoCollection = make_shared<blockforest::InfoCollection>();
+         getBlocksWeights(blocks, *weightsInfoCollection, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
+         blockforest::WeightAssignmentFunctor weightAssignmentFunctor(weightsInfoCollection, real_t(1));
+         blockforest.setRefreshPhantomBlockDataAssignmentFunction(weightAssignmentFunctor);
+         blocks->refresh();
 
-      vtk::writeDomainDecomposition(blocks, "domain_decompositionDenseAfterRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity);
-      vtk::writeDomainDecomposition(blocks, "domain_decompositionSparseAfterRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectLowPorosity, sweepSelectHighPorosity);
+         vtk::writeDomainDecomposition(blocks, "domain_decompositionDenseAfterRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity);
+         vtk::writeDomainDecomposition(blocks, "domain_decompositionSparseAfterRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
-      //Loadbalancing lost FlagUID information while communicating blocks, so set them back again
-      for(auto &block : *blocks) {
-         auto flagField = block.getData<FlagField_T>(flagFieldId);
-         for(size_t i = 0; i < flagUIDs.size(); ++i) {
-            if(!flagField->flagExists(flagUIDs[i]))
-               flagField->registerFlag(flagUIDs[i], uint_t(std::log2(int(flags[i]))));
+         //Loadbalancing lost FlagUID information while communicating blocks, so set them back again
+         for(auto &block : *blocks) {
+            auto flagField = block.getData<FlagField_T>(flagFieldId);
+            for(size_t i = 0; i < flagUIDs.size(); ++i) {
+               if(!flagField->flagExists(flagUIDs[i]))
+                  flagField->registerFlag(flagUIDs[i], uint_t(std::log2(int(flags[i]))));
+            }
          }
+         gatherAndPrintPorosityStats(blocks, flagFieldId, fluidFlagUID, 1);
       }
-      gatherAndPrintPorosityStats(blocks, flagFieldId, fluidFlagUID, 1);
-
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////
       ////////////////////////////////////    SETUP FIELDS      ///////////////////////////////////////
@@ -514,15 +516,15 @@ int main(int argc, char **argv)
       BlockDataID pdfFieldId     = blocks->addStructuredBlockData< PdfField_T >(pdfFieldAdder, "PDFs", sweepSelectHighPorosity, sweepSelectLowPorosity);
       BlockDataID velFieldId     = field::addToStorage< VelocityField_T >(blocks, "velocity", real_t(0), field::fzyx, uint_t(1), false, sweepSelectHighPorosity, sweepSelectLowPorosity);
       BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_t(1.0), field::fzyx, uint_t(1), false, sweepSelectHighPorosity, sweepSelectLowPorosity);
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-      BlockDataID pdfFieldIdGPU = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldId, "PDFs on GPU", true, sweepSelectHighPorosity, sweepSelectLowPorosity);
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      BlockDataID pdfFieldIdGPU = gpu::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldId, "PDFs on GPU", true, sweepSelectHighPorosity, sweepSelectLowPorosity);
 #endif
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////    SETUP KERNELS    //////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if defined(WALBERLA_BUILD_WITH_CUDA)
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       const Vector3< int32_t > gpuBlockSize =
          parameters.getParameter< Vector3< int32_t > >("gpuBlockSize", Vector3< int32_t >(128, 1, 1));
       lbmpy::SparseLBSweep sparseKernel(pdfListId, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2]);
@@ -591,10 +593,10 @@ int main(int argc, char **argv)
 
       auto tracker = make_shared<lbm::TimestepTracker>(0);
 
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-      const bool cudaEnabledMPI = parameters.getParameter< bool >("cudaEnabledMPI", true);
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      const bool gpuEnabledMPI = parameters.getParameter< bool >("gpuEnabledMPI", true);
       auto packInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldIdGPU, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
-      cuda::communication::UniformGPUScheme< Stencil_T > comm(blocks, cudaEnabledMPI);
+      gpu::communication::UniformGPUScheme< Stencil_T > comm(blocks, gpuEnabledMPI);
 #else
       auto packInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldId, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
@@ -686,7 +688,7 @@ int main(int argc, char **argv)
       {
          auto sparseVtkOutput = vtk::createVTKOutput_BlockData(*blocks, "vtkSparse", vtkWriteFrequency, 0, false, "vtk_out", "simulation_step", false, false, true, false, 0);
 
-#if defined(WALBERLA_BUILD_WITH_CUDA)
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
          sparseVtkOutput->addBeforeFunction([&]() {
             for (auto& block : *blocks)
             {
@@ -719,10 +721,10 @@ int main(int argc, char **argv)
             for (auto& block : *blocks)
             {
                if (block.getState() == sweepSelectHighPorosity) {
-#if defined(WALBERLA_BUILD_WITH_CUDA)
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
                   GPUField * dst = block.getData<GPUField>( pdfFieldIdGPU );
                   const PdfField_T * src = block.getData<PdfField_T>( pdfFieldId );
-                  cuda::fieldCpy( *dst, *src );
+                  gpu::fieldCpy( *dst, *src );
 #endif
                   denseGetterSweep(&block);
                }
@@ -756,16 +758,16 @@ int main(int argc, char **argv)
       WcTimer simTimer;
 
       WALBERLA_MPI_WORLD_BARRIER()
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-      WALBERLA_CUDA_CHECK(cudaPeekAtLastError())
-      cudaDeviceSynchronize();
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      WALBERLA_GPU_CHECK(gpuPeekAtLastError())
+      gpuDeviceSynchronize();
 #endif
 
       simTimer.start();
       timeloop.run(timeloopTiming);
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-      WALBERLA_CUDA_CHECK(cudaPeekAtLastError())
-      cudaDeviceSynchronize();
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      WALBERLA_GPU_CHECK(gpuPeekAtLastError())
+      gpuDeviceSynchronize();
 #endif
       simTimer.end();
 

@@ -64,6 +64,17 @@ class CombinedInPlaceGpuPackInfo : public gpu::GeneratedGPUPackInfo
       }
    }
 
+   void communicateLocal(stencil::Direction dir, const IBlock* sender, IBlock* receiver, gpuStream_t stream) override {
+      if (IS_EVEN(tracker_->getCounter()))
+      {
+         evenPackInfo_.communicateLocal(dir, sender, receiver, stream);
+      }
+      else
+      {
+         oddPackInfo_.communicateLocal(dir, sender, receiver, stream);
+      }
+   }
+
    uint_t size(stencil::Direction dir, IBlock* block) override {
       if (IS_EVEN(tracker_->getCounter()))
       {

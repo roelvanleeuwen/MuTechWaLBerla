@@ -8,33 +8,33 @@ waLBerla_link_files_to_builddir( input*.py )
 
 if ( WALBERLA_BUILD_WITH_OPENMESH AND WALBERLA_BUILD_WITH_CODEGEN )
 
-    if( WALBERLA_BUILD_WITH_CUDA)
+    if( WALBERLA_BUILD_WITH_GPU_SUPPORT)
         waLBerla_generate_target_from_python(NAME SparseLoadBalancingCodeGen
                 FILE SparseLoadBalancing.py
-                OUT_FILES SparseLBSweep.cu SparseLBSweep.h
+                OUT_FILES SparseLBSweep.${CODEGEN_FILE_SUFFIX} SparseLBSweep.h
                 ListLBMList.cpp ListLBMList.h
                 SparseMacroSetter.cpp SparseMacroSetter.h
-                SparseUBB.cu SparseUBB.h
-                SparsePressure.cu SparsePressure.h
-                SparseNoSlip.cu SparseNoSlip.h
-                SparsePackInfoEven.cu SparsePackInfoEven.h
-                SparsePackInfoOdd.cu SparsePackInfoOdd.h
+                SparseUBB.${CODEGEN_FILE_SUFFIX} SparseUBB.h
+                SparsePressure.${CODEGEN_FILE_SUFFIX} SparsePressure.h
+                SparseNoSlip.${CODEGEN_FILE_SUFFIX} SparseNoSlip.h
+                SparsePackInfoEven.${CODEGEN_FILE_SUFFIX} SparsePackInfoEven.h
+                SparsePackInfoOdd.${CODEGEN_FILE_SUFFIX} SparsePackInfoOdd.h
                 SparseLBMInfoHeader.h
-                DenseLBSweep.cu DenseLBSweep.h
+                DenseLBSweep.${CODEGEN_FILE_SUFFIX} DenseLBSweep.h
                 DenseMacroSetter.cpp DenseMacroSetter.h
                 DenseMacroGetter.cpp DenseMacroGetter.h
-                DenseUBB.cu DenseUBB.h
-                DensePressure.cu DensePressure.h
-                DenseNoSlip.cu DenseNoSlip.h
-                DensePackInfoEven.cu DensePackInfoEven.h
-                DensePackInfoOdd.cu DensePackInfoOdd.h
+                DenseUBB.${CODEGEN_FILE_SUFFIX} DenseUBB.h
+                DensePressure.${CODEGEN_FILE_SUFFIX} DensePressure.h
+                DenseNoSlip.${CODEGEN_FILE_SUFFIX} DenseNoSlip.h
+                DensePackInfoEven.${CODEGEN_FILE_SUFFIX} DensePackInfoEven.h
+                DensePackInfoOdd.${CODEGEN_FILE_SUFFIX} DensePackInfoOdd.h
                 DenseLBMInfoHeader.h
-                HybridPackInfoEven.cu HybridPackInfoEven.h
-                HybridPackInfoOdd.cu HybridPackInfoOdd.h)
+                HybridPackInfoEven.${CODEGEN_FILE_SUFFIX} HybridPackInfoEven.h
+                HybridPackInfoOdd.${CODEGEN_FILE_SUFFIX} HybridPackInfoOdd.h)
 
         waLBerla_add_executable ( NAME SparseLoadBalancing
                 FILES SparseLoadBalancing.cpp
-                DEPENDS blockforest boundary core cuda field lbm mesh stencil timeloop vtk python_coupling SparseLoadBalancingCodeGen)
+                DEPENDS blockforest boundary core gpu field lbm mesh stencil timeloop vtk python_coupling SparseLoadBalancingCodeGen)
     else()
         waLBerla_generate_target_from_python(NAME SparseLoadBalancingCodeGen
                 FILE SparseLoadBalancing.py

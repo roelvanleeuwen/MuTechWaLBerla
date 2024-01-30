@@ -58,8 +58,7 @@ static __global__ void unpackOdd(double * RESTRICT const _data_buffer, double * 
 }
 {%- endif %}
 
-/*namespace internal_communicate_local {
-static __global__ void communicate(double * RESTRICT const _data_sender, double * RESTRICT _data_receiver, uint32_t * RESTRICT const _data_idx_sender, int64_t startIDXReceiver, int64_t numPDFs)
+static __global__ void communicate(const double * RESTRICT _data_sender, double * RESTRICT _data_receiver, uint32_t * RESTRICT const _data_idx_sender, int64_t startIDXReceiver, int64_t numPDFs)
 {
    double * RESTRICT _start_receiver_pdfs = _data_receiver + startIDXReceiver;
    if (blockDim.x * blockIdx.x + threadIdx.x < numPDFs)
@@ -68,10 +67,9 @@ static __global__ void communicate(double * RESTRICT const _data_sender, double 
       _start_receiver_pdfs[ctr_0] = _data_sender[_data_idx_sender[ctr_0]];
    }
 }
-}*/
 
 
-void {{class_name}}::pack( stencil::Direction dir, unsigned char * byte_buffer, IBlock * block, cudaStream_t stream )
+void {{class_name}}::pack( stencil::Direction dir, unsigned char * byte_buffer, IBlock * block, gpuStream_t stream )
 {
    auto * list = block->getData< lbmpy::ListLBMList >( listId_ );
    WALBERLA_ASSERT_NOT_NULLPTR( list )
@@ -108,7 +106,7 @@ void {{class_name}}::pack( stencil::Direction dir, unsigned char * byte_buffer, 
 {%- endif %}
 }
 
-void {{class_name}}::unpack( stencil::Direction dir, unsigned char * byte_buffer, IBlock * block, cudaStream_t stream )
+void {{class_name}}::unpack( stencil::Direction dir, unsigned char * byte_buffer, IBlock * block, gpuStream_t stream )
 {
 
    auto * list = block->getData< lbmpy::ListLBMList >( listId_ );
@@ -148,11 +146,13 @@ void {{class_name}}::unpack( stencil::Direction dir, unsigned char * byte_buffer
 {%- endif %}
 }
 
-/*void {{class_name}}::communicateLocal( stencil::Direction dir, IBlock * sender, IBlock * receiver, cudaStream_t stream)
+void {{class_name}}::communicateLocal( stencil::Direction dir, const IBlock * sender, IBlock * receiver, gpuStream_t stream)
 {
+{% if timestep is equalto 'Even' -%}
+
    stencil::Direction inverseDir = stencil::inverseDir[dir];
 
-   auto * senderList = sender->getData< lbmpy::ListLBMList >( listId_ );
+   const auto * senderList = sender->getData< lbmpy::ListLBMList >( listId_ );
    auto * receiverList = receiver->getData< lbmpy::ListLBMList >( listId_ );
    WALBERLA_ASSERT_NOT_NULLPTR( senderList   )
    WALBERLA_ASSERT_NOT_NULLPTR( receiverList )
@@ -173,19 +173,20 @@ void {{class_name}}::unpack( stencil::Direction dir, unsigned char * byte_buffer
 
    auto startIdxIt = receiverList->getStartCommIdx( inverseDir );
 
-
    auto idxs = idxMapIt.second;
-   double * RESTRICT const _data_sender_pdfs = senderList->getGPUPDFbegining();
+   const double * RESTRICT _data_sender_pdfs = senderList->getGPUPDFbegining();
    index_t ReceiverStartIDX = startIdxIt.second;
    double * RESTRICT _data_receiver_pdfs = receiverList->getGPUPDFbegining();
-
 
    dim3 _block(int(((256 < numPDFs) ? 256 : numPDFs)), int(1), int(1));
    dim3 _grid(int(( (numPDFs) % (((256 < numPDFs) ? 256 : numPDFs)) == 0 ? (int64_t)(numPDFs) / (int64_t)(((256 < numPDFs) ? 256 : numPDFs)) : ( (int64_t)(numPDFs) / (int64_t)(((256 < numPDFs) ? 256 : numPDFs)) ) +1 )), int(1), int(1));
 
+   communicate<<<_grid, _block, 0, stream>>>(_data_sender_pdfs, _data_receiver_pdfs, idxs, ReceiverStartIDX, numPDFs);
+   {%- elif timestep is equalto 'Odd' -%}
+   WALBERLA_ABORT("Alternating Timesteps for local communication not supported")
+   {%- endif %}
 
-   internal_communicate_local::communicate<<<_grid, _block, 0, stream>>>(_data_sender_pdfs, _data_receiver_pdfs, idxs, ReceiverStartIDX, numPDFs);
-}*/
+}
 
 uint_t {{class_name}}::size( stencil::Direction dir, IBlock * block )
 {
