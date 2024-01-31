@@ -117,7 +117,7 @@ def generate_sparse_pack_info(generation_context, class_name: str, stencil,
     header = env.get_template(template_name + ".h").render(**jinja_context)
     source = env.get_template(template_name + ".cpp").render(**jinja_context)
 
-    source_extension = "cpp" if target == Target.CPU else "cu"
+    source_extension = "cu" if target == Target.GPU and generation_context.cuda else "cpp"
     generation_context.write_file(f"{class_name}.h", header)
     generation_context.write_file(f"{class_name}.{source_extension}", source)
 
@@ -153,7 +153,7 @@ def generate_alternating_sparse_pack_info(generation_context, class_name: str, s
         header = env.get_template(template_name + ".h").render(**jinja_context)
         source = env.get_template(template_name + ".cpp").render(**jinja_context)
 
-        source_extension = "cpp" if target == Target.CPU else "cu"
+        source_extension = "cu" if target == Target.GPU and generation_context.cuda else "cpp"
         generation_context.write_file(f"{class_name_timestep}.h", header)
         generation_context.write_file(f"{class_name_timestep}.{source_extension}", source)
 
@@ -300,7 +300,7 @@ def generate_hybrid_pack_info(generation_context, class_name_prefix: str, stenci
         header = env.get_template(template_name + ".h").render(**jinja_context)
         source = env.get_template(template_name + ".cpp").render(**jinja_context)
 
-        source_extension = "cpp" if config.target == Target.CPU else "cu"
+        source_extension = "cu" if target == Target.GPU and generation_context.cuda else "cpp"
         generation_context.write_file(f"{class_name}.h", header)
         generation_context.write_file(f"{class_name}.{source_extension}", source)
 
@@ -422,6 +422,6 @@ def generate_selective_sparse_sweep(generation_context, class_name, selection_tr
     header = env.get_template("SweepSparse.tmpl.h").render(**jinja_context)
     source = env.get_template("SweepSparse.tmpl.cpp").render(**jinja_context)
 
-    source_extension = "cpp" if target == Target.CPU else "cu"
+    source_extension = "cu" if target == Target.GPU and generation_context.cuda else "cpp"
     generation_context.write_file(f"{class_name}.h", header)
     generation_context.write_file(f"{class_name}.{source_extension}", source)
