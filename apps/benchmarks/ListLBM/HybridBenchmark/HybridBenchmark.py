@@ -52,15 +52,15 @@ with CodeGeneration() as ctx:
         field_swaps=[]
 
 
-    if ctx.cuda:
+    if ctx.gpu:
         target = Target.GPU
-        vp = [('int32_t', 'cudaBlockSize0'),
-              ('int32_t', 'cudaBlockSize1'),
-              ('int32_t', 'cudaBlockSize2')]
+        vp = [('int32_t', 'gpuBlockSize0'),
+              ('int32_t', 'gpuBlockSize1'),
+              ('int32_t', 'gpuBlockSize2')]
 
-        sweep_block_size = (TypedSymbol("cudaBlockSize0", np.int32),
-                            TypedSymbol("cudaBlockSize1", np.int32),
-                            TypedSymbol("cudaBlockSize2", np.int32))
+        sweep_block_size = (TypedSymbol("gpuBlockSize0", np.int32),
+                            TypedSymbol("gpuBlockSize1", np.int32),
+                            TypedSymbol("gpuBlockSize2", np.int32))
 
         sweep_params = {'block_size': sweep_block_size}
 

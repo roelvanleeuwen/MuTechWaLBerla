@@ -52,7 +52,7 @@ inline void nvtxMarker(const std::string& name, const uint32_t color=0xaaaaaa)
 #endif
 }
 
-inline void nameStream(const cudaStream_t & stream, const std::string & name)
+inline void nameStream(const gpuStream_t & stream, const std::string & name)
 {
 #if defined(WALBERLA_BUILD_WITH_CUDA)
    nvtxNameCudaStreamA(stream, name.c_str());
