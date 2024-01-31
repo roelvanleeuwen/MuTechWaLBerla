@@ -270,6 +270,8 @@ int main(int argc, char **argv)
       const real_t porositySwitch = parameters.getParameter< real_t >("porositySwitch");
       const bool runHybrid = parameters.getParameter< bool >("runHybrid", false);
       const bool balanceLoad = parameters.getParameter< bool >("balanceLoad", false);
+      const bool writeDomainDecompositionAndReturn = parameters.getParameter< bool >("writeDomainDecompositionAndReturn", false);
+      const real_t dx = parameters.getParameter< real_t >("dx", real_c(1.0));
 
 
       Vector3< uint_t > cellsPerBlock;
@@ -311,7 +313,6 @@ int main(int argc, char **argv)
       bool pressureInflow = false;
 
       if (geometrySetup == "randomNoslip") {
-         real_t dx = 1;
          /*blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx, 0, true, false, periodic[0], periodic[1], periodic[2], false);*/
          blocks = walberla::blockforest::createUniformBlockGrid(blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx,  true, periodic[0], periodic[1], periodic[2], false);
 
@@ -327,7 +328,6 @@ int main(int argc, char **argv)
       }
       else if (geometrySetup == "spheres") {
          mpi::MPIManager::instance()->useWorldComm();
-         real_t dx = 1;
          blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx);
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          const real_t SpheresRadius = parameters.getParameter< real_t >("SpheresRadius");
@@ -353,14 +353,23 @@ int main(int argc, char **argv)
 
          auto aabb = computeAABB(*mesh);
          //const Vector3< real_t > dx(scalingFactor, scalingFactor, scalingFactor);
-         const Vector3< real_t > dx(0.05, 0.05, 0.05);
+         const Vector3< real_t > dx3(dx, dx, dx);
 
-         mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, dx, mesh::makeExcludeMeshExterior(distanceOctree, dx[0]));
+         mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, dx3, mesh::makeExcludeMeshExterior(distanceOctree, dx));
 
-         auto meshWorkloadMemory = mesh::makeMeshWorkloadMemory( distanceOctree, dx[0] );
+         auto meshWorkloadMemory = mesh::makeMeshWorkloadMemory( distanceOctree, dx );
          meshWorkloadMemory.setInsideCellWorkload(1);
          meshWorkloadMemory.setOutsideCellWorkload(0);
          bfc.setWorkloadMemorySUIDAssignmentFunction( meshWorkloadMemory );
+
+         auto setupForest = bfc.createSetupBlockForest( cellsPerBlock );
+         if(writeDomainDecompositionAndReturn) {
+            WALBERLA_LOG_INFO_ON_ROOT("Number of blocks is <" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << ">, without excluded blocks its " << setupForest->getNumberOfBlocks())
+            WALBERLA_LOG_INFO_ON_ROOT("Number of cells per Block is " << cellsPerBlock)
+            WALBERLA_ROOT_SECTION() { setupForest->writeVTKOutput("SetupBlockForest"); }
+            return EXIT_SUCCESS;
+         }
+
 
          blocks = bfc.createStructuredBlockForest(cellsPerBlock);
 
@@ -412,7 +421,6 @@ int main(int argc, char **argv)
       else if (geometrySetup == "particleBed") {
          mpi::MPIManager::instance()->useWorldComm();
          const AABB  domainAABB = AABB(0.0, 0.0, 0.0, 0.1, 0.05, 0.1);
-         const real_t dx = 0.0002;
          Vector3<uint_t> numCells(uint_c(domainAABB.xSize() / dx), uint_c(domainAABB.ySize() / dx), uint_c(domainAABB.zSize() / dx));
          Vector3<uint_t> numBlocks(uint_c(std::ceil(numCells[0] / cellsPerBlock[0])), uint_c(std::ceil(numCells[1] / cellsPerBlock[1])), uint_c(std::ceil(numCells[2] / cellsPerBlock[2])));
 
@@ -431,6 +439,8 @@ int main(int argc, char **argv)
       WALBERLA_LOG_INFO_ON_ROOT("Number of cells is <" << blocks->getNumberOfXCells() << "," << blocks->getNumberOfYCells() << "," << blocks->getNumberOfZCells() << ">")
       WALBERLA_LOG_INFO_ON_ROOT("Number of blocks is <" << blocks->getXSize() << "," << blocks->getYSize() << "," << blocks->getZSize() << ">")
       WALBERLA_LOG_INFO_ON_ROOT("Is cartesian communicator used: " << mpi::MPIManager::instance()->hasCartesianSetup() << " or worldComm " << mpi::MPIManager::instance()->hasWorldCommSetup())
+
+
 
 
       if(timeStepStrategy != "noOverlap") {
