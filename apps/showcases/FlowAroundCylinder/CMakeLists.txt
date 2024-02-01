@@ -20,10 +20,10 @@ waLBerla_generate_target_from_python(NAME FlowAroundCylinderCodeGen
 if (WALBERLA_BUILD_WITH_CUDA OR WALBERLA_BUILD_WITH_HIP)
     waLBerla_add_executable ( NAME FlowAroundCylinder
             FILES FlowAroundCylinder.cpp Cylinder.cpp Evaluation.cpp
-            DEPENDS blockforest boundary core field gpu lbm_generated mesh stencil timeloop vtk FlowAroundCylinderCodeGen )
+            DEPENDS blockforest boundary core field gpu lbm_generated stencil timeloop vtk FlowAroundCylinderCodeGen )
 else()
     waLBerla_add_executable ( NAME FlowAroundCylinder
             FILES FlowAroundCylinder.cpp Cylinder.cpp Evaluation.cpp
-            DEPENDS blockforest boundary core field lbm_generated mesh stencil timeloop vtk FlowAroundCylinderCodeGen )
+            DEPENDS blockforest boundary core field lbm_generated stencil timeloop vtk FlowAroundCylinderCodeGen )
 
 endif(WALBERLA_BUILD_WITH_CUDA OR WALBERLA_BUILD_WITH_HIP)
