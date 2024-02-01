@@ -171,6 +171,10 @@ std::function<void()>  BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, Bo
       for (auto b : blocks_[level])
       {
          boundaryCollection_(b);
+         for( auto func : globalPostBoundaryHandlingBlockFunctions_ )
+         {
+            func(b, level);
+         }
          if (level != maxLevel_) pdfFieldPackInfo_->prepareCoalescence(b);
       }
    };
@@ -192,6 +196,12 @@ void BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T
          sweepCollection_.streamOnlyNoAdvancementCellInterval(block, ci);
       }
    }
+}
+
+template< typename PdfField_T, typename SweepCollection_T, typename BoundaryCollection_T >
+inline void BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T >::addPostBoundaryHandlingBlockFunction( const BlockFunction & function )
+{
+   globalPostBoundaryHandlingBlockFunctions_.emplace_back( function );
 }
 
 // Refinement Timestep from post collision state:

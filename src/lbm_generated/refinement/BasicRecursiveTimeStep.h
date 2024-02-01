@@ -31,6 +31,7 @@
 namespace walberla {
 
 using blockforest::communication::NonUniformBufferedScheme;
+using BlockFunction = std::function<void (IBlock *, const uint_t)>; // parameters: block, level
 
 namespace lbm_generated {
 
@@ -73,6 +74,8 @@ class BasicRecursiveTimeStep
    void operator() () { timestep(0); };
    void addRefinementToTimeLoop(SweepTimeloop & timeloop, uint_t level=0);
 
+   inline void addPostBoundaryHandlingBlockFunction( const BlockFunction & function );
+
  private:
    void timestep(uint_t level);
    void ghostLayerPropagation(Block * block);
@@ -89,6 +92,8 @@ class BasicRecursiveTimeStep
 
    SweepCollection_T & sweepCollection_;
    BoundaryCollection_T & boundaryCollection_;
+
+   std::vector< BlockFunction >  globalPostBoundaryHandlingBlockFunctions_;
 };
 
 } // namespace lbm_generated

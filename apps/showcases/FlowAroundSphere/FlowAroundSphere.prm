@@ -21,7 +21,7 @@ DomainSetup
 {
     meshFile      sphere.obj;
     cellsPerBlock < 64, 64, 64 >;
-    periodic      <  0,  0,  0 >;
+    periodic      <  0,  1,  1 >;
 
     domainSize    < 35, 10, 10 >;
 

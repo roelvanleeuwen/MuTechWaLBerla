@@ -247,7 +247,6 @@ SchaeferTurek
 
 VTK
 {
-   /*
    fluid_field
    {
       baseFolder vtk;
@@ -285,9 +284,7 @@ VTK
       
       incompatibleBlockStates empty;
    }
-   */
-   
-   /*
+
    flag_field
    {
       baseFolder vtk;
@@ -302,8 +299,7 @@ VTK
       
       incompatibleBlockStates empty;
    }
-   */
-  
+
    /*
    domain_decomposition
    {

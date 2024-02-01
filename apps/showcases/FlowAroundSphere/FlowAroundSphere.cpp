@@ -224,9 +224,11 @@ void setupBoundaryFlagField(StructuredBlockForest& sbfs, const BlockDataID flagF
          Cell localCell = cIt.cell();
          Cell globalCell(localCell);
          sbfs.transformBlockLocalToGlobalCell(globalCell, b);
-         if (globalCell.x() >= cell_idx_c(sbfs.getNumberOfXCells(level))) { flagField->addFlag(localCell, outflowFlag); }
-         else if (globalCell.x() < 0 || globalCell.y() < 0 || globalCell.z() < 0 ||
-                  globalCell.y() >= cell_idx_c(sbfs.getNumberOfYCells(level)) || globalCell.z() >= cell_idx_c(sbfs.getNumberOfZCells(level)))
+         if ( globalCell.x() >= cell_idx_c(sbfs.getNumberOfXCells(level)) )
+         {
+            flagField->addFlag(localCell, outflowFlag);
+         }
+         else if ( globalCell.x() < 0 )
          {
             flagField->addFlag(localCell, ubbFlag);
          }
