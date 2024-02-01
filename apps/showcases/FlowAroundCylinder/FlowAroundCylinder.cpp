@@ -675,12 +675,12 @@ int main(int argc, char** argv)
 
       if (writeVelocity)
       {
-         auto velWriter = make_shared< field::VTKWriter< VelocityField_T > >(velFieldID, "velocity");
+         auto velWriter = make_shared< field::VTKWriter< VelocityField_T, float32 > >(velFieldID, "velocity");
          vtkOutput->addCellDataWriter(velWriter);
       }
       if (writeDensity)
       {
-         auto densityWriter = make_shared< field::VTKWriter< ScalarField_T > >(densityFieldID, "density");
+         auto densityWriter = make_shared< field::VTKWriter< ScalarField_T, float32 > >(densityFieldID, "density");
          vtkOutput->addCellDataWriter(densityWriter);
       }
       if (writeFlag)
