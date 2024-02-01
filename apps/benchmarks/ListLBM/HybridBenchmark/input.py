@@ -117,7 +117,7 @@ def Artery():
     scenarios = wlb.ScenarioManager()
     #mesh_file = "Artery.obj"
     mesh_file = "coronary_colored_medium.obj"
-    scenario = Scenario(dx=0.2, cells_per_block=(32, 32, 32), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=1001, omega=1.7,  porosity_switch=0.0, run_hybrid=False, time_step_strategy="Overlap", run_boundaries=True)
+    scenario = Scenario(dx=0.2, cells_per_block=(32, 32, 32), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=1001, omega=1.7,  porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True)
     scenarios.add(scenario)
 
 def ArterySparseVsDense():
@@ -128,7 +128,7 @@ def ArterySparseVsDense():
     for cells_per_block in cells_per_block_options:
         scenario = Scenario(dx=0.055, cells_per_block=cells_per_block, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000,  porosity_switch=1.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, gpu_enabled_mpi=True)
         scenarios.add(scenario)
-        scenario = Scenario(dx=0.055, cells_per_block=cells_per_block, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000,  porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, gpu_enabled_mpi=False)
+        scenario = Scenario(dx=0.055, cells_per_block=cells_per_block, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000,  porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, gpu_enabled_mpi=True)
         scenarios.add(scenario)
 
 def smallArtery():

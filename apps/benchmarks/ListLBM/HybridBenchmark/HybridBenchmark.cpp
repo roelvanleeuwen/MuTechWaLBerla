@@ -603,7 +603,7 @@ int main(int argc, char **argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       const bool gpuEnabledMPI = parameters.getParameter< bool >("gpuEnabledMPI", true);
       auto packInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldIdGPU, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
-      gpu::communication::UniformGPUScheme< Stencil_T > comm(blocks, gpuEnabledMPI, true);
+      gpu::communication::UniformGPUScheme< Stencil_T > comm(blocks, gpuEnabledMPI, false);
 #else
       auto packInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldId, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
