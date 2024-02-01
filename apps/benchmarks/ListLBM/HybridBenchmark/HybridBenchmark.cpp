@@ -355,7 +355,7 @@ int main(int argc, char **argv)
          //const Vector3< real_t > dx(scalingFactor, scalingFactor, scalingFactor);
          const Vector3< real_t > dx3(dx, dx, dx);
 
-         mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, dx3, mesh::makeExcludeMeshExterior(distanceOctree, dx));
+         mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, dx3, mesh::makeExcludeMeshExterior(distanceOctree, 0));
 
          auto meshWorkloadMemory = mesh::makeMeshWorkloadMemory( distanceOctree, dx );
          meshWorkloadMemory.setInsideCellWorkload(1);
@@ -437,10 +437,7 @@ int main(int argc, char **argv)
       }
 
       WALBERLA_LOG_INFO_ON_ROOT("Number of cells is <" << blocks->getNumberOfXCells() << "," << blocks->getNumberOfYCells() << "," << blocks->getNumberOfZCells() << ">")
-      WALBERLA_LOG_INFO_ON_ROOT("Number of blocks is <" << blocks->getXSize() << "," << blocks->getYSize() << "," << blocks->getZSize() << ">")
-      WALBERLA_LOG_INFO_ON_ROOT("Is cartesian communicator used: " << mpi::MPIManager::instance()->hasCartesianSetup() << " or worldComm " << mpi::MPIManager::instance()->hasWorldCommSetup())
-
-
+      WALBERLA_LOG_INFO_ON_ROOT("Number of blocks is <" << blocks->getXSize() << "," << blocks->getYSize() << "," << blocks->getZSize() << ">, without excluded blocks its " << blocks->getNumberOfBlocks())
 
 
       if(timeStepStrategy != "noOverlap") {
@@ -606,15 +603,15 @@ int main(int argc, char **argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       const bool gpuEnabledMPI = parameters.getParameter< bool >("gpuEnabledMPI", true);
       auto packInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldIdGPU, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
-      gpu::communication::UniformGPUScheme< Stencil_T > comm(blocks, gpuEnabledMPI);
+      gpu::communication::UniformGPUScheme< Stencil_T > comm(blocks, gpuEnabledMPI, true);
 #else
       auto packInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldId, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
       blockforest::communication::UniformBufferedScheme< Stencil_T > comm(blocks);
 
 #endif
-      WALBERLA_LOG_INFO_ON_ROOT("Finished setting up communication")
       comm.addPackInfo(packInfo);
+      WALBERLA_LOG_INFO_ON_ROOT("Finished setting up communication")
 
 
       const auto emptySweep = [](IBlock*) {};
@@ -656,14 +653,7 @@ int main(int argc, char **argv)
 
          //decrease tracker and run wait communication and outer boundaries
          timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << BeforeFunction(std::function< void() >([&]() { comm.wait(); }), "communication") << Sweep(emptySweep);
-         /*if(runBoundaries) {
-            timeloop.add() << Sweep(denseNoSlip.getOuterSweep(tracker), "denseNoslip outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
-            timeloop.add() << Sweep(sparseUbb.getOuterSweep(tracker), "sparseUbb outer", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                           << Sweep(denseUbb.getOuterSweep(tracker), "denseUbb outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
-            timeloop.add() << Sweep(sparsePressureOutflow.getOuterSweep(tracker), "sparsePressureOutflow outer", sweepSelectLowPorosity, sweepSelectHighPorosity)
-                           << Sweep(densePressureOutflow.getOuterSweep(tracker), "densePressureOutflow outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
-         }*/
-         //increase tracker again and run outer LBM kernel
+
          timeloop.add() << BeforeFunction(tracker->getAdvancementFunction()) << Sweep(emptySweep);
          timeloop.add() << Sweep(deviceSyncWrapper(sparseKernel.getOuterSweep(tracker)), "sparseKernel outer", sweepSelectLowPorosity, sweepSelectHighPorosity)
                         << Sweep(deviceSyncWrapper(denseKernel.getOuterSweep(tracker)), "denseKernel outer", sweepSelectHighPorosity, sweepSelectLowPorosity);
@@ -751,7 +741,7 @@ int main(int argc, char **argv)
 
          timeloop.addFuncBeforeTimeStep(vtk::writeFiles(denseVtkOutput, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity), "VTK Output Dense");
       }
-
+      WALBERLA_LOG_INFO("Finished setting up VTK")
 
       lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldId, fluidFlagUID);
 

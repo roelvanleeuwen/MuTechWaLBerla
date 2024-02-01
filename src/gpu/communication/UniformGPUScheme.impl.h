@@ -187,7 +187,7 @@ namespace communication {
 
                for( auto &pi : packInfos_ )
                {
-                  auto size = pi->size( header.dir, block );
+                  auto size = pi->size( stencil::inverseDir[header.dir], block );
                   auto gpuDataPtr = recvInfo.buffer().advanceNoResize( size );
                   WALBERLA_ASSERT_NOT_NULLPTR( gpuDataPtr )
                   pi->unpack( stencil::inverseDir[header.dir], gpuDataPtr, block, streams_[header.dir] );
@@ -208,7 +208,7 @@ namespace communication {
 
                for( auto &pi : packInfos_ )
                {
-                  auto size = pi->size( header.dir, block );
+                  auto size = pi->size( stencil::inverseDir[header.dir], block );
                   auto cpuDataPtr = recvInfo.buffer().advanceNoResize( size );
                   auto gpuDataPtr = gpuBuffer.advanceNoResize( size );
                   WALBERLA_ASSERT_NOT_NULLPTR( cpuDataPtr )

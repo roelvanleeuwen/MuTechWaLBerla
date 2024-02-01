@@ -97,6 +97,7 @@ with CodeGeneration() as ctx:
     generate_info_header(ctx, 'SparseLBMInfoHeader', stencil_typedefs=stencil_typedefs, additional_code=list_template)
 
 
+
     ########################################## Dense kernels ###################################################
 
     pdfs, pdfs_tmp, = fields(f"pdfs({q}), pdfs_tmp({q}): double[3D]",  layout='fzyx')

@@ -93,8 +93,6 @@ void {{class_name}}::packSparse(Direction dir, unsigned char * byte_buffer, IBlo
 
    packOddSparse(buffer, _data_pdfs, startIDX, numPDFs);
    {%- endif %}
-
-
 }
 
 void {{class_name}}::unpackSparse(stencil::Direction dir, unsigned char * byte_buffer, IBlock * block) const

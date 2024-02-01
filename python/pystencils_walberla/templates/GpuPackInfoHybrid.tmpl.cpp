@@ -224,8 +224,58 @@ namespace {{namespace}} {
       }
    }
 
+
+   static __global__ void communicate(const double * RESTRICT _data_sender, double * RESTRICT _data_receiver, uint32_t * RESTRICT const _data_idx_sender, int64_t startIDXReceiver, int64_t numPDFs)
+   {
+      double * RESTRICT _start_receiver_pdfs = _data_receiver + startIDXReceiver;
+      if (blockDim.x * blockIdx.x + threadIdx.x < numPDFs)
+      {
+         const int64_t ctr_0 = blockDim.x*blockIdx.x + threadIdx.x;
+         _start_receiver_pdfs[ctr_0] = _data_sender[_data_idx_sender[ctr_0]];
+      }
+   }
+
+
    void {{class_name}}::communicateLocal(Direction dir, const IBlock * sender, IBlock * receiver, gpuStream_t stream) {
-      WALBERLA_ABORT("Local Communication not supported for hybrid pack info")
+
+      auto blockStateSender = sender->getState();
+      auto blockStateReceiver = receiver->getState();
+
+      if (blockStateSender == sparseBlockSelectors_ && blockStateReceiver == sparseBlockSelectors_ )
+      {
+         stencil::Direction inverseDir = stencil::inverseDir[dir];
+
+         const auto* senderList = sender->getData< lbmpy::ListLBMList >(listId_);
+         auto* receiverList     = receiver->getData< lbmpy::ListLBMList >(listId_);
+         WALBERLA_ASSERT_NOT_NULLPTR(senderList)
+         WALBERLA_ASSERT_NOT_NULLPTR(receiverList)
+
+         ////////// Sender //////////////
+         auto idxMapItCPU           = senderList->getSendPDFs(dir);
+         const auto& indexVectorCPU = idxMapItCPU.second;
+         const int64_t numPDFs      = indexVectorCPU.size();
+         if (numPDFs == 0) return;
+
+         auto idxMapIt = senderList->getSendPDFsGPU(dir);
+
+         ///////////// Receiver ////////////////////
+         auto numPDFsIt = receiverList->getNumCommPDFs(inverseDir);
+         WALBERLA_ASSERT_EQUAL(numPDFs, numPDFsIt.second)
+
+         auto startIdxIt = receiverList->getStartCommIdx(inverseDir);
+
+         auto idxs                                = idxMapIt.second;
+         const double* RESTRICT _data_sender_pdfs = senderList->getGPUPDFbegining();
+         auto ReceiverStartIDX                 = startIdxIt.second;
+         double* RESTRICT _data_receiver_pdfs     = receiverList->getGPUPDFbegining();
+
+         dim3 _block(int(((256 < numPDFs) ? 256 : numPDFs)), int(1), int(1));
+         dim3 _grid(int(((numPDFs) % (((256 < numPDFs) ? 256 : numPDFs)) == 0 ? (int64_t) (numPDFs) / (int64_t) (((256 < numPDFs) ? 256 : numPDFs)) : ((int64_t) (numPDFs) / (int64_t) (((256 < numPDFs) ? 256 : numPDFs))) + 1)), int(1), int(1));
+
+         communicate<<< _grid, _block, 0, stream >>>(_data_sender_pdfs, _data_receiver_pdfs, idxs, ReceiverStartIDX, numPDFs);
+      } else {
+         WALBERLA_ABORT("local communication not implemented by Hybrid Communication")
+      }
    }
 
 

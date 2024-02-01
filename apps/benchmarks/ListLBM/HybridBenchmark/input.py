@@ -69,7 +69,7 @@ class Scenario:
                 'runBoundaries': self.run_boundaries,
                 'remainingTimeLoggerFrequency': 10,
                 'useCartesian': self.use_cartesian_communicator,
-                'writeDomainDecompositionAndReturn': True,
+                'writeDomainDecompositionAndReturn': False,
                 'dx': self.dx,
 
                 'SpheresRadius': self.spheres_radius,
@@ -117,7 +117,24 @@ def Artery():
     scenarios = wlb.ScenarioManager()
     #mesh_file = "Artery.obj"
     mesh_file = "coronary_colored_medium.obj"
-    scenario = Scenario(dx=0.055, cells_per_block=(256, 256, 256), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=1, omega=1.7,  porosity_switch=0.8, run_hybrid=True, time_step_strategy="noOverlap", run_boundaries=True)
+    scenario = Scenario(dx=0.2, cells_per_block=(32, 32, 32), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=1001, omega=1.7,  porosity_switch=0.0, run_hybrid=False, time_step_strategy="Overlap", run_boundaries=True)
+    scenarios.add(scenario)
+
+def ArterySparseVsDense():
+    scenarios = wlb.ScenarioManager()
+    mesh_file = "coronary_colored_medium.obj"
+
+    cells_per_block_options = [(256, 256, 256), (128, 128, 128), (64, 64, 64), (32, 32, 32), (16, 16, 16)]
+    for cells_per_block in cells_per_block_options:
+        scenario = Scenario(dx=0.055, cells_per_block=cells_per_block, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000,  porosity_switch=1.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, gpu_enabled_mpi=True)
+        scenarios.add(scenario)
+        scenario = Scenario(dx=0.055, cells_per_block=cells_per_block, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000,  porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, gpu_enabled_mpi=False)
+        scenarios.add(scenario)
+
+def smallArtery():
+    scenarios = wlb.ScenarioManager()
+    mesh_file = "Artery.obj"
+    scenario = Scenario(dx=0.3, cells_per_block=(64, 64, 64), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=10, omega=1.7,  porosity_switch=1.0, run_hybrid=False, time_step_strategy="noOverlap", run_boundaries=True)
     scenarios.add(scenario)
 
 def particleBed():
@@ -170,6 +187,8 @@ def testCartesianComm():
 #randomNoslip()
 #spheres()
 Artery()
+#smallArtery()
+
 #particleBed()
 #emptyChannel()
 #scalingBenchmark()

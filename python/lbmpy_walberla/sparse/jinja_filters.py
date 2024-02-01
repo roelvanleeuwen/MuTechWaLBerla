@@ -310,6 +310,8 @@ def generate_call(ctx, kernel, stream='0', spatial_shape_symbols=(), inner_or_ou
                 kernel_call_lines.append(f"const {type_str} {param.symbol.name} = list->numFluidCellsOuter();")
             else:
                 kernel_call_lines.append(f"const {type_str} {param.symbol.name} = list->numFluidCells();")
+            kernel_call_lines.append(f"if ( {param.symbol.name} == 0) return;")
+
 
     kernel_call_lines.append(kernel.generate_kernel_invocation_code(stream=stream,
                                                                     spatial_shape_symbols=spatial_shape_symbols))
