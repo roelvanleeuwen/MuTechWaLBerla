@@ -206,7 +206,6 @@ auto createBox(mesa_pd::data::ParticleStorage& ps, const mesa_pd::Vec3& pos, con
    p0->setInteractionRadius(std::numeric_limits< real_t >::infinity());
    mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::GLOBAL);
    mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::INFINITE);
-   mesa_pd::data::particle_flags::set(p0->getFlagsRef(), mesa_pd::data::particle_flags::NON_COMMUNICATING);
    return p0->getUid();
 }
 
