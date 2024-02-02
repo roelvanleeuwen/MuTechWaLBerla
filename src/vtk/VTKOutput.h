@@ -241,11 +241,11 @@ private:
    void writeVTIPiece( std::ostream& ofs, const IBlock& block ) const;
    void writeVTIPiece_sampling( std::ostream& ofs, const IBlock& block ) const;
 
-   void writeVTU( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const;
-   void writeVTU_sampling( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const;
+   void writeVTU( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const;
+   void writeVTU_sampling( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const;
 
-   void writeVTUPiece(std::ostream& ofs, const IBlock& block, const CellVector& cells) const;
-   void writeVTUPiece_sampling(std::ostream& ofs, const IBlock& block, const CellVector& cells) const;
+   void writeVTUPiece( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const;
+   void writeVTUPiece_sampling(std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates) const;
 
    void writeVTUHeader( std::ofstream& ofs, const uint_t numberOfCells, const std::vector< VertexCoord > & vc, const std::vector< Index > & ci ) const;
    void writeVTUHeaderPiece (std::ostream& ofs, const uint_t numberOfCells, const std::vector< VertexCoord > & vc, const std::vector< Index > & ci) const;
@@ -255,6 +255,7 @@ private:
    std::vector< SamplingCell > getSamplingCells( const IBlock& block, const CellVector& cells ) const;
 
    void writeCellData( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const;
+   void writeCellData( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const;
    void writeCellData( std::ostream& ofs, const IBlock& block, const std::vector< SamplingCell >& cells ) const;
 
    void writePVD();

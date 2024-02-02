@@ -983,14 +983,6 @@ void VTKOutput::computeVTUCells( const IBlock& block, CellVector & cellsOut ) co
 void VTKOutput::writeBlocks( const std::string& path, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates )
 {
    WALBERLA_ASSERT_NOT_NULLPTR( blockStorage_ );
-
-   std::vector< const IBlock* > blocks;
-   for( auto block = blockStorage_->begin(); block != blockStorage_->end(); ++block )
-   {
-      if( selectable::isSetSelected( uid::globalState() + block->getState(), requiredStates, incompatibleStates ) )
-         blocks.push_back( block.get() );
-   }
-
    if( !configured_ ) {
       if( !forcePVTU_ && cellInclusionFunctions_.empty() && cellExclusionFunctions_.empty() &&
           blockStorage_->getNumberOfLevels() == 1 && ghostLayers_ == 0 ) // uniform data -> vti
@@ -1000,40 +992,41 @@ void VTKOutput::writeBlocks( const std::string& path, const Set<SUID>& requiredS
       configured_ = true;
    }
 
-   for( auto it = blocks.begin(); it != blocks.end(); ++it )
+   if(uniformGrid_)
    {
-      WALBERLA_ASSERT_NOT_NULLPTR( *it );
-      const IBlock& block = **it;
-
-      std::ostringstream file;
-      file << path << "/block [" << block.getId() << "].";
-
-      if( uniformGrid_ ) // uniform data -> vti
+      for( auto block = blockStorage_->begin(); block != blockStorage_->end(); ++block )
       {
-         file << "vti";
-         std::ofstream ofs( file.str().c_str()  );
-         if( samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0) )
-            writeVTI( ofs, block );
-         else
-            writeVTI_sampling( ofs, block );
-         ofs.close();
-      }
-      else // unstructured data -> vtu
-      {
-         CellVector cells; // cells to be written to file
-         computeVTUCells( block, cells );
+         if( !selectable::isSetSelected( uid::globalState() + block->getState(), requiredStates, incompatibleStates ) )
+            continue;
 
-         if( !cells.empty() )
+         WALBERLA_ASSERT_NOT_NULLPTR(*block);
+         std::ostringstream file;
+         file << path << "/block [" << block->getId() << "].";
+
+         if (uniformGrid_) // uniform data -> vti
          {
-            file << "vtu";
-            std::ofstream ofs( file.str().c_str()  );
-            if( samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0) )
-               writeVTU( ofs, block, cells );
+            file << "vti";
+            std::ofstream ofs(file.str().c_str());
+            if (samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0))
+               writeVTI(ofs, *block);
             else
-               writeVTU_sampling( ofs, block, cells );
+               writeVTI_sampling(ofs, *block);
             ofs.close();
          }
       }
+   }
+   else
+   {
+      const int process = MPIManager::instance()->rank();
+      std::ostringstream file;
+      file << path << "/dataRank[" << process << "].";
+      file << "vtu";
+      std::ofstream ofs( file.str().c_str()  );
+      if( samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0) )
+         writeVTU( ofs, requiredStates, incompatibleStates );
+      else
+         writeVTU_sampling( ofs, requiredStates, incompatibleStates );
+      ofs.close();
    }
 }
 
@@ -1042,48 +1035,35 @@ void VTKOutput::writeBlocks( const std::string& path, const Set<SUID>& requiredS
 void VTKOutput::writeBlockPieces( std::ostream & oss, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates )
 {
    WALBERLA_ASSERT_NOT_NULLPTR( blockStorage_ );
-
-   std::vector< const IBlock* > blocks;
-   for( auto block = blockStorage_->begin(); block != blockStorage_->end(); ++block )
-   {
-      if( selectable::isSetSelected( uid::globalState() + block->getState(), requiredStates, incompatibleStates ) )
-         blocks.push_back( block.get() );
-   }
-
    if( !configured_ ) {
       if( !forcePVTU_ && cellInclusionFunctions_.empty() && cellExclusionFunctions_.empty() &&
-         blockStorage_->getNumberOfLevels() == 1 && ghostLayers_ == 0 ) // uniform data -> vti
+          blockStorage_->getNumberOfLevels() == 1 && ghostLayers_ == 0 ) // uniform data -> vti
       {
          uniformGrid_ = true;
       }
       configured_ = true;
    }
 
-   for( auto it = blocks.begin(); it != blocks.end(); ++it )
+   if(uniformGrid_)
    {
-      WALBERLA_ASSERT_NOT_NULLPTR( *it );
-      const IBlock& block = **it;
-
-      if( uniformGrid_ ) // uniform data -> vti
+      for (auto block = blockStorage_->begin(); block != blockStorage_->end(); ++block)
       {
-         if( samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0) )
-            writeVTIPiece( oss, block );
+         if (!selectable::isSetSelected(uid::globalState() + block->getState(), requiredStates, incompatibleStates))
+            continue;
+         WALBERLA_ASSERT_NOT_NULLPTR(*it);
+
+         if (samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0))
+            writeVTIPiece(oss, *block);
          else
-            writeVTIPiece_sampling( oss, block );
+            writeVTIPiece_sampling(oss, *block);
       }
-      else // unstructured data -> vtu
-      {
-         CellVector cells; // cells to be written to file
-         computeVTUCells( block, cells );
-
-         if( !cells.empty() )
-         {
-            if( samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0) )
-               writeVTUPiece( oss, block, cells );
-            else
-               writeVTUPiece_sampling( oss, block, cells );
-         }
-      }
+   }
+   else // unstructured data -> vtu
+   {
+      if( samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0) )
+         writeVTUPiece( oss, requiredStates, incompatibleStates );
+      else
+         writeVTUPiece_sampling( oss, requiredStates, incompatibleStates );
    }
 }
 
@@ -1196,13 +1176,13 @@ void VTKOutput::writeVTIPiece_sampling( std::ostream& ofs, const IBlock& block )
 
 
 
-void VTKOutput::writeVTU( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const
+void VTKOutput::writeVTU( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const
 {
    ofs << "<?xml version=\"1.0\"?>\n"
        << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"" << endianness_ << "\">\n"
        << " <UnstructuredGrid>\n";
 
-   writeVTUPiece( ofs, block, cells );
+   writeVTUPiece( ofs, requiredStates, incompatibleStates );
 
    ofs << " </UnstructuredGrid>\n"
        << "</VTKFile>" << std::endl;
@@ -1210,77 +1190,87 @@ void VTKOutput::writeVTU( std::ostream& ofs, const IBlock& block, const CellVect
 
 
 
-void VTKOutput::writeVTUPiece( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const
+void VTKOutput::writeVTUPiece( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const
 {
    WALBERLA_ASSERT_NOT_NULLPTR(blockStorage_);
-
-   // setting up vertex-index mapping --->
+   const uint_t finestLevel = blockStorage_->getNumberOfLevels() - 1;
 
    std::map< Vertex, Index, VertexCompare > vimap; // vertex<->index map
    std::vector< VertexCoord >               vc;    // vertex coordinates
    std::vector< Index >                     ci;    // ci[0] to ci[7]: indices for cell number one, ci[8] to ci[15]: ...
+   uint_t numberOfCells = 0;
 
-   for (auto cell = cells.begin(); cell != cells.end(); ++cell)
+   for( auto block = blockStorage_->begin(); block != blockStorage_->end(); ++block )
    {
-      AABB aabb;
-      blockStorage_->getBlockLocalCellAABB(block, *cell, aabb);
+      if( !selectable::isSetSelected( uid::globalState() + block->getState(), requiredStates, incompatibleStates ) )
+         continue;
 
-      for (cell_idx_t z = 0; z != 2; ++z) {
-         for (cell_idx_t y = 0; y != 2; ++y) {
-            for (cell_idx_t x = 0; x != 2; ++x)
-            {
-               Vertex v(cell->x() + x, cell->y() + y, cell->z() + z);
+      // TODO why ????
+      // CellVector cells; // cells to be written to file
+      // computeVTUCells( *block, cells );
 
-               auto mapping = vimap.find(v);
-               if (mapping != vimap.end()) // vertex already exists
+      const uint_t level = blockStorage_->getLevel(*block);
+      const cell_idx_t factorToFinest = 1 << (finestLevel - level);
+      const CellInterval cells = blockStorage_->getBlockCellBB(*block); //  These are global cells
+
+      for (auto cell = cells.begin(); cell != cells.end(); ++cell)
+      {
+         numberOfCells++;
+         const AABB aabb = blockStorage_->getCellAABB(*cell, level);
+         for (cell_idx_t z = 0; z != 2; ++z) {
+            for (cell_idx_t y = 0; y != 2; ++y) {
+               for (cell_idx_t x = 0; x != 2; ++x)
                {
-                  ci.push_back(mapping->second);
-               }
-               else // new vertex
-               {
-                  vimap[v] = numeric_cast< Index >(vc.size());
-                  ci.push_back(numeric_cast< Index >(vc.size()));
-                  vc.emplace_back((x == 0) ? aabb.xMin() : aabb.xMax(),
-                     (y == 0) ? aabb.yMin() : aabb.yMax(),
-                     (z == 0) ? aabb.zMin() : aabb.zMax());
+                  const Vertex v((cell->x() + x) * factorToFinest, (cell->y() + y) * factorToFinest, (cell->z() + z) * factorToFinest);
+                  auto mapping = vimap.find(v);
+                  if (mapping != vimap.end()) // vertex already exists
+                  {
+                     ci.push_back(mapping->second);
+                  }
+                  else // new vertex
+                  {
+                     vimap[v] = numeric_cast< Index >(vc.size());
+                     ci.push_back(numeric_cast< Index >(vc.size()));
+                     vc.emplace_back((x == 0) ? aabb.xMin() : aabb.xMax(),
+                                     (y == 0) ? aabb.yMin() : aabb.yMax(),
+                                     (z == 0) ? aabb.zMin() : aabb.zMax());
+                  }
                }
             }
          }
       }
    }
-
-   WALBERLA_ASSERT_EQUAL(ci.size(), 8 * cells.size());
-
    // <--- setting up vertex-index mapping
 
-   writeVTUHeaderPiece(ofs, uint_c(cells.size()), vc, ci);
+   writeVTUHeaderPiece(ofs, numberOfCells, vc, ci);
 
    ofs << "   <CellData>\n";
 
-   if (ghostLayers_ > 0)
-   {
-      ofs << "    <DataArray type=\"" << vtk::typeToString< uint8_t >()
-          << "\" Name=\"vtkGhostLevels\" NumberOfComponents=\"1\" format=\"" << format_ << "\">\n"
-          << "     ";
+   // TODO think about ghostlayer
+//   if (ghostLayers_ > 0)
+//   {
+//      ofs << "    <DataArray type=\"" << vtk::typeToString< uint8_t >()
+//          << "\" Name=\"vtkGhostLevels\" NumberOfComponents=\"1\" format=\"" << format_ << "\">\n"
+//          << "     ";
+//
+//      if (binary_)
+//      {
+//         Base64Writer base64;
+//         for (auto cell = cells.begin(); cell != cells.end(); ++cell)
+//            base64 << ghostLayerNr(block, cell->x(), cell->y(), cell->z());
+//         base64.toStream(ofs);
+//      }
+//      else
+//      {
+//         for (auto cell = cells.begin(); cell != cells.end(); ++cell)
+//            ofs << uint_c(ghostLayerNr(block, cell->x(), cell->y(), cell->z())) << " ";
+//         ofs << "\n";
+//      }
+//
+//      ofs << "    </DataArray>\n";
+//   }
 
-      if (binary_)
-      {
-         Base64Writer base64;
-         for (auto cell = cells.begin(); cell != cells.end(); ++cell)
-            base64 << ghostLayerNr(block, cell->x(), cell->y(), cell->z());
-         base64.toStream(ofs);
-      }
-      else
-      {
-         for (auto cell = cells.begin(); cell != cells.end(); ++cell)
-            ofs << uint_c(ghostLayerNr(block, cell->x(), cell->y(), cell->z())) << " ";
-         ofs << "\n";
-      }
-
-      ofs << "    </DataArray>\n";
-   }
-
-   writeCellData(ofs, block, cells);
+   writeCellData(ofs, requiredStates, incompatibleStates);
 
    ofs << "   </CellData>\n"
        << "  </Piece>\n";
@@ -1288,13 +1278,13 @@ void VTKOutput::writeVTUPiece( std::ostream& ofs, const IBlock& block, const Cel
 
 
 
-void VTKOutput::writeVTU_sampling( std::ostream& ofs, const IBlock& block, const CellVector& localCells ) const
+void VTKOutput::writeVTU_sampling( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const
 {
    ofs << "<?xml version=\"1.0\"?>\n"
        << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"" << endianness_ << "\">\n"
        << " <UnstructuredGrid>\n";
 
-   writeVTUPiece_sampling( ofs, block, localCells );
+   writeVTUPiece_sampling( ofs, requiredStates, incompatibleStates );
 
    ofs << " </UnstructuredGrid>\n"
        << "</VTKFile>" << std::endl;
@@ -1303,51 +1293,56 @@ void VTKOutput::writeVTU_sampling( std::ostream& ofs, const IBlock& block, const
 
 
 
-void VTKOutput::writeVTUPiece_sampling(std::ostream& ofs, const IBlock& block, const CellVector& localCells) const
+void VTKOutput::writeVTUPiece_sampling(std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates) const
 {
-   std::vector< SamplingCell > cells = getSamplingCells(block, localCells);
-
-   // setting up vertex-index mapping --->
 
    std::map< Vertex, Index, VertexCompare > vimap; // vertex<->index map
    std::vector< VertexCoord >               vc;    // vertex coordinates
    std::vector< Index >                     ci;    // ci[0] to ci[7]: indices for cell number one, ci[8] to ci[15]: ...
+   uint_t numberOfCells = 0;
 
-   for (auto cell = cells.begin(); cell != cells.end(); ++cell) {
-      for (cell_idx_t z = 0; z != 2; ++z) {
-         for (cell_idx_t y = 0; y != 2; ++y) {
-            for (cell_idx_t x = 0; x != 2; ++x)
+   for( auto block = blockStorage_->begin(); block != blockStorage_->end(); ++block )
+   {
+      if (!selectable::isSetSelected(uid::globalState() + block->getState(), requiredStates, incompatibleStates))
+         continue;
+
+      CellVector localCells; // cells to be written to file
+      computeVTUCells( *block, localCells );
+      // setting up vertex-index mapping --->
+      std::vector< SamplingCell > cells = getSamplingCells(*block, localCells);
+      for (auto cell = cells.begin(); cell != cells.end(); ++cell)
+      {
+         numberOfCells++;
+         for (cell_idx_t z = 0; z != 2; ++z)
+         {
+            for (cell_idx_t y = 0; y != 2; ++y)
             {
-               Vertex v(cell->coordinates_.x() + x, cell->coordinates_.y() + y, cell->coordinates_.z() + z);
+               for (cell_idx_t x = 0; x != 2; ++x)
+               {
+                  Vertex v(cell->coordinates_.x() + x, cell->coordinates_.y() + y, cell->coordinates_.z() + z);
 
-               auto mapping = vimap.find(v);
-               if (mapping != vimap.end()) // vertex already exists
-               {
-                  ci.push_back(mapping->second);
-               }
-               else // new vertex
-               {
-                  vimap[v] = numeric_cast< Index >(vc.size());
-                  ci.push_back(numeric_cast< Index >(vc.size()));
-                  vc.emplace_back((x == 0) ? cell->aabb_.xMin() : cell->aabb_.xMax(),
-                     (y == 0) ? cell->aabb_.yMin() : cell->aabb_.yMax(),
-                     (z == 0) ? cell->aabb_.zMin() : cell->aabb_.zMax());
+                  auto mapping = vimap.find(v);
+                  if (mapping != vimap.end()) // vertex already exists
+                  {
+                     ci.push_back(mapping->second);
+                  }
+                  else // new vertex
+                  {
+                     vimap[v] = numeric_cast< Index >(vc.size());
+                     ci.push_back(numeric_cast< Index >(vc.size()));
+                     vc.emplace_back((x == 0) ? cell->aabb_.xMin() : cell->aabb_.xMax(),
+                                     (y == 0) ? cell->aabb_.yMin() : cell->aabb_.yMax(),
+                                     (z == 0) ? cell->aabb_.zMin() : cell->aabb_.zMax());
+                  }
                }
             }
          }
       }
    }
 
-   WALBERLA_ASSERT_EQUAL(ci.size(), 8 * cells.size());
-
-   // <--- setting up vertex-index mapping
-
-   writeVTUHeaderPiece(ofs, uint_c(cells.size()), vc, ci);
-
+   writeVTUHeaderPiece(ofs, numberOfCells, vc, ci);
    ofs << "   <CellData>\n";
-
-   writeCellData(ofs, block, cells);
-
+   writeCellData(ofs, requiredStates, incompatibleStates);
    ofs << "   </CellData>\n"
       << "  </Piece>\n";
 }
@@ -1523,8 +1518,6 @@ std::vector< VTKOutput::SamplingCell > VTKOutput::getSamplingCells( const IBlock
    return samplingCells;
 }
 
-
-
 void VTKOutput::writeCellData( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const
 {
    WALBERLA_ASSERT_NOT_NULLPTR( blockStorage_ );
@@ -1534,7 +1527,7 @@ void VTKOutput::writeCellData( std::ostream& ofs, const IBlock& block, const Cel
       (*writer)->configure( block, *blockStorage_ );
 
       ofs << "    <DataArray type=\"" << (*writer)->typeString() << "\" Name=\"" << (*writer)->identifier()
-                                      << "\" NumberOfComponents=\"" << (*writer)->fSize() << "\" format=\"" << format_ << "\">\n";
+          << "\" NumberOfComponents=\"" << (*writer)->fSize() << "\" format=\"" << format_ << "\">\n";
 
       if( binary_ )
       {
@@ -1556,6 +1549,49 @@ void VTKOutput::writeCellData( std::ostream& ofs, const IBlock& block, const Cel
          }
       }
 
+      ofs << "    </DataArray>\n";
+   }
+}
+
+
+void VTKOutput::writeCellData( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const
+{
+   WALBERLA_ASSERT_NOT_NULLPTR( blockStorage_ );
+
+   for( auto writer = cellDataWriter_.begin(); writer != cellDataWriter_.end(); ++writer )
+   {
+      ofs << "    <DataArray type=\"" << (*writer)->typeString() << "\" Name=\"" << (*writer)->identifier()
+          << "\" NumberOfComponents=\"" << (*writer)->fSize() << "\" format=\"" << format_ << "\">\n";
+
+      for( auto block = blockStorage_->begin(); block != blockStorage_->end(); ++block )
+      {
+         if (!selectable::isSetSelected(uid::globalState() + block->getState(), requiredStates, incompatibleStates))
+            continue;
+
+         CellVector cells; // cells to be written to file
+         computeVTUCells(*block, cells);
+         (*writer)->configure( *block, *blockStorage_ );
+
+         if( binary_ )
+         {
+            Base64Writer base64;
+            for( auto cell = cells.begin(); cell != cells.end(); ++cell )
+               for( uint_t f = 0; f != (*writer)->fSize(); ++f )
+                  (*writer)->push( base64, cell->x(), cell->y(), cell->z(), cell_idx_c(f) );
+            ofs << "     "; base64.toStream( ofs );
+         }
+         else
+         {
+            for( auto cell = cells.begin(); cell != cells.end(); ++cell ) {
+               ofs << "     ";
+               for( uint_t f = 0; f != (*writer)->fSize(); ++f )
+               {
+                  (*writer)->push( ofs, cell->x(), cell->y(), cell->z(), cell_idx_c(f) );
+                  ofs << ( ( f == (*writer)->fSize() - 1 ) ? "\n" : " " );
+               }
+            }
+         }
+      }
       ofs << "    </DataArray>\n";
    }
 }

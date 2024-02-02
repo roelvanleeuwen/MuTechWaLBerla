@@ -6,6 +6,7 @@ import sys
 
 DB_FILE = os.environ.get('DB_FILE', "cpu_benchmark.sqlite3")
 
+
 class Scenario:
     def __init__(self,
                  domain_size=(64, 64, 64),
@@ -63,7 +64,7 @@ class Scenario:
             }
         }
 
-        if(print_dict):
+        if (print_dict):
             wlb.log_info_on_root("Scenario:\n" + pformat(config_dict))
 
         return config_dict
@@ -100,8 +101,8 @@ def validation_run():
     """Run with full periodic shear flow or boundary scenario (ldc) to check if the code works"""
     wlb.log_info_on_root("Validation run")
 
-    domain_size = (96, 96, 96)
-    cells_per_block = (32, 32, 32)
+    domain_size = (2, 4, 2)
+    cells_per_block = (2, 2, 2)
 
     root_blocks = tuple([d // c for d, c in zip(domain_size, cells_per_block)])
 
@@ -116,6 +117,7 @@ def validation_run():
                         logger_frequency=5,
                         write_setup_vtk=True)
     scenarios.add(scenario)
+
 
 def scaling():
     wlb.log_info_on_root("Running scaling benchmark...")
@@ -133,6 +135,7 @@ def scaling():
                         refinement_depth=2,
                         timesteps=10)
     scenarios.add(scenario)
+
 
 validation_run()
 # scaling()
