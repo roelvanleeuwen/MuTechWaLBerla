@@ -273,7 +273,13 @@ int main(int argc, char** argv)
    };
 
    real_t timeStepSizeRPD = real_t(1) / real_t(particleNumSubCycles);
-   mesa_pd::kernel::VelocityVerletPreForceUpdate vvIntegratorPreForce(timeStepSizeRPD);
+   mesa_pd::kernel::VelocityVerletPreForceUpdate integratorPreForce(timeStepSizeRPD);
+   // Wrap update of the total displacement around the pre force integration (which updates the position)
+   auto vvIntegratorPreForce = [&integratorPreForce](const size_t idx, auto& ac) {
+      auto oldPos = ac.getPosition(idx);
+      integratorPreForce(idx, ac);
+      ac.setTotalDisplacement(idx, ac.getTotalDisplacement(idx) + (ac.getPosition(idx) - oldPos).length());
+   };
    mesa_pd::kernel::VelocityVerletPostForceUpdate vvIntegratorPostForce(timeStepSizeRPD);
    mesa_pd::kernel::LinearSpringDashpot collisionResponse(2);
    collisionResponse.setFrictionCoefficientDynamic(0, 0, particleFrictionCoefficient);
@@ -430,6 +436,7 @@ int main(int argc, char** argv)
       // Spheres
       auto particleVtkOutput = make_shared< mesa_pd::vtk::ParticleVtkOutput >(ps);
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleUid >("uid");
+      particleVtkOutput->addOutput< mesa_pd::data::SelectParticleTotalDisplacement >("totalDisplacement");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleLinearVelocity >("velocity");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleInteractionRadius >("radius");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleOldHydrodynamicForce >("forceHydro");
