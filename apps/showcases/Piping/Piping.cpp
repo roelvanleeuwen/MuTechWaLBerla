@@ -432,6 +432,7 @@ int main(int argc, char** argv)
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleUid >("uid");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleLinearVelocity >("velocity");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleInteractionRadius >("radius");
+      particleVtkOutput->addOutput< mesa_pd::data::SelectParticleOldHydrodynamicForce >("forceHydro");
       // Limit output to process-local spheres
       particleVtkOutput->setParticleSelector([](const mesa_pd::data::ParticleStorage::iterator& pIt) {
          using namespace walberla::mesa_pd::data::particle_flags;
@@ -528,6 +529,8 @@ int main(int argc, char** argv)
             ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor,
                                 initializeHydrodynamicForceTorqueForAveragingKernel, *accessor);
          }
+
+         // This call also sets the old hydrodynamic forces and torques that are used for the visualization
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, averageHydrodynamicForceTorque,
                              *accessor);
 
