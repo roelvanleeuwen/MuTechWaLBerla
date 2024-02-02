@@ -438,6 +438,7 @@ int main(int argc, char** argv)
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleUid >("uid");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleTotalDisplacement >("totalDisplacement");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleLinearVelocity >("velocity");
+      particleVtkOutput->addOutput< mesa_pd::data::SelectParticleCollisionForceNorm >("collisionForceNorm");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleInteractionRadius >("radius");
       particleVtkOutput->addOutput< mesa_pd::data::SelectParticleOldHydrodynamicForce >("forceHydro");
       // Limit output to process-local spheres
@@ -574,6 +575,11 @@ int main(int argc, char** argv)
                   *accessor);
             }
 
+            // Reset the sum over the collision force norms
+            ps->forEachParticle(
+               useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor,
+               [](const size_t idx, auto& ac) { ac.setCollisionForceNorm(idx, real_t(0)); }, *accessor);
+
             // collision response
             linkedCells.forEachParticlePairHalf(
                useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
@@ -586,8 +592,15 @@ int main(int argc, char** argv)
                   {
                      if (contact_filter(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(), *rpdDomain))
                      {
+                        auto oldForce1 = ac.getForce(acd.getIdx1());
+                        auto oldForce2 = ac.getForce(acd.getIdx2());
                         collisionResponse(acd.getIdx1(), acd.getIdx2(), ac, acd.getContactPoint(),
                                           acd.getContactNormal(), acd.getPenetrationDepth(), timeStepSizeRPD);
+                        // TODO: divide CollisionForceNorm by the number of collisions
+                        ac.setCollisionForceNorm(acd.getIdx1(), ac.getCollisionForceNorm(acd.getIdx1()) +
+                                                                   (oldForce1 - ac.getForce(idx1)).length());
+                        ac.setCollisionForceNorm(acd.getIdx2(), ac.getCollisionForceNorm(acd.getIdx2()) +
+                                                                   (oldForce2 - ac.getForce(idx2)).length());
                      }
                   }
                },
