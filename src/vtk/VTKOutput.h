@@ -125,7 +125,7 @@ public:
                                                                   const uint_t writeFrequency, const uint_t ghostLayers, const bool forcePVTU,
                                                                   const std::string & baseFolder, const std::string & executionFolder,
                                                                   const bool continuousNumbering, const bool binary, const bool littleEndian,
-                                                                  const bool useMPIIO, const uint_t initialExecutionCount );
+                                                                  const bool useMPIIO, const uint_t initialExecutionCount, const bool amrFileFormat );
 
    /// creates a VTKOutput object that is supposed to output arbitrary point data
    friend inline shared_ptr<VTKOutput> createVTKOutput_PointData( const shared_ptr< PointDataSource > pds, const std::string & identifier,
@@ -192,7 +192,8 @@ private:
    VTKOutput( const StructuredBlockStorage & sbs, const std::string & identifier, const uint_t writeFrequency,
               const std::string & baseFolder, const std::string & executionFolder,
               const bool continuousNumbering, const bool binary, const bool littleEndian, const bool useMPIIO,
-              const uint_t ghostLayers, const bool forcePVTU, const uint_t initialExecutionCount = 0 );
+              const uint_t ghostLayers, const bool forcePVTU, const uint_t initialExecutionCount = 0,
+              const bool amrFileFormat = false );
 
    /// creates a VTKOutput object that is supposed to output arbitrary point data
    VTKOutput( const shared_ptr< PointDataSource >& pds, const std::string & identifier, const uint_t writeFrequency,
@@ -241,11 +242,11 @@ private:
    void writeVTIPiece( std::ostream& ofs, const IBlock& block ) const;
    void writeVTIPiece_sampling( std::ostream& ofs, const IBlock& block ) const;
 
-   void writeVTU( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const;
-   void writeVTU_sampling( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const;
+   void writeVTU( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const;
+   void writeVTU_sampling( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const;
 
-   void writeVTUPiece( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const;
-   void writeVTUPiece_sampling(std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates) const;
+   void writeVTUPiece(std::ostream& ofs, const IBlock& block, const CellVector& cells) const;
+   void writeVTUPiece_sampling(std::ostream& ofs, const IBlock& block, const CellVector& cells) const;
 
    void writeVTUHeader( std::ofstream& ofs, const uint_t numberOfCells, const std::vector< VertexCoord > & vc, const std::vector< Index > & ci ) const;
    void writeVTUHeaderPiece (std::ostream& ofs, const uint_t numberOfCells, const std::vector< VertexCoord > & vc, const std::vector< Index > & ci) const;
@@ -255,13 +256,13 @@ private:
    std::vector< SamplingCell > getSamplingCells( const IBlock& block, const CellVector& cells ) const;
 
    void writeCellData( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const;
-   void writeCellData( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const;
    void writeCellData( std::ostream& ofs, const IBlock& block, const std::vector< SamplingCell >& cells ) const;
 
    void writePVD();
 
    void writePVTI( const uint_t collector ) const;
    void writePVTI_sampled( const uint_t collector ) const;
+   void writeVTHB( const uint_t collector ) const;
    void writePVTU( const uint_t collector ) const;
 
    bool writeCombinedVTI( std::string localPart, const uint_t collector ) const;
@@ -269,6 +270,7 @@ private:
    bool writeCombinedVTU(std::string localPart, const uint_t collector) const;
 
    void getFilenames( std::vector< filesystem::path >& blocks, const uint_t collector ) const;
+   void getFilenamesSortedByLevel( std::vector< std::vector< filesystem::path >>& blocks, const uint_t collector ) const;
    void writePPointData( std::ofstream& ofs ) const;
    void writePCellData( std::ofstream& ofs ) const;
 
@@ -312,6 +314,7 @@ private:
    const bool forcePVTU_;
          bool configured_;
          bool uniformGrid_;
+         bool amrFileFormat_;
 
    const uint_t ghostLayers_;
 
@@ -586,10 +589,10 @@ inline shared_ptr<VTKOutput> createVTKOutput_BlockData( const StructuredBlockSto
                                                         const std::string & executionFolder = std::string("simulation_step"),
                                                         const bool continuousNumbering = false, const bool binary = true,
                                                         const bool littleEndian = true, const bool useMPIIO = true,
-                                                        const uint_t initialExecutionCount = 0 )
+                                                        const uint_t initialExecutionCount = 0, const bool amrFileFormat = false )
 {
    return shared_ptr<VTKOutput>( new VTKOutput( sbs, identifier, writeFrequency, baseFolder, executionFolder,
-                                                continuousNumbering, binary, littleEndian, useMPIIO, ghostLayers, forcePVTU, initialExecutionCount ) );
+                                                continuousNumbering, binary, littleEndian, useMPIIO, ghostLayers, forcePVTU, initialExecutionCount, amrFileFormat ) );
 }
 
 inline shared_ptr<VTKOutput> createVTKOutput_BlockData( const shared_ptr< const StructuredBlockStorage > & sbs,
@@ -599,13 +602,13 @@ inline shared_ptr<VTKOutput> createVTKOutput_BlockData( const shared_ptr< const 
                                                         const std::string & executionFolder = std::string("simulation_step"),
                                                         const bool continuousNumbering = false, const bool binary = true,
                                                         const bool littleEndian = true, const bool useMPIIO = true,
-                                                        const uint_t initialExecutionCount = 0 )
+                                                        const uint_t initialExecutionCount = 0, const bool amrFileFormat = false )
 {
    if( !sbs )
       WALBERLA_ABORT( "creating VTK output for block data failed (StructuredBlockStorage shared pointer is NULL)" );
 
    return createVTKOutput_BlockData( *sbs, identifier, writeFrequency, ghostLayers, forcePVTU, baseFolder, executionFolder,
-                                               continuousNumbering, binary, littleEndian, useMPIIO, initialExecutionCount );
+                                               continuousNumbering, binary, littleEndian, useMPIIO, initialExecutionCount, amrFileFormat );
 }
 
 
