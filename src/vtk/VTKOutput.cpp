@@ -63,7 +63,7 @@ VTKOutput::VTKOutput( const BlockStorage & bs, const std::string & identifier, c
 VTKOutput::VTKOutput( const StructuredBlockStorage & sbs, const std::string & identifier, const uint_t writeFrequency,
                       const std::string & baseFolder, const std::string & executionFolder,
                       const bool continuousNumbering, const bool binary, const bool littleEndian, const bool useMPIIO,
-                      const uint_t ghostLayers, const bool forcePVTU, const uint_t initialExecutionCount, const bool amrFileFormat ) :
+                      const uint_t ghostLayers, const bool forcePVTU, const uint_t initialExecutionCount, const bool amrFileFormat, const bool oneFilePerProcess ) :
 
    unstructuredBlockStorage_( &sbs.getBlockStorage() ),
    blockStorage_( &sbs ),
@@ -74,8 +74,11 @@ VTKOutput::VTKOutput( const StructuredBlockStorage & sbs, const std::string & id
    useMPIIO_( useMPIIO ),
    outputDomainDecomposition_( false ),
    samplingDx_( real_c(-1) ), samplingDy_( real_c(-1) ), samplingDz_( real_c(-1) ),
-   forcePVTU_( forcePVTU ), configured_( false ), uniformGrid_( false ), amrFileFormat_(amrFileFormat), ghostLayers_( ghostLayers ), writeNextStep_( false )
+   forcePVTU_( forcePVTU ), configured_( false ), uniformGrid_( false ), amrFileFormat_(amrFileFormat), oneFilePerProcess_(oneFilePerProcess), ghostLayers_( ghostLayers ), writeNextStep_( false )
 {
+   if(ghostLayers > 0 && oneFilePerProcess_)
+      WALBERLA_LOG_WARNING_ON_ROOT("Writing out ghostlayers is not supported with oneFilePerProcess. The ghostlayers are just dropped. Alternatively MPI-IO could be used to achieve a similar task")
+
    init( identifier );
 }
 
@@ -984,13 +987,6 @@ void VTKOutput::writeBlocks( const std::string& path, const Set<SUID>& requiredS
 {
    WALBERLA_ASSERT_NOT_NULLPTR( blockStorage_ );
 
-   std::vector< const IBlock* > blocks;
-   for( auto block = blockStorage_->begin(); block != blockStorage_->end(); ++block )
-   {
-      if( selectable::isSetSelected( uid::globalState() + block->getState(), requiredStates, incompatibleStates ) )
-         blocks.push_back( block.get() );
-   }
-
    if( !configured_ ) {
       if( !forcePVTU_ && cellInclusionFunctions_.empty() && cellExclusionFunctions_.empty() &&
           blockStorage_->getNumberOfLevels() == 1 && ghostLayers_ == 0 ) // uniform data -> vti
@@ -1000,40 +996,57 @@ void VTKOutput::writeBlocks( const std::string& path, const Set<SUID>& requiredS
       configured_ = true;
    }
 
-
-   for( auto it = blocks.begin(); it != blocks.end(); ++it )
+   if(!uniformGrid_ && oneFilePerProcess_)
    {
-      WALBERLA_ASSERT_NOT_NULLPTR( *it );
-      const IBlock& block = **it;
-      const uint_t level = blockStorage_->getLevel(block);
-
+      const int rank         = MPIManager::instance()->rank();
       std::ostringstream file;
-      file << path << "/block [" << block.getId() << "] level[" << level << "].";
-
-      if( uniformGrid_ || amrFileFormat_ ) // uniform data -> vti  amr data -> vti
+      file << path << "/dataRank[" << rank << "].vtu";
+      std::ofstream ofs(file.str().c_str());
+      writeParallelVTU( ofs, requiredStates, incompatibleStates );
+      ofs.close();
+   }
+   else
+   {
+      std::vector< const IBlock* > blocks;
+      for( auto block = blockStorage_->begin(); block != blockStorage_->end(); ++block )
       {
-         file << "vti";
-         std::ofstream ofs( file.str().c_str()  );
-         if( samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0) )
-            writeVTI( ofs, block );
-         else
-            writeVTI_sampling( ofs, block );
-         ofs.close();
+         if( selectable::isSetSelected( uid::globalState() + block->getState(), requiredStates, incompatibleStates ) )
+            blocks.push_back( block.get() );
       }
-      else // unstructured data -> vtu
+      for( auto it = blocks.begin(); it != blocks.end(); ++it )
       {
-         CellVector cells; // cells to be written to file
-         computeVTUCells( block, cells );
+         WALBERLA_ASSERT_NOT_NULLPTR( *it );
+         const IBlock& block = **it;
+         const uint_t level = blockStorage_->getLevel(block);
 
-         if( !cells.empty() )
+         std::ostringstream file;
+         file << path << "/block [" << block.getId() << "] level[" << level << "].";
+
+         if( uniformGrid_ || amrFileFormat_ ) // uniform data -> vti  amr data -> vti
          {
-            file << "vtu";
+            file << "vti";
             std::ofstream ofs( file.str().c_str()  );
             if( samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0) )
-               writeVTU( ofs, block, cells );
+               writeVTI( ofs, block );
             else
-               writeVTU_sampling( ofs, block, cells );
+               writeVTI_sampling( ofs, block );
             ofs.close();
+         }
+         else // unstructured data -> vtu
+         {
+            CellVector cells; // cells to be written to file
+            computeVTUCells( block, cells );
+
+            if( !cells.empty() )
+            {
+               file << "vtu";
+               std::ofstream ofs( file.str().c_str()  );
+               if( samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0) )
+                  writeVTU( ofs, block, cells );
+               else
+                  writeVTU_sampling( ofs, block, cells );
+               ofs.close();
+            }
          }
       }
    }
@@ -1209,6 +1222,74 @@ void VTKOutput::writeVTU( std::ostream& ofs, const IBlock& block, const CellVect
 
    ofs << " </UnstructuredGrid>\n"
        << "</VTKFile>" << std::endl;
+}
+
+void VTKOutput::writeParallelVTU( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates  ) const
+{
+   ofs << "<?xml version=\"1.0\"?>\n"
+       << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"" << endianness_ << "\">\n"
+       << " <UnstructuredGrid>\n";
+
+   WALBERLA_ASSERT_NOT_NULLPTR(blockStorage_);
+   const uint_t finestLevel = blockStorage_->getNumberOfLevels() - 1;
+
+   std::map< Vertex, Index, VertexCompare > vimap; // vertex<->index map
+   std::vector< VertexCoord >               vc;    // vertex coordinates
+   std::vector< Index >                     ci;    // ci[0] to ci[7]: indices for cell number one, ci[8] to ci[15]: ...
+   uint_t numberOfCells = 0;
+
+   for( auto block = blockStorage_->begin(); block != blockStorage_->end(); ++block )
+   {
+      if( !selectable::isSetSelected( uid::globalState() + block->getState(), requiredStates, incompatibleStates ) )
+         continue;
+
+      // CellVector cells; // cells to be written to file
+      // computeVTUCells( *block, cells );
+
+      const uint_t level = blockStorage_->getLevel(*block);
+      const cell_idx_t factorToFinest = 1 << (finestLevel - level);
+      const CellInterval cells = blockStorage_->getBlockCellBB(*block); //  These are global cells
+
+      for (auto cell = cells.begin(); cell != cells.end(); ++cell)
+      {
+         numberOfCells++;
+         const AABB aabb = blockStorage_->getCellAABB(*cell, level);
+         for (cell_idx_t z = 0; z != 2; ++z) {
+            for (cell_idx_t y = 0; y != 2; ++y) {
+               for (cell_idx_t x = 0; x != 2; ++x)
+               {
+                  const Vertex v((cell->x() + x) * factorToFinest, (cell->y() + y) * factorToFinest, (cell->z() + z) * factorToFinest);
+                  auto mapping = vimap.find(v);
+                  if (mapping != vimap.end()) // vertex already exists
+                  {
+                     ci.push_back(mapping->second);
+                  }
+                  else // new vertex
+                  {
+                     vimap[v] = numeric_cast< Index >(vc.size());
+                     ci.push_back(numeric_cast< Index >(vc.size()));
+                     vc.emplace_back((x == 0) ? aabb.xMin() : aabb.xMax(),
+                                     (y == 0) ? aabb.yMin() : aabb.yMax(),
+                                     (z == 0) ? aabb.zMin() : aabb.zMax());
+                  }
+               }
+            }
+         }
+      }
+   }
+   // <--- setting up vertex-index mapping
+   writeVTUHeaderPiece(ofs, numberOfCells, vc, ci);
+
+   ofs << "   <CellData>\n";
+
+   writeCellData(ofs, requiredStates, incompatibleStates);
+
+   ofs << "   </CellData>\n"
+       << "  </Piece>\n";
+
+   ofs << " </UnstructuredGrid>\n"
+       << "</VTKFile>" << std::endl;
+
 }
 
 
@@ -1563,6 +1644,48 @@ void VTKOutput::writeCellData( std::ostream& ofs, const IBlock& block, const Cel
    }
 }
 
+
+void VTKOutput::writeCellData( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const
+{
+   WALBERLA_ASSERT_NOT_NULLPTR( blockStorage_ );
+
+   for( auto writer = cellDataWriter_.begin(); writer != cellDataWriter_.end(); ++writer )
+   {
+      ofs << "    <DataArray type=\"" << (*writer)->typeString() << "\" Name=\"" << (*writer)->identifier()
+          << "\" NumberOfComponents=\"" << (*writer)->fSize() << "\" format=\"" << format_ << "\">\n";
+
+      for( auto block = blockStorage_->begin(); block != blockStorage_->end(); ++block )
+      {
+         if (!selectable::isSetSelected(uid::globalState() + block->getState(), requiredStates, incompatibleStates))
+            continue;
+
+         CellVector cells; // cells to be written to file
+         computeVTUCells(*block, cells);
+         (*writer)->configure( *block, *blockStorage_ );
+
+         if( binary_ )
+         {
+            Base64Writer base64;
+            for( auto cell = cells.begin(); cell != cells.end(); ++cell )
+               for( uint_t f = 0; f != (*writer)->fSize(); ++f )
+                  (*writer)->push( base64, cell->x(), cell->y(), cell->z(), cell_idx_c(f) );
+            ofs << "     "; base64.toStream( ofs );
+         }
+         else
+         {
+            for( auto cell = cells.begin(); cell != cells.end(); ++cell ) {
+               ofs << "     ";
+               for( uint_t f = 0; f != (*writer)->fSize(); ++f )
+               {
+                  (*writer)->push( ofs, cell->x(), cell->y(), cell->z(), cell_idx_c(f) );
+                  ofs << ( ( f == (*writer)->fSize() - 1 ) ? "\n" : " " );
+               }
+            }
+         }
+      }
+      ofs << "    </DataArray>\n";
+   }
+}
 
 
 void VTKOutput::writeCellData( std::ostream& ofs, const IBlock& block, const std::vector< SamplingCell >& cells ) const

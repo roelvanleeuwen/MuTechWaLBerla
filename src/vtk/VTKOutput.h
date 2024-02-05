@@ -125,7 +125,7 @@ public:
                                                                   const uint_t writeFrequency, const uint_t ghostLayers, const bool forcePVTU,
                                                                   const std::string & baseFolder, const std::string & executionFolder,
                                                                   const bool continuousNumbering, const bool binary, const bool littleEndian,
-                                                                  const bool useMPIIO, const uint_t initialExecutionCount, const bool amrFileFormat );
+                                                                  const bool useMPIIO, const uint_t initialExecutionCount, const bool amrFileFormat, const bool oneFilePerProcess );
 
    /// creates a VTKOutput object that is supposed to output arbitrary point data
    friend inline shared_ptr<VTKOutput> createVTKOutput_PointData( const shared_ptr< PointDataSource > pds, const std::string & identifier,
@@ -193,7 +193,7 @@ private:
               const std::string & baseFolder, const std::string & executionFolder,
               const bool continuousNumbering, const bool binary, const bool littleEndian, const bool useMPIIO,
               const uint_t ghostLayers, const bool forcePVTU, const uint_t initialExecutionCount = 0,
-              const bool amrFileFormat = false );
+              const bool amrFileFormat = false, const bool oneFilePerProcess = false );
 
    /// creates a VTKOutput object that is supposed to output arbitrary point data
    VTKOutput( const shared_ptr< PointDataSource >& pds, const std::string & identifier, const uint_t writeFrequency,
@@ -244,6 +244,7 @@ private:
 
    void writeVTU( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const;
    void writeVTU_sampling( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const;
+   void writeParallelVTU( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const;
 
    void writeVTUPiece(std::ostream& ofs, const IBlock& block, const CellVector& cells) const;
    void writeVTUPiece_sampling(std::ostream& ofs, const IBlock& block, const CellVector& cells) const;
@@ -256,6 +257,7 @@ private:
    std::vector< SamplingCell > getSamplingCells( const IBlock& block, const CellVector& cells ) const;
 
    void writeCellData( std::ostream& ofs, const IBlock& block, const CellVector& cells ) const;
+   void writeCellData( std::ostream& ofs, const Set<SUID>& requiredStates, const Set<SUID>& incompatibleStates ) const;
    void writeCellData( std::ostream& ofs, const IBlock& block, const std::vector< SamplingCell >& cells ) const;
 
    void writePVD();
@@ -315,6 +317,7 @@ private:
          bool configured_;
          bool uniformGrid_;
          bool amrFileFormat_;
+         bool oneFilePerProcess_;
 
    const uint_t ghostLayers_;
 
@@ -589,10 +592,10 @@ inline shared_ptr<VTKOutput> createVTKOutput_BlockData( const StructuredBlockSto
                                                         const std::string & executionFolder = std::string("simulation_step"),
                                                         const bool continuousNumbering = false, const bool binary = true,
                                                         const bool littleEndian = true, const bool useMPIIO = true,
-                                                        const uint_t initialExecutionCount = 0, const bool amrFileFormat = false )
+                                                        const uint_t initialExecutionCount = 0, const bool amrFileFormat = false, const bool oneFilePerProcess = false )
 {
    return shared_ptr<VTKOutput>( new VTKOutput( sbs, identifier, writeFrequency, baseFolder, executionFolder,
-                                                continuousNumbering, binary, littleEndian, useMPIIO, ghostLayers, forcePVTU, initialExecutionCount, amrFileFormat ) );
+                                                continuousNumbering, binary, littleEndian, useMPIIO, ghostLayers, forcePVTU, initialExecutionCount, amrFileFormat, oneFilePerProcess ) );
 }
 
 inline shared_ptr<VTKOutput> createVTKOutput_BlockData( const shared_ptr< const StructuredBlockStorage > & sbs,
