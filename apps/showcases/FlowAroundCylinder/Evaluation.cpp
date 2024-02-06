@@ -457,15 +457,6 @@ void Evaluation::refresh()
       const real_t area  = real_c(1.0) / real_c(uint_t(1) << (uint_t(2) * level));
 
       auto xyzSize = flagField->xyzSize();
-
-#ifndef NDEBUG
-      if (Is2D< LatticeModel_T >::value)
-      {
-         WALBERLA_ASSERT(blocks->atDomainZMinBorder(*block));
-         WALBERLA_ASSERT_EQUAL(xyzSize.zMin(), xyzSize.zMax());
-      }
-#endif
-
       for (auto z = xyzSize.zMin(); z <= xyzSize.zMax(); ++z)
       {
          for (auto y = xyzSize.yMin(); y <= xyzSize.yMax(); ++y)

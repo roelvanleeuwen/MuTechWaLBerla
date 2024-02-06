@@ -646,13 +646,15 @@ int main(int argc, char** argv)
    const bool writeDensity        = VTKWriter.getParameter< bool >("density");
    const bool writeFlag           = VTKWriter.getParameter< bool >("flag");
    const bool writeOnlySlice      = VTKWriter.getParameter< bool >("writeOnlySlice", true);
+   const bool amrFileFormat       = VTKWriter.getParameter< bool >("amrFileFormat", false);
+   const bool oneFilePerProcess   = VTKWriter.getParameter< bool >("oneFilePerProcess", false);
 
    auto finalDomain = blocks->getDomain();
    if (vtkWriteFrequency > 0)
    {
       auto vtkOutput =
          vtk::createVTKOutput_BlockData(*blocks, "vtk", vtkWriteFrequency, 0, false, "vtk_FlowAroundCylinder",
-                                        "simulation_step", false, true, true, false, 0);
+                                        "simulation_step", false, true, true, false, 0, amrFileFormat, oneFilePerProcess);
 
       vtkOutput->addBeforeFunction([&]() {
          for (auto& block : *blocks)

@@ -51,7 +51,9 @@ VTKWriter
     velocity true;
     density false;
     flag false;
-    writeOnlySlice true;
+    writeOnlySlice false;
+    amrFileFormat true;
+    oneFilePerProcess false;
 }
 
 Logging
