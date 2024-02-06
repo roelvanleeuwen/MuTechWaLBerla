@@ -58,8 +58,8 @@ class Scenario:
                 'timesteps': self.timesteps,
                 'remainingTimeLoggerFrequency': self.logger_frequency,
                 'vtkWriteFrequency': self.vtk_write_frequency,
-                'useVTKAMRWriter': False,
-                'oneFilePerProcess': True
+                'useVTKAMRWriter': True,
+                'oneFilePerProcess': False
             },
             'Logging': {
                 'logLevel': "info",
@@ -103,8 +103,8 @@ def validation_run():
     """Run with full periodic shear flow or boundary scenario (ldc) to check if the code works"""
     wlb.log_info_on_root("Validation run")
 
-    domain_size = (4, 4, 4)
-    cells_per_block = (2, 2, 2)
+    domain_size = (96, 96, 96)
+    cells_per_block = (32, 32, 32)
 
     root_blocks = tuple([d // c for d, c in zip(domain_size, cells_per_block)])
 

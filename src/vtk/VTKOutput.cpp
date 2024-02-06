@@ -79,6 +79,24 @@ VTKOutput::VTKOutput( const StructuredBlockStorage & sbs, const std::string & id
    if(ghostLayers > 0 && oneFilePerProcess_)
       WALBERLA_LOG_WARNING_ON_ROOT("Writing out ghostlayers is not supported with oneFilePerProcess. The ghostlayers are just dropped. Alternatively MPI-IO could be used to achieve a similar task")
 
+   if (amrFileFormat && oneFilePerProcess)
+   {
+      WALBERLA_LOG_WARNING_ON_ROOT("Choose either oneFilePerProcess or amrFileFormat. amrFileFormat is set to false in this combination")
+      amrFileFormat_ = false;
+   }
+
+   if (useMPIIO_ && amrFileFormat_)
+   {
+      WALBERLA_LOG_WARNING_ON_ROOT("Choose either MPI-I0 or amrFileFormat. amrFileFormat is set to false in this combination")
+      amrFileFormat_ = false;
+   }
+
+   if (useMPIIO_ && oneFilePerProcess_)
+   {
+      WALBERLA_LOG_WARNING_ON_ROOT("Choose either MPI-I0 or oneFilePerProcess. oneFilePerProcess is set to false in this combination")
+      oneFilePerProcess_ = false;
+   }
+
    init( identifier );
 }
 
@@ -148,6 +166,10 @@ void VTKOutput::init( const std::string & identifier )
       filesystem::path pvd( baseFolder_ + "/" + identifier_ + ".pvd" );
       if( filesystem::exists( pvd ) && executionCounter_ == 0 )
          std::remove( pvd.string().c_str() );
+
+      filesystem::path vthbSeries( baseFolder_ + "/" + identifier_ + ".vthb.series" );
+      if( filesystem::exists( vthbSeries ) && executionCounter_ == 0 )
+         std::remove( vthbSeries.string().c_str() );
 
       filesystem::path basePath( baseFolder_ );
       if( !filesystem::exists( basePath ) )
@@ -1740,12 +1762,14 @@ void VTKOutput::writeCollectors( const bool barrier )
 
    WALBERLA_ASSERT_EQUAL( MPIManager::instance()->worldRank(), 0 );
 
-   writePVD();
+
 
    for( auto collector = collectorsToWrite_.begin(); collector != collectorsToWrite_.end(); ++collector )
    {
       if( uniformGrid_ )
       {
+         writePVD();
+
          if( samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0) )
             writePVTI( *collector );
          else
@@ -1753,10 +1777,12 @@ void VTKOutput::writeCollectors( const bool barrier )
       }
       else if (amrFileFormat_)
       {
+         writeVTHBSeries();
          writeVTHB( *collector );
       }
       else
       {
+         writePVD();
          writePVTU( *collector ); // also applies for outputDomainDecomposition_ == true and pointDataSource_ != NULL
                                   // and polylineDataSource_ != NULL (uniformGrid_ will be false)
       }
@@ -1830,6 +1856,62 @@ void VTKOutput::writePVD()
    WALBERLA_ASSERT_GREATER( pvdEnd_, 0 );
    ofs << " </Collection>\n"
        << "</VTKFile>\n";
+
+   ofs.close();
+}
+
+
+void VTKOutput::writeVTHBSeries()
+{
+   if ( !useMPIIO_  && collectorsToWrite_.empty() )
+      return;
+
+   std::string file( baseFolder_ + "/" + identifier_ + ".vthb.series" );
+   std::fstream ofs( file.c_str() );
+
+   if( !ofs ) // failed because file does not yet exist
+   {
+      ofs.open( file.c_str(), std::ios::out );
+
+      ofs << "{\n"
+          << "   \"file-series-version\" : \"1.0\",\n"
+          << "   \"files\" : [\n";
+   }
+   else if( pvdEnd_ == std::streampos(-2) )
+   {
+      for( std::string line; std::getline(ofs, line); )
+      {
+         if( line.find("]") != std::string::npos )
+         {
+            WALBERLA_ASSERT_GREATER( ofs.tellg(), 0 );
+            pvdEnd_ = ofs.tellg();
+            pvdEnd_ -= int_c(line.size()) + 1;
+            break;
+         }
+      }
+      WALBERLA_ASSERT_GREATER( pvdEnd_, 0 );
+      ofs.seekp(pvdEnd_);
+   }
+   else
+   {
+      ofs.seekp(pvdEnd_);
+   }
+   WALBERLA_ASSERT_GREATER(ofs.tellp(), 0);
+
+   std::string ending = ".vthb";
+
+   for( auto collector = allCollectors_.begin(); collector != allCollectors_.end(); ++collector )
+   {
+      std::ostringstream collection;
+      collection << identifier_ << "/" << executionFolder_ << "_" << *collector << ending;
+      ofs << "      { \"name\" : \"" << collection.str() << "\", \"time\":" << *collector << " },\n";
+   }
+   allCollectors_.clear();
+
+   pvdEnd_ = ofs.tellp();
+   WALBERLA_ASSERT_GREATER( pvdEnd_, 0 );
+   ofs << "   ]\n"
+       << "}\n";
 
    ofs.close();
 }

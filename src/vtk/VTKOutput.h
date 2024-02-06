@@ -261,6 +261,7 @@ private:
    void writeCellData( std::ostream& ofs, const IBlock& block, const std::vector< SamplingCell >& cells ) const;
 
    void writePVD();
+   void writeVTHBSeries();
 
    void writePVTI( const uint_t collector ) const;
    void writePVTI_sampled( const uint_t collector ) const;
