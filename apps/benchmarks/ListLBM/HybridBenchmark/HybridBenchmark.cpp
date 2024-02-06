@@ -420,7 +420,7 @@ int main(int argc, char **argv)
       }
       else if (geometrySetup == "particleBed") {
          mpi::MPIManager::instance()->useWorldComm();
-         const AABB  domainAABB = AABB(0.0, 0.0, 0.0, 0.1, 0.05, 0.1);
+         const AABB  domainAABB = AABB(0.0, 0.0, 0.0, 0.1, 0.1, 0.1);
          Vector3<uint_t> numCells(uint_c(domainAABB.xSize() / dx), uint_c(domainAABB.ySize() / dx), uint_c(domainAABB.zSize() / dx));
          Vector3<uint_t> numBlocks(uint_c(std::ceil(numCells[0] / cellsPerBlock[0])), uint_c(std::ceil(numCells[1] / cellsPerBlock[1])), uint_c(std::ceil(numCells[2] / cellsPerBlock[2])));
 
@@ -428,7 +428,7 @@ int main(int argc, char **argv)
 
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
-         const std::string filename = "/local/ed94aqyc/walberla_all/walberla/cmake-build-cpu_release/apps/showcases/Antidunes/spheres_out.dat";
+         const std::string filename = "/local/ed94aqyc/walberla_all/walberla/cmake-build-gpu_release/apps/showcases/Antidunes/spheres_out.dat";
          initSpheresFromFile(filename, blocks, flagFieldId, noslipFlagUID, dx);
          geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
       }
@@ -437,7 +437,7 @@ int main(int argc, char **argv)
       }
 
       WALBERLA_LOG_INFO_ON_ROOT("Number of cells is <" << blocks->getNumberOfXCells() << "," << blocks->getNumberOfYCells() << "," << blocks->getNumberOfZCells() << ">")
-      WALBERLA_LOG_INFO_ON_ROOT("Number of blocks is <" << blocks->getXSize() << "," << blocks->getYSize() << "," << blocks->getZSize() << ">, without excluded blocks its " << blocks->getNumberOfBlocks())
+      WALBERLA_LOG_INFO_ON_ROOT("Number of blocks is <" << blocks->getXSize() << "," << blocks->getYSize() << "," << blocks->getZSize())
 
 
       if(timeStepStrategy != "noOverlap") {
@@ -611,7 +611,6 @@ int main(int argc, char **argv)
 
 #endif
       comm.addPackInfo(packInfo);
-      WALBERLA_LOG_INFO_ON_ROOT("Finished setting up communication")
 
 
       const auto emptySweep = [](IBlock*) {};
@@ -741,7 +740,6 @@ int main(int argc, char **argv)
 
          timeloop.addFuncBeforeTimeStep(vtk::writeFiles(denseVtkOutput, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity), "VTK Output Dense");
       }
-      WALBERLA_LOG_INFO("Finished setting up VTK")
 
       lbm::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldId, fluidFlagUID);
 

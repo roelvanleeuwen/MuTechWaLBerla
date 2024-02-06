@@ -69,7 +69,7 @@ class Scenario:
                 'runBoundaries': self.run_boundaries,
                 'remainingTimeLoggerFrequency': 10,
                 'useCartesian': self.use_cartesian_communicator,
-                'writeDomainDecompositionAndReturn': False,
+                'writeDomainDecompositionAndReturn': True,
                 'dx': self.dx,
 
                 'SpheresRadius': self.spheres_radius,
@@ -108,16 +108,17 @@ def spheres():
     scenarios = wlb.ScenarioManager()
     spheres_radius = 7
     sphere_shift = 3
-    sphere_fill = (0.55, 1.0, 1.0)
-    scenario = Scenario(vtk_write_frequency=50, geometry_setup="spheres", spheres_radius=spheres_radius,
-                        sphere_shift=sphere_shift, sphere_fill=sphere_fill, porosity_switch=0.75, cells_per_block=(20, 20, 20), timesteps=1000)
+    sphere_fill = (1.0, 1.0, 1.0)
+    scenario = Scenario(vtk_write_frequency=100, geometry_setup="spheres", spheres_radius=spheres_radius,
+                        sphere_shift=sphere_shift, sphere_fill=sphere_fill, porosity_switch=1.0, cells_per_block=(128, 128, 128), timesteps=101)
     scenarios.add(scenario)
+
 
 def Artery():
     scenarios = wlb.ScenarioManager()
     #mesh_file = "Artery.obj"
     mesh_file = "coronary_colored_medium.obj"
-    scenario = Scenario(dx=0.2, cells_per_block=(32, 32, 32), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=1001, omega=1.7,  porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True)
+    scenario = Scenario(dx=0.03, cells_per_block=(512, 512, 512), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=1001, omega=1.7,  porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True)
     scenarios.add(scenario)
 
 def ArterySparseVsDense():
@@ -139,7 +140,7 @@ def smallArtery():
 
 def particleBed():
     scenarios = wlb.ScenarioManager()
-    scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=1000, timesteps=1, omega=1.5, cells_per_block=(64, 64, 64), porosity_switch=0.8, dx=0.0002)
+    scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=1000, timesteps=1, omega=1.5, cells_per_block=(128, 128, 128), porosity_switch=1.0, dx=0.00035)
     scenarios.add(scenario)
 
 def emptyChannel():
@@ -186,10 +187,10 @@ def testCartesianComm():
 
 #randomNoslip()
 #spheres()
-Artery()
+#Artery()
 #smallArtery()
 
-#particleBed()
+particleBed()
 #emptyChannel()
 #scalingBenchmark()
 #testGPUComm()

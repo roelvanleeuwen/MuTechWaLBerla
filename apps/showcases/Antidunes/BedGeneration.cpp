@@ -256,6 +256,7 @@ int main(int argc, char** argv)
    }
 
    writeSphereInformationToFile(outFileName, *ps, domainSize_SI);
+   vtkWriter->write();
 
    return EXIT_SUCCESS;
 }

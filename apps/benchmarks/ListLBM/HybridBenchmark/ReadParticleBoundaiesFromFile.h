@@ -60,7 +60,7 @@ void initSpheresFromFile(const std::string& filename, weak_ptr<StructuredBlockFo
    firstLine >> generationDomainSize_SI[0] >> generationDomainSize_SI[1] >> generationDomainSize_SI[2];
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(generationDomainSize_SI)
 
-   std::vector<std::pair<Cell, cell_idx_t>> particleInfo;
+   std::vector<std::pair<Vector3< real_t >, real_t>> particleInfo;
    while (std::getline(fileIss, line))
    {
       std::istringstream iss(line);
@@ -68,36 +68,41 @@ void initSpheresFromFile(const std::string& filename, weak_ptr<StructuredBlockFo
       Vector3< real_t > particlePos;
       real_t particleRadius;
       iss >> particleUID >> particlePos[0] >> particlePos[1] >> particlePos[2] >> particleRadius;
-      Cell midPoint(cell_idx_c(particlePos[0] / dx), cell_idx_c(particlePos[1] / dx), cell_idx_c(particlePos[2] / dx));
-      cell_idx_t radiusInCells = cell_idx_c(particleRadius / dx);
-      std::pair particle(midPoint, radiusInCells);
+      std::pair particle(particlePos, particleRadius);
       particleInfo.push_back(particle);
    }
 
    for (auto &block : *forest) {
       CellInterval BlockBB = forest->getBlockCellBB( block );
+      WALBERLA_LOG_INFO("Cell intervall is " << BlockBB)
       BlockBB.expand(1);
       auto flagField    = block.template getData< FlagField_T >(flagFieldID);
       auto boundaryFlag = flagField->getFlag(boundaryFlagUID);
+      for (auto particle : particleInfo) {
+         auto particleBB = CellInterval(cell_idx_c(particle.first[0]/dx - particle.second/dx),
+                                        cell_idx_c(particle.first[1]/dx - particle.second/dx),
+                                        cell_idx_c(particle.first[2]/dx - particle.second/dx),
+                                        cell_idx_c(particle.first[0]/dx + particle.second/dx + 1),
+                                        cell_idx_c(particle.first[1]/dx + particle.second/dx + 1),
+                                        cell_idx_c(particle.first[2]/dx + particle.second/dx + 1));
 
-      for (auto particle : particleInfo)
-      {
-         CellInterval SphereBB(particle.first.x() - particle.second, particle.first.y() - particle.second,
-                               particle.first.z() - particle.second, particle.first.x() + particle.second,
-                               particle.first.y() + particle.second, particle.first.z() + particle.second);
-         if (BlockBB.overlaps(SphereBB)) {
-            SphereBB.intersect(BlockBB);
-            Cell localCell;
-            Cell localPoint;
-            for(auto it = SphereBB.begin(); it != SphereBB.end(); ++it) {
-               forest->transformGlobalToBlockLocalCell(localCell, block, Cell(it->x(), it->y(), it->z()));
-               forest->transformGlobalToBlockLocalCell(localPoint, block, particle.first);
-               real_t Ri = (localCell[0] - localPoint.x()) * (localCell[0] - localPoint.x()) +
-                           (localCell[1] - localPoint.y()) * (localCell[1] - localPoint.y()) +
-                           (localCell[2] - localPoint.z()) * (localCell[2] - localPoint.z());
+         if (BlockBB.overlaps(particleBB)) {
+            particleBB.intersect(BlockBB);
+            for(auto it = particleBB.begin(); it != particleBB.end(); ++it)
+            {
+               auto globalCell = Cell(it->x(), it->y(), it->z());
+               Cell localCell;
+               auto cellAABB = forest->getCellAABB(globalCell);
+               Vector3< real_t > cellCenter =
+                  Vector3< real_t >(cellAABB.xMin() + 0.5 * dx, cellAABB.yMin() + 0.5 * dx, cellAABB.zMin() + 0.5 * dx);
 
-               if(Ri < particle.second * particle.second)
+               //TODO sth is wrong here
+               if ((cellCenter[0] - particle.first[0]) * (cellCenter[0] - particle.first[0]) +
+                      (cellCenter[1] - particle.first[1]) * (cellCenter[1] - particle.first[1]) +
+                      (cellCenter[2] - particle.first[2]) * (cellCenter[2] - particle.first[2]) <
+                   particle.second * particle.second)
                {
+                  forest->transformGlobalToBlockLocalCell(localCell, block, globalCell);
                   addFlag(flagField->get(localCell), boundaryFlag);
                }
             }
