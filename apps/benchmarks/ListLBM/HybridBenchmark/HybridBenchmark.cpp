@@ -423,13 +423,17 @@ int main(int argc, char **argv)
          const AABB  domainAABB = AABB(0.0, 0.0, 0.0, 0.1, 0.1, 0.1);
          Vector3<uint_t> numCells(uint_c(domainAABB.xSize() / dx), uint_c(domainAABB.ySize() / dx), uint_c(domainAABB.zSize() / dx));
          Vector3<uint_t> numBlocks(uint_c(std::ceil(numCells[0] / cellsPerBlock[0])), uint_c(std::ceil(numCells[1] / cellsPerBlock[1])), uint_c(std::ceil(numCells[2] / cellsPerBlock[2])));
+         if(writeDomainDecompositionAndReturn) {
+            WALBERLA_LOG_INFO_ON_ROOT("NumCells is " << numCells << " and numBlocks is " << numBlocks << " for cellsPerBlock " << cellsPerBlock)
+            exit(0);
+         }
 
-         blocks = blockforest::createUniformBlockGrid(domainAABB, numBlocks[0], numBlocks[1], numBlocks[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2]);
+         blocks = blockforest::createUniformBlockGrid(domainAABB, numBlocks[0], numBlocks[1], numBlocks[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], 0, true, false, periodic[0], periodic[1], periodic[2]);
 
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
-         const std::string filename = "/local/ed94aqyc/walberla_all/walberla/cmake-build-gpu_release/apps/showcases/Antidunes/spheres_out.dat";
-         initSpheresFromFile(filename, blocks, flagFieldId, noslipFlagUID, dx);
+         const std::string filename = "spheres_out.dat";
+         initSpheresFromFile(filename, blocks, flagFieldId, noslipFlagUID);
          geometry::setNonBoundaryCellsToDomain<FlagField_T>(*blocks, flagFieldId, fluidFlagUID);
       }
       else {
@@ -533,7 +537,7 @@ int main(int argc, char **argv)
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       const Vector3< int32_t > gpuBlockSize =
-         parameters.getParameter< Vector3< int32_t > >("gpuBlockSize", Vector3< int32_t >(128, 1, 1));
+         parameters.getParameter< Vector3< int32_t > >("gpuBlockSize", Vector3< int32_t >(256, 1, 1));
       lbmpy::SparseLBSweep sparseKernel(pdfListId, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2]);
 
       lbm::DenseLBSweep denseKernel(pdfFieldIdGPU, omega, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], Cell(cell_idx_c(InnerOuterSplit[0]), cell_idx_c(InnerOuterSplit[1]), cell_idx_c(InnerOuterSplit[2])));
@@ -781,7 +785,7 @@ int main(int argc, char **argv)
       WALBERLA_ROOT_SECTION(){
          std::ofstream myfile;
          myfile.open ("results.txt", std::ios::app);
-         myfile << nrOfProcesses << " " << InnerOuterSplit  <<  " " << performance.mflupsPerProcess(timesteps, time) << " " << performance.mflups(timesteps, time) << std::endl;
+         myfile << nrOfProcesses << " " << cellsPerBlock << " " << InnerOuterSplit  <<  " " << performance.mflupsPerProcess(timesteps, time) << " " << performance.mflups(timesteps, time) << std::endl;
          myfile.close();
       }
       //printResidentMemoryStatistics();

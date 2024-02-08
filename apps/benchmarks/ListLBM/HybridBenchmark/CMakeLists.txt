@@ -3,6 +3,7 @@ waLBerla_link_files_to_builddir( *.png )
 waLBerla_link_files_to_builddir( *.obj )
 waLBerla_link_files_to_builddir( *.stl )
 waLBerla_link_files_to_builddir( *.mtl )
+waLBerla_link_files_to_builddir( *.dat )
 waLBerla_link_files_to_builddir( input*.py )
 
 
