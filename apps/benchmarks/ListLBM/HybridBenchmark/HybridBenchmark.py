@@ -74,7 +74,6 @@ with CodeGeneration() as ctx:
     inner_outer_split = True
 
 
-
     ########################################## Sparse kernels ###################################################
     generated_list_class_name = "ListLBMList"
     stencil_typedefs = {'Stencil_T': stencil}

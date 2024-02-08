@@ -152,7 +152,17 @@ void {{class_name}}::clearGPUArrays()
    WALBERLA_GPU_CHECK( gpuFree( pullIdxsGPU_ ));
    WALBERLA_GPU_CHECK( gpuFree( pullIdxsInnerGPU_ ));
    WALBERLA_GPU_CHECK( gpuFree( pullIdxsOuterGPU_ ));
+   if (omegasGPU_)
+   {
+      WALBERLA_GPU_CHECK( gpuFree( omegasGPU_ ));
+      omegasGPU_ = nullptr;
+   }
+   for ( auto it = sendPDFsGPU_.begin(); it != sendPDFsGPU_.end(); ++it  ) {
+      WALBERLA_GPU_CHECK( gpuFree( it->second ));
+   }
+
 }
+
 {%- else %}
 void {{class_name}}::syncGPU()
 {

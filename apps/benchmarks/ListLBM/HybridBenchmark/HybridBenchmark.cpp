@@ -109,6 +109,10 @@ auto pdfFieldAdder = [](IBlock *const block, StructuredBlockStorage *const stora
 
 void setFlagFieldToPorosity(IBlock * block, const BlockDataID flagFieldId, const real_t porosity, const FlagUID noSlipFlagUID) {
    auto flagField    = block->getData< FlagField_T >(flagFieldId);
+
+   if (!flagField->flagExists(noSlipFlagUID))
+      flagField->registerFlag(noSlipFlagUID);
+
    auto noSlipFlag = flagField->getFlag(noSlipFlagUID);
    const real_t boundary_fraction = 1.0 - porosity;
    real_t nextBoundary = 0;
@@ -781,6 +785,16 @@ int main(int argc, char **argv)
 
       const auto reducedTimeloopTiming = timeloopTiming.getReduced();
       WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
+
+      for (auto& block : *blocks)
+      {
+         if (block.getState() == sweepSelectLowPorosity)
+         {
+            auto* lbmList = block.getData< List_T >(pdfListId);
+            WALBERLA_CHECK_NOT_NULLPTR(lbmList)
+            lbmList->clearGPUArrays();
+         }
+      }
 
       WALBERLA_ROOT_SECTION(){
          std::ofstream myfile;

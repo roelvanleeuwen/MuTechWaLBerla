@@ -96,14 +96,14 @@ class Scenario:
 def porosity_benchmark():
     wlb.log_info_on_root("Running different porosities")
     scenarios = wlb.ScenarioManager()
-    porosities = [0.1 * i for i in range(10+1)]
+    porosities = [0.02 * i for i in range(100+1)]
     for porosity in porosities:
-        scenario = Scenario(porosity=porosity, geometry_setup="randomNoslip", inflow_velocity=(0,0,0), run_boundaries=False, time_step_strategy="kernelOnly")
+        scenario = Scenario(porosity=porosity, run_hybrid=False, porosity_switch=1.0, cells_per_block=(128, 128, 128), geometry_setup="randomNoslip", inflow_velocity=(0,0,0), run_boundaries=False, time_step_strategy="kernelOnly")
         scenarios.add(scenario)
 
 def randomNoslip():
     scenarios = wlb.ScenarioManager()
-    scenario = Scenario(porosity=0.9, vtk_write_frequency=50, geometry_setup="randomNoslip", inflow_velocity=(0,0,0))
+    scenario = Scenario(porosity=0.8, porosity_switch=1.0, cells_per_block=(128, 128, 128), geometry_setup="randomNoslip", inflow_velocity=(0,0,0), run_boundaries=False, time_step_strategy="kernelOnly")
     scenarios.add(scenario)
 
 def spheres():
@@ -164,8 +164,8 @@ def emptyChannel():
     scenarios.add(scenario)
 
 def scalingBenchmark():
-    cells_per_block=(320, 320, 320)
-    gpu_enabled_mpi=True
+    cells_per_block = (320, 320, 320)
+    gpu_enabled_mpi = True
     scenarios = wlb.ScenarioManager()
     scenario = Scenario(cells_per_block=cells_per_block, geometry_setup="randomNoslip", porosity=1.0, porosity_switch=1.0, run_hybrid=False, time_step_strategy="noOverlap", inner_outer_split=(0, 0, 0), run_boundaries=True, gpu_enabled_mpi=gpu_enabled_mpi)
     scenarios.add(scenario)
@@ -199,13 +199,18 @@ def testCartesianComm():
     #                    time_step_strategy="Overlap", inner_outer_split=(1, 1, 1), run_boundaries=True, use_cartesian_communicator=True)
     #scenarios.add(scenario)
 
+
+
 #randomNoslip()
+
+porosity_benchmark()
+
 #spheres()
 #Artery()
 #smallArtery()
 
 #particleBed()
-particleBedBlockSizes()
+#particleBedBlockSizes()
 #emptyChannel()
 #scalingBenchmark()
 #testGPUComm()

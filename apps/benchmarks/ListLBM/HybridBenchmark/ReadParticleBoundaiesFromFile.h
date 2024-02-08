@@ -79,7 +79,10 @@ void initSpheresFromFile(const std::string& filename, weak_ptr<StructuredBlockFo
       CellInterval BlockBB = forest->getBlockCellBB( block );
       BlockBB.expand(1);
       auto flagField    = block.template getData< FlagField_T >(flagFieldID);
-      flagField->registerFlag(boundaryFlagUID);
+
+      if (!flagField->flagExists(boundaryFlagUID))
+         flagField->registerFlag(boundaryFlagUID);
+
       auto boundaryFlag = flagField->getFlag(boundaryFlagUID);
       for (auto particle : particleInfo) {
          auto particleBB = CellInterval(cell_idx_c((particle.first[0] - domainAABB.xMin())/blockDx - particle.second/blockDx),
