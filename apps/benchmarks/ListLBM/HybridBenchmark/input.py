@@ -7,7 +7,7 @@ DB_FILE = os.environ.get('DB_FILE', "ListLBMBenchmark.sqlite3")
 class Scenario:
     def __init__(self, cells_per_block=(64, 64, 20), periodic=(False,False,False), dx=1.0,
                  timesteps=1001, time_step_strategy="noOverlap", omega=0.8, gpu_enabled_mpi=False,
-                 gpu_block_size=(256, 0, 0), inner_outer_split=(1, 1, 1), vtk_write_frequency=0,
+                 gpu_block_size=(256, 1, 1), inner_outer_split=(1, 1, 1), vtk_write_frequency=0,
                  inflow_velocity=(0.01, 0, 0), porosity=0.5, porosity_switch=0.8, run_hybrid=True,
                  geometry_setup="randomNoslip", spheres_radius=9, sphere_shift=10, sphere_fill=(1.0, 1.0, 1.0),
                  mesh_file="None", run_boundaries=True, use_cartesian_communicator=False, balance_load=False):
@@ -152,10 +152,11 @@ def particleBedBlockSizes():
     scenarios = wlb.ScenarioManager()
     for cellsPerBlocks in cellsPerBlocksVec:
         dx = domainSizeX / (blocksX * cellsPerBlocks[0])
-        scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=0, timesteps=1000, omega=1.5, cells_per_block=cellsPerBlocks, porosity_switch=1.0, dx=dx, periodic=(False, True, True), time_step_strategy="kernelOnly")
+        scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=0, timesteps=1000, omega=1.5, cells_per_block=cellsPerBlocks, porosity_switch=0.0, run_hybrid=True, dx=dx, periodic=(False, True, True), time_step_strategy="kernelOnly")
         scenarios.add(scenario)
-        scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=0, timesteps=1000, omega=1.5, cells_per_block=cellsPerBlocks, porosity_switch=1.0, dx=dx, periodic=(False, True, True), time_step_strategy="Overlap")
+        scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=0, timesteps=1000, omega=1.5, cells_per_block=cellsPerBlocks, porosity_switch=0.0, run_hybrid=True, dx=dx, periodic=(False, True, True), time_step_strategy="noOverlap")
         scenarios.add(scenario)
+
 
 def emptyChannel():
     scenarios = wlb.ScenarioManager()
@@ -203,14 +204,14 @@ def testCartesianComm():
 
 #randomNoslip()
 
-porosity_benchmark()
+#porosity_benchmark()
 
 #spheres()
 #Artery()
 #smallArtery()
 
 #particleBed()
-#particleBedBlockSizes()
+particleBedBlockSizes()
 #emptyChannel()
 #scalingBenchmark()
 #testGPUComm()
