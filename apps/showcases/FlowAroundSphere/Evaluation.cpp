@@ -28,6 +28,7 @@ void Evaluation::operator()()
    if (checkFrequency_ == uint_t(0)) return;
 
    ++executionCounter_;
+   if (rampUpTime_ > executionCounter_) return;
    if ((executionCounter_ - uint_c(1)) % checkFrequency_ != 0) return;
 
    real_t cD(real_t(0));

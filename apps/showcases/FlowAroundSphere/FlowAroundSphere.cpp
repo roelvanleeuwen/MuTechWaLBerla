@@ -602,6 +602,7 @@ int main(int argc, char** argv)
    // flow evaluation
    auto EvaluationParameters      = config->getOneBlock("Evaluation");
    const uint_t evaluationCheckFrequency = EvaluationParameters.getParameter< uint_t >("evaluationCheckFrequency");
+   const uint_t rampUpTime = EvaluationParameters.getParameter< uint_t >("rampUpTime");
    const bool evaluationLogToStream = EvaluationParameters.getParameter< bool >("logToStream");
    const bool evaluationLogToFile = EvaluationParameters.getParameter< bool >("logToFile");
    const std::string evaluationFilename = EvaluationParameters.getParameter< std::string >("filename");
@@ -622,7 +623,7 @@ int main(int argc, char** argv)
 #endif
    };
 
-   shared_ptr< Evaluation > evaluation( new Evaluation( blocks, evaluationCheckFrequency, getFields,
+   shared_ptr< Evaluation > evaluation( new Evaluation( blocks, evaluationCheckFrequency, rampUpTime, getFields,
                                                         pdfFieldID, densityFieldID, velFieldID, flagFieldID, fluidFlagUID, FlagUID("NoSlip"),
                                                         setup, evaluationLogToStream, evaluationLogToFile, evaluationFilename));
 

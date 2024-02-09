@@ -56,12 +56,12 @@ namespace walberla
 class Evaluation
 {
  public:
-   Evaluation(const weak_ptr< StructuredBlockStorage >& blocks, const uint_t checkFrequency, VoidFunction& getFields,
+   Evaluation(const weak_ptr< StructuredBlockStorage >& blocks, const uint_t checkFrequency, const uint_t rampUpTime, VoidFunction& getFields,
               const BlockDataID& pdfFieldId, const BlockDataID& densityFieldId, const BlockDataID& velocityFieldId,
               const BlockDataID& flagFieldId, const FlagUID& fluid, const FlagUID& obstacle, const Setup& setup,
               const bool logToStream = true, const bool logToFile = true,
               const std::string& filename = std::string("FlowAroundSphere.txt"))
-      : initialized_(false), blocks_(blocks), executionCounter_(uint_t(0)), checkFrequency_(checkFrequency),
+      : initialized_(false), blocks_(blocks), executionCounter_(uint_t(0)), checkFrequency_(checkFrequency), rampUpTime_(rampUpTime),
         getFields_(getFields), pdfFieldId_(pdfFieldId), densityFieldId_(densityFieldId), velocityFieldId_(velocityFieldId),
         flagFieldId_(flagFieldId), fluid_(fluid), obstacle_(obstacle), setup_(setup), forceEvaluationExecutionCount_(uint_t(0)), strouhalRising_(false),
         strouhalNumberRealD_(real_t(0)), strouhalEvaluationExecutionCount_(uint_t(0)),
@@ -129,6 +129,7 @@ class Evaluation
 
    uint_t executionCounter_;
    uint_t checkFrequency_;
+   uint_t rampUpTime_;
 
    VoidFunction & getFields_;
 

@@ -66,6 +66,7 @@ Logging
 Evaluation
 {
     evaluationCheckFrequency 70;
+    rampUpTime 100;
     logToStream true;
     logToFile true;
     filename FlowAroundSphere.txt;
