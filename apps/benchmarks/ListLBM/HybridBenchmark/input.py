@@ -8,7 +8,7 @@ class Scenario:
     def __init__(self, cells_per_block=(64, 64, 20), periodic=(False,False,False), dx=1.0,
                  timesteps=1001, time_step_strategy="noOverlap", omega=0.8, gpu_enabled_mpi=False,
                  gpu_block_size=(256, 1, 1), inner_outer_split=(1, 1, 1), vtk_write_frequency=0,
-                 inflow_velocity=(0.01, 0, 0), porosity=0.5, porosity_switch=0.8, run_hybrid=True,
+                 inflow_velocity=(0.01, 0, 0), porosity=0.0, porosity_switch=0.8, run_hybrid=True,
                  geometry_setup="randomNoslip", spheres_radius=9, sphere_shift=10, sphere_fill=(1.0, 1.0, 1.0),
                  mesh_file="None", run_boundaries=True, use_cartesian_communicator=False, balance_load=False):
 
@@ -71,7 +71,7 @@ class Scenario:
                 'runBoundaries': self.run_boundaries,
                 'remainingTimeLoggerFrequency': 10,
                 'useCartesian': self.use_cartesian_communicator,
-                'writeDomainDecompositionAndReturn': False,
+                'writeDomainDecompositionAndReturn': True,
                 'dx': self.dx,
 
                 'SpheresRadius': self.spheres_radius,
@@ -98,7 +98,7 @@ def porosity_benchmark():
     scenarios = wlb.ScenarioManager()
     porosities = [0.02 * i for i in range(100+1)]
     for porosity in porosities:
-        scenario = Scenario(porosity=porosity, run_hybrid=False, porosity_switch=1.0, cells_per_block=(128, 128, 128), geometry_setup="randomNoslip", inflow_velocity=(0,0,0), run_boundaries=False, time_step_strategy="kernelOnly")
+        scenario = Scenario(porosity=porosity, run_hybrid=False, porosity_switch=1.0, cells_per_block=(256, 256, 256), geometry_setup="randomNoslip", inflow_velocity=(0, 0, 0), run_boundaries=False, time_step_strategy="kernelOnly")
         scenarios.add(scenario)
 
 def randomNoslip():
@@ -127,12 +127,14 @@ def ArterySparseVsDense():
     scenarios = wlb.ScenarioManager()
     mesh_file = "coronary_colored_medium.obj"
 
-    cells_per_block_options = [(256, 256, 256), (128, 128, 128), (64, 64, 64), (32, 32, 32), (16, 16, 16)]
+    cells_per_block_options = [(16, 16, 16), (32, 32, 32), (64, 64, 64), (128, 128, 128), (256, 256, 256), (512, 512, 512)]
     for cells_per_block in cells_per_block_options:
-        scenario = Scenario(dx=0.055, cells_per_block=cells_per_block, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000,  porosity_switch=1.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, gpu_enabled_mpi=True)
+        scenario = Scenario(dx=0.0257, cells_per_block=cells_per_block, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000,  porosity_switch=1.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, gpu_enabled_mpi=True)
         scenarios.add(scenario)
-        scenario = Scenario(dx=0.055, cells_per_block=cells_per_block, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000,  porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, gpu_enabled_mpi=True)
-        scenarios.add(scenario)
+        #scenario = Scenario(dx=0.0257, cells_per_block=cells_per_block, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000,  porosity_switch=1.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, gpu_enabled_mpi=True, balance_load=True)
+        #scenarios.add(scenario)
+        #scenario = Scenario(dx=0.0257, cells_per_block=cells_per_block, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000,  porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, gpu_enabled_mpi=True)
+        #scenarios.add(scenario)
 
 def smallArtery():
     scenarios = wlb.ScenarioManager()
@@ -147,14 +149,14 @@ def particleBed():
 
 def particleBedBlockSizes():
     cellsPerBlocksVec = [(16, 16, 16), (32, 32, 32), (64, 64, 64), (128, 128, 128), (256, 256, 256), (320, 320, 320), (450, 450, 450)]
-    blocksX = 6
+    blocksX = 4
     domainSizeX = 0.1
     scenarios = wlb.ScenarioManager()
     for cellsPerBlocks in cellsPerBlocksVec:
         dx = domainSizeX / (blocksX * cellsPerBlocks[0])
-        scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=0, timesteps=1000, omega=1.5, cells_per_block=cellsPerBlocks, porosity_switch=0.0, run_hybrid=True, dx=dx, periodic=(False, True, True), time_step_strategy="kernelOnly")
+        scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=0, timesteps=1000, omega=1.5, cells_per_block=cellsPerBlocks, porosity_switch=1.0, run_hybrid=True, dx=dx, periodic=(False, True, True), time_step_strategy="kernelOnly")
         scenarios.add(scenario)
-        scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=0, timesteps=1000, omega=1.5, cells_per_block=cellsPerBlocks, porosity_switch=0.0, run_hybrid=True, dx=dx, periodic=(False, True, True), time_step_strategy="noOverlap")
+        scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=0, timesteps=1000, omega=1.5, cells_per_block=cellsPerBlocks, porosity_switch=1.0, run_hybrid=True, dx=dx, periodic=(False, True, True), time_step_strategy="noOverlap")
         scenarios.add(scenario)
 
 
@@ -210,8 +212,10 @@ def testCartesianComm():
 #Artery()
 #smallArtery()
 
+ArterySparseVsDense()
+
 #particleBed()
-particleBedBlockSizes()
+#particleBedBlockSizes()
 #emptyChannel()
 #scalingBenchmark()
 #testGPUComm()

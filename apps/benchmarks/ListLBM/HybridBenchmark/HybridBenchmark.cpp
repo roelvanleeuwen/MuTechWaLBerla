@@ -29,6 +29,7 @@
 #include "core/SharedFunctor.h"
 #include "core/timing/RemainingTimeLogger.h"
 #include "core/MemoryUsage.h"
+#include "core/math/Sample.h"
 
 #include "field/AddToStorage.h"
 #include "field/FlagField.h"
@@ -316,12 +317,13 @@ int main(int argc, char **argv)
       const std::string geometrySetup = domainParameters.getParameter< std::string >("geometrySetup", "randomNoslip");
       bool pressureInflow = false;
 
+      const real_t porosity = parameters.getParameter< real_t >("porosity");
+
       if (geometrySetup == "randomNoslip") {
          /*blocks = walberla::blockforest::createUniformBlockGrid( blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx, 0, true, false, periodic[0], periodic[1], periodic[2], false);*/
          blocks = walberla::blockforest::createUniformBlockGrid(blocksPerDimension[0], blocksPerDimension[1], blocksPerDimension[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], dx,  true, periodic[0], periodic[1], periodic[2], false);
 
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
-         const real_t porosity = parameters.getParameter< real_t >("porosity");
          geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);
          if(porosity < 1.0) {
             for (auto& block : *blocks) {
@@ -802,7 +804,17 @@ int main(int argc, char **argv)
          myfile << nrOfProcesses << " " << cellsPerBlock << " " << InnerOuterSplit  <<  " " << performance.mflupsPerProcess(timesteps, time) << " " << performance.mflups(timesteps, time) << std::endl;
          myfile.close();
       }
-      //printResidentMemoryStatistics();
+
+      math::Sample memory;
+      memory.castToRealAndInsert(getResidentMemorySize());
+      memory.mpiGatherRoot();
+      WALBERLA_ROOT_SECTION(){
+         std::ofstream myfile;
+         myfile.open ("memory.txt", std::ios::app);
+         myfile << nrOfProcesses << " " << cellsPerBlock << " " << porosity << " " << memory.format() << std::endl;
+         myfile.close();
+      }
+      printResidentMemoryStatistics();
    }//config
 
    return EXIT_SUCCESS;
