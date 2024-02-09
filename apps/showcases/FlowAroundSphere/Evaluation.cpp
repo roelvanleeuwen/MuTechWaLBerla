@@ -68,11 +68,11 @@ void Evaluation::operator()()
 
       if (coefficients_[0].size() > setup_.nbrOfEvaluationPointsForCoefficientExtremas)
       {
-         for (uint_t i = uint_t(0); i < uint_t(4); ++i)
+         for (auto i = 0; i < coefficients_.size(); ++i)
             coefficients_[i].pop_front();
       }
 
-      for (uint_t i = uint_t(0); i < uint_t(4); ++i)
+      for (auto i = 0; i < coefficients_.size(); ++i)
       {
          coefficientExtremas_[i] = std::make_pair(*(coefficients_[i].begin()), *(coefficients_[i].begin()));
          for (auto v = coefficients_[i].begin(); v != coefficients_[i].end(); ++v)

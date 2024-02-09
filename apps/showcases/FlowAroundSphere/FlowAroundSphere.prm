@@ -46,12 +46,12 @@ StabilityChecker
 
 VTKWriter
 {
-    vtkWriteFrequency 700;
+    vtkWriteFrequency 1000;
     velocity true;
     density false;
     flag false;
-    writeOnlySlice false;
-    amrFileFormat true;
+    writeOnlySlice true;
+    amrFileFormat false;
     oneFilePerProcess false;
 }
 
@@ -65,8 +65,8 @@ Logging
 
 Evaluation
 {
-    evaluationCheckFrequency 70;
-    rampUpTime 100;
+    evaluationCheckFrequency 500;
+    rampUpTime 10000;
     logToStream true;
     logToFile true;
     filename FlowAroundSphere.txt;
