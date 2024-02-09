@@ -6,13 +6,14 @@ from pystencils.field import fields
 from pystencils.simp.subexpression_insertion import insert_constants, insert_aliases
 
 from lbmpy import Stencil, LBStencil, Method, LBMConfig, LBMOptimisation
-from lbmpy.boundaries.boundaryconditions import ExtrapolationOutflow, UBB, QuadraticBounceBack
+from lbmpy.boundaries.boundaryconditions import ExtrapolationOutflow, UBB, QuadraticBounceBack, FreeSlip
 from lbmpy.creationfunctions import create_lb_collision_rule
 
 from pystencils_walberla import CodeGeneration, generate_info_header
 from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator
 
 info_header = """
+#pragma once
 const char * infoStencil = "{stencil}";
 const char * infoStreamingPattern = "{streaming_pattern}";
 const char * infoCollisionOperator = "{collision_operator}";
@@ -43,7 +44,7 @@ with CodeGeneration() as ctx:
         relaxation_rate=omega,
         compressible=True,
         galilean_correction=False,
-        fourth_order_correction=0.1,
+        fourth_order_correction=1e-4,
         field_name='pdfs',
         streaming_pattern=streaming_pattern,
     )
@@ -81,6 +82,7 @@ with CodeGeneration() as ctx:
         sweep_params = {}
         vp = ()
 
+    freeslip = lbm_boundary_generator("FreeSlip", flag_uid="FreeSlip", boundary_object=FreeSlip(stencil))
     no_slip_interpolated = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip',
                                                   boundary_object=QuadraticBounceBack(omega), field_data_type=pdf_dtype)
     ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
@@ -93,7 +95,7 @@ with CodeGeneration() as ctx:
 
     generate_lbm_package(ctx, name="FlowAroundSphere", collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=True, boundaries=[no_slip_interpolated, ubb, outflow],
+                         nonuniform=True, boundaries=[freeslip, no_slip_interpolated, ubb, outflow],
                          macroscopic_fields=macroscopic_fields, gpu_indexing_params=sweep_params,
                          target=target, data_type=dtype, pdfs_data_type=pdf_dtype,
                          cpu_vectorize_info=cpu_vec)
@@ -101,12 +103,14 @@ with CodeGeneration() as ctx:
     field_typedefs = {'VelocityField_T': velocity_field,
                       'ScalarField_T': density_field}
 
+    # Info header containing correct template definitions for stencil and field
+    generate_info_header(ctx, 'FlowAroundSphereInfoHeader',
+                         field_typedefs=field_typedefs)
+
     infoHeaderParams = {
         'stencil': stencil.name.lower(),
         'streaming_pattern': streaming_pattern,
         'collision_operator': lbm_config.method.name.lower(),
     }
 
-    # Info header containing correct template definitions for stencil and field
-    generate_info_header(ctx, 'FlowAroundSphereInfoHeader',
-                         field_typedefs=field_typedefs, additional_code=info_header.format(**infoHeaderParams))
+    ctx.write_file("FlowAroundSphereStaticDefines.h", info_header.format(**infoHeaderParams))

@@ -1,12 +1,23 @@
 Parameters
 {
-    diameterSphere 0.2;
+    machNumber 0.0585;
     reynoldsNumber 1000;
-    velocity 1.0;
-    timestepSize 0.5e-3;
-    coarseMeshSize  0.078125;  //0.078125
+    diameterSphere 2.5; // On the finest mesh
+    timesteps 70001;
+    simulationTime 93;
+    coarseMeshSize 0.01953125;
+    sphereXPosition 2;
+    circularCrossSection true;
 
-    timesteps 10001;
+    evaluatePressure false;
+    pAlpha < 0.45, 0.2, 0.205 >; // points for evaluating
+    pOmega < 0.55, 0.2, 0.205 >; // the pressure difference
+
+    evaluateStrouhal false;
+    pStrouhal < 1, 0.325, 0.205 >; // point used for evaluating the vortex shedding frequency and the Strouhal number
+
+    SphereRefinementBuffer 1;
+    processMemoryLimit 512; // MiB
 
     innerOuterSplit <1, 1, 1>;
 
@@ -19,16 +30,10 @@ Parameters
 //! [domainSetup]
 DomainSetup
 {
-    meshFile      sphere.obj;
-    cellsPerBlock < 64, 64, 64 >;
-    periodic      <  0,  1,  1 >;
-
-    domainSize    < 35, 10, 10 >;
-
+    cellsPerBlock < 1024, 512, 512 >;
+    domainSize    < 22, 11, 11 >; // Domain size is given in terms of the diameter of the Sphere
     refinementLevels 0;
-    numberProcesses 1;
-
-    weakScaling false;
+    numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
 }
 //! [domainSetup]
 
@@ -41,19 +46,57 @@ StabilityChecker
 
 VTKWriter
 {
-    vtkWriteFrequency 5000;
+    vtkWriteFrequency 700;
     velocity true;
     density false;
     flag false;
-    writeOnlySlice true;
+    writeOnlySlice false;
+    amrFileFormat true;
+    oneFilePerProcess false;
 }
 
 Logging
 {
     logLevel info;  // info progress detail tracing
-    writeDistanceOctree false;
-    writeSetupForestAndReturn false;
+    writeSetupForestAndReturn true;
     readSetupFromFile false;
-    writeMeshBoundaries false;
     remainingTimeLoggerFrequency 60; // in seconds
+}
+
+Evaluation
+{
+    evaluationCheckFrequency 70;
+    logToStream true;
+    logToFile true;
+    filename FlowAroundSphere.txt;
+}
+
+AABBRefinementSelection
+{
+    // coordinates of Regions are always in [0,1] -> the entire simulation space is mapped to [ <0,0,0>, <1,1,1> ]
+    /*Region
+    {
+        level 1;
+        region [ <0.2, 0.2, 0>, <0.8, 0.8, 1> ];
+    }
+    Region
+    {
+        level 2;
+        region [ <0.26, 0.41, 0>, <0.7, 0.59, 1> ];
+    }
+    Region
+    {
+        level 3;
+        region [ <0.26, 0.41, 0>, <0.5, 0.59, 1> ];
+    }
+    Region
+    {
+        level 4;
+        region [ <0.26, 0.41, 0>, <0.4, 0.59, 1> ];
+    }
+    Region
+    {
+        level 5;
+        region [ <0.26, 0.41, 0>, <0.33, 0.59, 1> ];
+    }*/
 }
