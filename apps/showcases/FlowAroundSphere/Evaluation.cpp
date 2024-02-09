@@ -36,6 +36,8 @@ void Evaluation::operator()()
    real_t pressureDifference_L(real_t(0));
    real_t pressureDifference(real_t(0));
 
+   getFields_();
+
    evaluate(cD, cL, pressureDifference_L, pressureDifference);
 
    auto blocks = blocks_.lock();
@@ -50,13 +52,11 @@ void Evaluation::operator()()
       auto block = blocks->getBlock(setup_.pStrouhal);
       if (block != nullptr)
       {
-         sweepCollection_.calculateMacroscopicParameters(block);
          const VelocityField_T* const velocityField = block->template getData< VelocityField_T >(velocityFieldId_);
          const auto cell                            = blocks->getBlockLocalCell(*block, setup_.pStrouhal);
          WALBERLA_ASSERT(velocityField->xyzSize().contains(cell));
          vortexVelocity += velocityField->get(cell.x(), cell.y(), cell.z(), cell_idx_c(0));
       }
-
       mpi::reduceInplace(vortexVelocity, mpi::SUM);
    }
 

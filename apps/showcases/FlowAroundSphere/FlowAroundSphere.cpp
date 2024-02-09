@@ -37,6 +37,7 @@
 #include "core/mpi/Reduce.h"
 #include "core/timing/RemainingTimeLogger.h"
 #include "core/timing/TimingPool.h"
+
 #include "field/AddToStorage.h"
 #include "field/CellCounter.h"
 #include "field/FlagField.h"
@@ -46,10 +47,6 @@
 #include "field/vtk/VTKWriter.h"
 
 #include "geometry/InitBoundaryHandling.h"
-
-#include "timeloop/SweepTimeloop.h"
-
-#include "vtk/VTKOutput.h"
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 #   include "gpu/AddGPUFieldToStorage.h"
@@ -77,6 +74,10 @@
 #   include "lbm_generated/gpu/NonuniformGeneratedGPUPdfPackInfo.h"
 #   include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
 #endif
+
+#include "timeloop/SweepTimeloop.h"
+
+#include "vtk/VTKOutput.h"
 
 #include <cmath>
 #include <cstdlib>
@@ -551,24 +552,11 @@ int main(int argc, char** argv)
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    WALBERLA_LOG_INFO_ON_ROOT("Setting up communication")
-   std::shared_ptr< UniformGPUScheme< CommunicationStencil_T > > uniformCommunication;
-   std::shared_ptr< UniformGeneratedGPUPdfPackInfo< GPUPdfField_T > > uniformPackInfo;
 
-   std::shared_ptr< NonUniformGPUScheme< CommunicationStencil_T > > nonUniformCommunication;
-   std::shared_ptr< NonuniformGeneratedGPUPdfPackInfo< GPUPdfField_T > > nonUniformPackInfo;
-   if (uniformGrid)
-   {
-      uniformCommunication = std::make_shared< UniformGPUScheme< CommunicationStencil_T > >(blocks, false);
-      uniformPackInfo =
-         std::make_shared< lbm_generated::UniformGeneratedGPUPdfPackInfo< GPUPdfField_T > >(pdfFieldGPUID);
-      uniformCommunication->addPackInfo(uniformPackInfo);
-   }
-   else
-   {
-      nonUniformCommunication = std::make_shared< NonUniformGPUScheme< CommunicationStencil_T > >(blocks);
-      nonUniformPackInfo = lbm_generated::setupNonuniformGPUPdfCommunication< GPUPdfField_T >(blocks, pdfFieldGPUID);
-      nonUniformCommunication->addPackInfo(nonUniformPackInfo);
-   }
+   std::shared_ptr< NonUniformGPUScheme< CommunicationStencil_T > >nonUniformCommunication = std::make_shared< NonUniformGPUScheme< CommunicationStencil_T > >(blocks);
+   std::shared_ptr< NonuniformGeneratedGPUPdfPackInfo< GPUPdfField_T > >nonUniformPackInfo = lbm_generated::setupNonuniformGPUPdfCommunication< GPUPdfField_T >(blocks, pdfFieldGPUID);
+   nonUniformCommunication->addPackInfo(nonUniformPackInfo);
+
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else
@@ -597,7 +585,7 @@ int main(int argc, char** argv)
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldGPUID, fluidFlagUID, omegaFinestLevel,
-                                           inletVelocity, wallDistanceFunctor, pdfFieldID);
+                                           referenceVelocity, wallDistanceFunctor, pdfFieldID);
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else
@@ -617,35 +605,33 @@ int main(int argc, char** argv)
    const bool evaluationLogToStream = EvaluationParameters.getParameter< bool >("logToStream");
    const bool evaluationLogToFile = EvaluationParameters.getParameter< bool >("logToFile");
    const std::string evaluationFilename = EvaluationParameters.getParameter< std::string >("filename");
-   shared_ptr< Evaluation > evaluation( new Evaluation( blocks, evaluationCheckFrequency, sweepCollection,
+
+   std::function<void ()> getFields = [&]()
+   {
+      for (auto& block : *blocks)
+      {
+         sweepCollection.calculateMacroscopicParameters(&block);
+      }
+
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      gpu::fieldCpy< PdfField_T, GPUPdfField_T >(blocks, pdfFieldID, pdfFieldGPUID);
+      gpu::fieldCpy< VelocityField_T, gpu::GPUField< real_t > >(blocks, velFieldID, velFieldGPUID);
+      gpu::fieldCpy< ScalarField_T, gpu::GPUField< real_t > >(blocks, densityFieldID, densityFieldGPUID);
+      WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
+      WALBERLA_GPU_CHECK(gpuPeekAtLastError())
+#endif
+   };
+
+   shared_ptr< Evaluation > evaluation( new Evaluation( blocks, evaluationCheckFrequency, getFields,
                                                         pdfFieldID, densityFieldID, velFieldID, flagFieldID, fluidFlagUID, FlagUID("NoSlip"),
                                                         setup, evaluationLogToStream, evaluationLogToFile, evaluationFilename));
 
-
-
-
    // create time loop
+   SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
-   std::shared_ptr< lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > >
-      LBMRefinement;
-
-   if (!uniformGrid)
-   {
-      LBMRefinement = std::make_shared<
-         lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > >(
-         blocks, pdfFieldGPUID, sweepCollection, boundaryCollection, nonUniformCommunication, nonUniformPackInfo);
-      LBMRefinement->addRefinementToTimeLoop(timeloop);
-   }
-   else
-   {
-      WALBERLA_LOG_INFO_ON_ROOT("Using uniform Grid")
-      timeloop.add() << BeforeFunction(uniformCommunication->getCommunicateFunctor(), "Communication")
-                     << Sweep(boundaryCollection.getSweep(BoundaryCollection_T::ALL), "Boundary Conditions");
-      timeloop.add() << Sweep(sweepCollection.streamCollide(SweepCollection_T::ALL), "LBM StreamCollide");
-   }
+   std::shared_ptr< lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > > LBMRefinement = std::make_shared<lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > >(blocks, pdfFieldGPUID, sweepCollection, boundaryCollection, nonUniformCommunication, nonUniformPackInfo);
+   LBMRefinement->addRefinementToTimeLoop(timeloop);
 #else
-   SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
    std::shared_ptr< lbm_generated::BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T > >
       LBMRefinement;
 

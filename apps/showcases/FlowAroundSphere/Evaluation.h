@@ -48,6 +48,7 @@ using PdfField_T             = lbm_generated::PdfField< StorageSpecification_T >
 using FlagField_T            = FlagField< uint8_t >;
 
 using SweepCollection_T = lbm::FlowAroundSphereSweepCollection;
+using VoidFunction = std::function<void ()>;
 
 namespace walberla
 {
@@ -55,13 +56,13 @@ namespace walberla
 class Evaluation
 {
  public:
-   Evaluation(const weak_ptr< StructuredBlockStorage >& blocks, const uint_t checkFrequency, SweepCollection_T& sweepCollection,
+   Evaluation(const weak_ptr< StructuredBlockStorage >& blocks, const uint_t checkFrequency, VoidFunction& getFields,
               const BlockDataID& pdfFieldId, const BlockDataID& densityFieldId, const BlockDataID& velocityFieldId,
               const BlockDataID& flagFieldId, const FlagUID& fluid, const FlagUID& obstacle, const Setup& setup,
               const bool logToStream = true, const bool logToFile = true,
               const std::string& filename = std::string("FlowAroundSphere.txt"))
       : initialized_(false), blocks_(blocks), executionCounter_(uint_t(0)), checkFrequency_(checkFrequency),
-        sweepCollection_(sweepCollection), pdfFieldId_(pdfFieldId), densityFieldId_(densityFieldId), velocityFieldId_(velocityFieldId),
+        getFields_(getFields), pdfFieldId_(pdfFieldId), densityFieldId_(densityFieldId), velocityFieldId_(velocityFieldId),
         flagFieldId_(flagFieldId), fluid_(fluid), obstacle_(obstacle), setup_(setup), forceEvaluationExecutionCount_(uint_t(0)), strouhalRising_(false),
         strouhalNumberRealD_(real_t(0)), strouhalEvaluationExecutionCount_(uint_t(0)),
         logToStream_(logToStream), logToFile_(logToFile), filename_(filename)
@@ -129,7 +130,7 @@ class Evaluation
    uint_t executionCounter_;
    uint_t checkFrequency_;
 
-   SweepCollection_T sweepCollection_;
+   VoidFunction & getFields_;
 
    BlockDataID pdfFieldId_;
    BlockDataID densityFieldId_;

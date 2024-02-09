@@ -24,7 +24,7 @@ inlet_velocity = sp.symbols("u_x")
 
 with CodeGeneration() as ctx:
     dtype = 'float64'
-    pdf_dtype = 'float64'
+    pdf_dtype = 'float32'
 
     stencil = LBStencil(Stencil.D3Q27)
     q = stencil.Q
@@ -82,7 +82,7 @@ with CodeGeneration() as ctx:
         sweep_params = {}
         vp = ()
 
-    freeslip = lbm_boundary_generator("FreeSlip", flag_uid="FreeSlip", boundary_object=FreeSlip(stencil))
+    freeslip = lbm_boundary_generator("FreeSlip", flag_uid="FreeSlip", boundary_object=FreeSlip(stencil), field_data_type=pdf_dtype)
     no_slip_interpolated = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip',
                                                   boundary_object=QuadraticBounceBack(omega), field_data_type=pdf_dtype)
     ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
