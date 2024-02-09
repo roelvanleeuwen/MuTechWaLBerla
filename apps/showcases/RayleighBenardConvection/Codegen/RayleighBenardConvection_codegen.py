@@ -95,6 +95,7 @@ lbm_config_thermal = LBMConfig(
     method=Method.SRT,
     relaxation_rate=omega_thermal,
     compressible=True,
+    zero_centered=False,
     velocity_input=velocity_field,
     equilibrium_order=1,
     entropic=False,
