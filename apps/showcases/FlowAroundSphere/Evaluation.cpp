@@ -37,8 +37,6 @@ void Evaluation::operator()()
    real_t pressureDifference_L(real_t(0));
    real_t pressureDifference(real_t(0));
 
-   getFields_();
-
    evaluate(cD, cL, pressureDifference_L, pressureDifference);
 
    auto blocks = blocks_.lock();
@@ -220,6 +218,8 @@ void Evaluation::forceCalculation(IBlock* block, const uint_t level)
    if (checkFrequency_ == uint_t(0) || executionCounter_ % checkFrequency_ != 0)
       return;
    if (rampUpTime_ > executionCounter_) return;
+
+   getFields_();
 
    if (directions_.find(block) != directions_.end())
    {
