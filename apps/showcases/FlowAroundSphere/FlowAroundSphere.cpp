@@ -45,6 +45,7 @@
 #include "field/adaptors/AdaptorCreators.h"
 #include "field/iterators/FieldIterator.h"
 #include "field/vtk/VTKWriter.h"
+#include "field/vtk/FlagFieldCellFilter.h"
 
 #include "geometry/InitBoundaryHandling.h"
 
@@ -127,8 +128,9 @@ using BlockExclusionFunction = SetupBlockForest::BlockExclusionFunction;
 // Parameter Struct //
 //////////////////////
 
-
-static void workloadMemoryAndSUIDAssignment(SetupBlockForest& forest, const memory_t memoryPerBlock, const Setup& setup)
+namespace
+{
+void workloadMemoryAndSUIDAssignment(SetupBlockForest& forest, const memory_t memoryPerBlock, const Setup& setup)
 {
    for (auto block = forest.begin(); block != forest.end(); ++block)
    {
@@ -137,17 +139,18 @@ static void workloadMemoryAndSUIDAssignment(SetupBlockForest& forest, const memo
    }
 }
 
-static shared_ptr< SetupBlockForest >
+shared_ptr< SetupBlockForest >
    createSetupBlockForest(const blockforest::RefinementSelectionFunctions& refinementSelectionFunctions,
-                          const BlockExclusionFunction& blockExclusionFunction,
-                          const Setup& setup, uint_t numberOfProcesses,
-                          const memory_t memoryPerCell, const memory_t processMemoryLimit, const bool outputSetupForest)
+                          const BlockExclusionFunction& blockExclusionFunction, const Setup& setup,
+                          uint_t numberOfProcesses, const memory_t memoryPerCell, const memory_t processMemoryLimit,
+                          const bool outputSetupForest)
 {
    shared_ptr< SetupBlockForest > forest = make_shared< SetupBlockForest >();
 
    const memory_t memoryPerBlock = numeric_cast< memory_t >((setup.zCells + uint_t(2) * setup.numGhostLayers) *
                                                             (setup.yCells + uint_t(2) * setup.numGhostLayers) *
-                                                            (setup.xCells + uint_t(2) * setup.numGhostLayers)) * memoryPerCell;
+                                                            (setup.xCells + uint_t(2) * setup.numGhostLayers)) *
+                                   memoryPerCell;
 
    forest->addRefinementSelectionFunction(refinementSelectionFunctions);
    forest->addBlockExclusionFunction(blockExclusionFunction);
@@ -168,123 +171,113 @@ static shared_ptr< SetupBlockForest >
       forest->writeCSV("process_distribution");
    }
 
-   WALBERLA_LOG_INFO_ON_ROOT("SetupBlockForest created successfully:\n" << *forest);
+   WALBERLA_LOG_INFO_ON_ROOT("SetupBlockForest created successfully:\n" << *forest)
 
    return forest;
 }
 
 shared_ptr< blockforest::StructuredBlockForest >
    createStructuredBlockForest(const blockforest::RefinementSelectionFunctions& refinementSelectionFunctions,
-                               const BlockExclusionFunction& blockExclusionFunction,
-                               const Setup& setup, const memory_t memoryPerCell, const memory_t processMemoryLimit)
+                               const BlockExclusionFunction& blockExclusionFunction, const Setup& setup,
+                               const memory_t memoryPerCell, const memory_t processMemoryLimit)
 {
-//   if (configBlock.isDefined("sbffile"))
-//   {
-//      std::string sbffile = configBlock.getParameter< std::string >("sbffile");
-//
-//      WALBERLA_LOG_INFO_ON_ROOT("Creating the block structure: loading from file \'" << sbffile << "\' ...");
-//
-//      MPIManager::instance()->useWorldComm();
-//
-//      auto bf = std::make_shared< BlockForest >(uint_c(MPIManager::instance()->rank()), sbffile.c_str(), true, false);
-//
-//      auto sbf = std::make_shared< StructuredBlockForest >(bf, setup.xCells, setup.yCells, setup.zCells);
-//      sbf->createCellBoundingBoxes();
-//
-//      return sbf;
-//   }
+   //   if (configBlock.isDefined("sbffile"))
+   //   {
+   //      std::string sbffile = configBlock.getParameter< std::string >("sbffile");
+   //
+   //      WALBERLA_LOG_INFO_ON_ROOT("Creating the block structure: loading from file \'" << sbffile << "\' ...");
+   //
+   //      MPIManager::instance()->useWorldComm();
+   //
+   //      auto bf = std::make_shared< BlockForest >(uint_c(MPIManager::instance()->rank()), sbffile.c_str(), true, false);
+   //
+   //      auto sbf = std::make_shared< StructuredBlockForest >(bf, setup.xCells, setup.yCells, setup.zCells);
+   //      sbf->createCellBoundingBoxes();
+   //
+   //      return sbf;
+   //   }
 
-   WALBERLA_LOG_INFO_ON_ROOT("Creating the block structure ...");
+   WALBERLA_LOG_INFO_ON_ROOT("Creating the block structure ...")
 
-   shared_ptr< SetupBlockForest > sforest = createSetupBlockForest(refinementSelectionFunctions, blockExclusionFunction,
-                                                                   setup,
-                                                                   uint_c(MPIManager::instance()->numProcesses()), memoryPerCell,
-                                                                   processMemoryLimit, false);
+   shared_ptr< SetupBlockForest > sforest =
+      createSetupBlockForest(refinementSelectionFunctions, blockExclusionFunction, setup,
+                             uint_c(MPIManager::instance()->numProcesses()), memoryPerCell, processMemoryLimit, false);
 
-   auto bf = std::make_shared< blockforest::BlockForest >(uint_c(MPIManager::instance()->rank()), *sforest, false);
-   auto sbf = std::make_shared< blockforest::StructuredBlockForest >(bf, setup.cellsPerBlock[0], setup.cellsPerBlock[1], setup.cellsPerBlock[2]);
+   auto bf  = std::make_shared< blockforest::BlockForest >(uint_c(MPIManager::instance()->rank()), *sforest, false);
+   auto sbf = std::make_shared< blockforest::StructuredBlockForest >(bf, setup.cellsPerBlock[0], setup.cellsPerBlock[1],
+                                                                     setup.cellsPerBlock[2]);
    sbf->createCellBoundingBoxes();
 
    return sbf;
 }
 
-
-void consistentlySetBoundary(const std::shared_ptr<StructuredBlockForest>& blocks, Block& block, FlagField_T* flagField, const uint8_t flag,
-                             const std::function< bool ( const Vector3< real_t > & ) >& isBoundary)
+void consistentlySetBoundary(const std::shared_ptr< StructuredBlockForest >& blocks, Block& block,
+                             FlagField_T* flagField, const uint8_t flag,
+                             const std::function< bool(const Vector3< real_t >&) >& isBoundary)
 {
    const uint_t level = blocks->getLevel(block);
-   int ghostLayers = int_c( flagField->nrOfGhostLayers() );
+   int ghostLayers    = int_c(flagField->nrOfGhostLayers());
 
    CellInterval cells = flagField->xyzSize();
-   cells.expand( cell_idx_c(ghostLayers) );
+   cells.expand(cell_idx_c(ghostLayers));
 
    std::vector< CellInterval > coarseRegions;
-   for( auto dir = stencil::D3Q27::beginNoCenter(); dir != stencil::D3Q27::end(); ++dir )
+   for (auto dir = stencil::D3Q27::beginNoCenter(); dir != stencil::D3Q27::end(); ++dir)
    {
-      const auto index = blockforest::getBlockNeighborhoodSectionIndex( dir.cx(), dir.cy(), dir.cz() );
-      if( block.neighborhoodSectionHasLargerBlock( index ) )
+      const auto index = blockforest::getBlockNeighborhoodSectionIndex(dir.cx(), dir.cy(), dir.cz());
+      if (block.neighborhoodSectionHasLargerBlock(index))
       {
-         CellInterval coarseRegion( cells );
-         for( uint_t i = 0; i != 3; ++i )
+         CellInterval coarseRegion(cells);
+         for (uint_t i = 0; i != 3; ++i)
          {
             const auto c = stencil::c[i][*dir];
 
-            if( c == -1 ) coarseRegion.max()[i] = coarseRegion.min()[i] + cell_idx_c( 2 * ghostLayers - 1 );
-            else if( c == 1 ) coarseRegion.min()[i] = coarseRegion.max()[i] - cell_idx_c( 2 * ghostLayers - 1 );
+            if (c == -1)
+               coarseRegion.max()[i] = coarseRegion.min()[i] + cell_idx_c(2 * ghostLayers - 1);
+            else if (c == 1)
+               coarseRegion.min()[i] = coarseRegion.max()[i] - cell_idx_c(2 * ghostLayers - 1);
          }
-         coarseRegions.push_back( coarseRegion );
+         coarseRegions.push_back(coarseRegion);
       }
    }
 
-   for( auto cell = cells.begin(); cell != cells.end(); ++cell )
+   for (auto cell = cells.begin(); cell != cells.end(); ++cell)
    {
-      bool inCoarseRegion( false );
-      for( auto region = coarseRegions.begin(); region != coarseRegions.end() && !inCoarseRegion; ++region )
-         inCoarseRegion = region->contains( *cell );
+      bool inCoarseRegion(false);
+      for (auto region = coarseRegions.begin(); region != coarseRegions.end() && !inCoarseRegion; ++region)
+         inCoarseRegion = region->contains(*cell);
 
-      if( !inCoarseRegion )
+      if (!inCoarseRegion)
       {
          Vector3< real_t > center;
-         blocks->getBlockLocalCellCenter( block, *cell, center );
-         blocks->mapToPeriodicDomain( center );
+         blocks->getBlockLocalCellCenter(block, *cell, center);
+         blocks->mapToPeriodicDomain(center);
 
-         if( isBoundary(center) )
-         {
-            flagField->addFlag(cell->x(), cell->y(), cell->z(), flag);
-         }
+         if (isBoundary(center)) { flagField->addFlag(cell->x(), cell->y(), cell->z(), flag); }
       }
       else
       {
-         Cell globalCell( *cell );
-         blocks->transformBlockLocalToGlobalCell( globalCell, block );
+         Cell globalCell(*cell);
+         blocks->transformBlockLocalToGlobalCell(globalCell, block);
 
-         Cell coarseCell( globalCell );
-         for( uint_t i = 0; i < 3; ++i )
+         Cell coarseCell(globalCell);
+         for (uint_t i = 0; i < 3; ++i)
          {
-            if( coarseCell[i] < cell_idx_t(0) )
-            {
-               coarseCell[i] = -( ( cell_idx_t(1) - coarseCell[i] ) >> 1 );
-            }
-            else
-            {
-               coarseCell[i] >>= 1;
-            }
+            if (coarseCell[i] < cell_idx_t(0)) { coarseCell[i] = -((cell_idx_t(1) - coarseCell[i]) >> 1); }
+            else { coarseCell[i] >>= 1; }
          }
 
          Vector3< real_t > coarseCenter;
-         blocks->getCellCenter( coarseCenter, coarseCell, level - uint_t(1) );
-         blocks->mapToPeriodicDomain( coarseCenter );
+         blocks->getCellCenter(coarseCenter, coarseCell, level - uint_t(1));
+         blocks->mapToPeriodicDomain(coarseCenter);
 
-         if( isBoundary(coarseCenter) )
-         {
-            flagField->addFlag(cell->x(), cell->y(), cell->z(), flag);
-         }
+         if (isBoundary(coarseCenter)) { flagField->addFlag(cell->x(), cell->y(), cell->z(), flag); }
       }
    }
 }
 
-void setupBoundaryFlagField(const std::shared_ptr<StructuredBlockForest>& sbfs, const BlockDataID flagFieldID,
-                            const std::function< bool ( const Vector3< real_t > & ) > & isObstacleBoundary)
+void setupBoundaryFlagField(const std::shared_ptr< StructuredBlockForest >& sbfs, const BlockDataID flagFieldID,
+                            const std::function< bool(const Vector3< real_t >&) >& isObstacleBoundary)
 {
    const FlagUID ubbFlagUID("UBB");
    const FlagUID outflowFlagUID("Outflow");
@@ -308,10 +301,7 @@ void setupBoundaryFlagField(const std::shared_ptr<StructuredBlockForest>& sbfs, 
          Cell localCell = cIt.cell();
          Cell globalCell(localCell);
          sbfs->transformBlockLocalToGlobalCell(globalCell, b);
-         if (globalCell.x() < 0)
-         {
-            flagField->addFlag(localCell, ubbFlag);
-         }
+         if (globalCell.x() < 0) { flagField->addFlag(localCell, ubbFlag); }
          else if (globalCell.x() >= cell_idx_c(sbfs->getNumberOfXCells(level)))
          {
             flagField->addFlag(localCell, outflowFlag);
@@ -322,6 +312,7 @@ void setupBoundaryFlagField(const std::shared_ptr<StructuredBlockForest>& sbfs, 
          }
       }
    }
+}
 }
 
 
@@ -448,9 +439,9 @@ int main(int argc, char** argv)
                     "by specifying the output file name \'" << sbffile << "\' AND also specifying \'saveToFile\'.\n";
 
       if( MPIManager::instance()->numProcesses() > 1 )
-         WALBERLA_ABORT( infoString.str() << "In this mode you need to start " << argv[0] << " with just one process!" );
+         WALBERLA_ABORT( infoString.str() << "In this mode you need to start " << argv[0] << " with just one process!" )
 
-      WALBERLA_LOG_INFO_ON_ROOT( infoString.str() << "Creating the block structure ..." );
+      WALBERLA_LOG_INFO_ON_ROOT( infoString.str() << "Creating the block structure ..." )
 
       const uint_t numberProcesses = domainParameters.getParameter< uint_t >("numberProcesses");
 
@@ -481,7 +472,7 @@ int main(int argc, char** argv)
                                 "\n   + Reynolds number:     " << reynoldsNumber <<
                                 "\n   + Mach number:         " << machNumber <<
                                 "\n   + dx (coarsest grid):  " << setup.dx << " [m]" <<
-                                "\n   + dt (coarsest grid):  " << setup.dt << " [s]");
+                                "\n   + dt (coarsest grid):  " << setup.dt << " [s]")
 
       logging::Logging::printFooterOnStream();
       return EXIT_SUCCESS;
@@ -631,6 +622,7 @@ int main(int argc, char** argv)
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    std::shared_ptr< lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > > LBMRefinement = std::make_shared<lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > >(blocks, pdfFieldGPUID, sweepCollection, boundaryCollection, nonUniformCommunication, nonUniformPackInfo);
+   LBMRefinement->addPostBoundaryHandlingBlockFunction(evaluation->forceCalculationFunctor());
    LBMRefinement->addRefinementToTimeLoop(timeloop);
 #else
    std::shared_ptr< lbm_generated::BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T > >
@@ -648,13 +640,14 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT("SWEEPS AND TIMELOOP done")
 
    auto VTKWriter                 = config->getOneBlock("VTKWriter");
-   const uint_t vtkWriteFrequency = VTKWriter.getParameter< uint_t >("vtkWriteFrequency", 0);
-   const bool writeVelocity       = VTKWriter.getParameter< bool >("velocity");
-   const bool writeDensity        = VTKWriter.getParameter< bool >("density");
-   const bool writeFlag           = VTKWriter.getParameter< bool >("flag");
-   const bool writeOnlySlice      = VTKWriter.getParameter< bool >("writeOnlySlice", true);
-   const bool amrFileFormat       = VTKWriter.getParameter< bool >("amrFileFormat", false);
-   const bool oneFilePerProcess   = VTKWriter.getParameter< bool >("oneFilePerProcess", false);
+   const uint_t vtkWriteFrequency  = VTKWriter.getParameter< uint_t >("vtkWriteFrequency", 0);
+   const bool writeVelocity        = VTKWriter.getParameter< bool >("velocity");
+   const bool writeDensity         = VTKWriter.getParameter< bool >("density");
+   const bool writeFlag            = VTKWriter.getParameter< bool >("flag");
+   const bool writeOnlySlice       = VTKWriter.getParameter< bool >("writeOnlySlice", true);
+   const bool amrFileFormat        = VTKWriter.getParameter< bool >("amrFileFormat", false);
+   const bool oneFilePerProcess    = VTKWriter.getParameter< bool >("oneFilePerProcess", false);
+   const real_t samplingResolution = VTKWriter.getParameter< real_t >("samplingResolution", real_c(-1.0));
 
    auto finalDomain = blocks->getDomain();
    if (vtkWriteFrequency > 0)
@@ -674,6 +667,13 @@ int main(int argc, char** argv)
          gpu::fieldCpy< ScalarField_T, gpu::GPUField< real_t > >(blocks, densityFieldID, densityFieldGPUID);
 #endif
       });
+
+      vtkOutput->setSamplingResolution(samplingResolution );
+
+      field::FlagFieldCellFilter<FlagField_T> fluidFilter( flagFieldID );
+      fluidFilter.addFlag( FlagUID("NoSlip") );
+      vtkOutput->addCellExclusionFilter(fluidFilter);
+
 
       if (writeOnlySlice)
       {
@@ -773,7 +773,7 @@ int main(int argc, char** argv)
                              "\n   + dx (coarsest grid):  " << setup.dx << " [m]" <<
                              "\n   + dt (coarsest grid):  " << setup.dt << " [s]" <<
                              "\n   + #time steps:         " << timeloop.getNrOfTimeSteps() << " (on the coarsest grid, " << ( real_t(1) / setup.dt ) << " for 1s of real time)" <<
-                             "\n   + simulation time:     " << ( real_c( timeloop.getNrOfTimeSteps() ) * setup.dt ) << " [s]" );
+                             "\n   + simulation time:     " << ( real_c( timeloop.getNrOfTimeSteps() ) * setup.dt ) << " [s]" )
 
    WALBERLA_LOG_INFO_ON_ROOT("Starting Simulation")
    WcTimingPool timeloopTiming;

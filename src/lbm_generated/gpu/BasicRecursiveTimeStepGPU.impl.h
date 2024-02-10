@@ -149,7 +149,7 @@ template< typename PdfField_T, typename SweepCollection_T, typename BoundaryColl
 void BasicRecursiveTimeStepGPU< PdfField_T, SweepCollection_T, BoundaryCollection_T >::test(uint_t maxLevel, uint_t level)
 {
    // 1.1 Collision
-   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: streamCollide on level " + std::to_string(level));
+   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: streamCollide on level " + std::to_string(level))
 
    // 1.2 Recursive Descent
    if(level < maxLevel){
@@ -158,19 +158,19 @@ void BasicRecursiveTimeStepGPU< PdfField_T, SweepCollection_T, BoundaryCollectio
 
    // 1.3 Coarse to Fine Communication, receiving end
    if(level != 0){
-      WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: communicate coarse to fine on level " + std::to_string(level));
+      WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: communicate coarse to fine on level " + std::to_string(level))
    }
 
    // 1.4 Equal-Level Communication
-   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: communicate equal level on level " + std::to_string(level));
+   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: communicate equal level on level " + std::to_string(level))
 
 
    // 1.5 Boundary Handling and Coalescence Preparation
-   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: boundary handling on level " + std::to_string(level));
+   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: boundary handling on level " + std::to_string(level))
 
    // 1.6 Fine to Coarse Communication, receiving end
    if(level < maxLevel){
-      WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: communicate fine to coarse on level " + std::to_string(level + 1));
+      WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: communicate fine to coarse on level " + std::to_string(level + 1))
    }
 
    // Stop here if on coarsest level.
@@ -178,7 +178,7 @@ void BasicRecursiveTimeStepGPU< PdfField_T, SweepCollection_T, BoundaryCollectio
    if(level == 0) return;
 
    // 2.1 Collision and Ghost-Layer Propagation
-   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: streamCollide with ghost layer propagation on level " + std::to_string(level));
+   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: streamCollide with ghost layer propagation on level " + std::to_string(level))
 
    // 2.2 Recursive Descent
    if(level < maxLevel)
@@ -186,14 +186,14 @@ void BasicRecursiveTimeStepGPU< PdfField_T, SweepCollection_T, BoundaryCollectio
 
 
    // 2.4 Equal-Level Communication
-   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: communicate equal level on level " + std::to_string(level));
+   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: communicate equal level on level " + std::to_string(level))
 
    // 2.5 Boundary Handling and Coalescence Preparation
-   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: boundary handling on level " + std::to_string(level));
+   WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: boundary handling on level " + std::to_string(level))
 
    // 2.6 Fine to Coarse Communication, receiving end
    if(level < maxLevel)
-      WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: communicate fine to coarse on level " + std::to_string(level + 1));
+      WALBERLA_LOG_INFO_ON_ROOT("Refinement Cycle: communicate fine to coarse on level " + std::to_string(level + 1))
 
 }
 
@@ -227,6 +227,10 @@ std::function<void()> BasicRecursiveTimeStepGPU< PdfField_T, SweepCollection_T, 
       for (auto b : blocks_[level])
       {
          boundaryCollection_(b, nullptr);
+         for( const auto& func : globalPostBoundaryHandlingBlockFunctions_ )
+         {
+            func(b, level);
+         }
          if (level != maxLevel_) pdfFieldPackInfo_->prepareCoalescence(b, nullptr);
       }
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
@@ -249,6 +253,12 @@ void BasicRecursiveTimeStepGPU< PdfField_T, SweepCollection_T, BoundaryCollectio
          sweepCollection_.streamOnlyNoAdvancementCellInterval(block, ci, gpuStream);
       }
    }
+}
+
+template< typename PdfField_T, typename SweepCollection_T, typename BoundaryCollection_T >
+inline void BasicRecursiveTimeStepGPU< PdfField_T, SweepCollection_T, BoundaryCollection_T >::addPostBoundaryHandlingBlockFunction( const BlockFunction & function )
+{
+   globalPostBoundaryHandlingBlockFunctions_.emplace_back( function );
 }
 
 } // namespace lbm_generated

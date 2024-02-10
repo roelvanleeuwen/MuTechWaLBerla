@@ -171,7 +171,7 @@ std::function<void()>  BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, Bo
       for (auto b : blocks_[level])
       {
          boundaryCollection_(b);
-         for( auto func : globalPostBoundaryHandlingBlockFunctions_ )
+         for( const auto& func : globalPostBoundaryHandlingBlockFunctions_ )
          {
             func(b, level);
          }

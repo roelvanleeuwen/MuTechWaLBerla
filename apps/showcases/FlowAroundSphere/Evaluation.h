@@ -61,9 +61,9 @@ class Evaluation
               const BlockDataID& flagFieldId, const FlagUID& fluid, const FlagUID& obstacle, const Setup& setup,
               const bool logToStream = true, const bool logToFile = true,
               const std::string& filename = std::string("FlowAroundSphere.txt"))
-      : initialized_(false), blocks_(blocks), executionCounter_(uint_t(0)), checkFrequency_(checkFrequency), rampUpTime_(rampUpTime),
+      : blocks_(blocks), executionCounter_(uint_t(0)), checkFrequency_(checkFrequency), rampUpTime_(rampUpTime),
         getFields_(getFields), pdfFieldId_(pdfFieldId), densityFieldId_(densityFieldId), velocityFieldId_(velocityFieldId),
-        flagFieldId_(flagFieldId), fluid_(fluid), obstacle_(obstacle), setup_(setup), forceEvaluationExecutionCount_(uint_t(0)), strouhalRising_(false),
+        flagFieldId_(flagFieldId), fluid_(fluid), obstacle_(obstacle), setup_(setup), forceEvaluationExecutionCount_(uint_t(0)),
         strouhalNumberRealD_(real_t(0)), strouhalEvaluationExecutionCount_(uint_t(0)),
         logToStream_(logToStream), logToFile_(logToFile), filename_(filename)
    {
@@ -85,12 +85,12 @@ class Evaluation
                     "pressure difference (in lattice units) [7], pressure difference (in Pa) [8], vortex velocity (in "
                     "lattice units) [9], "
                     "Strouhal number (real D) [10]"
-                 << std::endl;
+                 << '\n';
             if (!setup_.evaluatePressure)
-               file << "# ATTENTION: pressure was not evaluated, pressure difference is set to zero!" << std::endl;
+               file << "# ATTENTION: pressure was not evaluated, pressure difference is set to zero!" << '\n';
             if (!setup_.evaluateStrouhal)
                file << "# ATTENTION: vortex velocities were not evaluated, Strouhal number is set to zero!"
-                    << std::endl;
+                    << '\n';
             file.close();
          }
       }
@@ -122,7 +122,7 @@ class Evaluation
  protected:
    void evaluate(real_t& cD, real_t& cL, real_t& pressureDifference_L, real_t& pressureDifference);
 
-   bool initialized_;
+   bool initialized_{false};
 
    weak_ptr< StructuredBlockStorage > blocks_;
    std::map< IBlock*, std::vector< std::pair< Cell, stencil::Direction > > > directions_;
@@ -156,7 +156,7 @@ class Evaluation
 
    std::vector< real_t > strouhalVelocities_;
    std::vector< uint_t > strouhalTimeStep_;
-   bool strouhalRising_;
+   bool strouhalRising_{false};
    real_t strouhalNumberRealD_;
    uint_t strouhalEvaluationExecutionCount_;
 
@@ -176,14 +176,14 @@ class EvaluationRefresh
    void operator()()
    {
       auto evaluation = evaluation_.lock();
-      WALBERLA_CHECK_NOT_NULLPTR(evaluation);
+      WALBERLA_CHECK_NOT_NULLPTR(evaluation)
       evaluation->refresh();
    }
 
    void operator()(BlockForest&, const PhantomBlockForest&)
    {
       auto evaluation = evaluation_.lock();
-      WALBERLA_CHECK_NOT_NULLPTR(evaluation);
+      WALBERLA_CHECK_NOT_NULLPTR(evaluation)
       evaluation->refresh();
    }
 

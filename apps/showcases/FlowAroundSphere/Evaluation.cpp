@@ -42,7 +42,7 @@ void Evaluation::operator()()
    evaluate(cD, cL, pressureDifference_L, pressureDifference);
 
    auto blocks = blocks_.lock();
-   WALBERLA_CHECK_NOT_NULLPTR(blocks);
+   WALBERLA_CHECK_NOT_NULLPTR(blocks)
 
    // Strouhal number (needs vortex shedding frequency)
 
@@ -55,7 +55,7 @@ void Evaluation::operator()()
       {
          const VelocityField_T* const velocityField = block->template getData< VelocityField_T >(velocityFieldId_);
          const auto cell                            = blocks->getBlockLocalCell(*block, setup_.pStrouhal);
-         WALBERLA_ASSERT(velocityField->xyzSize().contains(cell));
+         WALBERLA_ASSERT(velocityField->xyzSize().contains(cell))
          vortexVelocity += velocityField->get(cell.x(), cell.y(), cell.z(), cell_idx_c(0));
       }
       mpi::reduceInplace(vortexVelocity, mpi::SUM);
@@ -108,13 +108,13 @@ void Evaluation::operator()()
             << cD << " (min = " << coefficientExtremas_[0].first << ", max = " << coefficientExtremas_[0].second
             << ")"
             << "\n      c_L: " << cL << " (min = " << coefficientExtremas_[1].first
-            << ", max = " << coefficientExtremas_[1].second << ")");
+            << ", max = " << coefficientExtremas_[1].second << ")")
       }
 
       if (setup_.evaluatePressure && logToStream_)
       {
          WALBERLA_LOG_RESULT_ON_ROOT("pressure:\n   difference: " << pressureDifference << " Pa ("
-                                                                  << pressureDifference_L << ")");
+                                                                  << pressureDifference_L << ")")
       }
 
       if (setup_.evaluateStrouhal)
@@ -177,7 +177,7 @@ void Evaluation::operator()()
                   << (real_t(1) / real_c(strouhalTimeStep_[2] - strouhalTimeStep_[0]))
                   << ")"
                      "\n   St (\"real\" D):   "
-                  << strouhalNumberRealD_ << "\n");
+                  << strouhalNumberRealD_ << "\n")
             }
          }
       }
@@ -188,7 +188,7 @@ void Evaluation::operator()()
          file << executionCounter_ - uint_t(1) << " " << force_[0] << " " << force_[1] << " " << force_[2] << " "
               << cD << " " << cL <<  " "
               << pressureDifference_L << " " << pressureDifference << " " << vortexVelocity << " "
-              << strouhalNumberRealD_ << std::endl;
+              << strouhalNumberRealD_ << '\n';
          file.close();
       }
    }
@@ -217,9 +217,9 @@ void Evaluation::resetForce()
 void Evaluation::forceCalculation(IBlock* block, const uint_t level)
 {
    // Supposed to be used as a post boundary handling function on every level
-
    if (checkFrequency_ == uint_t(0) || executionCounter_ % checkFrequency_ != 0)
       return;
+   if (rampUpTime_ > executionCounter_) return;
 
    if (directions_.find(block) != directions_.end())
    {
@@ -365,22 +365,22 @@ void Evaluation::check(const shared_ptr< Config >& config)
       const real_t checkStrouhalNbrRealDUpperBound =
          configBlock.getParameter< real_t >("checkStrouhalNbrRealDUpperBound", real_c(1E6));
 
-      WALBERLA_CHECK_GREATER(cD, checkCDRealAreaLowerBound);
-      WALBERLA_CHECK_LESS(cD, checkCDRealAreaUpperBound);
+      WALBERLA_CHECK_GREATER(cD, checkCDRealAreaLowerBound)
+      WALBERLA_CHECK_LESS(cD, checkCDRealAreaUpperBound)
 
-      WALBERLA_CHECK_GREATER(cL, checkCLRealAreaLowerBound);
-      WALBERLA_CHECK_LESS(cL, checkCLRealAreaUpperBound);
+      WALBERLA_CHECK_GREATER(cL, checkCLRealAreaLowerBound)
+      WALBERLA_CHECK_LESS(cL, checkCLRealAreaUpperBound)
 
       if (setup_.evaluatePressure)
       {
-         WALBERLA_CHECK_GREATER(pressureDifference, checkPressureDiffLowerBound);
-         WALBERLA_CHECK_LESS(pressureDifference, checkPressureDiffUpperBound);
+         WALBERLA_CHECK_GREATER(pressureDifference, checkPressureDiffLowerBound)
+         WALBERLA_CHECK_LESS(pressureDifference, checkPressureDiffUpperBound)
       }
 
       if (setup_.evaluateStrouhal)
       {
-         WALBERLA_CHECK_GREATER(strouhalNumberRealD_, checkStrouhalNbrRealDLowerBound);
-         WALBERLA_CHECK_LESS(strouhalNumberRealD_, checkStrouhalNbrRealDUpperBound);
+         WALBERLA_CHECK_GREATER(strouhalNumberRealD_, checkStrouhalNbrRealDLowerBound)
+         WALBERLA_CHECK_LESS(strouhalNumberRealD_, checkStrouhalNbrRealDUpperBound)
       }
    }
 }
@@ -388,7 +388,7 @@ void Evaluation::check(const shared_ptr< Config >& config)
 void Evaluation::refresh()
 {
    auto blocks = blocks_.lock();
-   WALBERLA_CHECK_NOT_NULLPTR(blocks);
+   WALBERLA_CHECK_NOT_NULLPTR(blocks)
 
    directions_.clear();
    for (auto block = blocks->begin(); block != blocks->end(); ++block)
@@ -415,7 +415,7 @@ void Evaluation::refresh()
 
                      if (flagField->isFlagSet(nx, ny, nz, obstacle))
                      {
-                        directions_[block.get()].push_back(std::make_pair(Cell(x, y, z), *it));
+                        directions_[block.get()].emplace_back(Cell(x, y, z), *it);
                      }
                   }
                }
@@ -433,12 +433,12 @@ void Evaluation::refresh()
          const FlagField_T* const flagField = block->template getData< FlagField_T >(flagFieldId_);
 
          const auto cell = blocks->getBlockLocalCell(*block, setup_.pAlpha);
-         WALBERLA_ASSERT(flagField->xyzSize().contains(cell));
+         WALBERLA_ASSERT(flagField->xyzSize().contains(cell))
 
          const auto fluid = flagField->getFlag(fluid_);
          if (!flagField->isFlagSet(cell, fluid))
          {
-            WALBERLA_ABORT("Cell for evaluating pressure difference at point alpha " << setup_.pAlpha << " is not a fluid cell!");
+            WALBERLA_ABORT("Cell for evaluating pressure difference at point alpha " << setup_.pAlpha << " is not a fluid cell!")
          }
       }
 
@@ -448,12 +448,12 @@ void Evaluation::refresh()
          const FlagField_T* const flagField = block->template getData< FlagField_T >(flagFieldId_);
 
          const auto cell = blocks->getBlockLocalCell(*block, setup_.pOmega);
-         WALBERLA_ASSERT(flagField->xyzSize().contains(cell));
+         WALBERLA_ASSERT(flagField->xyzSize().contains(cell))
 
          const auto fluid = flagField->getFlag(fluid_);
          if (!flagField->isFlagSet(cell, fluid))
          {
-            WALBERLA_ABORT("Cell for evaluating pressure difference at point omega " << setup_.pOmega << " is not a fluid cell!");
+            WALBERLA_ABORT("Cell for evaluating pressure difference at point omega " << setup_.pOmega << " is not a fluid cell!")
          }
       }
    }
@@ -468,12 +468,12 @@ void Evaluation::refresh()
          const FlagField_T* const flagField = block->template getData< FlagField_T >(flagFieldId_);
 
          const auto cell = blocks->getBlockLocalCell(*block, setup_.pStrouhal);
-         WALBERLA_ASSERT(flagField->xyzSize().contains(cell));
+         WALBERLA_ASSERT(flagField->xyzSize().contains(cell))
 
          const auto fluid = flagField->getFlag(fluid_);
 
          if (!flagField->isFlagSet(cell, fluid))
-            WALBERLA_ABORT("Cell for evaluating the Strouhal number at point " << setup_.pStrouhal << " is not a fluid cell!");
+            WALBERLA_ABORT("Cell for evaluating the Strouhal number at point " << setup_.pStrouhal << " is not a fluid cell!")
       }
    }
 
@@ -500,7 +500,7 @@ void Evaluation::evaluate(real_t& cD, real_t& cL, real_t& pressureDifference_L, 
    real_t pOmega(real_t(0));
 
    auto blocks = blocks_.lock();
-   WALBERLA_CHECK_NOT_NULLPTR(blocks);
+   WALBERLA_CHECK_NOT_NULLPTR(blocks)
 
    if (setup_.evaluatePressure)
    {
@@ -509,7 +509,7 @@ void Evaluation::evaluate(real_t& cD, real_t& cL, real_t& pressureDifference_L, 
       {
          const ScalarField_T* const densityField = block->template getData< ScalarField_T >(densityFieldId_);
          const auto cell                         = blocks->getBlockLocalCell(*block, setup_.pAlpha);
-         WALBERLA_ASSERT(densityField->xyzSize().contains(cell));
+         WALBERLA_ASSERT(densityField->xyzSize().contains(cell))
          pAlpha += densityField->get(cell) / real_c(3);
       }
 
@@ -518,7 +518,7 @@ void Evaluation::evaluate(real_t& cD, real_t& cL, real_t& pressureDifference_L, 
       {
          const ScalarField_T* const densityField = block->template getData< ScalarField_T >(densityFieldId_);
          const auto cell                         = blocks->getBlockLocalCell(*block, setup_.pOmega);
-         WALBERLA_ASSERT(densityField->xyzSize().contains(cell));
+         WALBERLA_ASSERT(densityField->xyzSize().contains(cell))
          pOmega += densityField->get(cell) / real_c(3);
       }
 
