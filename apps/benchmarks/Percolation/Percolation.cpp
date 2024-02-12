@@ -133,6 +133,8 @@ int main(int argc, char** argv)
    const uint_t numXCellsPerBlock         = numericalSetup.getParameter< uint_t >("numXCellsPerBlock");
    const uint_t numYCellsPerBlock         = numericalSetup.getParameter< uint_t >("numYCellsPerBlock");
    const uint_t numZCellsPerBlock         = numericalSetup.getParameter< uint_t >("numZCellsPerBlock");
+   const bool sendDirectlyFromGPU         = numericalSetup.getParameter< bool >("sendDirectlyFromGPU");
+   const bool useCommunicationHiding      = numericalSetup.getParameter< bool >("useCommunicationHiding");
    const uint_t timeSteps                 = numericalSetup.getParameter< uint_t >("timeSteps");
    const bool useParticles                = numericalSetup.getParameter< bool >("useParticles");
    const real_t particleDiameter          = numericalSetup.getParameter< real_t >("particleDiameter");
@@ -294,8 +296,7 @@ int main(int argc, char** argv)
    }
 
    // Setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   // TODO: set sendDirectlyFromGPU to true for performance measurements on cluster
-   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, false, false);
+   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, sendDirectlyFromGPU, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(); });
 

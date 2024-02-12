@@ -23,6 +23,9 @@ NumericalSetup
 
     timeSteps 100000;
 
+    sendDirectlyFromGPU false; // use GPU-GPU communication
+    useCommunicationHiding false;
+
     // particle distribution in LBM units
     useParticles true; // if true, PSM/particle mapping/velocity computation/hydrodynamic force reduction is used, else LBM is used
     particleDiameter 40.0;
