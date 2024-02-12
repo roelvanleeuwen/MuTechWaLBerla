@@ -300,6 +300,7 @@ int main(int argc, char** argv)
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(); });
 
+   SweepTimeloop commTimeloop(blocks->getBlockStorage(), timeSteps);
    SweepTimeloop timeloop(blocks->getBlockStorage(), timeSteps);
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
@@ -354,9 +355,15 @@ int main(int argc, char** argv)
    }
 
    // Add LBM communication function and boundary handling sweep
-   // TODO: use split sweeps to hide communication
-   timeloop.add() << BeforeFunction(communication, "LBM Communication")
-                  << Sweep(deviceSyncWrapper(density_bc.getSweep()), "Boundary Handling (Density)");
+   if (useCommunicationHiding)
+   {
+      timeloop.add() << Sweep(deviceSyncWrapper(density_bc.getSweep()), "Boundary Handling (Density)");
+   }
+   else
+   {
+      timeloop.add() << BeforeFunction(communication, "LBM Communication")
+                     << Sweep(deviceSyncWrapper(density_bc.getSweep()), "Boundary Handling (Density)");
+   }
    timeloop.add() << Sweep(deviceSyncWrapper(ubb.getSweep()), "Boundary Handling (UBB)");
    if (!periodicInY || !periodicInZ)
    {
@@ -368,14 +375,42 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
                                  real_t(0.0), real_t(0.0), relaxationRate);
+   pystencils::PSMSweepSplit PSMSplitSweep(
+      particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+      particleAndVolumeFractionSoA.particleForcesFieldID, particleAndVolumeFractionSoA.particleVelocitiesFieldID,
+      pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate);
    pystencils::LBMSweep LBMSweep(pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate);
+   pystencils::LBMSplitSweep LBMSplitSweep(pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate);
 
-   if (useParticles) { addPSMSweepsToTimeloop(timeloop, psmSweepCollection, PSMSweep); }
-   else { timeloop.add() << Sweep(deviceSyncWrapper(LBMSweep), "LBM sweep"); }
+   if (useParticles)
+   {
+      if (useCommunicationHiding)
+      {
+         addPSMSweepsToTimeloops(commTimeloop, timeloop, com, psmSweepCollection, PSMSplitSweep);
+      }
+      else { addPSMSweepsToTimeloop(timeloop, psmSweepCollection, PSMSweep); }
+   }
+   else
+   {
+      if (useCommunicationHiding)
+      {
+         commTimeloop.add() << BeforeFunction([&]() {
+            com.startCommunication();
+         }) << Sweep(deviceSyncWrapper([&](IBlock* block) { LBMSplitSweep.inner(block); }), "LBM inner sweep")
+                            << AfterFunction([&]() { com.wait(); }, "LBM Communication (wait)");
+         timeloop.add() << Sweep(deviceSyncWrapper([&](IBlock* block) { LBMSplitSweep.outer(block); }),
+                                 "LBM outer sweep");
+      }
+      else { timeloop.add() << Sweep(deviceSyncWrapper(LBMSweep), "LBM sweep"); }
+   }
 
    WcTimingPool timeloopTiming;
    // TODO: maybe add warmup phase
-   timeloop.run(timeloopTiming);
+   for (uint_t timeStep = 0; timeStep < timeSteps; ++timeStep)
+   {
+      if (useCommunicationHiding) { commTimeloop.singleStep(timeloopTiming); }
+      timeloop.singleStep(timeloopTiming);
+   }
    timeloopTiming.logResultOnRoot();
 
    return EXIT_SUCCESS;
