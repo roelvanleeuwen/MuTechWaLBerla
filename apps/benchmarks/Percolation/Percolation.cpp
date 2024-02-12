@@ -133,6 +133,8 @@ int main(int argc, char** argv)
    const uint_t numXCellsPerBlock         = numericalSetup.getParameter< uint_t >("numXCellsPerBlock");
    const uint_t numYCellsPerBlock         = numericalSetup.getParameter< uint_t >("numYCellsPerBlock");
    const uint_t numZCellsPerBlock         = numericalSetup.getParameter< uint_t >("numZCellsPerBlock");
+   const bool sendDirectlyFromGPU         = numericalSetup.getParameter< bool >("sendDirectlyFromGPU");
+   const bool useCommunicationHiding      = numericalSetup.getParameter< bool >("useCommunicationHiding");
    const uint_t timeSteps                 = numericalSetup.getParameter< uint_t >("timeSteps");
    const bool useParticles                = numericalSetup.getParameter< bool >("useParticles");
    const real_t particleDiameter          = numericalSetup.getParameter< real_t >("particleDiameter");
@@ -294,11 +296,11 @@ int main(int argc, char** argv)
    }
 
    // Setup of the LBM communication for synchronizing the pdf field between neighboring blocks
-   // TODO: set sendDirectlyFromGPU to true for performance measurements on cluster
-   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, false, false);
+   gpu::communication::UniformGPUScheme< Stencil_T > com(blocks, sendDirectlyFromGPU, false);
    com.addPackInfo(make_shared< PackInfo_T >(pdfFieldGPUID));
    auto communication = std::function< void() >([&]() { com.communicate(); });
 
+   SweepTimeloop commTimeloop(blocks->getBlockStorage(), timeSteps);
    SweepTimeloop timeloop(blocks->getBlockStorage(), timeSteps);
 
    timeloop.addFuncBeforeTimeStep(RemainingTimeLogger(timeloop.getNrOfTimeSteps()), "Remaining Time Logger");
@@ -353,9 +355,15 @@ int main(int argc, char** argv)
    }
 
    // Add LBM communication function and boundary handling sweep
-   // TODO: use split sweeps to hide communication
-   timeloop.add() << BeforeFunction(communication, "LBM Communication")
-                  << Sweep(deviceSyncWrapper(density_bc.getSweep()), "Boundary Handling (Density)");
+   if (useCommunicationHiding)
+   {
+      timeloop.add() << Sweep(deviceSyncWrapper(density_bc.getSweep()), "Boundary Handling (Density)");
+   }
+   else
+   {
+      timeloop.add() << BeforeFunction(communication, "LBM Communication")
+                     << Sweep(deviceSyncWrapper(density_bc.getSweep()), "Boundary Handling (Density)");
+   }
    timeloop.add() << Sweep(deviceSyncWrapper(ubb.getSweep()), "Boundary Handling (UBB)");
    if (!periodicInY || !periodicInZ)
    {
@@ -367,14 +375,42 @@ int main(int argc, char** argv)
                                  particleAndVolumeFractionSoA.particleForcesFieldID,
                                  particleAndVolumeFractionSoA.particleVelocitiesFieldID, pdfFieldGPUID, real_t(0.0),
                                  real_t(0.0), real_t(0.0), relaxationRate);
+   pystencils::PSMSweepSplit PSMSplitSweep(
+      particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
+      particleAndVolumeFractionSoA.particleForcesFieldID, particleAndVolumeFractionSoA.particleVelocitiesFieldID,
+      pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate);
    pystencils::LBMSweep LBMSweep(pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate);
+   pystencils::LBMSplitSweep LBMSplitSweep(pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate);
 
-   if (useParticles) { addPSMSweepsToTimeloop(timeloop, psmSweepCollection, PSMSweep); }
-   else { timeloop.add() << Sweep(deviceSyncWrapper(LBMSweep), "LBM sweep"); }
+   if (useParticles)
+   {
+      if (useCommunicationHiding)
+      {
+         addPSMSweepsToTimeloops(commTimeloop, timeloop, com, psmSweepCollection, PSMSplitSweep);
+      }
+      else { addPSMSweepsToTimeloop(timeloop, psmSweepCollection, PSMSweep); }
+   }
+   else
+   {
+      if (useCommunicationHiding)
+      {
+         commTimeloop.add() << BeforeFunction([&]() {
+            com.startCommunication();
+         }) << Sweep(deviceSyncWrapper([&](IBlock* block) { LBMSplitSweep.inner(block); }), "LBM inner sweep")
+                            << AfterFunction([&]() { com.wait(); }, "LBM Communication (wait)");
+         timeloop.add() << Sweep(deviceSyncWrapper([&](IBlock* block) { LBMSplitSweep.outer(block); }),
+                                 "LBM outer sweep");
+      }
+      else { timeloop.add() << Sweep(deviceSyncWrapper(LBMSweep), "LBM sweep"); }
+   }
 
    WcTimingPool timeloopTiming;
    // TODO: maybe add warmup phase
-   timeloop.run(timeloopTiming);
+   for (uint_t timeStep = 0; timeStep < timeSteps; ++timeStep)
+   {
+      if (useCommunicationHiding) { commTimeloop.singleStep(timeloopTiming); }
+      timeloop.singleStep(timeloopTiming);
+   }
    timeloopTiming.logResultOnRoot();
 
    return EXIT_SUCCESS;

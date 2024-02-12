@@ -169,6 +169,15 @@ with CodeGeneration() as ctx:
         target=target,
     )
 
+    generate_sweep(
+        ctx,
+        "LBMSplitSweep",
+        create_lb_update_rule(lbm_config=config_without_psm, lbm_optimisation=psm_opt),
+        field_swaps=[(pdfs, pdfs_tmp)],
+        target=target,
+        inner_outer_split=True,
+    )
+
     generate_pack_info_from_kernel(
         ctx,
         "PSMPackInfo",
