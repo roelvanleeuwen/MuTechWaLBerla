@@ -19,7 +19,8 @@ if (WALBERLA_BUILD_WITH_GPU_SUPPORT)
                     walberla_generate_target_from_python(NAME PSMCodegenPython_${config}
                             FILE PSMCodegen.py
                             CODEGEN_CFG ${config}
-                            OUT_FILES LBMSweep.${CODEGEN_FILE_SUFFIX} LBMSweep.h PSMSweep.${CODEGEN_FILE_SUFFIX} PSMSweep.h PSMSweepSplit.${CODEGEN_FILE_SUFFIX} PSMSweepSplit.h
+                            OUT_FILES LBMSweep.${CODEGEN_FILE_SUFFIX} LBMSweep.h LBMSplitSweep.${CODEGEN_FILE_SUFFIX} LBMSplitSweep.h
+                            PSMSweep.${CODEGEN_FILE_SUFFIX} PSMSweep.h PSMSweepSplit.${CODEGEN_FILE_SUFFIX} PSMSweepSplit.h
                             PSMPackInfo.${CODEGEN_FILE_SUFFIX} PSMPackInfo.h InitializeDomainForPSM.${CODEGEN_FILE_SUFFIX} InitializeDomainForPSM.h
                             PSM_NoSlip.${CODEGEN_FILE_SUFFIX} PSM_NoSlip.h PSM_UBB.${CODEGEN_FILE_SUFFIX} PSM_UBB.h PSM_Density.${CODEGEN_FILE_SUFFIX} PSM_Density.h
                             PSM_FreeSlip.${CODEGEN_FILE_SUFFIX} PSM_FreeSlip.h PSM_InfoHeader.h PSM_MacroGetter.cpp PSM_MacroGetter.h
