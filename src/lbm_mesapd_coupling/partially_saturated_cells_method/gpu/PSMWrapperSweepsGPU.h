@@ -179,9 +179,19 @@ class ReduceParticleForcesSweep
       // Allocate unified memory for the reduction of the particle forces and torques on the GPU
       real_t* hydrodynamicForces;
       WALBERLA_GPU_CHECK(gpuMallocManaged(&hydrodynamicForces, arraySizes));
+      // Using unsafeAtomicAdd() required coarse grained memory, see:
+      // https://fs.hlrs.de/projects/par/events/2023/GPU-AMD/day3/11.%20AMD_Node_Memory_Model.pdf
+#ifdef WALBERLA_BUILD_WITH_HIP
+      int deviceId = -1;
+      WALBERLA_GPU_CHECK(hipGetDevice(&deviceId));
+      WALBERLA_GPU_CHECK(hipMemAdvise(hydrodynamicForces, arraySizes, hipMemAdviseSetCoarseGrain, deviceId));
+#endif
       WALBERLA_GPU_CHECK(gpuMemset(hydrodynamicForces, 0, arraySizes));
       real_t* hydrodynamicTorques;
       WALBERLA_GPU_CHECK(gpuMallocManaged(&hydrodynamicTorques, arraySizes));
+#ifdef WALBERLA_BUILD_WITH_HIP
+      WALBERLA_GPU_CHECK(hipMemAdvise(hydrodynamicTorques, arraySizes, hipMemAdviseSetCoarseGrain, deviceId));
+#endif
       WALBERLA_GPU_CHECK(gpuMemset(hydrodynamicTorques, 0, arraySizes));
 
       auto nOverlappingParticlesField =
