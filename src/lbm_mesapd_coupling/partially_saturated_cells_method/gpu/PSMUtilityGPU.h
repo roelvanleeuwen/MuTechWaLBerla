@@ -59,17 +59,35 @@ __device__ void addHydrodynamicForceAtWFPosAtomic(real_t* __restrict__ const par
                                                   const real_t* __restrict__ const pos,
                                                   const real_t* __restrict__ const wf_pt)
 {
+#if defined(WALBERLA_BUILD_WITH_CUDA)
    atomicAdd(&(particleForce[0]), f[0]);
    atomicAdd(&(particleForce[1]), f[1]);
    atomicAdd(&(particleForce[2]), f[2]);
+#endif
+
+   // Using unsafeAtomicAdd ensures that HW FP Atomics are used instead of CAS loops, see:
+   // https://fs.hlrs.de/projects/par/events/2023/GPU-AMD/day3/11.%20AMD_Node_Memory_Model.pdf
+#ifdef WALBERLA_BUILD_WITH_HIP
+   unsafeAtomicAdd(&(particleForce[0]), f[0]);
+   unsafeAtomicAdd(&(particleForce[1]), f[1]);
+   unsafeAtomicAdd(&(particleForce[2]), f[2]);
+#endif
 
    real_t torque[] = { 0.0, 0.0, 0.0 };
    real_t lhs[]    = { wf_pt[0] - pos[0], wf_pt[1] - pos[1], wf_pt[2] - pos[2] };
    cross(torque, lhs, f);
 
+#if defined(WALBERLA_BUILD_WITH_CUDA)
    atomicAdd(&(particleTorque[0]), torque[0]);
    atomicAdd(&(particleTorque[1]), torque[1]);
    atomicAdd(&(particleTorque[2]), torque[2]);
+#endif
+
+#ifdef WALBERLA_BUILD_WITH_HIP
+   unsafeAtomicAdd(&(particleTorque[0]), torque[0]);
+   unsafeAtomicAdd(&(particleTorque[1]), torque[1]);
+   unsafeAtomicAdd(&(particleTorque[2]), torque[2]);
+#endif
 }
 
 } // namespace gpu
