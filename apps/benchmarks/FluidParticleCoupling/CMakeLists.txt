@@ -70,6 +70,6 @@ endif()
 waLBerla_add_executable ( NAME ObliqueDryCollision FILES ObliqueDryCollision.cpp
       DEPENDS blockforest core mesa_pd postprocessing )
 
-if( WALBERLA_BUILD_WITH_GPU_SUPPORT AND WALBERLA_BUILD_WITH_CODEGEN )
+if( WALBERLA_BUILD_WITH_GPU_SUPPORT AND WALBERLA_BUILD_WITH_CODEGEN AND CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60 )
     add_subdirectory( PSM )
 endif()
