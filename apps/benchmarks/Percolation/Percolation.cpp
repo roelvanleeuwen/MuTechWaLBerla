@@ -187,7 +187,10 @@ int main(int argc, char** argv)
    if (useParticles)
    {
       // Ensure that generation domain is computed correctly
-      WALBERLA_ASSERT(simulationDomain.xMin() == 0 && simulationDomain.yMin() == 0 && simulationDomain.zMin() == 0)
+      WALBERLA_CHECK_FLOAT_EQUAL(simulationDomain.xMin(), real_t(0));
+      WALBERLA_CHECK_FLOAT_EQUAL(simulationDomain.yMin(), real_t(0));
+      WALBERLA_CHECK_FLOAT_EQUAL(simulationDomain.zMin(), real_t(0));
+
       auto generationDomain = math::AABB::createFromMinMaxCorner(
          math::Vector3< real_t >(simulationDomain.xMax() * (real_t(1) - generationDomainFraction[0]) / real_t(2),
                                  simulationDomain.yMax() * (real_t(1) - generationDomainFraction[1]) / real_t(2),
