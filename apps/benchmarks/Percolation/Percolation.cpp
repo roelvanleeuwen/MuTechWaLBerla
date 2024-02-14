@@ -139,7 +139,9 @@ int main(int argc, char** argv)
    const bool useParticles                = numericalSetup.getParameter< bool >("useParticles");
    const real_t particleDiameter          = numericalSetup.getParameter< real_t >("particleDiameter");
    const real_t particleGenerationSpacing = numericalSetup.getParameter< real_t >("particleGenerationSpacing");
-   const bool useParticleOffset           = numericalSetup.getParameter< bool >("useParticleOffset");
+   const Vector3< real_t > generationDomainFraction =
+      numericalSetup.getParameter< Vector3< real_t > >("generationDomainFraction");
+   const bool useParticleOffset = numericalSetup.getParameter< bool >("useParticleOffset");
    const Vector3< uint_t > particleNumSubBlocks =
       numericalSetup.getParameter< Vector3< uint_t > >("particleNumSubBlocks");
    const real_t uInflow        = numericalSetup.getParameter< real_t >("uInflow");
@@ -184,11 +186,15 @@ int main(int argc, char** argv)
    // Create spheres
    if (useParticles)
    {
-      auto generationDomain =
-         math::AABB::createFromMinMaxCorner(math::Vector3< real_t >(simulationDomain.xMax() * real_t(0.25),
-                                                                    simulationDomain.yMin(), simulationDomain.zMin()),
-                                            math::Vector3< real_t >(simulationDomain.xMax() * real_t(0.75),
-                                                                    simulationDomain.yMax(), simulationDomain.zMax()));
+      // Ensure that generation domain is computed correctly
+      WALBERLA_ASSERT(simulationDomain.xMin() == 0 && simulationDomain.yMin() == 0 && simulationDomain.zMin() == 0)
+      auto generationDomain = math::AABB::createFromMinMaxCorner(
+         math::Vector3< real_t >(simulationDomain.xMax() * (real_t(1) - generationDomainFraction[0]) / real_t(2),
+                                 simulationDomain.yMax() * (real_t(1) - generationDomainFraction[1]) / real_t(2),
+                                 simulationDomain.zMax() * (real_t(1) - generationDomainFraction[2]) / real_t(2)),
+         math::Vector3< real_t >(simulationDomain.xMax() * (real_t(1) + generationDomainFraction[0]) / real_t(2),
+                                 simulationDomain.yMax() * (real_t(1) + generationDomainFraction[1]) / real_t(2),
+                                 simulationDomain.zMax() * (real_t(1) + generationDomainFraction[2]) / real_t(2)));
       real_t particleOffset = particleGenerationSpacing / real_t(2);
       for (auto pt : grid_generator::SCGrid(generationDomain, generationDomain.center(), particleGenerationSpacing))
       {
