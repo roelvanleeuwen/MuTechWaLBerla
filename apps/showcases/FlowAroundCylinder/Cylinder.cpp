@@ -35,7 +35,7 @@ bool Cylinder::contains(const Vector3< real_t >& point) const
       const real_t xd = point[0] - px;
       const real_t yd = point[1] - py;
       const real_t d  = xd * xd + yd * yd;
-      return point[2] > real_t(-1.0) && point[2] < H && d <= (r * r);
+      return point[2] >= real_t(0.0) && point[2] < H && d <= (r * r);
    }
    else
    {
@@ -97,8 +97,8 @@ bool Cylinder::intersects(const AABB& aabb, const real_t bufferDistance) const
 
 real_t Cylinder::delta(const Vector3< real_t >& fluid, const Vector3< real_t >& boundary) const
 {
-   WALBERLA_CHECK(!contains(fluid));
-   WALBERLA_CHECK(contains(boundary));
+   WALBERLA_CHECK(!contains(fluid))
+   WALBERLA_CHECK(contains(boundary))
 
    const real_t px = setup_.cylinderXPosition;
    const real_t py = setup_.cylinderYPosition;
@@ -118,14 +118,14 @@ real_t Cylinder::delta(const Vector3< real_t >& fluid, const Vector3< real_t >& 
       const real_t c = f[0] * f[0] + f[1] * f[1] - r * r;
 
       const real_t bb4ac = b * b - (real_t(4) * a * c);
-      WALBERLA_CHECK_GREATER_EQUAL(bb4ac, real_t(0));
+      WALBERLA_CHECK_GREATER_EQUAL(bb4ac, real_t(0))
 
       const real_t sqrtbb4ac = std::sqrt(bb4ac);
 
       const real_t alpha = std::min((-b + sqrtbb4ac) / (real_t(2) * a), (-b - sqrtbb4ac) / (real_t(2) * a));
 
-      WALBERLA_CHECK_GREATER_EQUAL(alpha, real_t(0));
-      WALBERLA_CHECK_LESS_EQUAL(alpha, real_t(1));
+      WALBERLA_CHECK_GREATER_EQUAL(alpha, real_t(0))
+      WALBERLA_CHECK_LESS_EQUAL(alpha, real_t(1))
 
       return alpha;
    }
@@ -141,10 +141,10 @@ real_t Cylinder::delta(const Vector3< real_t >& fluid, const Vector3< real_t >& 
          const real_t ydiff = cylinder.yMin() - fluid[1];
          if (xdiff >= ydiff)
          {
-            WALBERLA_CHECK_LESS_EQUAL(fluid[0], boundary[0]);
+            WALBERLA_CHECK_LESS_EQUAL(fluid[0], boundary[0])
             return xdiff / (boundary[0] - fluid[0]);
          }
-         WALBERLA_CHECK_LESS_EQUAL(fluid[1], boundary[1]);
+         WALBERLA_CHECK_LESS_EQUAL(fluid[1], boundary[1])
          return ydiff / (boundary[1] - fluid[1]);
       }
       else if (fluid[1] >= cylinder.yMax())
@@ -152,14 +152,14 @@ real_t Cylinder::delta(const Vector3< real_t >& fluid, const Vector3< real_t >& 
          const real_t ydiff = fluid[1] - cylinder.yMax();
          if (xdiff >= ydiff)
          {
-            WALBERLA_CHECK_LESS_EQUAL(fluid[0], boundary[0]);
+            WALBERLA_CHECK_LESS_EQUAL(fluid[0], boundary[0])
             return xdiff / (boundary[0] - fluid[0]);
          }
-         WALBERLA_CHECK_GREATER_EQUAL(fluid[1], boundary[1]);
+         WALBERLA_CHECK_GREATER_EQUAL(fluid[1], boundary[1])
          return ydiff / (fluid[1] - boundary[1]);
       }
 
-      WALBERLA_CHECK_LESS_EQUAL(fluid[0], boundary[0]);
+      WALBERLA_CHECK_LESS_EQUAL(fluid[0], boundary[0])
       return xdiff / (boundary[0] - fluid[0]);
    }
    else if (fluid[0] >= cylinder.xMax())
@@ -171,10 +171,10 @@ real_t Cylinder::delta(const Vector3< real_t >& fluid, const Vector3< real_t >& 
          const real_t ydiff = cylinder.yMin() - fluid[1];
          if (xdiff >= ydiff)
          {
-            WALBERLA_CHECK_GREATER_EQUAL(fluid[0], boundary[0]);
+            WALBERLA_CHECK_GREATER_EQUAL(fluid[0], boundary[0])
             return xdiff / (fluid[0] - boundary[0]);
          }
-         WALBERLA_CHECK_LESS_EQUAL(fluid[1], boundary[1]);
+         WALBERLA_CHECK_LESS_EQUAL(fluid[1], boundary[1])
          return ydiff / (boundary[1] - fluid[1]);
       }
       else if (fluid[1] >= cylinder.yMax())
@@ -182,25 +182,25 @@ real_t Cylinder::delta(const Vector3< real_t >& fluid, const Vector3< real_t >& 
          const real_t ydiff = fluid[1] - cylinder.yMax();
          if (xdiff >= ydiff)
          {
-            WALBERLA_CHECK_GREATER_EQUAL(fluid[0], boundary[0]);
+            WALBERLA_CHECK_GREATER_EQUAL(fluid[0], boundary[0])
             return xdiff / (fluid[0] - boundary[0]);
          }
-         WALBERLA_CHECK_GREATER_EQUAL(fluid[1], boundary[1]);
+         WALBERLA_CHECK_GREATER_EQUAL(fluid[1], boundary[1])
          return ydiff / (fluid[1] - boundary[1]);
       }
 
-      WALBERLA_CHECK_GREATER_EQUAL(fluid[0], boundary[0]);
+      WALBERLA_CHECK_GREATER_EQUAL(fluid[0], boundary[0])
       return xdiff / (fluid[0] - boundary[0]);
    }
 
    if (fluid[1] <= cylinder.yMin())
    {
-      WALBERLA_CHECK_LESS_EQUAL(fluid[1], boundary[1]);
+      WALBERLA_CHECK_LESS_EQUAL(fluid[1], boundary[1])
       return (cylinder.yMin() - fluid[1]) / (boundary[1] - fluid[1]);
    }
 
-   WALBERLA_CHECK_GREATER_EQUAL(fluid[1], cylinder.yMax());
-   WALBERLA_CHECK_GREATER_EQUAL(fluid[1], boundary[1]);
+   WALBERLA_CHECK_GREATER_EQUAL(fluid[1], cylinder.yMax())
+   WALBERLA_CHECK_GREATER_EQUAL(fluid[1], boundary[1])
    return (fluid[1] - cylinder.yMax()) / (fluid[1] - boundary[1]);
 }
 

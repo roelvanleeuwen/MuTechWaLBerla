@@ -47,7 +47,6 @@ using Stencil_T              = StorageSpecification_T::Stencil;
 using PdfField_T             = lbm_generated::PdfField< StorageSpecification_T >;
 using FlagField_T            = FlagField< uint8_t >;
 
-using SweepCollection_T = lbm::FlowAroundSphereSweepCollection;
 using VoidFunction = std::function<void ()>;
 
 namespace walberla

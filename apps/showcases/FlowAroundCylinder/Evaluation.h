@@ -46,7 +46,7 @@ using Stencil_T              = StorageSpecification_T::Stencil;
 using PdfField_T             = lbm_generated::PdfField< StorageSpecification_T >;
 using FlagField_T            = FlagField< uint8_t >;
 
-using SweepCollection_T = lbm::FlowAroundCylinderSweepCollection;
+using VoidFunction = std::function<void ()>;
 
 namespace walberla
 {
@@ -54,18 +54,16 @@ namespace walberla
 class Evaluation
 {
  public:
-   Evaluation(const weak_ptr< StructuredBlockStorage >& blocks, const uint_t checkFrequency, SweepCollection_T& sweepCollection,
+   Evaluation(const weak_ptr< StructuredBlockStorage >& blocks, const uint_t checkFrequency, const uint_t rampUpTime, VoidFunction& getFields,
               const BlockDataID& pdfFieldId, const BlockDataID& densityFieldId, const BlockDataID& velocityFieldId,
               const BlockDataID& flagFieldId, const FlagUID& fluid, const FlagUID& obstacle, const Setup& setup,
               const bool logToStream = true, const bool logToFile = true,
               const std::string& filename = std::string("FlowAroundCylinder.txt"))
-      : initialized_(false), blocks_(blocks), executionCounter_(uint_t(0)), checkFrequency_(checkFrequency),
-        sweepCollection_(sweepCollection), pdfFieldId_(pdfFieldId), densityFieldId_(densityFieldId), velocityFieldId_(velocityFieldId),
-        flagFieldId_(flagFieldId), fluid_(fluid), obstacle_(obstacle), setup_(setup), D_(uint_t(0)), AD_(real_t(0)),
-        AL_(real_t(0)), forceEvaluationExecutionCount_(uint_t(0)), strouhalRising_(false),
-        strouhalNumberRealD_(real_t(0)), strouhalNumberDiscreteD_(real_t(0)),
-        strouhalEvaluationExecutionCount_(uint_t(0)), logToStream_(logToStream), logToFile_(logToFile),
-        filename_(filename)
+      : blocks_(blocks), executionCounter_(uint_t(0)), checkFrequency_(checkFrequency), rampUpTime_(rampUpTime),
+        getFields_(getFields), pdfFieldId_(pdfFieldId), densityFieldId_(densityFieldId), velocityFieldId_(velocityFieldId),
+        flagFieldId_(flagFieldId), fluid_(fluid), obstacle_(obstacle), setup_(setup), forceEvaluationExecutionCount_(uint_t(0)),
+        strouhalNumberRealD_(real_t(0)), strouhalEvaluationExecutionCount_(uint_t(0)),
+        logToStream_(logToStream), logToFile_(logToFile), filename_(filename)
    {
       forceSample_.resize(uint_t(2));
       coefficients_.resize(uint_t(4));
@@ -81,12 +79,12 @@ class Evaluation
                     "pressure difference (in lattice units) [9], pressure difference (in Pa) [10], vortex velocity (in "
                     "lattice units) [11], "
                     "Strouhal number (real D) [12], Strouhal number (discrete D) [13]"
-                 << std::endl;
+                 << '\n';
             if (!setup_.evaluatePressure)
-               file << "# ATTENTION: pressure was not evaluated, pressure difference is set to zero!" << std::endl;
+               file << "# ATTENTION: pressure was not evaluated, pressure difference is set to zero!" << '\n';
             if (!setup_.evaluateStrouhal)
                file << "# ATTENTION: vortex velocities were not evaluated, Strouhal number is set to zero!"
-                    << std::endl;
+                    << '\n';
             file.close();
          }
       }
@@ -126,8 +124,9 @@ class Evaluation
 
    uint_t executionCounter_;
    uint_t checkFrequency_;
+   uint_t rampUpTime_;
 
-   SweepCollection_T sweepCollection_;
+   VoidFunction & getFields_;
 
    BlockDataID pdfFieldId_;
    BlockDataID densityFieldId_;

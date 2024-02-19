@@ -36,6 +36,7 @@ struct Setup
    uint_t zCells;
 
    Vector3< uint_t > cellsPerBlock;
+   Vector3< real_t > domainSize;
 
    uint_t numGhostLayers;
 
