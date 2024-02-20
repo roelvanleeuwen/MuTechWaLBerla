@@ -55,7 +55,6 @@
 #   include "gpu/ErrorChecking.h"
 #   include "gpu/FieldCopy.h"
 #   include "gpu/HostFieldAllocator.h"
-#   include "gpu/ParallelStreams.h"
 #   include "gpu/communication/NonUniformGPUScheme.h"
 #   include "gpu/communication/UniformGPUScheme.h"
 #endif
@@ -157,7 +156,7 @@ shared_ptr< SetupBlockForest >
       std::bind(workloadMemoryAndSUIDAssignment, std::placeholders::_1, memoryPerBlock, std::cref(setup)));
 
    forest->init(AABB(real_c(0), real_c(0), real_c(0), real_c(setup.domainSize[0]), real_c(setup.domainSize[1]), real_c(setup.domainSize[2])),
-                setup.xBlocks, setup.yBlocks, setup.zBlocks, false, false, true);
+                setup.xBlocks, setup.yBlocks, setup.zBlocks, setup.periodic[0], setup.periodic[1], setup.periodic[2]);
 
    MPIManager::instance()->useWorldComm();
    forest->balanceLoad(blockforest::StaticLevelwiseCurveBalanceWeighted(), numberOfProcesses);
@@ -276,43 +275,54 @@ void consistentlySetBoundary(const std::shared_ptr< StructuredBlockForest >& blo
    }
 }
 
-void setupBoundaryFlagField(const std::shared_ptr< StructuredBlockForest >& sbfs, const BlockDataID flagFieldID,
-                            const std::function< bool(const Vector3< real_t >&) >& isObstacleBoundary)
+void setupBoundaryCylinder(const std::shared_ptr< StructuredBlockForest >& sbfs, const BlockDataID flagFieldID,
+                           const FlagUID& obstacleFlagUID, const std::function< bool(const Vector3< real_t >&) >& isObstacleBoundary)
 {
-   const FlagUID ubbFlagUID("UBB");
-   const FlagUID outflowFlagUID("Outflow");
-   const FlagUID freeSlipFlagUID("FreeSlip");
-   const FlagUID noSlipFlagUID("NoSlip");
-
    for (auto bIt = sbfs->begin(); bIt != sbfs->end(); ++bIt)
    {
       Block& b             = dynamic_cast< Block& >(*bIt);
       uint_t level         = b.getLevel();
       auto flagField       = b.getData< FlagField_T >(flagFieldID);
-      uint8_t ubbFlag      = flagField->registerFlag(ubbFlagUID);
-      uint8_t outflowFlag  = flagField->registerFlag(outflowFlagUID);
-      uint8_t freeSlipFlag = flagField->registerFlag(freeSlipFlagUID);
-      uint8_t noSlipFlag   = flagField->registerFlag(noSlipFlagUID);
-
-      consistentlySetBoundary(sbfs, b, flagField, noSlipFlag, isObstacleBoundary);
-
-      for (auto cIt = flagField->beginWithGhostLayerXYZ(2); cIt != flagField->end(); ++cIt)
-      {
-         Cell localCell = cIt.cell();
-         Cell globalCell(localCell);
-         sbfs->transformBlockLocalToGlobalCell(globalCell, b);
-         if (globalCell.x() < 0) { flagField->addFlag(localCell, ubbFlag); }
-         else if (globalCell.x() >= cell_idx_c(sbfs->getNumberOfXCells(level)))
-         {
-            flagField->addFlag(localCell, outflowFlag);
-         }
-         else if (globalCell.y() < 0 || globalCell.y() >= cell_idx_c(sbfs->getNumberOfYCells(level)))
-         {
-            flagField->addFlag(localCell, freeSlipFlag);
-         }
-      }
+      uint8_t obstacleFlag = flagField->registerFlag(obstacleFlagUID);
+      consistentlySetBoundary(sbfs, b, flagField, obstacleFlag, isObstacleBoundary);
    }
 }
+
+class InflowProfile
+{
+ public:
+
+   InflowProfile( const real_t velocity, const real_t H  ) : H_( H )
+   {
+      uTerm_ = ( real_c(16.0) * velocity );
+      HTerm_ = ( real_c(1.0) / ( H * H * H * H ) );
+      tConstTerm_ = uTerm_ * HTerm_;
+   }
+
+   Vector3< real_t > operator()( const Cell& pos, const shared_ptr< StructuredBlockForest >& SbF, IBlock& block ) const;
+
+ private:
+
+   real_t H_;
+   real_t uTerm_;
+   real_t HTerm_;
+   real_t tConstTerm_;
+}; // class InflowProfile
+
+Vector3< real_t > InflowProfile::operator()( const Cell& pos, const shared_ptr< StructuredBlockForest >& SbF, IBlock& block ) const
+{
+   Cell globalCell;
+   real_t x;
+   real_t y;
+   real_t z;
+   const uint_t level = SbF->getLevel(block);
+
+   SbF->transformBlockLocalToGlobalCell(globalCell, block, pos);
+   SbF->getCellCenter(x, y, z, globalCell, level);
+
+   return Vector3< real_t >(tConstTerm_ * y * z * ( H_ - y ) * ( H_ - z ), real_c(0.0), real_c(0.0) );
+}
+
 } // namespace
 
 //////////////////////
@@ -338,24 +348,27 @@ int main(int argc, char** argv)
    // read general simulation parameters
    auto parameters = config->getOneBlock("Parameters");
 
-   const real_t machNumber       = parameters.getParameter< real_t >("machNumber");
-   const real_t reynoldsNumber   = parameters.getParameter< real_t >("reynoldsNumber");
+   const real_t kinViscosity        = parameters.getParameter< real_t >("kinViscosity");
+   const real_t rho                 = parameters.getParameter< real_t >("rho");
+   const real_t referenceVelocity   = parameters.getParameter< real_t >("inflowVelocity");
+   const real_t maxLatticeVelocity  = parameters.getParameter< real_t >("maxLatticeVelocity");
+
    const real_t diameterCylinder = parameters.getParameter< real_t >("diameterCylinder");
    const real_t coarseMeshSize   = parameters.getParameter< real_t >("coarseMeshSize");
    const uint_t timesteps        = parameters.getParameter< uint_t >("timesteps");
-   const uint_t simulationTime   = parameters.getParameter< uint_t >("simulationTime");
 
-   const real_t speedOfSound      = real_c(real_c(1.0) / std::sqrt(real_c(3.0)));
-   const real_t referenceVelocity = real_c(machNumber * speedOfSound);
-   const real_t viscosity         = real_c((referenceVelocity * diameterCylinder) / reynoldsNumber);
-   const real_t omega             = real_c(real_c(1.0) / (real_c(3.0) * viscosity + real_c(0.5)));
-   const real_t referenceTime     = real_c(diameterCylinder / referenceVelocity);
+   const real_t dt               = maxLatticeVelocity / referenceVelocity * coarseMeshSize;
+   const real_t latticeViscosity = kinViscosity / coarseMeshSize / coarseMeshSize * dt;
+   const real_t omega            = real_c(real_c(1.0) / (real_c(3.0) * latticeViscosity + real_c(0.5)));
+   const real_t uMean            = real_c(4.0) / real_c(9.0) * maxLatticeVelocity;
+   const real_t reynoldsNumber   = (uMean * (diameterCylinder / coarseMeshSize)) / latticeViscosity;
 
    // read domain parameters
-   auto domainParameters                 = config->getOneBlock("DomainSetup");
+   auto domainParameters     = config->getOneBlock("DomainSetup");
    const uint_t refinementLevels         = domainParameters.getParameter< uint_t >("refinementLevels");
    const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
    const Vector3< real_t > domainSize    = domainParameters.getParameter< Vector3< real_t > >("domainSize");
+   const Vector3< bool > periodic        = domainParameters.getParameter< Vector3< bool > >("periodic");
 
    const uint_t numGhostLayers = uint_c(2);
    const real_t fineMeshSize   = real_c(coarseMeshSize) / real_c(1 << refinementLevels);
@@ -369,8 +382,7 @@ int main(int argc, char** argv)
    for (uint_t i = 0; i < 3; ++i)
    {
       auto cells = uint_c(std::ceil((domainSize[i] / coarseMeshSize) / real_c(cellsPerBlock[i]))) * cellsPerBlock[i];
-      WALBERLA_LOG_DEVEL_VAR(cells)
-      if (cells > uint_c(domainSize[i] / coarseMeshSize))
+      if (cells > uint_c(std::ceil(domainSize[i] / coarseMeshSize)))
       {
          WALBERLA_LOG_WARNING_ON_ROOT("Total cells in direction "
                                       << i << ": " << uint_c(domainSize[i] / coarseMeshSize)
@@ -394,11 +406,12 @@ int main(int argc, char** argv)
 
    setup.cellsPerBlock = cellsPerBlock;
    setup.domainSize = domainSize;
+   setup.periodic = periodic;
 
    setup.numGhostLayers = numGhostLayers;
 
-   setup.H = domainSize[2] / coarseMeshSize;
-   setup.L = domainSize[0] / coarseMeshSize;
+   setup.H = domainSize[2];
+   setup.L = domainSize[0];
 
    setup.cylinderXPosition    = parameters.getParameter< real_t >("cylinderXPosition");
    setup.cylinderYPosition    = parameters.getParameter< real_t >("cylinderYPosition");
@@ -415,17 +428,17 @@ int main(int argc, char** argv)
    setup.evaluateStrouhal = parameters.getParameter< bool >("evaluateStrouhal");
    setup.pStrouhal = parameters.getParameter< Vector3< real_t > >("pStrouhal", Vector3< real_t >(real_c(1), real_c(0.325), real_c(0.205)));
 
-   setup.viscosity      = viscosity;
-   setup.rho            = real_c(1.0);
-   setup.inflowVelocity = referenceVelocity;
-   setup.dx             = coarseMeshSize;
-   setup.dt             = 1 / referenceTime;
+   setup.kinViscosity      = kinViscosity;
+   setup.rho               = rho;
+   setup.inflowVelocity    = referenceVelocity;
+   setup.uMean             = uMean;
+   setup.dx                = coarseMeshSize;
+   setup.dt                = dt;
 
    const uint_t valuesPerCell   = (Stencil_T::Q + VelocityField_T::F_SIZE + uint_c(2) * ScalarField_T::F_SIZE);
    const uint_t sizePerValue    = sizeof(PdfField_T::value_type);
    const memory_t memoryPerCell = memory_t(valuesPerCell * sizePerValue + uint_c(1));
-   const memory_t processMemoryLimit =
-      parameters.getParameter< memory_t >("processMemoryLimit", memory_t(512)) * memory_t(1024 * 1024);
+   const memory_t processMemoryLimit = parameters.getParameter< memory_t >("processMemoryLimit", memory_t(512)) * memory_t(1024 * 1024);
 
    ///////////////////////////
    /// Refinement ///
@@ -476,8 +489,8 @@ int main(int argc, char** argv)
                                 << "\n   + streaming:        " << infoStreamingPattern
                                 << "\n   + compressible:     " << (StorageSpecification_T::compressible ? "yes" : "no")
                                 << "\n   + mesh levels:      " << refinementLevels + uint_c(1)
-                                << "\n   + resolution:       " << coarseMeshSize << " - on the coarsest grid)"
-                                << "\n   + resolution:       " << fineMeshSize << " - on the finest grid)"
+                                << "\n   + resolution:       " << coarseMeshSize << " - on the coarsest grid"
+                                << "\n   + resolution:       " << fineMeshSize << " - on the finest grid"
                                 << "\n- simulation properties:"
                                    "\n   + H:                   "
                                 << setup.H << " [m]"
@@ -486,13 +499,13 @@ int main(int argc, char** argv)
                                 << "\n   + cylinder pos.(y):    " << setup.cylinderYPosition << " [m]"
                                 << "\n   + cylinder radius:     " << setup.cylinderRadius << " [m]"
                                 << "\n   + circular profile:    " << (setup.circularCrossSection ? "yes" : "no (= box)")
-                                << "\n   + kin. viscosity:      " << setup.viscosity << " [m^2/s] (" << setup.viscosity
+                                << "\n   + kin. viscosity:      " << setup.kinViscosity << " [m^2/s] (" << setup.kinViscosity
                                 << " - on the coarsest grid)"
-                                << "\n   + omega:               " << omega << " - on the coarsest grid)"
+                                << "\n   + omega:               " << omega << " on the coarsest grid"
                                 << "\n   + rho:                 " << setup.rho << " [kg/m^3]"
-                                << "\n   + inflow velocity:     " << setup.inflowVelocity << " [m/s] ("
-                                << "\n   + Reynolds number:     " << reynoldsNumber << "\n   + Mach number:         "
-                                << machNumber << "\n   + dx (coarsest grid):  " << setup.dx << " [m]"
+                                << "\n   + inflow velocity:     " << setup.inflowVelocity << " [m/s]"
+                                << "\n   + lattice velocity:    " << maxLatticeVelocity
+                                << "\n   + Reynolds number:     " << reynoldsNumber
                                 << "\n   + dt (coarsest grid):  " << setup.dt << " [s]")
 
       logging::Logging::printFooterOnStream();
@@ -516,9 +529,9 @@ int main(int argc, char** argv)
    const BlockDataID velFieldID =
       field::addToStorage< VelocityField_T >(blocks, "velocity", real_c(0.0), field::fzyx, numGhostLayers);
    const BlockDataID densityFieldID =
-      field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, numGhostLayers);
+      field::addToStorage< ScalarField_T >(blocks, "density", setup.rho, field::fzyx, numGhostLayers);
    const BlockDataID flagFieldID =
-      field::addFlagFieldToStorage< FlagField_T >(blocks, "Boundary Flag Field", uint_c(2));
+      field::addFlagFieldToStorage< FlagField_T >(blocks, "Boundary Flag Field", uint_c(3));
 
    const BlockDataID pdfFieldGPUID =
       lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldID, StorageSpec, "pdfs on GPU", true);
@@ -587,22 +600,30 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT("Start BOUNDARY HANDLING")
    // create and initialize boundary handling
    const FlagUID fluidFlagUID("Fluid");
-   setupBoundaryFlagField(blocks, flagFieldID, cylinder);
-   geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldID, fluidFlagUID, cell_idx_c(numGhostLayers));
+   const FlagUID obstacleFlagUID("Obstacle");
+
+   auto boundariesConfig   = config->getBlock("Boundaries");
+   geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldID, boundariesConfig);
+   setupBoundaryCylinder(blocks, flagFieldID, obstacleFlagUID, cylinder);
+   geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldID, fluidFlagUID, cell_idx_c(0));
 
    std::function< real_t(const Cell&, const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) >
       wallDistanceFunctor = wallDistance(cylinder);
+
+   InflowProfile const velocityCallback{maxLatticeVelocity, setup.H};
+   std::function< Vector3< real_t >(const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) >
+      velocity_initialisation = velocityCallback;
 
    const real_t omegaFinestLevel = lbm_generated::relaxationRateScaling(omega, refinementLevels);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldGPUID, fluidFlagUID, omegaFinestLevel,
-                                           referenceVelocity, wallDistanceFunctor, pdfFieldID);
+                                           wallDistanceFunctor, velocity_initialisation, pdfFieldID);
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else
    BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID, omegaFinestLevel,
-                                           referenceVelocity, wallDistanceFunctor);
+                                           wallDistanceFunctor, velocity_initialisation);
 #endif
    WALBERLA_MPI_BARRIER()
    WALBERLA_LOG_INFO_ON_ROOT("BOUNDARY HANDLING done")
@@ -636,7 +657,7 @@ int main(int argc, char** argv)
 
    shared_ptr< Evaluation > evaluation(new Evaluation(
       blocks, evaluationCheckFrequency, rampUpTime, getFields, pdfFieldID, densityFieldID, velFieldID, flagFieldID,
-      fluidFlagUID, FlagUID("NoSlip"), setup, evaluationLogToStream, evaluationLogToFile, evaluationFilename));
+      fluidFlagUID, obstacleFlagUID, setup, evaluationLogToStream, evaluationLogToFile, evaluationFilename));
 
    // create time loop
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -773,8 +794,8 @@ int main(int argc, char** argv)
       << infoCollisionOperator << "\n   + stencil:          " << infoStencil << "\n   + streaming:        "
       << infoStreamingPattern << "\n   + compressible:     " << (StorageSpecification_T::compressible ? "yes" : "no")
       << "\n   + mesh levels:      " << refinementLevels + uint_c(1) << "\n   + resolution:       " << coarseMeshSize
-      << " - on the coarsest grid)"
-      << "\n   + resolution:       " << fineMeshSize << " - on the finest grid)"
+      << " - on the coarsest grid"
+      << "\n   + resolution:       " << fineMeshSize << " - on the finest grid"
       << "\n- simulation properties:"
          "\n   + fluid cells:         "
       << fluidCells.numberOfCells() << " (in total on all levels)"
@@ -784,17 +805,17 @@ int main(int argc, char** argv)
       << "\n   + cylinder pos.(y):    " << setup.cylinderYPosition << " [m]"
       << "\n   + cylinder radius:     " << setup.cylinderRadius << " [m]"
       << "\n   + circular profile:    " << (setup.circularCrossSection ? "yes" : "no (= box)")
-      << "\n   + kin. viscosity:      " << setup.viscosity << " [m^2/s] (" << setup.viscosity
-      << " - on the coarsest grid)"
-      << "\n   + omega:               " << omega << " - on the coarsest grid)"
+      << "\n   + kin. viscosity:      " << setup.kinViscosity << " [m^2/s] (on the coarsest grid)"
+      << "\n   + omega:               " << omega << " (on the coarsest grid)"
       << "\n   + rho:                 " << setup.rho << " [kg/m^3]"
-      << "\n   + inflow velocity:     " << setup.inflowVelocity << " [m/s] ("
-      << "\n   + Reynolds number:     " << reynoldsNumber << "\n   + Mach number:         " << machNumber
+      << "\n   + inflow velocity:     " << setup.inflowVelocity << " [m/s]"
+      << "\n   + lattice velocity:    " << maxLatticeVelocity
+      << "\n   + Reynolds number:     " << reynoldsNumber
       << "\n   + dx (coarsest grid):  " << setup.dx << " [m]"
       << "\n   + dt (coarsest grid):  " << setup.dt << " [s]"
-      << "\n   + #time steps:         " << timeloop.getNrOfTimeSteps() << " (on the coarsest grid, "
+      << "\n   + #time steps:         " << timeloop.getNrOfTimeSteps() << " on the coarsest grid, "
       << (real_t(1) / setup.dt) << " for 1s of real time)"
-      << "\n   + simulation time:     " << (real_c(timeloop.getNrOfTimeSteps()) * setup.dt) << " [s]");
+      << "\n   + simulation time:     " << (real_c(timeloop.getNrOfTimeSteps()) * setup.dt) << " [s]")
 
    WALBERLA_LOG_INFO_ON_ROOT("Starting Simulation")
    WcTimingPool timeloopTiming;

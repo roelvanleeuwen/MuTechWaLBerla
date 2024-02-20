@@ -35,7 +35,7 @@ bool Cylinder::contains(const Vector3< real_t >& point) const
       const real_t xd = point[0] - px;
       const real_t yd = point[1] - py;
       const real_t d  = xd * xd + yd * yd;
-      return point[2] >= real_t(0.0) && point[2] < H && d <= (r * r);
+      return point[2] >= real_t(0.0) && point[2] <= H && d <= (r * r);
    }
    else
    {

@@ -166,11 +166,10 @@ void Evaluation::operator()()
 
          if (strouhalTimeStep_.size() == uint_t(3))
          {
-            const real_t uMean = (real_c(4.0) * setup_.inflowVelocity / real_c(9.0));
             const real_t D     = real_t(2.0) * setup_.cylinderRadius / setup_.dx;
 
-            strouhalNumberRealD_     = D / (uMean * real_c(strouhalTimeStep_[2] - strouhalTimeStep_[0]));
-            strouhalNumberDiscreteD_ = real_c(D_) / (uMean * real_c(strouhalTimeStep_[2] - strouhalTimeStep_[0]));
+            strouhalNumberRealD_     = D / (setup_.uMean * real_c(strouhalTimeStep_[2] - strouhalTimeStep_[0]));
+            strouhalNumberDiscreteD_ = real_c(D_) / (setup_.uMean * real_c(strouhalTimeStep_[2] - strouhalTimeStep_[0]));
 
             strouhalEvaluationExecutionCount_ = executionCounter_ - uint_t(1);
 
@@ -181,7 +180,7 @@ void Evaluation::operator()()
                   << strouhalEvaluationExecutionCount_
                   << "):"
                      "\n   D/U (in lattice units): "
-                  << (D / uMean) << " (\"real\" D), " << (real_c(D_) / uMean)
+                  << (D / setup_.uMean) << " (\"real\" D), " << (real_c(D_) / setup_.uMean)
                   << " (discrete D)"
                      "\n   T: "
                   << (real_c(strouhalTimeStep_[2] - strouhalTimeStep_[0]) * setup_.dt) << " s ("
@@ -719,16 +718,14 @@ void Evaluation::evaluate(real_t& cDRealArea, real_t& cLRealArea, real_t& cDDisc
 
    WALBERLA_ROOT_SECTION()
    {
-      const real_t uMean = (real_c(4.0) * setup_.inflowVelocity / real_c(9.0));
-
       const real_t D = real_c(2.0) * setup_.cylinderRadius / setup_.dx;
       const real_t H = setup_.H / setup_.dx;
 
-      cDRealArea = (real_c(2.0) * force_[0]) / (uMean * uMean * D * H);
-      cLRealArea = (real_c(2.0) * force_[1]) / (uMean * uMean * D * H);
+      cDRealArea = (real_c(2.0) * force_[0]) / (setup_.uMean * setup_.uMean * D * H);
+      cLRealArea = (real_c(2.0) * force_[1]) / (setup_.uMean * setup_.uMean * D * H);
 
-      cDDiscreteArea = (real_c(2.0) * force_[0]) / (uMean * uMean * AD_);
-      cLDiscreteArea = (real_c(2.0) * force_[1]) / (uMean * uMean * AL_);
+      cDDiscreteArea = (real_c(2.0) * force_[0]) / (setup_.uMean * setup_.uMean * AD_);
+      cLDiscreteArea = (real_c(2.0) * force_[1]) / (setup_.uMean * setup_.uMean * AL_);
 
       pressureDifference_L = pAlpha - pOmega;
       pressureDifference   = (pressureDifference_L * setup_.rho * setup_.dx * setup_.dx) / (setup_.dt * setup_.dt);

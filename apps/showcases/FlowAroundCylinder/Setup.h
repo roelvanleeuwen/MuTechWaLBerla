@@ -37,6 +37,7 @@ struct Setup
 
    Vector3< uint_t > cellsPerBlock;
    Vector3< real_t > domainSize;
+   Vector3< bool >   periodic;
 
    uint_t numGhostLayers;
 
@@ -58,9 +59,10 @@ struct Setup
    bool evaluateStrouhal;
    Vector3< real_t > pStrouhal;
 
-   real_t viscosity;
+   real_t kinViscosity;
    real_t rho;
    real_t inflowVelocity;
+   real_t uMean;
    real_t dx;
    real_t dt;
 };

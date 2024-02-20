@@ -1,15 +1,16 @@
 Parameters
 {
-    machNumber 0.0585;
-    reynoldsNumber 3900;
+    kinViscosity       0.001; // [m^2/s]
+    rho                1;     // [kg/m^3]
+    inflowVelocity     0.45;  // [m/s] (0.45 [3D], 2.25 [3D], 0.3 [2D], 1.5 [2D])
+    maxLatticeVelocity 0.01;
 
-    timesteps 70001;
-    simulationTime 93;
+    timesteps 500001;
 
     diameterCylinder 0.1; // On the finest mesh
     cylinderXPosition 0.5;
     cylinderyPosition 0.2;
-    coarseMeshSize 0.01;
+    coarseMeshSize 9.765625e-4;
     circularCrossSection true;
 
     evaluatePressure false;
@@ -30,15 +31,24 @@ Parameters
 
 }
 
-//! [domainSetup]
 DomainSetup
 {
-    cellsPerBlock < 8, 8, 8 >;
+    cellsPerBlock < 320, 420, 420 >;
     domainSize    < 2.5, 0.41, 0.41 >;
+    periodic      < false, false, false>;
     refinementLevels 0;
     numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
 }
-//! [domainSetup]
+
+Boundaries
+{
+    Border { direction N;    walldistance -1;  flag NoSlip;  }
+    Border { direction S;    walldistance -1;  flag NoSlip;  }
+    Border { direction T;    walldistance -1;  flag NoSlip;  }
+    Border { direction B;    walldistance -1;  flag NoSlip;  }
+    Border { direction W;    walldistance -1;  flag UBB;     }
+    Border { direction E;    walldistance -1;  flag Outflow; }
+}
 
 StabilityChecker
 {
@@ -49,12 +59,12 @@ StabilityChecker
 
 VTKWriter
 {
-    vtkWriteFrequency 700;
+    vtkWriteFrequency 10000;
     velocity true;
     density false;
     flag false;
-    writeOnlySlice false;
-    amrFileFormat true;
+    writeOnlySlice true;
+    amrFileFormat false;
     oneFilePerProcess false;
 }
 
@@ -68,7 +78,8 @@ Logging
 
 Evaluation
 {
-    evaluationCheckFrequency 70;
+    evaluationCheckFrequency 10000;
+    rampUpTime 100000;
     logToStream true;
     logToFile true;
     filename FlowAroundCylinder.txt;

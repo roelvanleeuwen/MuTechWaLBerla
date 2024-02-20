@@ -11,6 +11,7 @@ waLBerla_generate_target_from_python(NAME FlowAroundCylinderCodeGen
         FlowAroundCylinderStorageSpecification.h FlowAroundCylinderStorageSpecification.${CODEGEN_FILE_SUFFIX}
         FreeSlip.h FreeSlip.${CODEGEN_FILE_SUFFIX}
         NoSlip.h NoSlip.${CODEGEN_FILE_SUFFIX}
+        Obstacle.h Obstacle.${CODEGEN_FILE_SUFFIX}
         UBB.h UBB.${CODEGEN_FILE_SUFFIX}
         Outflow.h Outflow.${CODEGEN_FILE_SUFFIX}
         FlowAroundCylinderBoundaryCollection.h

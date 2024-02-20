@@ -6,7 +6,7 @@ from pystencils.field import fields
 from pystencils.simp.subexpression_insertion import insert_constants, insert_aliases
 
 from lbmpy import Stencil, LBStencil, Method, LBMConfig, LBMOptimisation
-from lbmpy.boundaries.boundaryconditions import ExtrapolationOutflow, UBB, QuadraticBounceBack, FreeSlip
+from lbmpy.boundaries.boundaryconditions import ExtrapolationOutflow, UBB, QuadraticBounceBack, FreeSlip, NoSlip
 from lbmpy.creationfunctions import create_lb_collision_rule
 
 from pystencils_walberla import CodeGeneration, generate_info_header
@@ -20,7 +20,6 @@ const char * infoCollisionOperator = "{collision_operator}";
 """
 
 omega = sp.symbols("omega")
-inlet_velocity = sp.symbols("u_x")
 
 with CodeGeneration() as ctx:
     dtype = 'float64'
@@ -30,7 +29,7 @@ with CodeGeneration() as ctx:
     q = stencil.Q
     dim = stencil.D
 
-    streaming_pattern = 'aa'
+    streaming_pattern = 'pull'
 
     pdfs, pdfs_tmp = fields(f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {pdf_dtype}[3D]", layout='fzyx')
     velocity_field, density_field = fields(f"velocity({dim}), density(1) : {dtype}[{dim}D]", layout='fzyx')
@@ -38,13 +37,14 @@ with CodeGeneration() as ctx:
 
     macroscopic_fields = {'density': density_field, 'velocity': velocity_field}
 
+    method_enum = Method.SRT
     lbm_config = LBMConfig(
-        method=Method.CUMULANT,
+        method=method_enum,
         stencil=stencil,
         relaxation_rate=omega,
         compressible=True,
         galilean_correction=False,
-        fourth_order_correction=1e-4,
+        fourth_order_correction=1e-4 if method_enum == Method.CUMULANT else False,
         field_name='pdfs',
         streaming_pattern=streaming_pattern,
     )
@@ -83,10 +83,13 @@ with CodeGeneration() as ctx:
         vp = ()
 
     freeslip = lbm_boundary_generator("FreeSlip", flag_uid="FreeSlip", boundary_object=FreeSlip(stencil))
-    no_slip_interpolated = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip',
+    no_slip = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip',
+                                     boundary_object=NoSlip(), field_data_type=pdf_dtype)
+    no_slip_interpolated = lbm_boundary_generator(class_name='Obstacle', flag_uid='Obstacle',
                                                   boundary_object=QuadraticBounceBack(omega), field_data_type=pdf_dtype)
+
     ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
-                                 boundary_object=UBB((inlet_velocity, 0.0, 0.0), data_type=dtype),
+                                 boundary_object=UBB(lambda *args: None, dim=stencil.D, data_type=dtype),
                                  field_data_type=pdf_dtype)
 
     outflow = lbm_boundary_generator(class_name='Outflow', flag_uid='Outflow',
@@ -95,7 +98,7 @@ with CodeGeneration() as ctx:
 
     generate_lbm_package(ctx, name="FlowAroundCylinder", collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=True, boundaries=[freeslip, no_slip_interpolated, ubb, outflow],
+                         nonuniform=True, boundaries=[freeslip, no_slip, no_slip_interpolated, ubb, outflow],
                          macroscopic_fields=macroscopic_fields, gpu_indexing_params=sweep_params,
                          target=target, data_type=dtype, pdfs_data_type=pdf_dtype,
                          cpu_vectorize_info=cpu_vec)
