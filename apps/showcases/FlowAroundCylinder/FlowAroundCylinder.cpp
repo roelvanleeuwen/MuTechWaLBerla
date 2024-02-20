@@ -75,8 +75,8 @@
 #   include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
 #endif
 
+#include "stencil/D3Q27.h"
 #include "timeloop/SweepTimeloop.h"
-
 #include "vtk/VTKOutput.h"
 
 #include <cmath>

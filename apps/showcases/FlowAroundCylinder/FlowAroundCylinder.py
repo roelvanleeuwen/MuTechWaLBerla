@@ -25,11 +25,11 @@ with CodeGeneration() as ctx:
     dtype = 'float64'
     pdf_dtype = 'float64'
 
-    stencil = LBStencil(Stencil.D3Q27)
+    stencil = LBStencil(Stencil.D3Q19)
     q = stencil.Q
     dim = stencil.D
 
-    streaming_pattern = 'pull'
+    streaming_pattern = 'aa'
 
     pdfs, pdfs_tmp = fields(f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {pdf_dtype}[3D]", layout='fzyx')
     velocity_field, density_field = fields(f"velocity({dim}), density(1) : {dtype}[{dim}D]", layout='fzyx')

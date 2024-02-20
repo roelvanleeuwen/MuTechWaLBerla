@@ -117,7 +117,7 @@ class Evaluation
    void evaluate(real_t& cDRealArea, real_t& cLRealArea, real_t& cDDiscreteArea, real_t& cLDiscreteArea,
                  real_t& pressureDifference_L, real_t& pressureDifference);
 
-   bool initialized_;
+   bool initialized_{false};
 
    weak_ptr< StructuredBlockStorage > blocks_;
    std::map< IBlock*, std::vector< std::pair< Cell, stencil::Direction > > > directions_;

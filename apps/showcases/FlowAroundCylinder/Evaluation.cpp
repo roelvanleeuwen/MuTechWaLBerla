@@ -23,6 +23,26 @@
 namespace walberla
 {
 
+namespace {
+inline real_t getBoundaryValue(const PdfField_T* pdfField, const Cell& cell, const stencil::Direction& direction)
+   {
+      const uint_t invDir = Stencil_T::idx[stencil::inverseDir[direction]];
+      return pdfField->get(cell.x() + StorageSpecification_T::AccessorEVEN::readX[invDir],
+                           cell.y() + StorageSpecification_T::AccessorEVEN::readY[invDir],
+                           cell.z() + StorageSpecification_T::AccessorEVEN::readZ[invDir],
+                           StorageSpecification_T::AccessorEVEN::readD[invDir]);
+   }
+
+   inline real_t getFluidValue(const PdfField_T* pdfField, const Cell& cell, const stencil::Direction& direction)
+   {
+      const uint_t dir = Stencil_T::idx[direction];
+      return pdfField->get(cell.x() + StorageSpecification_T::AccessorODD::writeX[dir],
+                           cell.y() + StorageSpecification_T::AccessorODD::writeY[dir],
+                           cell.z() + StorageSpecification_T::AccessorODD::writeZ[dir],
+                           StorageSpecification_T::AccessorODD::writeD[dir]);
+   }
+}
+
 void Evaluation::operator()()
 {
    if (checkFrequency_ == uint_t(0)) return;
@@ -216,8 +236,6 @@ void Evaluation::resetForce()
    if (checkFrequency_ == uint_t(0) || executionCounter_ % checkFrequency_ != 0 )
       return;
 
-   if (!initialized_) refresh();
-
    force_[0] = real_t(0);
    force_[1] = real_t(0);
    force_[2] = real_t(0);
@@ -235,6 +253,8 @@ void Evaluation::forceCalculation(IBlock* block, const uint_t level)
       return;
    if (rampUpTime_ > executionCounter_) return;
 
+   if (!initialized_) refresh();
+
    getFields_();
 
    if (directions_.find(block) != directions_.end())
@@ -249,11 +269,8 @@ void Evaluation::forceCalculation(IBlock* block, const uint_t level)
 
          const real_t scaleFactor = real_c(1.0) / real_c(uint_t(1) << (uint_t(2) * level));
 
-         const real_t boundaryValue =
-            pdfField->get(cell.x() + stencil::cx[direction], cell.y() + stencil::cy[direction],
-                          cell.z() + stencil::cz[direction], Stencil_T::idx[stencil::inverseDir[direction]]);
-
-         const real_t fluidValue = pdfField->get(cell.x(), cell.y(), cell.z(), Stencil_T::idx[direction]);
+         const real_t boundaryValue = getBoundaryValue(pdfField, cell, direction);
+         const real_t fluidValue    = getFluidValue(pdfField, cell, direction);
 
          const real_t f = scaleFactor * (boundaryValue + fluidValue);
 
