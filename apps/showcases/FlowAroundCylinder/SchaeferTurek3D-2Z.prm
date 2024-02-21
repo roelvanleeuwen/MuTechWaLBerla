@@ -2,7 +2,7 @@ Parameters
 {
     kinViscosity       0.001; // [m^2/s]
     rho                1;     // [kg/m^3]
-    inflowVelocity     0.45;  // [m/s] (0.45 [3D], 2.25 [3D], 0.3 [2D], 1.5 [2D])
+    inflowVelocity     2.25;  // [m/s]
     maxLatticeVelocity 0.01;
 
     timesteps 500001;
@@ -17,7 +17,7 @@ Parameters
     pAlpha < 0.45, 0.2, 0.205 >; // points for evaluating
     pOmega < 0.55, 0.2, 0.205 >; // the pressure difference
 
-    evaluateStrouhal false;
+    evaluateStrouhal true;
     pStrouhal < 1, 0.325, 0.205 >; // point used for evaluating the vortex shedding frequency and the Strouhal number
 
     cylinderRefinementBuffer 0;
@@ -59,7 +59,7 @@ StabilityChecker
 
 VTKWriter
 {
-    vtkWriteFrequency 10000;
+    vtkWriteFrequency 50000;
     velocity true;
     density false;
     flag false;
@@ -78,11 +78,11 @@ Logging
 
 Evaluation
 {
-    evaluationCheckFrequency 10000;
-    rampUpTime 100000;
+    evaluationCheckFrequency 5000;
+    rampUpTime 300000;
     logToStream true;
     logToFile true;
-    filename FlowAroundCylinder.txt;
+    filename SchaeferTurek3D-2Z.txt;
 }
 
 AABBRefinementSelection

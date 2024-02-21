@@ -109,8 +109,6 @@ class Evaluation
    void getResultsForSQLOnRoot(std::map< std::string, double >& realProperties,
                                std::map< std::string, int >& integerProperties) const;
 
-   void check(const shared_ptr< Config >& config);
-
    void refresh();
 
  protected:

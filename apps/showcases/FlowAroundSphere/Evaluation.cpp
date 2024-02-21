@@ -331,59 +331,6 @@ void Evaluation::getResultsForSQLOnRoot(std::map< std::string, double >& realPro
    }
 }
 
-void Evaluation::check(const shared_ptr< Config >& config)
-{
-   real_t cD(real_t(0));
-   real_t cL(real_t(0));
-
-   real_t pressureDifference_L(real_t(0));
-   real_t pressureDifference(real_t(0));
-
-   evaluate(cD, cL, pressureDifference_L, pressureDifference);
-
-   WALBERLA_ROOT_SECTION()
-   {
-      Config::BlockHandle configBlock = config->getBlock("CheckEvaluation");
-
-      const real_t checkCDRealAreaLowerBound =
-         configBlock.getParameter< real_t >("checkCDRealAreaLowerBound", -real_c(1E6));
-      const real_t checkCDRealAreaUpperBound =
-         configBlock.getParameter< real_t >("checkCDRealAreaUpperBound", real_c(1E6));
-
-      const real_t checkCLRealAreaLowerBound =
-         configBlock.getParameter< real_t >("checkCLRealAreaLowerBound", -real_c(1E6));
-      const real_t checkCLRealAreaUpperBound =
-         configBlock.getParameter< real_t >("checkCLRealAreaUpperBound", real_c(1E6));
-
-      const real_t checkPressureDiffLowerBound =
-         configBlock.getParameter< real_t >("checkPressureDiffLowerBound", -real_c(1E6));
-      const real_t checkPressureDiffUpperBound =
-         configBlock.getParameter< real_t >("checkPressureDiffUpperBound", real_c(1E6));
-
-      const real_t checkStrouhalNbrRealDLowerBound =
-         configBlock.getParameter< real_t >("checkStrouhalNbrRealDLowerBound", -real_c(1E6));
-      const real_t checkStrouhalNbrRealDUpperBound =
-         configBlock.getParameter< real_t >("checkStrouhalNbrRealDUpperBound", real_c(1E6));
-
-      WALBERLA_CHECK_GREATER(cD, checkCDRealAreaLowerBound)
-      WALBERLA_CHECK_LESS(cD, checkCDRealAreaUpperBound)
-
-      WALBERLA_CHECK_GREATER(cL, checkCLRealAreaLowerBound)
-      WALBERLA_CHECK_LESS(cL, checkCLRealAreaUpperBound)
-
-      if (setup_.evaluatePressure)
-      {
-         WALBERLA_CHECK_GREATER(pressureDifference, checkPressureDiffLowerBound)
-         WALBERLA_CHECK_LESS(pressureDifference, checkPressureDiffUpperBound)
-      }
-
-      if (setup_.evaluateStrouhal)
-      {
-         WALBERLA_CHECK_GREATER(strouhalNumberRealD_, checkStrouhalNbrRealDLowerBound)
-         WALBERLA_CHECK_LESS(strouhalNumberRealD_, checkStrouhalNbrRealDUpperBound)
-      }
-   }
-}
 
 void Evaluation::refresh()
 {

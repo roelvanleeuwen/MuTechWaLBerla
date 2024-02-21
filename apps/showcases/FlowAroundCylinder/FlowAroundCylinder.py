@@ -25,7 +25,7 @@ with CodeGeneration() as ctx:
     dtype = 'float64'
     pdf_dtype = 'float64'
 
-    stencil = LBStencil(Stencil.D3Q19)
+    stencil = LBStencil(Stencil.D3Q27)
     q = stencil.Q
     dim = stencil.D
 
@@ -33,18 +33,16 @@ with CodeGeneration() as ctx:
 
     pdfs, pdfs_tmp = fields(f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {pdf_dtype}[3D]", layout='fzyx')
     velocity_field, density_field = fields(f"velocity({dim}), density(1) : {dtype}[{dim}D]", layout='fzyx')
-    omega_field = fields(f"omega(1) : {dtype}[{dim}D]", layout='fzyx')
-
     macroscopic_fields = {'density': density_field, 'velocity': velocity_field}
 
-    method_enum = Method.SRT
+    method_enum = Method.CUMULANT
     lbm_config = LBMConfig(
         method=method_enum,
         stencil=stencil,
         relaxation_rate=omega,
         compressible=True,
         galilean_correction=False,
-        fourth_order_correction=1e-4 if method_enum == Method.CUMULANT else False,
+        fourth_order_correction=True if method_enum == Method.CUMULANT and stencil.Q == 27 else False,
         field_name='pdfs',
         streaming_pattern=streaming_pattern,
     )
