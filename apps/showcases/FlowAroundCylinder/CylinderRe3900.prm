@@ -37,7 +37,7 @@ DomainSetup
     cellsPerBlock < 750, 750, 200 >;
     domainSize    < 60, 30, 4 >;
     periodic      < false, false, true>;
-    refinementLevels 0;
+    refinementLevels 8;
     numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
 }
 

@@ -97,8 +97,8 @@ bool Cylinder::intersects(const AABB& aabb, const real_t bufferDistance) const
 
 real_t Cylinder::delta(const Vector3< real_t >& fluid, const Vector3< real_t >& boundary) const
 {
-   WALBERLA_CHECK(!contains(fluid))
-   WALBERLA_CHECK(contains(boundary))
+   WALBERLA_CHECK(!contains(fluid), "Point ( " << fluid << " ) is not outside the cylinder!")
+   WALBERLA_CHECK(contains(boundary), "Point ( " << boundary << " ) is not inside the cylinder!")
 
    const real_t px = setup_.cylinderXPosition;
    const real_t py = setup_.cylinderYPosition;
