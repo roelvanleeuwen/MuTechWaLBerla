@@ -207,8 +207,11 @@ real_t Cylinder::delta(const Vector3< real_t >& fluid, const Vector3< real_t >& 
 real_t wallDistance::operator()(const Cell& fluidCell, const Cell& boundaryCell,
                                 const shared_ptr< StructuredBlockForest >& SbF, IBlock& block) const
 {
-   const Vector3< real_t > boundary = SbF->getBlockLocalCellCenter( block, boundaryCell );
-   const Vector3< real_t > fluid = SbF->getBlockLocalCellCenter( block, fluidCell );
+   Vector3< real_t > boundary = SbF->getBlockLocalCellCenter( block, boundaryCell );
+   Vector3< real_t > fluid = SbF->getBlockLocalCellCenter( block, fluidCell );
+   SbF->mapToPeriodicDomain(boundary);
+   SbF->mapToPeriodicDomain(fluid);
+   
    WALBERLA_ASSERT(cylinder_.contains(boundary), "Boundary cell must be inside the cylinder!")
    WALBERLA_ASSERT(!cylinder_.contains(fluid), "Fluid cell must not be inside the cylinder!")
 
