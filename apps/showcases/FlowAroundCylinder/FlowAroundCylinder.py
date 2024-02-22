@@ -42,7 +42,7 @@ with CodeGeneration() as ctx:
         relaxation_rate=omega,
         compressible=True,
         galilean_correction=False,
-        fourth_order_correction=True if method_enum == Method.CUMULANT and stencil.Q == 27 else False,
+        fourth_order_correction=1e-4 if method_enum == Method.CUMULANT and stencil.Q == 27 else False,
         field_name='pdfs',
         streaming_pattern=streaming_pattern,
     )
