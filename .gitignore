@@ -32,6 +32,9 @@ qrc_*
 # Visual Studio Code
 /.vscode
 
+# Zed
+/.cache*
+
 # CLion
 *.idea
 *.clion*
