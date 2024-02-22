@@ -281,7 +281,6 @@ void setupBoundaryCylinder(const std::shared_ptr< StructuredBlockForest >& sbfs,
    for (auto bIt = sbfs->begin(); bIt != sbfs->end(); ++bIt)
    {
       Block& b             = dynamic_cast< Block& >(*bIt);
-      uint_t level         = b.getLevel();
       auto flagField       = b.getData< FlagField_T >(flagFieldID);
       uint8_t obstacleFlag = flagField->registerFlag(obstacleFlagUID);
       consistentlySetBoundary(sbfs, b, flagField, obstacleFlag, isObstacleBoundary);
@@ -292,7 +291,7 @@ class InflowProfile
 {
  public:
 
-   InflowProfile( const real_t velocity, const real_t H  ) : H_( H )
+   InflowProfile( const real_t velocity, const real_t H, const uint_t inflowProfile ) : velocity_(velocity), H_( H ), inflowProfile_( inflowProfile )
    {
       uTerm_ = ( real_c(16.0) * velocity );
       HTerm_ = ( real_c(1.0) / ( H * H * H * H ) );
@@ -303,24 +302,37 @@ class InflowProfile
 
  private:
 
+   real_t velocity_;
    real_t H_;
    real_t uTerm_;
    real_t HTerm_;
    real_t tConstTerm_;
+   uint_t inflowProfile_;
 }; // class InflowProfile
 
 Vector3< real_t > InflowProfile::operator()( const Cell& pos, const shared_ptr< StructuredBlockForest >& SbF, IBlock& block ) const
 {
-   Cell globalCell;
-   real_t x;
-   real_t y;
-   real_t z;
-   const uint_t level = SbF->getLevel(block);
+   if (inflowProfile_ == 1)
+   {
+      Cell globalCell;
+      real_t x;
+      real_t y;
+      real_t z;
+      const uint_t level = SbF->getLevel(block);
 
-   SbF->transformBlockLocalToGlobalCell(globalCell, block, pos);
-   SbF->getCellCenter(x, y, z, globalCell, level);
+      SbF->transformBlockLocalToGlobalCell(globalCell, block, pos);
+      SbF->getCellCenter(x, y, z, globalCell, level);
 
-   return Vector3< real_t >(tConstTerm_ * y * z * ( H_ - y ) * ( H_ - z ), real_c(0.0), real_c(0.0) );
+      return Vector3< real_t >(tConstTerm_ * y * z * ( H_ - y ) * ( H_ - z ), real_c(0.0), real_c(0.0) );
+   }
+   else if (inflowProfile_ == 2)
+   {
+      return Vector3< real_t >(velocity_, real_c(0.0), real_c(0.0) );
+   }
+   else
+   {
+      WALBERLA_ABORT("Inflow profile not implemented")
+   }
 }
 
 } // namespace
@@ -352,6 +364,7 @@ int main(int argc, char** argv)
    const real_t rho                 = parameters.getParameter< real_t >("rho");
    const real_t referenceVelocity   = parameters.getParameter< real_t >("inflowVelocity");
    const real_t maxLatticeVelocity  = parameters.getParameter< real_t >("maxLatticeVelocity");
+   const uint_t inflowProfile       = parameters.getParameter< uint_t >("inflowProfile");
 
    const real_t diameterCylinder = parameters.getParameter< real_t >("diameterCylinder");
    const real_t coarseMeshSize   = parameters.getParameter< real_t >("coarseMeshSize");
@@ -360,7 +373,7 @@ int main(int argc, char** argv)
    const real_t dt               = maxLatticeVelocity / referenceVelocity * coarseMeshSize;
    const real_t latticeViscosity = kinViscosity / coarseMeshSize / coarseMeshSize * dt;
    const real_t omega            = real_c(real_c(1.0) / (real_c(3.0) * latticeViscosity + real_c(0.5)));
-   const real_t uMean            = real_c(4.0) / real_c(9.0) * maxLatticeVelocity;
+   const real_t uMean            = inflowProfile == 1 ? real_c(4.0) / real_c(9.0) * maxLatticeVelocity : maxLatticeVelocity;
    const real_t reynoldsNumber   = (uMean * (diameterCylinder / coarseMeshSize)) / latticeViscosity;
 
    // read domain parameters
@@ -506,7 +519,8 @@ int main(int argc, char** argv)
                                 << "\n   + inflow velocity:     " << setup.inflowVelocity << " [m/s]"
                                 << "\n   + lattice velocity:    " << maxLatticeVelocity
                                 << "\n   + Reynolds number:     " << reynoldsNumber
-                                << "\n   + dt (coarsest grid):  " << setup.dt << " [s]")
+                                << "\n   + dt (coarsest grid):  " << setup.dt << " [s]"
+                                << "\n   + #time steps:         " << (real_t(1) / setup.dt) << " (for 1s of real time)")
 
       logging::Logging::printFooterOnStream();
       return EXIT_SUCCESS;
@@ -610,7 +624,7 @@ int main(int argc, char** argv)
    std::function< real_t(const Cell&, const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) >
       wallDistanceFunctor = wallDistance(cylinder);
 
-   InflowProfile const velocityCallback{maxLatticeVelocity, setup.H};
+   InflowProfile const velocityCallback{maxLatticeVelocity, setup.H, inflowProfile};
    std::function< Vector3< real_t >(const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) >
       velocity_initialisation = velocityCallback;
 

@@ -12,6 +12,7 @@ Parameters
     cylinderyPosition 0.2;
     coarseMeshSize 9.765625e-4;
     circularCrossSection true;
+    inflowProfile 1; // 1: Parabolic (SchaeferTurek), 2: uniform (Jacob et al)
 
     evaluatePressure false;
     pAlpha < 0.45, 0.2, 0.205 >; // points for evaluating
