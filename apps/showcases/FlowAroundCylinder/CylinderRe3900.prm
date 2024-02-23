@@ -10,7 +10,7 @@ Parameters
     diameterCylinder 1.0; // On the finest mesh
     cylinderXPosition 16;
     cylinderyPosition 15;
-    coarseMeshSize 0.02;
+    coarseMeshSize 0.046875;
     circularCrossSection true;
     inflowProfile 2; // 1: Parabolic (SchaeferTurek), 2: uniform (Jacob et al)
 
@@ -18,8 +18,8 @@ Parameters
     pAlpha < 0.45, 0.2, 0.205 >; // points for evaluating
     pOmega < 0.55, 0.2, 0.205 >; // the pressure difference
 
-    evaluateStrouhal false;
-    pStrouhal < 1, 0.325, 0.205 >; // point used for evaluating the vortex shedding frequency and the Strouhal number
+    evaluateStrouhal true;
+    pStrouhal < 30, 23, 3 >; // point used for evaluating the vortex shedding frequency and the Strouhal number
 
     cylinderRefinementBuffer 0;
     processMemoryLimit 512; // MiB
@@ -34,10 +34,10 @@ Parameters
 
 DomainSetup
 {
-    cellsPerBlock < 750, 750, 200 >;
-    domainSize    < 60, 30, 4 >;
+    cellsPerBlock < 128, 128, 128 >;
+    domainSize    < 60, 30, 6 >;
     periodic      < false, false, true>;
-    refinementLevels 0;
+    refinementLevels 1;
     numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
 }
 
@@ -58,12 +58,12 @@ StabilityChecker
 
 VTKWriter
 {
-    vtkWriteFrequency 50000;
+    vtkWriteFrequency 25000;
     velocity true;
     density false;
     flag false;
-    writeOnlySlice true;
-    amrFileFormat false;
+    writeOnlySlice false;
+    amrFileFormat true;
     oneFilePerProcess false;
 }
 
@@ -88,10 +88,11 @@ AABBRefinementSelection
 {
     // coordinates of Regions are always in [0,1] -> the entire simulation space is mapped to [ <0,0,0>, <1,1,1> ]
     Region
-    /*{
+    {
         level 1;
-        region [ <0.2, 0.2, 0>, <0.8, 0.8, 1> ];
+        region [ <0.2, 0.49, 0>, <0.4, 0.51, 1> ];
     }
+    /*
     Region
     {
         level 2;

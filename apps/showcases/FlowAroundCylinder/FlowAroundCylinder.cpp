@@ -43,8 +43,6 @@
 #include "field/FlagField.h"
 #include "field/StabilityChecker.h"
 #include "field/adaptors/AdaptorCreators.h"
-#include "field/iterators/FieldIterator.h"
-#include "field/vtk/FlagFieldCellFilter.h"
 #include "field/vtk/VTKWriter.h"
 
 #include "geometry/InitBoundaryHandling.h"

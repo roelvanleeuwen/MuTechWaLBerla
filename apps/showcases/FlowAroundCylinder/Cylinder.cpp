@@ -211,7 +211,7 @@ real_t wallDistance::operator()(const Cell& fluidCell, const Cell& boundaryCell,
    Vector3< real_t > fluid = SbF->getBlockLocalCellCenter( block, fluidCell );
    SbF->mapToPeriodicDomain(boundary);
    SbF->mapToPeriodicDomain(fluid);
-   
+
    WALBERLA_ASSERT(cylinder_.contains(boundary), "Boundary cell must be inside the cylinder!")
    WALBERLA_ASSERT(!cylinder_.contains(fluid), "Fluid cell must not be inside the cylinder!")
 
