@@ -214,9 +214,7 @@ void settleParticles(const uint_t numTimeSteps, const shared_ptr< ParticleAccess
                      const shared_ptr< mesa_pd::data::ParticleStorage >& ps,
                      const walberla::mesa_pd::domain::IDomain& domain, mesa_pd::data::LinkedCells& linkedCells,
                      Sync_T& syncNextNeighborFunc, CollisionResponse_T& collisionResponse,
-                     const real_t& particleDensityRatio, const real_t& particleRestitutionCoefficient,
-                     const real_t& kappa, const real_t& gravitationalAcceleration, const real_t& particleCollisionTime,
-                     const bool& useOpenMP)
+                     const real_t& particleDensityRatio, const real_t& gravitationalAcceleration, const bool& useOpenMP)
 {
    // Increase the settling speed
    const real_t timeStepSizeParticles = real_t(10);
@@ -239,8 +237,7 @@ void settleParticles(const uint_t numTimeSteps, const shared_ptr< ParticleAccess
       // collision
       linkedCells.forEachParticlePairHalf(
          useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
-         [&collisionResponse, &domain, &particleRestitutionCoefficient, &timeStepSizeParticles, &particleCollisionTime,
-          kappa](const size_t idx1, const size_t idx2, auto& ac) {
+         [&collisionResponse, &domain, &timeStepSizeParticles](const size_t idx1, const size_t idx2, auto& ac) {
             mesa_pd::collision_detection::AnalyticContactDetection acd;
             mesa_pd::kernel::DoubleCast double_cast;
             mesa_pd::mpi::ContactFilter contact_filter;

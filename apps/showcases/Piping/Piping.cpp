@@ -315,8 +315,7 @@ int main(int argc, char** argv)
 
    // Settle particles to the bucket wall
    settleParticles(numPreSteps, accessor, ps, *rpdDomain, linkedCells, syncNextNeighborFunc, collisionResponse,
-                   particleDensityRatio, particleRestitutionCoefficient, kappa, gravitationalAcceleration,
-                   particleCollisionTime, useOpenMP);
+                   particleDensityRatio, gravitationalAcceleration, useOpenMP);
 
    // Evaluate initial soil properties
    UpliftSubsidenceEvaluator upliftSubsidenceEvaluator(accessor, ps, boxPosition, boxEdgeLength, observationDomainSize);
@@ -583,8 +582,7 @@ int main(int argc, char** argv)
             // collision response
             linkedCells.forEachParticlePairHalf(
                useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
-               [&collisionResponse, &rpdDomain, timeStepSizeRPD, particleRestitutionCoefficient, particleCollisionTime,
-                kappa](const size_t idx1, const size_t idx2, auto& ac) {
+               [&collisionResponse, &rpdDomain, timeStepSizeRPD](const size_t idx1, const size_t idx2, auto& ac) {
                   mesa_pd::collision_detection::AnalyticContactDetection acd;
                   mesa_pd::kernel::DoubleCast double_cast;
                   mesa_pd::mpi::ContactFilter contact_filter;
