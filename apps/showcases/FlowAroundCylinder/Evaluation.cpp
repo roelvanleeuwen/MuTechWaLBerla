@@ -48,8 +48,49 @@ void Evaluation::operator()()
    if (checkFrequency_ == uint_t(0)) return;
 
    ++executionCounter_;
-   if (rampUpTime_ > executionCounter_) return;
    if ((executionCounter_ - uint_c(1)) % checkFrequency_ != 0) return;
+
+   auto blocks = blocks_.lock();
+   WALBERLA_CHECK_NOT_NULLPTR(blocks)
+
+   getMacroFields_();
+   const real_t Cs2 = ((setup_.dx / setup_.dt) * (setup_.dx / setup_.dt) / real_c(3.0)); // speed of sound squared
+   for (auto& block : *blocks)
+   {
+      FlagField_T* flagField              = block.getData<FlagField_T>(ids_.flagField);
+      VelocityField_T* velocityField      = block.getData<VelocityField_T>(ids_.avgVelField);
+      ScalarField_T* densityField         = block.getData<ScalarField_T>(ids_.avgPressureField);
+      VelocityField_T* avgVelField        = block.getData<VelocityField_T>(ids_.avgVelField);
+      VelocityField_T* avgVelSqrField     = block.getData<VelocityField_T>(ids_.avgVelSqrField);
+      ScalarField_T* avgPressureField     = block.getData<ScalarField_T>(ids_.avgPressureField);
+
+      auto fluid = flagField->getFlag(fluid_);
+
+      // iterate all cells of the current block
+      for (auto cell = flagField->beginXYZ(); cell != flagField->end(); ++cell)
+      {
+         const cell_idx_t x = cell.x();
+         const cell_idx_t y = cell.y();
+         const cell_idx_t z = cell.z();
+
+         // If the current cell is marked as being fluid ...
+         if (flagField->isFlagSet(x, y, z, fluid)) {
+            const real_t density = densityField->get(x, y, z) * setup_.rho;
+            const real_t pressure = (density - 1.0) * Cs2; // ρ' times speed of sound squared
+
+            avgVelField->get(x, y, z, 0)    += velocityField->get(x, y, z, 0) / real_c(checkFrequency_);
+            avgVelSqrField->get(x, y, z, 0) += velocityField->get(x, y, z, 0) * velocityField->get(x, y, z, 0) / real_c(checkFrequency_);
+            avgVelField->get(x, y, z, 1)    += velocityField->get(x, y, z, 1) / real_c(checkFrequency_);
+            avgVelSqrField->get(x, y, z, 1) += velocityField->get(x, y, z, 1) * velocityField->get(x, y, z, 1) / real_c(checkFrequency_);
+            avgVelField->get(x, y, z, 2)    += velocityField->get(x, y, z, 2) / real_c(checkFrequency_);
+            avgVelSqrField->get(x, y, z, 2) += velocityField->get(x, y, z, 2) * velocityField->get(x, y, z, 2) / real_c(checkFrequency_);
+
+            avgPressureField->get(x, y, z)  += pressure / real_c(checkFrequency_);
+         }
+      }
+   }
+
+   if (rampUpTime_ > executionCounter_) return;
 
    real_t cDRealArea(real_t(0));
    real_t cLRealArea(real_t(0));
@@ -61,8 +102,6 @@ void Evaluation::operator()()
 
    evaluate(cDRealArea, cLRealArea, cDDiscreteArea, cLDiscreteArea, pressureDifference_L, pressureDifference);
 
-   auto blocks = blocks_.lock();
-   WALBERLA_CHECK_NOT_NULLPTR(blocks)
 
    // Strouhal number (needs vortex shedding frequency)
 
@@ -73,7 +112,7 @@ void Evaluation::operator()()
       auto block = blocks->getBlock(setup_.pStrouhal);
       if (block != nullptr)
       {
-         const VelocityField_T* const velocityField = block->template getData< VelocityField_T >(velocityFieldId_);
+         const VelocityField_T* const velocityField = block->template getData< VelocityField_T >(ids_.velocityField);
          const auto cell                            = blocks->getBlockLocalCell(*block, setup_.pStrouhal);
          WALBERLA_ASSERT(velocityField->xyzSize().contains(cell))
          vortexVelocity += velocityField->get(cell.x(), cell.y(), cell.z(), cell_idx_c(0));
@@ -255,11 +294,11 @@ void Evaluation::forceCalculation(IBlock* block, const uint_t level)
 
    if (!initialized_) refresh();
 
-   getFields_();
+   getPdfField_();
 
    if (directions_.find(block) != directions_.end())
    {
-      const PdfField_T* const pdfField = block->template getData< PdfField_T >(pdfFieldId_);
+      const PdfField_T* const pdfField = block->template getData< PdfField_T >(ids_.pdfField);
 
       const auto& directions = directions_[block];
       for (auto pair = directions.begin(); pair != directions.end(); ++pair)
@@ -387,7 +426,7 @@ void Evaluation::refresh()
 
    for (auto block = blocks->begin(); block != blocks->end(); ++block)
    {
-      const FlagField_T* const flagField = block->template getData< FlagField_T >(flagFieldId_);
+      const FlagField_T* const flagField = block->template getData< FlagField_T >(ids_.flagField);
 
       auto fluid    = flagField->getFlag(fluid_);
       auto obstacle = flagField->getFlag(obstacle_);
@@ -461,7 +500,7 @@ void Evaluation::refresh()
       auto block = blocks->getBlock(setup_.pAlpha);
       if (block != nullptr)
       {
-         const FlagField_T* const flagField = block->template getData< FlagField_T >(flagFieldId_);
+         const FlagField_T* const flagField = block->template getData< FlagField_T >(ids_.flagField);
 
          const auto cell = blocks->getBlockLocalCell(*block, setup_.pAlpha);
          WALBERLA_ASSERT(flagField->xyzSize().contains(cell))
@@ -485,7 +524,7 @@ void Evaluation::refresh()
       block = blocks->getBlock(setup_.pOmega);
       if (block != nullptr)
       {
-         const FlagField_T* const flagField = block->template getData< FlagField_T >(flagFieldId_);
+         const FlagField_T* const flagField = block->template getData< FlagField_T >(ids_.flagField);
 
          const auto cell = blocks->getBlockLocalCell(*block, setup_.pOmega);
          WALBERLA_ASSERT(flagField->xyzSize().contains(cell))
@@ -514,7 +553,7 @@ void Evaluation::refresh()
          block = blocks->getBlock(setup_.pAlpha);
          if (block != nullptr)
          {
-            const FlagField_T* const flagField = block->template getData< FlagField_T >(flagFieldId_);
+            const FlagField_T* const flagField = block->template getData< FlagField_T >(ids_.flagField);
 
             const auto cell = blocks->getBlockLocalCell(*block, setup_.pAlpha);
             WALBERLA_ASSERT(flagField->xyzSize().contains(cell))
@@ -535,7 +574,7 @@ void Evaluation::refresh()
          block = blocks->getBlock(setup_.pOmega);
          if (block != nullptr)
          {
-            const FlagField_T* const flagField = block->template getData< FlagField_T >(flagFieldId_);
+            const FlagField_T* const flagField = block->template getData< FlagField_T >(ids_.flagField);
 
             const auto cell = blocks->getBlockLocalCell(*block, setup_.pOmega);
             WALBERLA_ASSERT(flagField->xyzSize().contains(cell))
@@ -578,7 +617,7 @@ void Evaluation::refresh()
       auto block = blocks->getBlock(setup_.pStrouhal);
       if (block != nullptr)
       {
-         const FlagField_T* const flagField = block->template getData< FlagField_T >(flagFieldId_);
+         const FlagField_T* const flagField = block->template getData< FlagField_T >(ids_.flagField);
 
          const auto cell = blocks->getBlockLocalCell(*block, setup_.pStrouhal);
          WALBERLA_ASSERT(flagField->xyzSize().contains(cell))
@@ -635,7 +674,7 @@ void Evaluation::evaluate(real_t& cDRealArea, real_t& cLRealArea, real_t& cDDisc
       auto block = blocks->getBlock(setup_.pAlpha);
       if (block != nullptr)
       {
-         const ScalarField_T* const densityField = block->template getData< ScalarField_T >(densityFieldId_);
+         const ScalarField_T* const densityField = block->template getData< ScalarField_T >(ids_.densityField);
          const auto cell                         = blocks->getBlockLocalCell(*block, setup_.pAlpha);
          WALBERLA_ASSERT(densityField->xyzSize().contains(cell))
          pAlpha += densityField->get(cell) / real_c(3);
@@ -644,7 +683,7 @@ void Evaluation::evaluate(real_t& cDRealArea, real_t& cLRealArea, real_t& cDDisc
       block = blocks->getBlock(setup_.pOmega);
       if (block != nullptr)
       {
-         const ScalarField_T* const densityField = block->template getData< ScalarField_T >(densityFieldId_);
+         const ScalarField_T* const densityField = block->template getData< ScalarField_T >(ids_.densityField);
          const auto cell                         = blocks->getBlockLocalCell(*block, setup_.pOmega);
          WALBERLA_ASSERT(densityField->xyzSize().contains(cell))
          pOmega += densityField->get(cell) / real_c(3);

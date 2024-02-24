@@ -5,12 +5,12 @@ Parameters
     inflowVelocity     20.0772;  // [m/s]
     maxLatticeVelocity 0.0337749907475931;
 
-    timesteps 300001;
+    timesteps 150001;
 
     diameterCylinder 1.0; // On the finest mesh
     cylinderXPosition 16;
     cylinderyPosition 15;
-    coarseMeshSize 0.046875;
+    coarseMeshSize 0.05859375;
     circularCrossSection true;
     inflowProfile 2; // 1: Parabolic (SchaeferTurek), 2: uniform (Jacob et al)
 
@@ -34,10 +34,10 @@ Parameters
 
 DomainSetup
 {
-    cellsPerBlock < 128, 128, 128 >;
-    domainSize    < 60, 30, 6 >;
+    cellsPerBlock < 64, 64, 64 >;
+    domainSize    < 60, 30, 7.5 >;
     periodic      < false, false, true>;
-    refinementLevels 1;
+    refinementLevels 2;
     numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
 }
 
@@ -61,6 +61,7 @@ VTKWriter
     vtkWriteFrequency 25000;
     velocity true;
     density false;
+    averageFields true;
     flag false;
     writeOnlySlice false;
     amrFileFormat true;
@@ -78,7 +79,7 @@ Logging
 Evaluation
 {
     evaluationCheckFrequency 2000;
-    rampUpTime 100000;
+    rampUpTime 50000;
     logToStream true;
     logToFile true;
     filename CylinderRe3900.txt;
@@ -89,11 +90,10 @@ AABBRefinementSelection
     // coordinates of Regions are always in [0,1] -> the entire simulation space is mapped to [ <0,0,0>, <1,1,1> ]
     Region
     {
-        level 1;
-        region [ <0.2, 0.49, 0>, <0.4, 0.51, 1> ];
+        level 2;
+        region [ <0.25, 0.49, 0>, <0.35, 0.51, 1> ];
     }
-    /*
-    Region
+    /*Region
     {
         level 2;
         region [ <0.26, 0.41, 0>, <0.7, 0.59, 1> ];

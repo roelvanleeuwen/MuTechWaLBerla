@@ -89,6 +89,7 @@
 #include "FlowAroundCylinderInfoHeader.h"
 #include "FlowAroundCylinderStaticDefines.h"
 #include "Setup.h"
+#include "Types.h"
 
 using namespace walberla;
 
@@ -462,9 +463,9 @@ int main(int argc, char** argv)
    const real_t cylinderRefinementBuffer = parameters.getParameter< real_t >("cylinderRefinementBuffer", real_t(0));
 
    Cylinder cylinder(setup);
-   CylinderRefinementSelection cylinderRefinementSelection(cylinder, refinementLevels, cylinderRefinementBuffer);
    CylinderBlockExclusion cylinderBlockExclusion(cylinder);
 
+   CylinderRefinementSelection cylinderRefinementSelection(cylinder, refinementLevels, cylinderRefinementBuffer);
    refinementSelectionFunctions.add(cylinderRefinementSelection);
 
    ///////////////////////////
@@ -534,35 +535,29 @@ int main(int argc, char** argv)
    // create fields
    const StorageSpecification_T StorageSpec = StorageSpecification_T();
 
+   IDs ids;
+   ids.avgVelField      = field::addToStorage<VelocityField_T>(blocks, "average velocity", real_t(0.0), field::fzyx, numGhostLayers);
+   ids.avgVelSqrField   = field::addToStorage<VelocityField_T>(blocks, "average velocity squared", real_t(0.0), field::fzyx, numGhostLayers);
+   ids.avgPressureField = field::addToStorage<ScalarField_T>(blocks, "average pressure", real_t(0.0), field::fzyx, numGhostLayers);
+
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    auto allocator = make_shared< gpu::HostFieldAllocator< real_t > >();
-   const BlockDataID pdfFieldID =
-      lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, numGhostLayers, field::fzyx);
-   const BlockDataID velFieldID =
-      field::addToStorage< VelocityField_T >(blocks, "velocity", real_c(0.0), field::fzyx, numGhostLayers);
-   const BlockDataID densityFieldID =
-      field::addToStorage< ScalarField_T >(blocks, "density", setup.rho, field::fzyx, numGhostLayers);
-   const BlockDataID flagFieldID =
-      field::addFlagFieldToStorage< FlagField_T >(blocks, "Boundary Flag Field", uint_c(3));
+   ids.pdfField =      lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, numGhostLayers, field::fzyx);
+   ids.velocityField = field::addToStorage< VelocityField_T >(blocks, "velocity", real_c(0.0), field::fzyx, numGhostLayers);
+   ids.densityField =  field::addToStorage< ScalarField_T >(blocks, "density", setup.rho, field::fzyx, numGhostLayers);
+   ids.flagField =     field::addFlagFieldToStorage< FlagField_T >(blocks, "Boundary Flag Field", uint_c(3));
 
-   const BlockDataID pdfFieldGPUID =
-      lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldID, StorageSpec, "pdfs on GPU", true);
-   const BlockDataID velFieldGPUID =
-      gpu::addGPUFieldToStorage< VelocityField_T >(blocks, velFieldID, "velocity on GPU", true);
-   const BlockDataID densityFieldGPUID =
-      gpu::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldID, "density on GPU", true);
+   ids.pdfFieldGPU =      lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldID, StorageSpec, "pdfs on GPU", true);
+   ids.velocityFieldGPU = gpu::addGPUFieldToStorage< VelocityField_T >(blocks, velFieldID, "velocity on GPU", true);
+   ids.densityFieldGPU =  gpu::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldID, "density on GPU", true);
 
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else
-   const BlockDataID pdfFieldID =
-      lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, numGhostLayers, field::fzyx);
-   const BlockDataID velFieldID =
-      field::addToStorage< VelocityField_T >(blocks, "vel", real_c(0.0), field::fzyx, numGhostLayers);
-   const BlockDataID densityFieldID =
-      field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, numGhostLayers);
-   const BlockDataID flagFieldID =
-      field::addFlagFieldToStorage< FlagField_T >(blocks, "Boundary Flag Field", uint_c(2));
+   ids.pdfField =      lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, numGhostLayers, field::fzyx);
+   ids.velocityField = field::addToStorage< VelocityField_T >(blocks, "vel", real_c(0.0), field::fzyx, numGhostLayers);
+   ids.densityField =  field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, numGhostLayers);
+   ids.flagField =     field::addFlagFieldToStorage< FlagField_T >(blocks, "Boundary Flag Field", uint_c(3));
 #endif
 
    WALBERLA_MPI_BARRIER()
@@ -571,7 +566,7 @@ int main(int argc, char** argv)
       Cell(parameters.getParameter< Vector3< cell_idx_t > >("innerOuterSplit", Vector3< cell_idx_t >(1, 1, 1)));
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const Vector3< int64_t > gpuBlockSize = parameters.getParameter< Vector3< int64_t > >("gpuBlockSize");
-   SweepCollection_T sweepCollection(blocks, pdfFieldGPUID, densityFieldGPUID, velFieldGPUID, gpuBlockSize[0],
+   SweepCollection_T sweepCollection(blocks, ids.pdfFieldGPU, ids.densityFieldGPU, ids.velocityFieldGPU, gpuBlockSize[0],
                                      gpuBlockSize[1], gpuBlockSize[2], omega, innerOuterSplit);
    for (auto& block : *blocks)
    {
@@ -579,7 +574,7 @@ int main(int argc, char** argv)
    }
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #else
-   SweepCollection_T sweepCollection(blocks, pdfFieldID, densityFieldID, velFieldID, omega, innerOuterSplit);
+   SweepCollection_T sweepCollection(blocks, ids.pdfField, ids.densityField, ids.velocityField, omega, innerOuterSplit);
    for (auto& block : *blocks)
    {
       sweepCollection.initialise(&block, cell_idx_c(numGhostLayers));
@@ -592,14 +587,14 @@ int main(int argc, char** argv)
    std::shared_ptr< NonUniformGPUScheme< CommunicationStencil_T > > nonUniformCommunication =
       std::make_shared< NonUniformGPUScheme< CommunicationStencil_T > >(blocks);
    std::shared_ptr< NonuniformGeneratedGPUPdfPackInfo< GPUPdfField_T > > nonUniformPackInfo =
-      lbm_generated::setupNonuniformGPUPdfCommunication< GPUPdfField_T >(blocks, pdfFieldGPUID);
+      lbm_generated::setupNonuniformGPUPdfCommunication< GPUPdfField_T >(blocks, ids.pdfFieldGPU);
    nonUniformCommunication->addPackInfo(nonUniformPackInfo);
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else
    WALBERLA_LOG_INFO_ON_ROOT("Setting up communication...")
    auto nonUniformCommunication = std::make_shared< NonUniformBufferedScheme< CommunicationStencil_T > >(blocks);
-   auto nonUniformPackInfo      = lbm_generated::setupNonuniformPdfCommunication< PdfField_T >(blocks, pdfFieldID);
+   auto nonUniformPackInfo      = lbm_generated::setupNonuniformPdfCommunication< PdfField_T >(blocks, ids.pdfField);
    nonUniformCommunication->addPackInfo(nonUniformPackInfo);
 
 #endif
@@ -615,9 +610,9 @@ int main(int argc, char** argv)
    const FlagUID obstacleFlagUID("Obstacle");
 
    auto boundariesConfig   = config->getBlock("Boundaries");
-   geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldID, boundariesConfig);
-   setupBoundaryCylinder(blocks, flagFieldID, obstacleFlagUID, cylinder);
-   geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldID, fluidFlagUID, cell_idx_c(0));
+   geometry::initBoundaryHandling< FlagField_T >(*blocks, ids.flagField, boundariesConfig);
+   setupBoundaryCylinder(blocks, ids.flagField, obstacleFlagUID, cylinder);
+   geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, ids.flagField, fluidFlagUID, cell_idx_c(0));
 
    std::function< real_t(const Cell&, const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) >
       wallDistanceFunctor = wallDistance(cylinder);
@@ -629,12 +624,12 @@ int main(int argc, char** argv)
    const real_t omegaFinestLevel = lbm_generated::relaxationRateScaling(omega, refinementLevels);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldGPUID, fluidFlagUID, omegaFinestLevel,
-                                           wallDistanceFunctor, velocity_initialisation, pdfFieldID);
+   BoundaryCollection_T boundaryCollection(blocks, ids.flagField, ids.pdfFieldGPU, fluidFlagUID, omegaFinestLevel,
+                                           wallDistanceFunctor, velocity_initialisation, ids.pdfField);
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID, omegaFinestLevel,
+   BoundaryCollection_T boundaryCollection(blocks, ids.flagField, ids.pdfField, fluidFlagUID, omegaFinestLevel,
                                            wallDistanceFunctor, velocity_initialisation);
 #endif
    WALBERLA_MPI_BARRIER()
@@ -652,23 +647,28 @@ int main(int argc, char** argv)
    const bool evaluationLogToFile        = EvaluationParameters.getParameter< bool >("logToFile");
    const std::string evaluationFilename  = EvaluationParameters.getParameter< std::string >("filename");
 
-   std::function< void() > getFields = [&]() {
+   std::function< void() > getMacroFields = [&]() {
       for (auto& block : *blocks)
       {
          sweepCollection.calculateMacroscopicParameters(&block);
       }
-
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      gpu::fieldCpy< PdfField_T, GPUPdfField_T >(blocks, pdfFieldID, pdfFieldGPUID);
-      gpu::fieldCpy< VelocityField_T, gpu::GPUField< real_t > >(blocks, velFieldID, velFieldGPUID);
-      gpu::fieldCpy< ScalarField_T, gpu::GPUField< real_t > >(blocks, densityFieldID, densityFieldGPUID);
+      gpu::fieldCpy< VelocityField_T, gpu::GPUField< real_t > >(blocks, ids.velocityField, ids.velocityFieldGPU);
+      gpu::fieldCpy< ScalarField_T, gpu::GPUField< real_t > >(blocks, ids.densityField, ids.densityFieldGPU);
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
       WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #endif
    };
 
-   shared_ptr< Evaluation > evaluation(new Evaluation(
-      blocks, evaluationCheckFrequency, rampUpTime, getFields, pdfFieldID, densityFieldID, velFieldID, flagFieldID,
+   std::function< void() > getPdfField = [&]() {
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      gpu::fieldCpy< PdfField_T, GPUPdfField_T >(blocks, ids.pdfField, ids.pdfFieldGPU);
+      WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
+      WALBERLA_GPU_CHECK(gpuPeekAtLastError())
+#endif
+   };
+
+   shared_ptr< Evaluation > evaluation(new Evaluation(blocks, evaluationCheckFrequency, rampUpTime, getMacroFields, getPdfField, ids,
       fluidFlagUID, obstacleFlagUID, setup, evaluationLogToStream, evaluationLogToFile, evaluationFilename));
 
    // create time loop
@@ -679,7 +679,7 @@ int main(int argc, char** argv)
 
    LBMRefinement = std::make_shared<
       lbm_generated::BasicRecursiveTimeStepGPU< GPUPdfField_T, SweepCollection_T, BoundaryCollection_T > >(
-      blocks, pdfFieldGPUID, sweepCollection, boundaryCollection, nonUniformCommunication, nonUniformPackInfo);
+      blocks, ids.pdfFieldGPU, sweepCollection, boundaryCollection, nonUniformCommunication, nonUniformPackInfo);
    LBMRefinement->addPostBoundaryHandlingBlockFunction(evaluation->forceCalculationFunctor());
    LBMRefinement->addRefinementToTimeLoop(timeloop);
 #else
@@ -689,7 +689,7 @@ int main(int argc, char** argv)
 
    LBMRefinement =
       std::make_shared< lbm_generated::BasicRecursiveTimeStep< PdfField_T, SweepCollection_T, BoundaryCollection_T > >(
-         blocks, pdfFieldID, sweepCollection, boundaryCollection, nonUniformCommunication, nonUniformPackInfo);
+         blocks, ids.pdfField, sweepCollection, boundaryCollection, nonUniformCommunication, nonUniformPackInfo);
    LBMRefinement->addPostBoundaryHandlingBlockFunction(evaluation->forceCalculationFunctor());
    LBMRefinement->addRefinementToTimeLoop(timeloop);
 #endif
@@ -702,6 +702,7 @@ int main(int argc, char** argv)
    const uint_t vtkWriteFrequency = VTKWriter.getParameter< uint_t >("vtkWriteFrequency", 0);
    const bool writeVelocity       = VTKWriter.getParameter< bool >("velocity");
    const bool writeDensity        = VTKWriter.getParameter< bool >("density");
+   const bool writeAverageFields  = VTKWriter.getParameter< bool >("averageFields", false);
    const bool writeFlag           = VTKWriter.getParameter< bool >("flag");
    const bool writeOnlySlice      = VTKWriter.getParameter< bool >("writeOnlySlice", true);
    const bool amrFileFormat       = VTKWriter.getParameter< bool >("amrFileFormat", false);
@@ -721,8 +722,8 @@ int main(int argc, char** argv)
          }
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-         gpu::fieldCpy< VelocityField_T, gpu::GPUField< real_t > >(blocks, velFieldID, velFieldGPUID);
-         gpu::fieldCpy< ScalarField_T, gpu::GPUField< real_t > >(blocks, densityFieldID, densityFieldGPUID);
+         gpu::fieldCpy< VelocityField_T, gpu::GPUField< real_t > >(blocks, ids.velocityField, ids.velocityFieldGPU);
+         gpu::fieldCpy< ScalarField_T, gpu::GPUField< real_t > >(blocks, ids.densityField, ids.densityFieldGPU);
 #endif
       });
 
@@ -735,17 +736,32 @@ int main(int argc, char** argv)
 
       if (writeVelocity)
       {
-         auto velWriter = make_shared< field::VTKWriter< VelocityField_T, float32 > >(velFieldID, "velocity");
+         auto velWriter = make_shared< field::VTKWriter< VelocityField_T, float32 > >(ids.velocityField, "velocity");
          vtkOutput->addCellDataWriter(velWriter);
       }
       if (writeDensity)
       {
-         auto densityWriter = make_shared< field::VTKWriter< ScalarField_T, float32 > >(densityFieldID, "density");
+         auto densityWriter = make_shared< field::VTKWriter< ScalarField_T, float32 > >(ids.densityField, "density");
          vtkOutput->addCellDataWriter(densityWriter);
       }
+      if (writeAverageFields)
+      {
+         auto avgVelWriter = make_shared< field::VTKWriter< VelocityField_T, float32 > >(ids.avgVelField, "avgVelocity");
+         vtkOutput->addCellDataWriter(avgVelWriter);
+         auto avgVelSqrWriter = make_shared< field::VTKWriter< VelocityField_T, float32 > >(ids.avgVelSqrField, "avgVelocitySqr");
+         vtkOutput->addCellDataWriter(avgVelSqrWriter);
+         auto avgPressureWriter = make_shared< field::VTKWriter< ScalarField_T, float32 > >(ids.avgPressureField, "avgPressure");
+         vtkOutput->addCellDataWriter(avgPressureWriter);
+      }
+      {
+         auto densityWriter = make_shared< field::VTKWriter< ScalarField_T, float32 > >(ids.densityField, "density");
+         vtkOutput->addCellDataWriter(densityWriter);
+      }
+
+
       if (writeFlag)
       {
-         auto flagWriter = make_shared< field::VTKWriter< FlagField_T > >(flagFieldID, "flag");
+         auto flagWriter = make_shared< field::VTKWriter< FlagField_T > >(ids.flagField, "flag");
          vtkOutput->addCellDataWriter(flagWriter);
       }
       timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
@@ -768,7 +784,7 @@ int main(int argc, char** argv)
    {
       auto checkFunction = [](PdfField_T::value_type value) { return value < math::abs(PdfField_T::value_type(10)); };
       timeloop.addFuncAfterTimeStep(makeSharedFunctor(field::makeStabilityChecker< PdfField_T, FlagField_T >(
-                                       config, blocks, pdfFieldID, flagFieldID, fluidFlagUID, checkFunction)),
+                                       config, blocks, ids.pdfField, ids.flagField, fluidFlagUID, checkFunction)),
                                     "Stability check");
    }
 
@@ -790,8 +806,8 @@ int main(int argc, char** argv)
    //////////////////////
    /// RUN SIMULATION ///
    //////////////////////
-   const lbm_generated::PerformanceEvaluation< FlagField_T > performance(blocks, flagFieldID, fluidFlagUID);
-   field::CellCounter< FlagField_T > fluidCells(blocks, flagFieldID, fluidFlagUID);
+   const lbm_generated::PerformanceEvaluation< FlagField_T > performance(blocks, ids.flagField, fluidFlagUID);
+   field::CellCounter< FlagField_T > fluidCells(blocks, ids.flagField, fluidFlagUID);
    fluidCells();
 
    WALBERLA_LOG_INFO_ON_ROOT("Blocks created: " << blocks->getNumberOfBlocks())
