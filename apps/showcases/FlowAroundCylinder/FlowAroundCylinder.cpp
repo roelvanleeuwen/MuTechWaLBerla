@@ -547,9 +547,9 @@ int main(int argc, char** argv)
    ids.densityField =  field::addToStorage< ScalarField_T >(blocks, "density", setup.rho, field::fzyx, numGhostLayers);
    ids.flagField =     field::addFlagFieldToStorage< FlagField_T >(blocks, "Boundary Flag Field", uint_c(3));
 
-   ids.pdfFieldGPU =      lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldID, StorageSpec, "pdfs on GPU", true);
-   ids.velocityFieldGPU = gpu::addGPUFieldToStorage< VelocityField_T >(blocks, velFieldID, "velocity on GPU", true);
-   ids.densityFieldGPU =  gpu::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldID, "density on GPU", true);
+   ids.pdfFieldGPU =      lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, ids.pdfField, StorageSpec, "pdfs on GPU", true);
+   ids.velocityFieldGPU = gpu::addGPUFieldToStorage< VelocityField_T >(blocks, ids.velocityField, "velocity on GPU", true);
+   ids.densityFieldGPU =  gpu::addGPUFieldToStorage< ScalarField_T >(blocks, ids.densityField, "density on GPU", true);
 
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
