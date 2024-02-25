@@ -988,7 +988,7 @@ int main( int argc, char **argv )
    }   
 
    logging::Logging::printHeaderOnStream();
-   //WALBERLA_ROOT_SECTION() { logging::Logging::instance()->setLogLevel( logging::Logging::PROGRESS ); }
+   WALBERLA_ROOT_SECTION() { logging::Logging::instance()->setLogLevel( logging::Logging::INFO ); }
 
 #ifdef _OPENMP
    if( std::getenv( "OMP_NUM_THREADS" ) == nullptr )
