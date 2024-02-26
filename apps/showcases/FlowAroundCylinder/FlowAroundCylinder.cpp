@@ -43,6 +43,7 @@
 #include "field/FlagField.h"
 #include "field/StabilityChecker.h"
 #include "field/adaptors/AdaptorCreators.h"
+#include "field/vtk/FlagFieldCellFilter.h"
 #include "field/vtk/VTKWriter.h"
 
 #include "geometry/InitBoundaryHandling.h"
@@ -733,6 +734,10 @@ int main(int argc, char** argv)
                               finalDomain.xMax(), finalDomain.yMax(), finalDomain.center()[2] + coarseMeshSize);
          vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
       }
+
+      field::FlagFieldCellFilter<FlagField_T> fluidFilter( ids.flagField );
+      fluidFilter.addFlag(obstacleFlagUID);
+      vtkOutput->addCellExclusionFilter(fluidFilter);
 
       if (writeVelocity)
       {

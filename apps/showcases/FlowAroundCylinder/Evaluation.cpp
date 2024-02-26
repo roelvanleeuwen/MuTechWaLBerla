@@ -58,8 +58,8 @@ void Evaluation::operator()()
    for (auto& block : *blocks)
    {
       FlagField_T* flagField              = block.getData<FlagField_T>(ids_.flagField);
-      VelocityField_T* velocityField      = block.getData<VelocityField_T>(ids_.avgVelField);
-      ScalarField_T* densityField         = block.getData<ScalarField_T>(ids_.avgPressureField);
+      VelocityField_T* velocityField      = block.getData<VelocityField_T>(ids_.velocityField);
+      ScalarField_T* densityField         = block.getData<ScalarField_T>(ids_.densityField);
       VelocityField_T* avgVelField        = block.getData<VelocityField_T>(ids_.avgVelField);
       VelocityField_T* avgVelSqrField     = block.getData<VelocityField_T>(ids_.avgVelSqrField);
       ScalarField_T* avgPressureField     = block.getData<ScalarField_T>(ids_.avgPressureField);
