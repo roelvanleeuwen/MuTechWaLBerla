@@ -29,7 +29,7 @@ with CodeGeneration() as ctx:
     q = stencil.Q
     dim = stencil.D
 
-    streaming_pattern = 'aa'
+    streaming_pattern = 'esotwist'
 
     pdfs, pdfs_tmp = fields(f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {pdf_dtype}[3D]", layout='fzyx')
     velocity_field, density_field = fields(f"velocity({dim}), density(1) : {dtype}[{dim}D]", layout='fzyx')
