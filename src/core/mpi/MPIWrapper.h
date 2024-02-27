@@ -334,81 +334,12 @@ namespace mpi {
 template< typename T >
 struct MPITrait
 {
-   static inline MPI_Datatype type();
-   static inline MPI_Op operation(const mpi::Operation&      );
-};
-
-/// Macro for specialization of the MPI supported data types in MPITrait::type().
-#define WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(CPP_TYPE, MPI_TYPE) \
-   template<> \
-   inline MPI_Datatype MPITrait< CPP_TYPE >::type() \
-   { \
-      return (MPI_TYPE); \
-   }
-
-// MPITRAIT SPECIALIZATIONS
-
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(char, MPI_CHAR)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(signed char, MPI_CHAR)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(signed short int, MPI_SHORT)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(signed int, MPI_INT)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(signed long int, MPI_LONG)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(signed long long, MPI_LONG_LONG)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(unsigned char, MPI_UNSIGNED_CHAR)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(unsigned short int, MPI_UNSIGNED_SHORT)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(unsigned int, MPI_UNSIGNED)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(unsigned long int, MPI_UNSIGNED_LONG)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(unsigned long long, MPI_UNSIGNED_LONG_LONG)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(float, MPI_FLOAT)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(double, MPI_DOUBLE)
-WALBERLA_CREATE_MPITRAIT_TYPE_SPECIALIZATION(long double, MPI_LONG_DOUBLE)
-#ifdef WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT
-template<> struct MPITrait< float16 >{
    static MPI_Datatype type();
    static MPI_Op operation(const mpi::Operation&      );
 };
-#endif
 
 
-/*!
- *  \brief Specialization of the static operation() method of MPITrait.
- *
- *  It chooses a MPI_Op depending on the value type of the object the operation is performed on.
- *
- *  \param op The operation to be performed (op is an element of the enum mpi::Operation).
- */
-template< typename T >
-MPI_Op MPITrait< T >::operation(const mpi::Operation& op)
-{
-   switch (op)
-   {
-   case mpi::MIN:
-      return MPI_MIN;
-   case mpi::MAX:
-      return MPI_MAX;
-   case mpi::SUM:
-      return MPI_SUM;
-   case mpi::PRODUCT:
-      return MPI_PROD;
-   case mpi::LOGICAL_AND:
-      return MPI_LAND;
-   case mpi::BITWISE_AND:
-      return MPI_BAND;
-   case mpi::LOGICAL_OR:
-      return MPI_LOR;
-   case mpi::BITWISE_OR:
-      return MPI_BOR;
-   case mpi::LOGICAL_XOR:
-      return MPI_LXOR;
-   case mpi::BITWISE_XOR:
-      return MPI_BXOR;
-   default:
-      WALBERLA_ABORT("Unknown operation!");
-   }
-#ifdef __IBMCPP__
-   return MPI_SUM; // never reached, helps to suppress a warning from the IBM compiler
-#endif
-}
+
 
 } // namespace walberla
 /// \endcond

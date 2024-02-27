@@ -23,5 +23,5 @@
 namespace walberla::mpi
 {
 // Note: I don't like at all that this is an enum and not an enum class, but changing this would be a major change in the framework.
-enum Operation { MIN, MAX, SUM, PRODUCT, LOGICAL_AND, BITWISE_AND, LOGICAL_OR, BITWISE_OR, LOGICAL_XOR, BITWISE_XOR };
+enum Operation { MIN, MAX, MAG_MAX, SUM, PRODUCT, LOGICAL_AND, BITWISE_AND, LOGICAL_OR, BITWISE_OR, LOGICAL_XOR, BITWISE_XOR };
 } // namespace walberla::mpi

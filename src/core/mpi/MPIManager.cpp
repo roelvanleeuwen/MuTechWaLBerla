@@ -84,6 +84,8 @@ void MPIManager::abort()
    std::exit(EXIT_FAILURE);
 }
 
+
+
 void MPIManager::initializeMPI(int* argc, char*** argv, bool abortOnException)
 {
    WALBERLA_MPI_SECTION()
