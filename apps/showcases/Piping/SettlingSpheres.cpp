@@ -186,18 +186,26 @@ int main(int argc, char** argv)
    kernel::InsertParticleIntoLinkedCells ipilc;
 
    WcTimer timer;
+   WcTimingPool timeloopTiming;
    timer.start();
    for (uint_t i = 0; i < timeSteps; ++i)
    {
       if (visSpacing > 0 && i % visSpacing == 0) { vtkWriter->write(); }
 
+      timeloopTiming["RPD forEachParticle assoc"].start();
       ps->forEachParticle(useOpenMP, kernel::SelectLocal(), accessor, assoc, accessor);
+      timeloopTiming["RPD forEachParticle assoc"].end();
 
+      timeloopTiming["RPD forEachParticle vvIntegratorPreForce"].start();
       ps->forEachParticle(useOpenMP, kernel::SelectLocal(), accessor, vvIntegratorPreForce, accessor);
+      timeloopTiming["RPD forEachParticle vvIntegratorPreForce"].end();
 
+      timeloopTiming["SNN"].start();
       SNN(*ps, *domain);
+      timeloopTiming["SNN"].end();
 
       // gravity - buoyancy
+      timeloopTiming["RPD forEachParticle addGravitationalForce"].start();
       ps->forEachParticle(
          useOpenMP, kernel::SelectLocal(), accessor,
          [densityParticle_SI, densityFluid_SI, gravity_SI](const size_t idx, auto& ac) {
@@ -205,9 +213,15 @@ int main(int argc, char** argv)
                idx, ac, Vec3(0, 0, -(densityParticle_SI - densityFluid_SI) * ac.getVolume(idx) * gravity_SI));
          },
          accessor);
+      timeloopTiming["RPD forEachParticle addGravitationalForce"].end();
 
+      timeloopTiming["RPD linkedCells.clear"].start();
       linkedCells.clear();
+      timeloopTiming["RPD linkedCells.clear"].end();
+      timeloopTiming["RPD forEachParticle ipilc"].start();
       ps->forEachParticle(useOpenMP, kernel::SelectAll(), accessor, ipilc, accessor, linkedCells);
+      timeloopTiming["RPD forEachParticle ipilc"].end();
+      timeloopTiming["RPD forEachParticlePairHalf dem"].start();
       linkedCells.forEachParticlePairHalf(
          useOpenMP, kernel::ExcludeInfiniteInfinite(), accessor,
          [restitutionCoefficient, collisionTime_SI, kappa, domain, &dem, dt_SI](const size_t idx1, const size_t idx2,
@@ -229,12 +243,19 @@ int main(int argc, char** argv)
             }
          },
          accessor);
+      timeloopTiming["RPD forEachParticlePairHalf dem"].end();
 
+      timeloopTiming["RPD reduceProperty reduceAndSwapContactHistory"].start();
       reduceAndSwapContactHistory(*ps);
+      timeloopTiming["RPD reduceProperty reduceAndSwapContactHistory"].end();
 
+      timeloopTiming["RPD reduceProperty ForceTorqueNotification"].start();
       RP.operator()< ForceTorqueNotification >(*ps);
+      timeloopTiming["RPD reduceProperty ForceTorqueNotification"].end();
 
+      timeloopTiming["RPD forEachParticle vvIntegratorPostForce"].start();
       ps->forEachParticle(useOpenMP, kernel::SelectLocal(), accessor, vvIntegratorPostForce, accessor);
+      timeloopTiming["RPD forEachParticle vvIntegratorPostForce"].end();
 
       // Log particle velocities every 10% of progress. Turn logging off for benchmark run (i.e., no vtk output).
       if (i % (timeSteps / uint_t(10)) == 0 && visSpacing != 0)
@@ -258,6 +279,8 @@ int main(int argc, char** argv)
       real_t PUpS = real_t(numParticles) * real_t(timeSteps) / real_t(timer_reduced->max());
       WALBERLA_LOG_INFO_ON_ROOT("PUpS: " << PUpS);
    }
+
+   timeloopTiming.logResultOnRoot();
 
    writeSphereInformationToFile(outFileName, *ps, domainSize_SI);
 
