@@ -205,7 +205,7 @@ int main(int argc, char** argv)
    const real_t particleCollisionTime =
       real_t(100); // TODO: check why it works with this value but not with 10, depends on dt
    // Set useOpenMP always to true, will only have an effect once MesaPD is built with OpenMP
-   bool useOpenMP = true;
+   bool useOpenMP = false;
 
    Config::BlockHandle outputParameters   = cfgFile->getBlock("Output");
    const uint_t vtkSpacing                = outputParameters.getParameter< uint_t >("vtkSpacing");

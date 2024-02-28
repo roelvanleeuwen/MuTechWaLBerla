@@ -88,6 +88,8 @@ int main(int argc, char** argv)
    const uint_t visSpacing             = bedGenerationConf.getParameter< uint_t >("visSpacing");
    const std::string outFileName       = bedGenerationConf.getParameter< std::string >("outFileName");
 
+   bool useOpenMP = false;
+
    // BlockForest
    const math::AABB simulationDomain_SI(real_t(0.0), real_t(0.0), real_t(0.0), domainSize_SI[0], domainSize_SI[1],
                                         domainSize_SI[2]);
@@ -174,7 +176,7 @@ int main(int argc, char** argv)
    mesa_pd::mpi::ReduceContactHistory reduceAndSwapContactHistory;
    mesa_pd::mpi::SyncNextNeighbors SNN;
 
-   ps->forEachParticle(false, kernel::SelectLocal(), accessor, assoc, accessor);
+   ps->forEachParticle(useOpenMP, kernel::SelectLocal(), accessor, assoc, accessor);
 
    // initial sync
    SNN(*ps, *domain);
@@ -189,15 +191,15 @@ int main(int argc, char** argv)
    {
       if (visSpacing > 0 && i % visSpacing == 0) { vtkWriter->write(); }
 
-      ps->forEachParticle(false, kernel::SelectLocal(), accessor, assoc, accessor);
+      ps->forEachParticle(useOpenMP, kernel::SelectLocal(), accessor, assoc, accessor);
 
-      ps->forEachParticle(false, kernel::SelectLocal(), accessor, vvIntegratorPreForce, accessor);
+      ps->forEachParticle(useOpenMP, kernel::SelectLocal(), accessor, vvIntegratorPreForce, accessor);
 
       SNN(*ps, *domain);
 
       // gravity - buoyancy
       ps->forEachParticle(
-         false, kernel::SelectLocal(), accessor,
+         useOpenMP, kernel::SelectLocal(), accessor,
          [densityParticle_SI, densityFluid_SI, gravity_SI](const size_t idx, auto& ac) {
             mesa_pd::addForceAtomic(
                idx, ac, Vec3(0, 0, -(densityParticle_SI - densityFluid_SI) * ac.getVolume(idx) * gravity_SI));
@@ -205,9 +207,9 @@ int main(int argc, char** argv)
          accessor);
 
       linkedCells.clear();
-      ps->forEachParticle(false, kernel::SelectAll(), accessor, ipilc, accessor, linkedCells);
+      ps->forEachParticle(useOpenMP, kernel::SelectAll(), accessor, ipilc, accessor, linkedCells);
       linkedCells.forEachParticlePairHalf(
-         false, kernel::ExcludeInfiniteInfinite(), accessor,
+         useOpenMP, kernel::ExcludeInfiniteInfinite(), accessor,
          [restitutionCoefficient, collisionTime_SI, kappa, domain, &dem, dt_SI](const size_t idx1, const size_t idx2,
                                                                                 auto& ac) {
             kernel::DoubleCast double_cast;
@@ -232,7 +234,7 @@ int main(int argc, char** argv)
 
       RP.operator()< ForceTorqueNotification >(*ps);
 
-      ps->forEachParticle(false, kernel::SelectLocal(), accessor, vvIntegratorPostForce, accessor);
+      ps->forEachParticle(useOpenMP, kernel::SelectLocal(), accessor, vvIntegratorPostForce, accessor);
 
       // Log particle velocities every 10% of progress. Turn logging off for benchmark run (i.e., no vtk output).
       if (i % (timeSteps / uint_t(10)) == 0 && visSpacing != 0)
