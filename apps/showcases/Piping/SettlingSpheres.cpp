@@ -148,7 +148,7 @@ int main(int argc, char** argv)
    // VTK
    auto vtkDomainOutput = walberla::vtk::createVTKOutput_DomainDecomposition(forest, "domain_decomposition", 1,
                                                                              "vtk_settling_spheres", "simulation_step");
-   vtkDomainOutput->write();
+   if (visSpacing > 0) { vtkDomainOutput->write(); }
 
    auto particleVtkOutput = make_shared< mesa_pd::vtk::ParticleVtkOutput >(ps);
    particleVtkOutput->addOutput< mesa_pd::data::SelectParticleLinearVelocity >("velocity");

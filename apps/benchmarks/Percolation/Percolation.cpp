@@ -286,9 +286,12 @@ int main(int argc, char** argv)
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, relaxationRate);
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
                                             particleAndVolumeFractionSoA, particleNumSubBlocks);
-   for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+   if (useParticles)
    {
-      psmSweepCollection.particleMappingSweep(&(*blockIt));
+      for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
+      {
+         psmSweepCollection.particleMappingSweep(&(*blockIt));
+      }
    }
 
    // Initialize PDFs
@@ -300,7 +303,7 @@ int main(int argc, char** argv)
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       // pdfSetter requires particle velocities at cell centers
-      psmSweepCollection.setParticleVelocitiesSweep(&(*blockIt));
+      if (useParticles) { psmSweepCollection.setParticleVelocitiesSweep(&(*blockIt)); }
       pdfSetter(&(*blockIt));
    }
 
