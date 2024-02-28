@@ -770,7 +770,6 @@ int main(int argc, char **argv)
       WALBERLA_GPU_CHECK(gpuPeekAtLastError())
       gpuDeviceSynchronize();
 #endif
-
       simTimer.start();
       timeloop.run(timeloopTiming);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)

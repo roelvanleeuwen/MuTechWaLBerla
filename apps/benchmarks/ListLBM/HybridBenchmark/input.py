@@ -120,14 +120,14 @@ def Artery():
     scenarios = wlb.ScenarioManager()
     #mesh_file = "Artery.obj"
     mesh_file = "coronary_colored_medium.obj"
-    scenario = Scenario(dx=0.03, cells_per_block=(512, 512, 512), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=1001, omega=1.7,  porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True)
+    scenario = Scenario(dx=0.0257, cells_per_block=(16, 16, 16), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=20, omega=1.7,  porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, balance_load=True)
     scenarios.add(scenario)
 
 def ArterySparseVsDense():
     scenarios = wlb.ScenarioManager()
     mesh_file = "coronary_colored_medium.obj"
 
-    cells_per_block_options = [(16, 16, 16), (32, 32, 32), (64, 64, 64), (128, 128, 128), (256, 256, 256), (512, 512, 512)]
+    cells_per_block_options = [(16, 16, 16), (32, 32, 32), (64, 64, 64), (128, 128, 128), (256, 256, 256), (320, 320, 320), (450, 450, 450), (512, 512, 512)]
     for cells_per_block in cells_per_block_options:
         scenario = Scenario(dx=0.0257, cells_per_block=cells_per_block, geometry_setup="artery", mesh_file=mesh_file, timesteps=1000,  porosity_switch=1.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, gpu_enabled_mpi=True)
         scenarios.add(scenario)
@@ -144,7 +144,10 @@ def smallArtery():
 
 def particleBed():
     scenarios = wlb.ScenarioManager()
-    scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=1000, timesteps=10001, omega=1.5, cells_per_block=(256, 256, 256), porosity_switch=1.0, dx=0.000065104, periodic=(False, True, True))
+    blocksX = 2
+    domainSizeX = 0.1
+    dx = domainSizeX / (blocksX * 128)
+    scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=100000, timesteps=100001, omega=1.5, cells_per_block=(128, 128, 128), porosity_switch=1.0, dx=dx, periodic=(False, True, True))
     scenarios.add(scenario)
 
 def particleBedBlockSizes():
@@ -209,10 +212,10 @@ def testCartesianComm():
 #porosity_benchmark()
 
 #spheres()
-#Artery()
+Artery()
 #smallArtery()
 
-ArterySparseVsDense()
+#ArterySparseVsDense()
 
 #particleBed()
 #particleBedBlockSizes()
