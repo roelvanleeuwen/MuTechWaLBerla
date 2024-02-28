@@ -68,10 +68,18 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT(*cfg);
    const Config::BlockHandle bedGenerationConf = cfg->getBlock("BedGeneration");
 
-   const Vec3 domainSize_SI            = bedGenerationConf.getParameter< Vec3 >("domainSize_SI");
-   const Vector3< int > blocks         = bedGenerationConf.getParameter< Vector3< int > >("blocks");
-   const bool periodicInX              = bedGenerationConf.getParameter< bool >("periodicInX");
-   const bool periodicInY              = bedGenerationConf.getParameter< bool >("periodicInY");
+   const Vec3 domainSize_SI    = bedGenerationConf.getParameter< Vec3 >("domainSize_SI");
+   const Vector3< int > blocks = bedGenerationConf.getParameter< Vector3< int > >("blocks");
+   WALBERLA_CHECK_EQUAL(blocks[0] * blocks[1] * blocks[2], uint_t(MPIManager::instance()->numProcesses()),
+                        "The number of blocks (" << blocks[0] * blocks[1] * blocks[2]
+                                                 << ") has to match the number of MPI processes ("
+                                                 << uint_t(MPIManager::instance()->numProcesses()) << ")");
+   const bool periodicInX = bedGenerationConf.getParameter< bool >("periodicInX");
+   const bool periodicInY = bedGenerationConf.getParameter< bool >("periodicInY");
+   if (periodicInX && blocks[0] == 1 || periodicInY && blocks[1] == 1)
+   {
+      WALBERLA_ABORT("The number of blocks in periodic dimensions must be greater than 1.")
+   }
    const real_t minDiameter_SI         = bedGenerationConf.getParameter< real_t >("minDiameter_SI");
    const real_t maxDiameter_SI         = bedGenerationConf.getParameter< real_t >("maxDiameter_SI");
    const real_t gravity_SI             = bedGenerationConf.getParameter< real_t >("gravity_SI");
