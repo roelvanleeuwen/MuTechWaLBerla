@@ -141,6 +141,8 @@ int main(int argc, char** argv)
    const real_t particleGenerationSpacing = numericalSetup.getParameter< real_t >("particleGenerationSpacing");
    const Vector3< real_t > generationDomainFraction =
       numericalSetup.getParameter< Vector3< real_t > >("generationDomainFraction");
+   const Vector3< uint_t > generationPointOfReferenceOffset =
+      numericalSetup.getParameter< Vector3< uint_t > >("generationPointOfReferenceOffset");
    const bool useParticleOffset = numericalSetup.getParameter< bool >("useParticleOffset");
    const Vector3< uint_t > particleNumSubBlocks =
       numericalSetup.getParameter< Vector3< uint_t > >("particleNumSubBlocks");
@@ -199,7 +201,9 @@ int main(int argc, char** argv)
                                  simulationDomain.yMax() * (real_t(1) + generationDomainFraction[1]) / real_t(2),
                                  simulationDomain.zMax() * (real_t(1) + generationDomainFraction[2]) / real_t(2)));
       real_t particleOffset = particleGenerationSpacing / real_t(2);
-      for (auto pt : grid_generator::SCGrid(generationDomain, generationDomain.center(), particleGenerationSpacing))
+      for (auto pt :
+           grid_generator::SCGrid(generationDomain, generationDomain.center() + generationPointOfReferenceOffset,
+                                  particleGenerationSpacing))
       {
          // Offset every second particle layer in flow direction to avoid channels in flow direction
          if (useParticleOffset &&

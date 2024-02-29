@@ -17,9 +17,9 @@ NumericalSetup
     periodicInY false;
     periodicInZ false;
 
-    numXCellsPerBlock 80; // 160 for setup with 27 spheres
-    numYCellsPerBlock 40; // 120 for setup with 27 spheres
-    numZCellsPerBlock 40; // 120 for setup with 27 spheres
+    numXCellsPerBlock 120; // 120 for setup with 8 spheres, 160 for setup with 27 spheres
+    numYCellsPerBlock 80; // 80 for setup with 8 spheres, 120 for setup with 27 spheres
+    numZCellsPerBlock 80; // 80 for setup with 8 spheres, 120 for setup with 27 spheres
 
     timeSteps 100000;
 
@@ -31,7 +31,8 @@ NumericalSetup
     particleDiameter 40.0;
     particleGenerationSpacing 40.0;
     generationDomainFraction <0.6, 1.0, 1.0>; // fraction of the domain where particles are generated
-    useParticleOffset false;
+    generationPointOfReferenceOffset <0, 0, 0>; // offset of point of reference from domain center, see SCIterator.h (<20, 20, 20> for setup with 8 spheres)
+    useParticleOffset false; // offset every second particle layer in flow direction
     particleNumSubBlocks <10, 10, 10>;
 
     // fluid quantities in LBM units

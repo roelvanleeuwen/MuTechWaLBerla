@@ -23,6 +23,7 @@ NumericalSetup
     particleDiameter 10.0;
     particleGenerationSpacing 11.0;
     generationDomainFraction <0.5, 1.0, 1.0>; // fraction of the domain where particles are generated
+    generationPointOfReferenceOffset <0, 0, 0>; // offset of point of reference from domain center, see SCIterator.h
     useParticleOffset true; // offset every second particle layer in flow direction
     particleNumSubBlocks <25, 25, 25>;
 
