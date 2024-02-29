@@ -445,7 +445,8 @@ int main(int argc, char** argv)
    setup.rho               = rho;
    setup.inflowVelocity    = referenceVelocity;
    setup.uMean             = uMean;
-   setup.dx                = coarseMeshSize;
+   setup.dxC               = coarseMeshSize;
+   setup.dxF               = fineMeshSize;
    setup.dt                = dt;
 
    const uint_t valuesPerCell   = (Stencil_T::Q + VelocityField_T::F_SIZE + uint_c(2) * ScalarField_T::F_SIZE);
@@ -844,7 +845,8 @@ int main(int argc, char** argv)
       << "\n   + inflow velocity:     " << setup.inflowVelocity << " [m/s]"
       << "\n   + lattice velocity:    " << maxLatticeVelocity
       << "\n   + Reynolds number:     " << reynoldsNumber
-      << "\n   + dx (coarsest grid):  " << setup.dx << " [m]"
+      << "\n   + dx (coarsest grid):  " << setup.dxC << " [m]"
+      << "\n   + dx (finest grid):    " << setup.dxF << " [m]"
       << "\n   + dt (coarsest grid):  " << setup.dt << " [s]"
       << "\n   + #time steps:         " << timeloop.getNrOfTimeSteps() << " on the coarsest grid, "
       << (real_t(1) / setup.dt) << " for 1s of real time)"

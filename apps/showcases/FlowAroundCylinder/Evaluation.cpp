@@ -54,7 +54,7 @@ void Evaluation::operator()()
    WALBERLA_CHECK_NOT_NULLPTR(blocks)
 
    getMacroFields_();
-   const real_t Cs2 = ((setup_.dx / setup_.dt) * (setup_.dx / setup_.dt) / real_c(3.0)); // speed of sound squared
+   const real_t Cs2 = ((setup_.dxC / setup_.dt) * (setup_.dxC / setup_.dt) / real_c(3.0)); // speed of sound squared
    for (auto& block : *blocks)
    {
       FlagField_T* flagField              = block.getData<FlagField_T>(ids_.flagField);
@@ -225,9 +225,7 @@ void Evaluation::operator()()
 
          if (strouhalTimeStep_.size() == uint_t(3))
          {
-            const real_t D     = real_t(2.0) * setup_.cylinderRadius / setup_.dx;
-
-            strouhalNumberRealD_     = D / (setup_.uMean * real_c(strouhalTimeStep_[2] - strouhalTimeStep_[0]));
+            strouhalNumberRealD_     = cylinderDiameter_ / (setup_.uMean * real_c(strouhalTimeStep_[2] - strouhalTimeStep_[0]));
             strouhalNumberDiscreteD_ = real_c(D_) / (setup_.uMean * real_c(strouhalTimeStep_[2] - strouhalTimeStep_[0]));
 
             strouhalEvaluationExecutionCount_ = executionCounter_ - uint_t(1);
@@ -239,7 +237,7 @@ void Evaluation::operator()()
                   << strouhalEvaluationExecutionCount_
                   << "):"
                      "\n   D/U (in lattice units): "
-                  << (D / setup_.uMean) << " (\"real\" D), " << (real_c(D_) / setup_.uMean)
+                  << (cylinderDiameter_ / setup_.uMean) << " (\"real\" D), " << (real_c(D_) / setup_.uMean)
                   << " (discrete D)"
                      "\n   T: "
                   << (real_c(strouhalTimeStep_[2] - strouhalTimeStep_[0]) * setup_.dt) << " s ("
@@ -275,9 +273,9 @@ void Evaluation::resetForce()
    if (checkFrequency_ == uint_t(0) || executionCounter_ % checkFrequency_ != 0 )
       return;
 
-   force_[0] = real_t(0);
-   force_[1] = real_t(0);
-   force_[2] = real_t(0);
+   force_[0] = real_c(0.0);
+   force_[1] = real_c(0.0);
+   force_[2] = real_c(0.0);
 
    forceSample_[0].clear();
    forceSample_[1].clear();
@@ -285,7 +283,7 @@ void Evaluation::resetForce()
    forceEvaluationExecutionCount_ = executionCounter_;
 }
 
-void Evaluation::forceCalculation(IBlock* block, const uint_t level)
+void Evaluation::forceCalculation(IBlock* block, const uint_t /*level*/)
 {
    // Supposed to be used as a post boundary handling function on every level
    if (checkFrequency_ == uint_t(0) || executionCounter_ % checkFrequency_ != 0)
@@ -295,6 +293,8 @@ void Evaluation::forceCalculation(IBlock* block, const uint_t level)
    if (!initialized_) refresh();
 
    getPdfField_();
+   // ScaleFactor is deactivated here because the cylinder area is calculated based on the finest grid size.
+   // const real_t scaleFactor = real_c(1.0) / real_c(uint_t(1) << (uint_t(2) * level));
 
    if (directions_.find(block) != directions_.end())
    {
@@ -306,12 +306,10 @@ void Evaluation::forceCalculation(IBlock* block, const uint_t level)
          const Cell cell(pair->first);
          const stencil::Direction direction(pair->second);
 
-         const real_t scaleFactor = real_c(1.0) / real_c(uint_t(1) << (uint_t(2) * level));
-
          const real_t boundaryValue = getBoundaryValue(pdfField, cell, direction);
          const real_t fluidValue    = getFluidValue(pdfField, cell, direction);
 
-         const real_t f = scaleFactor * (boundaryValue + fluidValue);
+         const real_t f = boundaryValue + fluidValue;
 
          force_[0] += real_c(stencil::cx[direction]) * f;
          force_[1] += real_c(stencil::cy[direction]) * f;
@@ -431,8 +429,7 @@ void Evaluation::refresh()
       auto fluid    = flagField->getFlag(fluid_);
       auto obstacle = flagField->getFlag(obstacle_);
 
-      const uint_t level = blocks->getLevel(*block);
-      const real_t area  = real_c(1.0) / real_c(uint_t(1) << (uint_t(2) * level));
+      const real_t area  = real_c(1.0);
 
       auto xyzSize = flagField->xyzSize();
       for (auto z = xyzSize.zMin(); z <= xyzSize.zMax(); ++z)
@@ -608,7 +605,7 @@ void Evaluation::refresh()
       }
    }
 
-   // Check if point for evaluating the Strouhal number is located inside of a fluid cell
+   // Check if point for evaluating the Strouhal number is located inside a fluid cell
 
    if (setup_.evaluateStrouhal)
    {
@@ -695,17 +692,14 @@ void Evaluation::evaluate(real_t& cDRealArea, real_t& cLRealArea, real_t& cDDisc
 
    WALBERLA_ROOT_SECTION()
    {
-      const real_t D = real_c(2.0) * setup_.cylinderRadius / setup_.dx;
-      const real_t H = setup_.H / setup_.dx;
-
-      cDRealArea = (real_c(2.0) * force_[0]) / (setup_.uMean * setup_.uMean * D * H);
-      cLRealArea = (real_c(2.0) * force_[1]) / (setup_.uMean * setup_.uMean * D * H);
+      cDRealArea = (real_c(2.0) * force_[0]) / (setup_.uMean * setup_.uMean * cylinderDiameter_ * cylinderHeight_);
+      cLRealArea = (real_c(2.0) * force_[1]) / (setup_.uMean * setup_.uMean * cylinderDiameter_ * cylinderHeight_);
 
       cDDiscreteArea = (real_c(2.0) * force_[0]) / (setup_.uMean * setup_.uMean * AD_);
       cLDiscreteArea = (real_c(2.0) * force_[1]) / (setup_.uMean * setup_.uMean * AL_);
 
       pressureDifference_L = pAlpha - pOmega;
-      pressureDifference   = (pressureDifference_L * setup_.rho * setup_.dx * setup_.dx) / (setup_.dt * setup_.dt);
+      pressureDifference   = (pressureDifference_L * setup_.rho * setup_.dxC * setup_.dxC) / (setup_.dt * setup_.dt);
    }
 }
 }

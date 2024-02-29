@@ -63,7 +63,8 @@ struct Setup
    real_t rho;
    real_t inflowVelocity;
    real_t uMean;
-   real_t dx;
+   real_t dxC;
+   real_t dxF;
    real_t dt;
 };
 

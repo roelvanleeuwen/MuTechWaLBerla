@@ -90,8 +90,8 @@ class BasicRecursiveTimeStepGPU
    void timestep(uint_t level);
    void ghostLayerPropagation(Block* block, gpuStream_t gpuStream);
    std::function< void() > executeStreamCollideOnLevel(uint_t level, bool withGhostLayerPropagation = false);
-
    std::function< void() > executeBoundaryHandlingOnLevel(uint_t level);
+   std::function< void() > executePostBoundaryBlockFunctions(uint_t level);
 
    std::shared_ptr< StructuredBlockForest > sbfs_;
    uint_t maxLevel_;

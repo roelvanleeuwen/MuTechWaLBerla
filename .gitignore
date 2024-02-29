@@ -10,6 +10,7 @@ qrc_*
 
 # CLion indexing
 *.uuid
+.fleet
 
 
 # Generated files

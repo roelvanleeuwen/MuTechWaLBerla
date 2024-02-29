@@ -10,7 +10,7 @@ Parameters
     diameterCylinder 0.1; // On the finest mesh
     cylinderXPosition 0.5;
     cylinderyPosition 0.2;
-    coarseMeshSize 0.00640625; // 9.765625e-4;
+    coarseMeshSize 0.01; // 9.765625e-4;
     circularCrossSection true;
     inflowProfile 1; // 1: Parabolic (SchaeferTurek), 2: uniform (Jacob et al)
 
@@ -34,10 +34,10 @@ Parameters
 
 DomainSetup
 {
-    cellsPerBlock < 64, 16, 16 >;
+    cellsPerBlock < 250, 41, 41 >;
     domainSize    < 2.5, 0.41, 0.41 >;
     periodic      < false, false, false>;
-    refinementLevels 1;
+    refinementLevels 0;
     numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
 }
 
@@ -60,12 +60,12 @@ StabilityChecker
 
 VTKWriter
 {
-    vtkWriteFrequency 2000;
+    vtkWriteFrequency 0;
     velocity true;
     density false;
     averageFields true;
     flag false;
-    writeOnlySlice false;
+    writeOnlySlice true;
     amrFileFormat false;
     oneFilePerProcess false;
 }
@@ -80,7 +80,7 @@ Logging
 
 Evaluation
 {
-    evaluationCheckFrequency 1000;
+    evaluationCheckFrequency 2000;
     rampUpTime 10000;
     logToStream true;
     logToFile true;

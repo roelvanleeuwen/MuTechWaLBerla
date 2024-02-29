@@ -88,6 +88,26 @@ class Evaluation
             file.close();
          }
       }
+      refresh();
+
+      cylinderDiameter_ = real_c(2.0) * setup_.cylinderRadius / setup_.dxF;
+      cylinderHeight_ = setup_.H / setup_.dxF;
+
+      size_t links = 0;
+      for(const auto& direction : directions_)
+      {
+         links += direction.second.size();
+      }
+
+      WALBERLA_LOG_INFO_ON_ROOT(
+            "Evaluation initialised:"
+            "\n   + Cylinder real area:     " << cylinderDiameter_ * cylinderHeight_
+         << "\n   + Cylinder real diameter: " << cylinderDiameter_
+         << "\n   + Cylinder real height:   " << cylinderHeight_
+         << "\n   + Cylinder discrete area: " << AD_
+         << "\n   + Numer of links:         " << links
+      )
+
    }
 
    void operator()();
@@ -138,6 +158,9 @@ class Evaluation
    real_t AD_;
    real_t AL_;
 
+   real_t cylinderDiameter_;
+   real_t cylinderHeight_;
+
    Vector3< real_t > force_;
    std::vector< math::Sample > forceSample_;
    uint_t forceEvaluationExecutionCount_;
@@ -168,14 +191,14 @@ class EvaluationRefresh
    void operator()()
    {
       auto evaluation = evaluation_.lock();
-      WALBERLA_CHECK_NOT_NULLPTR(evaluation);
+      WALBERLA_CHECK_NOT_NULLPTR(evaluation)
       evaluation->refresh();
    }
 
    void operator()(BlockForest&, const PhantomBlockForest&)
    {
       auto evaluation = evaluation_.lock();
-      WALBERLA_CHECK_NOT_NULLPTR(evaluation);
+      WALBERLA_CHECK_NOT_NULLPTR(evaluation)
       evaluation->refresh();
    }
 
