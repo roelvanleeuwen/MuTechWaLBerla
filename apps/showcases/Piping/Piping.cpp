@@ -265,11 +265,14 @@ int main(int argc, char** argv)
 
    // Set up RPD functionality
    // Synchronize particles between the blocks for the correct mapping of ghost particles
-   // TODO: use overlap for synchronization due to lubrication
    mesa_pd::mpi::SyncNextNeighbors syncNextNeighborFunc;
    syncNextNeighborFunc(*ps, *rpdDomain);
-   std::function< void(void) > syncCall = [&ps, &rpdDomain, &syncNextNeighborFunc]() {
-      syncNextNeighborFunc(*ps, *rpdDomain);
+   std::function< void(void) > syncCall = [&ps, &rpdDomain, &syncNextNeighborFunc, &useLubricationCorrection]() {
+      real_t overlap;
+      // If lubrication correction is used, the sync must be extended by the maximum lubrication cutoff distance
+      if (useLubricationCorrection) { overlap = real_t(5.0 / 3.0); }
+      else { overlap = real_t(1); }
+      syncNextNeighborFunc(*ps, *rpdDomain, overlap);
    };
 
    real_t timeStepSizeRPD = real_t(1) / real_t(particleNumSubCycles);
