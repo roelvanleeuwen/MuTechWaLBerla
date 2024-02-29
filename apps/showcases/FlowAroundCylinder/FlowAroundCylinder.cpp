@@ -736,9 +736,12 @@ int main(int argc, char** argv)
          vtkOutput->addCellInclusionFilter(vtk::AABBCellFilter(sliceAABB));
       }
 
-      field::FlagFieldCellFilter<FlagField_T> fluidFilter( ids.flagField );
-      fluidFilter.addFlag(obstacleFlagUID);
-      vtkOutput->addCellExclusionFilter(fluidFilter);
+      if(!amrFileFormat)
+      {
+         field::FlagFieldCellFilter<FlagField_T> fluidFilter( ids.flagField );
+         fluidFilter.addFlag(obstacleFlagUID);
+         vtkOutput->addCellExclusionFilter(fluidFilter);
+      }
 
       if (writeVelocity)
       {

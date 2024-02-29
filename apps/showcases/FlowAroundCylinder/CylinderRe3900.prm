@@ -64,7 +64,7 @@ VTKWriter
     averageFields true;
     flag false;
     writeOnlySlice false;
-    amrFileFormat true;
+    amrFileFormat false;
     oneFilePerProcess false;
 }
 
