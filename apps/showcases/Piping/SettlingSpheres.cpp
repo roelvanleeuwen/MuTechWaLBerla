@@ -76,7 +76,7 @@ int main(int argc, char** argv)
                                                  << uint_t(MPIManager::instance()->numProcesses()) << ")");
    const bool periodicInX = bedGenerationConf.getParameter< bool >("periodicInX");
    const bool periodicInY = bedGenerationConf.getParameter< bool >("periodicInY");
-   if (periodicInX && blocks[0] == 1 || periodicInY && blocks[1] == 1)
+   if ((periodicInX && blocks[0] == 1) || (periodicInY && blocks[1] == 1))
    {
       WALBERLA_ABORT("The number of blocks in periodic dimensions must be greater than 1.")
    }

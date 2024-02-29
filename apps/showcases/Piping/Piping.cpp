@@ -138,8 +138,8 @@ int main(int argc, char** argv)
                                                                   << ") has to match the number of MPI processes ("
                                                                   << uint_t(MPIManager::instance()->numProcesses())
                                                                   << ")");
-   Vector3< uint_t > cellsPerBlock(domainSize[0] / numBlocks[0], domainSize[1] / numBlocks[1],
-                                   domainSize[2] / numBlocks[2]);
+   const Vector3< uint_t > cellsPerBlock(domainSize[0] / numBlocks[0], domainSize[1] / numBlocks[1],
+                                         domainSize[2] / numBlocks[2]);
    WALBERLA_CHECK_EQUAL(domainSize[0], cellsPerBlock[0] * numBlocks[0],
                         "number of cells in x of " << domainSize[0]
                                                    << " is not divisible by given number of blocks in x direction");
@@ -244,7 +244,7 @@ int main(int argc, char** argv)
    // Bucket has full size in z direction to be long enough to move downwards (if movingBucket is true)
    const Vector3< real_t > boxEdgeLength(simulationDomain.xMax() * bucketSizeFraction[0],
                                          simulationDomain.yMax() * bucketSizeFraction[1], simulationDomain.zMax());
-   const uint_t boxUid = createBox(*ps, boxPosition, boxEdgeLength);
+   const uint_t boxUid = createBox(*ps, boxPosition, boxEdgeLength, movingBucket);
 
    // Create planes
    createPlane(*ps, simulationDomain.minCorner(), Vector3< real_t >(0, 0, 1));
@@ -286,7 +286,8 @@ int main(int argc, char** argv)
    // No friction between spheres and (artificial) bounding planes
    collisionResponse.setFrictionCoefficientDynamic(0, 1, particleFrictionCoefficient);
 
-   // Set stiffness and damping globally
+   // Set stiffness and damping globally (individual radius is not considered to have common values for stiffness and
+   // damping)
    const real_t maxParticleRadius  = maxParticleDiameter / real_t(2);
    const real_t invMaxParticleMass = real_t(1) / (real_t(4) / real_t(3) * maxParticleRadius * maxParticleRadius *
                                                   maxParticleRadius * math::pi * particleDensityRatio);
@@ -323,10 +324,9 @@ int main(int argc, char** argv)
    real_t seepageLength = computeSeepageLength(accessor, ps, boxPosition, boxEdgeLength);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(seepageLength)
 
-   // TODO: check formula again
-   const real_t pressureDifference = hydraulicGradient * gravitationalAcceleration * seepageLength;
-   // TODO: check formula again
-   const real_t densityDifference = pressureDifference * real_t(3); // d_p = d_rho * c_s^2
+   const real_t pressureDifference =
+      hydraulicGradient * gravitationalAcceleration * seepageLength; // see Fukumoto et al. (2021)
+   const real_t densityDifference = pressureDifference * real_t(3);  // d_p = d_rho * c_s^2
    const real_t outflowVelocity   = outflowVelocity_SI * dt_SI / dx_SI;
    if (pressureDrivenFlow)
    {
@@ -483,7 +483,6 @@ int main(int argc, char** argv)
    if (vtkSpacing != uint_t(0)) { vtk::writeDomainDecomposition(blocks, "domain_decomposition", vtkFolder); }
 
    // Add performance logging
-   // TODO: have a look why it causes a segmentation fault when called with performanceLogFrequency=0
    if (performanceLogFrequency > 0)
    {
       const lbm::PerformanceLogger< FlagField_T > performanceLogger(blocks, flagFieldID, Fluid_Flag,

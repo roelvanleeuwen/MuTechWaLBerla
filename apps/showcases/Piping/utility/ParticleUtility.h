@@ -194,13 +194,22 @@ auto createPlane(mesa_pd::data::ParticleStorage& ps, const mesa_pd::Vec3& pos, c
    return p0;
 }
 
-auto createBox(mesa_pd::data::ParticleStorage& ps, const mesa_pd::Vec3& pos, const mesa_pd::Vec3& edgeLength)
+auto createBox(mesa_pd::data::ParticleStorage& ps, const mesa_pd::Vec3& pos, const mesa_pd::Vec3& edgeLength,
+               const bool movingBucket)
 {
    auto p0 = ps.create(true);
    p0->setPosition(pos);
    p0->setBaseShape(std::make_shared< mesa_pd::data::Box >(edgeLength));
-   // TODO: replace the density of 2.0
-   p0->getBaseShapeRef()->updateMassAndInertia(real_t(2.0));
+   if (movingBucket)
+   {
+      // TODO: replace the density of 2.0
+      p0->getBaseShapeRef()->updateMassAndInertia(real_t(2.0));
+   }
+   else
+   {
+      // If the bucket is fixed, its collision behaviour should be the same as for the bounding planes
+      p0->getBaseShapeRef()->updateMassAndInertia(std::numeric_limits< real_t >::infinity());
+   }
    p0->setOwner(walberla::mpi::MPIManager::instance()->rank());
    p0->setType(1);
    p0->setInteractionRadius(std::numeric_limits< real_t >::infinity());
