@@ -33,7 +33,7 @@ Particles
     frictionCoefficient 0.6;
     restitutionCoefficient 0.97;
     numSubCycles 1; // due to the limited particle movement, the number of sub cycles is set low
-    numSubBlocks <11, 1, 6>; // numerical parameter for the particle mapping
+    numSubBlocks <5, 1, 6>; // numerical parameter for the particle mapping
     useLubricationCorrection true;
     poissonsRatio 0.22;
     observationDomainFraction <0.2, 1.0, 0.22>; // uplift/subsidence observation domain size as a fraction of the domain size (for Fukumoto: <0.075, 1.0, 0.15>)
