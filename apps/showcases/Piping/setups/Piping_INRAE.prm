@@ -1,13 +1,13 @@
 Domain
 {
-    domainSize <330, 70, 300>; // for Fukumoto: <4000, 60, 2000>
+    domainSize <330, 70, 300>;
     numBlocks <2, 2, 2>; // if periodicInY true, then one needs at least two blocks in y direction
     periodicInY true;
 }
 
 Physics
 {
-    timeSteps 6000000; // for Fukumoto: 6000000
+    timeSteps 6000000;
     pressureDrivenFlow false; // either the pressure or the outflow velocity can be controlled for the suction
     hydraulicGradient 0.757; // final hydraulic gradient (see Fukumoto et al., 2021), only used if pressureDrivenFlow is true
     outflowVelocity_SI 5.96e-3; // final outflow velocity, only used if pressureDrivenFlow is false
@@ -15,13 +15,13 @@ Physics
     densityFluid_SI 1179; // mixture of 65% glycerol and 35% distilled water
     kinematicViscosityFluid_SI 2.12e-5;
     dx_SI 3e-4;
-    dt_SI 5e-6; // for Fukumoto: 5e-7
+    dt_SI 5e-6;
     gravitationalAcceleration_SI 9.81;
 }
 
 Bucket
 {
-    bucketSizeFraction <0.1, 1.0, 0.56>; // bucket size as a fraction of the domain size (for Fukumoto: <0.025, 1.0, 0.65>)
+    bucketSizeFraction <0.1, 1.0, 0.56>; // bucket size as a fraction of the domain size
     movingBucket false; // allow bucket to move in z direction
     finalForce_SI 1e-3; // final force applied on bucket in negative z direction at maxSuctionTimeStep, only used if movingBucket is true
 }
@@ -36,7 +36,7 @@ Particles
     numSubBlocks <5, 1, 6>; // numerical parameter for the particle mapping
     useLubricationCorrection false;
     poissonsRatio 0.22;
-    observationDomainFraction <0.2, 1.0, 0.22>; // uplift/subsidence observation domain size as a fraction of the domain size (for Fukumoto: <0.075, 1.0, 0.15>)
+    observationDomainFraction <0.2, 1.0, 0.22>; // uplift/subsidence observation domain size as a fraction of the domain size
     numPreSteps 20000; // number of time steps in the beginning without fluid to let the particles settle again to the bucket wall
     movingParticles true;
 }
