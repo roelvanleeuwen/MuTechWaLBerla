@@ -528,35 +528,51 @@ int main(int argc, char** argv)
 
       if (movingParticles)
       {
+         // TODO: add particle barriers
+         timeloopTiming["RPD forEachParticle assoc"].start();
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, assoc, *accessor);
+         timeloopTiming["RPD forEachParticle assoc"].end();
+         timeloopTiming["RPD reduceProperty HydrodynamicForceTorqueNotification"].start();
          reduceProperty.operator()< mesa_pd::HydrodynamicForceTorqueNotification >(*ps);
+         timeloopTiming["RPD reduceProperty HydrodynamicForceTorqueNotification"].end();
 
          if (timeStep == 0)
          {
             lbm_mesapd_coupling::InitializeHydrodynamicForceTorqueForAveragingKernel
                initializeHydrodynamicForceTorqueForAveragingKernel;
+            timeloopTiming["RPD forEachParticle initializeHydrodynamicForceTorqueForAveragingKernel"].start();
             ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor,
                                 initializeHydrodynamicForceTorqueForAveragingKernel, *accessor);
+            timeloopTiming["RPD forEachParticle initializeHydrodynamicForceTorqueForAveragingKernel"].end();
          }
 
          // This call also sets the old hydrodynamic forces and torques that are used for the visualization
+         timeloopTiming["RPD forEachParticle averageHydrodynamicForceTorque"].start();
          ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, averageHydrodynamicForceTorque,
                              *accessor);
+         timeloopTiming["RPD forEachParticle averageHydrodynamicForceTorque"].end();
 
          for (auto subCycle = uint_t(0); subCycle < particleNumSubCycles; ++subCycle)
          {
-            timeloopTiming["RPD"].start();
-
+            timeloopTiming["RPD forEachParticle vvIntegratorPreForce"].start();
             ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPreForce, *accessor);
             if (movingBucket) { vvIntegratorPreForce(accessor->uidToIdx(boxUid), *accessor); }
+            timeloopTiming["RPD forEachParticle vvIntegratorPreForce"].end();
+            timeloopTiming["RPD syncCall"].start();
             syncCall();
+            timeloopTiming["RPD syncCall"].end();
 
+            timeloopTiming["RPD linkedCells.clear"].start();
             linkedCells.clear();
+            timeloopTiming["RPD linkedCells.clear"].end();
+            timeloopTiming["RPD forEachParticle ipilc"].start();
             ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, ipilc, *accessor, linkedCells);
+            timeloopTiming["RPD forEachParticle ipilc"].end();
 
             if (useLubricationCorrection)
             {
                // lubrication correction (currently only used for sphere-sphere interaction)
+               timeloopTiming["RPD forEachParticlePairHalf lubricationCorrectionKernel"].start();
                linkedCells.forEachParticlePairHalf(
                   useOpenMP, SphereSphereSelector(), *accessor,
                   [&lubricationCorrectionKernel, &rpdDomain](const size_t idx1, const size_t idx2, auto& ac) {
@@ -574,14 +590,18 @@ int main(int argc, char** argv)
                      }
                   },
                   *accessor);
+               timeloopTiming["RPD forEachParticlePairHalf lubricationCorrectionKernel"].end();
             }
 
             // Reset the sum over the collision force norms
+            timeloopTiming["RPD forEachParticle resetCollisionForceNorm"].start();
             ps->forEachParticle(
                useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor,
                [](const size_t idx, auto& ac) { ac.setCollisionForceNorm(idx, real_t(0)); }, *accessor);
+            timeloopTiming["RPD forEachParticle resetCollisionForceNorm"].end();
 
             // collision response
+            timeloopTiming["RPD forEachParticlePairHalf collisionResponse"].start();
             linkedCells.forEachParticlePairHalf(
                useOpenMP, mesa_pd::kernel::ExcludeInfiniteInfinite(), *accessor,
                [&collisionResponse, &rpdDomain, timeStepSizeRPD](const size_t idx1, const size_t idx2, auto& ac) {
@@ -605,10 +625,14 @@ int main(int argc, char** argv)
                   }
                },
                *accessor);
+            timeloopTiming["RPD forEachParticlePairHalf collisionResponse"].end();
 
+            timeloopTiming["RPD reduceProperty reduceAndSwapContactHistory"].start();
             reduceAndSwapContactHistory(*ps);
+            timeloopTiming["RPD reduceProperty reduceAndSwapContactHistory"].end();
 
             // add hydrodynamic force
+            timeloopTiming["RPD forEachParticle addHydrodynamicInteraction + addGravitationalForce"].start();
             lbm_mesapd_coupling::AddHydrodynamicInteractionKernel addHydrodynamicInteraction;
             ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, addHydrodynamicInteraction,
                                 *accessor);
@@ -622,9 +646,13 @@ int main(int argc, char** argv)
                                                                gravitationalAcceleration));
                },
                *accessor);
+            timeloopTiming["RPD forEachParticle addHydrodynamicInteraction + addGravitationalForce"].end();
 
+            timeloopTiming["RPD reduceProperty ForceTorqueNotification"].start();
             reduceProperty.operator()< mesa_pd::ForceTorqueNotification >(*ps);
+            timeloopTiming["RPD reduceProperty ForceTorqueNotification"].end();
 
+            timeloopTiming["RPD forEachParticle vvIntegratorPostForce"].start();
             ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectLocal(), *accessor, vvIntegratorPostForce, *accessor);
             if (movingBucket)
             {
@@ -634,13 +662,16 @@ int main(int argc, char** argv)
                                                                                     real_t(maxSuctionTimeStep))));
                vvIntegratorPostForce(bucketIdx, *accessor);
             }
+            timeloopTiming["RPD forEachParticle vvIntegratorPostForce"].end();
+            timeloopTiming["RPD syncCall"].start();
             syncCall();
-
-            timeloopTiming["RPD"].end();
+            timeloopTiming["RPD syncCall"].end();
          }
       }
 
+      timeloopTiming["RPD forEachParticle resetHydrodynamicForceTorque"].start();
       ps->forEachParticle(useOpenMP, mesa_pd::kernel::SelectAll(), *accessor, resetHydrodynamicForceTorque, *accessor);
+      timeloopTiming["RPD forEachParticle resetHydrodynamicForceTorque"].end();
 
       // LBM stability check (check for NaNs in the PDF field)
       timeloopTiming["LBM stability check"].start();
