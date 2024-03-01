@@ -12,8 +12,8 @@ BedGeneration{
     initialVelocity_SI 0.05;
     dt_SI 5e-5; // decrease dt_SI to get lower particle velocity in the end
     frictionCoefficient 0.6;
-    restitutionCoefficient 0.1;
-    collisionTime_SI 5e-4;
+    restitutionCoefficient 0.1; // artificial low value to decrease the rebound (increase settling speed)
+    collisionTime_SI 5e-4; // time to resolve a collision
     poissonsRatio 0.22;
     timeSteps 10000;
     visSpacing 100;
