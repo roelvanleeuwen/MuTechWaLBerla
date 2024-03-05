@@ -73,34 +73,33 @@ void initSpheresFromFile(const std::string& filename, weak_ptr<StructuredBlockFo
    }
 
    auto domainAABB = forest->getDomain();
-   auto blockDx = forest->dx(0);
+   auto blockDxyz = Vector3<real_t>(forest->dx(0), forest->dy(0), forest->dz(0));
 
    for (auto &block : *forest) {
       CellInterval BlockBB = forest->getBlockCellBB( block );
       BlockBB.expand(1);
-      auto flagField    = block.template getData< FlagField_T >(flagFieldID);
 
+      auto flagField    = block.template getData< FlagField_T >(flagFieldID);
       if (!flagField->flagExists(boundaryFlagUID))
          flagField->registerFlag(boundaryFlagUID);
-
       auto boundaryFlag = flagField->getFlag(boundaryFlagUID);
+
       for (auto particle : particleInfo) {
-         auto particleBB = CellInterval(cell_idx_c((particle.first[0] - domainAABB.xMin())/blockDx - particle.second/blockDx),
-                                        cell_idx_c((particle.first[1] - domainAABB.xMin())/blockDx - particle.second/blockDx),
-                                        cell_idx_c((particle.first[2] - domainAABB.xMin())/blockDx - particle.second/blockDx),
-                                        cell_idx_c((particle.first[0] - domainAABB.xMin())/blockDx + particle.second/blockDx + 1),
-                                        cell_idx_c((particle.first[1] - domainAABB.xMin())/blockDx + particle.second/blockDx + 1),
-                                        cell_idx_c((particle.first[2] - domainAABB.xMin())/blockDx + particle.second/blockDx + 1));
+         auto particleBB = CellInterval(cell_idx_c((particle.first[0] - domainAABB.xMin())/blockDxyz[0] - particle.second/blockDxyz[0]),
+                                        cell_idx_c((particle.first[1] - domainAABB.yMin())/blockDxyz[1] - particle.second/blockDxyz[1]),
+                                        cell_idx_c((particle.first[2] - domainAABB.zMin())/blockDxyz[2] - particle.second/blockDxyz[2]),
+                                        cell_idx_c((particle.first[0] - domainAABB.xMin())/blockDxyz[0] + particle.second/blockDxyz[0] + 1),
+                                        cell_idx_c((particle.first[1] - domainAABB.yMin())/blockDxyz[1] + particle.second/blockDxyz[1] + 1),
+                                        cell_idx_c((particle.first[2] - domainAABB.zMin())/blockDxyz[2] + particle.second/blockDxyz[2] + 1));
 
          if (BlockBB.overlaps(particleBB)) {
             particleBB.intersect(BlockBB);
             for(auto it = particleBB.begin(); it != particleBB.end(); ++it)
             {
                auto globalCell = Cell(it->x(), it->y(), it->z());
-               Cell localCell;
                auto cellAABB = forest->getCellAABB(globalCell, 0);
                Vector3< real_t > cellCenter =
-                  Vector3< real_t >(cellAABB.xMin() + 0.5 * blockDx, cellAABB.yMin() + 0.5 * blockDx, cellAABB.zMin() + 0.5 * blockDx);
+                  Vector3< real_t >(cellAABB.xMin() + 0.5 * blockDxyz[0], cellAABB.yMin() + 0.5 * blockDxyz[1], cellAABB.zMin() + 0.5 * blockDxyz[2]);
 
                //forest->transformGlobalToBlockLocalCell(localCell, block, globalCell);
                //addFlag(flagField->get(localCell), boundaryFlag);
@@ -111,7 +110,7 @@ void initSpheresFromFile(const std::string& filename, weak_ptr<StructuredBlockFo
                       (cellCenter[2] - particle.first[2]) * (cellCenter[2] - particle.first[2]) <
                    particle.second * particle.second)
                {
-
+                  Cell localCell;
                   forest->transformGlobalToBlockLocalCell(localCell, block, globalCell);
                   addFlag(flagField->get(localCell), boundaryFlag);
                }

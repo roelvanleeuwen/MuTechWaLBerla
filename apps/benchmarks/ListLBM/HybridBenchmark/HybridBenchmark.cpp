@@ -426,7 +426,7 @@ int main(int argc, char **argv)
       }
       else if (geometrySetup == "particleBed") {
          mpi::MPIManager::instance()->useWorldComm();
-         const AABB  domainAABB = AABB(0.0, 0.0, 0.0, 0.1, 0.1, 0.1);
+         const AABB  domainAABB = AABB(0.0, 0.0, 0.07, 0.1, 0.1, 0.17);
          Vector3<uint_t> numCells(uint_c(domainAABB.xSize() / dx), uint_c(domainAABB.ySize() / dx), uint_c(domainAABB.zSize() / dx));
          Vector3<uint_t> numBlocks(uint_c(std::ceil(numCells[0] / cellsPerBlock[0])), uint_c(std::ceil(numCells[1] / cellsPerBlock[1])), uint_c(std::ceil(numCells[2] / cellsPerBlock[2])));
          if(writeDomainDecompositionAndReturn) {
@@ -435,6 +435,7 @@ int main(int argc, char **argv)
          }
 
          blocks = blockforest::createUniformBlockGrid(domainAABB, numBlocks[0], numBlocks[1], numBlocks[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], 0, true, false, periodic[0], periodic[1], periodic[2]);
+         WALBERLA_LOG_INFO_ON_ROOT("Domain AABB is " << blocks->getDomain())
 
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
          geometry::initBoundaryHandling<FlagField_T>(*blocks, flagFieldId, boundariesConfig);

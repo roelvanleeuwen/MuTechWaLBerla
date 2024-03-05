@@ -5,7 +5,7 @@ from dataclasses import replace
 from pystencils import Field, FieldType, TypedSymbol, Target
 from pystencils.field import fields
 
-from lbmpy import Stencil, LBStencil, Method, LBMConfig, LBMOptimisation
+from lbmpy import Stencil, LBStencil, Method, LBMConfig, LBMOptimisation, ForceModel
 from lbmpy.boundaries.boundaryconditions import FixedDensity, UBB, NoSlip
 from lbmpy.creationfunctions import create_lb_method, create_lb_collision_rule
 from lbmpy.sparse import create_macroscopic_value_setter_sparse, create_lb_update_rule_sparse
@@ -36,9 +36,10 @@ with CodeGeneration() as ctx:
         method=Method.SRT,
         stencil=stencil,
         relaxation_rate=omega,
-        streaming_pattern='pull'
+        streaming_pattern='pull',
+        force_model=ForceModel.LUO,
+        force=(0.0001, 0, 0)
     )
-
 
 
     lbm_opt = LBMOptimisation(
