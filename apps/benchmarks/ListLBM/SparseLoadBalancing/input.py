@@ -5,7 +5,7 @@ import waLBerla as wlb
 DB_FILE = os.environ.get('DB_FILE', "ListLBMBenchmark.sqlite3")
 
 class Scenario:
-    def __init__(self, cells_per_block=(64, 64, 20), periodic=(False,False,False),
+    def __init__(self, cells_per_block=(20, 20, 20), periodic=(False,False,False),
                  timesteps=1001, time_step_strategy="noOverlap", omega=0.8, cuda_enabled_mpi=False,
                  inner_outer_split=(1, 1, 1), vtk_write_frequency=0, inflow_velocity=(0.01, 0, 0),
                  porosity=0.5, porosity_switch=0.8, run_hybrid=True, geometry_setup="randomNoslip",
@@ -88,7 +88,7 @@ class Scenario:
 
 def randomNoslip():
     scenarios = wlb.ScenarioManager()
-    scenario = Scenario(run_hybrid=False, timesteps=51, porosity=0.9, vtk_write_frequency=50, geometry_setup="randomNoslip", inflow_velocity=(0,0,0))
+    scenario = Scenario(run_hybrid=False, timesteps=1, porosity=0.9, vtk_write_frequency=1, geometry_setup="randomNoslip")
     scenarios.add(scenario)
 
 randomNoslip()

@@ -70,13 +70,13 @@
 #include "timeloop/SweepTimeloop.h"
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-#   include "cuda/AddGPUFieldToStorage.h"
-#   include "cuda/DeviceSelectMPI.h"
-#   include "cuda/HostFieldAllocator.h"
-#   include "cuda/NVTX.h"
-#   include "cuda/ParallelStreams.h"
-#   include "cuda/communication/UniformGPUScheme.h"
-#   include "cuda/lbm/CombinedInPlaceGpuPackInfo.h"
+#   include "gpu/AddGPUFieldToStorage.h"
+#   include "gpu/DeviceSelectMPI.h"
+#   include "gpu/HostFieldAllocator.h"
+#   include "gpu/NVTX.h"
+#   include "gpu/ParallelStreams.h"
+#   include "gpu/communication/UniformGPUScheme.h"
+#   include "gpu/lbm/CombinedInPlaceGpuPackInfo.h"
 #else
 #   include "lbm/communication/CombinedInPlaceCpuPackInfo.h"
 #endif
@@ -96,7 +96,7 @@ using flag_t = walberla::uint8_t;
 using FlagField_T = FlagField<flag_t>;
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-using GPUField = cuda::GPUField< real_t >;
+using GPUField = gpu::GPUField< real_t >;
 #endif
 
 auto pdfFieldAdder = [](IBlock *const block, StructuredBlockStorage *const storage) {
@@ -152,7 +152,7 @@ auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
    return [sweep](IBlock* b) {
       sweep(b);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      cudaDeviceSynchronize();
+      gpuDeviceSynchronize();
 #endif
    };
 };
@@ -170,64 +170,67 @@ real_t calculatePorosity(IBlock * block, const BlockDataID flagFieldId, const Fl
    return real_c(fluidCells) / real_c(numberOfCells);
 }
 
+uint_t calculateWorkload(IBlock * block, BlockDataID flagFieldId, FlagUID fluidFlagUID, const Set< SUID > sweepSelectLowPorosity, const Set< SUID > sweepSelectHighPorosity) {
+   real_t porosity = calculatePorosity(block, flagFieldId, fluidFlagUID);
+   auto state = block->getState();
+
+   const uint_t sparseAccess = 2 * Stencil_T::Q * 8 + Stencil_T::Q * 4;
+   const uint_t denseAccess = 2 * Stencil_T::Q * 8;
+
+   uint_t workload;
+   if( selectable::isSetSelected( state, sweepSelectLowPorosity, sweepSelectHighPorosity ))
+      workload = uint_c(real_c(sparseAccess) * porosity);
+   else
+      workload = denseAccess;
+   return workload;
+}
+
 
 void getBlocksWeights(weak_ptr<StructuredBlockForest> forest, blockforest::InfoCollection& ic, BlockDataID flagFieldId, FlagUID fluidFlagUID,
                       const Set< SUID > sweepSelectLowPorosity, const Set< SUID > sweepSelectHighPorosity) {
    auto blocks = forest.lock();
    for (auto &block : *blocks) {
-      real_t porosity = calculatePorosity(&block, flagFieldId, fluidFlagUID);
-      auto state = block.getState();
-
-      const uint_t sparseAccess = 2 * Stencil_T::Q * 8 + Stencil_T::Q * 4;
-      const uint_t denseAccess = 2 * Stencil_T::Q * 8;
-
-      uint_t workload;
-      if( selectable::isSetSelected( state, sweepSelectLowPorosity, sweepSelectHighPorosity ))
-         workload = uint_c(1000.0 * real_c(sparseAccess) * porosity);
-      else
-         workload = 1000 * denseAccess;
+      uint_t workload = calculateWorkload(&block, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
       //WALBERLA_LOG_INFO("Workload for block " << block.getId() << " is " << workload)
       ic.insert( blockforest::InfoCollectionPair(static_cast<blockforest::Block*> (&block)->getId(), blockforest::BlockInfo(workload, 1)));
    }
 }
 
-void gatherAndPrintPorosityStats(weak_ptr<StructuredBlockForest> forest, BlockDataID flagFieldId, FlagUID fluidFlagUID, bool after) {
+void gatherAndPrintWorkloadStats(weak_ptr<StructuredBlockForest> forest, BlockDataID flagFieldId, FlagUID fluidFlagUID, const Set< SUID > sweepSelectLowPorosity, const Set< SUID > sweepSelectHighPorosity) {
    auto blocks = forest.lock();
-   real_t totalPorosityOnProcess = 0.0;
-   real_t averagePorosity = 0.0;
-   real_t minPorosity = 1.0;
-   real_t maxPorosity = 0.0;
+   real_t totalWorkloadOnProcess = 0.0;
+   real_t totalWorkload = 0.0;
+   real_t averageWorkloadPerProcess = 0.0;
+   real_t minWorkload = DBL_MAX;
+   real_t maxWorkload = 0.0;
    for (auto& block : *blocks)
    {
-      real_t blockPorosity = calculatePorosity(&block, flagFieldId, fluidFlagUID);
-      if (blockPorosity < minPorosity) minPorosity = blockPorosity;
-      if (blockPorosity > maxPorosity) maxPorosity = blockPorosity;
-      totalPorosityOnProcess += blockPorosity;
+      real_t blockWorkload = calculateWorkload(&block, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
+      if (blockWorkload < minWorkload) minWorkload = blockWorkload;
+      if (blockWorkload > maxWorkload) maxWorkload = blockWorkload;
+      totalWorkloadOnProcess += blockWorkload;
    }
-   averagePorosity = totalPorosityOnProcess / real_c(blocks->getNumberOfBlocks());
+   averageWorkloadPerProcess = totalWorkloadOnProcess / real_c(blocks->getNumberOfBlocks());
+   totalWorkload = totalWorkloadOnProcess;
    WALBERLA_MPI_SECTION() {
-      walberla::mpi::reduceInplace(minPorosity, walberla::mpi::MIN);
-      walberla::mpi::reduceInplace(maxPorosity, walberla::mpi::MAX);
-      walberla::mpi::reduceInplace(averagePorosity, walberla::mpi::SUM);
+      walberla::mpi::reduceInplace(minWorkload, walberla::mpi::MIN);
+      walberla::mpi::reduceInplace(maxWorkload, walberla::mpi::MAX);
+      walberla::mpi::reduceInplace(averageWorkloadPerProcess, walberla::mpi::SUM);
+      walberla::mpi::reduceInplace(totalWorkload, walberla::mpi::SUM);
    }
-   averagePorosity /= real_c(uint_c(MPIManager::instance()->numProcesses()));
+   averageWorkloadPerProcess /= real_c(uint_c(MPIManager::instance()->numProcesses()));
 
-   std::vector<real_t> porositiesPerProcess;
-   porositiesPerProcess = mpi::gather( totalPorosityOnProcess);
+   std::vector<real_t> workloadPerProcess;
+   workloadPerProcess = mpi::gather( totalWorkloadOnProcess);
    WALBERLA_ROOT_SECTION() {
-      real_t sum = std::accumulate(porositiesPerProcess.begin(), porositiesPerProcess.end(), 0.0);
-      real_t mean = sum / porositiesPerProcess.size();
+      real_t sum = std::accumulate(workloadPerProcess.begin(), workloadPerProcess.end(), 0.0);
+      real_t mean = sum / workloadPerProcess.size();
 
-      real_t sq_sum = std::inner_product(porositiesPerProcess.begin(), porositiesPerProcess.end(), porositiesPerProcess.begin(), 0.0);
-      real_t stdev = std::sqrt(sq_sum / porositiesPerProcess.size() - mean * mean);
-      real_t minProcessPorosity = *std::min_element(porositiesPerProcess.begin(), porositiesPerProcess.end());
-      real_t maxProcessPorosity = *std::max_element(porositiesPerProcess.begin(), porositiesPerProcess.end());
-      if(after)
-         WALBERLA_LOG_INFO_ON_ROOT("PROCESS Porosity AFTER Load balancing: mean = " << mean << ", stdev = " << stdev << ", min = " << minProcessPorosity << ", max = " << maxProcessPorosity )
-      else
-         WALBERLA_LOG_INFO_ON_ROOT("BLOCK Porosity stats: average = " << averagePorosity << ", min = " << minPorosity << ", max = " << maxPorosity  )
-
-         WALBERLA_LOG_INFO_ON_ROOT("PROCESS Porosity BEFORE Load balancing: mean = " << mean << ", stdev = " << stdev << ", min = " << minProcessPorosity << ", max = " << maxProcessPorosity )
+      real_t sq_sum = std::inner_product(workloadPerProcess.begin(), workloadPerProcess.end(), workloadPerProcess.begin(), 0.0);
+      real_t stdev = std::sqrt(sq_sum / workloadPerProcess.size() - mean * mean);
+      real_t minProcessPorosity = *std::min_element(workloadPerProcess.begin(), workloadPerProcess.end());
+      real_t maxProcessPorosity = *std::max_element(workloadPerProcess.begin(), workloadPerProcess.end());
+      WALBERLA_LOG_INFO_ON_ROOT("PROCESS Workload: mean = " << mean << ", stdev = " << stdev << ", min = " << minProcessPorosity << ", max = " << maxProcessPorosity << ", summed Workload of all procs " << totalWorkload)
    }
 }
 
@@ -238,8 +241,8 @@ int main(int argc, char **argv)
    walberla::Environment walberlaEnv(argc, argv);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   cuda::selectDeviceBasedOnMpiRank();
-   WALBERLA_CUDA_CHECK(cudaPeekAtLastError())
+   gpu::selectDeviceBasedOnMpiRank();
+   WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #endif
 
    for (auto cfg = python_coupling::configBegin(argc, argv); cfg != python_coupling::configEnd(); ++cfg)
@@ -247,7 +250,7 @@ int main(int argc, char **argv)
       WALBERLA_MPI_WORLD_BARRIER()
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      WALBERLA_CUDA_CHECK(cudaPeekAtLastError())
+      WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #endif
 
       auto config = *cfg;
@@ -272,7 +275,7 @@ int main(int argc, char **argv)
       const bool runHybrid = parameters.getParameter< bool >("runHybrid", false);
 
 
-      Vector3< uint_t > cellsPerBlock(50, 50, 50);
+      Vector3< uint_t > cellsPerBlock(10, 10, 10);
       Vector3< uint_t > blocksPerDimension(4,4,2);
       uint_t nrOfProcesses = uint_c(MPIManager::instance()->numProcesses());
       real_t dx = 1;
@@ -333,7 +336,7 @@ int main(int argc, char **argv)
       }
 
 
-      gatherAndPrintPorosityStats(blocks, flagFieldId, fluidFlagUID, 0);
+      gatherAndPrintWorkloadStats(blocks, flagFieldId, fluidFlagUID, sweepSelectHighPorosity, sweepSelectLowPorosity);
 
       std::vector<FlagUID> flagUIDs;
       std::vector<flag_t> flags;
@@ -381,7 +384,7 @@ int main(int argc, char **argv)
                flagField->registerFlag(flagUIDs[i], std::log2(int(flags[i])));
          }
       }
-      gatherAndPrintPorosityStats(blocks, flagFieldId, fluidFlagUID, 1);
+      gatherAndPrintWorkloadStats(blocks, flagFieldId, fluidFlagUID, sweepSelectHighPorosity, sweepSelectLowPorosity);
 
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -395,7 +398,7 @@ int main(int argc, char **argv)
 
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      BlockDataID pdfFieldIdGPU = cuda::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldId, "PDFs on GPU", true, sweepSelectHighPorosity, sweepSelectLowPorosity);
+      BlockDataID pdfFieldIdGPU = gpu::addGPUFieldToStorage< PdfField_T >(blocks, pdfFieldId, "PDFs on GPU", true, sweepSelectHighPorosity, sweepSelectLowPorosity);
 #endif
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -472,9 +475,9 @@ int main(int argc, char **argv)
       auto tracker = make_shared<lbm::TimestepTracker>(0);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      const bool cudaEnabledMPI = parameters.getParameter< bool >("cudaEnabledMPI", true);
+      const bool gpuEnabledMPI = parameters.getParameter< bool >("gpuEnabledMPI", false);
       auto packInfo = make_shared< lbm::CombinedInPlaceGpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldIdGPU, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
-      cuda::communication::UniformGPUScheme< Stencil_T > comm(blocks, cudaEnabledMPI);
+      gpu::communication::UniformGPUScheme< Stencil_T > comm(blocks, gpuEnabledMPI);
 #else
       auto packInfo = make_shared< lbm::CombinedInPlaceCpuPackInfo< lbmpy::HybridPackInfoEven, lbmpy::HybridPackInfoOdd > >(tracker, pdfFieldId, pdfListId, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
@@ -602,7 +605,7 @@ int main(int argc, char **argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
                   GPUField * dst = block.getData<GPUField>( pdfFieldIdGPU );
                   const PdfField_T * src = block.getData<PdfField_T>( pdfFieldId );
-                  cuda::fieldCpy( *dst, *src );
+                  gpu::fieldCpy( *dst, *src );
 #endif
                   denseGetterSweep(&block);
                }
@@ -645,15 +648,15 @@ int main(int argc, char **argv)
 
       WALBERLA_MPI_WORLD_BARRIER()
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      WALBERLA_CUDA_CHECK(cudaPeekAtLastError())
-      cudaDeviceSynchronize();
+      WALBERLA_GPU_CHECK(gpuPeekAtLastError())
+      gpuDeviceSynchronize();
 #endif
 
       simTimer.start();
       timeloop.run(timeloopTiming);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      WALBERLA_CUDA_CHECK(cudaPeekAtLastError())
-      cudaDeviceSynchronize();
+      WALBERLA_GPU_CHECK(gpuPeekAtLastError())
+      gpuDeviceSynchronize();
 #endif
       simTimer.end();
 
