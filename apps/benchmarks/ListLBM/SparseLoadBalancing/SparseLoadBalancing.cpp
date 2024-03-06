@@ -179,7 +179,7 @@ uint_t calculateWorkload(IBlock * block, BlockDataID flagFieldId, FlagUID fluidF
 
    uint_t workload;
    if( selectable::isSetSelected( state, sweepSelectLowPorosity, sweepSelectHighPorosity ))
-      workload = uint_c(real_c(sparseAccess) * porosity);
+      workload = uint_c(real_t(sparseAccess) * porosity);
    else
       workload = denseAccess;
    return workload;
@@ -198,39 +198,36 @@ void getBlocksWeights(weak_ptr<StructuredBlockForest> forest, blockforest::InfoC
 
 void gatherAndPrintWorkloadStats(weak_ptr<StructuredBlockForest> forest, BlockDataID flagFieldId, FlagUID fluidFlagUID, const Set< SUID > sweepSelectLowPorosity, const Set< SUID > sweepSelectHighPorosity) {
    auto blocks = forest.lock();
-   real_t totalWorkloadOnProcess = 0.0;
-   real_t totalWorkload = 0.0;
-   real_t averageWorkloadPerProcess = 0.0;
-   real_t minWorkload = DBL_MAX;
-   real_t maxWorkload = 0.0;
+   uint_t totalWorkloadOnProcess = 0;
+   uint_t averageWorkloadPerProcess = 0;
+   uint_t minWorkload = INT_MAX;
+   uint_t maxWorkload = 0;
    for (auto& block : *blocks)
    {
-      real_t blockWorkload = calculateWorkload(&block, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
+      uint_t blockWorkload = calculateWorkload(&block, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
       if (blockWorkload < minWorkload) minWorkload = blockWorkload;
       if (blockWorkload > maxWorkload) maxWorkload = blockWorkload;
       totalWorkloadOnProcess += blockWorkload;
    }
-   averageWorkloadPerProcess = totalWorkloadOnProcess / real_c(blocks->getNumberOfBlocks());
-   totalWorkload = totalWorkloadOnProcess;
+   averageWorkloadPerProcess = uint_c(real_c(totalWorkloadOnProcess) / real_c(blocks->getNumberOfBlocks()));
    WALBERLA_MPI_SECTION() {
       walberla::mpi::reduceInplace(minWorkload, walberla::mpi::MIN);
       walberla::mpi::reduceInplace(maxWorkload, walberla::mpi::MAX);
       walberla::mpi::reduceInplace(averageWorkloadPerProcess, walberla::mpi::SUM);
-      walberla::mpi::reduceInplace(totalWorkload, walberla::mpi::SUM);
    }
-   averageWorkloadPerProcess /= real_c(uint_c(MPIManager::instance()->numProcesses()));
+   averageWorkloadPerProcess /= uint_c(MPIManager::instance()->numProcesses());
 
-   std::vector<real_t> workloadPerProcess;
+   std::vector<uint_t> workloadPerProcess;
    workloadPerProcess = mpi::gather( totalWorkloadOnProcess);
    WALBERLA_ROOT_SECTION() {
-      real_t sum = std::accumulate(workloadPerProcess.begin(), workloadPerProcess.end(), 0.0);
-      real_t mean = sum / workloadPerProcess.size();
+      uint_t sum = std::accumulate(workloadPerProcess.begin(), workloadPerProcess.end(), 0);
+      real_t mean = real_c(sum) / real_c(workloadPerProcess.size());
 
       real_t sq_sum = std::inner_product(workloadPerProcess.begin(), workloadPerProcess.end(), workloadPerProcess.begin(), 0.0);
-      real_t stdev = std::sqrt(sq_sum / workloadPerProcess.size() - mean * mean);
-      real_t minProcessPorosity = *std::min_element(workloadPerProcess.begin(), workloadPerProcess.end());
-      real_t maxProcessPorosity = *std::max_element(workloadPerProcess.begin(), workloadPerProcess.end());
-      WALBERLA_LOG_INFO_ON_ROOT("PROCESS Workload: mean = " << mean << ", stdev = " << stdev << ", min = " << minProcessPorosity << ", max = " << maxProcessPorosity << ", summed Workload of all procs " << totalWorkload)
+      real_t stdev = std::sqrt(sq_sum / real_c(workloadPerProcess.size()) - mean * mean);
+      uint_t minProcessWorkload = *std::min_element(workloadPerProcess.begin(), workloadPerProcess.end());
+      uint_t maxProcessWorkload = *std::max_element(workloadPerProcess.begin(), workloadPerProcess.end());
+      WALBERLA_LOG_INFO_ON_ROOT("PROCESS Workload: mean = " << mean << ", stdev = " << stdev << ", min = " << minProcessWorkload << ", max = " << maxProcessWorkload << ", summed Workload of all procs " << sum)
    }
 }
 
@@ -276,7 +273,7 @@ int main(int argc, char **argv)
 
 
       Vector3< uint_t > cellsPerBlock(10, 10, 10);
-      Vector3< uint_t > blocksPerDimension(4,4,2);
+      Vector3< uint_t > blocksPerDimension(10,10,10);
       uint_t nrOfProcesses = uint_c(MPIManager::instance()->numProcesses());
       real_t dx = 1;
       AABB domainAABB(0, dx * real_c(cellsPerBlock[0]) * real_c(blocksPerDimension[0]), 0, dx * real_c(cellsPerBlock[1]) * real_c(blocksPerDimension[1]), 0, dx * real_c(cellsPerBlock[2]) * real_c(blocksPerDimension[2]));
@@ -311,8 +308,9 @@ int main(int argc, char **argv)
 
 
       uint_t mpiRank = uint_c(MPIManager::instance()->rank());
-      if(mpiRank == 0) porosity = 0.1;
-      else porosity = 0.9;
+      //if(mpiRank == 0) porosity = 0.1;
+      //else porosity = 0.9;
+      porosity = real_t(mpiRank) * 0.2 + 0.1;
 
       if(porosity < 1.0) {
          for (auto& block : *blocks) {
@@ -335,8 +333,7 @@ int main(int argc, char **argv)
          }
       }
 
-
-      gatherAndPrintWorkloadStats(blocks, flagFieldId, fluidFlagUID, sweepSelectHighPorosity, sweepSelectLowPorosity);
+      gatherAndPrintWorkloadStats(blocks, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
       std::vector<FlagUID> flagUIDs;
       std::vector<flag_t> flags;
@@ -381,10 +378,10 @@ int main(int argc, char **argv)
          auto flagField = block.getData<FlagField_T>(flagFieldId);
          for(size_t i = 0; i < flagUIDs.size(); ++i) {
             if(!flagField->flagExists(flagUIDs[i]))
-               flagField->registerFlag(flagUIDs[i], std::log2(int(flags[i])));
+               flagField->registerFlag(flagUIDs[i], uint_c(std::log2(int(flags[i]))));
          }
       }
-      gatherAndPrintWorkloadStats(blocks, flagFieldId, fluidFlagUID, sweepSelectHighPorosity, sweepSelectLowPorosity);
+      gatherAndPrintWorkloadStats(blocks, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////
