@@ -139,64 +139,93 @@ real_t calculatePorosity(IBlock * block, const BlockDataID flagFieldId, const Fl
    return real_c(fluidCells) / real_c(numberOfCells);
 }
 
-void gatherAndPrintPorosityStats(weak_ptr<StructuredBlockForest> forest, BlockDataID flagFieldId, FlagUID fluidFlagUID, bool after) {
-   auto blocks = forest.lock();
-   real_t totalPorosityOnProcess = 0.0;
-   real_t averagePorosity = 0.0;
-   real_t minPorosity = 1.0;
-   real_t maxPorosity = 0.0;
-   for (auto& block : *blocks)
-   {
-      real_t blockPorosity = calculatePorosity(&block, flagFieldId, fluidFlagUID);
-      if (blockPorosity < minPorosity) minPorosity = blockPorosity;
-      if (blockPorosity > maxPorosity) maxPorosity = blockPorosity;
-      totalPorosityOnProcess += blockPorosity;
-   }
-   averagePorosity = totalPorosityOnProcess / real_c(blocks->getNumberOfBlocks());
-   WALBERLA_MPI_SECTION() {
-      walberla::mpi::reduceInplace(minPorosity, walberla::mpi::MIN);
-      walberla::mpi::reduceInplace(maxPorosity, walberla::mpi::MAX);
-      walberla::mpi::reduceInplace(averagePorosity, walberla::mpi::SUM);
-   }
-   averagePorosity /= real_c(uint_c(MPIManager::instance()->numProcesses()));
+uint_t calculateWorkload(IBlock * block, BlockDataID flagFieldId, FlagUID fluidFlagUID, const Set< SUID > sweepSelectLowPorosity, const Set< SUID > sweepSelectHighPorosity) {
+   real_t porosity = calculatePorosity(block, flagFieldId, fluidFlagUID);
+   auto state = block->getState();
 
-   std::vector<real_t> porositiesPerProcess;
-   porositiesPerProcess = mpi::gather( totalPorosityOnProcess);
-   WALBERLA_ROOT_SECTION() {
-      real_t sum = std::accumulate(porositiesPerProcess.begin(), porositiesPerProcess.end(), 0.0);
-      real_t mean = sum / real_t(porositiesPerProcess.size());
+   const uint_t sparseAccess = 2 * Stencil_T::Q * 8 + Stencil_T::Q * 4;
+   const uint_t denseAccess = 2 * Stencil_T::Q * 8;
 
-      real_t sq_sum = std::inner_product(porositiesPerProcess.begin(), porositiesPerProcess.end(), porositiesPerProcess.begin(), 0.0);
-      real_t stdev = std::sqrt(sq_sum / real_t(porositiesPerProcess.size()) - mean * mean);
-      real_t minProcessPorosity = *std::min_element(porositiesPerProcess.begin(), porositiesPerProcess.end());
-      real_t maxProcessPorosity = *std::max_element(porositiesPerProcess.begin(), porositiesPerProcess.end());
-      if(after)
-         WALBERLA_LOG_INFO_ON_ROOT("PROCESS Porosity AFTER Load balancing: mean = " << mean << ", stdev = " << stdev << ", min = " << minProcessPorosity << ", max = " << maxProcessPorosity )
-      else {
-         WALBERLA_LOG_INFO_ON_ROOT("BLOCK Porosity stats: average = " << averagePorosity << ", min = " << minPorosity << ", max = " << maxPorosity  )
-         WALBERLA_LOG_INFO_ON_ROOT("PROCESS Porosity BEFORE Load balancing: mean = " << mean << ", stdev = " << stdev << ", min = " << minProcessPorosity << ", max = " << maxProcessPorosity )
-      }
-
-   }
+   uint_t workload;
+   if( selectable::isSetSelected( state, sweepSelectLowPorosity, sweepSelectHighPorosity ))
+      workload = uint_c(real_t(sparseAccess) * porosity);
+   else
+      workload = denseAccess;
+   return workload;
 }
 
 void getBlocksWeights(weak_ptr<StructuredBlockForest> forest, blockforest::InfoCollection& ic, BlockDataID flagFieldId, FlagUID fluidFlagUID,
                       const Set< SUID > sweepSelectLowPorosity, const Set< SUID > sweepSelectHighPorosity) {
    auto blocks = forest.lock();
    for (auto &block : *blocks) {
-      real_t porosity = calculatePorosity(&block, flagFieldId, fluidFlagUID);
-      auto state = block.getState();
-
-      const uint_t sparseAccess = 2 * Stencil_T::Q * 8 + Stencil_T::Q * 4;
-      const uint_t denseAccess = 2 * Stencil_T::Q * 8;
-
-      uint_t workload;
-      if( selectable::isSetSelected( state, sweepSelectLowPorosity, sweepSelectHighPorosity ))
-         workload = uint_c(1000.0 * real_c(sparseAccess) * porosity);
-      else
-         workload = 1000 * denseAccess;
+      uint_t workload = calculateWorkload(&block, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
       //WALBERLA_LOG_INFO("Workload for block " << block.getId() << " is " << workload)
       ic.insert( blockforest::InfoCollectionPair(static_cast<blockforest::Block*> (&block)->getId(), blockforest::BlockInfo(workload, 1)));
+   }
+}
+
+void gatherAndPrintWorkloadStats(weak_ptr<StructuredBlockForest> forest, BlockDataID flagFieldId, FlagUID fluidFlagUID, const Set< SUID > sweepSelectLowPorosity, const Set< SUID > sweepSelectHighPorosity) {
+   auto blocks = forest.lock();
+   uint_t totalWorkloadOnProcess = 0;
+   uint_t averageWorkloadPerProcess = 0;
+   uint_t minWorkload = 99999999;
+   uint_t maxWorkload = 0;
+   for (auto& block : *blocks)
+   {
+      uint_t blockWorkload = calculateWorkload(&block, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
+      if (blockWorkload < minWorkload) minWorkload = blockWorkload;
+      if (blockWorkload > maxWorkload) maxWorkload = blockWorkload;
+      totalWorkloadOnProcess += blockWorkload;
+   }
+   averageWorkloadPerProcess = uint_c(real_c(totalWorkloadOnProcess) / real_c(blocks->getNumberOfBlocks()));
+   WALBERLA_MPI_SECTION() {
+      walberla::mpi::reduceInplace(minWorkload, walberla::mpi::MIN);
+      walberla::mpi::reduceInplace(maxWorkload, walberla::mpi::MAX);
+      walberla::mpi::reduceInplace(averageWorkloadPerProcess, walberla::mpi::SUM);
+   }
+   averageWorkloadPerProcess /= uint_c(MPIManager::instance()->numProcesses());
+
+   std::vector<uint_t> workloadPerProcess;
+   workloadPerProcess = mpi::gather( totalWorkloadOnProcess);
+   WALBERLA_ROOT_SECTION() {
+      uint_t sum = std::accumulate(workloadPerProcess.begin(), workloadPerProcess.end(), 0);
+      real_t mean = real_c(sum) / real_c(workloadPerProcess.size());
+
+      real_t sq_sum = std::inner_product(workloadPerProcess.begin(), workloadPerProcess.end(), workloadPerProcess.begin(), 0.0);
+      real_t stdev = std::sqrt(sq_sum / real_c(workloadPerProcess.size()) - mean * mean);
+      uint_t minProcessWorkload = *std::min_element(workloadPerProcess.begin(), workloadPerProcess.end());
+      uint_t maxProcessWorkload = *std::max_element(workloadPerProcess.begin(), workloadPerProcess.end());
+      WALBERLA_LOG_INFO_ON_ROOT("PROCESS Workload: mean = " << mean << ", stdev = " << stdev << ", min = " << minProcessWorkload << ", max = " << maxProcessWorkload << ", summed Workload of all procs " << sum)
+   }
+}
+
+void gatherAndPrintPorosityStats(weak_ptr<StructuredBlockForest> forest, BlockDataID flagFieldId, FlagUID fluidFlagUID) {
+   auto blocks = forest.lock();
+   real_t averageProcessPorosity = 0;
+   real_t minPorosity= 1.0;
+   real_t maxPorosity = 0;
+
+   for (auto& block : *blocks)
+   {
+      real_t blockPorosity = calculatePorosity(&block, flagFieldId, fluidFlagUID);
+      if (blockPorosity < minPorosity) minPorosity = blockPorosity;
+      if (blockPorosity > maxPorosity) maxPorosity = blockPorosity;
+      averageProcessPorosity += blockPorosity;
+   }
+   averageProcessPorosity /= blocks->size();
+   WALBERLA_MPI_SECTION() {
+      walberla::mpi::reduceInplace(minPorosity, walberla::mpi::MIN);
+      walberla::mpi::reduceInplace(maxPorosity, walberla::mpi::MAX);
+   }
+   std::vector<real_t> processPorositiesVec;
+   processPorositiesVec = mpi::gather( averageProcessPorosity);
+   WALBERLA_ROOT_SECTION() {
+      uint_t sum = std::accumulate(processPorositiesVec.begin(), processPorositiesVec.end(), 0);
+      real_t mean = real_c(sum) / real_c(processPorositiesVec.size());
+
+      real_t sq_sum = std::inner_product(processPorositiesVec.begin(), processPorositiesVec.end(), processPorositiesVec.begin(), 0.0);
+      real_t stdev = std::sqrt(sq_sum / real_c(processPorositiesVec.size()) - mean * mean);
+      WALBERLA_LOG_INFO_ON_ROOT("BLOCK porosities: mean = " << mean << ", stdev = " << stdev << ", min = " << minPorosity << ", max = " << maxPorosity)
    }
 }
 
@@ -473,7 +502,8 @@ int main(int argc, char **argv)
          }
       }
 
-      gatherAndPrintPorosityStats(blocks, flagFieldId, fluidFlagUID, 0);
+      gatherAndPrintPorosityStats(blocks, flagFieldId, fluidFlagUID);
+      gatherAndPrintWorkloadStats(blocks, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
       //Balance load based on block porosity with Hilbert space filling curve
       if(balanceLoad) {
@@ -522,7 +552,7 @@ int main(int argc, char **argv)
                   flagField->registerFlag(flagUIDs[i], uint_t(std::log2(int(flags[i]))));
             }
          }
-         gatherAndPrintPorosityStats(blocks, flagFieldId, fluidFlagUID, 1);
+         gatherAndPrintWorkloadStats(blocks, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
       }
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////

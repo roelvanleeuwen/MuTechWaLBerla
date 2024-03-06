@@ -273,7 +273,7 @@ int main(int argc, char **argv)
 
 
       Vector3< uint_t > cellsPerBlock(10, 10, 10);
-      Vector3< uint_t > blocksPerDimension(10,10,10);
+      Vector3< uint_t > blocksPerDimension(100,10,10);
       uint_t nrOfProcesses = uint_c(MPIManager::instance()->numProcesses());
       real_t dx = 1;
       AABB domainAABB(0, dx * real_c(cellsPerBlock[0]) * real_c(blocksPerDimension[0]), 0, dx * real_c(cellsPerBlock[1]) * real_c(blocksPerDimension[1]), 0, dx * real_c(cellsPerBlock[2]) * real_c(blocksPerDimension[2]));

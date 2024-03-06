@@ -143,10 +143,10 @@ def smallArtery():
 
 def particleBed():
     scenarios = wlb.ScenarioManager()
-    blocksX = 1
+    blocksX = 4
     domainSizeX = 0.1
-    dx = domainSizeX / (blocksX * 128)
-    scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=1000, timesteps=10001, omega=1.5, cells_per_block=(32, 32, 32), porosity_switch=1.0, dx=dx, periodic=(True, True, True))
+    dx = domainSizeX / (blocksX * 32)
+    scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=1000, timesteps=10001, omega=1.5, cells_per_block=(32, 32, 32), porosity_switch=1.0, dx=dx, periodic=(True, True, True), balance_load=True)
     scenarios.add(scenario)
 
 
