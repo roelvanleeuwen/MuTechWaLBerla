@@ -181,7 +181,7 @@ int main(int argc, char** argv)
    const real_t bucketFinalForce_SI = bucketParameters.getParameter< real_t >("finalForce_SI");
    const real_t bucketFinalForce =
       bucketFinalForce_SI * dt_SI * dt_SI / (densityFluid_SI * dx_SI * dx_SI * dx_SI * dx_SI);
-   WALBERLA_LOG_DEVEL_VAR_ON_ROOT(bucketFinalForce)
+   if (movingBucket) { WALBERLA_LOG_DEVEL_VAR_ON_ROOT(bucketFinalForce) }
 
    Config::BlockHandle particlesParameters     = cfgFile->getBlock("Particles");
    const std::string particleInFileName        = particlesParameters.getParameter< std::string >("inFileName");
