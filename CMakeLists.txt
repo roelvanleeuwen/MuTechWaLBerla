@@ -215,7 +215,7 @@ endif()
 mark_as_advanced ( WALBERLA_CXX_COMPILER_IS_IBM )
 
 # Check for NEC SX compiler
-if( CMAKE_CXX_COMPILER MATCHES "sxc" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "sxc" OR CMAKE_CXX_COMPILER MATCHES "sxmpic" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "sxmpic" )
+if( CMAKE_CXX_COMPILER MATCHES "/sxc" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "/sxc" OR CMAKE_CXX_COMPILER MATCHES "/sxmpic" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "/sxmpic" )
     option ( WALBERLA_CXX_COMPILER_IS_NEC "Use NEC compiler" ON  )
 else()
     option ( WALBERLA_CXX_COMPILER_IS_NEC "Use NEC compiler" OFF  )
@@ -1275,12 +1275,6 @@ if ( WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT )
    if ( NOT WALBERLA_SUPPORT_HALF_PRECISION )
       message( FATAL_ERROR "Compiler: ${CMAKE_CXX_COMPILER} Version: ${CMAKE_CXX_COMPILER_VERSION} does not support half precision" )
    endif ()
-
-   # Local host optimization
-   if ( NOT WALBERLA_OPTIMIZE_FOR_LOCALHOST )
-      message( WARNING "[WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT] "
-            "You are not optimizing for localhost. You may encounter linker errors, or WORSE: silent incorrect fp16 arithmetic! Consider also enabling WALBERLA_OPTIMIZE_FOR_LOCALHOST!" )
-   endif () # Local host check
 
 endif () # Check if WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT is set
 
