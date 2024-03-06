@@ -212,7 +212,7 @@ void gatherAndPrintPorosityStats(weak_ptr<StructuredBlockForest> forest, BlockDa
       if (blockPorosity > maxPorosity) maxPorosity = blockPorosity;
       averageProcessPorosity += blockPorosity;
    }
-   averageProcessPorosity /= blocks->size();
+   averageProcessPorosity /= real_c(blocks->size());
    WALBERLA_MPI_SECTION() {
       walberla::mpi::reduceInplace(minPorosity, walberla::mpi::MIN);
       walberla::mpi::reduceInplace(maxPorosity, walberla::mpi::MAX);
