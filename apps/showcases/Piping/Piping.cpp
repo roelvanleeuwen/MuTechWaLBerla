@@ -202,10 +202,7 @@ int main(int argc, char** argv)
    const uint_t numPreSteps   = particlesParameters.getParameter< uint_t >("numPreSteps");
    const bool movingParticles = particlesParameters.getParameter< bool >("movingParticles");
    const real_t kappa         = real_c(2) * (real_c(1) - poissonsRatio) / (real_c(2) - poissonsRatio);
-   const real_t particleCollisionTime =
-      real_t(100); // TODO: check why it works with this value but not with 10, depends on dt
-   // Set useOpenMP always to true, will only have an effect once MesaPD is built with OpenMP
-   bool useOpenMP = false;
+   bool useOpenMP             = false;
 
    Config::BlockHandle outputParameters   = cfgFile->getBlock("Output");
    const uint_t vtkSpacing                = outputParameters.getParameter< uint_t >("vtkSpacing");
@@ -262,6 +259,7 @@ int main(int argc, char** argv)
    real_t maxParticleDiameter;
    initSpheresFromFile(particleInFileName, *ps, *rpdDomain, particleDensityRatio, simulationDomain, domainSize,
                        boxPosition, boxEdgeLength, maxParticleDiameter);
+   const real_t particleCollisionTime = real_t(4) * maxParticleDiameter;
 
    // Set up RPD functionality
    // Synchronize particles between the blocks for the correct mapping of ghost particles
