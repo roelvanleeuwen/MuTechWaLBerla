@@ -7,7 +7,7 @@ Domain
 
 Physics
 {
-    timeSteps 6000000;
+    timeSteps 5000000;
     pressureDrivenFlow false; // either the pressure or the outflow velocity can be controlled for the suction
     hydraulicGradient 0.757; // final hydraulic gradient (see Fukumoto et al., 2021), only used if pressureDrivenFlow is true
     outflowVelocity_SI 5.96e-3; // final outflow velocity, only used if pressureDrivenFlow is false
