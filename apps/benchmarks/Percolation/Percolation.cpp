@@ -135,6 +135,7 @@ int main(int argc, char** argv)
    const uint_t numZCellsPerBlock         = numericalSetup.getParameter< uint_t >("numZCellsPerBlock");
    const bool sendDirectlyFromGPU         = numericalSetup.getParameter< bool >("sendDirectlyFromGPU");
    const bool useCommunicationHiding      = numericalSetup.getParameter< bool >("useCommunicationHiding");
+   const Vector3< uint_t > frameWidth     = numericalSetup.getParameter< Vector3< uint_t > >("frameWidth");
    const uint_t timeSteps                 = numericalSetup.getParameter< uint_t >("timeSteps");
    const bool useParticles                = numericalSetup.getParameter< bool >("useParticles");
    const real_t particleDiameter          = numericalSetup.getParameter< real_t >("particleDiameter");
@@ -394,9 +395,10 @@ int main(int argc, char** argv)
    pystencils::PSMSweepSplit PSMSplitSweep(
       particleAndVolumeFractionSoA.BsFieldID, particleAndVolumeFractionSoA.BFieldID,
       particleAndVolumeFractionSoA.particleForcesFieldID, particleAndVolumeFractionSoA.particleVelocitiesFieldID,
-      pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate);
+      pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate, frameWidth);
    pystencils::LBMSweep LBMSweep(pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate);
-   pystencils::LBMSplitSweep LBMSplitSweep(pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate);
+   pystencils::LBMSplitSweep LBMSplitSweep(pdfFieldGPUID, real_t(0.0), real_t(0.0), real_t(0.0), relaxationRate,
+                                           frameWidth);
 
    if (useParticles)
    {

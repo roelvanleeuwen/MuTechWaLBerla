@@ -17,6 +17,7 @@ NumericalSetup
 
     sendDirectlyFromGPU false; // use GPU-GPU communication
     useCommunicationHiding false;
+    frameWidth <1, 1, 1>; // width of the outer region if splitting the LBM/PSM into inner and outer (only used if useCommunicationHiding is true)
 
     // particle distribution in LBM units
     useParticles true; // if true, PSM/particle mapping/velocity computation/hydrodynamic force reduction is used, else LBM is used
