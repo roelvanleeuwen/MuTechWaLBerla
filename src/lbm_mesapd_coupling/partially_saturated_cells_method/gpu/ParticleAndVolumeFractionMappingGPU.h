@@ -120,6 +120,8 @@ class SphereFractionMappingGPU
          if (mappingParticleSelector_(idx, *ac_)) { numMappedParticles++; }
       }
 
+      if (numMappedParticles == uint_t(0)) return;
+
       // Allocate unified memory storing the particle information needed for the overlap fraction computations
       const size_t scalarArraySize = numMappedParticles * sizeof(real_t);
 

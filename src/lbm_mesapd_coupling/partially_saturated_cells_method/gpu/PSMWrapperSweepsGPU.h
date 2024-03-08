@@ -87,6 +87,9 @@ class SetParticleVelocitiesSweep
       {
          if (mappingParticleSelector_(idx, *ac_)) { numMappedParticles++; }
       }
+
+      if (numMappedParticles == uint_t(0)) return;
+
       size_t arraySizes = numMappedParticles * sizeof(real_t) * 3;
 
       // Allocate unified memory for the particle information required for computing the velocity at a WF point (used in
@@ -173,6 +176,9 @@ class ReduceParticleForcesSweep
       {
          if (mappingParticleSelector_(idx, *ac_)) { numMappedParticles++; }
       }
+
+      if (numMappedParticles == uint_t(0)) return;
+
       size_t arraySizes = numMappedParticles * sizeof(real_t) * 3;
 
       // TODO: for multiple blocks per process, this data is transferred multiple times per time step (unnecessarily)
