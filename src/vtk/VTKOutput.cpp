@@ -1759,17 +1759,15 @@ void VTKOutput::writeCollectors( const bool barrier )
       WALBERLA_MPI_WORLD_BARRIER();
 
    WALBERLA_NON_ROOT_SECTION() { return; }
-
    WALBERLA_ASSERT_EQUAL( MPIManager::instance()->worldRank(), 0 );
 
-
+   if(!amrFileFormat_)
+      writePVD();
 
    for( auto collector = collectorsToWrite_.begin(); collector != collectorsToWrite_.end(); ++collector )
    {
       if( uniformGrid_ )
       {
-         writePVD();
-
          if( samplingDx_ <= real_c(0) || samplingDy_ <= real_c(0) || samplingDz_ <= real_c(0) )
             writePVTI( *collector );
          else
@@ -1782,7 +1780,6 @@ void VTKOutput::writeCollectors( const bool barrier )
       }
       else
       {
-         writePVD();
          writePVTU( *collector ); // also applies for outputDomainDecomposition_ == true and pointDataSource_ != NULL
                                   // and polylineDataSource_ != NULL (uniformGrid_ will be false)
       }
@@ -1987,15 +1984,6 @@ void VTKOutput::writeVTHB( const uint_t collector ) const
       ofs << "  <Block level=\"" << level << "\">\n";
       uint index = 0;
       for( auto file = files[level].begin(); file != files[level].end(); ++file ){
-         std::ifstream ifs( file->string().c_str() );
-
-         std::string piece;
-         for( uint_t i = 0; i != 4; ++i )
-            std::getline( ifs, piece );
-         ifs.close();
-
-         piece.erase( piece.length()-1, 1 );
-
          ofs << "   <DataSet index=\"" << index << "\" file=\"" << executionFolder_ << "_" << collector << "/" << file->filename().string() << "\"/>\n";
          index++;
       }

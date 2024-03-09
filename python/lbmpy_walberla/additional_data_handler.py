@@ -159,7 +159,7 @@ class NoSlipLinearBouzidiAdditionalDataHandler(AdditionalDataHandler):
 
     @property
     def constructor_argument_name(self):
-        return "wallDistance"
+        return "wallDistanceBouzidi"
 
     @property
     def constructor_arguments(self):
@@ -168,7 +168,7 @@ class NoSlipLinearBouzidiAdditionalDataHandler(AdditionalDataHandler):
 
     @property
     def initialiser_list(self):
-        return "elementInitialiser(wallDistance),"
+        return f"elementInitialiser({self.constructor_argument_name}),"
 
     @property
     def additional_arguments_for_fill_function(self):
@@ -207,7 +207,7 @@ class QuadraticBounceBackAdditionalDataHandler(AdditionalDataHandler):
 
     @property
     def constructor_argument_name(self):
-        return "wallDistance"
+        return "wallDistanceQuadraticBB"
 
     @property
     def constructor_arguments(self):
@@ -216,7 +216,7 @@ class QuadraticBounceBackAdditionalDataHandler(AdditionalDataHandler):
 
     @property
     def initialiser_list(self):
-        return "elementInitialiser(wallDistance),"
+        return f"elementInitialiser({self.constructor_argument_name}),"
 
     @property
     def additional_arguments_for_fill_function(self):
