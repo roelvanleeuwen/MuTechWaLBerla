@@ -119,7 +119,7 @@ def Artery():
     scenarios = wlb.ScenarioManager()
     #mesh_file = "Artery.obj"
     mesh_file = "coronary_colored_medium.obj"
-    scenario = Scenario(dx=0.0257, cells_per_block=(16, 16, 16), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=20, omega=1.7,  porosity_switch=0.0, run_hybrid=True, time_step_strategy="Overlap", run_boundaries=True, balance_load=True)
+    scenario = Scenario(dx=0.0257, cells_per_block=(128, 128, 128), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=20, omega=1.7,  porosity_switch=1.0, run_hybrid=False, time_step_strategy="Overlap", run_boundaries=True, balance_load=True)
     scenarios.add(scenario)
 
 def ArterySparseVsDense():
@@ -146,7 +146,7 @@ def particleBed():
     blocksX = 4
     domainSizeX = 0.1
     dx = domainSizeX / (blocksX * 32)
-    scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=1000, timesteps=10001, omega=1.5, cells_per_block=(32, 32, 32), porosity_switch=1.0, dx=dx, periodic=(True, True, True), balance_load=True)
+    scenario = Scenario(geometry_setup="particleBed", vtk_write_frequency=1, timesteps=1, omega=1.5, cells_per_block=(32, 32, 32), porosity_switch=0.8, run_hybrid=True, dx=dx, periodic=(True, True, True), balance_load=True)
     scenarios.add(scenario)
 
 
@@ -227,13 +227,13 @@ def testCartesianComm():
 #porosity_benchmark()
 
 #spheres()
-#Artery()
+Artery()
 #smallArtery()
 
 #ArterySparseVsDense()
 
 #particleBed()
-particleBedSparseVsDense()
+#particleBedSparseVsDense()
 
 #particleBedBlockSizes()
 #emptyChannel()

@@ -220,7 +220,7 @@ void gatherAndPrintPorosityStats(weak_ptr<StructuredBlockForest> forest, BlockDa
    std::vector<real_t> processPorositiesVec;
    processPorositiesVec = mpi::gather( averageProcessPorosity);
    WALBERLA_ROOT_SECTION() {
-      uint_t sum = std::accumulate(processPorositiesVec.begin(), processPorositiesVec.end(), 0);
+      real_t sum = std::accumulate(processPorositiesVec.begin(), processPorositiesVec.end(), 0.0);
       real_t mean = real_c(sum) / real_c(processPorositiesVec.size());
 
       real_t sq_sum = std::inner_product(processPorositiesVec.begin(), processPorositiesVec.end(), processPorositiesVec.begin(), 0.0);
@@ -521,7 +521,7 @@ int main(int argc, char **argv)
          }
 
          //refresh here
-         vtk::writeDomainDecomposition(blocks, "domain_decompositionDenseBeforeRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity);
+         vtk::writeDomainDecomposition(blocks, "domain_decompositionDenseBeforeRefres", "vtk_out", "write_call", true, true, 0, sweepSelectHighPorosity, sweepSelectLowPorosity);
          vtk::writeDomainDecomposition(blocks, "domain_decompositionSparseBeforeRefresh", "vtk_out", "write_call", true, true, 0, sweepSelectLowPorosity, sweepSelectHighPorosity);
 
          //Load Balancing 1
@@ -530,10 +530,10 @@ int main(int argc, char **argv)
          blockforest.alwaysRebalanceInRefresh( true ); //load balancing every time refresh is triggered
          blockforest.reevaluateMinTargetLevelsAfterForcedRefinement( false );
          blockforest.allowRefreshChangingDepth( false );
-         blockforest.allowMultipleRefreshCycles( false ); // otherwise info collections are invalid
+         blockforest.allowMultipleRefreshCycles( true ); // otherwise info collections are invalid
          blockforest.setRefreshPhantomBlockDataPackFunction( blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor() );
          blockforest.setRefreshPhantomBlockDataUnpackFunction( blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor() );
-         blockforest.setRefreshPhantomBlockMigrationPreparationFunction( blockforest::DynamicCurveBalance<blockforest::WeightAssignmentFunctor::PhantomBlockWeight >( true, true, true ) );
+         blockforest.setRefreshPhantomBlockMigrationPreparationFunction( blockforest::DynamicCurveBalance<blockforest::WeightAssignmentFunctor::PhantomBlockWeight >( false, true, true ) );
 
          shared_ptr<blockforest::InfoCollection> weightsInfoCollection = make_shared<blockforest::InfoCollection>();
          getBlocksWeights(blocks, *weightsInfoCollection, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
@@ -554,6 +554,7 @@ int main(int argc, char **argv)
          }
          gatherAndPrintWorkloadStats(blocks, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
       }
+   return EXIT_SUCCESS;
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////
       ////////////////////////////////////    SETUP FIELDS      ///////////////////////////////////////
