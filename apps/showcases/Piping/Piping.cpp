@@ -321,7 +321,8 @@ int main(int argc, char** argv)
                    particleDensityRatio, gravitationalAcceleration, useOpenMP);
 
    // Evaluate initial soil properties
-   UpliftSubsidenceEvaluator upliftSubsidenceEvaluator(accessor, ps, boxPosition, boxEdgeLength, observationDomainSize);
+   UpliftSubsidenceEvaluator upliftSubsidenceEvaluator(accessor, ps, boxPosition, boxEdgeLength, observationDomainSize,
+                                                       pressureDrivenFlow);
 
    real_t seepageLength = computeSeepageLength(accessor, ps, boxPosition, boxEdgeLength);
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(seepageLength)
@@ -526,11 +527,14 @@ int main(int argc, char** argv)
    for (uint_t timeStep = 0; timeStep < timeSteps; ++timeStep)
    {
       timeloop.singleStep(timeloopTiming);
-      // If pressure difference did not yet reach the limit, decrease the pressure on the right hand side
-      density1_bc.bc_density_ = std::max(real_t(1.0) - densityDifference,
-                                         density1_bc.bc_density_ - densityDifference / real_t(maxSuctionTimeStep));
-      velocity_bc.bc_velocity_2_ =
-         std::min(outflowVelocity, velocity_bc.bc_velocity_2_ + outflowVelocity / real_t(maxSuctionTimeStep));
+      if (maxSuctionTimeStep != 0)
+      {
+         // If pressure difference did not yet reach the limit, decrease the pressure on the right hand side
+         density1_bc.bc_density_ = std::max(real_t(1.0) - densityDifference,
+                                            density1_bc.bc_density_ - densityDifference / real_t(maxSuctionTimeStep));
+         velocity_bc.bc_velocity_2_ =
+            std::min(outflowVelocity, velocity_bc.bc_velocity_2_ + outflowVelocity / real_t(maxSuctionTimeStep));
+      }
 
       if (movingParticles)
       {
@@ -693,7 +697,15 @@ int main(int argc, char** argv)
       timeloopTiming["Uplift/Subsidence evaluation"].start();
       if (upliftSubsidenceFrequency > 0 && timeStep % upliftSubsidenceFrequency == 0)
       {
-         upliftSubsidenceEvaluator(hydraulicGradient * real_t(timeStep) / real_t(maxSuctionTimeStep), accessor, ps);
+         if (pressureDrivenFlow)
+         {
+            upliftSubsidenceEvaluator(
+               maxSuctionTimeStep == 0 ?
+                  hydraulicGradient :
+                  std::min(hydraulicGradient * real_t(timeStep) / real_t(maxSuctionTimeStep), hydraulicGradient),
+               accessor, ps);
+         }
+         else { upliftSubsidenceEvaluator(velocity_bc.bc_velocity_2_, accessor, ps); }
       }
       timeloopTiming["Uplift/Subsidence evaluation"].end();
    }

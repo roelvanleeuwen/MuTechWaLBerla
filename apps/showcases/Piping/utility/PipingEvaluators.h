@@ -148,7 +148,8 @@ class UpliftSubsidenceEvaluator
  public:
    UpliftSubsidenceEvaluator(const shared_ptr< ParticleAccessor_T >& accessor,
                              const shared_ptr< mesa_pd::data::ParticleStorage >& ps, const mesa_pd::Vec3& boxPosition,
-                             const mesa_pd::Vec3& boxEdgeLength, const Vector3< real_t >& observationDomainSize)
+                             const mesa_pd::Vec3& boxEdgeLength, const Vector3< real_t >& observationDomainSize,
+                             const bool pressureDrivenFlow)
    {
       const real_t maxParticleSeepageHeight = computeMaxParticleSeepageHeight(accessor, ps, boxPosition, boxEdgeLength);
       const Vector3< real_t > upliftDomainCenter(boxPosition[0] + boxEdgeLength[0] / 2 + observationDomainSize[0] / 2,
@@ -200,15 +201,17 @@ class UpliftSubsidenceEvaluator
       // WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initialSubsidencePosition_)
 
       outFile_.open("upliftSubsidenceEvaluation.dat", std::ios::out);
-      outFile_ << "# HydraulicGradient Uplift Subsidence" << std::endl;
+      if (pressureDrivenFlow) { outFile_ << "# HydraulicGradient Uplift Subsidence" << std::endl; }
+      else { outFile_ << "# OutflowVelocity Uplift Subsidence" << std::endl; }
    }
 
    ~UpliftSubsidenceEvaluator() { outFile_.close(); };
 
-   void operator()(const real_t hydraulicGradient, const shared_ptr< ParticleAccessor_T >& accessor,
+   // Write either the hydraulic gradient or the outflow velocity into the file
+   void operator()(const real_t outflowQuantity, const shared_ptr< ParticleAccessor_T >& accessor,
                    const shared_ptr< mesa_pd::data::ParticleStorage >& ps)
    {
-      outFile_ << hydraulicGradient << " ";
+      outFile_ << outflowQuantity << " ";
 
       real_t upliftPosition     = real_t(0);
       real_t subsidencePosition = real_t(0);
