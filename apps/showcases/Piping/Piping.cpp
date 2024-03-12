@@ -205,7 +205,8 @@ int main(int argc, char** argv)
    bool useOpenMP             = false;
 
    Config::BlockHandle outputParameters   = cfgFile->getBlock("Output");
-   const uint_t vtkSpacing                = outputParameters.getParameter< uint_t >("vtkSpacing");
+   const uint_t vtkSpacingFluid           = outputParameters.getParameter< uint_t >("vtkSpacingFluid");
+   const uint_t vtkSpacingParticles       = outputParameters.getParameter< uint_t >("vtkSpacingParticles");
    const std::string vtkFolder            = outputParameters.getParameter< std::string >("vtkFolder");
    const bool fluidSlice                  = outputParameters.getParameter< bool >("fluidSlice");
    const uint_t performanceLogFrequency   = outputParameters.getParameter< uint_t >("performanceLogFrequency");
@@ -419,7 +420,7 @@ int main(int argc, char** argv)
    pystencils::PSM_MacroGetter getterSweep(BFieldID, densityFieldID, pdfFieldID, velFieldID, real_t(0.0), real_t(0.0),
                                            real_t(0.0));
    // VTK output
-   if (vtkSpacing != uint_t(0))
+   if (vtkSpacingParticles != uint_t(0))
    {
       // Bucket slice
       auto bucketVtkOutput = make_shared< mesa_pd::vtk::ParticleVtkOutput >(ps);
@@ -430,7 +431,7 @@ int main(int argc, char** argv)
          using namespace walberla::mesa_pd::data::particle_flags;
          return (pIt->getBaseShape()->getShapeType() == mesa_pd::data::Box::SHAPE_TYPE);
       });
-      auto bucketVtkWriter = vtk::createVTKOutput_PointData(bucketVtkOutput, "bucket", vtkSpacing, vtkFolder);
+      auto bucketVtkWriter = vtk::createVTKOutput_PointData(bucketVtkOutput, "bucket", vtkSpacingParticles, vtkFolder);
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(bucketVtkWriter), "VTK (bucket data)");
 
       // Spheres
@@ -447,11 +448,15 @@ int main(int argc, char** argv)
          return (pIt->getBaseShape()->getShapeType() == mesa_pd::data::Sphere::SHAPE_TYPE) &&
                 !isSet(pIt->getFlags(), GHOST);
       });
-      auto particleVtkWriter = vtk::createVTKOutput_PointData(particleVtkOutput, "particles", vtkSpacing, vtkFolder);
+      auto particleVtkWriter =
+         vtk::createVTKOutput_PointData(particleVtkOutput, "particles", vtkSpacingParticles, vtkFolder);
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(particleVtkWriter), "VTK (sphere data)");
+   }
 
+   if (vtkSpacingFluid != uint_t(0))
+   {
       // Fields
-      auto pdfFieldVTK = vtk::createVTKOutput_BlockData(blocks, "fluid", vtkSpacing, 0, false, vtkFolder);
+      auto pdfFieldVTK = vtk::createVTKOutput_BlockData(blocks, "fluid", vtkSpacingFluid, 0, false, vtkFolder);
 
       pdfFieldVTK->addBeforeFunction(communication);
 
@@ -481,7 +486,10 @@ int main(int argc, char** argv)
       timeloop.addFuncBeforeTimeStep(vtk::writeFiles(pdfFieldVTK), "VTK (fluid field data)");
    }
 
-   if (vtkSpacing != uint_t(0)) { vtk::writeDomainDecomposition(blocks, "domain_decomposition", vtkFolder); }
+   if ((vtkSpacingFluid != uint_t(0)) || (vtkSpacingParticles != uint_t(0)))
+   {
+      vtk::writeDomainDecomposition(blocks, "domain_decomposition", vtkFolder);
+   }
 
    // Add performance logging
    if (performanceLogFrequency > 0)

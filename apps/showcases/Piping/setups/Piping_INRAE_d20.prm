@@ -43,7 +43,8 @@ Particles
 
 Output
 {
-    vtkSpacing 10000;
+    vtkSpacingFluid 10000;
+    vtkSpacingParticles 10000;
     vtkFolder vtk_piping;
     fluidSlice true;
     resolutionSpacing 2;
