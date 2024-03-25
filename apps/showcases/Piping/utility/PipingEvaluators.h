@@ -200,9 +200,9 @@ class UpliftSubsidenceEvaluator
       // WALBERLA_LOG_DEVEL_VAR_ON_ROOT(subsidenceParticlesUIDs_.size())
       // WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initialSubsidencePosition_)
 
-      outFile_.open("upliftSubsidenceEvaluation.dat", std::ios::out);
-      if (pressureDrivenFlow) { outFile_ << "# HydraulicGradient Uplift Subsidence" << std::endl; }
-      else { outFile_ << "# OutflowVelocity Uplift Subsidence" << std::endl; }
+      outFile_.open("upliftSubsidenceEvaluation.csv", std::ios::out);
+      if (pressureDrivenFlow) { outFile_ << "HydraulicGradient,Uplift,Subsidence" << std::endl; }
+      else { outFile_ << "OutflowVelocity,Uplift,Subsidence" << std::endl; }
    }
 
    ~UpliftSubsidenceEvaluator() { outFile_.close(); };
@@ -211,7 +211,7 @@ class UpliftSubsidenceEvaluator
    void operator()(const real_t outflowQuantity, const shared_ptr< ParticleAccessor_T >& accessor,
                    const shared_ptr< mesa_pd::data::ParticleStorage >& ps)
    {
-      outFile_ << outflowQuantity << " ";
+      outFile_ << outflowQuantity << ",";
 
       real_t upliftPosition     = real_t(0);
       real_t subsidencePosition = real_t(0);
@@ -241,7 +241,7 @@ class UpliftSubsidenceEvaluator
       upliftPosition /= real_t(upliftParticlesUIDs_.size());
       subsidencePosition /= real_t(subsidenceParticlesUIDs_.size());
 
-      outFile_ << upliftPosition - initialUpliftPosition_ << " " << subsidencePosition - initialSubsidencePosition_
+      outFile_ << upliftPosition - initialUpliftPosition_ << "," << subsidencePosition - initialSubsidencePosition_
                << std::endl;
    }
 
