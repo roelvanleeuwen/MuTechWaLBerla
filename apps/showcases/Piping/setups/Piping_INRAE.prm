@@ -7,11 +7,11 @@ Domain
 
 Physics
 {
-    timeSteps 5000000;
+    timeSteps 3000000;
     pressureDrivenFlow false; // either the pressure or the outflow velocity can be controlled for the suction
     hydraulicGradient 0.757; // final hydraulic gradient (see Fukumoto et al., 2021), only used if pressureDrivenFlow is true
     outflowVelocity_SI 5.96e-3; // final outflow velocity, only used if pressureDrivenFlow is false
-    maxSuctionTimeStep 5000000; // time step in which the final suction is reached, 0 means instantly
+    maxSuctionTimeStep 0; // time step in which the final suction is reached, 0 means instantly
     densityFluid_SI 1179; // mixture of 65% glycerol and 35% distilled water
     kinematicViscosityFluid_SI 2.12e-5;
     dx_SI 3e-4;
