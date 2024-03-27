@@ -1,7 +1,7 @@
 waLBerla_link_files_to_builddir("*.dat")
 waLBerla_link_files_to_builddir("*.prm")
 
-foreach (collision_setup srt trt mrt cumulant smagorinsky)
+foreach (collision_setup srt trt mrt cumulant srt-smagorinsky)
     foreach (solid_collision 1 2 3)
         foreach (weighting 1 2)
                 set(config ${collision_setup}_sc${solid_collision}_w${weighting})

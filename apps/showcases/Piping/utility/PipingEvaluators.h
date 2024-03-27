@@ -69,13 +69,10 @@ real_t computeVoidRatio(const shared_ptr< StructuredBlockStorage >& blocks, cons
       WALBERLA_ASSERT_NOT_NULLPTR(BField)
       WALBERLA_ASSERT_NOT_NULLPTR(flagField)
 
-      const auto level = blocks->getLevel(*blockIt);
-      const auto dx    = blocks->dx(level);
-
       auto fluidFlag = flagField->getOrRegisterFlag(fluidFlagID);
       WALBERLA_FOR_ALL_CELLS_XYZ(
          BField, Cell globalCell(x, y, z); blocks->transformBlockLocalToGlobalCell(globalCell, *blockIt);
-         const Vector3< real_t > globalCellCoords = blocks->getCellCenter(globalCell, dx);
+         const Vector3< real_t > globalCellCoords = blocks->getCellCenter(globalCell);
          // Only consider cells inside the soil (< maxParticleHeight) and outside the bucket (= fluidFlag)
          // TODO: estimated void ratio is too small if movingBucket is true because the bucket is also counted
          if (globalCellCoords[2] < maxParticleHeight && flagField->get(x, y, z) == fluidFlag) {

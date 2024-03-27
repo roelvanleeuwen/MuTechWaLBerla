@@ -12,7 +12,7 @@ if (CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60)
             PSMWrapperSweepsGPU.h
     )
     if (WALBERLA_BUILD_WITH_CODEGEN)
-        foreach (collision_setup srt trt mrt cumulant smagorinsky)
+        foreach (collision_setup srt trt mrt cumulant srt-smagorinsky trt-smagorinsky)
             foreach (solid_collision 1 2 3)
                 set(config ${collision_setup}_sc${solid_collision})
                 walberla_generate_target_from_python(NAME PSMCodegenPython_${config}
