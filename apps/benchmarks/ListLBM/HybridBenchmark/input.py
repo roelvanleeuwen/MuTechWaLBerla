@@ -119,7 +119,7 @@ def Artery():
     scenarios = wlb.ScenarioManager()
     #mesh_file = "Artery.obj"
     mesh_file = "coronary_colored_medium.obj"
-    scenario = Scenario(dx=0.0257, cells_per_block=(128, 128, 128), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=20, omega=1.7,  porosity_switch=1.0, run_hybrid=False, time_step_strategy="Overlap", run_boundaries=True, balance_load=True)
+    scenario = Scenario(dx=0.257, cells_per_block=(32, 32, 32), vtk_write_frequency=0, geometry_setup="artery", mesh_file=mesh_file, timesteps=20, omega=1.7,  porosity_switch=1.0, run_hybrid=False, time_step_strategy="Overlap", run_boundaries=True, balance_load=True)
     scenarios.add(scenario)
 
 def ArterySparseVsDense():

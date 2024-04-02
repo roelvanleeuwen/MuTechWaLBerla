@@ -220,6 +220,9 @@ void gatherAndPrintPorosityStats(weak_ptr<StructuredBlockForest> forest, BlockDa
    std::vector<real_t> processPorositiesVec;
    processPorositiesVec = mpi::gather( averageProcessPorosity);
    WALBERLA_ROOT_SECTION() {
+      for (auto p : processPorositiesVec) {
+         WALBERLA_LOG_INFO(p)
+      }
       real_t sum = std::accumulate(processPorositiesVec.begin(), processPorositiesVec.end(), 0.0);
       real_t mean = real_c(sum) / real_c(processPorositiesVec.size());
 
@@ -398,14 +401,12 @@ int main(int argc, char **argv)
          bfc.setWorkloadMemorySUIDAssignmentFunction( meshWorkloadMemory );
 
          auto setupForest = bfc.createSetupBlockForest( cellsPerBlock );
+         WALBERLA_LOG_INFO_ON_ROOT("Number of blocks is <" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << ">, without excluded blocks its " << setupForest->getNumberOfBlocks())
+         WALBERLA_LOG_INFO_ON_ROOT("Number of cells per Block is " << cellsPerBlock)
          if(writeDomainDecompositionAndReturn) {
-            WALBERLA_LOG_INFO_ON_ROOT("Number of blocks is <" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << ">, without excluded blocks its " << setupForest->getNumberOfBlocks())
-            WALBERLA_LOG_INFO_ON_ROOT("Number of cells per Block is " << cellsPerBlock)
             WALBERLA_ROOT_SECTION() { setupForest->writeVTKOutput("SetupBlockForest"); }
             return EXIT_SUCCESS;
          }
-
-
          blocks = bfc.createStructuredBlockForest(cellsPerBlock);
 
          flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
