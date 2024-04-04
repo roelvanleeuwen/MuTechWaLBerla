@@ -37,8 +37,8 @@ with CodeGeneration() as ctx:
         stencil=stencil,
         relaxation_rate=omega,
         streaming_pattern='pull',
-        force_model=ForceModel.LUO,
-        force=(0.0001, 0, 0)
+        #force_model=ForceModel.LUO,
+        #force=(0.0001, 0, 0)
     )
 
 

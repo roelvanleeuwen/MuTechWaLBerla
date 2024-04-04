@@ -177,7 +177,10 @@ void gatherAndPrintWorkloadStats(weak_ptr<StructuredBlockForest> forest, BlockDa
       if (blockWorkload > maxWorkload) maxWorkload = blockWorkload;
       totalWorkloadOnProcess += blockWorkload;
    }
-   averageWorkloadPerProcess = uint_c(real_c(totalWorkloadOnProcess) / real_c(blocks->getNumberOfBlocks()));
+   if (totalWorkloadOnProcess <= 0 || blocks->size() == 0)
+      totalWorkloadOnProcess = 0;
+   else
+      averageWorkloadPerProcess = uint_c(real_c(totalWorkloadOnProcess) / real_c(blocks->size()));
    WALBERLA_MPI_SECTION() {
       walberla::mpi::reduceInplace(minWorkload, walberla::mpi::MIN);
       walberla::mpi::reduceInplace(maxWorkload, walberla::mpi::MAX);
@@ -212,7 +215,9 @@ void gatherAndPrintPorosityStats(weak_ptr<StructuredBlockForest> forest, BlockDa
       if (blockPorosity > maxPorosity) maxPorosity = blockPorosity;
       averageProcessPorosity += blockPorosity;
    }
-   averageProcessPorosity /= real_c(blocks->size());
+   if (blocks->size() > 0)
+      averageProcessPorosity = averageProcessPorosity/ real_c(blocks->size()) ;
+
    WALBERLA_MPI_SECTION() {
       walberla::mpi::reduceInplace(minPorosity, walberla::mpi::MIN);
       walberla::mpi::reduceInplace(maxPorosity, walberla::mpi::MAX);
@@ -220,9 +225,6 @@ void gatherAndPrintPorosityStats(weak_ptr<StructuredBlockForest> forest, BlockDa
    std::vector<real_t> processPorositiesVec;
    processPorositiesVec = mpi::gather( averageProcessPorosity);
    WALBERLA_ROOT_SECTION() {
-      for (auto p : processPorositiesVec) {
-         WALBERLA_LOG_INFO(p)
-      }
       real_t sum = std::accumulate(processPorositiesVec.begin(), processPorositiesVec.end(), 0.0);
       real_t mean = real_c(sum) / real_c(processPorositiesVec.size());
 
@@ -534,7 +536,7 @@ int main(int argc, char **argv)
          blockforest.allowMultipleRefreshCycles( true ); // otherwise info collections are invalid
          blockforest.setRefreshPhantomBlockDataPackFunction( blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor() );
          blockforest.setRefreshPhantomBlockDataUnpackFunction( blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor() );
-         blockforest.setRefreshPhantomBlockMigrationPreparationFunction( blockforest::DynamicCurveBalance<blockforest::WeightAssignmentFunctor::PhantomBlockWeight >( false, true, true ) );
+         blockforest.setRefreshPhantomBlockMigrationPreparationFunction( blockforest::DynamicCurveBalance<blockforest::WeightAssignmentFunctor::PhantomBlockWeight >( true, true, true ) );
 
          shared_ptr<blockforest::InfoCollection> weightsInfoCollection = make_shared<blockforest::InfoCollection>();
          getBlocksWeights(blocks, *weightsInfoCollection, flagFieldId, fluidFlagUID, sweepSelectLowPorosity, sweepSelectHighPorosity);
