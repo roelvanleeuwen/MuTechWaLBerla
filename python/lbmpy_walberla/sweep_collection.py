@@ -198,7 +198,8 @@ def get_setter_family(class_name, lb_method, pdfs, streaming_pattern, macroscopi
         timestep = Timestep.BOTH
         setter = macroscopic_values_setter(lb_method,
                                            density=density, velocity=velocity, pdfs=pdfs,
-                                           streaming_pattern=streaming_pattern, previous_timestep=timestep)
+                                           streaming_pattern=streaming_pattern, previous_timestep=timestep,
+                                           set_pre_collision_pdfs=True)
 
         setter_ast = create_kernel(setter, config=config)
         setter_ast.function_name = 'kernel_initialise'

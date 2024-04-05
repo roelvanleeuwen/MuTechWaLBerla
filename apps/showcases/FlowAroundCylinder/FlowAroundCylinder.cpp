@@ -762,10 +762,6 @@ int main(int argc, char** argv)
          auto avgPressureWriter = make_shared< field::VTKWriter< ScalarField_T, float32 > >(ids.avgPressureField, "avgPressure");
          vtkOutput->addCellDataWriter(avgPressureWriter);
       }
-      {
-         auto densityWriter = make_shared< field::VTKWriter< ScalarField_T, float32 > >(ids.densityField, "density");
-         vtkOutput->addCellDataWriter(densityWriter);
-      }
 
 
       if (writeFlag)

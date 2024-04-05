@@ -1,0 +1,177 @@
+/Users/holzer/walberla/cmake-build-release/apps/showcases/Channel/Channel Channel.prm
+[0][INFO    ]------(0.000 sec) Creating the block structure ...
+[0][INFO    ]------(0.000 sec) SetupBlockForest created successfully:
+[0]                            - AABB: [ <0,0,0>, <8,8,4> ]
+[0]                            - initial decomposition: 2 x 2 x 1 (= forest size)
+[0]                            - periodicity: true x false x true
+[0]                            - number of blocks discarded from the initial grid: 0 (= 0 %)
+[0]                            - number of levels: 2
+[0]                            - tree ID digits: 3 (-> block ID bytes = 1)
+[0]                            - total number of blocks: 18
+[0]                            - number of processes: 1 (1 worker process(es) / 0 empty buffer process(es))
+[0]                            - buffer processes are inserted into the process network: no
+[0]                            - process ID bytes: 0
+[0]                            - blocks/memory/workload per process:
+[0]                               + blocks:
+[0]                                  - min       = 18
+[0]                                  - max       = 18
+[0]                                  - avg       = 18
+[0]                                  - stdDev    = 0
+[0]                                  - relStdDev = 0
+[0]                               + memory:
+[0]                                  - min       = 4.35917e+06
+[0]                                  - max       = 4.35917e+06
+[0]                                  - avg       = 4.35917e+06
+[0]                                  - stdDev    = 0
+[0]                                  - relStdDev = 0
+[0]                               + workload:
+[0]                                  - min       = 34
+[0]                                  - max       = 34
+[0]                                  - avg       = 34
+[0]                                  - stdDev    = 0
+[0]                                  - relStdDev = 0
+[0]                            - distribution of space/memory/work to different grid levels:
+[0]                               + level 0:
+[0]                                  - 2 blocks ...
+[0]                                  - ... cover 50 % of the total simulation space
+[0]                                  - ... account for 11.1111 % of the total memory foot print
+[0]                                  - ... generate 5.88235 % of the total work load
+[0]                                  - blocks per process:
+[0]                                     + min       = 2
+[0]                                     + max       = 2
+[0]                                     + avg       = 2
+[0]                                     + stdDev    = 0
+[0]                                     + relStdDev = 0
+[0]                                  - memory per process:
+[0]                                     + min       = 484352
+[0]                                     + max       = 484352
+[0]                                     + avg       = 484352
+[0]                                     + stdDev    = 0
+[0]                                     + relStdDev = 0
+[0]                                  - workload per process:
+[0]                                     + min       = 2
+[0]                                     + max       = 2
+[0]                                     + avg       = 2
+[0]                                     + stdDev    = 0
+[0]                                     + relStdDev = 0
+[0]                               + level 1:
+[0]                                  - 16 blocks ...
+[0]                                  - ... cover 50 % of the total simulation space
+[0]                                  - ... account for 88.8889 % of the total memory foot print
+[0]                                  - ... generate 94.1176 % of the total work load
+[0]                                  - blocks per process:
+[0]                                     + min       = 16
+[0]                                     + max       = 16
+[0]                                     + avg       = 16
+[0]                                     + stdDev    = 0
+[0]                                     + relStdDev = 0
+[0]                                  - memory per process:
+[0]                                     + min       = 3.87482e+06
+[0]                                     + max       = 3.87482e+06
+[0]                                     + avg       = 3.87482e+06
+[0]                                     + stdDev    = 0
+[0]                                     + relStdDev = 0
+[0]                                  - workload per process:
+[0]                                     + min       = 32
+[0]                                     + max       = 32
+[0]                                     + avg       = 32
+[0]                                     + stdDev    = 0
+[0]                                     + relStdDev = 0
+[0]                            - using a uniform decomposition with a resolution equal to the finest level, one would ...
+[0]                               + ... need 1.77778 times the memory
+[0]                               + ... generate 1.88235 times the workload
+[0][INFO    ]------(0.003 sec) Setting up communication...
+[0][INFO    ]------(0.008 sec) Blocks created: 18
+[0][INFO    ]------(0.008 sec) Level 0 Blocks: 2
+[0][INFO    ]------(0.008 sec) Level 1 Blocks: 16
+[0][INFO    ]------(0.008 sec) Starting Simulation
+[0][INFO    ]------(0.013 sec)[   0] Evaluation of accuracy:
+[0]                                   - L1:   0.00479167
+[0]                                   - L2:   0.005469
+[0]                                   - Lmax: 0.0090625
+[0][INFO    ]------(0.435 sec)[ 100] Evaluation of accuracy:
+[0]                                   - L1:   0.00134704
+[0]                                   - L2:   0.00149049
+[0]                                   - Lmax: 0.002099
+[0][INFO    ]------(0.851 sec)[ 200] Evaluation of accuracy:
+[0]                                   - L1:   0.000448633
+[0]                                   - L2:   0.000496303
+[0]                                   - Lmax: 0.000696362
+[0][INFO    ]------(1.262 sec)[ 300] Evaluation of accuracy:
+[0]                                   - L1:   0.000149393
+[0]                                   - L2:   0.000165266
+[0]                                   - Lmax: 0.00023185
+[0][INFO    ]------(1.673 sec)[ 400] Evaluation of accuracy:
+[0]                                   - L1:   4.97466e-05
+[0]                                   - L2:   5.50323e-05
+[0]                                   - Lmax: 7.7204e-05
+[0][INFO    ]------(2.085 sec)[ 500] Evaluation of accuracy:
+[0]                                   - L1:   1.65652e-05
+[0]                                   - L2:   1.83253e-05
+[0]                                   - Lmax: 2.57083e-05
+[0][INFO    ]------(2.507 sec)[ 600] Evaluation of accuracy:
+[0]                                   - L1:   5.5161e-06
+[0]                                   - L2:   6.1022e-06
+[0]                                   - Lmax: 8.56068e-06
+[0][INFO    ]------(2.919 sec)[ 700] Evaluation of accuracy:
+[0]                                   - L1:   1.83682e-06
+[0]                                   - L2:   2.03199e-06
+[0]                                   - Lmax: 2.85064e-06
+[0][INFO    ]------(3.330 sec)[ 800] Evaluation of accuracy:
+[0]                                   - L1:   6.11647e-07
+[0]                                   - L2:   6.76636e-07
+[0]                                   - Lmax: 9.49242e-07
+[0][INFO    ]------(3.741 sec)[ 900] Evaluation of accuracy:
+[0]                                   - L1:   2.03674e-07
+[0]                                   - L2:   2.25315e-07
+[0]                                   - Lmax: 3.1609e-07
+[0][INFO    ]------(4.153 sec)[1000] Evaluation of accuracy:
+[0]                                   - L1:   6.78218e-08
+[0]                                   - L2:   7.5028e-08
+[0]                                   - Lmax: 1.05256e-07
+[0][INFO    ]------(4.162 sec) Simulation finished
+[0][RESULT  ]------(4.162 sec) Simulation performance:
+[0]                            - processes:   1
+[0]                            - threads:     1 (threads per process = 1, threads per core = n/a *))
+[0]                            - cores:       n/a *)
+[0]                            - time steps:  1001 (on the coarsest grid, 2002 on the finest grid)
+[0]                            - time:        4.1544 sec
+[0]                            - cells:       1152 (2048 if everything were fine -> data reduction by factor of 1.77778)
+[0]                            - fluid cells: 1152 (100 % of all cells)
+[0]                            - distribution of cells to different grid levels:
+[0]                               + level 0: 128 cells (128 fluid cells = 100 % of all cells on this level)
+[0]                               + level 1: 1024 cells (1024 fluid cells = 100 % of all cells on this level)
+[0]                            - performance: 0.524305 MLUPS (million lattice cell updates per second)
+[0]                                           0.524305 MLUPS / process
+[0]                                           n/a *) MLUPS / core
+[0]                                           0.524305 MFLUPS (million fluid lattice cell updates per second)
+[0]                                           0.524305 MFLUPS / process
+[0]                                           n/a *) MFLUPS / core
+[0]                                           240.949 time steps / second
+[0]                            - 'virtual' performance (if everything were fine): 0.986928 MLUPS (million lattice cell updates per second)
+[0]                                                                               0.986928 MLUPS / process
+[0]                                                                               n/a *) MLUPS / core
+[0]                                                                               0.986928 MFLUPS (million fluid lattice cell updates per second)
+[0]                                                                               0.986928 MFLUPS / process
+[0]                                                                               n/a *) MFLUPS / core
+[0]                                                                               481.898 fine time steps / second
+[0]                            - build / run information:
+[0]                               + host machine:   gazleu.cerfacs.fr
+[0]                               + build machine:  gazleu.cerfacs.fr
+[0]                               + git SHA1:       d5dba67210e6cc8141af6ce4b87c70822dca19e9
+[0]                               + build type:     Release
+[0]                               + compiler flags: -O3 -DNDEBUG  -Wall -Wconversion -Wshadow -Wno-c++11-extensions -Qunused-arguments -ffast-math -pthread
+[0]
+[0]                              *) only available if environment variable 'THREADS_PER_CORE' is set
+[0][RESULT  ]------(4.162 sec) Time loop timing:
+[0]                            Timer                   |       % |          Total|        Average|          Count|            Min|            Max|       Variance|
+[0]                            -----------------------------------------------------------------------------------------------------------------------------------
+[0]                            Refinement Cycle        |  99.24% |           4.12|          0.004|           1001|          0.004|          0.005|          0.000|
+[0]                            VTK Output              |   0.55% |           0.02|          0.000|           1001|          0.000|          0.009|          0.000|
+[0]                            evaluation              |   0.20% |           0.01|          0.000|           1001|          0.000|          0.001|          0.000|
+[0]                            remaining time logger   |   0.00% |           0.00|          0.000|           1001|          0.000|          0.000|          0.000|
+[0]
+[0][WARNING ]------(4.162 sec) Getting memory statistics is currently not supported on non-Linux systems!
+[0][INFO    ]------(4.162 sec) resident memory: Sample has 1 values in [0.000000, 0.000000], sum = 0.000000, mean = 0.000000, med = 0.000000, stddev = 0.000000 (relative: nan), mad = 0.000000
+
+Process finished with exit code 0
