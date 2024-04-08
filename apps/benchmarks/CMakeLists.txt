@@ -30,6 +30,7 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
       add_subdirectory( PhaseFieldAllenCahn )
       add_subdirectory( NonUniformGridCPU )
       add_subdirectory( PSM_Moving_Geometry )
+      add_subdirectory( PSM_Benchmark_Test )
    endif()
 
    if ( WALBERLA_BUILD_WITH_CODEGEN AND WALBERLA_BUILD_WITH_GPU_SUPPORT )
