@@ -3,7 +3,7 @@ target_sources(lbm_mesapd_coupling
         ParticleAndVolumeFractionMappingGPU.h
         PSMSweepCollectionGPU.h
 )
-if (CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60)
+if (CMAKE_CUDA_ARCHITECTURES GREATER_EQUAL 60 OR WALBERLA_BUILD_WITH_HIP)
     target_sources(lbm_mesapd_coupling
             PRIVATE
             PSMWrapperKernels.${CODEGEN_FILE_SUFFIX}
