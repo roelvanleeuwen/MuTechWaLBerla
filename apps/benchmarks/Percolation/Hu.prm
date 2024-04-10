@@ -1,10 +1,10 @@
 // This parameter file reproduces the simulation conditions of Hu et al. (https://doi.org/10.1016/j.compgeo.2023.105722)
 // dx = 2.5e-5 m
 // dt = 2e-6 s
-// viscosity (kinematic) = 1e-6 m^2/s
+// viscosity (kinematic) = 1.004e-6 m^2/s
 // u_inflow = 0.001 m/s
 //
-// relaxation_time = 0.5096
+// relaxation_time = 0.509638
 // conversion velocity: U_SI = U_LBM * 12.5
 
 NumericalSetup
@@ -37,7 +37,7 @@ NumericalSetup
 
     // fluid quantities in LBM units
     uInflow 0.00008;
-    relaxationRate 1.96232339089;
+    relaxationRate 1.96217707471;
 }
 
 Output
