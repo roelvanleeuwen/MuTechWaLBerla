@@ -37,9 +37,7 @@ namespace psm
 namespace gpu
 {
 
-// Maximum number of particles that may overlap with a cell. For fully resolved particles, 2 should normally be
-// sufficient (for a sufficiently high stiffness in the DEM).
-const uint MaxParticlesPerCell = 2;
+const uint MaxParticlesPerCell = MAX_PARTICLES_PER_CELL; // MAX_PARTICLES_PER_CELL comes from CMake
 
 // nOverlappingParticlesField is used to store the amount of overlapping particles per cell
 // B denotes the local weighting factor and is calculated by taking the sum of all local particle

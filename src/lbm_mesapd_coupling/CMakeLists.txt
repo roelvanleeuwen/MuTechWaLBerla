@@ -12,10 +12,15 @@ target_sources( lbm_mesapd_coupling
       DataTypes.h
       )
 if( WALBERLA_BUILD_WITH_GPU_SUPPORT )
+    # Maximum number of particles that may overlap with a cell. For fully resolved particles, 2 should normally be
+    # sufficient (for a sufficiently high stiffness in the DEM).
+    set(MAX_PARTICLES_PER_CELL 2)
+    add_custom_target(MAX_PARTICLES_PER_CELL) # Make it a target such that the code generation runs again if changed
     target_sources( lbm_mesapd_coupling
             PRIVATE
             DataTypesGPU.h
             )
+    target_compile_definitions(lbm_mesapd_coupling PUBLIC MAX_PARTICLES_PER_CELL=${MAX_PARTICLES_PER_CELL})
 endif()
 
 add_subdirectory( amr )

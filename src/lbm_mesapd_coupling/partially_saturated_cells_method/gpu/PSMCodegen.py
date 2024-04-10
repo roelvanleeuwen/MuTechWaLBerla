@@ -46,8 +46,8 @@ with CodeGeneration() as ctx:
     init_velocity = sp.symbols("init_velocity_:3")
     pdfs_inter = sp.symbols("pdfs_inter:" + str(stencil.Q))
     layout = "fzyx"
-    MaxParticlesPerCell = 2
     config_tokens = ctx.config.split("_")
+    MaxParticlesPerCell = int(config_tokens[2])
     methods = {
         "srt": Method.SRT,
         "trt": Method.TRT,
