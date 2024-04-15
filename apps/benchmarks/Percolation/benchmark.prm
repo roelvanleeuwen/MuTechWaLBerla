@@ -9,23 +9,23 @@ NumericalSetup
     periodicInY false;
     periodicInZ false;
 
-    numXCellsPerBlock 200;
-    numYCellsPerBlock 100;
-    numZCellsPerBlock 100;
+    numXCellsPerBlock 300;
+    numYCellsPerBlock 150;
+    numZCellsPerBlock 150;
 
-    timeSteps 10000;
+    timeSteps 100;
 
     sendDirectlyFromGPU false; // use GPU-GPU communication
     useCommunicationHiding false;
 
     // particle distribution in LBM units
     useParticles true; // if true, PSM/particle mapping/velocity computation/hydrodynamic force reduction is used, else LBM is used
-    particleDiameter 10.0;
-    particleGenerationSpacing 11.0;
-    generationDomainFraction <0.5, 1.0, 1.0>; // fraction of the domain where particles are generated
+    particleDiameter 20.0;
+    particleGenerationSpacing 21.0;
+    generationDomainFraction <0.8, 1.0, 1.0>; // fraction of the domain where particles are generated
     generationPointOfReferenceOffset <0, 0, 0>; // offset of point of reference from domain center, see SCIterator.h
     useParticleOffset true; // offset every second particle layer in flow direction
-    particleNumSubBlocks <25, 25, 25>;
+    particleNumSubBlocks <30, 15, 15>;
 
     // fluid quantities in LBM units
     uInflow 0.00008;
@@ -34,8 +34,8 @@ NumericalSetup
 
 Output
 {
-    vtkSpacing 500;
+    vtkSpacing 0;
     vtkFolder vtk_out;
 
-    performanceLogFrequency 500;
+    performanceLogFrequency 100;
 }
