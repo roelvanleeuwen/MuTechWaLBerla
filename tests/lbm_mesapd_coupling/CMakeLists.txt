@@ -83,7 +83,7 @@ if (WALBERLA_BUILD_WITH_GPU_SUPPORT AND WALBERLA_BUILD_WITH_CODEGEN AND (CMAKE_C
     waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU FILES partially_saturated_cells_method/gpu/DragForceSpherePSMGPU.cpp DEPENDS blockforest core gpu field lbm lbm_mesapd_coupling mesa_pd timeloop PSMCodegenPython_srt_sc1)
     waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_DragForceSphereGPU> PROCESSES 1)
 
-    foreach (collision_setup srt trt)
+    foreach (collision_setup srt trt-smagorinsky)
         foreach (solid_collision 1 2 3)
             foreach (weighting 1 2)
                 set(config ${collision_setup}_sc${solid_collision}_w${weighting})
@@ -96,8 +96,8 @@ if (WALBERLA_BUILD_WITH_GPU_SUPPORT AND WALBERLA_BUILD_WITH_CODEGEN AND (CMAKE_C
     endforeach ()
 
     waLBerla_compile_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU FILES partially_saturated_cells_method/gpu/SettlingSpherePSMGPU.cpp DEPENDS blockforest core gpu field lbm lbm_mesapd_coupling mesa_pd timeloop vtk PSMCodegenPython_srt_sc1)
-    waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> --funcTest PROCESSES 4)
-    waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> PROCESSES 4 LABELS longrun CONFIGURATIONS Release RelWithDbgInfo)
+    waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPUFuncTest COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> --funcTest PROCESSES 1)
+    waLBerla_execute_test(NAME LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU COMMAND $<TARGET_FILE:LBM_MESAPD_COUPLING_PSM_SettlingSphereGPU> PROCESSES 1 LABELS longrun CONFIGURATIONS Release RelWithDbgInfo)
 endif ()
 
 add_subdirectory(partially_saturated_cells_method)
