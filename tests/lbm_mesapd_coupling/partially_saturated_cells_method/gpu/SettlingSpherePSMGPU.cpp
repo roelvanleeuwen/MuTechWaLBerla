@@ -188,10 +188,10 @@ class SpherePropertyLogger
          auto velocity_SI        = velocity * dx_SI_ / dt_SI_;
          auto normalizedHydForce = hydForce / gravitationalForceMag_;
 
-         file << timestep << "\t" << real_c(timestep) * dt_SI_ << "\t"
-              << "\t" << scaledPosition[0] << "\t" << scaledPosition[1] << "\t" << scaledPosition[2] - real_t(0.5)
-              << "\t" << velocity_SI[0] << "\t" << velocity_SI[1] << "\t" << velocity_SI[2] << "\t"
-              << normalizedHydForce[0] << "\t" << normalizedHydForce[1] << "\t" << normalizedHydForce[2] << "\n";
+         file << timestep << "\t" << real_c(timestep) * dt_SI_ << "\t" << "\t" << scaledPosition[0] << "\t"
+              << scaledPosition[1] << "\t" << scaledPosition[2] - real_t(0.5) << "\t" << velocity_SI[0] << "\t"
+              << velocity_SI[1] << "\t" << velocity_SI[2] << "\t" << normalizedHydForce[0] << "\t"
+              << normalizedHydForce[1] << "\t" << normalizedHydForce[2] << "\n";
          file.close();
       }
    }
@@ -613,7 +613,7 @@ int main(int argc, char** argv)
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(
       blocks, lbm::collision_model::omegaFromViscosity(viscosity));
    // map particles and calculate solid volume fraction initially
-   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, Vector3(1));
+   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, sphereSelector, particleAndVolumeFractionSoA, Vector3(27));
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));

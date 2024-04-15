@@ -189,10 +189,11 @@ int main(int argc, char** argv)
    const real_t particleFrictionCoefficient    = particlesParameters.getParameter< real_t >("frictionCoefficient");
    const real_t particleRestitutionCoefficient = particlesParameters.getParameter< real_t >("restitutionCoefficient");
    const uint_t particleNumSubCycles           = particlesParameters.getParameter< uint_t >("numSubCycles");
-   const Vector3< uint_t > numSubBlocks        = particlesParameters.getParameter< Vector3< uint_t > >("numSubBlocks");
-   const bool useLubricationCorrection         = particlesParameters.getParameter< bool >("useLubricationCorrection");
-   const real_t poissonsRatio                  = particlesParameters.getParameter< real_t >("poissonsRatio");
-   const real_t particleDensityRatio           = densityParticle_SI / densityFluid_SI;
+   const Vector3< uint_t > particleSubBlockSize =
+      particlesParameters.getParameter< Vector3< uint_t > >("particleSubBlockSize");
+   const bool useLubricationCorrection = particlesParameters.getParameter< bool >("useLubricationCorrection");
+   const real_t poissonsRatio          = particlesParameters.getParameter< real_t >("poissonsRatio");
+   const real_t particleDensityRatio   = densityParticle_SI / densityFluid_SI;
    WALBERLA_LOG_DEVEL_VAR_ON_ROOT(particleDensityRatio)
    const Vector3< real_t > observationDomainFraction =
       particlesParameters.getParameter< Vector3< real_t > >("observationDomainFraction");
@@ -382,7 +383,8 @@ int main(int argc, char** argv)
    // Map particles into the fluid domain
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, omega);
    auto psmSelector = PSMSelector(movingBucket);
-   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, psmSelector, particleAndVolumeFractionSoA, numSubBlocks);
+   PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, psmSelector, particleAndVolumeFractionSoA,
+                                            particleSubBlockSize);
    BoxFractionMappingGPU boxFractionMapping(blocks, accessor, boxUid, boxEdgeLength, particleAndVolumeFractionSoA,
                                             psmSelector);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)

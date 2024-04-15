@@ -257,7 +257,7 @@ int main(int argc, char** argv)
 
    // calculate fraction
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
-                                            particleAndVolumeFractionSoA, Vector3(4));
+                                            particleAndVolumeFractionSoA, Vector3(16));
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));

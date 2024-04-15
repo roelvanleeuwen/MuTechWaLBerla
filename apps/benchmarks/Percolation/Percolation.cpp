@@ -144,8 +144,8 @@ int main(int argc, char** argv)
    const Vector3< uint_t > generationPointOfReferenceOffset =
       numericalSetup.getParameter< Vector3< uint_t > >("generationPointOfReferenceOffset");
    const bool useParticleOffset = numericalSetup.getParameter< bool >("useParticleOffset");
-   const Vector3< uint_t > particleNumSubBlocks =
-      numericalSetup.getParameter< Vector3< uint_t > >("particleNumSubBlocks");
+   const Vector3< uint_t > particleSubBlockSize =
+      numericalSetup.getParameter< Vector3< uint_t > >("particleSubBlockSize");
    const real_t uInflow        = numericalSetup.getParameter< real_t >("uInflow");
    const real_t relaxationRate = numericalSetup.getParameter< real_t >("relaxationRate");
    if ((periodicInY && numYBlocks == 1) || (periodicInZ && numZBlocks == 1))
@@ -289,7 +289,7 @@ int main(int argc, char** argv)
    // Map particles into the fluid domain
    ParticleAndVolumeFractionSoA_T< Weighting > particleAndVolumeFractionSoA(blocks, relaxationRate);
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
-                                            particleAndVolumeFractionSoA, particleNumSubBlocks);
+                                            particleAndVolumeFractionSoA, particleSubBlockSize);
    if (useParticles)
    {
       for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)

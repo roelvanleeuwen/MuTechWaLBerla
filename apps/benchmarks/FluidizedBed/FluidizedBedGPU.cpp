@@ -328,8 +328,8 @@ int main(int argc, char** argv)
    }
    const bool useLubricationForces        = numericalSetup.getParameter< bool >("useLubricationForces");
    const uint_t numberOfParticleSubCycles = numericalSetup.getParameter< uint_t >("numberOfParticleSubCycles");
-   const Vector3< uint_t > numberOfParticleSubBlocksPerDim =
-      numericalSetup.getParameter< Vector3< uint_t > >("numberOfParticleSubBlocksPerDim");
+   const Vector3< uint_t > particleSubBlockSize =
+      numericalSetup.getParameter< Vector3< uint_t > >("particleSubBlockSize");
    const real_t linkedCellWidthRation = numericalSetup.getParameter< real_t >("linkedCellWidthRation");
    const bool particleBarriers        = numericalSetup.getParameter< bool >("particleBarriers");
 
@@ -564,7 +564,7 @@ int main(int argc, char** argv)
    // instead, the respective boundary conditions for the fluid are explicitly set, see the boundary handling
    ParticleAndVolumeFractionSoA_T< 1 > particleAndVolumeFractionSoA(blocks, omega);
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
-                                            particleAndVolumeFractionSoA, numberOfParticleSubBlocksPerDim);
+                                            particleAndVolumeFractionSoA, particleSubBlockSize);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));

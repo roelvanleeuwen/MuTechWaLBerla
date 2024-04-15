@@ -40,9 +40,9 @@ class PSMSweepCollectionGPU
    PSMSweepCollectionGPU(const shared_ptr< StructuredBlockStorage >& bs, const shared_ptr< ParticleAccessor_T >& ac,
                          const ParticleSelector_T& ps,
                          ParticleAndVolumeFractionSoA_T< Weighting_T >& particleAndVolumeFractionSoA,
-                         const Vector3< uint_t > numberOfParticleSubBlocksPerDim)
+                         const Vector3< uint_t > particleSubBlockSize = Vector3< uint_t >(10))
       : particleMappingSweep(SphereFractionMappingGPU< ParticleAccessor_T, ParticleSelector_T, Weighting_T >(
-           bs, ac, ps, particleAndVolumeFractionSoA, numberOfParticleSubBlocksPerDim)),
+           bs, ac, ps, particleAndVolumeFractionSoA, particleSubBlockSize)),
         setParticleVelocitiesSweep(SetParticleVelocitiesSweep< ParticleAccessor_T, ParticleSelector_T, Weighting_T >(
            bs, ac, ps, particleAndVolumeFractionSoA)),
         reduceParticleForcesSweep(ReduceParticleForcesSweep< ParticleAccessor_T, ParticleSelector_T, Weighting_T >(

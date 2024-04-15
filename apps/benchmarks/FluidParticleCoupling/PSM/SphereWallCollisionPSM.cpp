@@ -282,9 +282,9 @@ class SpherePropertyLogger
          for (uint_t i = uint_t(0); i < gapLogging_.size(); ++i)
          {
             int timestep = int(i) - int(tImpact);
-            file << timestep << "\t" << real_c(timestep) / tref << "\t"
-                 << "\t" << gapLogging_[i] << "\t" << gapLogging_[i] / diameter_ << "\t" << velocityLogging_[i] << "\t"
-                 << velocityLogging_[i] / uIn_ << "\n";
+            file << timestep << "\t" << real_c(timestep) / tref << "\t" << "\t" << gapLogging_[i] << "\t"
+                 << gapLogging_[i] / diameter_ << "\t" << velocityLogging_[i] << "\t" << velocityLogging_[i] / uIn_
+                 << "\n";
          }
 
          file.close();
@@ -301,8 +301,8 @@ class SpherePropertyLogger
 
          real_t tref = diameter_ / uIn_;
 
-         file << timestep << "\t" << timestep / tref << "\t"
-              << "\t" << gap << "\t" << gap / diameter_ << "\t" << velocity << "\t" << velocity / uIn_ << "\n";
+         file << timestep << "\t" << timestep / tref << "\t" << "\t" << gap << "\t" << gap / diameter_ << "\t"
+              << velocity << "\t" << velocity / uIn_ << "\n";
          file.close();
       }
    }
@@ -939,7 +939,7 @@ int main(int argc, char** argv)
       blocks, lbm::collision_model::omegaFromViscosity(viscosity));
    // map particles and calculate solid volume fraction initially
    PSMSweepCollectionGPU psmSweepCollection(blocks, accessor, lbm_mesapd_coupling::RegularParticlesSelector(),
-                                            particleAndVolumeFractionSoA, Vector3(1));
+                                            particleAndVolumeFractionSoA);
    for (auto blockIt = blocks->begin(); blockIt != blocks->end(); ++blockIt)
    {
       psmSweepCollection.particleMappingSweep(&(*blockIt));

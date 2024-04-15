@@ -25,7 +25,7 @@ NumericalSetup
     generationDomainFraction <0.8, 1.0, 1.0>; // fraction of the domain where particles are generated
     generationPointOfReferenceOffset <0, 0, 0>; // offset of point of reference from domain center, see SCIterator.h
     useParticleOffset true; // offset every second particle layer in flow direction
-    particleNumSubBlocks <30, 15, 15>;
+    particleSubBlockSize <10, 10, 10>;
 
     // fluid quantities in LBM units
     uInflow 0.00008;
