@@ -62,7 +62,7 @@
 namespace walberla
 {
 using geoSize = bool;
-typedef field::GhostLayerField< real_t, 3 > VectorField_T;
+typedef field::GhostLayerField< real_t, 2 > VectorField_T; //TODO 2D vs 3D, maybe have as template
 
 typedef field::GhostLayerField< real_t, 1 > FracField_T;
 typedef field::GhostLayerField< geoSize, 1 > GeometryField_T;
@@ -72,14 +72,15 @@ typedef gpu::GPUField< geoSize > GeometryFieldGPU_T;
 
 struct GeometryMovementStruct{
 
-   //Translation Vector for timestep t for converting cell point from LBM space to geometry space
+   //Translation Vector for timestep t for converting cell point from LBM space to geometry space in cells/timestep
    Vector3<real_t> translationVector;
-   //Rotation Angle for timestep t for converting cell point from LBM space to geometry space
+   //Rotation Angle for timestep t for converting cell point from LBM space to geometry space in rad/timestep
    real_t rotationAngle;
+   //Rotation Axis
    Vector3< mesh::TriangleMesh::Scalar > rotationAxis;
-   //Maximum bounding box of the geometry over all timesteps. Set to domainAABB if unknown
+   //Maximum bounding box of the geometry over all timesteps. Used to only update blocks with movement in it. Set to domainAABB if unknown.
    AABB movementBoundingBox;
-   //If translationVector or rotationAngle is dependent on the timestep, set to true
+   //If translationVector or rotationAngle is dependent on the timestep, set to true. Update objectVelocityField only once if set to false.
    bool timeDependentMovement;
 };
 
@@ -88,7 +89,7 @@ struct GeometryMovementStruct{
 class MovingGeometry
 {
  public:
-   enum MovementType { STILL = 0, ROTATING = 1, TRANSLATING = 2 };
+   enum MovementType { NO_MOVEMENT = 0, ROTATING = 1, TRANSLATING = 2 }; //TODO
    using GeometryMovementFunction = std::function<GeometryMovementStruct (uint_t)>;
 
    MovingGeometry(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
@@ -102,9 +103,9 @@ class MovingGeometry
    {
 
       auto geometryMovement = movementFunction_(0);
-      if (movementType_ == 0  && geometryMovement.rotationAngle > 0)
+      if (movementType_ == NO_MOVEMENT  && geometryMovement.rotationAngle > 0)
          WALBERLA_ABORT("Geometry Mevement Type is " << movementType_ << " but rotation angle is " << geometryMovement.rotationAngle)
-      if (movementType_ == 0  && geometryMovement.translationVector.length() > 0)
+      if (movementType_ == NO_MOVEMENT  && geometryMovement.translationVector.length() > 0)
          WALBERLA_ABORT("Geometry Mevement Type is " << movementType_ << " but translation vector is " << geometryMovement.translationVector)
 
       auto meshCenterPoint = computeCentroid(*mesh_);
@@ -174,6 +175,8 @@ class MovingGeometry
          FracField_T* fractionField = block.getData< FracField_T >(fractionFieldId_);
          auto level = blocks_->getLevel(block);
          Vector3<real_t> dxyzSS = maxRefinementDxyz_ / pow(2, real_t(superSamplingDepth_));
+         const Vector3<real_t> dxyz_coarse = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
+         auto translationVectorInMeterPerTimestep = Vector3<real_t> (geometryMovement.translationVector * dxyz_coarse);
          CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
 
 #ifdef _OPENMP
@@ -188,7 +191,7 @@ class MovingGeometry
                   Vector3< real_t > cellCenter = blocks_->getCellCenter(globalCell, level);
 
                   // translation
-                  cellCenter -= geometryMovement.translationVector;
+                  cellCenter -= translationVectorInMeterPerTimestep;
 
                   // rotation
                   cellCenter -= meshCenter;
@@ -287,8 +290,8 @@ class MovingGeometry
       if(!geometryMovement.timeDependentMovement && timestep > 0)
          return;
 
-      auto rotationSpeed = geometryMovement.rotationAngle - geometryMovementLastTimestep.rotationAngle;
-      auto translationSpeed = geometryMovement.translationVector - geometryMovementLastTimestep.translationVector;
+      auto rotationSpeed = geometryMovement.rotationAngle - geometryMovementLastTimestep.rotationAngle; // rad/timestep
+      auto translationSpeed = geometryMovement.translationVector - geometryMovementLastTimestep.translationVector; // cell/timestep
       for (auto& block : *blocks_)
       {
          if(!geometryMovement.movementBoundingBox.intersects(block.getAABB()) )
@@ -325,16 +328,16 @@ class MovingGeometry
 
 
             Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
-            Vector3< real_t > distance((cellCenter[0] - meshCenter[0]) / dxyz[0], (cellCenter[1] - meshCenter[1]) / dxyz[1], (cellCenter[2] - meshCenter[2]) / dxyz[2]);
+            Vector3< real_t > distance((cellCenter[0] - meshCenter[0]) / dxyz_root[0], (cellCenter[1] - meshCenter[1]) / dxyz_root[1], (cellCenter[2] - meshCenter[2]) / dxyz_root[2]); //get distance on 0th level to compute right vel
 
             real_t velX = angularVel[1] * distance[2] - angularVel[2] * distance[1];
             real_t velY = angularVel[2] * distance[0] - angularVel[0] * distance[2];
             real_t velZ = angularVel[0] * distance[1] - angularVel[1] * distance[0];
 
             blocks_->transformGlobalToBlockLocalCell(cell, block);
-            objVelField->get(cell, 0) = velX + translationSpeed[0] / dxyz[0];
-            objVelField->get(cell, 1) = velY + translationSpeed[1] / dxyz[1];
-            objVelField->get(cell, 2) = velZ + translationSpeed[2] / dxyz[2];
+            objVelField->get(cell, 0) = velX + translationSpeed[0];
+            objVelField->get(cell, 1) = velY + translationSpeed[1];
+            objVelField->get(cell, 2) = velZ + translationSpeed[2];
          )
       }
    }
@@ -344,6 +347,7 @@ class MovingGeometry
       if(vtk_frequency > 0 && timestep % vtk_frequency == 0 && movementType_ > 0) {
          auto geometryMovement = movementFunction_(timestep);
          Vector3<real_t> translationSpeed;
+         const Vector3<real_t> dxyz = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
          real_t rotationSpeed;
          if (timestep == 0) {
             rotationSpeed = geometryMovement.rotationAngle;
@@ -353,11 +357,14 @@ class MovingGeometry
             rotationSpeed = geometryMovement.rotationAngle - geometryMovementLastTimestep.rotationAngle;
             translationSpeed = geometryMovement.translationVector - geometryMovementLastTimestep.translationVector;
          }
+         translationSpeed[0] *= dxyz[0];
+         translationSpeed[1] *= dxyz[1];
+         translationSpeed[2] *= dxyz[2];
 
          mesh::translate(*mesh_, translationSpeed);
-         const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0] + geometryMovement.translationVector[0],
-                                                               meshCenter[1] + geometryMovement.translationVector[1],
-                                                               meshCenter[2] + geometryMovement.translationVector[2]);
+         const Vector3< mesh::TriangleMesh::Scalar > axis_foot(meshCenter[0] + geometryMovement.translationVector[0] * dxyz[0],
+                                                               meshCenter[1] + geometryMovement.translationVector[1] * dxyz[0],
+                                                               meshCenter[2] + geometryMovement.translationVector[2] * dxyz[0]);
          mesh::rotate(*mesh_, geometryMovement.rotationAxis, rotationSpeed, axis_foot);
       }
    }
