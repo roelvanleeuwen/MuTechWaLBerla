@@ -9,9 +9,9 @@ NumericalSetup
     periodicInY false;
     periodicInZ false;
 
-    numXCellsPerBlock 300;
-    numYCellsPerBlock 150;
-    numZCellsPerBlock 150;
+    numXCellsPerBlock 256;
+    numYCellsPerBlock 128;
+    numZCellsPerBlock 128;
 
     timeSteps 100;
 
@@ -25,7 +25,7 @@ NumericalSetup
     generationDomainFraction <0.8, 1.0, 1.0>; // fraction of the domain where particles are generated
     generationPointOfReferenceOffset <0, 0, 0>; // offset of point of reference from domain center, see SCIterator.h
     useParticleOffset true; // offset every second particle layer in flow direction
-    particleSubBlockSize <10, 10, 10>;
+    particleSubBlockSize <8, 8, 8>;
 
     // fluid quantities in LBM units
     uInflow 0.00008;
