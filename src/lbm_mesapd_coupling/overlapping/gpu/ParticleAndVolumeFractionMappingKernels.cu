@@ -61,7 +61,7 @@ __global__ void superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappin
                               const real_t* __restrict__ const spherePositions,
                               const real_t* __restrict__ const sphereRadii, const double3 blockStart, const real_t dx,
                               const int3 nSamples, const size_t* __restrict__ const numParticlesSubBlocks,
-                              const size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim)
+                              const size_t* __restrict__ const particleIDsSubBlocks, const uint3 subBlocksPerDim)
 {
    const uint3 blockIdx_uint3  = make_uint3(blockIdx.x, blockIdx.y, blockIdx.z);
    const uint3 threadIdx_uint3 = make_uint3(threadIdx.x, threadIdx.y, threadIdx.z);
@@ -84,17 +84,17 @@ __global__ void superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappin
    double3 startSamplingPoint = { (blockStart.x + threadIdx.x * dx + sampleDistance.x),
                                   (blockStart.y + blockIdx.x * dx + sampleDistance.y),
                                   (blockStart.z + blockIdx.y * dx + sampleDistance.z) };
-   const ulong3 subBlockIndex = { size_t(real_t(threadIdx.x) / blockDim.x * real_t(subBlocksPerDim)),
-                                  size_t(real_t(blockIdx.x) / gridDim.x * real_t(subBlocksPerDim)),
-                                  size_t(real_t(blockIdx.y) / gridDim.y * real_t(subBlocksPerDim)) };
+   const ulong3 subBlockIndex = { size_t(real_t(threadIdx.x) / blockDim.x * real_t(subBlocksPerDim.x)),
+                                  size_t(real_t(blockIdx.x) / gridDim.x * real_t(subBlocksPerDim.y)),
+                                  size_t(real_t(blockIdx.y) / gridDim.y * real_t(subBlocksPerDim.z)) };
    size_t linearizedSubBlockIndex =
-      subBlockIndex.z * subBlocksPerDim * subBlocksPerDim + subBlockIndex.y * subBlocksPerDim + subBlockIndex.x;
+      subBlockIndex.z * subBlocksPerDim.x * subBlocksPerDim.y + subBlockIndex.y * subBlocksPerDim.x + subBlockIndex.x;
 
    for (uint i = 0; i < numParticlesSubBlocks[linearizedSubBlockIndex]; i++)
    {
       // SoA
       size_t idxMapped =
-         particleIDsSubBlocks[linearizedSubBlockIndex + i * subBlocksPerDim * subBlocksPerDim * subBlocksPerDim];
+         particleIDsSubBlocks[linearizedSubBlockIndex + i * subBlocksPerDim.x * subBlocksPerDim.y * subBlocksPerDim.z];
       double3 currentSamplingPoint = startSamplingPoint;
 
       double3 minCornerSphere = { spherePositions[idxMapped * 3] - sphereRadii[idxMapped],

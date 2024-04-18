@@ -43,7 +43,7 @@ __global__ void superSampling(walberla::gpu::FieldAccessor< uint_t > nOverlappin
                               const real_t* __restrict__ const spherePositions,
                               const real_t* __restrict__ const sphereRadii, const double3 blockStart, const real_t dx,
                               const int3 nSamples, const size_t* __restrict__ const numParticlesSubBlocks,
-                              const size_t* __restrict__ const particleIDsSubBlocks, const size_t subBlocksPerDim);
+                              const size_t* __restrict__ const particleIDsSubBlocks, const uint3 subBlocksPerDim);
 
 template< int Weighting_T >
 __global__ void
