@@ -99,6 +99,7 @@ option ( WALBERLA_PROFILE_USE               "Uses Profile to optimize"          
 option ( WALBERLA_OPTIMIZE_FOR_LOCALHOST    "Enable compiler optimizations spcific to localhost" )
 
 option ( WALBERLA_LOG_SKIPPED               "Log skipped cmake targets"                      ON  )
+option ( WALBERLA_DEPS_ERROR                "Fail if module dependencies are not met"        OFF )
 
 option ( WALBERLA_GIT_SUBMODULE_AUTO        "Check submodules during cmake run"               ON )
 
@@ -927,7 +928,7 @@ if( (NOT DEFINED WALBERLA_BUILD_WITH_OPENMESH) OR WALBERLA_BUILD_WITH_OPENMESH )
          add_definitions(-D_USE_MATH_DEFINES )
       endif()
    else()
-      message("   If OpenMesh required, set OPENMESH_DIR to the OpenMesh directory.")
+      message("   If OpenMesh required, set OPENMESH_LIBRARY_DIR to the OpenMesh directory.")
       set( WALBERLA_BUILD_WITH_OPENMESH OFF CACHE BOOL "Build with OpenMesh support" FORCE )
    endif()
 endif()
