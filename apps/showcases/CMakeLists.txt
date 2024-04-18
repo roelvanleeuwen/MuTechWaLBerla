@@ -15,8 +15,6 @@ if ( WALBERLA_BUILD_WITH_CODEGEN)
       add_subdirectory( PhaseFieldAllenCahn )
    endif ()
 
-   add_subdirectory( Piping )
-
    if(NOT WALBERLA_BUILD_WITH_OPENMP)
       add_subdirectory( PorousMedia )
    endif()
