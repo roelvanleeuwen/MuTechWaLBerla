@@ -51,21 +51,26 @@ with CodeGeneration() as ctx:
     velocity = ps.fields(f"velocity({stencil.D}): {data_type}[3D]", layout=layout)
     density = ps.fields(f"density({1}): {data_type}[3D]", layout=layout)
     macroscopic_fields = {'density': density, 'velocity': velocity}
+    force_field = ps.fields(f"forec({stencil.D}): {data_type}[3D]", layout=layout,)
 
-    fraction_field = ps.fields(f"frac_field({1}): {data_type}[3D]", layout=layout,)
+
+    fraction_field = ps.fields(f"frac_field({2}): {data_type}[3D]", layout=layout,)
     object_velocity_field = ps.fields(f"obj_vel({stencil.D}): {data_type}[3D]", layout=layout,)
 
     psm_config = PSMConfig(
         fraction_field=fraction_field,
         object_velocity_field=object_velocity_field,
         SC=1,
+        particle_force_field=force_field,
+        MaxParticlesPerCell=1
     )
 
     lbm_config = LBMConfig(
         stencil=stencil,
-        method=Method.SRT,
+        method=Method.TRT,
         relaxation_rate=omega,
-        compressible=False,
+        smagorinsky=True,
+        compressible=True,
         zero_centered=True,
         psm_config=psm_config,
     )

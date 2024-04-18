@@ -111,7 +111,7 @@ int main(int argc, char** argv)
    ////////////////////
 
    auto numBlocks = Vector3<uint_t> (1,1,1);
-   auto cellsPerBlock = Vector3<uint_t>(128, 128, 128);
+   auto cellsPerBlock = Vector3<uint_t>(256, 256, 256);
    auto domainAABB = AABB(0,0,0,1,1,1);
 
    auto blocks = walberla::blockforest::createUniformBlockGrid(domainAABB, numBlocks[0], numBlocks[1], numBlocks[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], true);
@@ -128,6 +128,8 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fractionFieldGPU", true);
    const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
+   const BlockDataID forceFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, objectVelocitiesFieldId, "force field on GPU", true);
+
 #endif
 
 
@@ -154,8 +156,8 @@ int main(int argc, char** argv)
    /////////////
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   SweepCollection_T sweepCollection(blocks, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega);
-   pystencils::PSM_Conditional_Sweep psmConditionalSweep( fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega );
+   SweepCollection_T sweepCollection(blocks, forceFieldGPUId, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega);
+   pystencils::PSM_Conditional_Sweep psmConditionalSweep( forceFieldGPUId, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega );
 #else
    SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega);
    pystencils::PSM_Conditional_Sweep psmConditionalSweep( fractionFieldId, objectVelocitiesFieldId, pdfFieldId, omega );
