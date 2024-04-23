@@ -47,6 +47,8 @@ namespace communication {
          WALBERLA_CHECK(!sendDirectlyFromGPU)
 #endif
       }
+      if(sendFromGPU_){WALBERLA_LOG_DETAIL_ON_ROOT("Using GPU-Direct Communication in UniformGPUScheme")}
+      else{WALBERLA_LOG_DETAIL_ON_ROOT("Using Communication via CPU Memory")}
 
       if(sendFromGPU_){WALBERLA_LOG_DETAIL_ON_ROOT("Using GPU-Direct Communication in UniformGPUScheme")}
       else{WALBERLA_LOG_DETAIL_ON_ROOT("Using Communication via CPU Memory")}
@@ -78,6 +80,8 @@ namespace communication {
          WALBERLA_CHECK(!sendDirectlyFromGPU)
 #endif
       }
+      if(sendFromGPU_){WALBERLA_LOG_DETAIL_ON_ROOT("Using GPU-Direct Communication in UniformGPUScheme")}
+      else{WALBERLA_LOG_DETAIL_ON_ROOT("Using Communication via CPU Memory")}
 
       if(sendFromGPU_){WALBERLA_LOG_DETAIL_ON_ROOT("Using GPU-Direct Communication in UniformGPUScheme")}
       else{WALBERLA_LOG_DETAIL_ON_ROOT("Using Communication via CPU Memory")}

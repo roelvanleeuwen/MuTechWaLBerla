@@ -46,7 +46,7 @@ namespace walberla::gpu::communication
 template< typename Stencil >
 class NonUniformGPUScheme
 {
-public:
+ public:
    enum INDEX { EQUAL_LEVEL = 0, COARSE_TO_FINE = 1, FINE_TO_COARSE = 2 };
 
    using CpuBuffer_T = walberla::gpu::communication::PinnedMemoryBuffer;
@@ -90,7 +90,7 @@ public:
    inline void waitCommunicateCoarseToFine(uint_t fineLevel);
    inline void waitCommunicateFineToCoarse(uint_t fineLevel);
 
-private:
+ private:
    void setupCommunication();
 
    void init();
