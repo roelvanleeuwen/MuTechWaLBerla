@@ -1,0 +1,36 @@
+
+Parameters 
+{
+	timesteps       10001;
+
+    dx  0.0025;                         // 2.500*10^(-3)
+    dt  0.00202857;                     // ~2.029*10^(-3)
+    physForceFactor  0.00949247;        // force factor to get physical force from lattice force
+    omega       1.4;                    // equivalent to tau=0.714
+
+    initialVelocity   <0.02, 0.0, 0.0>;
+    UBB_top_vel_x   0.1;
+    UBB_bot_vel_x   -0.1;
+    translationPerTimestep   <0.02, 0.0, 0.0>;
+
+	
+    remainingTimeLoggerFrequency 10;    // in seconds
+	VTKwriteFrequency 100;
+	maxSuperSamplingDepth 2;            // for (2^3)^2 < 100 subcells < (2^4)^2
+
+    forceOutputFile     forceOutput.txt;
+}
+
+DomainSetup
+{
+   meshFile                 Cylinder.obj;
+   cellsPerBlock            < 160, 80, 1 >;
+   periodic                 <  1,  0,  1 >;
+
+}
+
+Boundaries
+{
+    Border { direction N;    walldistance -1;  flag UBB_top; }
+    Border { direction S;    walldistance -1;  flag UBB_bottom; }
+}

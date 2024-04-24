@@ -62,7 +62,7 @@
 namespace walberla
 {
 using geoSize = bool;
-typedef field::GhostLayerField< real_t, 2 > VectorField_T; //TODO 2D vs 3D, maybe have as template
+typedef field::GhostLayerField< real_t, 3 > VectorField_T; //TODO 2D vs 3D, maybe have as template
 
 typedef field::GhostLayerField< real_t, 1 > FracField_T;
 typedef field::GhostLayerField< geoSize, 1 > GeometryField_T;
@@ -71,7 +71,6 @@ typedef gpu::GPUField< geoSize > GeometryFieldGPU_T;
 #endif
 
 struct GeometryMovementStruct{
-
    //Translation Vector for timestep t for converting cell point from LBM space to geometry space in cells/timestep
    Vector3<real_t> translationVector;
    //Rotation Angle for timestep t for converting cell point from LBM space to geometry space in rad/timestep
@@ -176,7 +175,7 @@ class MovingGeometry
          auto level = blocks_->getLevel(block);
          Vector3<real_t> dxyzSS = maxRefinementDxyz_ / pow(2, real_t(superSamplingDepth_));
          const Vector3<real_t> dxyz_coarse = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
-         auto translationVectorInMeterPerTimestep = Vector3<real_t> (geometryMovement.translationVector * dxyz_coarse);
+         auto translationVectorInMeterPerTimestep = Vector3<real_t> (geometryMovement.translationVector[0] * dxyz_coarse[0], geometryMovement.translationVector[1] * dxyz_coarse[1], geometryMovement.translationVector[2] * dxyz_coarse[2]);
          CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
 
 #ifdef _OPENMP
@@ -298,7 +297,6 @@ class MovingGeometry
             continue;
 
          auto level = blocks_->getLevel(block);
-         const Vector3<real_t> dxyz = Vector3<real_t>(blocks_->dx(level), blocks_->dy(level), blocks_->dz(level));
 
          auto objVelField = block.getData< VectorField_T >(objectVelocityId_);
          auto fractionField = block.getData< FracField_T >(fractionFieldId_);
