@@ -19,10 +19,12 @@ walberla_generate_target_from_python( NAME PSM_Moving_GeometryCodeGen
 
 if(WALBERLA_BUILD_WITH_GPU_SUPPORT)
     walberla_add_executable ( NAME PSM_Moving_Geometry
-            FILES PSM_Moving_Geometry.cpp ../PSM_Complex_Geometry/MovingGeometry.h ../PSM_Complex_Geometry/MovingGeometry.cu
+            FILES PSM_Moving_Geometry.cpp
             DEPENDS blockforest gpu core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk PSM_Moving_GeometryCodeGen )
+    set_source_files_properties(PSM_Moving_Geometry.cpp PROPERTIES LANGUAGE CUDA)
+
 else()
     walberla_add_executable ( NAME PSM_Moving_Geometry
-            FILES PSM_Moving_Geometry.cpp ../PSM_Complex_Geometry/MovingGeometry.h
+            FILES PSM_Moving_Geometry.cpp
             DEPENDS blockforest core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk PSM_Moving_GeometryCodeGen )
 endif()

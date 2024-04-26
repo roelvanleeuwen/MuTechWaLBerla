@@ -27,7 +27,6 @@ clear_cache()
 dx = 0.0025
 dt = 0.00202857
 u_conversion = dt / dx
-psm_sc_method = 1
 
 with CodeGeneration() as ctx:
     #   ========================
@@ -59,9 +58,10 @@ with CodeGeneration() as ctx:
     psm_config = PSMConfig(
         fraction_field=fraction_field,
         object_velocity_field=object_velocity_field,
-        SC=psm_sc_method,
+        SC=2,
         particle_force_field=force_field
     )
+
 
     lbm_config = LBMConfig(
         stencil=stencil,
@@ -99,6 +99,7 @@ with CodeGeneration() as ctx:
         lbm_config=lbm_config,
         lbm_optimisation=lbm_opt
     )
+
 
     generate_lbm_package(ctx, name="PSM_Moving_Geometry",
                          collision_rule=collision_rule,

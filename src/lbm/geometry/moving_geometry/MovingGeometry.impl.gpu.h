@@ -17,7 +17,20 @@
 //! \author Philipp Suffa <philipp.suffa@fau.de>
 //
 //======================================================================================================================
+
+#pragma once
+#include <cuda_runtime.h>
+
 #include "MovingGeometry.h"
+
+#ifdef __GNUC__
+#define RESTRICT __restrict__
+#elif _MSC_VER
+#define RESTRICT __restrict
+#else
+#define RESTRICT
+#endif
+
 
 #define SUB(dest,v1,v2) \
          dest.x=v1.x-v2.x; \
@@ -49,7 +62,8 @@ __global__ void resetFractionFieldGPUKernel( real_t * RESTRICT const fractionFie
    }
 }
 
-void MovingGeometry::resetFractionField() {
+template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
+void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::resetFractionField() {
    for (auto& block : *blocks_) {
       auto fractionFieldGPU = block.getData< gpu::GPUField<real_t> >(fractionFieldId_);
       real_t * RESTRICT const _data_FractionFieldGPU = fractionFieldGPU->dataAt(0, 0, 0, 0);
@@ -64,7 +78,8 @@ void MovingGeometry::resetFractionField() {
    }
 }
 
-__global__ void getFractionFieldFromGeometryMeshKernel(real_t * RESTRICT const _data_fractionFieldGPU, geoSize * RESTRICT const _data_geometryFieldGPU, int3 field_size, int3 field_stride, int3 geometry_field_size, int3 geometry_field_stride, double3 blockAABBMin, double3 meshAABBMin, float3 dxyz, int superSamplingDepth, int interpolationStencilSize, double oneOverInterpolArea, float3 dxyzSS, double3 meshCenter, double3 rotationMatrixX, double3 rotationMatrixY, double3 rotationMatrixZ, double3 translation) {
+template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
+__global__ void getFractionFieldFromGeometryMeshKernel(real_t * RESTRICT const _data_fractionFieldGPU, typename GeometryField_T::value_type * RESTRICT const _data_geometryFieldGPU, int3 field_size, int3 field_stride, int3 geometry_field_size, int3 geometry_field_stride, double3 blockAABBMin, double3 meshAABBMin, float3 dxyz, int superSamplingDepth, int interpolationStencilSize, double oneOverInterpolArea, float3 dxyzSS, double3 meshCenter, double3 rotationMatrixX, double3 rotationMatrixY, double3 rotationMatrixZ, double3 translation, double tau_, bool useTauInFractionField_) {
    const int64_t x = blockDim.x*blockIdx.x + threadIdx.x ;
    const int64_t y = blockDim.y*blockIdx.y + threadIdx.y ;
    const int64_t z = blockDim.z*blockIdx.z + threadIdx.z ;
@@ -134,11 +149,16 @@ __global__ void getFractionFieldFromGeometryMeshKernel(real_t * RESTRICT const _
          }
          fraction *= oneOverInterpolArea;
       }
+      //B2 from "A comparative study of fluid-particle coupling methods for fully resolved lattice Boltzmann simulations" from Rettinger et al
+      if (useTauInFractionField_)
+         fraction = fraction * (tau_ - 0.5) / ((1.0 - fraction) + (tau_ - 0.5));
+
       _data_fractionFieldGPU[idx] = min(1.0, _data_fractionFieldGPU[idx] + fraction);
    }
 }
 
-void MovingGeometry::getFractionFieldFromGeometryMesh(uint_t timestep)  {
+template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
+void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractionFieldFromGeometryMesh(uint_t timestep)  {
 
    auto geometryMovement = movementFunction_(timestep);
    Matrix3<real_t>rotationMat(geometryMovement.rotationAxis, -geometryMovement.rotationAngle);
@@ -155,7 +175,7 @@ void MovingGeometry::getFractionFieldFromGeometryMesh(uint_t timestep)  {
       uint_t level = blocks_->getLevel(block);
       auto fractionFieldGPU = block.getData< gpu::GPUField<real_t> >(fractionFieldId_);
       real_t * RESTRICT const _data_fractionFieldGPU = fractionFieldGPU->dataAt(0, 0, 0, 0);
-      geoSize * RESTRICT const _data_geometryFieldGPU = geometryFieldGPU_->dataAt(0, 0, 0, 0);
+      GeometryFieldData_T * RESTRICT const _data_geometryFieldGPU = geometryFieldGPU_->dataAt(0, 0, 0, 0);
 
       float3 dxyz = {float(blocks_->dx(level)), float(blocks_->dy(level)), float(blocks_->dz(level))};
       double3 meshCenterGPU = {meshCenter[0], meshCenter[1], meshCenter[2]};
@@ -177,10 +197,10 @@ void MovingGeometry::getFractionFieldFromGeometryMesh(uint_t timestep)  {
       dim3 _block(uint64_c(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)), uint64_c(((1024 < ((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))) ? 1024 : ((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))))), uint64_c(((64 < ((field_size.z - 2 * ghostLayers_ < ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))) ? field_size.z - 2 * ghostLayers_ : ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))))))) ? 64 : ((field_size.z - 2 * ghostLayers_ < ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))) ? field_size.z - 2 * ghostLayers_ : ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))))));
       dim3 _grid(uint64_c(( (field_size.x - 2 * ghostLayers_) % (((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)) == 0 ? (int64_t)(field_size.x - 2 * ghostLayers_) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)) : ( (int64_t)(field_size.x - 2 * ghostLayers_) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)) ) +1 )), uint64_c(( (field_size.y - 2 * ghostLayers_) % (((1024 < ((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))) ? 1024 : ((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))))) == 0 ? (int64_t)(field_size.y - 2 * ghostLayers_) / (int64_t)(((1024 < ((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))) ? 1024 : ((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))))) : ( (int64_t)(field_size.y - 2 * ghostLayers_) / (int64_t)(((1024 < ((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))) ? 1024 : ((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))))) ) +1 )), uint64_c(( (field_size.z - 2 * ghostLayers_) % (((64 < ((field_size.z - 2 * ghostLayers_ < ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))) ? field_size.z - 2 * ghostLayers_ : ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))))))) ? 64 : ((field_size.z - 2 * ghostLayers_ < ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))) ? field_size.z - 2 * ghostLayers_ : ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))))) == 0 ? (int64_t)(field_size.z - 2 * ghostLayers_) / (int64_t)(((64 < ((field_size.z - 2 * ghostLayers_ < ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))) ? field_size.z - 2 * ghostLayers_ : ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))))))) ? 64 : ((field_size.z - 2 * ghostLayers_ < ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))) ? field_size.z - 2 * ghostLayers_ : ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))))) : ( (int64_t)(field_size.z - 2 * ghostLayers_) / (int64_t)(((64 < ((field_size.z - 2 * ghostLayers_ < ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))) ? field_size.z - 2 * ghostLayers_ : ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))))))) ? 64 : ((field_size.z - 2 * ghostLayers_ < ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))) ? field_size.z - 2 * ghostLayers_ : ((int64_t)(256) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)*((field_size.y - 2 * ghostLayers_ < 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_)))) ? field_size.y - 2 * ghostLayers_ : 16*((int64_t)(16) / (int64_t)(((16 < field_size.x - 2 * ghostLayers_) ? 16 : field_size.x - 2 * ghostLayers_))))))))) ) +1 )));
 
-      getFractionFieldFromGeometryMeshKernel<<<_grid, _block>>>(_data_fractionFieldGPU, _data_geometryFieldGPU, field_size, field_stride,
+      getFractionFieldFromGeometryMeshKernel<FractionField_T, VectorField_T, GeometryField_T> <<<_grid, _block>>>(_data_fractionFieldGPU, _data_geometryFieldGPU, field_size, field_stride,
                                                                       geometry_field_size, geometry_field_stride, blockAABBmin, meshAABBmin,
                                                                       dxyz, superSamplingDepth_, interpolationStencilSize, oneOverInterpolArea, dxyzSS, meshCenterGPU,
-                                                                      rotationMatrixX, rotationMatrixY, rotationMatrixZ, translation);
+                                                                      rotationMatrixX, rotationMatrixY, rotationMatrixZ, translation, tau_, useTauInFractionField_);
    }
 }
 
@@ -196,7 +216,8 @@ __global__ void addStaticGeometryToFractionFieldKernel( real_t * RESTRICT const 
    }
 }
 
-void MovingGeometry::addStaticGeometryToFractionField() {
+template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
+void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::addStaticGeometryToFractionField() {
    for (auto& block : *blocks_) {
       auto fractionFieldGPU = block.getData< gpu::GPUField<real_t> >(fractionFieldId_);
       real_t * RESTRICT const _data_fractionFieldGPU = fractionFieldGPU->dataAt(0, 0, 0, 0);
@@ -257,7 +278,8 @@ __global__ void updateObjectVelocityFieldKernel(real_t * RESTRICT const _data_ob
 }
 
 
-void MovingGeometry::updateObjectVelocityField(uint_t timestep) {
+template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
+void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::updateObjectVelocityField(uint_t timestep) {
    auto geometryMovement = movementFunction_(timestep+1);
    auto geometryMovementLastTimestep = movementFunction_(timestep);
    geometryMovement.movementBoundingBox.extend(Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0)));

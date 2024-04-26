@@ -20,7 +20,7 @@ walberla_generate_target_from_python( NAME VoxelizationTestCodeGen
 
 if(WALBERLA_BUILD_WITH_GPU_SUPPORT)
     walberla_add_executable ( NAME VoxelizationTest
-            FILES VoxelizationTest.cpp ../MovingGeometry.h ../MovingGeometry.cu
+            FILES VoxelizationTest.cpp ../MovingGeometry.h ../MovingGeometry.impl.gpu.h
             DEPENDS blockforest gpu core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk VoxelizationTestCodeGen )
 else()
     walberla_add_executable ( NAME VoxelizationTest

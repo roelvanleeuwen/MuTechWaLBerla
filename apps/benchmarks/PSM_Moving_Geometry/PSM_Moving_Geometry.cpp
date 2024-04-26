@@ -41,13 +41,11 @@
 #   include "lbm_generated/gpu/GPUPdfField.h"
 #   include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
 #endif
-#include "../PSM_Complex_Geometry/MovingGeometry.h"
-#include "PSM_Moving_Geometry_InfoHeader.h"
-
-
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
+#include "lbm/geometry/moving_geometry/MovingGeometry.h"
+#include "PSM_Moving_Geometry_InfoHeader.h"
 
 namespace walberla
 {
@@ -72,7 +70,10 @@ const FlagUID fluidFlagUID("Fluid");
 using blockforest::communication::UniformBufferedScheme;
 
 
-typedef field::GhostLayerField< real_t, 3 > MyVectorField_T;
+typedef field::GhostLayerField< real_t, 3 > VectorField_T;
+typedef field::GhostLayerField< real_t, 1 > FracField_T;
+typedef field::GhostLayerField< real_t, 1 > GeoField_T; // could also set to single precision or even bool to save memory
+
 
 
 /////////////////////
@@ -107,7 +108,7 @@ public:
 
       for(auto blockIterator = blocks_->begin(); blockIterator != blocks_->end(); ++blockIterator){
          IBlock & block = *blockIterator;
-         auto myForceField = block.getData<MyVectorField_T>(forceFieldId_);
+         auto myForceField = block.getData<VectorField_T>(forceFieldId_);
          auto myFractionField = block.getData<FracField_T>(fractionFieldId_);
          auto xyz = myFractionField->xyzSize();
          for( cell_idx_t z = xyz.zMin(); z <= xyz.zMax(); ++z ) {
@@ -273,12 +274,12 @@ int main(int argc, char** argv)
 
 
    const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", real_t(0.0), field::fzyx, uint_c(1));
-   const BlockDataID objectVelocitiesFieldId = field::addToStorage< MyVectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1));
-   const BlockDataID forceFieldId = field::addToStorage< MyVectorField_T >(blocks, "forceField", real_c(0.0), field::fzyx, uint_c(1));
+   const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1));
+   const BlockDataID forceFieldId = field::addToStorage< VectorField_T >(blocks, "forceField", real_c(0.0), field::fzyx, uint_c(1));
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fractionFieldGPU", true);
-   const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< MyVectorField_T >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
-   const BlockDataID forceFieldGPUId = gpu::addGPUFieldToStorage< MyVectorField_T >(blocks, forceFieldId, "force field on GPU", true); 
+   const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
+   const BlockDataID forceFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, forceFieldId, "force field on GPU", true); 
 #endif
 
 
@@ -286,15 +287,15 @@ int main(int argc, char** argv)
    auto latticeTranslationPerTimestep = translationPerTimestep * velocity_conversion;
    auto movementFunction = GeometryMovementFunction(domainAABB, aabb, rotationAxis, rotationPerTimestep, latticeTranslationPerTimestep);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   auto objectMover = make_shared<MovingGeometry> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId,
+   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId,
                                                     movementFunction, distanceOctreeMesh, "geometry",
-                                                    maxSuperSamplingDepth, 1, MovingGeometry::TRANSLATING);
+                                                    maxSuperSamplingDepth, 1, true, true, omega);
 #else
    WALBERLA_LOG_INFO_ON_ROOT("Setting up objectMover")
 
-   auto objectMover = make_shared<MovingGeometry> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId,
+   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId,
                                                     movementFunction, distanceOctreeMesh, "geometry",
-                                                    maxSuperSamplingDepth, 1, MovingGeometry::TRANSLATING);
+                                                    maxSuperSamplingDepth, 1, true, true, omega);
    WALBERLA_LOG_INFO_ON_ROOT("Finished Setting up objectMover")
 
 #endif
@@ -312,13 +313,13 @@ int main(int argc, char** argv)
 
    const StorageSpecification_T StorageSpec = StorageSpecification_T();
    const BlockDataID pdfFieldId  = lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, uint_c(1), field::fzyx);
-   const BlockDataID velocityFieldId = field::addToStorage< MyVectorField_T >(blocks, "velocity", real_t(0.0), field::fzyx, uint_c(1));
+   const BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_t(0.0), field::fzyx, uint_c(1));
    const BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, uint_c(1));
    const BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flagField");
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const BlockDataID pdfFieldGPUId = lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldId, StorageSpec, "pdf field on GPU", true);
-   const BlockDataID velocityFieldGPUId = gpu::addGPUFieldToStorage< MyVectorField_T >(blocks, velocityFieldId, "velocity field on GPU", true);
+   const BlockDataID velocityFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity field on GPU", true);
    const BlockDataID densityFieldGPUId = gpu::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldId, "density field on GPU", true);
 #endif
 
@@ -365,11 +366,11 @@ int main(int argc, char** argv)
 
    for (auto& block : *blocks)
    {
-      auto velField = block.getData<MyVectorField_T>(velocityFieldId);
+      auto velField = block.getData<VectorField_T>(velocityFieldId);
       WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(velField, velField->get(x,y,z,0) = initialVelocity[0];)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       gpu::GPUField<real_t> * dst = block.getData<gpu::GPUField<real_t>>( velocityFieldGPUId );
-      const MyVectorField_T * src = block.getData<MyVectorField_T>( velocityFieldId );
+      const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
       gpu::fieldCpy( *dst, *src );
 #endif
       sweepCollection.initialise(&block, 1);
@@ -412,7 +413,7 @@ int main(int argc, char** argv)
 
    const std::function< void() > forceCalcFunc = [&]() {
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      gpu::fieldCpy< MyVectorField_T, gpu::GPUField< real_t > >(blocks, forceFieldId, forceFieldGPUId);
+      gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, forceFieldId, forceFieldGPUId);
 #endif
       forceWriter();
    };
@@ -433,18 +434,18 @@ int main(int argc, char** argv)
          for (auto& block : *blocks)
             sweepCollection.calculateMacroscopicParameters(&block);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-         gpu::fieldCpy< MyVectorField_T, gpu::GPUField< real_t > >(blocks, velocityFieldId, velocityFieldGPUId);
+         gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, velocityFieldId, velocityFieldGPUId);
          gpu::fieldCpy< FracField_T, gpu::GPUField< real_t > >(blocks, fractionFieldId, fractionFieldGPUId);
-         gpu::fieldCpy< MyVectorField_T, gpu::GPUField< real_t > >(blocks, objectVelocitiesFieldId, objectVelocitiesFieldGPUId);
-         gpu::fieldCpy< MyVectorField_T, gpu::GPUField< real_t > >(blocks, forceFieldId, forceFieldGPUId);
+         gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, objectVelocitiesFieldId, objectVelocitiesFieldGPUId);
+         gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, forceFieldId, forceFieldGPUId);
 
 #endif
       });
 
-      auto velWriter = make_shared< field::VTKWriter< MyVectorField_T > >(velocityFieldId, "Velocity");
+      auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
       auto fractionFieldWriter = make_shared< field::VTKWriter< FracField_T > >(fractionFieldId, "FractionField");
-      auto objVeldWriter = make_shared< field::VTKWriter< MyVectorField_T > >(objectVelocitiesFieldId, "objectVelocity");
-      auto forceFieldWriter = make_shared< field::VTKWriter< MyVectorField_T > >(forceFieldId, "ForceField");
+      auto objVeldWriter = make_shared< field::VTKWriter< VectorField_T > >(objectVelocitiesFieldId, "objectVelocity");
+      auto forceFieldWriter = make_shared< field::VTKWriter< VectorField_T > >(forceFieldId, "ForceField");
 
       vtkOutput->addCellDataWriter(velWriter);
       vtkOutput->addCellDataWriter(fractionFieldWriter);
