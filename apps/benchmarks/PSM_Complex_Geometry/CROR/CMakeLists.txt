@@ -19,10 +19,10 @@ walberla_generate_target_from_python( NAME CRORCodeGen
 
 if(WALBERLA_BUILD_WITH_GPU_SUPPORT)
     walberla_add_executable ( NAME CROR
-            FILES CROR.cpp ../MovingGeometry.h ../MovingGeometry.impl.gpu.h
+            FILES CROR.cpp
             DEPENDS blockforest gpu core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk CRORCodeGen )
 else()
     walberla_add_executable ( NAME CROR
-            FILES CROR.cpp ../MovingGeometry.h
+            FILES CROR.cpp
             DEPENDS blockforest core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk CRORCodeGen )
 endif()

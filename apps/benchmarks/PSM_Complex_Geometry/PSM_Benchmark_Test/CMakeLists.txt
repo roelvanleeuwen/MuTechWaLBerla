@@ -17,10 +17,10 @@ walberla_generate_target_from_python( NAME PSM_Benchmark_TestCodeGen
 
 if(WALBERLA_BUILD_WITH_GPU_SUPPORT)
     walberla_add_executable ( NAME PSM_Benchmark_Test
-            FILES PSM_Benchmark_Test.cpp ../PSM_Complex_Geometry/MovingGeometry.h ../PSM_Complex_Geometry/MovingGeometry.impl.gpu.h
+            FILES PSM_Benchmark_Test.cpp
             DEPENDS blockforest gpu core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk PSM_Benchmark_TestCodeGen )
 else()
     walberla_add_executable ( NAME PSM_Benchmark_Test
-            FILES PSM_Benchmark_Test.cpp ../PSM_Complex_Geometry/MovingGeometry.h
+            FILES PSM_Benchmark_Test.cpp
             DEPENDS blockforest core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk PSM_Benchmark_TestCodeGen )
 endif()
