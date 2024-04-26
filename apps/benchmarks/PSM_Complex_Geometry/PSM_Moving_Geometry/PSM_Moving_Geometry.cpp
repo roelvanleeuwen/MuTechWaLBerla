@@ -90,59 +90,6 @@ auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
 };
 
 
-class ForceCalculation {
-public:
- 
-   ForceCalculation( BlockDataID fractionFieldId, BlockDataID forceFieldId, std::shared_ptr<walberla::blockforest::StructuredBlockForest> blocks, real_t dt, real_t physForceFactor, std::string forceOutputFile )
-      : fractionFieldId_(fractionFieldId), forceFieldId_(forceFieldId), blocks_(blocks), currentTimestep_(0), dt_(dt), physForceFactor_(physForceFactor), forceOutputFile_(forceOutputFile)  {};
- 
-   void operator()() {
-
-      // only log for time values later than 9 seconds
-      /*if (real_c(currentTimestep_)*dt_ < 9.0 || real_c(currentTimestep_)*dt_ > 10.0){
-         currentTimestep_++;
-         return;
-      }*/
-
-      Vector2< real_t > entireForce = Vector2< real_t >(0.0);
-
-      for(auto blockIterator = blocks_->begin(); blockIterator != blocks_->end(); ++blockIterator){
-         IBlock & block = *blockIterator;
-         auto myForceField = block.getData<VectorField_T>(forceFieldId_);
-         auto myFractionField = block.getData<FracField_T>(fractionFieldId_);
-         auto xyz = myFractionField->xyzSize();
-         for( cell_idx_t z = xyz.zMin(); z <= xyz.zMax(); ++z ) {
-            for( cell_idx_t y = xyz.yMin(); y <= xyz.yMax(); ++y ) {
-               for( cell_idx_t x = xyz.xMin(); x <= xyz.xMax(); ++x ){
-                  entireForce += Vector2< real_t >(myForceField->get(x,y,z,0), myForceField->get(x,y,z,1));
-               }
-            }
-         }
-      }
-
-      /*WALBERLA_MPI_SECTION() {
-         walberla::mpi::reduceInplace(entireForce, walberla::mpi::SUM);
-      }*/
-      WALBERLA_ROOT_SECTION(){
-         std::ofstream myFile(forceOutputFile_, std::ios::app);
-         myFile << real_c(currentTimestep_)*dt_ << " " << entireForce[0]*physForceFactor_ << " " << entireForce[1]*physForceFactor_ << "\n";
-         myFile.close();
-      }
-      currentTimestep_++;
-   }
- 
-private:
- 
-   BlockDataID fractionFieldId_;
-   BlockDataID forceFieldId_;
-   std::shared_ptr<walberla::blockforest::StructuredBlockForest> blocks_;
-   uint_t currentTimestep_;
-   real_t dt_;
-   real_t physForceFactor_;
-   std::string forceOutputFile_;
-};
-
-
 
 
 class GeometryMovementFunction {
@@ -214,9 +161,6 @@ int main(int argc, char** argv)
    const real_t rotationPerTimestep = parameters.getParameter< real_t >("rotationPerTimestep", real_c(0.0));
    const Vector3<real_t> translationPerTimestep = parameters.getParameter< Vector3<real_t> >("translationPerTimestep", Vector3< real_t >(0.0));
 
-   // Delete output file
-   std::ofstream myFile(forceOutputFile);
-   myFile.close();
 
    ////////////////////
    /// PROCESS MESH ///
@@ -287,13 +231,13 @@ int main(int argc, char** argv)
    auto latticeTranslationPerTimestep = translationPerTimestep * velocity_conversion;
    auto movementFunction = GeometryMovementFunction(domainAABB, aabb, rotationAxis, rotationPerTimestep, latticeTranslationPerTimestep);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId,
+   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldId,
                                                     movementFunction, distanceOctreeMesh, "geometry",
                                                     maxSuperSamplingDepth, 1, true, true, omega);
 #else
    WALBERLA_LOG_INFO_ON_ROOT("Setting up objectMover")
 
-   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId,
+   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
                                                     movementFunction, distanceOctreeMesh, "geometry",
                                                     maxSuperSamplingDepth, 1, true, true, omega);
    WALBERLA_LOG_INFO_ON_ROOT("Finished Setting up objectMover")
@@ -335,6 +279,18 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #endif
+   };
+
+   const std::function< void() > forceCalculator = [&]() {
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, forceFieldGPUId, forceFieldId);
+#endif
+      auto force = objectMover->calculateForceOnBody();
+      WALBERLA_ROOT_SECTION(){
+         std::ofstream myFile("forceOutput.txt", std::ios::app);
+         myFile << real_c(timeloop.getCurrentTimeStep())*dt << " " << force[0]*physForceFactor << " " << force[1]*physForceFactor << " " << force[2]*physForceFactor << "\n";
+         myFile.close();
+      }
    };
 
    for (auto& block : *blocks)
@@ -409,16 +365,7 @@ int main(int argc, char** argv)
 
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency), "remaining time logger");
 
-   auto forceWriter = ForceCalculation(fractionFieldId, forceFieldId, blocks, dt, physForceFactor, forceOutputFile);
-
-   const std::function< void() > forceCalcFunc = [&]() {
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, forceFieldId, forceFieldGPUId);
-#endif
-      forceWriter();
-   };
-
-   timeloop.addFuncAfterTimeStep(forceWriter, "Force calculation");
+   timeloop.addFuncAfterTimeStep(forceCalculator, "Force calculation");
 
 
    /////////////////

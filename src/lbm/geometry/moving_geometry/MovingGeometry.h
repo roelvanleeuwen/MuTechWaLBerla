@@ -79,11 +79,11 @@ class MovingGeometry
  public:
 
    MovingGeometry(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
-                  const BlockDataID fractionFieldId, const BlockDataID objectVelocityId,
+                  const BlockDataID fractionFieldId, const BlockDataID objectVelocityId,  const BlockDataID forceFieldId,
                   const GeometryMovementFunction & movementFunction,
                   shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree, const std::string meshName,
                   const uint_t superSamplingDepth, const uint_t ghostLayers, bool moving, bool useTauInFractionField, real_t omega)
-      : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId),
+      : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId), forceFieldId_(forceFieldId),
         movementFunction_(movementFunction), distOctree_(distOctree), meshName_(meshName),
         superSamplingDepth_(superSamplingDepth), ghostLayers_(ghostLayers), moving_(moving), useTauInFractionField_(useTauInFractionField), tau_(1.0 / omega)
    {
@@ -240,8 +240,6 @@ class MovingGeometry
                maxRefinementDxyz_ = Vector3< real_t >(blocks_->dx(level), blocks_->dy(level), blocks_->dz(level));
             }
          }
-
-
       }
 
       WALBERLA_LOG_PROGRESS("Testing maxlevel")
@@ -316,6 +314,24 @@ class MovingGeometry
    }
 
 
+   Vector3<real_t> calculateForceOnBody() {
+      Vector3<real_t> summedForceOnObject;
+      for (auto &block : *blocks_) {
+         VectorField_T* forceField = block.getData< VectorField_T >(forceFieldId_);
+         FractionField_T* fractionField = block.getData< FractionField_T >(fractionFieldId_);
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(forceField,
+            if(fractionField->get(x,y,z,0) > 0.0) {
+               summedForceOnObject += Vector3(forceField->get(x,y,z,0), forceField->get(x,y,z,1), forceField->get(x,y,z,2));
+            }
+         )
+      }
+      WALBERLA_MPI_SECTION() {
+         walberla::mpi::reduceInplace(summedForceOnObject, walberla::mpi::SUM);
+      }
+      return summedForceOnObject;
+   }
+
+
    void getFractionFieldFromGeometryMesh(uint_t timestep);
    void addStaticGeometryToFractionField();
    void resetFractionField();
@@ -326,12 +342,15 @@ class MovingGeometry
    shared_ptr< mesh::TriangleMesh > mesh_;
 
    BlockDataID fractionFieldId_;
-   shared_ptr <GeometryField_T> geometryField_;
+   shared_ptr <GeometryField_T> geometryField_; //One Field on every MPI process, not on every block
    BlockDataID staticFractionFieldId_;
    BlockDataID objectVelocityId_;
+   BlockDataID forceFieldId_;
+
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
    BlockDataID staticFractionFieldGPUId_;
+   BlockDataID forceFieldGPUId_;
    GeometryFieldGPU_T *geometryFieldGPU_;
 #endif
 
