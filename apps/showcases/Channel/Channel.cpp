@@ -1005,31 +1005,43 @@ class Interpolation
       }
    }
 
-   void getCoarsePDFs(Vector3<real_t>& globalPoint, real_t* local)
-   {
-      blocks_->mapToPeriodicDomain(globalPoint);
-      auto b = blocks_->getBlock(globalPoint);
-      Cell localCell = blocks_->getBlockLocalCell(*b, globalPoint);
-      auto f = b->getData<PdfField_T>(ids_.pdfField);
-
-      for(cell_idx_t i = 0; i < Stencil_T::Q; ++i)
-      {
-         local[i] = f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[i],
-                           localCell.y() + StorageSpecification_T::AccessorEVEN::readY[i],
-                           localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[i],
-                           StorageSpecification_T::AccessorEVEN::readD[i]);
-      }
-   }
+//   void getCoarsePDFs(Vector3<real_t>& globalPoint, real_t* local)
+//   {
+//      blocks_->mapToPeriodicDomain(globalPoint);
+//      auto b = blocks_->getBlock(globalPoint);
+//      Cell localCell = blocks_->getBlockLocalCell(*b, globalPoint);
+//      auto f = b->getData<PdfField_T>(ids_.pdfField);
+//
+//      for(cell_idx_t i = 0; i < Stencil_T::Q; ++i)
+//      {
+//         local[i] = f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[i],
+//                           localCell.y() + StorageSpecification_T::AccessorEVEN::readY[i],
+//                           localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[i],
+//                           StorageSpecification_T::AccessorEVEN::readD[i]);
+//      }
+//   }
 
    void getCoarsePDFs(Block* block, Cell& cell, real_t* local)
    {
       auto f = block->getData<PdfField_T>(ids_.pdfField);
       for(cell_idx_t i = 0; i < Stencil_T::Q; ++i)
       {
-         local[i] = f->get(cell.x() + StorageSpecification_T::AccessorEVEN::readX[i],
-                           cell.y() + StorageSpecification_T::AccessorEVEN::readY[i],
-                           cell.z() + StorageSpecification_T::AccessorEVEN::readZ[i],
-                           StorageSpecification_T::AccessorEVEN::readD[i]);
+         local[i] = f->get(cell.x() + StorageSpecification_T::AccessorEVEN::writeX[i],
+                           cell.y() + StorageSpecification_T::AccessorEVEN::writeY[i],
+                           cell.z() + StorageSpecification_T::AccessorEVEN::writeZ[i],
+                           StorageSpecification_T::AccessorEVEN::writeD[i]);
+      }
+   }
+
+   void getFinePDFs(Block* block, Cell& cell, real_t* local)
+   {
+      auto f = block->getData<PdfField_T>(ids_.pdfField);
+      for(cell_idx_t i = 0; i < Stencil_T::Q; ++i)
+      {
+         local[i] = f->get(cell.x() + StorageSpecification_T::AccessorEVEN::writeX[i],
+                           cell.y() + StorageSpecification_T::AccessorEVEN::writeY[i],
+                           cell.z() + StorageSpecification_T::AccessorEVEN::writeZ[i],
+                           StorageSpecification_T::AccessorEVEN::writeD[i]);
       }
    }
 
@@ -1357,6 +1369,268 @@ class Interpolation
              localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[26], 26) = fMMM;
    }
 
+   void interpolateFC(Block* block, Cell& localCell, const real_t omegaC, const InterpolationCoefficients &coefficients)
+   {
+      const real_t epsnew = c2o1;
+      const real_t kxyAverage    = c0o1;
+      const real_t kyzAverage    = c0o1;
+      const real_t kxzAverage    = c0o1;
+      const real_t kxxMyyAverage = c0o1;
+      const real_t kxxMzzAverage = c0o1;
+
+      ////////////////////////////////////////////////////////////////////////////////////
+      //! - Set all moments to zero
+      //!
+      real_t m111 = real_c(0.0);
+      real_t m211 = real_c(0.0);
+      real_t m011 = real_c(0.0);
+      real_t m121 = real_c(0.0);
+      real_t m101 = real_c(0.0);
+      real_t m112 = real_c(0.0);
+      real_t m110 = real_c(0.0);
+      real_t m221 = real_c(0.0);
+      real_t m001 = real_c(0.0);
+      real_t m201 = real_c(0.0);
+      real_t m021 = real_c(0.0);
+      real_t m212 = real_c(0.0);
+      real_t m010 = real_c(0.0);
+      real_t m210 = real_c(0.0);
+      real_t m012 = real_c(0.0);
+      real_t m122 = real_c(0.0);
+      real_t m100 = real_c(0.0);
+      real_t m120 = real_c(0.0);
+      real_t m102 = real_c(0.0);
+      real_t m222 = real_c(0.0);
+      real_t m022 = real_c(0.0);
+      real_t m202 = real_c(0.0);
+      real_t m002 = real_c(0.0);
+      real_t m220 = real_c(0.0);
+      real_t m020 = real_c(0.0);
+      real_t m200 = real_c(0.0);
+      real_t m000 = real_c(0.0);
+
+      real_t& f000 = m111;
+      real_t& fP00 = m211;
+      real_t& fM00 = m011;
+      real_t& f0P0 = m121;
+      real_t& f0M0 = m101;
+      real_t& f00P = m112;
+      real_t& f00M = m110;
+      real_t& fPP0 = m221;
+      real_t& fMM0 = m001;
+      real_t& fPM0 = m201;
+      real_t& fMP0 = m021;
+      real_t& fP0P = m212;
+      real_t& fM0M = m010;
+      real_t& fP0M = m210;
+      real_t& fM0P = m012;
+      real_t& f0PP = m122;
+      real_t& f0MM = m100;
+      real_t& f0PM = m120;
+      real_t& f0MP = m102;
+      real_t& fPPP = m222;
+      real_t& fMPP = m022;
+      real_t& fPMP = m202;
+      real_t& fMMP = m002;
+      real_t& fPPM = m220;
+      real_t& fMPM = m020;
+      real_t& fPMM = m200;
+      real_t& fMMM = m000;
+
+      ////////////////////////////////////////////////////////////////////////////////
+      //! - Declare local variables for destination nodes
+      //!
+      real_t vvx, vvy, vvz, vxsq, vysq, vzsq;
+      real_t mxxPyyPzz, mxxMyy, mxxMzz, mxxyPyzz, mxxyMyzz, mxxzPyyz, mxxzMyyz, mxyyPxzz, mxyyMxzz;
+      real_t useNEQ = c1o1; // zero; //one;   //.... one = on ..... zero = off
+      real_t press;
+
+      ////////////////////////////////////////////////////////////////////////////////
+      //! - Set macroscopic values on destination node (zeroth and first order moments)
+      //!
+      press = coefficients.d000 - c2o1 * coefficients.LaplaceRho * c1o8;
+      vvx   = coefficients.a000;
+      vvy   = coefficients.b000;
+      vvz   = coefficients.c000;
+
+      m000 = press; // m000 is press, if drho is interpolated directly
+
+      vxsq = vvx * vvx;
+      vysq = vvy * vvy;
+      vzsq = vvz * vvz;
+
+      ////////////////////////////////////////////////////////////////////////////////
+      //! - Set moments (second to sixth order) on destination node
+      //!
+      // linear combinations for second order moments
+      mxxPyyPzz = m000;
+
+      mxxMyy = -c2o3 * ((coefficients.a100 - coefficients.b010) + kxxMyyAverage) * epsnew / omegaC * (c1o1 + press);
+      mxxMzz = -c2o3 * ((coefficients.a100 - coefficients.c001) + kxxMzzAverage) * epsnew / omegaC * (c1o1 + press);
+
+      m011 = -c1o3 * ((coefficients.b001 + coefficients.c010) + kyzAverage) * epsnew / omegaC * (c1o1 + press);
+      m101 = -c1o3 * ((coefficients.a001 + coefficients.c100) + kxzAverage) * epsnew / omegaC * (c1o1 + press);
+      m110 = -c1o3 * ((coefficients.a010 + coefficients.b100) + kxyAverage) * epsnew / omegaC * (c1o1 + press);
+
+      m200 = c1o3 * (        mxxMyy +        mxxMzz + mxxPyyPzz) * useNEQ;
+      m020 = c1o3 * (-c2o1 * mxxMyy +        mxxMzz + mxxPyyPzz) * useNEQ;
+      m002 = c1o3 * (        mxxMyy - c2o1 * mxxMzz + mxxPyyPzz) * useNEQ;
+
+      // linear combinations for third order moments
+      m111 = c0o1;
+
+      mxxyPyzz = c0o1;
+      mxxyMyzz = c0o1;
+      mxxzPyyz = c0o1;
+      mxxzMyyz = c0o1;
+      mxyyPxzz = c0o1;
+      mxyyMxzz = c0o1;
+
+      m210 = ( mxxyMyzz + mxxyPyzz) * c1o2;
+      m012 = (-mxxyMyzz + mxxyPyzz) * c1o2;
+      m201 = ( mxxzMyyz + mxxzPyyz) * c1o2;
+      m021 = (-mxxzMyyz + mxxzPyyz) * c1o2;
+      m120 = ( mxyyMxzz + mxyyPxzz) * c1o2;
+      m102 = (-mxyyMxzz + mxyyPxzz) * c1o2;
+
+      // fourth order moments
+      m022 = m000 * c1o9;
+      m202 = m022;
+      m220 = m022;
+
+      // fifth order moments
+
+      // sixth order moments
+      m222 = m000 * c1o27;
+
+      ////////////////////////////////////////////////////////////////////////////////////
+      //! - Chimera transform from central moments to well conditioned distributions as defined in Appendix J in
+      //! <a href="https://doi.org/10.1016/j.camwa.2015.05.001"><b>[ M. Geier et al. (2015),
+      //! DOI:10.1016/j.camwa.2015.05.001 ]</b></a> see also Eq. (88)-(96) in <a
+      //! href="https://doi.org/10.1016/j.jcp.2017.05.040"><b>[ M. Geier et al. (2017), DOI:10.1016/j.jcp.2017.05.040
+      //! ]</b></a>
+      //!
+      ////////////////////////////////////////////////////////////////////////////////////
+      // X - Dir
+      backwardInverseChimeraWithK(m000, m100, m200, vvx, vxsq, c1o1, c1o1);
+      backwardChimera(            m010, m110, m210, vvx, vxsq);
+      backwardInverseChimeraWithK(m020, m120, m220, vvx, vxsq, c3o1, c1o3);
+      backwardChimera(            m001, m101, m201, vvx, vxsq);
+      backwardChimera(            m011, m111, m211, vvx, vxsq);
+      backwardChimera(            m021, m121, m221, vvx, vxsq);
+      backwardInverseChimeraWithK(m002, m102, m202, vvx, vxsq, c3o1, c1o3);
+      backwardChimera(            m012, m112, m212, vvx, vxsq);
+      backwardInverseChimeraWithK(m022, m122, m222, vvx, vxsq, c9o1, c1o9);
+
+      ////////////////////////////////////////////////////////////////////////////////////
+      // Y - Dir
+      backwardInverseChimeraWithK(m000, m010, m020, vvy, vysq, c6o1, c1o6);
+      backwardChimera(            m001, m011, m021, vvy, vysq);
+      backwardInverseChimeraWithK(m002, m012, m022, vvy, vysq, c18o1, c1o18);
+      backwardInverseChimeraWithK(m100, m110, m120, vvy, vysq, c3o2, c2o3);
+      backwardChimera(            m101, m111, m121, vvy, vysq);
+      backwardInverseChimeraWithK(m102, m112, m122, vvy, vysq, c9o2, c2o9);
+      backwardInverseChimeraWithK(m200, m210, m220, vvy, vysq, c6o1, c1o6);
+      backwardChimera(            m201, m211, m221, vvy, vysq);
+      backwardInverseChimeraWithK(m202, m212, m222, vvy, vysq, c18o1, c1o18);
+
+      ////////////////////////////////////////////////////////////////////////////////////
+      // Z - Dir
+      backwardInverseChimeraWithK(m000, m001, m002, vvz, vzsq, c36o1, c1o36);
+      backwardInverseChimeraWithK(m010, m011, m012, vvz, vzsq, c9o1,  c1o9);
+      backwardInverseChimeraWithK(m020, m021, m022, vvz, vzsq, c36o1, c1o36);
+      backwardInverseChimeraWithK(m100, m101, m102, vvz, vzsq, c9o1,  c1o9);
+      backwardInverseChimeraWithK(m110, m111, m112, vvz, vzsq, c9o4,  c4o9);
+      backwardInverseChimeraWithK(m120, m121, m122, vvz, vzsq, c9o1,  c1o9);
+      backwardInverseChimeraWithK(m200, m201, m202, vvz, vzsq, c36o1, c1o36);
+      backwardInverseChimeraWithK(m210, m211, m212, vvz, vzsq, c9o1,  c1o9);
+      backwardInverseChimeraWithK(m220, m221, m222, vvz, vzsq, c36o1, c1o36);
+
+      auto f = block->getData<PdfField_T>(ids_.pdfField);
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[0],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[0],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[0], 0) = f000;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[4],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[4],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[4], 4)= fP00;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[3],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[3],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[3], 3)= fM00;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[1],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[1],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[1], 1)= f0P0;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[2],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[2],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[2], 2)= f0M0;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[5],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[5],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[5], 5)= f00P;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[6],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[6],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[6], 6)= f00M;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[8],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[8],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[8], 8)= fPP0;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[9],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[9],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[9], 9)= fMM0;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[10],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[10],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[10], 10) = fPM0;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[7],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[7],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[7], 7)= fMP0;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[14],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[14],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[14], 14) = fP0P;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[17],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[17],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[17], 17) = fM0M;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[18],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[18],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[18], 18) = fP0M;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[13],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[13],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[13], 13) = fM0P;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[11],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[11],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[11], 11) = f0PP;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[16],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[16],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[16], 16) = f0MM;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[15],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[15],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[15], 15) = f0PM;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[12],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[12],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[12], 12) = f0MP;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[19],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[19],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[19], 19) = fPPP;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[20],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[20],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[20], 20) = fMPP;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[21],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[21],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[21], 21) = fPMP;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[22],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[22],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[22], 22) = fMMP;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[23],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[23],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[23], 23) = fPPM;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[24],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[24],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[24], 24) = fMPM;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[25],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[25],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[25], 25) = fPMM;
+      f->get(localCell.x() + StorageSpecification_T::AccessorEVEN::readX[26],
+             localCell.y() + StorageSpecification_T::AccessorEVEN::readY[26],
+             localCell.z() + StorageSpecification_T::AccessorEVEN::readZ[26], 26) = fMMM;
+   }
+
+
    void setCoefficients(Block * sender, Block * receiver, CellInterval& ci, real_t omega, stencil::Direction dir)
    {
       real_t f_coarse[27];
@@ -1666,6 +1940,79 @@ class Interpolation
       }
    }
 
+   void fineToCoarse()
+   {
+      const real_t omegaC = omegaVector[0];
+      const real_t omegaF = omegaVector[1];
+
+      for( auto it = blocks_->begin(); it != blocks_->end(); ++it )
+      {
+         if(blocks_->getLevel(*it.get()) != 0)
+            continue;
+
+         for(cell_idx_t z = 0; z < 4; z++)
+         {
+            for(cell_idx_t x = 0; x < 4; x++)
+            {
+               real_t f_fine[27];
+               MomentsOnSourceNodeSet moments;
+
+               Vector3<real_t> p(real_c(x), real_c(3.0), real_c(z));
+               blocks_->transformBlockLocalToGlobal(p, *it);
+               Vector3<real_t> cellCenter(p[0] + real_c(0.5), p[1] + real_c(1.5), p[2] + real_c(0.5));
+               Block* fineBlock = dynamic_cast< Block* >(blocks_->getBlock(p[0], p[1] + real_c(2.0), p[2]));
+
+               Vector3<real_t> mmm(-real_c(0.25), -real_c(0.25), -real_c(0.25));
+               Cell c0 = blocks_->getBlockLocalCell(*fineBlock, cellCenter + mmm);
+               getFinePDFs(fineBlock, c0, f_fine);
+               moments.calculateMMM(f_fine, omegaF);
+
+               Vector3<real_t> mmp(-real_c(0.25), -real_c(0.25), real_c(0.25));
+               Cell c1 = blocks_->getBlockLocalCell(*fineBlock, cellCenter + mmp);
+               getFinePDFs(fineBlock, c1, f_fine);
+               moments.calculateMMP(f_fine, omegaF);
+
+               Vector3<real_t> pmp(real_c(0.25), -real_c(0.25), real_c(0.25));
+               Cell c2 = blocks_->getBlockLocalCell(*fineBlock, cellCenter + pmp);
+               getFinePDFs(fineBlock, c2, f_fine);
+               moments.calculatePMP(f_fine, omegaF);
+
+               Vector3<real_t> pmm(real_c(0.25), -real_c(0.25), -real_c(0.25));
+               Cell c3 = blocks_->getBlockLocalCell(*fineBlock, cellCenter + pmm);
+               getFinePDFs(fineBlock, c3, f_fine);
+               moments.calculatePMM(f_fine, omegaF);
+
+               Vector3<real_t> mpm(-real_c(0.25), real_c(0.25), -real_c(0.25));
+               Cell c4 = blocks_->getBlockLocalCell(*fineBlock, cellCenter + mpm);
+               getFinePDFs(fineBlock, c4, f_fine);
+               moments.calculateMPM(f_fine, omegaF);
+
+               Vector3<real_t> mpp(-real_c(0.25), real_c(0.25), real_c(0.25));
+               Cell c5 = blocks_->getBlockLocalCell(*fineBlock, cellCenter + mpp);
+               getFinePDFs(fineBlock, c5, f_fine);
+               moments.calculateMPP(f_fine, omegaF);
+
+               Vector3<real_t> ppp(real_c(0.25), real_c(0.25), real_c(0.25));
+               Cell c6 = blocks_->getBlockLocalCell(*fineBlock, cellCenter + ppp);
+               getFinePDFs(fineBlock, c6, f_fine);
+               moments.calculatePPP(f_fine, omegaF);
+
+               Vector3<real_t> ppm(real_c(0.25), real_c(0.25), -real_c(0.25));
+               Cell c7 = blocks_->getBlockLocalCell(*fineBlock, cellCenter + ppm);
+               getFinePDFs(fineBlock, c7, f_fine);
+               moments.calculatePPM(f_fine, omegaF);
+
+               InterpolationCoefficients coefficients;
+               moments.calculateCoefficients(coefficients);
+
+               Block* coarseBlock = dynamic_cast< Block* >(it.get());
+               Cell coarseLocalCell(x, cell_idx_c(3), z);
+               interpolateFC(coarseBlock, coarseLocalCell, omegaF, coefficients);
+            }
+         }
+      }
+   }
+
  private:
    std::shared_ptr< StructuredBlockForest > blocks_;
    IDs ids_;
@@ -1780,210 +2127,27 @@ class Timestep
       {
          ghostLayerPropagation(b);
          streamCollide_(b);
+         boundaryCollection_(b);
       }
       commLocal(1);
+
 
       for(auto b: blocksPerLevel_[1])
       {
          streamCollide_(b);
+         boundaryCollection_(b);
       }
       commLocal(1);
-      interpolation_.coarseToFine();
 
-//      for(auto b: blocksPerLevel_[1])
-//      {
-//         const auto neighborIdx = blockforest::getBlockNeighborhoodSectionIndex(stencil::Direction::S);
-//         if(b->neighborhoodSectionHasLargerBlock(neighborIdx))
-//         {
-//            streamCollide_(b, cell_idx_c(-1));
-//         }
-//         else
-//         {
-//            streamCollide_(b, cell_idx_c(0));
-//         }
-//         boundaryCollection_(b);
-//      }
-//      communication_->communicateEqualLevel(1);
-//      for(auto b: blocksPerLevel_[1])
-//      {
-//         const auto neighborIdx = blockforest::getBlockNeighborhoodSectionIndex(stencil::Direction::S);
-//         if(b->neighborhoodSectionHasLargerBlock(neighborIdx))
-//         {
-//            streamCollide_(b, cell_idx_c(0));
-//         }
-//         else
-//         {
-//            streamCollide_(b, cell_idx_c(0));
-//         }
-//         boundaryCollection_(b);
-//      }
-//      communication_->communicateEqualLevel(1);
-
-
-
-
-//      for(auto b: blocksPerLevel_[1])
-//      {
-//         const auto neighborIdx = blockforest::getBlockNeighborhoodSectionIndex(stencil::Direction::S);
-//         if(b->neighborhoodSectionHasLargerBlock(neighborIdx))
-//         {
-//            streamCollide_(b, cell_idx_c(-1));
-//         }
-//         else
-//         {
-//            streamCollide_(b, cell_idx_c(0));
-//         }
-//         boundaryCollection_(b);
-//      }
-//      // communication_->communicateEqualLevel(1);
-//      // interpolation_.coarseToFine();
-//      for(auto b: blocksPerLevel_[1])
-//      {
-//         const auto neighborIdx = blockforest::getBlockNeighborhoodSectionIndex(stencil::Direction::S);
-//         if(b->neighborhoodSectionHasLargerBlock(neighborIdx))
-//         {
-//            streamCollide_(b, cell_idx_c(0));
-//         }
-//         else
-//         {
-//            streamCollide_(b, cell_idx_c(0));
-//         }
-//         boundaryCollection_(b);
-//      }
-      // communication_->communicateEqualLevel(1);
-      // interpolation_.coarseToFine();
-
-
-
-
-
-//      if(t == 0)
-//      {
-//         interpolation_.coarseToFine();
-//      }
-//      ++t;
-//
-//      for(auto b: blocksPerLevel_[1])
-//      {
-//         streamCollide_(b, cell_idx_c(0));
-//      }
-
-      // Async timsstep fine grid
-      /*for(auto b: blocksPerLevel_[1])
-      {
-         const auto neighborIdx = blockforest::getBlockNeighborhoodSectionIndex(stencil::Direction::S);
-         if(b->neighborhoodSectionHasLargerBlock(neighborIdx))
-         {
-            streamCollide_(b, cell_idx_c(-2));
-         }
-         else
-         {
-            streamCollide_(b, cell_idx_c(0));
-         }
-      }
-
-      communication_->communicateEqualLevel(1);
-
-      for(auto b : blocksPerLevel_[1]){
-         boundaryCollection_(b);
-      }
-
-      // Sync timsstep fine grid
-      for(auto b: blocksPerLevel_[1])
-      {
-         streamCollide_(b, cell_idx_c(0));
-      }
-
-      communication_->communicateEqualLevel(1);
-
-      for(auto b : blocksPerLevel_[1]){
-         boundaryCollection_(b);
-      }*/
-
-
-
-      // timsstep coarse grid
 //      for(auto b: blocksPerLevel_[0])
 //      {
-//         streamCollide_(b, cell_idx_c(0));
-//      }
-//
-//      communication_->communicateEqualLevel(0);
-//
-//      for(auto b : blocksPerLevel_[0]){
-//         boundaryCollection_(b);
-//         packInfo_->prepareCoalescence(b);
-//      }
-
-      // communication_->communicateFineToCoarse(1);
-      // interpolation_.coarseToFine();
-
-
-
-
-
-
-
-      //
-//      // 1.1 Collision
-//      for(auto b: blocksPerLevel_[level]){
-//         // sweepCollection_.streamCollide(b);
 //         streamCollide_(b);
-//      }
-//
-//      // 1.2 Recursive Descent
-//      if(level < maxLevel_){
-//         timestep(level + 1);
-//      }
-//
-//      // 1.3 Coarse to Fine Communication, receiving end
-//      if(level != 0){
-//         communication_->communicateCoarseToFine(level);
-//      }
-//
-//      // 1.4 Equal-Level Communication
-//      communication_->communicateEqualLevel(level);
-//
-//      // 1.5 Boundary Handling and Coalescence Preparation
-//      for(auto b : blocksPerLevel_[level]){
 //         boundaryCollection_(b);
-//         if(level != maxLevel_) packInfo_->prepareCoalescence(b);
 //      }
-//
-//      // 1.6 Fine to Coarse Communication, receiving end
-//      if(level < maxLevel_){
-//         communication_->communicateFineToCoarse(level + 1);
-//      }
-//
-//      // Stop here if on coarsest level.
-//      // Otherwise, continue to second subcycle.
-//      if(level == 0) return;
-//
-//      // 2.1 Collision and Ghost-Layer Propagation
-//      for(auto b: blocksPerLevel_[level]){
-//         ghostLayerPropagation(b);
-//         streamCollide_(b);
-//         // sweepCollection_.streamCollide(b);
-//      }
-//
-//      // 2.2 Recursive Descent
-//      if(level < maxLevel_){
-//         timestep(level + 1);
-//      }
-//
-//      // 2.4 Equal-Level Communication
-//      communication_->communicateEqualLevel(level);
-//
-//      // 2.5 Boundary Handling and Coalescence Preparation
-//      for(auto b : blocksPerLevel_[level]){
-//         boundaryCollection_(b);
-//         if(level != maxLevel_) packInfo_->prepareCoalescence(b);
-//      }
-//
-//      // 2.6 Fine to Coarse Communication, receiving end
-//      if(level < maxLevel_){
-//         communication_->communicateFineToCoarse(level + 1);
-//      }
+//      commLocal(0);
+
+      interpolation_.coarseToFine();
+      //interpolation_.fineToCoarse();
    }
 
    void operator()(){ timestep(); };
@@ -2104,25 +2268,25 @@ int main(int argc, char** argv)
 //   }
 
 
-      for (auto& block : *blocks)
-      {
-         const uint_t level = blocks->getLevel(block);
-         if(level == 0)
-         {
-            auto velocityField = block.getData<VectorField_T>(ids.velocityField);
-
-            for (cell_idx_t ctr_2 = 0; ctr_2 < velocityField->zSize(); ++ctr_2)
-            {
-               for(cell_idx_t ctr_1 = 0; ctr_1 < velocityField->ySize(); ++ctr_1)
-               {
-                  for (cell_idx_t ctr_0 = 0; ctr_0 < velocityField->xSize(); ++ctr_0)
-                  {
-                     velocityField->get(ctr_0, ctr_1, ctr_2, 0) = real_c(0.01);
-                  }
-               }
-            }
-         }
-      }
+//      for (auto& block : *blocks)
+//      {
+//         const uint_t level = blocks->getLevel(block);
+//         if(level == 0)
+//         {
+//            auto velocityField = block.getData<VectorField_T>(ids.velocityField);
+//
+//            for (cell_idx_t ctr_2 = 0; ctr_2 < velocityField->zSize(); ++ctr_2)
+//            {
+//               for(cell_idx_t ctr_1 = 0; ctr_1 < velocityField->ySize(); ++ctr_1)
+//               {
+//                  for (cell_idx_t ctr_0 = 0; ctr_0 < velocityField->xSize(); ++ctr_0)
+//                  {
+//                     velocityField->get(ctr_0, ctr_1, ctr_2, 0) = real_c(0.01);
+//                  }
+//               }
+//            }
+//         }
+//      }
 
 
    SweepCollection_T sweepCollection(blocks, ids.pdfField, ids.densityField, ids.velocityField, omega);

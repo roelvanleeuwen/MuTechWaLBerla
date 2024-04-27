@@ -218,38 +218,67 @@ int main(int argc, char** argv)
       WALBERLA_MPI_BARRIER()
       simTimer.end();
 
-      WALBERLA_LOG_INFO_ON_ROOT("Benchmark finished")
-      double time = simTimer.max();
-      WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
-      performance.logResultOnRoot(timesteps, time);
-
-      const auto reducedTimeloopTiming = timeloopTiming.getReduced();
-      WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
-
-      WALBERLA_ROOT_SECTION()
+      for (auto& block : *blocks)
       {
-         if (inputIsPython)
-         {
-            python_coupling::PythonCallback pythonCallbackResults("results_callback");
-            if (pythonCallbackResults.isCallable())
-            {
-               pythonCallbackResults.data().exposeValue("numProcesses", performance.processes());
-               pythonCallbackResults.data().exposeValue("numThreads", performance.threads());
-               pythonCallbackResults.data().exposeValue("numCores", performance.cores());
-               pythonCallbackResults.data().exposeValue("mlups", performance.mlups(timesteps, time));
-               pythonCallbackResults.data().exposeValue("mlupsPerCore", performance.mlupsPerCore(timesteps, time));
-               pythonCallbackResults.data().exposeValue("mlupsPerProcess",
-                                                        performance.mlupsPerProcess(timesteps, time));
-               pythonCallbackResults.data().exposeValue("stencil", infoStencil);
-               pythonCallbackResults.data().exposeValue("streamingPattern", infoStreamingPattern);
-               pythonCallbackResults.data().exposeValue("collisionSetup", infoCollisionSetup);
-               pythonCallbackResults.data().exposeValue("cse_global", infoCseGlobal);
-               pythonCallbackResults.data().exposeValue("cse_pdfs", infoCsePdfs);
-               // Call Python function to report results
-               pythonCallbackResults();
-            }
-         }
+         sweepCollection.calculateMacroscopicParameters(&block);
       }
+      WALBERLA_MPI_BARRIER()
+
+
+      WALBERLA_LOG_INFO_ON_ROOT("Benchmark finished")
+      // double time = simTimer.max();
+      // WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
+      // performance.logResultOnRoot(timesteps, time);
+
+      // const auto reducedTimeloopTiming = timeloopTiming.getReduced();
+      // WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
+
+      // blocks->saveBlockData("velocity.data", velFieldID);
+
+      auto dataHandling    = make_shared< field::DefaultBlockDataHandling< VelocityField_T > >(blocks, uint_t(3), 0.0, field::fzyx);
+      auto readFieldId = blocks->loadBlockData("velocity.data", dataHandling, "ReadField");
+
+      WALBERLA_MPI_BARRIER()
+      WALBERLA_LOG_INFO_ON_ROOT("checking if velocity is identical")
+
+      for (auto it = blocks->begin(); it != blocks->end(); ++it)
+      {
+         auto originalField = it->getData< VelocityField_T >(velFieldID);
+         auto readField     = it->getData< VelocityField_T >(readFieldId);
+
+         auto readIt = readField->begin();
+         for (auto origIt = originalField->begin(); origIt != originalField->end(); ++origIt, ++readIt){
+            WALBERLA_CHECK_IDENTICAL(*origIt, *readIt)
+         }
+
+      }
+
+      WALBERLA_LOG_INFO_ON_ROOT("velocity is identical")
+
+//      WALBERLA_ROOT_SECTION()
+//      {
+//         if (inputIsPython)
+//         {
+//            python_coupling::PythonCallback pythonCallbackResults("results_callback");
+//            if (pythonCallbackResults.isCallable())
+//            {
+//               pythonCallbackResults.data().exposeValue("numProcesses", performance.processes());
+//               pythonCallbackResults.data().exposeValue("numThreads", performance.threads());
+//               pythonCallbackResults.data().exposeValue("numCores", performance.cores());
+//               pythonCallbackResults.data().exposeValue("mlups", performance.mlups(timesteps, time));
+//               pythonCallbackResults.data().exposeValue("mlupsPerCore", performance.mlupsPerCore(timesteps, time));
+//               pythonCallbackResults.data().exposeValue("mlupsPerProcess",
+//                                                        performance.mlupsPerProcess(timesteps, time));
+//               pythonCallbackResults.data().exposeValue("stencil", infoStencil);
+//               pythonCallbackResults.data().exposeValue("streamingPattern", infoStreamingPattern);
+//               pythonCallbackResults.data().exposeValue("collisionSetup", infoCollisionSetup);
+//               pythonCallbackResults.data().exposeValue("cse_global", infoCseGlobal);
+//               pythonCallbackResults.data().exposeValue("cse_pdfs", infoCsePdfs);
+//               // Call Python function to report results
+//               pythonCallbackResults();
+//            }
+//         }
+//      }
    }
    return EXIT_SUCCESS;
 }

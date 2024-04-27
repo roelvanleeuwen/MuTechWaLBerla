@@ -48,14 +48,12 @@ class LDCRefinement
    {
       const AABB & domain = forest.getDomain();
 
-      const real_t xSize = ( domain.xSize() / real_t(12) ) * real_c( 0.99 );
-      const real_t ySize = ( domain.ySize() / real_t(12) ) * real_c( 0.99 );
+      WALBERLA_LOG_DEVEL_VAR(domain.xMin())
+      WALBERLA_LOG_DEVEL_VAR(domain.xMax())
 
-      const AABB leftCorner( domain.xMin(), domain.yMin(), domain.zMin(),
-                            domain.xMin() + xSize, domain.yMin() + ySize, domain.zMax() );
+      const AABB leftCorner( 20, 39, 20, 36, 40, 36 );
 
-      const AABB rightCorner( domain.xMax() - xSize, domain.yMin(), domain.zMin(),
-                             domain.xMax(), domain.yMin() + ySize, domain.zMax() );
+      const AABB rightCorner( 19, 20, 20, 21, 36, 36 );
 
       for(auto & block : forest)
       {
