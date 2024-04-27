@@ -1,7 +1,7 @@
 Parameters
 {
 	omega              1.4;
-	timesteps          100;
+	timesteps          10;
 	maxLatticeVelocity 0.01;
 
 	remainingTimeLoggerFrequency 0; // in seconds

@@ -97,7 +97,8 @@ with CodeGeneration() as ctx:
     generate_lbm_package(ctx, name="FlowAroundCylinder", collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
                          nonuniform=True, boundaries=[freeslip, no_slip, no_slip_interpolated, ubb, outflow],
-                         macroscopic_fields=macroscopic_fields, gpu_indexing_params=sweep_params,
+                         macroscopic_fields=macroscopic_fields, set_pre_collision_pdfs=True,
+                         gpu_indexing_params=sweep_params,
                          target=target, data_type=dtype, pdfs_data_type=pdf_dtype,
                          cpu_vectorize_info=cpu_vec)
 

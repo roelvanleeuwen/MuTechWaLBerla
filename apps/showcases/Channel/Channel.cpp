@@ -582,6 +582,11 @@ struct MomentsOnSourceNode
       this->velocityY = oneOverRho*(-f[10] - f[12] - f[16] + f[19] - f[2] - f[21] - f[22] + f[23] - f[25] - f[26] + f[8] - f[9] + vel1Term);
       this->velocityZ = oneOverRho*(f[11] + f[14] - f[15] - f[16] - f[17] - f[18] + f[19] + f[20] + f[21] - f[23] - f[24] - f[25] - f[26] - f[6] + vel2Term);
 
+      WALBERLA_CHECK_FLOAT_EQUAL(rho, real_c(1.0))
+      WALBERLA_CHECK_FLOAT_EQUAL(this->velocityX, real_c(0.01))
+      WALBERLA_CHECK_FLOAT_EQUAL(this->velocityY, real_c(0.0))
+      WALBERLA_CHECK_FLOAT_EQUAL(this->velocityZ, real_c(0.0))
+
       ////////////////////////////////////////////////////////////////////////////////////
       //! - Calculate second order moments for interpolation
       //!
@@ -1194,6 +1199,11 @@ class Interpolation
                  x * y * c110 + x * z * c101 + y * z * c011 + x * y * z * c111;
 
       m000 = press; // m000 is press, if drho is interpolated directly
+
+      WALBERLA_CHECK_FLOAT_EQUAL(press, real_c(0.0))
+      WALBERLA_CHECK_FLOAT_EQUAL(vvx, real_c(0.01))
+      WALBERLA_CHECK_FLOAT_EQUAL(vvy, real_c(0.0))
+      WALBERLA_CHECK_FLOAT_EQUAL(vvz, real_c(0.0))
 
       ////////////////////////////////////////////////////////////////////////////////
       //! - Set moments (second to sixth order) on destination node
@@ -1904,19 +1914,19 @@ class Interpolation
                momentSets[index].calculateCoefficients(coefficients);
 
                Vector3<real_t> mmm(-real_c(0.25), -real_c(0.25), -real_c(0.25));
-               Cell c0(-1 + 2*cell_idx_c(j), -1, -1 + 2*cell_idx_c(i));
+               Cell c0(-1 + 2*cell_idx_c(j), -2, -1 + 2*cell_idx_c(i));
                interpolateCF(block, c0, mmm, omegaF, coefficients);
 
                Vector3<real_t> mmp(-real_c(0.25), -real_c(0.25), real_c(0.25));
-               Cell c1(-1 + 2*cell_idx_c(j), -1, 0 + 2*cell_idx_c(i));
+               Cell c1(-1 + 2*cell_idx_c(j), -2, 0 + 2*cell_idx_c(i));
                interpolateCF(block, c1, mmp, omegaF, coefficients);
 
                Vector3<real_t> pmp(real_c(0.25), -real_c(0.25), real_c(0.25));
-               Cell c2(0 + 2*cell_idx_c(j), -1, 0 + 2*cell_idx_c(i));
+               Cell c2(0 + 2*cell_idx_c(j), -2, 0 + 2*cell_idx_c(i));
                interpolateCF(block, c2, pmp, omegaF, coefficients);
 
                Vector3<real_t> pmm(real_c(0.25), -real_c(0.25), -real_c(0.25));
-               Cell c3(0 + 2*cell_idx_c(j), -1, -1 + 2*cell_idx_c(i));
+               Cell c3(0 + 2*cell_idx_c(j), -2, -1 + 2*cell_idx_c(i));
                interpolateCF(block, c3, pmm, omegaF, coefficients);
 
                Vector3<real_t> mpm(-real_c(0.25), real_c(0.25), -real_c(0.25));
@@ -2146,8 +2156,8 @@ class Timestep
 //      }
 //      commLocal(0);
 
-      interpolation_.coarseToFine();
-      //interpolation_.fineToCoarse();
+      //interpolation_.coarseToFine();
+      // interpolation_.fineToCoarse();
    }
 
    void operator()(){ timestep(); };
@@ -2191,7 +2201,7 @@ int main(int argc, char** argv)
    setup.cells = Vector3< uint_t >(setup.blocks[0] * setup.cellsPerBlock[0], setup.blocks[1] * setup.cellsPerBlock[1],
                                    setup.blocks[2] * setup.cellsPerBlock[2]);
    setup.periodic       = domainParameters.getParameter< Vector3< bool > >("periodic");
-   setup.numGhostLayers = refinementLevels > 0 ? uint_c(2) : uint_c(1);
+   setup.numGhostLayers = refinementLevels > 0 ? uint_c(3) : uint_c(1);
 
 
    const uint_t valuesPerCell = (uint_c(2) * Stencil_T::Q + VectorField_T ::F_SIZE + uint_c(2) * ScalarField_T::F_SIZE);
@@ -2268,31 +2278,39 @@ int main(int argc, char** argv)
 //   }
 
 
-//      for (auto& block : *blocks)
-//      {
-//         const uint_t level = blocks->getLevel(block);
-//         if(level == 0)
-//         {
-//            auto velocityField = block.getData<VectorField_T>(ids.velocityField);
-//
-//            for (cell_idx_t ctr_2 = 0; ctr_2 < velocityField->zSize(); ++ctr_2)
-//            {
-//               for(cell_idx_t ctr_1 = 0; ctr_1 < velocityField->ySize(); ++ctr_1)
-//               {
-//                  for (cell_idx_t ctr_0 = 0; ctr_0 < velocityField->xSize(); ++ctr_0)
-//                  {
-//                     velocityField->get(ctr_0, ctr_1, ctr_2, 0) = real_c(0.01);
-//                  }
-//               }
-//            }
-//         }
-//      }
+      for (auto& block : *blocks)
+      {
+         const uint_t level = blocks->getLevel(block);
+         if(level == 0)
+         {
+            auto velocityField = block.getData<VectorField_T>(ids.velocityField);
+
+            for (cell_idx_t ctr_2 = 0; ctr_2 < velocityField->zSize(); ++ctr_2)
+            {
+               for(cell_idx_t ctr_1 = 0; ctr_1 < velocityField->ySize(); ++ctr_1)
+               {
+                  for (cell_idx_t ctr_0 = 0; ctr_0 < velocityField->xSize(); ++ctr_0)
+                  {
+                     velocityField->get(ctr_0, ctr_1, ctr_2, 0) = maxLatticeVelocity;
+                  }
+               }
+            }
+         }
+      }
 
 
    SweepCollection_T sweepCollection(blocks, ids.pdfField, ids.densityField, ids.velocityField, omega);
    for (auto& block : *blocks)
    {
       sweepCollection.initialise(&block, cell_idx_c(setup.numGhostLayers - uint_c(1)));
+   }
+
+   for (auto& block : *blocks)
+   {
+      if(blocks->getLevel(block) == 0)
+      {
+         sweepCollection.streamCollide(&block);
+      }
    }
 
    const FlagUID fluidFlagUID("Fluid");

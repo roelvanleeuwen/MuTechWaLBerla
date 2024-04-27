@@ -572,14 +572,14 @@ int main(int argc, char** argv)
                                      gpuBlockSize[1], gpuBlockSize[2], omega, innerOuterSplit);
    for (auto& block : *blocks)
    {
-      sweepCollection.initialise(&block, cell_idx_c(numGhostLayers - uint_c(1)));
+      sweepCollection.initialise(&block, cell_idx_c(1));
    }
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #else
    SweepCollection_T sweepCollection(blocks, ids.pdfField, ids.densityField, ids.velocityField, omega, innerOuterSplit);
    for (auto& block : *blocks)
    {
-      sweepCollection.initialise(&block, cell_idx_c(numGhostLayers));
+      sweepCollection.initialise(&block, cell_idx_c(1));
    }
 #endif
 
