@@ -276,41 +276,15 @@ void consistentlySetBoundary(const std::shared_ptr< StructuredBlockForest >& blo
    }
 }
 
-void setupBoundaryFlagField(const std::shared_ptr< StructuredBlockForest >& sbfs, const BlockDataID flagFieldID,
-                            const std::function< bool(const Vector3< real_t >&) >& isObstacleBoundary)
+void setupBoundarySphere(const std::shared_ptr< StructuredBlockForest >& sbfs, const BlockDataID flagFieldID,
+                         const FlagUID& obstacleFlagUID, const std::function< bool(const Vector3< real_t >&) >& isObstacleBoundary)
 {
-   const FlagUID ubbFlagUID("UBB");
-   const FlagUID outflowFlagUID("Outflow");
-   const FlagUID freeSlipFlagUID("FreeSlip");
-   const FlagUID noSlipFlagUID("NoSlip");
-
    for (auto bIt = sbfs->begin(); bIt != sbfs->end(); ++bIt)
    {
       Block& b             = dynamic_cast< Block& >(*bIt);
-      uint_t level         = b.getLevel();
       auto flagField       = b.getData< FlagField_T >(flagFieldID);
-      uint8_t ubbFlag      = flagField->registerFlag(ubbFlagUID);
-      uint8_t outflowFlag  = flagField->registerFlag(outflowFlagUID);
-      uint8_t freeSlipFlag = flagField->registerFlag(freeSlipFlagUID);
-      uint8_t noSlipFlag   = flagField->registerFlag(noSlipFlagUID);
-
-      consistentlySetBoundary(sbfs, b, flagField, noSlipFlag, isObstacleBoundary);
-
-      for (auto cIt = flagField->beginWithGhostLayerXYZ(2); cIt != flagField->end(); ++cIt)
-      {
-         Cell localCell = cIt.cell();
-         Cell globalCell(localCell);
-         sbfs->transformBlockLocalToGlobalCell(globalCell, b);
-         if (globalCell.x() < 0) { flagField->addFlag(localCell, ubbFlag); }
-         else if (globalCell.x() >= cell_idx_c(sbfs->getNumberOfXCells(level)))
-         {
-            flagField->addFlag(localCell, outflowFlag);
-         }
-         else if (globalCell.y() < 0 || globalCell.y() >= cell_idx_c(sbfs->getNumberOfYCells(level)))
-         {
-            flagField->addFlag(localCell, freeSlipFlag);
-         }
-      }
+      uint8_t obstacleFlag = flagField->registerFlag(obstacleFlagUID);
+      consistentlySetBoundary(sbfs, b, flagField, obstacleFlag, isObstacleBoundary);
    }
 }
 }
@@ -348,9 +322,10 @@ int main(int argc, char** argv)
 
    const real_t speedOfSound = real_c(real_c(1.0) / std::sqrt( real_c(3.0) ));
    const real_t referenceVelocity = real_c(machNumber * speedOfSound);
-   const real_t viscosity = real_c((referenceVelocity * diameterSphere)  / reynoldsNumber );
+   const real_t viscosity = real_c(referenceVelocity / reynoldsNumber);
    const real_t omega = real_c(real_c(1.0) / (real_c(3.0) * viscosity + real_c(0.5)));
    const real_t referenceTime = real_c(diameterSphere / referenceVelocity);
+   WALBERLA_LOG_DEVEL_VAR(referenceVelocity)
 
 
    // read domain parameters
@@ -517,7 +492,7 @@ int main(int argc, char** argv)
    const BlockDataID densityFieldID =
       field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, numGhostLayers);
    const BlockDataID flagFieldID =
-      field::addFlagFieldToStorage< FlagField_T >(blocks, "Boundary Flag Field", uint_c(2));
+      field::addFlagFieldToStorage< FlagField_T >(blocks, "Boundary Flag Field", uint_c(3));
 #endif
 
    WALBERLA_MPI_BARRIER()
@@ -528,17 +503,8 @@ int main(int argc, char** argv)
    const Vector3< int64_t > gpuBlockSize = parameters.getParameter< Vector3< int64_t > >("gpuBlockSize");
    SweepCollection_T sweepCollection(blocks, pdfFieldGPUID, densityFieldGPUID, velFieldGPUID, gpuBlockSize[0],
                                      gpuBlockSize[1], gpuBlockSize[2], omega, innerOuterSplit);
-   for (auto& block : *blocks)
-   {
-      sweepCollection.initialise(&block, cell_idx_c(numGhostLayers - uint_c(1)));
-   }
-   WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #else
    SweepCollection_T sweepCollection(blocks, pdfFieldID, densityFieldID, velFieldID, omega, innerOuterSplit);
-   for (auto& block : *blocks)
-   {
-      sweepCollection.initialise(&block, cell_idx_c(numGhostLayers));
-   }
 #endif
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
@@ -566,8 +532,30 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT("Start BOUNDARY HANDLING")
    // create and initialize boundary handling
    const FlagUID fluidFlagUID("Fluid");
-   setupBoundaryFlagField(blocks, flagFieldID, Sphere);
-   geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldID, fluidFlagUID, cell_idx_c(numGhostLayers));
+   const FlagUID obstacleFlagUID("Obstacle");
+   auto boundariesConfig   = config->getBlock("Boundaries");
+   geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldID, boundariesConfig);
+   setupBoundarySphere(blocks, flagFieldID, obstacleFlagUID, Sphere);
+   geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldID, fluidFlagUID, cell_idx_c(0));
+
+   for (auto& block : *blocks)
+   {
+      auto * flagField = block.getData< FlagField_T > ( flagFieldID );
+      auto * velField = block.getData< VelocityField_T > ( velFieldID );
+      auto domainFlag = flagField->getFlag(fluidFlagUID);
+
+      for( auto it = flagField->beginWithGhostLayer(2); it != flagField->end(); ++it )
+      {
+         // if (!isFlagSet(it, domainFlag))
+           //  continue;
+
+         velField->get(it.cell(), 0) = referenceVelocity;
+      }
+      sweepCollection.initialise(&block, cell_idx_c(1));
+   }
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
+#endif
 
    std::function< real_t(const Cell&, const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) >
       wallDistanceFunctor = wallDistance(Sphere);
@@ -668,10 +656,10 @@ int main(int argc, char** argv)
 #endif
       });
 
-      vtkOutput->setSamplingResolution(samplingResolution );
+      vtkOutput->setSamplingResolution(samplingResolution);
 
       field::FlagFieldCellFilter<FlagField_T> fluidFilter( flagFieldID );
-      fluidFilter.addFlag( FlagUID("NoSlip") );
+      fluidFilter.addFlag( obstacleFlagUID );
       vtkOutput->addCellExclusionFilter(fluidFilter);
 
 

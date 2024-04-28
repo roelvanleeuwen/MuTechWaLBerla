@@ -1,12 +1,12 @@
 Parameters
 {
-    machNumber 0.0585;
+    machNumber 8.66e-3;
     reynoldsNumber 1000;
     diameterSphere 2.5; // On the finest mesh
     timesteps 100001;
     simulationTime 93;
-    coarseMeshSize 0.01953125;
-    sphereXPosition 4;
+    coarseMeshSize 0.125;
+    sphereXPosition 3;
     circularCrossSection true;
 
     evaluatePressure false;
@@ -16,7 +16,7 @@ Parameters
     evaluateStrouhal false;
     pStrouhal < 1, 0.325, 0.205 >; // point used for evaluating the vortex shedding frequency and the Strouhal number
 
-    SphereRefinementBuffer 1;
+    SphereRefinementBuffer 0;
     processMemoryLimit 512; // MiB
 
     innerOuterSplit <1, 1, 1>;
@@ -30,12 +30,22 @@ Parameters
 //! [domainSetup]
 DomainSetup
 {
-    cellsPerBlock < 512, 512, 512 >;
-    domainSize    < 35, 11, 11 >; // Domain size is given in terms of the diameter of the Sphere
-    refinementLevels 0;
+    cellsPerBlock < 8, 8, 8 >;
+    domainSize    < 13, 6, 6 >; // Domain size is given in terms of the diameter of the Sphere
+    refinementLevels 2;
     numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
 }
 //! [domainSetup]
+
+Boundaries
+{
+    Border { direction N;    walldistance -1;  flag FreeSlip;  }
+    Border { direction S;    walldistance -1;  flag FreeSlip;  }
+    Border { direction T;    walldistance -1;  flag FreeSlip;  }
+    Border { direction B;    walldistance -1;  flag FreeSlip;  }
+    Border { direction W;    walldistance -1;  flag UBB;       }
+    Border { direction E;    walldistance -1;  flag Outflow;   }
+}
 
 StabilityChecker
 {
@@ -46,20 +56,20 @@ StabilityChecker
 
 VTKWriter
 {
-    vtkWriteFrequency 1000;
+    vtkWriteFrequency 20;
     velocity true;
     density false;
     flag false;
     writeOnlySlice false;
     amrFileFormat false;
     oneFilePerProcess false;
-    samplingResolution 10;
+    samplingResolution -1;
 }
 
 Logging
 {
     logLevel info;  // info progress detail tracing
-    writeSetupForestAndReturn true;
+    writeSetupForestAndReturn false;
     readSetupFromFile false;
     remainingTimeLoggerFrequency 60; // in seconds
 }

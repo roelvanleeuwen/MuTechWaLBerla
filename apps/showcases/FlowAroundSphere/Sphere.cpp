@@ -60,33 +60,33 @@ bool Sphere::intersects(const AABB& aabb, const real_t bufferDistance) const
    const real_t pz = setup_.sphereZPosition;
    const real_t r  = setup_.sphereRadius;
 
-      Vector3< real_t > p(px, py, real_t(0));
+   Vector3< real_t > p(px, py, pz);
 
-      if (p[0] < aabb.xMin())
-         p[0] = aabb.xMin();
-      else if (p[0] > aabb.xMax())
-         p[0] = aabb.xMax();
-      if (p[1] < aabb.yMin())
-         p[1] = aabb.yMin();
-      else if (p[1] > aabb.yMax())
-         p[1] = aabb.yMax();
-      if (p[2] < aabb.zMin())
-         p[2] = aabb.zMin();
-      else if (p[2] > aabb.zMax())
-         p[2] = aabb.zMax();
+   if (p[0] < aabb.xMin())
+      p[0] = aabb.xMin();
+   else if (p[0] > aabb.xMax())
+      p[0] = aabb.xMax();
+   if (p[1] < aabb.yMin())
+      p[1] = aabb.yMin();
+   else if (p[1] > aabb.yMax())
+      p[1] = aabb.yMax();
+   if (p[2] < aabb.zMin())
+      p[2] = aabb.zMin();
+   else if (p[2] > aabb.zMax())
+      p[2] = aabb.zMax();
 
-      const real_t xd = p[0] - px;
-      const real_t yd = p[1] - py;
-      const real_t zd = p[2] - pz;
-      const real_t d  = xd * xd + yd * yd + zd * zd;
-      const real_t rr = (r + bufferDistance) * (r + bufferDistance);
-      return d <= rr;
+   const real_t xd = p[0] - px;
+   const real_t yd = p[1] - py;
+   const real_t zd = p[2] - pz;
+   const real_t d  = xd * xd + yd * yd + zd * zd;
+   const real_t rr = (r + bufferDistance) * (r + bufferDistance);
+   return d <= rr;
 }
 
 real_t Sphere::delta(const Vector3< real_t >& fluid, const Vector3< real_t >& boundary) const
 {
-   WALBERLA_CHECK(!contains(fluid));
-   WALBERLA_CHECK(contains(boundary));
+   WALBERLA_CHECK(!contains(fluid))
+   WALBERLA_CHECK(contains(boundary))
 
    const real_t px = setup_.sphereXPosition;
    const real_t py = setup_.sphereYPosition;
@@ -122,8 +122,11 @@ real_t Sphere::delta(const Vector3< real_t >& fluid, const Vector3< real_t >& bo
 real_t wallDistance::operator()(const Cell& fluidCell, const Cell& boundaryCell,
                                 const shared_ptr< StructuredBlockForest >& SbF, IBlock& block) const
 {
-   const Vector3< real_t > boundary = SbF->getBlockLocalCellCenter( block, boundaryCell );
-   const Vector3< real_t > fluid = SbF->getBlockLocalCellCenter( block, fluidCell );
+   Vector3< real_t > boundary = SbF->getBlockLocalCellCenter( block, boundaryCell );
+   Vector3< real_t > fluid = SbF->getBlockLocalCellCenter( block, fluidCell );
+   SbF->mapToPeriodicDomain(boundary);
+   SbF->mapToPeriodicDomain(fluid);
+
    WALBERLA_ASSERT(sphere_.contains(boundary), "Boundary cell must be inside the sphere!")
    WALBERLA_ASSERT(!sphere_.contains(fluid), "Fluid cell must not be inside the sphere!")
 
