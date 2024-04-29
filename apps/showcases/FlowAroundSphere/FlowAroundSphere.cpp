@@ -603,7 +603,7 @@ int main(int argc, char** argv)
    };
 
    shared_ptr< Evaluation > evaluation( new Evaluation( blocks, evaluationCheckFrequency, rampUpTime, getFields,
-                                                        pdfFieldID, densityFieldID, velFieldID, flagFieldID, fluidFlagUID, FlagUID("NoSlip"),
+                                                        pdfFieldID, densityFieldID, velFieldID, flagFieldID, fluidFlagUID, obstacleFlagUID,
                                                         setup, evaluationLogToStream, evaluationLogToFile, evaluationFilename));
 
    // create time loop

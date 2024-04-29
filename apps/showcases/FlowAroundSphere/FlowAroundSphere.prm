@@ -56,9 +56,9 @@ StabilityChecker
 
 VTKWriter
 {
-    vtkWriteFrequency 20;
+    vtkWriteFrequency 1000;
     velocity true;
-    density false;
+    density true;
     flag false;
     writeOnlySlice false;
     amrFileFormat false;
