@@ -13,25 +13,27 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file RefinementScaling.h
+//! \file Types.h
 //! \author Markus Holzer <markus.holzer@fau.de>
 //
 //======================================================================================================================
+# pragma once
 
-#pragma once
+#include "domain_decomposition/BlockDataID.h"
 
-#include "core/DataTypes.h"
+using namespace walberla;
 
-namespace walberla::lbm_generated
+struct IDs
 {
+   BlockDataID pdfField;
+   BlockDataID velocityField;
+   BlockDataID densityField;
+   BlockDataID avgVelField;
+   BlockDataID avgVelSqrField;
+   BlockDataID avgPressureField;
+   BlockDataID flagField;
 
-inline real_t relaxationRateScaling( real_t relaxationRate, uint_t refinementLevel )
-{
-   const real_t levelScaleFactor = real_c(uint_c(1) << refinementLevel);
-   const real_t one                = real_c(1.0);
-   const real_t half               = real_c(0.5);
-
-   return real_c(relaxationRate / (levelScaleFactor * (-relaxationRate * half + one) + relaxationRate * half));
-}
-
-} // namespace walberla::lbm_generated
+   BlockDataID pdfFieldGPU;
+   BlockDataID velocityFieldGPU;
+   BlockDataID densityFieldGPU;
+};

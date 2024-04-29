@@ -1759,14 +1759,10 @@ void VTKOutput::writeCollectors( const bool barrier )
       WALBERLA_MPI_WORLD_BARRIER();
 
    WALBERLA_NON_ROOT_SECTION() { return; }
-
    WALBERLA_ASSERT_EQUAL( MPIManager::instance()->worldRank(), 0 );
 
    if(!amrFileFormat_)
       writePVD();
-
-
-
 
    for( auto collector = collectorsToWrite_.begin(); collector != collectorsToWrite_.end(); ++collector )
    {

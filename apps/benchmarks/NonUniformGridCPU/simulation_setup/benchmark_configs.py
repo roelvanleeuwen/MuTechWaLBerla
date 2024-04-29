@@ -103,8 +103,8 @@ def validation_run():
     """Run with full periodic shear flow or boundary scenario (ldc) to check if the code works"""
     wlb.log_info_on_root("Validation run")
 
-    domain_size = (96, 96, 96)
-    cells_per_block = (32, 32, 32)
+    domain_size = (64, 64, 64)
+    cells_per_block = (16, 16, 16)
 
     root_blocks = tuple([d // c for d, c in zip(domain_size, cells_per_block)])
 
@@ -112,10 +112,10 @@ def validation_run():
     scenario = Scenario(domain_size=domain_size,
                         root_blocks=root_blocks,
                         num_processes=1,
-                        refinement_depth=1,
+                        refinement_depth=2,
                         cells_per_block=cells_per_block,
-                        timesteps=201,
-                        vtk_write_frequency=100,
+                        timesteps=101,
+                        vtk_write_frequency=10,
                         logger_frequency=5,
                         write_setup_vtk=True)
     scenarios.add(scenario)

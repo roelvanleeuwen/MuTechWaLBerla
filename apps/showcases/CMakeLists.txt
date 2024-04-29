@@ -10,6 +10,9 @@ add_subdirectory( PegIntoSphereBed )
 if ( WALBERLA_BUILD_WITH_CODEGEN)
 
    add_subdirectory( Antidunes )
+   add_subdirectory( FlowAroundSphere )
+   add_subdirectory( FlowAroundCylinder )
+   add_subdirectory( Channel )
 
    if (WALBERLA_BUILD_WITH_PYTHON)
       add_subdirectory( PhaseFieldAllenCahn )

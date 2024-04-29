@@ -37,6 +37,7 @@
 #include "core/debug/CheckFunctions.h"
 #include "core/debug/Debug.h"
 #include "core/debug/TestSubsystem.h"
+#include "core/logging/Initialization.h"
 #include "core/logging/Logging.h"
 #include "core/math/Constants.h"
 #include "core/math/Sample.h"
@@ -2889,10 +2890,9 @@ int main( int argc, char **argv )
                       "             ('fzyx') data layout!" << std::endl;
       }
       return EXIT_SUCCESS;
-   }   
+   }
 
    logging::Logging::printHeaderOnStream();
-   //WALBERLA_ROOT_SECTION() { logging::Logging::instance()->setLogLevel( logging::Logging::PROGRESS ); }
 
 #ifdef _OPENMP
    if( std::getenv( "OMP_NUM_THREADS" ) == nullptr )
@@ -2903,6 +2903,7 @@ int main( int argc, char **argv )
    // open configuration file
 
    shared_ptr< Config > config = make_shared< Config >();
+   logging::configureLogging(config);
    config->readParameterFile( argv[1] );
 
    Config::BlockHandle configBlock = config->getBlock( "SchaeferTurek" );

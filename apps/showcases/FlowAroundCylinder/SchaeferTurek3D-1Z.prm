@@ -1,0 +1,118 @@
+Parameters
+{
+    kinViscosity       0.001; // [m^2/s]
+    rho                1;     // [kg/m^3]
+    inflowVelocity     0.45;  // [m/s]
+    maxLatticeVelocity 0.01;
+
+    timesteps 20001;
+
+    diameterCylinder 0.1; // On the finest mesh
+    cylinderXPosition 0.5;
+    cylinderyPosition 0.2;
+    coarseMeshSize 0.01; // 9.765625e-4;
+    circularCrossSection true;
+    inflowProfile 1; // 1: Parabolic (SchaeferTurek), 2: uniform (Jacob et al)
+
+    evaluatePressure true;
+    pAlpha < 0.45, 0.2, 0.205 >; // points for evaluating
+    pOmega < 0.55, 0.2, 0.205 >; // the pressure difference
+
+    evaluateStrouhal false;
+    pStrouhal < 1, 0.325, 0.205 >; // point used for evaluating the vortex shedding frequency and the Strouhal number
+
+    cylinderRefinementBuffer 0;
+    processMemoryLimit 512; // MiB
+
+    innerOuterSplit <1, 1, 1>;
+
+    // GPU related Parameters, only used if GPU is enabled
+    sendDirectlyFromGPU true;
+    gpuBlockSize <128, 1, 1>;
+
+}
+
+DomainSetup
+{
+    cellsPerBlock < 250, 41, 41 >;
+    domainSize    < 2.5, 0.41, 0.41 >;
+    periodic      < false, false, false>;
+    refinementLevels 0;
+    numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
+}
+
+Boundaries
+{
+    Border { direction N;    walldistance -1;  flag NoSlip;  }
+    Border { direction S;    walldistance -1;  flag NoSlip;  }
+    Border { direction T;    walldistance -1;  flag NoSlip;  }
+    Border { direction B;    walldistance -1;  flag NoSlip;  }
+    Border { direction W;    walldistance -1;  flag UBB;     }
+    Border { direction E;    walldistance -1;  flag Outflow; }
+}
+
+StabilityChecker
+{
+    checkFrequency 0;
+    streamOutput   false;
+    vtkOutput      true;
+}
+
+VTKWriter
+{
+    vtkWriteFrequency 0;
+    velocity true;
+    density false;
+    averageFields true;
+    flag false;
+    writeOnlySlice true;
+    amrFileFormat false;
+    oneFilePerProcess false;
+}
+
+Logging
+{
+    logLevel info;  // info progress detail tracing
+    writeSetupForestAndReturn false;
+    readSetupFromFile false;
+    remainingTimeLoggerFrequency 60; // in seconds
+}
+
+Evaluation
+{
+    evaluationCheckFrequency 2000;
+    rampUpTime 10000;
+    logToStream true;
+    logToFile true;
+    filename SchaeferTurek3D-1Z.txt;
+}
+
+AABBRefinementSelection
+{
+    // coordinates of Regions are always in [0,1] -> the entire simulation space is mapped to [ <0,0,0>, <1,1,1> ]
+    Region
+    /*{
+        level 1;
+        region [ <0.2, 0.2, 0>, <0.8, 0.8, 1> ];
+    }
+    Region
+    {
+        level 2;
+        region [ <0.26, 0.41, 0>, <0.7, 0.59, 1> ];
+    }
+    Region
+    {
+        level 3;
+        region [ <0.26, 0.41, 0>, <0.5, 0.59, 1> ];
+    }
+    Region
+    {
+        level 4;
+        region [ <0.26, 0.41, 0>, <0.4, 0.59, 1> ];
+    }
+    Region
+    {
+        level 5;
+        region [ <0.26, 0.41, 0>, <0.33, 0.59, 1> ];
+    }*/
+}

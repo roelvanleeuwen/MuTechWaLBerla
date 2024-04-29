@@ -50,6 +50,9 @@ namespace communication {
       if(sendFromGPU_){WALBERLA_LOG_DETAIL_ON_ROOT("Using GPU-Direct Communication in UniformGPUScheme")}
       else{WALBERLA_LOG_DETAIL_ON_ROOT("Using Communication via CPU Memory")}
 
+      if(sendFromGPU_){WALBERLA_LOG_DETAIL_ON_ROOT("Using GPU-Direct Communication in UniformGPUScheme")}
+      else{WALBERLA_LOG_DETAIL_ON_ROOT("Using Communication via CPU Memory")}
+
       for (uint_t i = 0; i < Stencil::Q; ++i)
          WALBERLA_GPU_CHECK(gpuStreamCreate(&streams_[i]))
    }
@@ -77,6 +80,9 @@ namespace communication {
          WALBERLA_CHECK(!sendDirectlyFromGPU)
 #endif
       }
+      if(sendFromGPU_){WALBERLA_LOG_DETAIL_ON_ROOT("Using GPU-Direct Communication in UniformGPUScheme")}
+      else{WALBERLA_LOG_DETAIL_ON_ROOT("Using Communication via CPU Memory")}
+
       if(sendFromGPU_){WALBERLA_LOG_DETAIL_ON_ROOT("Using GPU-Direct Communication in UniformGPUScheme")}
       else{WALBERLA_LOG_DETAIL_ON_ROOT("Using Communication via CPU Memory")}
 

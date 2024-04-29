@@ -29,31 +29,31 @@ SchaeferTurek
    //////////////////////////////
    
    memoryPerCell      153; // in bytes
-   processMemoryLimit 2048; // in MiB !
+   processMemoryLimit 4048; // in MiB !
     
-   yzBlocks 1; // blocks in y- and z-direction [2D: only 1 block in z-direction]
+   yzBlocks 4; // blocks in y- and z-direction [2D: only 1 block in z-direction]
    // The number of blocks in x-direction is calculated from: H, L, yzBlocks, xCells, and yzCells.
    
-   xCells  40; // number of cells in x-direction for each block
-   yzCells 40; // number of cells in y- and z-direction for each block [2D: only affects y-direction]
+   xCells  64; // number of cells in x-direction for each block
+   yzCells 16; // number of cells in y- and z-direction for each block [2D: only affects y-direction]
    
    H 0.41; // [m]
-   L 20.0; // [m] (2.5 [3D], 2.2 [2D])
+   L 2.5; // [m] (2.5 [3D], 2.2 [2D])
    strictlyObeyL false;//true; // true = outflow will be located exactly at "L", false = outflow might be slightly further away than "L"
    
    cylinderxPosition    0.5;  // [m] (0.5 [3D], 0.2 [2D])
    cylinderyPosition    0.2;  // [m]
-   cylinderRadius       0.18; // [m]
+   cylinderRadius       0.05; // [m]
    circularCrossSection true; // true = obstacle is a true cylinder, false = obstacle is a box
    
    kinViscosity   0.001; // [m^2/s]
    rho            1;     // [kg/m^3]
    
-   inflowVelocity   2; // [m/s] (0.45 [3D], 2.25 [3D], 0.3 [2D], 1.5 [2D])
-   raisingTime    0.3; // [s] (0 == immediatelly full velocity)
+   inflowVelocity   0.45; // [m/s] (0.45 [3D], 2.25 [3D], 0.3 [2D], 1.5 [2D])
+   raisingTime      0; // [s] (0 == immediatelly full velocity)
    sinPeriod        0; // [s] (0 == no sinus term)
    
-   obstacleBoundary 0; // 0 = staircase, 1 = curved
+   obstacleBoundary 1; // 0 = staircase, 1 = curved
    outletType       1; // 0 = pressure, 1 = outlet (2/1), 2 = outlet (4/3)
    
    initWithVelocity false; // at the beginning of the simulation everything is set to: ( 4 * inflowVelocity ) / 9 [3D] or ( 2 * inflowVelocity ) / 3 [2D]
@@ -63,7 +63,7 @@ SchaeferTurek
    
    nbrOfEvaluationPointsForCoefficientExtremas 100;
    
-   evaluatePressure true;
+   evaluatePressure false;
    pAlpha < 0.45, 0.2, 0.205 >; // points for evaluating
    pOmega < 0.55, 0.2, 0.205 >; // the pressure difference
    
@@ -74,9 +74,9 @@ SchaeferTurek
    // WHERE TO REFINE ? //
    ///////////////////////
    
-   useCylinderForRefinement false;
-   cylinderRefinementLevel  2; // if "useCylinderForRefinement" is true, everything around the cylinder is refined to this level
-   cylinderRefinementBuffer 0.05; // [m] - additional space around the cylinder that is also guaranteed to be at level "cylinderRefinementLevel"
+   useCylinderForRefinement true;
+   cylinderRefinementLevel  0; // if "useCylinderForRefinement" is true, everything around the cylinder is refined to this level
+   cylinderRefinementBuffer 0.0; // [m] - additional space around the cylinder that is also guaranteed to be at level "cylinderRefinementLevel"
    
    AABBRefinementSelection
    {
@@ -149,11 +149,11 @@ SchaeferTurek
    ////////////////////////////
    
  //minSimulationTime  10; // in [s] - ATTENTION: _IF_ 'minSimulationTime' is specified, 'outerTimeSteps' is adapted accordingly!
-   outerTimeSteps      2; // total number of time steps = outerTimeSteps * innerTimeSteps
-   innerTimeSteps   5000; // For each outer loop, performance data is logged.
+   outerTimeSteps      1; // total number of time steps = outerTimeSteps * innerTimeSteps
+   innerTimeSteps   20001; // For each outer loop, performance data is logged.
    
-   evaluationCheckFrequency 0; // 0 = disable evaluation
-   evaluationLogToStream    false;
+   evaluationCheckFrequency 100; // 0 = disable evaluation
+   evaluationLogToStream    true;
    evaluationLogToFile      true;
    evaluationFilename       SchaeferTurek.txt;
    
@@ -175,7 +175,7 @@ SchaeferTurek
       vtkMPIIO           true;
    }
    
-   remainingTimeLoggerFrequency 5; // in seconds
+   remainingTimeLoggerFrequency 10; // in seconds
    
    vtkBeforeTimeStep true; // false = at the end of time step
    
@@ -243,18 +243,20 @@ SchaeferTurek
    checkStrouhalNbrDiscreteDUpperBound  1E6; // upper bound for the Strouhal number (only checked if "evaluateStrouhal" is set to true - "discrete" cylinder diameter used for evaluation)
 }
 
-
+Logging
+{
+    logLevel info;  // info progress detail tracing
+}
 
 VTK
 {
-   /*
    fluid_field
    {
       baseFolder vtk;
     //initialWriteCallsToSkip 55130;
   
       writeFrequency 304;//102;
-      ghostLayers      1;
+      ghostLayers      0;
       
     //AABB_filter_0 {
     //   min < 0,   0,    0.2049999 >;
@@ -276,18 +278,16 @@ VTK
       }
       
       writers {
-       //VelocityFromPDF;
+         VelocityFromPDF;
          VelocityMagnitudeFromPDF;
-       //DensityFromPDF;
+         DensityFromPDF;
        //NonEquPart;
        //PDF;
       }
       
       incompatibleBlockStates empty;
    }
-   */
-   
-   /*
+
    flag_field
    {
       baseFolder vtk;
@@ -302,8 +302,7 @@ VTK
       
       incompatibleBlockStates empty;
    }
-   */
-  
+
    /*
    domain_decomposition
    {
