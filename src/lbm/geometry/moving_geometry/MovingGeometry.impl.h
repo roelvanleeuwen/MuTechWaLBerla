@@ -27,7 +27,8 @@ namespace walberla
 template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
 void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractionFieldFromGeometryMesh(uint_t timestep) {
    auto geometryMovement = movementFunction_(timestep);
-   Matrix3<real_t> rotationMatrix(geometryMovement.rotationAxis, -geometryMovement.rotationAngle);
+   Matrix3<real_t> rotationMatrix = particleAccessor_->getRotation(0).getMatrix();
+   auto translationVector = particleAccessor_->getPosition(0);
 
    uint_t interpolationStencilSize = uint_t( pow(2, real_t(superSamplingDepth_)) + 1);
    auto oneOverInterpolArea = 1.0 / real_t( interpolationStencilSize * interpolationStencilSize * interpolationStencilSize);
@@ -40,8 +41,6 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractio
       FractionField_T* fractionField = block.getData< FractionField_T >(fractionFieldId_);
       auto level = blocks_->getLevel(block);
       Vector3<real_t> dxyzSS = maxRefinementDxyz_ / pow(2, real_t(superSamplingDepth_));
-      const Vector3<real_t> dxyz_coarse = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
-      auto translationVectorInMeterPerTimestep = Vector3<real_t> (geometryMovement.translationVector[0] * dxyz_coarse[0], geometryMovement.translationVector[1] * dxyz_coarse[1], geometryMovement.translationVector[2] * dxyz_coarse[2]);
       CellInterval blockCi = fractionField->xyzSizeWithGhostLayer();
 
 #ifdef _OPENMP
@@ -56,8 +55,7 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractio
                Vector3< real_t > cellCenter = blocks_->getCellCenter(globalCell, level);
 
                // translation
-               cellCenter -= translationVectorInMeterPerTimestep;
-
+               cellCenter -= translationVector;
                // rotation
                cellCenter -= meshCenter;
                cellCenter = rotationMatrix * cellCenter;
@@ -66,8 +64,8 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractio
                // get corresponding geometryField_ cell
                auto pointInGeometrySpace = cellCenter - meshAABB_.min() - 0.5 * dxyzSS;
                auto cellInGeometrySpace  = Vector3< int32_t >(int32_t(pointInGeometrySpace[0] / dxyzSS[0]),
-                                                             int32_t(pointInGeometrySpace[1] / dxyzSS[1]),
-                                                             int32_t(pointInGeometrySpace[2] / dxyzSS[2]));
+                                                              int32_t(pointInGeometrySpace[1] / dxyzSS[1]),
+                                                              int32_t(pointInGeometrySpace[2] / dxyzSS[2]));
                real_t fraction           = 0.0;
 
                // rotated cell outside of geometry field
@@ -158,8 +156,8 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::resetFract
 
 template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
 void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::updateObjectVelocityField(uint_t timestep) {
-   auto geometryMovement = movementFunction_(timestep+1);
-   auto geometryMovementLastTimestep = movementFunction_(timestep);
+   auto geometryMovement = movementFunction_(timestep);
+   auto objectPosition = particleAccessor_->getPosition(0);
    const Vector3<real_t> dxyz_root = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
    geometryMovement.movementBoundingBox.extend(dxyz_root);
 
@@ -167,8 +165,6 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::updateObje
    if(!geometryMovement.timeDependentMovement && timestep > 0)
       return;
 
-   auto rotationSpeed = geometryMovement.rotationAngle - geometryMovementLastTimestep.rotationAngle; // rad/timestep
-   auto translationSpeed = geometryMovement.translationVector - geometryMovementLastTimestep.translationVector; // cell/timestep
    for (auto& block : *blocks_)
    {
       if(!geometryMovement.movementBoundingBox.intersects(block.getAABB()) )
@@ -179,9 +175,7 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::updateObje
       auto objVelField = block.getData< VectorField_T >(objectVelocityId_);
       auto fractionField = block.getData< FractionField_T >(fractionFieldId_);
 
-      Vector3< real_t > angularVel;
-
-      angularVel = Vector3< real_t > (geometryMovement.rotationAxis[0] * rotationSpeed, geometryMovement.rotationAxis[1] * rotationSpeed, geometryMovement.rotationAxis[2] * rotationSpeed);
+      Vector3< real_t > angularVel = geometryMovement.rotationVector;
 
       WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(objVelField,
          Cell cell(x,y,z);
@@ -202,18 +196,17 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::updateObje
                continue;
          }
 
-
          Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
-         Vector3< real_t > distance((cellCenter[0] - meshCenter[0]) / dxyz_root[0], (cellCenter[1] - meshCenter[1]) / dxyz_root[1], (cellCenter[2] - meshCenter[2]) / dxyz_root[2]); //get distance on 0th level to compute right vel
+         Vector3< real_t > distance = cellCenter - objectPosition;
 
-         real_t velX = angularVel[1] * distance[2] - angularVel[2] * distance[1];
-         real_t velY = angularVel[2] * distance[0] - angularVel[0] * distance[2];
-         real_t velZ = angularVel[0] * distance[1] - angularVel[1] * distance[0];
+         real_t linearVelX = angularVel[1] * distance[2] - angularVel[2] * distance[1];
+         real_t linearVelY = angularVel[2] * distance[0] - angularVel[0] * distance[2];
+         real_t linearVelZ = angularVel[0] * distance[1] - angularVel[1] * distance[0];
 
          blocks_->transformGlobalToBlockLocalCell(cell, block);
-         objVelField->get(cell, 0) = velX + translationSpeed[0];
-         objVelField->get(cell, 1) = velY + translationSpeed[1];
-         objVelField->get(cell, 2) = velZ + translationSpeed[2];
+         objVelField->get(cell, 0) = (linearVelX + geometryMovement.translationVector[0]) * dt_ / dxyz_root[0];
+         objVelField->get(cell, 1) = (linearVelY + geometryMovement.translationVector[1]) * dt_ / dxyz_root[1];
+         objVelField->get(cell, 2) = (linearVelZ + geometryMovement.translationVector[2]) * dt_ / dxyz_root[2];
       )
    }
 }

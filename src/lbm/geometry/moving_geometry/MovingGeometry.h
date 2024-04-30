@@ -39,6 +39,10 @@
 #include "mesh/boundary/BoundarySetup.h"
 #include "mesh/boundary/BoundaryUIDFaceDataSource.h"
 #include "mesh/boundary/ColorToBoundaryMapper.h"
+
+#include "mesa_pd/data/ParticleAccessor.h"
+#include "mesa_pd/data/ParticleStorage.h"
+
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 #include "gpu/AddGPUFieldToStorage.h"
 #include "gpu/DeviceSelectMPI.h"
@@ -56,10 +60,8 @@ namespace walberla
 struct GeometryMovementStruct{
    //Translation Vector for timestep t for converting cell point from LBM space to geometry space in cells/timestep
    Vector3<real_t> translationVector;
-   //Rotation Angle for timestep t for converting cell point from LBM space to geometry space in rad/timestep
-   real_t rotationAngle;
-   //Rotation Axis
-   Vector3< mesh::TriangleMesh::Scalar > rotationAxis;
+   //Rotation Angle for timestep t for converting cell point from LBM space to geometry space in rad/timestep per dimension
+   Vector3<real_t> rotationVector;
    //Maximum bounding box of the geometry over all timesteps. Used to only update blocks with movement in it. Set to domainAABB if unknown.
    AABB movementBoundingBox;
    //If translationVector or rotationAngle is dependent on the timestep, set to true. Update objectVelocityField only once if set to false.
@@ -82,27 +84,32 @@ class MovingGeometry
                   const BlockDataID fractionFieldId, const BlockDataID objectVelocityId,  const BlockDataID forceFieldId,
                   const GeometryMovementFunction & movementFunction,
                   shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree, const std::string meshName,
-                  const uint_t superSamplingDepth, const uint_t ghostLayers, bool moving, bool useTauInFractionField, real_t omega)
+                  const uint_t superSamplingDepth, const uint_t ghostLayers, bool moving, bool useTauInFractionField, real_t omega, real_t dt)
       : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId), forceFieldId_(forceFieldId),
         movementFunction_(movementFunction), distOctree_(distOctree), meshName_(meshName),
-        superSamplingDepth_(superSamplingDepth), ghostLayers_(ghostLayers), moving_(moving), useTauInFractionField_(useTauInFractionField), tau_(1.0 / omega)
+        superSamplingDepth_(superSamplingDepth), ghostLayers_(ghostLayers), moving_(moving), useTauInFractionField_(useTauInFractionField), tau_(1.0 / omega), dt_(dt)
    {
 
       auto geometryMovement = movementFunction_(0);
-      if (!moving_  && geometryMovement.rotationAngle > 0)
-         WALBERLA_ABORT("Geometry is set to not moving but rotation angle is " << geometryMovement.rotationAngle)
-      if (!moving_  && geometryMovement.translationVector.length() > 0)
-         WALBERLA_ABORT("Geometry is set to not moving but translation vector is " << geometryMovement.translationVector)
-
       if(useTauInFractionField_)
-         if (omega > 2.0 || omega < 1.0)
+         if (omega > 2.0 || omega < 0.0)
             WALBERLA_ABORT("If you want to use the relaxation rate for building the fraction field, use a valid value for omega")
 
       auto meshCenterPoint = computeCentroid(*mesh_);
       meshCenter = Vector3<real_t> (meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
       meshAABB_ = computeAABB(*mesh_);
       const Vector3<real_t> dxyz = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
-      meshAABB_.extend(dxyz);
+      meshAABB_.extend(10.0 * dxyz);
+
+
+
+      //Create one particle to use it for holding velocity and force information and for Euler integration
+      particleStorage_             = walberla::make_shared< mesa_pd::data::ParticleStorage >(1);
+      particleAccessor_            = walberla::make_shared< mesa_pd::data::ParticleAccessor >(particleStorage_);
+      mesa_pd::data::Particle&& p = *particleStorage_->create();
+      p.setPosition(meshCenter);
+
+
 
       if(moving_) {
          WcTimer simTimer;
@@ -136,12 +143,23 @@ class MovingGeometry
 
    void operator()(uint_t timestep) {
       if(moving_) {
+         updateObjectPosition(timestep);
          getFractionFieldFromGeometryMesh(timestep);
          updateObjectVelocityField(timestep);
       }
       else {
          addStaticGeometryToFractionField();
       }
+   }
+
+
+   void updateObjectPosition(uint_t timestep) {
+      auto geometryMovement = movementFunction_(timestep);
+      auto newPosition = particleAccessor_->getPosition(0) + geometryMovement.translationVector * dt_;
+      particleAccessor_->setPosition(0, newPosition);
+      auto newParticleRotation = particleAccessor_->getRotation(0);
+      newParticleRotation.rotate(-geometryMovement.rotationVector * dt_);
+      particleAccessor_->setRotation(0, newParticleRotation);
    }
 
 
@@ -283,38 +301,39 @@ class MovingGeometry
 
    void moveTriangleMesh(uint_t timestep, uint_t vtk_frequency)
    {
+      if (timestep == 0) return;
       if (vtk_frequency > 0 && timestep % vtk_frequency == 0 && moving_)
       {
          auto geometryMovement = movementFunction_(timestep);
-         Vector3< real_t > translationSpeed;
-         const Vector3< real_t > dxyz = Vector3< real_t >(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
-         real_t rotationSpeed;
-         if (timestep == 0)
-         {
-            rotationSpeed    = geometryMovement.rotationAngle;
-            translationSpeed = geometryMovement.translationVector;
-         }
-         else
-         {
-            auto geometryMovementLastTimestep = movementFunction_(timestep - vtk_frequency);
-            rotationSpeed    = geometryMovement.rotationAngle - geometryMovementLastTimestep.rotationAngle;
-            translationSpeed = geometryMovement.translationVector - geometryMovementLastTimestep.translationVector;
-         }
-         translationSpeed[0] *= dxyz[0];
-         translationSpeed[1] *= dxyz[1];
-         translationSpeed[2] *= dxyz[2];
-
-         mesh::translate(*mesh_, translationSpeed);
-         const Vector3< mesh::TriangleMesh::Scalar > axis_foot(
-            meshCenter[0] + geometryMovement.translationVector[0] * dxyz[0],
-            meshCenter[1] + geometryMovement.translationVector[1] * dxyz[0],
-            meshCenter[2] + geometryMovement.translationVector[2] * dxyz[0]);
-         mesh::rotate(*mesh_, geometryMovement.rotationAxis, rotationSpeed, axis_foot);
+         Vector3< real_t > translationVector = geometryMovement.translationVector * dt_ * real_t(vtk_frequency);
+         Vector3< real_t > rotationVector = geometryMovement.rotationVector * dt_ * real_t(vtk_frequency);
+         auto rotationMatrix = math::Rot3<real_t> (rotationVector);
+         mesh::translate(*mesh_, translationVector);
+         const Vector3< mesh::TriangleMesh::Scalar > axis_foot(particleAccessor_->getPosition(0));
+         mesh::rotate(*mesh_, rotationMatrix.getMatrix(), axis_foot);
       }
    }
 
 
    Vector3<real_t> calculateForceOnBody() {
+      Vector3<real_t> summedForceOnObject;
+      for (auto &block : *blocks_) {
+         VectorField_T* forceField = block.getData< VectorField_T >(forceFieldId_);
+         FractionField_T* fractionField = block.getData< FractionField_T >(fractionFieldId_);
+         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(forceField,
+            if(fractionField->get(x,y,z,0) > 0.0) {
+               summedForceOnObject += Vector3(forceField->get(x,y,z,0), forceField->get(x,y,z,1), forceField->get(x,y,z,2));
+            }
+         )
+      }
+      WALBERLA_MPI_SECTION() {
+         walberla::mpi::reduceInplace(summedForceOnObject, walberla::mpi::SUM);
+      }
+      return summedForceOnObject;
+   }
+
+   //TODO add distance from object center
+   Vector3<real_t> calculateTorqueOnBody() {
       Vector3<real_t> summedForceOnObject;
       for (auto &block : *blocks_) {
          VectorField_T* forceField = block.getData< VectorField_T >(forceFieldId_);
@@ -362,10 +381,15 @@ class MovingGeometry
    bool moving_;
    bool useTauInFractionField_;
    real_t tau_;
+   real_t dt_;
 
    Vector3<real_t> meshCenter;
    AABB meshAABB_;
    Vector3<real_t> maxRefinementDxyz_;
+
+   //particle objects
+   shared_ptr< mesa_pd::data::ParticleStorage > particleStorage_;
+   shared_ptr< mesa_pd::data::ParticleAccessor > particleAccessor_;
 };
 
 }//namespace waLBerla

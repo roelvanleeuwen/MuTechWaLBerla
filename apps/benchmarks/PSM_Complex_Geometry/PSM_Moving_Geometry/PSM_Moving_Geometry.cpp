@@ -94,14 +94,13 @@ auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
 
 class GeometryMovementFunction {
  public:
-   GeometryMovementFunction(AABB domainAABB, AABB meshAABB, Vector3< mesh::TriangleMesh::Scalar > rotationAxis, real_t rotationAngle, Vector3<real_t> translationVector)
-      : domainAABB_(domainAABB), meshAABB_(meshAABB), rotationAxis_(rotationAxis), rotationAngle_(rotationAngle), translationVector_(translationVector)  {};
+   GeometryMovementFunction(AABB domainAABB, Vector3<real_t>  rotationVector, Vector3<real_t> translationVector)
+      : domainAABB_(domainAABB), rotationVector_(rotationVector), translationVector_(translationVector)  {};
 
    GeometryMovementStruct operator() (uint_t timestep) {
       GeometryMovementStruct geoMovement;
-      geoMovement.rotationAxis = rotationAxis_;
-      geoMovement.rotationAngle =  rotationAngle_ * real_t(timestep);
-      geoMovement.translationVector = translationVector_ * real_t(timestep);
+      geoMovement.rotationVector = rotationVector_;
+      geoMovement.translationVector = translationVector_;
       geoMovement.movementBoundingBox = AABB(domainAABB_.xMin(), domainAABB_.yMin(), domainAABB_.zMin(),
                                                domainAABB_.xMax(), domainAABB_.yMax(), domainAABB_.zMax());
       geoMovement.timeDependentMovement = true;
@@ -111,9 +110,7 @@ class GeometryMovementFunction {
 
  private:
    AABB domainAABB_;
-   AABB meshAABB_;
-   Vector3< mesh::TriangleMesh::Scalar > rotationAxis_;
-   real_t rotationAngle_;
+   Vector3<real_t> rotationVector_;
    Vector3<real_t> translationVector_;
 };
 
@@ -157,9 +154,8 @@ int main(int argc, char** argv)
    const std::string meshFile = domainParameters.getParameter< std::string >("meshFile");
 
 
-   const Vector3< int > rotationAxis = parameters.getParameter< Vector3< int > >("rotationAxis", Vector3< int >(1,0,0));
-   const real_t rotationPerTimestep = parameters.getParameter< real_t >("rotationPerTimestep", real_c(0.0));
-   const Vector3<real_t> translationPerTimestep = parameters.getParameter< Vector3<real_t> >("translationPerTimestep", Vector3< real_t >(0.0));
+   const Vector3<real_t> rotationVector = parameters.getParameter< Vector3<real_t> >("rotationVector", Vector3< real_t >(0.0));
+   const Vector3<real_t> objectVelocity = parameters.getParameter< Vector3<real_t> >("objectVelocity", Vector3< real_t >(0.0));
 
 
    ////////////////////
@@ -168,10 +164,10 @@ int main(int argc, char** argv)
 
    auto mesh = make_shared< mesh::TriangleMesh >();
    mesh::readAndBroadcast(meshFile, *mesh);
-
+   //mesh::scale(*mesh, Vector3<real_t> (0.025));
    auto meshCenterPoint = mesh::computeCentroid(*mesh);
    Vector3<real_t> meshCenter = Vector3<real_t> (meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
-   mesh::rotate(*mesh, Vector3<mesh::TriangleMesh::Scalar> (1,0,0), math::half_pi, Vector3<mesh::TriangleMesh::Scalar>(meshCenter[0], meshCenter[1], meshCenter[2]));
+   mesh::rotate(*mesh, Vector3<mesh::TriangleMesh::Scalar> (0,0,1), math::half_pi, Vector3<mesh::TriangleMesh::Scalar>(meshCenter[0], meshCenter[1], meshCenter[2]));
 
    auto distanceOctreeMesh = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh));
    auto aabb = computeAABB(*mesh);
@@ -179,6 +175,8 @@ int main(int argc, char** argv)
    real_t D_resolution = D / dx;    //diameter in lattice units; resolution of diameter, e.g. 20, 40, ... , 320
 
    auto domainAABB = AABB(-D, -(1 + 1./15.)*2.*D, -dx/2, 7.*D, 4.*D -(1 + 1./15.)*2.*D, dx/2);
+   //auto domainAABB = AABB(-D, -(1 + 1./15.)*2.*D, -D, 7.*D, 4.*D -(1 + 1./15.)*2.*D, D);
+
    WALBERLA_LOG_INFO("DomainAABB is " << domainAABB << " dx is " << dx )
 
    auto numBlocks = Vector3<uint_t> (1,1,1);
@@ -203,8 +201,8 @@ int main(int argc, char** argv)
                           << "initialVelocity " << initialVelocity[0] << "\n"
                           << "Timesteps " << timesteps << "\n"
                           << "Omega " << omega << "\n"
-                          << "rotationPerTimestep " << rotationPerTimestep << "\n"
-                          << "translationPerTimestep " << translationPerTimestep << "\n"
+                          << "rotationVector " << rotationVector << "\n"
+                          << "objectVelocity " << objectVelocity << "\n"
                           << "Diameter " << D << "\n"
                           << "Reynolds Number " << ReynoldsNumber << "\n"
    )
@@ -228,18 +226,17 @@ int main(int argc, char** argv)
 
 
    //Setting up Object
-   auto latticeTranslationPerTimestep = translationPerTimestep * velocity_conversion;
-   auto movementFunction = GeometryMovementFunction(domainAABB, aabb, rotationAxis, rotationPerTimestep, latticeTranslationPerTimestep);
+   auto movementFunction = GeometryMovementFunction(domainAABB, rotationVector, objectVelocity);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldId,
                                                     movementFunction, distanceOctreeMesh, "geometry",
-                                                    maxSuperSamplingDepth, 1, true, true, omega);
+                                                    maxSuperSamplingDepth, 1, true, true, omega, dt);
 #else
    WALBERLA_LOG_INFO_ON_ROOT("Setting up objectMover")
 
    auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
                                                     movementFunction, distanceOctreeMesh, "geometry",
-                                                    maxSuperSamplingDepth, 1, true, true, omega);
+                                                    maxSuperSamplingDepth, 1, true, false, omega, dt);
    WALBERLA_LOG_INFO_ON_ROOT("Finished Setting up objectMover")
 
 #endif
