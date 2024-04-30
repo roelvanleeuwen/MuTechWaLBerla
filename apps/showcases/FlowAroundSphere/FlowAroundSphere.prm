@@ -5,7 +5,7 @@ Parameters
     diameterSphere 2.5; // On the finest mesh
     timesteps 100001;
     simulationTime 93;
-    coarseMeshSize 0.125;
+    coarseMeshSize 0.03125;
     sphereXPosition 3;
     circularCrossSection true;
 
@@ -30,9 +30,9 @@ Parameters
 //! [domainSetup]
 DomainSetup
 {
-    cellsPerBlock < 8, 8, 8 >;
+    cellsPerBlock < 104, 192, 192 >;
     domainSize    < 13, 6, 6 >; // Domain size is given in terms of the diameter of the Sphere
-    refinementLevels 2;
+    refinementLevels 0;
     numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
 }
 //! [domainSetup]
@@ -69,7 +69,7 @@ VTKWriter
 Logging
 {
     logLevel info;  // info progress detail tracing
-    writeSetupForestAndReturn false;
+    writeSetupForestAndReturn true;
     readSetupFromFile false;
     remainingTimeLoggerFrequency 60; // in seconds
 }
