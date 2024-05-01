@@ -64,11 +64,15 @@ def generate_boundary(generation_context,
     index_field = Field('indexVector', FieldType.INDEXED, index_struct_dtype, layout=[0],
                         shape=(TypedSymbol("indexVectorSize", create_type("int32")), 1), strides=(1, 1))
 
+    force_vector_type = np.dtype([(f"F_{i}", np.float64) for i in range(dim)], align=True)
+    force_vector = Field('forceVector', FieldType.INDEXED, force_vector_type, layout=[0],
+                         shape=(TypedSymbol("forceVectorSize", create_type("int32")), 1), strides=(1, 1))
+
     if not kernel_creation_function:
         kernel_creation_function = create_boundary_kernel
 
     kernel = kernel_creation_function(field, index_field, neighbor_stencil, boundary_object,
-                                      target=target, **create_kernel_params)
+                                      target=target, force_vector=force_vector, **create_kernel_params)
 
     if isinstance(kernel, KernelFunction):
         kernel.function_name = f"boundary_{boundary_object.name}"
@@ -103,7 +107,8 @@ def generate_boundary(generation_context,
         'additional_data_handler': additional_data_handler,
         'dtype': "double" if is_float else "float",
         'layout': layout,
-        'index_shape': index_shape
+        'index_shape': index_shape,
+        'calculate_force': boundary_object.calculate_force_on_boundary
     }
 
     env = Environment(loader=PackageLoader('pystencils_walberla'), undefined=StrictUndefined)

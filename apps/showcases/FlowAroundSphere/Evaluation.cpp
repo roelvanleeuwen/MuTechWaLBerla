@@ -26,18 +26,20 @@ namespace walberla
 void Evaluation::operator()()
 {
    if (checkFrequency_ == uint_t(0)) return;
-
    ++executionCounter_;
    if (rampUpTime_ > executionCounter_) return;
-   if ((executionCounter_ - uint_c(1)) % checkFrequency_ != 0) return;
 
-   real_t cD(real_t(0));
-   real_t cL(real_t(0));
+   real_t cDRealArea(real_t(0));
+   real_t cLRealArea(real_t(0));
+   real_t cDDiscreteArea(real_t(0));
+   real_t cLDiscreteArea(real_t(0));
 
    real_t pressureDifference_L(real_t(0));
    real_t pressureDifference(real_t(0));
 
-   evaluate(cD, cL, pressureDifference_L, pressureDifference);
+   evaluate(cDRealArea, cLRealArea, cDDiscreteArea, cLDiscreteArea, pressureDifference_L, pressureDifference);
+
+   if ((executionCounter_ - uint_c(1)) % checkFrequency_ != 0) return;
 
    auto blocks = blocks_.lock();
    WALBERLA_CHECK_NOT_NULLPTR(blocks)
@@ -61,16 +63,18 @@ void Evaluation::operator()()
 
    WALBERLA_ROOT_SECTION()
    {
-      coefficients_[0].push_back(cD);
-      coefficients_[1].push_back(cL);
+      coefficients_[0].push_back(cDRealArea);
+      coefficients_[1].push_back(cLRealArea);
+      coefficients_[2].push_back(cDDiscreteArea);
+      coefficients_[3].push_back(cLDiscreteArea);
 
       if (coefficients_[0].size() > setup_.nbrOfEvaluationPointsForCoefficientExtremas)
       {
-         for (uint_t i = uint_c(0); i < coefficients_.size(); ++i)
+         for (uint_t i = uint_t(0); i < uint_t(4); ++i)
             coefficients_[i].pop_front();
       }
 
-      for (uint_t i = uint_c(0); i < coefficients_.size(); ++i)
+      for (uint_t i = uint_t(0); i < uint_t(4); ++i)
       {
          coefficientExtremas_[i] = std::make_pair(*(coefficients_[i].begin()), *(coefficients_[i].begin()));
          for (auto v = coefficients_[i].begin(); v != coefficients_[i].end(); ++v)
@@ -81,32 +85,26 @@ void Evaluation::operator()()
       }
 
       std::ostringstream oss;
-      if (setup_.evaluateForceComponents)
-      {
-         oss << "\nforce components (evaluated in time step " << forceEvaluationExecutionCount_
-             << "):"
-                "\n   x: "
-             << forceSample_[0].min() << " (min), " << forceSample_[0].max() << " (max), " << forceSample_[0].mean()
-             << " (mean), " << forceSample_[0].median() << " (median), " << forceSample_[0].stdDeviation()
-             << " (stdDeviation)"
-             << "\n   y: " << forceSample_[1].min() << " (min), " << forceSample_[1].max() << " (max), "
-             << forceSample_[1].mean() << " (mean), " << forceSample_[1].median() << " (median), "
-             << forceSample_[1].stdDeviation() << " (stdDeviation)";
-      }
 
       if (logToStream_)
       {
          WALBERLA_LOG_RESULT_ON_ROOT(
-            "force acting on Sphere (in dimensionless lattice units of the coarsest grid - evaluated in time step "
-            << forceEvaluationExecutionCount_ << "):\n   " << force_ << oss.str()
+            "force acting on cylinder (in dimensionless lattice units of the coarsest grid - evaluated in time step "
+            << executionCounter_ - uint_c(1) << "):\n   " << force_ << oss.str()
             << "\ndrag and lift coefficients (including extrema of last " << (coefficients_[0].size() * checkFrequency_)
             << " time steps):"
                "\n   \"real\" area:"
                "\n      c_D: "
-            << cD << " (min = " << coefficientExtremas_[0].first << ", max = " << coefficientExtremas_[0].second
+            << cDRealArea << " (min = " << coefficientExtremas_[0].first << ", max = " << coefficientExtremas_[0].second
             << ")"
-            << "\n      c_L: " << cL << " (min = " << coefficientExtremas_[1].first
-            << ", max = " << coefficientExtremas_[1].second << ")")
+            << "\n      c_L: " << cLRealArea << " (min = " << coefficientExtremas_[1].first
+            << ", max = " << coefficientExtremas_[1].second << ")"
+            << "\n   discrete area:"
+               "\n      c_D: "
+            << cDDiscreteArea << " (min = " << coefficientExtremas_[2].first
+            << ", max = " << coefficientExtremas_[2].second << ")"
+            << "\n      c_L: " << cLDiscreteArea << " (min = " << coefficientExtremas_[3].first
+            << ", max = " << coefficientExtremas_[3].second << ")")
       }
 
       if (setup_.evaluatePressure && logToStream_)
@@ -184,7 +182,7 @@ void Evaluation::operator()()
       {
          std::ofstream file(filename_.c_str(), std::ios_base::app);
          file << executionCounter_ - uint_t(1) << " " << force_[0] << " " << force_[1] << " " << force_[2] << " "
-              << cD << " " << cL <<  " "
+              << cDRealArea << " " << cLRealArea << " " << cDDiscreteArea << " " << cLDiscreteArea << " "
               << pressureDifference_L << " " << pressureDifference << " " << vortexVelocity << " "
               << strouhalNumberRealD_ << '\n';
          file.close();
@@ -196,111 +194,51 @@ void Evaluation::operator()()
 
 void Evaluation::resetForce()
 {
-   // Supposed to be used after the timestep; after the evaluation is written
-   if (checkFrequency_ == uint_t(0) || executionCounter_ % checkFrequency_ != 0 )
-      return;
-
    if (!initialized_) refresh();
-
-   force_[0] = real_t(0);
-   force_[1] = real_t(0);
-   force_[2] = real_t(0);
-
-   forceSample_[0].clear();
-   forceSample_[1].clear();
-
-   forceEvaluationExecutionCount_ = executionCounter_;
 }
 
 void Evaluation::forceCalculation(IBlock* block, const uint_t level)
 {
    // Supposed to be used as a post boundary handling function on every level
-   if (checkFrequency_ == uint_t(0) || executionCounter_ % checkFrequency_ != 0)
-      return;
+   // if (checkFrequency_ == uint_t(0) || executionCounter_ % checkFrequency_ != 0)
+   //    return;
    if (rampUpTime_ > executionCounter_) return;
-
-   getFields_();
-
-   if (directions_.find(block) != directions_.end())
-   {
-      const PdfField_T* const pdfField = block->template getData< PdfField_T >(pdfFieldId_);
-
-      const auto& directions = directions_[block];
-      for (auto pair = directions.begin(); pair != directions.end(); ++pair)
-      {
-         const Cell cell(pair->first);
-         const stencil::Direction direction(pair->second);
-
-         const real_t scaleFactor = real_c(1.0) / real_c(uint_t(1) << (uint_t(2) * level));
-
-         const real_t boundaryValue =
-            pdfField->get(cell.x() + stencil::cx[direction], cell.y() + stencil::cy[direction],
-                          cell.z() + stencil::cz[direction], Stencil_T::idx[stencil::inverseDir[direction]]);
-
-         const real_t fluidValue = pdfField->get(cell.x(), cell.y(), cell.z(), Stencil_T::idx[direction]);
-
-         const real_t f = scaleFactor * (boundaryValue + fluidValue);
-
-         force_[0] += real_c(stencil::cx[direction]) * f;
-         force_[1] += real_c(stencil::cy[direction]) * f;
-         force_[2] += real_c(stencil::cz[direction]) * f;
-
-         if (setup_.evaluateForceComponents)
-         {
-            forceSample_[0].insert(real_c(stencil::cx[direction]) * f);
-            forceSample_[1].insert(real_c(stencil::cy[direction]) * f);
-         }
-      }
-   }
+   force_ += boundaryCollection_.ObstacleObject->getForce(block);
 }
 
 void Evaluation::prepareResultsForSQL()
 {
-   real_t cD(real_t(0));
-   real_t cL(real_t(0));
+   real_t cDRealArea(real_t(0));
+   real_t cLRealArea(real_t(0));
+   real_t cDDiscreteArea(real_t(0));
+   real_t cLDiscreteArea(real_t(0));
 
    real_t pressureDifference_L(real_t(0));
    real_t pressureDifference(real_t(0));
 
-   evaluate(cD, cL, pressureDifference_L, pressureDifference);
+   evaluate(cDRealArea, cLRealArea, cDDiscreteArea, cLDiscreteArea, pressureDifference_L, pressureDifference);
 
    WALBERLA_ROOT_SECTION()
    {
       sqlResults_["forceX_L"] = double_c(force_[0]);
       sqlResults_["forceY_L"] = double_c(force_[1]);
       sqlResults_["forceZ_L"] = double_c(force_[2]);
+      sqlResults_["forceXMin_L"]    = 0.0;
+      sqlResults_["forceXMax_L"]    = 0.0;
+      sqlResults_["forceXAvg_L"]    = 0.0;
+      sqlResults_["forceXMedian_L"] = 0.0;
+      sqlResults_["forceXStdDev_L"] = 0.0;
 
-      if (setup_.evaluateForceComponents)
-      {
-         sqlResults_["forceXMin_L"]    = double_c(forceSample_[0].min());
-         sqlResults_["forceXMax_L"]    = double_c(forceSample_[0].max());
-         sqlResults_["forceXAvg_L"]    = double_c(forceSample_[0].mean());
-         sqlResults_["forceXMedian_L"] = double_c(forceSample_[0].median());
-         sqlResults_["forceXStdDev_L"] = double_c(forceSample_[0].stdDeviation());
+      sqlResults_["forceYMin_L"]    = 0.0;
+      sqlResults_["forceYMax_L"]    = 0.0;
+      sqlResults_["forceYAvg_L"]    = 0.0;
+      sqlResults_["forceYMedian_L"] = 0.0;
+      sqlResults_["forceYStdDev_L"] = 0.0;
 
-         sqlResults_["forceYMin_L"]    = double_c(forceSample_[1].min());
-         sqlResults_["forceYMax_L"]    = double_c(forceSample_[1].max());
-         sqlResults_["forceYAvg_L"]    = double_c(forceSample_[1].mean());
-         sqlResults_["forceYMedian_L"] = double_c(forceSample_[1].median());
-         sqlResults_["forceYStdDev_L"] = double_c(forceSample_[1].stdDeviation());
-      }
-      else
-      {
-         sqlResults_["forceXMin_L"]    = 0.0;
-         sqlResults_["forceXMax_L"]    = 0.0;
-         sqlResults_["forceXAvg_L"]    = 0.0;
-         sqlResults_["forceXMedian_L"] = 0.0;
-         sqlResults_["forceXStdDev_L"] = 0.0;
-
-         sqlResults_["forceYMin_L"]    = 0.0;
-         sqlResults_["forceYMax_L"]    = 0.0;
-         sqlResults_["forceYAvg_L"]    = 0.0;
-         sqlResults_["forceYMedian_L"] = 0.0;
-         sqlResults_["forceYStdDev_L"] = 0.0;
-      }
-
-      sqlResults_["cD"]     = double_c(cD);
-      sqlResults_["cL"]     = double_c(cL);
+      sqlResults_["cDRealArea"]     = double_c(cDRealArea);
+      sqlResults_["cLRealArea"]     = double_c(cLRealArea);
+      sqlResults_["cDDiscreteArea"] = double_c(cDDiscreteArea);
+      sqlResults_["cLDiscreteArea"] = double_c(cLDiscreteArea);
 
       sqlResults_["cDRealAreaMin"]     = double_c(coefficientExtremas_[0].first);
       sqlResults_["cDRealAreaMax"]     = double_c(coefficientExtremas_[0].second);
@@ -326,7 +264,7 @@ void Evaluation::getResultsForSQLOnRoot(std::map< std::string, double >& realPro
       for (auto result = sqlResults_.begin(); result != sqlResults_.end(); ++result)
          realProperties[result->first] = result->second;
 
-      integerProperties["forceEvaluationTimeStep"]    = int_c(forceEvaluationExecutionCount_);
+      integerProperties["forceEvaluationTimeStep"]    = int_c(executionCounter_ - uint_c(1));
       integerProperties["strouhalEvaluationTimeStep"] = int_c(strouhalEvaluationExecutionCount_);
    }
 }
@@ -337,13 +275,16 @@ void Evaluation::refresh()
    auto blocks = blocks_.lock();
    WALBERLA_CHECK_NOT_NULLPTR(blocks)
 
-   directions_.clear();
+   real_t AD(real_t(0));
+   real_t AL(real_t(0));
+
    for (auto block = blocks->begin(); block != blocks->end(); ++block)
    {
       const FlagField_T* const flagField = block->template getData< FlagField_T >(flagFieldId_);
 
       auto fluid    = flagField->getFlag(fluid_);
       auto obstacle = flagField->getFlag(obstacle_);
+      const real_t area  = real_c(1.0);
 
       auto xyzSize = flagField->xyzSize();
       for (auto z = xyzSize.zMin(); z <= xyzSize.zMax(); ++z)
@@ -362,13 +303,29 @@ void Evaluation::refresh()
 
                      if (flagField->isFlagSet(nx, ny, nz, obstacle))
                      {
-                        directions_[block.get()].emplace_back(Cell(x, y, z), *it);
+                        if (it.cx() == 1 && it.cy() == 0 && it.cz() == 0) { AD += area; }
+                        else if (it.cx() == 0 && it.cz() == 0)
+                        {
+                           if (it.cy() == 1)
+                           {
+                              AL += area;
+                           }
+                        }
                      }
                   }
                }
             }
          }
       }
+   }
+
+   mpi::reduceInplace(AD, mpi::SUM);
+   mpi::reduceInplace(AL, mpi::SUM);
+
+   WALBERLA_ROOT_SECTION()
+   {
+      AD_ = AD;
+      AL_ = AL;
    }
 
    // Check if points alpha and omega (required for evaluating the pressure difference) are located in fluid cells
@@ -427,21 +384,12 @@ void Evaluation::refresh()
    initialized_ = true;
 }
 
-void Evaluation::evaluate(real_t& cD, real_t& cL, real_t& pressureDifference_L, real_t& pressureDifference)
+void Evaluation::evaluate(real_t& cDRealArea, real_t& cLRealArea, real_t& cDDiscreteArea, real_t& cLDiscreteArea,
+                          real_t& pressureDifference_L, real_t& pressureDifference)
 {
    if (!initialized_) refresh();
-
    // force on obstacle
-
    mpi::reduceInplace(force_, mpi::SUM);
-
-   if (setup_.evaluateForceComponents)
-   {
-      forceSample_[0].mpiGatherRoot();
-      forceSample_[1].mpiGatherRoot();
-   }
-
-   // pressure difference
 
    real_t pAlpha(real_t(0));
    real_t pOmega(real_t(0));
@@ -475,12 +423,22 @@ void Evaluation::evaluate(real_t& cD, real_t& cL, real_t& pressureDifference_L, 
 
    WALBERLA_ROOT_SECTION()
    {
-      cD = (real_c(8.0) * force_[0]) / (meanVelocity * meanVelocity * surfaceAreaSphere);
-      cL = (real_c(8.0) * force_[1]) / (meanVelocity * meanVelocity * surfaceAreaSphere);
+      cDRealArea = (real_c(8.0) * force_[0]) / (meanVelocity * meanVelocity * surfaceAreaSphere);
+      cLRealArea = (real_c(8.0) * force_[1]) / (meanVelocity * meanVelocity * surfaceAreaSphere);
+
+      cDDiscreteArea = (real_c(8.0) * force_[0]) / (meanVelocity * meanVelocity * AD_);
+      cLDiscreteArea = (real_c(8.0) * force_[1]) / (meanVelocity * meanVelocity * AL_);
+
+      DragCoefficient DC(executionCounter_ - uint_c(1), force_, cDRealArea, cLRealArea, cDDiscreteArea, cLDiscreteArea);
+      dragResults.push_back(DC);
 
       pressureDifference_L = pAlpha - pOmega;
       pressureDifference   = (pressureDifference_L * setup_.rho * setup_.dx * setup_.dx) / (setup_.dt * setup_.dt);
    }
+
+   force_[0] = real_c(0.0);
+   force_[1] = real_c(0.0);
+   force_[2] = real_c(0.0);
 }
 
 }

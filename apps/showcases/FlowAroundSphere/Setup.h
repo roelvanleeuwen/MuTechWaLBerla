@@ -43,7 +43,6 @@ struct Setup
    real_t sphereZPosition;
    real_t sphereRadius;
 
-   bool evaluateForceComponents;
    uint_t nbrOfEvaluationPointsForCoefficientExtremas;
 
    bool evaluatePressure;

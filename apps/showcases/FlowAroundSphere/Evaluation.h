@@ -46,33 +46,46 @@ using StorageSpecification_T = lbm::FlowAroundSphereStorageSpecification;
 using Stencil_T              = StorageSpecification_T::Stencil;
 using PdfField_T             = lbm_generated::PdfField< StorageSpecification_T >;
 using FlagField_T            = FlagField< uint8_t >;
+using BoundaryCollection_T = lbm::FlowAroundSphereBoundaryCollection< FlagField_T >;
 
 using VoidFunction = std::function<void ()>;
 
 namespace walberla
 {
 
+struct DragCoefficient {
+   uint_t timestep;
+   double Fx;
+   double Fy;
+   double Fz;
+   double cDRealArea;
+   double cLRealArea;
+   double cDDiscreteArea;
+   double cLDiscreteArea;
+   DragCoefficient(uint_t t, Vector3<double> f, double cdR, double clR, double cdD, double clD) : timestep(t), Fx(f[0]), Fy(f[1]), Fz(f[2]), cDRealArea(cdR), cLRealArea(clR), cDDiscreteArea(cdD), cLDiscreteArea(clD) {}
+};
+
 class Evaluation
 {
  public:
-   Evaluation(const weak_ptr< StructuredBlockStorage >& blocks, const uint_t checkFrequency, const uint_t rampUpTime, VoidFunction& getFields,
+   Evaluation(const weak_ptr< StructuredBlockStorage >& blocks, const uint_t checkFrequency, const uint_t rampUpTime,
+              BoundaryCollection_T & boundaryCollection,
               const BlockDataID& pdfFieldId, const BlockDataID& densityFieldId, const BlockDataID& velocityFieldId,
               const BlockDataID& flagFieldId, const FlagUID& fluid, const FlagUID& obstacle, const Setup& setup,
               const bool logToStream = true, const bool logToFile = true,
               const std::string& filename = std::string("FlowAroundSphere.txt"))
       : blocks_(blocks), executionCounter_(uint_t(0)), checkFrequency_(checkFrequency), rampUpTime_(rampUpTime),
-        getFields_(getFields), pdfFieldId_(pdfFieldId), densityFieldId_(densityFieldId), velocityFieldId_(velocityFieldId),
-        flagFieldId_(flagFieldId), fluid_(fluid), obstacle_(obstacle), setup_(setup), forceEvaluationExecutionCount_(uint_t(0)),
+        boundaryCollection_(boundaryCollection), pdfFieldId_(pdfFieldId), densityFieldId_(densityFieldId), velocityFieldId_(velocityFieldId),
+        flagFieldId_(flagFieldId), fluid_(fluid), obstacle_(obstacle), setup_(setup),
         strouhalNumberRealD_(real_t(0)), strouhalEvaluationExecutionCount_(uint_t(0)),
         logToStream_(logToStream), logToFile_(logToFile), filename_(filename)
    {
-      forceSample_.resize(uint_t(2));
-      coefficients_.resize(uint_t(2));
-      coefficientExtremas_.resize(uint_t(2));
+      coefficients_.resize(uint_t(4));
+      coefficientExtremas_.resize(uint_t(4));
 
       diameterSphere    = real_c(2.0) * setup_.sphereRadius;
       surfaceAreaSphere = math::pi * diameterSphere * diameterSphere;
-      meanVelocity      = (real_c(4.0) * setup_.inflowVelocity) / real_c(9.0);
+      meanVelocity      = setup_.inflowVelocity; // (real_c(4.0) * setup_.inflowVelocity) / real_c(9.0);
 
       WALBERLA_ROOT_SECTION()
       {
@@ -98,6 +111,29 @@ class Evaluation
    void operator()();
    void forceCalculation(IBlock* block, const uint_t level); // for calculating the force
    void resetForce();
+   void writeDrag()
+   {
+      filesystem::path dataFile( "dragCoefficient.csv" );
+      if( filesystem::exists( dataFile ) )
+         std::remove( dataFile.string().c_str() );
+
+      std::ofstream outfile( "dragCoefficient.csv" );
+      outfile << "SEP=," << "\n";
+      outfile << "timestep," << "Fx," << "Fy," << "Fz," << "cDRealArea," << "cLRealArea," << "cDDiscreteArea," << "cLDiscreteArea" << "\n";
+
+      for(auto it = dragResults.begin(); it != dragResults.end(); ++it)
+      {
+         outfile << it->timestep << ",";
+         outfile << it->Fx << "," << it->Fy << "," << it->Fz << ",";
+         outfile << it->cDRealArea << ",";
+         outfile << it->cLRealArea << ",";
+         outfile << it->cDDiscreteArea << ",";
+         outfile << it->cLDiscreteArea;
+         outfile << "\n";
+      }
+      outfile << std::endl;
+      outfile.close();
+   };
 
    std::function<void (IBlock *, const uint_t)> forceCalculationFunctor()
    {
@@ -116,18 +152,18 @@ class Evaluation
    void refresh();
 
  protected:
-   void evaluate(real_t& cD, real_t& cL, real_t& pressureDifference_L, real_t& pressureDifference);
+   void evaluate(real_t& cDRealArea, real_t& cLRealArea, real_t& cDDiscreteArea, real_t& cLDiscreteArea,
+                 real_t& pressureDifference_L, real_t& pressureDifference);
 
    bool initialized_{false};
 
    weak_ptr< StructuredBlockStorage > blocks_;
-   std::map< IBlock*, std::vector< std::pair< Cell, stencil::Direction > > > directions_;
 
    uint_t executionCounter_;
    uint_t checkFrequency_;
    uint_t rampUpTime_;
 
-   VoidFunction & getFields_;
+   BoundaryCollection_T & boundaryCollection_;
 
    BlockDataID pdfFieldId_;
    BlockDataID densityFieldId_;
@@ -144,8 +180,9 @@ class Evaluation
    real_t meanVelocity;
 
    Vector3< real_t > force_;
-   std::vector< math::Sample > forceSample_;
-   uint_t forceEvaluationExecutionCount_;
+   real_t AD_;
+   real_t AL_;
+   std::vector<DragCoefficient> dragResults;
 
    std::vector< std::deque< real_t > > coefficients_;
    std::vector< std::pair< real_t, real_t > > coefficientExtremas_;

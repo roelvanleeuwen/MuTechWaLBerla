@@ -24,13 +24,13 @@ inlet_velocity = sp.symbols("u_x")
 
 with CodeGeneration() as ctx:
     dtype = 'float64'
-    pdf_dtype = 'float32'
+    pdf_dtype = 'float64'
 
     stencil = LBStencil(Stencil.D3Q27)
     q = stencil.Q
     dim = stencil.D
 
-    streaming_pattern = 'aa'
+    streaming_pattern = 'pull'
 
     pdfs, pdfs_tmp = fields(f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {pdf_dtype}[3D]", layout='fzyx')
     velocity_field, density_field = fields(f"velocity({dim}), density(1) : {dtype}[{dim}D]", layout='fzyx')
@@ -39,12 +39,12 @@ with CodeGeneration() as ctx:
     macroscopic_fields = {'density': density_field, 'velocity': velocity_field}
 
     lbm_config = LBMConfig(
-        method=Method.CUMULANT,
+        method=Method.SRT,
         stencil=stencil,
         relaxation_rate=omega,
         compressible=True,
         galilean_correction=False,
-        fourth_order_correction=0.01,
+        #fourth_order_correction=0.01,
         field_name='pdfs',
         streaming_pattern=streaming_pattern,
     )
@@ -53,8 +53,8 @@ with CodeGeneration() as ctx:
                               symbolic_field=pdfs, symbolic_temporary_field=pdfs_tmp)
 
     collision_rule = create_lb_collision_rule(lbm_config=lbm_config, lbm_optimisation=lbm_opt)
-    collision_rule = insert_constants(collision_rule)
-    collision_rule = insert_aliases(collision_rule)
+    # collision_rule = insert_constants(collision_rule)
+    # collision_rule = insert_aliases(collision_rule)
     lb_method = collision_rule.method
 
     if ctx.gpu:
@@ -86,8 +86,11 @@ with CodeGeneration() as ctx:
                                       field_data_type=pdf_dtype)
     no_slip = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip',
                                      boundary_object=NoSlip(), field_data_type=pdf_dtype)
+
+    quadratic_bounce_back = QuadraticBounceBack(omega, calculate_force_on_boundary=True)
     no_slip_interpolated = lbm_boundary_generator(class_name='Obstacle', flag_uid='Obstacle',
-                                                  boundary_object=QuadraticBounceBack(omega), field_data_type=pdf_dtype)
+                                                  boundary_object=NoSlip(calculate_force_on_boundary=True), field_data_type=pdf_dtype)
+
     ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
                                  boundary_object=UBB((inlet_velocity, 0.0, 0.0), data_type=dtype),
                                  field_data_type=pdf_dtype)

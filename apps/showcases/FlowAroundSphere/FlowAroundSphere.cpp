@@ -76,6 +76,7 @@
 #   include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
 #endif
 
+#include "stencil/D3Q27.h"
 #include "timeloop/SweepTimeloop.h"
 
 #include "vtk/VTKOutput.h"
@@ -364,7 +365,6 @@ int main(int argc, char** argv)
    setup.sphereZPosition = real_c(setup.zCells) / real_c(2.0);
    setup.sphereRadius    = (diameterSphere / real_c(2.0)) / coarseMeshSize;
 
-   setup.evaluateForceComponents = false;
    setup.nbrOfEvaluationPointsForCoefficientExtremas = 100;
 
    setup.evaluatePressure = parameters.getParameter< bool >("evaluatePressure");
@@ -568,8 +568,8 @@ int main(int argc, char** argv)
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID, omegaFinestLevel,
-                                           referenceVelocity, wallDistanceFunctor);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID,
+                                           referenceVelocity);
 #endif
    WALBERLA_MPI_BARRIER()
    WALBERLA_LOG_INFO_ON_ROOT("BOUNDARY HANDLING done")
@@ -602,7 +602,7 @@ int main(int argc, char** argv)
 #endif
    };
 
-   shared_ptr< Evaluation > evaluation( new Evaluation( blocks, evaluationCheckFrequency, rampUpTime, getFields,
+   shared_ptr< Evaluation > evaluation( new Evaluation( blocks, evaluationCheckFrequency, rampUpTime, boundaryCollection,
                                                         pdfFieldID, densityFieldID, velFieldID, flagFieldID, fluidFlagUID, obstacleFlagUID,
                                                         setup, evaluationLogToStream, evaluationLogToFile, evaluationFilename));
 
@@ -781,6 +781,7 @@ int main(int argc, char** argv)
 #endif
    WALBERLA_MPI_BARRIER()
    simTimer.end();
+   evaluation->writeDrag();
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
    real_t time = simTimer.max();
@@ -791,6 +792,7 @@ int main(int argc, char** argv)
    WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
 
    printResidentMemoryStatistics();
+
 
    return EXIT_SUCCESS;
 }
