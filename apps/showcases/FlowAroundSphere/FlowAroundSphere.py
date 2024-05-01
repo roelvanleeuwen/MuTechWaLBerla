@@ -6,7 +6,7 @@ from pystencils.field import fields
 from pystencils.simp.subexpression_insertion import insert_constants, insert_aliases
 
 from lbmpy import Stencil, LBStencil, Method, LBMConfig, LBMOptimisation
-from lbmpy.boundaries.boundaryconditions import ExtrapolationOutflow, UBB, QuadraticBounceBack, FreeSlip, NoSlip
+from lbmpy.boundaries.boundaryconditions import ExtrapolationOutflow, UBB, QuadraticBounceBack, FreeSlip, NoSlip, FixedDensity
 from lbmpy.creationfunctions import create_lb_collision_rule
 
 from pystencils_walberla import CodeGeneration, generate_info_header

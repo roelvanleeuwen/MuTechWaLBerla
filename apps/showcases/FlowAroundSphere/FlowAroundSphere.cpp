@@ -551,20 +551,28 @@ int main(int argc, char** argv)
 
          velField->get(it.cell(), 0) = referenceVelocity;
       }
+   }
+
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   gpu::fieldCpy< gpu::GPUField< real_t >, VelocityField_T>(blocks, velFieldGPUID, velFieldID);
+#endif
+
+   for (auto& block : *blocks)
+   {
       sweepCollection.initialise(&block, cell_idx_c(1));
    }
+
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
+   gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, pdfFieldID, pdfFieldGPUID);
 #endif
 
    std::function< real_t(const Cell&, const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) >
       wallDistanceFunctor = wallDistance(Sphere);
 
-   const real_t omegaFinestLevel = lbm_generated::relaxationRateScaling(omega, refinementLevels);
+   // const real_t omegaFinestLevel = lbm_generated::relaxationRateScaling(omega, refinementLevels);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldGPUID, fluidFlagUID, omegaFinestLevel,
-                                           referenceVelocity, wallDistanceFunctor, pdfFieldID);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldGPUID, fluidFlagUID, referenceVelocity, pdfFieldID);
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else

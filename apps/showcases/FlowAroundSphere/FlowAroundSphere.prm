@@ -3,7 +3,7 @@ Parameters
     machNumber 8.66e-2;
     reynoldsNumber 50;
     diameterSphere 2.5; // On the finest mesh
-    timesteps 20001;
+    timesteps 30;
     simulationTime 93;
     // coarseMeshSize 0.0625;
     coarseMeshSize 0.25;
@@ -60,7 +60,7 @@ StabilityChecker
 
 VTKWriter
 {
-    vtkWriteFrequency 5000;
+    vtkWriteFrequency 1;
     velocity true;
     density true;
     flag false;

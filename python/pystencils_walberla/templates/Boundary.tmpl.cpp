@@ -84,11 +84,11 @@ void {{class_name}}::run_impl(
 
    {% if calculate_force -%}
    auto * forceVector = block->getData<ForceVector>(forceVectorID);
-   int32_t forceVectorSize = int32_c( forceVector->forceVector().size() );
-   WALBERLA_ASSERT_EQUAL(indexVectorSize, forceVectorSize)
+   WALBERLA_ASSERT_EQUAL(indexVectorSize, int32_c( forceVector->forceVector().size() ))
 
    {% if target == 'gpu' -%}
    auto forcePointer = forceVector->pointerGpu();
+   int32_t forceVectorSize = int32_c( forceVector->forceVector().size() );
    {% else %}
    auto forcePointer = forceVector->pointerCpu();
    {% endif %}

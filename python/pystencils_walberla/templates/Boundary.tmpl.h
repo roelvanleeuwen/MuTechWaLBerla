@@ -141,7 +141,7 @@ public:
        bool operator==(ForceVector const &other) const { return other.cpuVector_ == cpuVector_; }
 
        {% if target == 'gpu' -%}
-       ~ForceVector() {WALBERLA_GPU_CHECK(gpuFree( gpuVector_ ));}
+       ~ForceVector() {WALBERLA_GPU_CHECK(gpuFree( gpuVector_[0] ))}
        {% endif -%}
 
        std::vector<ForceStruct> & forceVector() { return cpuVector_; }
@@ -149,7 +149,7 @@ public:
        bool empty() {return cpuVector_.empty();}
 
        {% if target == 'gpu' -%}
-       ForceStruct * pointerGpu()  { return gpuVector_; }
+       ForceStruct * pointerGpu()  { return gpuVector_[0]; }
        {% endif -%}
 
        Vector3<double> getForce()
@@ -168,34 +168,17 @@ public:
        void syncGPU()
        {
           {% if target == 'gpu' -%}
-          WALBERLA_GPU_CHECK(gpuFree( gpuVector_ ));
+          if(!gpuVector_.empty()){WALBERLA_GPU_CHECK(gpuFree( gpuVector_[0] ))}
           gpuVector_.resize( cpuVector_.size() );
-
-          WALBERLA_ASSERT_EQUAL(cpuVector_.size(), NUM_TYPES);
-          for(size_t i=0; i < cpuVectors_.size(); ++i )
-          {
-             auto & gpuVec = gpuVectors_[i];
-             auto & cpuVec = cpuVectors_[i];
-             WALBERLA_GPU_CHECK(gpuMalloc( &gpuVec, sizeof({{StructName}}) * cpuVec.size() ));
-             WALBERLA_GPU_CHECK(gpuMemcpy( gpuVec, &cpuVec[0], sizeof({{StructName}}) * cpuVec.size(), gpuMemcpyHostToDevice ));
-          }
+          WALBERLA_GPU_CHECK(gpuMalloc( &gpuVector_[0], sizeof(ForceStruct) * cpuVector_.size() ))
+          WALBERLA_GPU_CHECK(gpuMemcpy( gpuVector_[0], &cpuVector_[0], sizeof(ForceStruct) * cpuVector_.size(), gpuMemcpyHostToDevice ))
           {%- endif %}
        }
 
        void syncCPU()
        {
           {% if target == 'gpu' -%}
-          WALBERLA_GPU_CHECK(gpuFree( gpuVector_ ));
-          gpuVector_.resize( cpuVector_.size() );
-
-          WALBERLA_ASSERT_EQUAL(cpuVector_.size(), NUM_TYPES);
-          for(size_t i=0; i < cpuVectors_.size(); ++i )
-          {
-             auto & gpuVec = gpuVectors_[i];
-             auto & cpuVec = cpuVectors_[i];
-             WALBERLA_GPU_CHECK(gpuMalloc( &gpuVec, sizeof({{StructName}}) * cpuVec.size() ));
-             WALBERLA_GPU_CHECK(gpuMemcpy( gpuVec, &cpuVec[0], sizeof({{StructName}}) * cpuVec.size(), gpuMemcpyHostToDevice ));
-          }
+          WALBERLA_GPU_CHECK(gpuMemcpy( &cpuVector_[0], gpuVector_[0] , sizeof(ForceStruct) * cpuVector_.size(), gpuMemcpyDeviceToHost ))
           {%- endif %}
        }
 
@@ -241,14 +224,16 @@ public:
         {{- ["IBlock * block", kernel.kernel_selection_parameters, ["gpuStream_t stream = nullptr"] if target == 'gpu' else []] | type_identifier_list -}}
     );
 
-    Vector3<double> getForce(IBlock * block)
+    Vector3<double> getForce(IBlock * {% if calculate_force -%}block{%else%}/*block*/{%- endif %})
     {
        {% if calculate_force -%}
        auto * forceVector = block->getData<ForceVector>(forceVectorID);
        if(forceVector->empty())
           return Vector3<double>(double_c(0.0));
+       forceVector->syncCPU();
        return forceVector->getForce();
        {% else %}
+       WALBERLA_ABORT("Boundary condition was not generated including force calculation.")
        return Vector3<double>(double_c(0.0));
        {%- endif %}
     }
