@@ -46,26 +46,38 @@ using StorageSpecification_T = lbm::FlowAroundCylinderStorageSpecification;
 using Stencil_T              = StorageSpecification_T::Stencil;
 using PdfField_T             = lbm_generated::PdfField< StorageSpecification_T >;
 using FlagField_T            = FlagField< uint8_t >;
+using BoundaryCollection_T   = lbm::FlowAroundCylinderBoundaryCollection< FlagField_T >;
 
 using VoidFunction = std::function<void ()>;
 
 namespace walberla
 {
 
+struct DragCoefficient {
+   uint_t timestep;
+   double Fx;
+   double Fy;
+   double Fz;
+   double cDRealArea;
+   double cLRealArea;
+   double cDDiscreteArea;
+   double cLDiscreteArea;
+   DragCoefficient(uint_t t, Vector3<double> f, double cdR, double clR, double cdD, double clD) : timestep(t), Fx(f[0]), Fy(f[1]), Fz(f[2]), cDRealArea(cdR), cLRealArea(clR), cDDiscreteArea(cdD), cLDiscreteArea(clD) {}
+};
+
 class Evaluation
 {
  public:
    Evaluation(const weak_ptr< StructuredBlockStorage >& blocks, const uint_t checkFrequency, const uint_t rampUpTime,
-              VoidFunction& getMacroFields, VoidFunction& getPdfField,
+              VoidFunction& getMacroFields, BoundaryCollection_T & boundaryCollection,
               const IDs& ids, const FlagUID& fluid, const FlagUID& obstacle, const Setup& setup,
               const bool logToStream = true, const bool logToFile = true,
               const std::string& filename = std::string("FlowAroundCylinder.txt"))
       : blocks_(blocks), executionCounter_(uint_t(0)), checkFrequency_(checkFrequency), rampUpTime_(rampUpTime),
-        getMacroFields_(getMacroFields), getPdfField_(getPdfField), ids_(ids), fluid_(fluid), obstacle_(obstacle), setup_(setup), forceEvaluationExecutionCount_(uint_t(0)),
+        getMacroFields_(getMacroFields), boundaryCollection_(boundaryCollection), ids_(ids), fluid_(fluid), obstacle_(obstacle), setup_(setup),
         strouhalNumberRealD_(real_t(0)), strouhalEvaluationExecutionCount_(uint_t(0)),
         logToStream_(logToStream), logToFile_(logToFile), filename_(filename)
    {
-      forceSample_.resize(uint_t(2));
       coefficients_.resize(uint_t(4));
       coefficientExtremas_.resize(uint_t(4));
 
@@ -93,19 +105,12 @@ class Evaluation
       cylinderDiameter_ = real_c(2.0) * setup_.cylinderRadius / setup_.dxF;
       cylinderHeight_ = setup_.H / setup_.dxF;
 
-      size_t links = 0;
-      for(const auto& direction : directions_)
-      {
-         links += direction.second.size();
-      }
-
       WALBERLA_LOG_INFO_ON_ROOT(
             "Evaluation initialised:"
             "\n   + Cylinder real area:     " << cylinderDiameter_ * cylinderHeight_
          << "\n   + Cylinder real diameter: " << cylinderDiameter_
          << "\n   + Cylinder real height:   " << cylinderHeight_
          << "\n   + Cylinder discrete area: " << AD_
-         << "\n   + Numer of links:         " << links
       )
 
    }
@@ -113,6 +118,29 @@ class Evaluation
    void operator()();
    void forceCalculation(IBlock* block, const uint_t level); // for calculating the force
    void resetForce();
+   void writeMacroFields();
+   void writeDrag()
+   {
+      filesystem::path dataFile( "dragCoefficient.csv" );
+      if( filesystem::exists( dataFile ) )
+         std::remove( dataFile.string().c_str() );
+
+      std::ofstream outfile( "dragCoefficient.csv" );
+      outfile << "SEP=," << "\n";
+      outfile << "timestep," << "Fx," << "Fy," << "Fz," << "cDRealArea," << "cLRealArea," << "cDDiscreteArea," << "cLDiscreteArea" << "\n";
+
+      for(auto it = dragResults.begin(); it != dragResults.end(); ++it)
+      {
+         outfile << it->timestep << ",";
+         outfile << it->Fx << "," << it->Fy << "," << it->Fz << ",";
+         outfile << it->cDRealArea << ",";
+         outfile << it->cLRealArea << ",";
+         outfile << it->cDDiscreteArea << ",";
+         outfile << it->cLDiscreteArea;
+         outfile << "\n";
+      }
+      outfile.close();
+   };
 
    std::function<void (IBlock *, const uint_t)> forceCalculationFunctor()
    {
@@ -123,7 +151,6 @@ class Evaluation
    {
       return [this]() { resetForce(); };
    }
-
 
    void prepareResultsForSQL();
    void getResultsForSQLOnRoot(std::map< std::string, double >& realProperties,
@@ -138,14 +165,13 @@ class Evaluation
    bool initialized_{false};
 
    weak_ptr< StructuredBlockStorage > blocks_;
-   std::map< IBlock*, std::vector< std::pair< Cell, stencil::Direction > > > directions_;
 
    uint_t executionCounter_;
    uint_t checkFrequency_;
    uint_t rampUpTime_;
 
    VoidFunction & getMacroFields_;
-   VoidFunction & getPdfField_;
+   BoundaryCollection_T & boundaryCollection_;
 
    IDs ids_;
 
@@ -157,13 +183,12 @@ class Evaluation
    uint_t D_;
    real_t AD_;
    real_t AL_;
+   std::vector<DragCoefficient> dragResults;
 
    real_t cylinderDiameter_;
    real_t cylinderHeight_;
 
    Vector3< real_t > force_;
-   std::vector< math::Sample > forceSample_;
-   uint_t forceEvaluationExecutionCount_;
 
    std::vector< std::deque< real_t > > coefficients_;
    std::vector< std::pair< real_t, real_t > > coefficientExtremas_;

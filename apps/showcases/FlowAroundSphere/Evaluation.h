@@ -131,7 +131,6 @@ class Evaluation
          outfile << it->cLDiscreteArea;
          outfile << "\n";
       }
-      outfile << std::endl;
       outfile.close();
    };
 

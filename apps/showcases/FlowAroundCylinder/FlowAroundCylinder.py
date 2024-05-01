@@ -83,8 +83,10 @@ with CodeGeneration() as ctx:
     freeslip = lbm_boundary_generator("FreeSlip", flag_uid="FreeSlip", boundary_object=FreeSlip(stencil))
     no_slip = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip',
                                      boundary_object=NoSlip(), field_data_type=pdf_dtype)
+
+    quadratic_bounce_back = QuadraticBounceBack(omega, calculate_force_on_boundary=True)
     no_slip_interpolated = lbm_boundary_generator(class_name='Obstacle', flag_uid='Obstacle',
-                                                  boundary_object=QuadraticBounceBack(omega), field_data_type=pdf_dtype)
+                                                  boundary_object=quadratic_bounce_back, field_data_type=pdf_dtype)
 
     ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
                                  boundary_object=UBB(lambda *args: None, dim=stencil.D, data_type=dtype),

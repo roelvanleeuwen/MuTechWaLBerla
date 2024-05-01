@@ -22,37 +22,11 @@
 
 namespace walberla
 {
-
-namespace {
-inline real_t getBoundaryValue(const PdfField_T* pdfField, const Cell& cell, const stencil::Direction& direction)
-   {
-      const uint_t invDir = Stencil_T::idx[stencil::inverseDir[direction]];
-      return pdfField->get(cell.x() + StorageSpecification_T::AccessorEVEN::readX[invDir],
-                           cell.y() + StorageSpecification_T::AccessorEVEN::readY[invDir],
-                           cell.z() + StorageSpecification_T::AccessorEVEN::readZ[invDir],
-                           StorageSpecification_T::AccessorEVEN::readD[invDir]);
-   }
-
-   inline real_t getFluidValue(const PdfField_T* pdfField, const Cell& cell, const stencil::Direction& direction)
-   {
-      const uint_t dir = Stencil_T::idx[direction];
-      return pdfField->get(cell.x() + StorageSpecification_T::AccessorODD::writeX[dir],
-                           cell.y() + StorageSpecification_T::AccessorODD::writeY[dir],
-                           cell.z() + StorageSpecification_T::AccessorODD::writeZ[dir],
-                           StorageSpecification_T::AccessorODD::writeD[dir]);
-   }
-}
-
-void Evaluation::operator()()
+void Evaluation::writeMacroFields()
 {
-   if (checkFrequency_ == uint_t(0)) return;
-
-   ++executionCounter_;
    if ((executionCounter_ - uint_c(1)) % checkFrequency_ != 0) return;
-
    auto blocks = blocks_.lock();
    WALBERLA_CHECK_NOT_NULLPTR(blocks)
-
    getMacroFields_();
    const real_t Cs2 = ((setup_.dxC / setup_.dt) * (setup_.dxC / setup_.dt) / real_c(3.0)); // speed of sound squared
    for (auto& block : *blocks)
@@ -89,24 +63,32 @@ void Evaluation::operator()()
          }
       }
    }
+}
 
+void Evaluation::operator()()
+{
+   if (checkFrequency_ == uint_t(0)) return;
+   ++executionCounter_;
+   writeMacroFields();
    if (rampUpTime_ > executionCounter_) return;
 
-   real_t cDRealArea(real_t(0));
-   real_t cLRealArea(real_t(0));
-   real_t cDDiscreteArea(real_t(0));
-   real_t cLDiscreteArea(real_t(0));
+   real_t cDRealArea(real_c(0.0));
+   real_t cLRealArea(real_c(0.0));
+   real_t cDDiscreteArea(real_c(0.0));
+   real_t cLDiscreteArea(real_c(0.0));
 
-   real_t pressureDifference_L(real_t(0));
-   real_t pressureDifference(real_t(0));
+   real_t pressureDifference_L(real_c(0.0));
+   real_t pressureDifference(real_c(0.0));
 
    evaluate(cDRealArea, cLRealArea, cDDiscreteArea, cLDiscreteArea, pressureDifference_L, pressureDifference);
 
+   if ((executionCounter_ - uint_c(1)) % checkFrequency_ != 0) return;
+
+   auto blocks = blocks_.lock();
+   WALBERLA_CHECK_NOT_NULLPTR(blocks)
 
    // Strouhal number (needs vortex shedding frequency)
-
-   real_t vortexVelocity(real_t(0));
-
+   real_t vortexVelocity(real_c(0.0));
    if (setup_.evaluateStrouhal)
    {
       auto block = blocks->getBlock(setup_.pStrouhal);
@@ -145,24 +127,11 @@ void Evaluation::operator()()
       }
 
       std::ostringstream oss;
-      if (setup_.evaluateForceComponents)
-      {
-         oss << "\nforce components (evaluated in time step " << forceEvaluationExecutionCount_
-             << "):"
-                "\n   x: "
-             << forceSample_[0].min() << " (min), " << forceSample_[0].max() << " (max), " << forceSample_[0].mean()
-             << " (mean), " << forceSample_[0].median() << " (median), " << forceSample_[0].stdDeviation()
-             << " (stdDeviation)"
-             << "\n   y: " << forceSample_[1].min() << " (min), " << forceSample_[1].max() << " (max), "
-             << forceSample_[1].mean() << " (mean), " << forceSample_[1].median() << " (median), "
-             << forceSample_[1].stdDeviation() << " (stdDeviation)";
-      }
-
       if (logToStream_)
       {
          WALBERLA_LOG_RESULT_ON_ROOT(
             "force acting on cylinder (in dimensionless lattice units of the coarsest grid - evaluated in time step "
-            << forceEvaluationExecutionCount_ << "):\n   " << force_ << oss.str()
+            << executionCounter_ - uint_c(1) << "):\n   " << force_ << oss.str()
             << "\ndrag and lift coefficients (including extrema of last " << (coefficients_[0].size() * checkFrequency_)
             << " time steps):"
                "\n   \"real\" area:"
@@ -270,58 +239,14 @@ void Evaluation::operator()()
 void Evaluation::resetForce()
 {
    // Supposed to be used after the timestep; after the evaluation is written
-   if (checkFrequency_ == uint_t(0) || executionCounter_ % checkFrequency_ != 0 )
-      return;
-
-   force_[0] = real_c(0.0);
-   force_[1] = real_c(0.0);
-   force_[2] = real_c(0.0);
-
-   forceSample_[0].clear();
-   forceSample_[1].clear();
-
-   forceEvaluationExecutionCount_ = executionCounter_;
+   if (!initialized_) refresh();
 }
 
 void Evaluation::forceCalculation(IBlock* block, const uint_t /*level*/)
 {
    // Supposed to be used as a post boundary handling function on every level
-   if (checkFrequency_ == uint_t(0) || executionCounter_ % checkFrequency_ != 0)
-      return;
    if (rampUpTime_ > executionCounter_) return;
-
-   if (!initialized_) refresh();
-
-   getPdfField_();
-   // ScaleFactor is deactivated here because the cylinder area is calculated based on the finest grid size.
-   // const real_t scaleFactor = real_c(1.0) / real_c(uint_t(1) << (uint_t(2) * level));
-
-   if (directions_.find(block) != directions_.end())
-   {
-      const PdfField_T* const pdfField = block->template getData< PdfField_T >(ids_.pdfField);
-
-      const auto& directions = directions_[block];
-      for (auto pair = directions.begin(); pair != directions.end(); ++pair)
-      {
-         const Cell cell(pair->first);
-         const stencil::Direction direction(pair->second);
-
-         const real_t boundaryValue = getBoundaryValue(pdfField, cell, direction);
-         const real_t fluidValue    = getFluidValue(pdfField, cell, direction);
-
-         const real_t f = boundaryValue + fluidValue;
-
-         force_[0] += real_c(stencil::cx[direction]) * f;
-         force_[1] += real_c(stencil::cy[direction]) * f;
-         force_[2] += real_c(stencil::cz[direction]) * f;
-
-         if (setup_.evaluateForceComponents)
-         {
-            forceSample_[0].insert(real_c(stencil::cx[direction]) * f);
-            forceSample_[1].insert(real_c(stencil::cy[direction]) * f);
-         }
-      }
-   }
+   force_ += boundaryCollection_.ObstacleObject->getForce(block);
 }
 
 void Evaluation::prepareResultsForSQL()
@@ -342,34 +267,17 @@ void Evaluation::prepareResultsForSQL()
       sqlResults_["forceY_L"] = double_c(force_[1]);
       sqlResults_["forceZ_L"] = double_c(force_[2]);
 
-      if (setup_.evaluateForceComponents)
-      {
-         sqlResults_["forceXMin_L"]    = double_c(forceSample_[0].min());
-         sqlResults_["forceXMax_L"]    = double_c(forceSample_[0].max());
-         sqlResults_["forceXAvg_L"]    = double_c(forceSample_[0].mean());
-         sqlResults_["forceXMedian_L"] = double_c(forceSample_[0].median());
-         sqlResults_["forceXStdDev_L"] = double_c(forceSample_[0].stdDeviation());
+      sqlResults_["forceXMin_L"]    = 0.0;
+      sqlResults_["forceXMax_L"]    = 0.0;
+      sqlResults_["forceXAvg_L"]    = 0.0;
+      sqlResults_["forceXMedian_L"] = 0.0;
+      sqlResults_["forceXStdDev_L"] = 0.0;
 
-         sqlResults_["forceYMin_L"]    = double_c(forceSample_[1].min());
-         sqlResults_["forceYMax_L"]    = double_c(forceSample_[1].max());
-         sqlResults_["forceYAvg_L"]    = double_c(forceSample_[1].mean());
-         sqlResults_["forceYMedian_L"] = double_c(forceSample_[1].median());
-         sqlResults_["forceYStdDev_L"] = double_c(forceSample_[1].stdDeviation());
-      }
-      else
-      {
-         sqlResults_["forceXMin_L"]    = 0.0;
-         sqlResults_["forceXMax_L"]    = 0.0;
-         sqlResults_["forceXAvg_L"]    = 0.0;
-         sqlResults_["forceXMedian_L"] = 0.0;
-         sqlResults_["forceXStdDev_L"] = 0.0;
-
-         sqlResults_["forceYMin_L"]    = 0.0;
-         sqlResults_["forceYMax_L"]    = 0.0;
-         sqlResults_["forceYAvg_L"]    = 0.0;
-         sqlResults_["forceYMedian_L"] = 0.0;
-         sqlResults_["forceYStdDev_L"] = 0.0;
-      }
+      sqlResults_["forceYMin_L"]    = 0.0;
+      sqlResults_["forceYMax_L"]    = 0.0;
+      sqlResults_["forceYAvg_L"]    = 0.0;
+      sqlResults_["forceYMedian_L"] = 0.0;
+      sqlResults_["forceYStdDev_L"] = 0.0;
 
       sqlResults_["cDRealArea"]     = double_c(cDRealArea);
       sqlResults_["cLRealArea"]     = double_c(cLRealArea);
@@ -401,7 +309,7 @@ void Evaluation::getResultsForSQLOnRoot(std::map< std::string, double >& realPro
       for (auto result = sqlResults_.begin(); result != sqlResults_.end(); ++result)
          realProperties[result->first] = result->second;
 
-      integerProperties["forceEvaluationTimeStep"]    = int_c(forceEvaluationExecutionCount_);
+      integerProperties["forceEvaluationTimeStep"]    = int_c(executionCounter_ - uint_c(1));
       integerProperties["strouhalEvaluationTimeStep"] = int_c(strouhalEvaluationExecutionCount_);
    }
 }
@@ -419,8 +327,6 @@ void Evaluation::refresh()
 
    real_t AD(real_t(0));
    real_t AL(real_t(0));
-
-   directions_.clear();
 
    for (auto block = blocks->begin(); block != blocks->end(); ++block)
    {
@@ -448,8 +354,6 @@ void Evaluation::refresh()
 
                      if (flagField->isFlagSet(nx, ny, nz, obstacle))
                      {
-                        directions_[block.get()].emplace_back(Cell(x, y, z), *it);
-
                         const Vector3< real_t > p = blocks->getBlockLocalCellCenter(*block, Cell(nx, ny, nz));
 
                         if (it.cx() == 1 && it.cy() == 0 && it.cz() == 0) { AD += area; }
@@ -482,7 +386,6 @@ void Evaluation::refresh()
       const Cell yMaxCell = blocks->getCell(real_t(0), yMax, real_t(0));
 
       D_ = uint_c(yMaxCell[1] - yMinCell[1]) + uint_t(1);
-
       AD_ = AD;
       AL_ = AL;
    }
@@ -649,19 +552,11 @@ void Evaluation::evaluate(real_t& cDRealArea, real_t& cLRealArea, real_t& cDDisc
    if (!initialized_) refresh();
 
    // force on obstacle
-
    mpi::reduceInplace(force_, mpi::SUM);
 
-   if (setup_.evaluateForceComponents)
-   {
-      forceSample_[0].mpiGatherRoot();
-      forceSample_[1].mpiGatherRoot();
-   }
-
    // pressure difference
-
-   real_t pAlpha(real_t(0));
-   real_t pOmega(real_t(0));
+   real_t pAlpha(real_c(0.0));
+   real_t pOmega(real_c(0.0));
 
    auto blocks = blocks_.lock();
    WALBERLA_CHECK_NOT_NULLPTR(blocks)
@@ -674,7 +569,7 @@ void Evaluation::evaluate(real_t& cDRealArea, real_t& cLRealArea, real_t& cDDisc
          const ScalarField_T* const densityField = block->template getData< ScalarField_T >(ids_.densityField);
          const auto cell                         = blocks->getBlockLocalCell(*block, setup_.pAlpha);
          WALBERLA_ASSERT(densityField->xyzSize().contains(cell))
-         pAlpha += densityField->get(cell) / real_c(3);
+         pAlpha += densityField->get(cell) / real_c(3.0);
       }
 
       block = blocks->getBlock(setup_.pOmega);
@@ -683,7 +578,7 @@ void Evaluation::evaluate(real_t& cDRealArea, real_t& cLRealArea, real_t& cDDisc
          const ScalarField_T* const densityField = block->template getData< ScalarField_T >(ids_.densityField);
          const auto cell                         = blocks->getBlockLocalCell(*block, setup_.pOmega);
          WALBERLA_ASSERT(densityField->xyzSize().contains(cell))
-         pOmega += densityField->get(cell) / real_c(3);
+         pOmega += densityField->get(cell) / real_c(3.0);
       }
 
       mpi::reduceInplace(pAlpha, mpi::SUM);
@@ -698,8 +593,15 @@ void Evaluation::evaluate(real_t& cDRealArea, real_t& cLRealArea, real_t& cDDisc
       cDDiscreteArea = (real_c(2.0) * force_[0]) / (setup_.uMean * setup_.uMean * AD_);
       cLDiscreteArea = (real_c(2.0) * force_[1]) / (setup_.uMean * setup_.uMean * AL_);
 
+      DragCoefficient DC(executionCounter_ - uint_c(1), force_, cDRealArea, cLRealArea, cDDiscreteArea, cLDiscreteArea);
+      dragResults.push_back(DC);
+
       pressureDifference_L = pAlpha - pOmega;
       pressureDifference   = (pressureDifference_L * setup_.rho * setup_.dxC * setup_.dxC) / (setup_.dt * setup_.dt);
    }
+
+   force_[0] = real_c(0.0);
+   force_[1] = real_c(0.0);
+   force_[2] = real_c(0.0);
 }
 }

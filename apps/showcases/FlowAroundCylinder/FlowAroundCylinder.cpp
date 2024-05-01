@@ -584,6 +584,10 @@ int main(int argc, char** argv)
 #endif
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   gpu::fieldCpy< PdfField_T, gpu::GPUField< real_t > >(blocks, ids.pdfField, ids.pdfFieldGPU);
+#endif
+
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    WALBERLA_LOG_INFO_ON_ROOT("Setting up communication")
 
    std::shared_ptr< NonUniformGPUScheme< CommunicationStencil_T > > nonUniformCommunication =
@@ -662,15 +666,7 @@ int main(int argc, char** argv)
 #endif
    };
 
-   std::function< void() > getPdfField = [&]() {
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      gpu::fieldCpy< PdfField_T, GPUPdfField_T >(blocks, ids.pdfField, ids.pdfFieldGPU);
-      WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
-      WALBERLA_GPU_CHECK(gpuPeekAtLastError())
-#endif
-   };
-
-   shared_ptr< Evaluation > evaluation(new Evaluation(blocks, evaluationCheckFrequency, rampUpTime, getMacroFields, getPdfField, ids,
+   shared_ptr< Evaluation > evaluation(new Evaluation(blocks, evaluationCheckFrequency, rampUpTime, getMacroFields, boundaryCollection, ids,
       fluidFlagUID, obstacleFlagUID, setup, evaluationLogToStream, evaluationLogToFile, evaluationFilename));
 
    // create time loop
@@ -869,6 +865,7 @@ int main(int argc, char** argv)
 #endif
    WALBERLA_MPI_BARRIER()
    simTimer.end();
+   evaluation->writeDrag();
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
    real_t time = simTimer.max();

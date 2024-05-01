@@ -197,7 +197,7 @@ void Evaluation::resetForce()
    if (!initialized_) refresh();
 }
 
-void Evaluation::forceCalculation(IBlock* block, const uint_t level)
+void Evaluation::forceCalculation(IBlock* block, const uint_t /*level*/)
 {
    // Supposed to be used as a post boundary handling function on every level
    // if (checkFrequency_ == uint_t(0) || executionCounter_ % checkFrequency_ != 0)
