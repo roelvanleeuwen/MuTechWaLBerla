@@ -277,14 +277,14 @@ void Evaluation::refresh()
 
    real_t AD(real_t(0));
    real_t AL(real_t(0));
-
    for (auto block = blocks->begin(); block != blocks->end(); ++block)
    {
       const FlagField_T* const flagField = block->template getData< FlagField_T >(flagFieldId_);
 
       auto fluid    = flagField->getFlag(fluid_);
       auto obstacle = flagField->getFlag(obstacle_);
-      const real_t area  = real_c(1.0);
+      const real_t area  = real_c(4.0);
+
 
       auto xyzSize = flagField->xyzSize();
       for (auto z = xyzSize.zMin(); z <= xyzSize.zMax(); ++z)
@@ -318,7 +318,6 @@ void Evaluation::refresh()
          }
       }
    }
-
    mpi::reduceInplace(AD, mpi::SUM);
    mpi::reduceInplace(AL, mpi::SUM);
 

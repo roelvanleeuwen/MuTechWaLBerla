@@ -5,9 +5,10 @@ from pystencils import TypedSymbol, Target
 from pystencils.field import fields
 from pystencils.simp.subexpression_insertion import insert_constants, insert_aliases
 
-from lbmpy import Stencil, LBStencil, Method, LBMConfig, LBMOptimisation
+from lbmpy import LBStencil, LBMConfig, LBMOptimisation
 from lbmpy.boundaries.boundaryconditions import ExtrapolationOutflow, UBB, QuadraticBounceBack, FreeSlip, NoSlip
 from lbmpy.creationfunctions import create_lb_collision_rule
+from lbmpy.enums import Method, Stencil, SubgridScaleModel
 
 from pystencils_walberla import CodeGeneration, generate_info_header
 from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator
@@ -30,7 +31,7 @@ with CodeGeneration() as ctx:
     q = stencil.Q
     dim = stencil.D
 
-    streaming_pattern = 'pull'
+    streaming_pattern = 'esotwist'
 
     pdfs, pdfs_tmp = fields(f"pdfs({stencil.Q}), pdfs_tmp({stencil.Q}): {pdf_dtype}[3D]", layout='fzyx')
     velocity_field, density_field = fields(f"velocity({dim}), density(1) : {dtype}[{dim}D]", layout='fzyx')
@@ -44,6 +45,7 @@ with CodeGeneration() as ctx:
         relaxation_rate=omega,
         compressible=True,
         galilean_correction=False,
+        subgrid_scale_model=SubgridScaleModel.QR,
         #fourth_order_correction=0.01,
         field_name='pdfs',
         streaming_pattern=streaming_pattern,
@@ -89,11 +91,11 @@ with CodeGeneration() as ctx:
 
     quadratic_bounce_back = QuadraticBounceBack(omega, calculate_force_on_boundary=True)
     no_slip_interpolated = lbm_boundary_generator(class_name='Obstacle', flag_uid='Obstacle',
-                                                  boundary_object=NoSlip(calculate_force_on_boundary=True),
+                                                  boundary_object=quadratic_bounce_back,
                                                   field_data_type=pdf_dtype)
 
     ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
-                                 boundary_object=UBB((inlet_velocity, 0.0, 0.0), data_type=dtype),
+                                 boundary_object=UBB((inlet_velocity, 0.0, 0.0), density=1.0, data_type=dtype),
                                  field_data_type=pdf_dtype)
 
     outflow = lbm_boundary_generator(class_name='Outflow', flag_uid='Outflow',

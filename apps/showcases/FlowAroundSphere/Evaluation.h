@@ -106,7 +106,19 @@ class Evaluation
             file.close();
          }
       }
+
+      refresh();
+
+      WALBERLA_LOG_INFO_ON_ROOT(
+         "Evaluation initialised:"
+            "\n   + Sphere real area:                      " << surfaceAreaSphere
+         << "\n   + Sphere real diameter:                  " << diameterSphere
+         << "\n   + Sphere discrete area drag coefficient: " << AD_
+         << "\n   + Sphere discrete area lift coefficient: " << AL_
+      )
+
    }
+
 
    void operator()();
    void forceCalculation(IBlock* block, const uint_t level); // for calculating the force

@@ -326,8 +326,6 @@ int main(int argc, char** argv)
    const real_t viscosity = real_c(referenceVelocity / reynoldsNumber);
    const real_t omega = real_c(real_c(1.0) / (real_c(3.0) * viscosity + real_c(0.5)));
    const real_t referenceTime = real_c(diameterSphere / referenceVelocity);
-   WALBERLA_LOG_DEVEL_VAR(referenceVelocity)
-
 
    // read domain parameters
    auto domainParameters = config->getOneBlock("DomainSetup");
@@ -569,15 +567,14 @@ int main(int argc, char** argv)
    std::function< real_t(const Cell&, const Cell&, const shared_ptr< StructuredBlockForest >&, IBlock&) >
       wallDistanceFunctor = wallDistance(Sphere);
 
-   // const real_t omegaFinestLevel = lbm_generated::relaxationRateScaling(omega, refinementLevels);
+   const real_t omegaFinestLevel = lbm_generated::relaxationRateScaling(omega, refinementLevels);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldGPUID, fluidFlagUID, referenceVelocity, pdfFieldID);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldGPUID, fluidFlagUID, omegaFinestLevel, referenceVelocity, wallDistanceFunctor, pdfFieldID);
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID,
-                                           referenceVelocity);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID, referenceVelocity);
 #endif
    WALBERLA_MPI_BARRIER()
    WALBERLA_LOG_INFO_ON_ROOT("BOUNDARY HANDLING done")

@@ -1,12 +1,12 @@
 Parameters
 {
-    machNumber 8.66e-2;
-    reynoldsNumber 50;
+    machNumber 0.11;
+    reynoldsNumber 100;
     diameterSphere 2.5; // On the finest mesh
-    timesteps 30;
+    timesteps 30001;
     simulationTime 93;
     // coarseMeshSize 0.0625;
-    coarseMeshSize 0.25;
+    coarseMeshSize 0.0625;
     // sphereXPosition 7.5;
     sphereXPosition 4.5;
     circularCrossSection true;
@@ -34,7 +34,7 @@ DomainSetup
 {
     // cellsPerBlock < 130, 240, 240 >;
     // domainSize    < 32.5, 15, 15 >; // Domain size is given in terms of the diameter of the Sphere
-    cellsPerBlock < 64, 32, 32 >;
+    cellsPerBlock < 256, 128, 128 >;
     domainSize    < 16, 8, 8 >; // Domain size is given in terms of the diameter of the Sphere
     refinementLevels 0;
     numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
@@ -60,7 +60,7 @@ StabilityChecker
 
 VTKWriter
 {
-    vtkWriteFrequency 1;
+    vtkWriteFrequency 5000;
     velocity true;
     density true;
     flag false;
@@ -75,13 +75,13 @@ Logging
     logLevel info;  // info progress detail tracing
     writeSetupForestAndReturn false;
     readSetupFromFile false;
-    remainingTimeLoggerFrequency 60; // in seconds
+    remainingTimeLoggerFrequency 30; // in seconds
 }
 
 Evaluation
 {
-    evaluationCheckFrequency 1000;
-    rampUpTime 0;
+    evaluationCheckFrequency 10000;
+    rampUpTime 10000;
     logToStream true;
     logToFile true;
     filename FlowAroundSphere.txt;
