@@ -76,6 +76,13 @@
     #define gpuGetDeviceProperties cudaGetDeviceProperties
 
     #define gpuLaunchKernel cudaLaunchKernel
+
+   #if (CMAKE_CUDA_ARCHITECTURES >= 60)
+      #define gpuAtomicAdd atomicAdd
+   #else
+      #define gpuAtomicAdd atomicAddCAS
+   #endif
+
 #endif
 
 
