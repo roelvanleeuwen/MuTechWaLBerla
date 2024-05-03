@@ -82,7 +82,6 @@
    #else
       #define gpuAtomicAdd atomicAddCAS
    #endif
-
 #endif
 
 
