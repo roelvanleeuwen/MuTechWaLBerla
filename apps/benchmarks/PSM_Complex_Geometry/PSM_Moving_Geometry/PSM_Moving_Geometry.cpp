@@ -128,6 +128,7 @@ int main(int argc, char** argv)
 
    mpi::MPIManager::instance()->useWorldComm();
 
+
    ///////////////////////
    /// PARAMETER INPUT ///
    ///////////////////////
@@ -167,7 +168,7 @@ int main(int argc, char** argv)
    //mesh::scale(*mesh, Vector3<real_t> (0.025));
    auto meshCenterPoint = mesh::computeCentroid(*mesh);
    Vector3<real_t> meshCenter = Vector3<real_t> (meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
-   mesh::rotate(*mesh, Vector3<mesh::TriangleMesh::Scalar> (0,0,1), math::half_pi, Vector3<mesh::TriangleMesh::Scalar>(meshCenter[0], meshCenter[1], meshCenter[2]));
+   mesh::rotate(*mesh, Vector3<mesh::TriangleMesh::Scalar> (1,0,0), math::half_pi, Vector3<mesh::TriangleMesh::Scalar>(meshCenter[0], meshCenter[1], meshCenter[2]));
 
    auto distanceOctreeMesh = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh));
    auto aabb = computeAABB(*mesh);
@@ -175,7 +176,7 @@ int main(int argc, char** argv)
    real_t D_resolution = D / dx;    //diameter in lattice units; resolution of diameter, e.g. 20, 40, ... , 320
 
    auto domainAABB = AABB(-D, -(1 + 1./15.)*2.*D, -dx/2, 7.*D, 4.*D -(1 + 1./15.)*2.*D, dx/2);
-   //auto domainAABB = AABB(-D, -(1 + 1./15.)*2.*D, -D, 7.*D, 4.*D -(1 + 1./15.)*2.*D, D);
+   //auto domainAABB = AABB(-D, -(1 + 1./15.)*2.*D, -D, 3.*D, 4.*D -(1 + 1./15.)*2.*D, D);
 
    WALBERLA_LOG_INFO("DomainAABB is " << domainAABB << " dx is " << dx )
 
@@ -210,47 +211,12 @@ int main(int argc, char** argv)
 
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
-   /////////////////////////
-   /// Boundary Handling ///
-   /////////////////////////
-
-
-   const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", real_t(0.0), field::fzyx, uint_c(1));
-   const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1));
-   const BlockDataID forceFieldId = field::addToStorage< VectorField_T >(blocks, "forceField", real_c(0.0), field::fzyx, uint_c(1));
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fractionFieldGPU", true);
-   const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
-   const BlockDataID forceFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, forceFieldId, "force field on GPU", true); 
-#endif
-
-
-   //Setting up Object
-   auto movementFunction = GeometryMovementFunction(domainAABB, rotationVector, objectVelocity);
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldId,
-                                                    movementFunction, distanceOctreeMesh, "geometry",
-                                                    maxSuperSamplingDepth, 1, true, true, omega, dt);
-#else
-   WALBERLA_LOG_INFO_ON_ROOT("Setting up objectMover")
-
-   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
-                                                    movementFunction, distanceOctreeMesh, "geometry",
-                                                    maxSuperSamplingDepth, 1, true, false, omega, dt);
-   WALBERLA_LOG_INFO_ON_ROOT("Finished Setting up objectMover")
-
-#endif
-
-   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "meshBase", VTKWriteFrequency);
-
-   const std::function< void() > meshWritingFunc = [&]() {
-      objectMover->moveTriangleMesh(timeloop.getCurrentTimeStep(), VTKWriteFrequency);
-      meshWriter();
-   };
 
    /////////////////////////
    /// Fields Creation   ///
    /////////////////////////
+
+   WALBERLA_LOG_INFO_ON_ROOT("Setting up fields")
 
    const StorageSpecification_T StorageSpec = StorageSpecification_T();
    const BlockDataID pdfFieldId  = lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, uint_c(1), field::fzyx);
@@ -258,17 +224,47 @@ int main(int argc, char** argv)
    const BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, uint_c(1));
    const BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flagField");
 
+   const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", real_t(0.0), field::fzyx, uint_c(1));
+   const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1));
+   const BlockDataID forceFieldId = field::addToStorage< VectorField_T >(blocks, "forceField", real_c(0.0), field::fzyx, uint_c(1));
+
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    const BlockDataID pdfFieldGPUId = lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldId, StorageSpec, "pdf field on GPU", true);
    const BlockDataID velocityFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity field on GPU", true);
    const BlockDataID densityFieldGPUId = gpu::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldId, "density field on GPU", true);
+
+   const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fractionFieldGPU", true);
+   const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
+   const BlockDataID forceFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, forceFieldId, "force field on GPU", true);
 #endif
 
+   WALBERLA_LOG_INFO_ON_ROOT("Finished setting up fields")
 
 
    /////////////////////////
    /// Rotation Calls    ///
    /////////////////////////
+
+   auto movementFunction = GeometryMovementFunction(domainAABB, rotationVector, objectVelocity);
+   WALBERLA_LOG_INFO_ON_ROOT("Setting up objectMover")
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldGPUId,
+                                                                                              movementFunction, distanceOctreeMesh, "geometry",
+                                                                                              maxSuperSamplingDepth, 1, true, false, omega, dt);
+#else
+   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
+                                                                                              movementFunction, distanceOctreeMesh, "geometry",
+                                                                                              maxSuperSamplingDepth, 1, true, false, omega, dt);
+#endif
+   WALBERLA_LOG_INFO_ON_ROOT("Finished Setting up objectMover")
+
+
+   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "meshBase", VTKWriteFrequency);
+   const std::function< void() > meshWritingFunc = [&]() {
+      objectMover->moveTriangleMesh(timeloop.getCurrentTimeStep(), VTKWriteFrequency);
+      meshWriter();
+   };
+
 
    const std::function< void() > objectRotatorFunc = [&]() {
       objectMover->resetFractionField();
@@ -278,16 +274,11 @@ int main(int argc, char** argv)
 #endif
    };
 
+   std::string forceFile = "forceOutput.txt";
+   std::filesystem::remove(forceFile);
    const std::function< void() > forceCalculator = [&]() {
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, forceFieldGPUId, forceFieldId);
-#endif
-      auto force = objectMover->calculateForceOnBody();
-      WALBERLA_ROOT_SECTION(){
-         std::ofstream myFile("forceOutput.txt", std::ios::app);
-         myFile << real_c(timeloop.getCurrentTimeStep())*dt << " " << force[0]*physForceFactor << " " << force[1]*physForceFactor << " " << force[2]*physForceFactor << "\n";
-         myFile.close();
-      }
+      objectMover->calculateForcesOnBody();
+      objectMover->writeForceToFile(timeloop.getCurrentTimeStep(), forceFile, physForceFactor);
    };
 
    for (auto& block : *blocks)
@@ -317,6 +308,7 @@ int main(int argc, char** argv)
    pystencils::PSM_Conditional_Sweep psmConditionalSweep( forceFieldId, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, omega );
 #endif
 
+   WALBERLA_LOG_INFO_ON_ROOT("Initialize Velocity and PDF fields")
    for (auto& block : *blocks)
    {
       auto velField = block.getData<VectorField_T>(velocityFieldId);
@@ -328,6 +320,8 @@ int main(int argc, char** argv)
 #endif
       sweepCollection.initialise(&block, 1);
    }
+   WALBERLA_LOG_INFO_ON_ROOT("Finish initialize Velocity and PDF fields")
+
 
    /////////////////////
    /// Communication ///

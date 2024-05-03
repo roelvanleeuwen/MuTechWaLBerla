@@ -55,14 +55,14 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractio
                Vector3< real_t > cellCenter = blocks_->getCellCenter(globalCell, level);
 
                // translation
-               cellCenter -= translationVector;
+               auto pointInGeometrySpace = cellCenter - translationVector;
                // rotation
-               cellCenter -= meshCenter;
-               cellCenter = rotationMatrix * cellCenter;
-               cellCenter += meshCenter;
+               pointInGeometrySpace -= meshCenter;
+               pointInGeometrySpace = rotationMatrix * pointInGeometrySpace;
+               pointInGeometrySpace += meshCenter;
 
                // get corresponding geometryField_ cell
-               auto pointInGeometrySpace = cellCenter - meshAABB_.min() - 0.5 * dxyzSS;
+               pointInGeometrySpace = pointInGeometrySpace - meshAABB_.min() - 0.5 * dxyzSS;
                auto cellInGeometrySpace  = Vector3< int32_t >(int32_t(pointInGeometrySpace[0] / dxyzSS[0]),
                                                               int32_t(pointInGeometrySpace[1] / dxyzSS[1]),
                                                               int32_t(pointInGeometrySpace[2] / dxyzSS[2]));
@@ -210,4 +210,24 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::updateObje
       )
    }
 }
+
+template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
+void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::calculateForcesOnBody() {
+   Vector3<real_t> summedForceOnObject;
+   for (auto &block : *blocks_) {
+      VectorField_T* forceField = block.getData< VectorField_T >(forceFieldId_);
+      FractionField_T* fractionField = block.getData< FractionField_T >(fractionFieldId_);
+      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(forceField,
+         if(fractionField->get(x,y,z,0) > 0.0) {
+            summedForceOnObject += Vector3(forceField->get(x,y,z,0), forceField->get(x,y,z,1), forceField->get(x,y,z,2));
+         }
+      )
+   }
+   WALBERLA_MPI_SECTION() {
+      walberla::mpi::reduceInplace(summedForceOnObject, walberla::mpi::SUM);
+   }
+   particleAccessor_->setHydrodynamicForce(0, summedForceOnObject);
+   //TODO calculate Torque
+}
+
 } // namespace waLBerla

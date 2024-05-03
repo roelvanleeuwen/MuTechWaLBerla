@@ -87,7 +87,8 @@ class MovingGeometry
                   const uint_t superSamplingDepth, const uint_t ghostLayers, bool moving, bool useTauInFractionField, real_t omega, real_t dt)
       : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId), forceFieldId_(forceFieldId),
         movementFunction_(movementFunction), distOctree_(distOctree), meshName_(meshName),
-        superSamplingDepth_(superSamplingDepth), ghostLayers_(ghostLayers), moving_(moving), useTauInFractionField_(useTauInFractionField), tau_(1.0 / omega), dt_(dt)
+        superSamplingDepth_(superSamplingDepth), ghostLayers_(ghostLayers), moving_(moving),
+        useTauInFractionField_(useTauInFractionField), tau_(1.0 / omega), dt_(dt)
    {
 
       auto geometryMovement = movementFunction_(0);
@@ -99,7 +100,7 @@ class MovingGeometry
       meshCenter = Vector3<real_t> (meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
       meshAABB_ = computeAABB(*mesh_);
       const Vector3<real_t> dxyz = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
-      meshAABB_.extend(10.0 * dxyz);
+      meshAABB_.extend(dxyz);
 
 
 
@@ -108,8 +109,6 @@ class MovingGeometry
       particleAccessor_            = walberla::make_shared< mesa_pd::data::ParticleAccessor >(particleStorage_);
       mesa_pd::data::Particle&& p = *particleStorage_->create();
       p.setPosition(meshCenter);
-
-
 
       if(moving_) {
          WcTimer simTimer;
@@ -125,9 +124,12 @@ class MovingGeometry
             geometryFieldGPU_ = new GeometryFieldGPU_T(geometryField_->xSize(), geometryField_->ySize(), geometryField_->zSize(), geometryField_->fSize(), geometryField_->nrOfGhostLayers(), geometryField_->layout(), true);
             gpu::fieldCpy(*geometryFieldGPU_, *geometryField_);
          }
+         WALBERLA_LOG_INFO_ON_ROOT("Finished coppying geometry field")
 #endif
          getFractionFieldFromGeometryMesh(0);
+         WALBERLA_LOG_INFO_ON_ROOT("Finished getFractionFieldFromGeometryMesh")
          updateObjectVelocityField(0);
+         WALBERLA_LOG_INFO_ON_ROOT("Finished updateObjectVelocityField")
       }
       else {
          staticFractionFieldId_ = field::addToStorage< FractionField_T >(blocks, "staticFractionField_" + meshName_, real_t(0.0), field::fzyx, ghostLayers_);
@@ -266,11 +268,11 @@ class MovingGeometry
          return;
       }
 
-      uint_t stencilSize = uint_t(pow(2, real_t(superSamplingDepth_)));
-      Vector3<real_t> dxyzSS = maxRefinementDxyz_ / real_t(stencilSize);
+      uint_t interpolationStencilSize = uint_t(pow(2, real_t(superSamplingDepth_))) + 1;
+      Vector3<real_t> dxyzSS = maxRefinementDxyz_ / real_t(pow(2, real_t(superSamplingDepth_)));
       auto fieldSize = Vector3<uint_t> (uint_t(meshAABB_.xSize() / dxyzSS[0] ), uint_t(meshAABB_.ySize() / dxyzSS[1] ), uint_t(meshAABB_.zSize() / dxyzSS[2] ));
       WALBERLA_LOG_PROGRESS("Building geometry field with size " << fieldSize)
-      geometryField_= make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(std::ceil(real_t(stencilSize) * 0.5 )), GeometryFieldData_T(0), field::fzyx);
+      geometryField_= make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(real_t(interpolationStencilSize) * 0.5 ), GeometryFieldData_T(0), field::fzyx);
 
       const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
       real_t sqDx = dxyzSS[0] * dxyzSS[0];
@@ -314,40 +316,13 @@ class MovingGeometry
       }
    }
 
-
-   Vector3<real_t> calculateForceOnBody() {
-      Vector3<real_t> summedForceOnObject;
-      for (auto &block : *blocks_) {
-         VectorField_T* forceField = block.getData< VectorField_T >(forceFieldId_);
-         FractionField_T* fractionField = block.getData< FractionField_T >(fractionFieldId_);
-         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(forceField,
-            if(fractionField->get(x,y,z,0) > 0.0) {
-               summedForceOnObject += Vector3(forceField->get(x,y,z,0), forceField->get(x,y,z,1), forceField->get(x,y,z,2));
-            }
-         )
+   void writeForceToFile(uint_t timestep, std::string fileName, real_t physForceFactor) {
+      WALBERLA_ROOT_SECTION(){
+         auto force = particleAccessor_->getHydrodynamicForce(0);
+         std::ofstream myFile(fileName, std::ios::app);
+         myFile << real_c(timestep)*dt_ << " " << force[0]*physForceFactor << " " << force[1]*physForceFactor << " " << force[2]*physForceFactor << "\n";
+         myFile.close();
       }
-      WALBERLA_MPI_SECTION() {
-         walberla::mpi::reduceInplace(summedForceOnObject, walberla::mpi::SUM);
-      }
-      return summedForceOnObject;
-   }
-
-   //TODO add distance from object center
-   Vector3<real_t> calculateTorqueOnBody() {
-      Vector3<real_t> summedForceOnObject;
-      for (auto &block : *blocks_) {
-         VectorField_T* forceField = block.getData< VectorField_T >(forceFieldId_);
-         FractionField_T* fractionField = block.getData< FractionField_T >(fractionFieldId_);
-         WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(forceField,
-            if(fractionField->get(x,y,z,0) > 0.0) {
-               summedForceOnObject += Vector3(forceField->get(x,y,z,0), forceField->get(x,y,z,1), forceField->get(x,y,z,2));
-            }
-         )
-      }
-      WALBERLA_MPI_SECTION() {
-         walberla::mpi::reduceInplace(summedForceOnObject, walberla::mpi::SUM);
-      }
-      return summedForceOnObject;
    }
 
 
@@ -355,6 +330,7 @@ class MovingGeometry
    void addStaticGeometryToFractionField();
    void resetFractionField();
    void updateObjectVelocityField(uint_t timestep);
+   void calculateForcesOnBody();
 
  private:
    shared_ptr< StructuredBlockForest > blocks_;

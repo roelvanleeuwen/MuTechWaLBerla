@@ -12,12 +12,12 @@ Parameters
     UBB_top_vel_x   0.1;
     UBB_bot_vel_x   -0.1;
     objectVelocity   <0.02, 0.0, 0.0>;    <0.02, 0.0, 0.0>;  //m/s
-    rotationVector   <0.0, 0.0, 1.0>;               //rad/s
+    rotationVector   <0.0, 0.0, 0.0>;               //rad/s
 
 	
     remainingTimeLoggerFrequency 10;    // in seconds
 	VTKwriteFrequency 100;
-	maxSuperSamplingDepth 1;            // for (2^3)^2 < 100 subcells < (2^4)^2
+	maxSuperSamplingDepth 2;            // for (2^3)^2 < 100 subcells < (2^4)^2
 
     forceOutputFile     forceOutput.txt;
 }
