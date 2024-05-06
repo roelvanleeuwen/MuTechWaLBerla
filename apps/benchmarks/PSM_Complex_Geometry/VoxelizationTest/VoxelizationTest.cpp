@@ -203,11 +203,11 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #endif
-      /*real_t fractionFieldVolume = objectMover->getVolumeFromFractionField();
+      real_t fractionFieldVolume = objectMover->getVolumeFromFractionField();
       fractionFieldVolume *= pow(dx,3.);
       real_t l2error = pow(fractionFieldVolume - analyticVolume,2.) / pow(analyticVolume,2.);
-      errorVector.push_back(l2error);*/
-      //WALBERLA_LOG_INFO_ON_ROOT("Analytical Volume is " << analyticVolume << ", fraction Field volume is " << fractionFieldVolume << ", L2 error is " << l2error)
+      errorVector.push_back(l2error);
+      WALBERLA_LOG_INFO_ON_ROOT("Analytical Volume is " << analyticVolume << ", fraction Field volume is " << fractionFieldVolume << ", L2 error is " << l2error)
    };
 
    /////////////////
