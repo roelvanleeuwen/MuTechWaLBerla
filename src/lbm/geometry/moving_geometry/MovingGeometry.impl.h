@@ -28,7 +28,7 @@ template < typename FractionField_T, typename VectorField_T, typename GeometryFi
 void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractionFieldFromGeometryMesh(uint_t timestep) {
    auto geometryMovement = movementFunction_(timestep);
    Matrix3<real_t> rotationMatrix = particleAccessor_->getRotation(0).getMatrix();
-   auto translationVector = particleAccessor_->getPosition(0);
+   auto translationVector = particleAccessor_->getPosition(0) - meshCenter_;
 
    uint_t interpolationStencilSize = uint_t( pow(2, real_t(superSamplingDepth_)) + 1);
    auto oneOverInterpolArea = 1.0 / real_t( interpolationStencilSize * interpolationStencilSize * interpolationStencilSize);
@@ -57,9 +57,9 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractio
                // translation
                auto pointInGeometrySpace = cellCenter - translationVector;
                // rotation
-               pointInGeometrySpace -= meshCenter;
+               pointInGeometrySpace -= meshCenter_;
                pointInGeometrySpace = rotationMatrix * pointInGeometrySpace;
-               pointInGeometrySpace += meshCenter;
+               pointInGeometrySpace += meshCenter_;
 
                // get corresponding geometryField_ cell
                pointInGeometrySpace = pointInGeometrySpace - meshAABB_.min() - 0.5 * dxyzSS;
@@ -228,6 +228,21 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::calculateF
    }
    particleAccessor_->setHydrodynamicForce(0, summedForceOnObject);
    //TODO calculate Torque
+}
+
+template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
+real_t MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getVolumeFromFractionField() {
+   real_t summedVolume = 0.0;
+   for (auto &block : *blocks_) {
+      FractionField_T* fractionField = block.getData< FractionField_T >(fractionFieldId_);
+      WALBERLA_FOR_ALL_CELLS_XYZ(fractionField,
+                              summedVolume += fractionField->get(x,y,z,0);
+      )
+   }
+   WALBERLA_MPI_SECTION() {
+      walberla::mpi::reduceInplace(summedVolume, walberla::mpi::SUM);
+   }
+   return summedVolume;
 }
 
 } // namespace waLBerla

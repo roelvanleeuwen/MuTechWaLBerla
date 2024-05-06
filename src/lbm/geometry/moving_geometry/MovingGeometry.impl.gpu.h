@@ -174,7 +174,7 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractio
    real_t3 rotationMatrixY = {rotationMat[3], rotationMat[4], rotationMat[5]};
    real_t3 rotationMatrixZ = {rotationMat[6], rotationMat[7], rotationMat[8]};
 
-   auto translationVector = particleAccessor_->getPosition(0);
+   auto translationVector = particleAccessor_->getPosition(0) - meshCenter_;
    real_t3 translation = {translationVector[0], translationVector[1], translationVector[2]};
    const Vector3<real_t> dxyz_coarse = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
 
@@ -189,7 +189,7 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractio
       GeometryFieldData_T * RESTRICT const _data_geometryFieldGPU = geometryFieldGPU_->dataAt(0, 0, 0, 0);
 
       real_t3 dxyz = {real_t(blocks_->dx(level)), real_t(blocks_->dy(level)), real_t(blocks_->dz(level))};
-      real_t3 meshCenterGPU = {meshCenter[0], meshCenter[1], meshCenter[2]};
+      real_t3 meshCenterGPU = {meshCenter_[0], meshCenter_[1], meshCenter_[2]};
 
       auto blockAABB = block.getAABB();
       real_t3 blockAABBmin = {blockAABB.minCorner()[0], blockAABB.minCorner()[1], blockAABB.minCorner()[2]};
@@ -389,6 +389,12 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::calculateF
       walberla::mpi::reduceInplace(summedForceOnObject, walberla::mpi::SUM);
    }
    particleAccessor_->setHydrodynamicForce(0, summedForceOnObject);
+}
+
+
+template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
+real_t MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getVolumeFromFractionField() {
+   WALBERLA_ABORT("getVolumeFromFractionField not implemented on GPU")
 }
 
 } //namespace walberla

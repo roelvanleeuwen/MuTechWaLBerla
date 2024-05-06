@@ -97,7 +97,7 @@ class MovingGeometry
             WALBERLA_ABORT("If you want to use the relaxation rate for building the fraction field, use a valid value for omega")
 
       auto meshCenterPoint = computeCentroid(*mesh_);
-      meshCenter = Vector3<real_t> (meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
+      meshCenter_ = Vector3<real_t> (meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
       meshAABB_ = computeAABB(*mesh_);
       const Vector3<real_t> dxyz = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
       meshAABB_.extend(dxyz);
@@ -108,7 +108,7 @@ class MovingGeometry
       particleStorage_             = walberla::make_shared< mesa_pd::data::ParticleStorage >(1);
       particleAccessor_            = walberla::make_shared< mesa_pd::data::ParticleAccessor >(particleStorage_);
       mesa_pd::data::Particle&& p = *particleStorage_->create();
-      p.setPosition(meshCenter);
+      p.setPosition(meshCenter_);
 
       if(moving_) {
          WcTimer simTimer;
@@ -145,9 +145,9 @@ class MovingGeometry
 
    void operator()(uint_t timestep) {
       if(moving_) {
-         updateObjectPosition(timestep);
          getFractionFieldFromGeometryMesh(timestep);
          updateObjectVelocityField(timestep);
+         updateObjectPosition(timestep);
       }
       else {
          addStaticGeometryToFractionField();
@@ -163,7 +163,6 @@ class MovingGeometry
       newParticleRotation.rotate(-geometryMovement.rotationVector * dt_);
       particleAccessor_->setRotation(0, newParticleRotation);
    }
-
 
 
    void buildStaticFractionField() {
@@ -200,7 +199,6 @@ class MovingGeometry
 
             if (curCi.numCells() == uint_t(1))
             {
-               //real_t fraction = recursiveSuperSampling(distFunct, cellCenter, dx, 0);
                real_t fraction;
                real_t sqDx = dxyz[0] * dxyz[0];
                real_t sqDxHalf = (0.5 * dxyz[0]) * (0.5 * dxyz[0]);
@@ -331,6 +329,7 @@ class MovingGeometry
    void resetFractionField();
    void updateObjectVelocityField(uint_t timestep);
    void calculateForcesOnBody();
+   real_t getVolumeFromFractionField();
 
  private:
    shared_ptr< StructuredBlockForest > blocks_;
@@ -359,7 +358,7 @@ class MovingGeometry
    real_t tau_;
    real_t dt_;
 
-   Vector3<real_t> meshCenter;
+   Vector3<real_t> meshCenter_;
    AABB meshAABB_;
    Vector3<real_t> maxRefinementDxyz_;
 

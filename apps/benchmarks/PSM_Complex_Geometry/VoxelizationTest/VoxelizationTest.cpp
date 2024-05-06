@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file VoxelizationTest_Test.cpp
+//! \file PSM_Moving_Geometry.cpp
 //! \author Philipp Suffa <philipp.suffa@fau.de>
 //
 //======================================================================================================================
@@ -33,6 +33,7 @@
 #include "stencil/D3Q19.h"
 #include "timeloop/all.h"
 
+#include "mesh_common/MeshOperations.h"
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 #   include "gpu/communication/UniformGPUScheme.h"
@@ -40,8 +41,10 @@
 #   include "lbm_generated/gpu/GPUPdfField.h"
 #   include "lbm_generated/gpu/UniformGeneratedGPUPdfPackInfo.h"
 #endif
-#include "../MovingGeometry.h"
-#include "VoxelizationTest_InfoHeader.h"
+#include <fstream>
+#include <iostream>
+
+#include "lbm/geometry/moving_geometry/MovingGeometry.h"
 
 namespace walberla
 {
@@ -49,33 +52,35 @@ namespace walberla
 /// Typedef Aliases ///
 ///////////////////////
 
-using StorageSpecification_T = lbm::VoxelizationTestStorageSpecification;
-using Stencil_T = lbm::VoxelizationTestStorageSpecification::Stencil;
-using CommunicationStencil_T = StorageSpecification_T::CommunicationStencil;
-using PdfField_T = lbm_generated::PdfField< StorageSpecification_T >;
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-using GPUPdfField_T = lbm_generated::GPUPdfField< StorageSpecification_T >;
-using gpu::communication::UniformGPUScheme;
-#endif
-
-typedef walberla::uint8_t flag_t;
-typedef FlagField< flag_t > FlagField_T;
-using BoundaryCollection_T = lbm::VoxelizationTestBoundaryCollection< FlagField_T >;
-using SweepCollection_T = lbm::VoxelizationTestSweepCollection;
-const FlagUID fluidFlagUID("Fluid");
-using blockforest::communication::UniformBufferedScheme;
+typedef field::GhostLayerField< real_t, 3 > VectorField_T;
+typedef field::GhostLayerField< real_t, 1 > FracField_T;
+typedef field::GhostLayerField< real_t, 1 > GeoField_T; // could also set to single precision or even bool to save memory
 
 /////////////////////
 /// Main Function ///
 /////////////////////
 
-auto deviceSyncWrapper = [](std::function< void(IBlock*) > sweep) {
-   return [sweep](IBlock* b) {
-      sweep(b);
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      cudaDeviceSynchronize();
-#endif
-   };
+
+class GeometryMovementFunction {
+ public:
+   GeometryMovementFunction(AABB domainAABB, Vector3<real_t>  rotationVector, Vector3<real_t> translationVector)
+      : domainAABB_(domainAABB), rotationVector_(rotationVector), translationVector_(translationVector)  {};
+
+   GeometryMovementStruct operator() (uint_t timestep) {
+      GeometryMovementStruct geoMovement;
+      geoMovement.rotationVector = rotationVector_;
+      geoMovement.translationVector = translationVector_;
+      geoMovement.movementBoundingBox = AABB(domainAABB_.xMin(), domainAABB_.yMin(), domainAABB_.zMin(),
+                                               domainAABB_.xMax(), domainAABB_.yMax(), domainAABB_.zMax());
+      geoMovement.timeDependentMovement = true;
+
+      return geoMovement;
+   }
+
+ private:
+   AABB domainAABB_;
+   Vector3<real_t> rotationVector_;
+   Vector3<real_t> translationVector_;
 };
 
 
@@ -92,190 +97,81 @@ int main(int argc, char** argv)
 
    mpi::MPIManager::instance()->useWorldComm();
 
+
    ///////////////////////
    /// PARAMETER INPUT ///
    ///////////////////////
    auto domainParameters = walberlaEnv.config()->getOneBlock("DomainSetup");
    auto parameters = walberlaEnv.config()->getOneBlock("Parameters");
 
+   const uint_t timesteps = parameters.getParameter< uint_t >("timesteps", uint_c(10));
 
-   const uint_t rotationFrequency = domainParameters.getParameter< uint_t >("rotationFrequency", uint_t(1));
-   const Vector3< int > rotationAxis = domainParameters.getParameter< Vector3< int > >("rotationAxis", Vector3< int >(1,0,0));
-   const real_t rotationSpeed = domainParameters.getParameter< real_t >("rotationSpeed");
-
-
-   const Vector3< real_t > domainScaling = domainParameters.getParameter< Vector3< real_t > >("domainScaling", Vector3< real_t >(1.0));
-   const Vector3< real_t > domainTransforming = domainParameters.getParameter< Vector3< real_t > >("domainTransforming", Vector3< real_t >(0.0));
-   const Vector3< bool > periodicity = domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
-   const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
-   const uint_t refinementDepth = domainParameters.getParameter< uint_t >("refinementDepth");
-
-
-   const Vector3< real_t > initialVelocity = parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >(0.0));
-   const uint_t timestepsFixed = parameters.getParameter< uint_t >("timesteps", uint_c(10));
+   const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(5.0));
    const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
-   const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0));
-   const bool writeDomainDecompositionAndReturn = parameters.getParameter< bool >("writeDomainDecompositionAndReturn", false);
    const uint_t maxSuperSamplingDepth = parameters.getParameter< uint_t >("maxSuperSamplingDepth", uint_c(1));
-   const std::string meshFile = parameters.getParameter< std::string >("meshFile",std::string());
 
+   const std::string meshFile = domainParameters.getParameter< std::string >("meshFile");
 
-   const std::string timeStepStrategy = parameters.getParameter<std::string>("timeStepStrategy", "noOverlap");
-   const Cell innerOuterSplit = Cell(parameters.getParameter< Vector3<cell_idx_t> >("innerOuterSplit", Vector3<cell_idx_t>(1, 1, 1)));
+   const uint_t objectResolution = parameters.getParameter< uint_t >("objectResolution", uint_c(20));
 
-   const real_t ref_lattice_velocity = 0.01;
-   const real_t ref_velocity = parameters.getParameter<real_t>("ref_velocity");
-   const real_t ref_length = parameters.getParameter<real_t>("ref_length");
-   const real_t viscosity = parameters.getParameter<real_t>("viscosity");
-   const real_t sim_time = parameters.getParameter<real_t>("sim_time");
-   const real_t mesh_size = parameters.getParameter<real_t>("mesh_size");
-   const real_t dx = mesh_size;
-   const real_t reynolds_number = (ref_velocity * ref_length) / viscosity;
-   const real_t Cu = ref_velocity / ref_lattice_velocity;
-   const real_t Ct = mesh_size / Cu;
-
-   const real_t viscosity_lattice = viscosity * Ct / (mesh_size * mesh_size);
-   const real_t omega = real_c(1.0 / (3.0 * viscosity_lattice + 0.5));
-   uint_t timesteps;
-   if(sim_time > 0.0)
-      timesteps = uint_c(sim_time / Ct);
-   else
-      timesteps = timestepsFixed;
-
-   const real_t rotPerSec = rotationSpeed * (2 * M_PI) / 360;
-
-   const real_t radPerTimestep = rotationSpeed * Ct;
-   const real_t rotationAngle = radPerTimestep * real_c(rotationFrequency);
+   const Vector3<real_t> rotationVector = parameters.getParameter< Vector3<real_t> >("rotationVector", Vector3< real_t >(0.0));
+   const Vector3<real_t> objectVelocity = parameters.getParameter< Vector3<real_t> >("objectVelocity", Vector3< real_t >(0.0));
 
 
    ////////////////////
    /// PROCESS MESH ///
    ////////////////////
 
-   auto meshBase = make_shared< mesh::TriangleMesh >();
-   mesh::readAndBroadcast("../Meshfiles/CROR_base_downScaled10.obj", *meshBase);
-   auto distanceOctreeMeshBase = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshBase));
+   auto mesh = make_shared< mesh::TriangleMesh >();
+   mesh::readAndBroadcast(meshFile, *mesh);
+   auto meshCenterPoint = mesh::computeCentroid(*mesh);
+   WALBERLA_LOG_INFO_ON_ROOT("meshCenterPoint is " << meshCenterPoint)
 
-   auto meshRotor = make_shared< mesh::TriangleMesh >();
-   mesh::readAndBroadcast(meshFile, *meshRotor);
-   auto distanceOctreeMeshRotor = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(meshRotor));
+   auto distanceOctreeMesh = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh));
+   auto aabb = computeAABB(*mesh);
+   real_t dx = aabb.xSize() / real_t(objectResolution);
+   real_t dt = dx*dx;
+   WALBERLA_LOG_INFO_ON_ROOT("dx is " << dx)
+   WALBERLA_LOG_INFO_ON_ROOT("aabb size is <" << aabb.xSize() << "," << aabb.ySize() << "," << aabb.zSize() << ">")
 
+   real_t analyticVolume;
+   if(meshFile == "../Meshfiles/Sphere.obj") {
+      real_t radius = (aabb.xSize() +  aabb.ySize() +  aabb.zSize()) / (3 * 2);
+      analyticVolume = (4./3.) * math::pi * radius * radius * radius;
+   }
+   else if(meshFile == "../Meshfiles/Cube.obj") {
+      analyticVolume = aabb.xSize() *  aabb.ySize() *  aabb.zSize();
+   }
+   else if(meshFile == "../Meshfiles/Cylinder.obj") {
+      real_t radius = aabb.xSize() / 2;
+      analyticVolume = math::pi * radius * radius * aabb.ySize();
+   }
 
-
-   //auto aabbBase = computeAABB(*meshBase);
-   auto aabbBase = computeAABB(*meshRotor);
-   /*WALBERLA_LOG_INFO_ON_ROOT(aabbBase.sizes())
-   auto targetBlocks = Vector3<uint_t> (8,4,4);
-   auto dxyz = Vector3<real_t> ( aabbBase.xSize() / real_t(cellsPerBlock[0] * targetBlocks[0]),
-                                 aabbBase.ySize() / real_t(cellsPerBlock[1] * targetBlocks[1]),
-                                 aabbBase.zSize() / real_t(cellsPerBlock[2] * targetBlocks[2]));
-   WALBERLA_LOG_INFO_ON_ROOT(dxyz)
-   //dxyz = Vector3<real_t>(dx);
-*/
-   AABB aabb = aabbBase;
-   aabb.setCenter(aabb.center() - Vector3< real_t >(domainTransforming[0] * aabb.xSize(), domainTransforming[1] * aabb.ySize(), domainTransforming[2] * aabb.zSize()));
+   auto domainScaling = Vector3<real_t>(1.5);
    aabb.scale(domainScaling);
 
-   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3<real_t>(dx));//, mesh::makeExcludeMeshInterior(distanceOctreeMeshBase, dx), mesh::makeExcludeMeshInteriorRefinement(distanceOctreeMeshBase, dx));
-   bfc.setPeriodicity(periodicity);
+   mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMesh, dx));
 
-   auto setupForest = bfc.createSetupBlockForest( cellsPerBlock, 1 );
-
-   const uint_t numCells = setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize() * cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2];
-   const AABB domainAABB = setupForest->getDomain();
-   const real_t fullRefinedMeshSize = mesh_size / pow(2, real_c(refinementDepth));
-   const uint_t numFullRefinedCell = uint_c((domainAABB.xSize() / fullRefinedMeshSize) * (domainAABB.ySize() / fullRefinedMeshSize) * (domainAABB.zSize() / fullRefinedMeshSize));
-
-
-   WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter \n"
-                             << "Domain Decomposition <" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << "> = " << setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize()  << " root Blocks \n"
-                             << "Number of blocks is " << setupForest->getNumberOfBlocks() << " \n"
-                             << "Cells per Block " << cellsPerBlock << " \n"
-                             << "Number of cells "  << numCells << ", number of potential Cells (full refined) " << numFullRefinedCell <<  ", Saved computation " << (1.0 - (real_c(numCells) / real_c(numFullRefinedCell))) * 100 << "% \n"
-                             << "Mesh_size " << mesh_size << " m \n"
-                             << "Refined Mesh size " << fullRefinedMeshSize << " m \n"
-                             << "Timestep Strategy " << timeStepStrategy << " \n"
-                             << "Inner Outer Split " << innerOuterSplit << " \n"
-                             << "Reynolds_number " << reynolds_number << "\n"
-                             << "Inflow velocity " << ref_velocity << " m/s \n"
-                             << "Lattice velocity " << initialVelocity[0] << "\n"
-                             << "Viscosity " << viscosity << "\n"
-                             << "Simulation time " << sim_time << " s \n"
-                             << "Timesteps " << timesteps << "\n"
-                             << "Omega " << omega << "\n"
-                             << "Cu " << Cu << " \n"
-                             << "Ct " << Ct << " \n"
-                             << "Rotation Speed " << rotationSpeed << " rad/s \n"
-                             << "Rotations per second " << rotPerSec << " 1/s \n"
-                             << "Rad per second " << radPerTimestep << " rad \n"
-                             << "Rotation Angle per Rotation " << rotationAngle / (2 * M_PI) * 360  << " ° \n"
-   )
-
-   if(writeDomainDecompositionAndReturn) {
-      WALBERLA_ROOT_SECTION() { setupForest->writeVTKOutput("SetupBlockForest"); }
-      //get maximum rotation per timestep
-      return EXIT_SUCCESS;
-   }
+   auto cellsPerBlock = Vector3<uint_t>(32);
    auto blocks = bfc.createStructuredBlockForest(cellsPerBlock);
+   WALBERLA_LOG_INFO_ON_ROOT("<" << blocks->getNumberOfXCells() << "," << blocks->getNumberOfYCells() << "," << blocks->getNumberOfZCells() << ">" )
 
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
-   /////////////////////////
-   /// Boundary Handling ///
-   /////////////////////////
-
-
-
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   auto allocator = make_shared< gpu::HostFieldAllocator<real_t> >(); // use pinned memory allocator for faster CPU-GPU memory transfers
-#else
-   auto allocator = make_shared< field::AllocateAligned< real_t, 64 > >();
-#endif
-
-   const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", real_t(0.0), field::fzyx, uint_c(1));
-   const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1), allocator);
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fractionFieldGPU", true);
-#endif
-
-   //Setting up Object Rotator
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldGPUId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", 1,  false);
-   auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldGPUId, objectVelocitiesFieldId,
-                                                           Vector3<real_t>(0,0 ,0), rotationAngle,
-                                                           rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, 1, true);
-#else
-   //auto objectRotatorBase = make_shared<MovingGeometry> (blocks, meshBase, fractionFieldId, objectVelocitiesFieldId, Vector3<real_t>(0,0,0), rotationAngle, rotationAxis,  distanceOctreeMeshBase, "base", 1, false);
-   auto objectRotatorRotor = make_shared<MovingGeometry> (blocks, meshRotor, fractionFieldId, objectVelocitiesFieldId,
-                                                                Vector3<real_t>(0,0,0), rotationAngle,
-                                                                rotationAxis,  distanceOctreeMeshRotor, "rotor", maxSuperSamplingDepth, 1, true);
-
-#endif
-
-   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterBase(meshBase, "meshBase", VTKWriteFrequency);
-   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriterRotor(meshRotor, "meshRotor", VTKWriteFrequency);
-
-   const std::function< void() > meshWritingFunc = [&]() {
-      meshWriterBase();
-      meshWriterRotor();
-      objectRotatorRotor->moveTriangleMesh(timeloop.getCurrentTimeStep(), VTKWriteFrequency);
-   };
 
    /////////////////////////
    /// Fields Creation   ///
    /////////////////////////
 
-   const StorageSpecification_T StorageSpec = StorageSpecification_T();
-   const BlockDataID pdfFieldId  = lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, uint_c(1), field::fzyx, allocator);
-   const BlockDataID velocityFieldId = field::addToStorage< VectorField_T >(blocks, "velocity", real_t(0.0), field::fzyx, uint_c(1), allocator);
-   const BlockDataID densityFieldId = field::addToStorage< ScalarField_T >(blocks, "density", real_c(1.0), field::fzyx, uint_c(1), allocator);
-   const BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flagField");
+
+   const BlockDataID fractionFieldId = field::addToStorage< FracField_T >(blocks, "fractionField", real_t(0.0), field::fzyx, uint_c(1));
+   const BlockDataID objectVelocitiesFieldId = field::addToStorage< VectorField_T >(blocks, "particleVelocitiesField", real_c(0.0), field::fzyx, uint_c(1));
+   const BlockDataID forceFieldId = field::addToStorage< VectorField_T >(blocks, "forceField", real_c(0.0), field::fzyx, uint_c(1));
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   const BlockDataID pdfFieldGPUId = lbm_generated::addGPUPdfFieldToStorage< PdfField_T >(blocks, pdfFieldId, StorageSpec, "pdf field on GPU", true);
-   const BlockDataID velocityFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, velocityFieldId, "velocity field on GPU", true);
-   const BlockDataID densityFieldGPUId = gpu::addGPUFieldToStorage< ScalarField_T >(blocks, densityFieldId, "density field on GPU", true);
+   const BlockDataID fractionFieldGPUId = gpu::addGPUFieldToStorage< FracField_T >(blocks, fractionFieldId, "fractionFieldGPU", true);
    const BlockDataID objectVelocitiesFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, objectVelocitiesFieldId, "object velocity field on GPU", true);
+   const BlockDataID forceFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, forceFieldId, "force field on GPU", true);
 #endif
 
 
@@ -283,132 +179,79 @@ int main(int argc, char** argv)
    /// Rotation Calls    ///
    /////////////////////////
 
+   auto movementFunction = GeometryMovementFunction(aabb, rotationVector, objectVelocity);
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldGPUId,
+                                                                                              movementFunction, distanceOctreeMesh, "geometry",
+                                                                                              maxSuperSamplingDepth, 1, true, false, 0.0, dt);
+#else
+   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
+                                                                                              movementFunction, distanceOctreeMesh, "geometry",
+                                                                                              maxSuperSamplingDepth, 1, true, false, 0.0, dt);
+#endif
+
+   mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "meshBase", VTKWriteFrequency);
+   const std::function< void() > meshWritingFunc = [&]() {
+      objectMover->moveTriangleMesh(timeloop.getCurrentTimeStep(), VTKWriteFrequency);
+      meshWriter();
+   };
+
+   std::vector<real_t> errorVector;
    const std::function< void() > objectRotatorFunc = [&]() {
-      objectRotatorRotor->resetFractionField();
-      (*objectRotatorRotor)(timeloop.getCurrentTimeStep());
+      objectMover->resetFractionField();
+      (*objectMover)(timeloop.getCurrentTimeStep());
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #endif
+      /*real_t fractionFieldVolume = objectMover->getVolumeFromFractionField();
+      fractionFieldVolume *= pow(dx,3.);
+      real_t l2error = pow(fractionFieldVolume - analyticVolume,2.) / pow(analyticVolume,2.);
+      errorVector.push_back(l2error);*/
+      //WALBERLA_LOG_INFO_ON_ROOT("Analytical Volume is " << analyticVolume << ", fraction Field volume is " << fractionFieldVolume << ", L2 error is " << l2error)
    };
-
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   gpu::fieldCpy< gpu::GPUField< real_t >, VectorField_T >(blocks, objectVelocitiesFieldGPUId, objectVelocitiesFieldId);
-
-#endif
-
-   for (auto& block : *blocks)
-   {
-      FlagField_T *flagField = block.getData<FlagField_T>(flagFieldId);
-      flagField->registerFlag(fluidFlagUID);
-      flagField->registerFlag(FlagUID("NoSlip"));
-   }
-
-
-   auto boundariesConfig = walberlaEnv.config()->getOneBlock("Boundaries");
-   mesh::BoundarySetup boundarySetup(blocks, makeMeshDistanceFunction(distanceOctreeMeshRotor), 1);
-   geometry::initBoundaryHandling< FlagField_T >(*blocks, flagFieldId, boundariesConfig);
-   boundarySetup.setFlag<FlagField_T>(flagFieldId, fluidFlagUID, mesh::BoundarySetup::OUTSIDE);
-   boundarySetup.setFlag<FlagField_T>(flagFieldId, FlagUID("NoSlip"), mesh::BoundarySetup::INSIDE);
-   geometry::setNonBoundaryCellsToDomain< FlagField_T >(*blocks, flagFieldId, fluidFlagUID);
-
-   /////////////
-   /// Sweep ///
-   /////////////
-
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   SweepCollection_T sweepCollection(blocks, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
-   //SweepCollection_T sweepCollection(blocks, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega, innerOuterSplit);
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID);
-   pystencils::PSM_Conditional_Sweep psmConditionalSweep( fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega );
-#else
-   SweepCollection_T sweepCollection(blocks, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
-   //SweepCollection_T sweepCollection(blocks, pdfFieldId, densityFieldId, velocityFieldId, omega, innerOuterSplit);
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID);
-   pystencils::PSM_Conditional_Sweep psmConditionalSweep( fractionFieldId, objectVelocitiesFieldId, pdfFieldId, omega );
-#endif
-
-   for (auto& block : *blocks)
-   {
-      auto velField = block.getData<VectorField_T>(velocityFieldId);
-      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(velField, velField->get(x,y,z,0) = initialVelocity[0];)
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      gpu::GPUField<real_t> * dst = block.getData<gpu::GPUField<real_t>>( velocityFieldGPUId );
-      const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
-      gpu::fieldCpy( *dst, *src );
-#endif
-      sweepCollection.initialise(&block, 1);
-   }
-
-
-   // Communication
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   const bool sendDirectlyFromGPU = false;
-   UniformGPUScheme< Stencil_T > communication(blocks, sendDirectlyFromGPU);
-   auto packInfo = std::make_shared<lbm_generated::UniformGeneratedGPUPdfPackInfo< GPUPdfField_T >>(pdfFieldGPUId);
-   communication.addPackInfo(packInfo);
-#else
-   UniformBufferedScheme< Stencil_T > communication(blocks);
-   auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
-   //blockforest::communication::UniformBufferedScheme< Stencil_T > communication(blocks);
-   //auto packInfo = std::make_shared<lbm_generated::UniformGeneratedPdfPackInfo< PdfField_T >>(pdfFieldId);
-   communication.addPackInfo(packInfo);
-#endif
-
 
    /////////////////
    /// Time Loop ///
    /////////////////
 
+
    const auto emptySweep = [](IBlock*) {};
-   if( rotationFrequency > 0) {
+   if( VTKWriteFrequency > 0) {
       timeloop.add() << BeforeFunction(meshWritingFunc, "Meshwriter") <<  Sweep(emptySweep);
-      timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
    }
-   /*timeloop.add() << BeforeFunction(communication.getCommunicateFunctor(), "Communication")
-                  << Sweep(deviceSyncWrapper(boundaryCollection.getSweep(BoundaryCollection_T::ALL)), "Boundary Conditions");*/
-   //timeloop.add() << Sweep(deviceSyncWrapper(sweepCollection.streamCollide()), "PSMSweep");
-   timeloop.add() << Sweep(deviceSyncWrapper(psmConditionalSweep), "PSMConditionalSweep");
+   timeloop.add() << BeforeFunction(objectRotatorFunc, "ObjectRotator") <<  Sweep(emptySweep);
+   timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency), "remaining time logger");
 
-   // Time logger
-   timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
-                                 "remaining time logger");
 
-   //timeloop.addFuncAfterTimeStep( makeSharedFunctor( field::makeStabilityChecker< PdfField_T >( blocks, pdfFieldId, VTKWriteFrequency ) ), "LBM stability check" );
+
+   /////////////////
+   /// VTK       ///
+   /////////////////
 
    if (VTKWriteFrequency > 0)
    {
       const std::string path = "vtk_out";
-      auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "fields", VTKWriteFrequency, 0,
-                                                              false, path, "simulation_step", false, true, true, false, 0);
+      auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "fields", VTKWriteFrequency, 0, false, path, "simulation_step", false, true, true, false, 0);
 
       vtkOutput->addBeforeFunction([&]() {
-         for (auto& block : *blocks)
-            sweepCollection.calculateMacroscopicParameters(&block);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-         gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, velocityFieldId, velocityFieldGPUId);
          gpu::fieldCpy< FracField_T, gpu::GPUField< real_t > >(blocks, fractionFieldId, fractionFieldGPUId);
 #endif
       });
 
-      auto velWriter = make_shared< field::VTKWriter< VectorField_T > >(velocityFieldId, "Velocity");
-      //auto flagWriter = make_shared< field::VTKWriter< FlagField_T > >(flagFieldId, "Flag");
       auto fractionFieldWriter = make_shared< field::VTKWriter< FracField_T > >(fractionFieldId, "FractionField");
-      //auto objVeldWriter = make_shared< field::VTKWriter< VectorField_T > >(objectVelocitiesFieldId, "objectVelocity");
 
-      vtkOutput->addCellDataWriter(velWriter);
-      //vtkOutput->addCellDataWriter(flagWriter);
       vtkOutput->addCellDataWriter(fractionFieldWriter);
-      //vtkOutput->addCellDataWriter(objVeldWriter);
-
-      /*field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
-      fluidFilter.addFlag(fluidFlagUID);
-      vtkOutput->addCellInclusionFilter(fluidFilter);*/
 
       timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
       vtk::writeDomainDecomposition(blocks, "domain_decomposition", "vtk_out", "write_call", true, true, 0);
    }
 
-   lbm_generated::PerformanceEvaluation<FlagField_T> const performance(blocks, flagFieldId, fluidFlagUID);
+
+   /////////////////
+   /// TIMING    ///
+   /////////////////
+
    WcTimingPool timeloopTiming;
    WcTimer simTimer;
 
@@ -416,14 +259,14 @@ int main(int argc, char** argv)
    timeloop.run(timeloopTiming, true);
    simTimer.end();
 
+   real_t averageError = std::reduce(errorVector.begin(), errorVector.end()) / real_t(errorVector.size());
+   WALBERLA_LOG_INFO_ON_ROOT("Average over error of all time steps is " << averageError)
+
    double time = simTimer.max();
    WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
-   performance.logResultOnRoot(timesteps, time);
 
    const auto reducedTimeloopTiming = timeloopTiming.getReduced();
    WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
-
-   //printResidentMemoryStatistics();
 
    return EXIT_SUCCESS;
 }
