@@ -1,15 +1,15 @@
 Parameters
 {
-    machNumber 0.11;
-    reynoldsNumber 100;
-    diameterSphere 2.5; // On the finest mesh
-    timesteps 30001;
+    reynoldsNumber 1000;
+    diameterSphere 1.0;
+    referenceVelocity 1.0;
+    latticeVelocity 0.05;
+    timesteps 1001;
     simulationTime 93;
     // coarseMeshSize 0.0625;
-    coarseMeshSize 0.0625;
+    coarseMeshSize 0.05;
     // sphereXPosition 7.5;
-    sphereXPosition 4.5;
-    circularCrossSection true;
+    sphereXPosition 2.0;
 
     evaluatePressure false;
     pAlpha < 0.45, 0.2, 0.205 >; // points for evaluating
@@ -33,10 +33,10 @@ Parameters
 DomainSetup
 {
     // cellsPerBlock < 130, 240, 240 >;
-    // domainSize    < 32.5, 15, 15 >; // Domain size is given in terms of the diameter of the Sphere
-    cellsPerBlock < 256, 128, 128 >;
-    domainSize    < 16, 8, 8 >; // Domain size is given in terms of the diameter of the Sphere
-    refinementLevels 0;
+    // domainSize    < 32.5, 15, 15 >;
+    cellsPerBlock < 16, 16, 16 >;
+    domainSize    < 8, 3.2, 3.2 >;
+    refinementLevels 1;
     numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
 }
 //! [domainSetup]
@@ -60,7 +60,7 @@ StabilityChecker
 
 VTKWriter
 {
-    vtkWriteFrequency 5000;
+    vtkWriteFrequency 500;
     velocity true;
     density true;
     flag false;
@@ -68,6 +68,7 @@ VTKWriter
     amrFileFormat false;
     oneFilePerProcess false;
     samplingResolution -1;
+    initialWriteCallsToSkip 0;
 }
 
 Logging
@@ -80,8 +81,8 @@ Logging
 
 Evaluation
 {
-    evaluationCheckFrequency 10000;
-    rampUpTime 10000;
+    evaluationCheckFrequency 500;
+    rampUpTime 0;
     logToStream true;
     logToFile true;
     filename FlowAroundSphere.txt;
@@ -90,12 +91,12 @@ Evaluation
 AABBRefinementSelection
 {
     // coordinates of Regions are always in [0,1] -> the entire simulation space is mapped to [ <0,0,0>, <1,1,1> ]
-    /*Region
+    Region
     {
         level 1;
-        region [ <0.2, 0.2, 0>, <0.8, 0.8, 1> ];
+        region [ <0.2, 0.3, 0.3>, <0.5, 0.6, 0.6> ];
     }
-    Region
+    /*Region
     {
         level 2;
         region [ <0.26, 0.41, 0>, <0.7, 0.59, 1> ];

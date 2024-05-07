@@ -25,10 +25,10 @@ namespace walberla
 
 bool Sphere::contains(const Vector3< real_t >& point) const
 {
-   const real_t px = setup_.sphereXPosition;
-   const real_t py = setup_.sphereYPosition;
-   const real_t pz = setup_.sphereZPosition;
-   const real_t r  = setup_.sphereRadius;
+   const real_t px = setup_.sphereXPosition * setup_.dx;
+   const real_t py = setup_.sphereYPosition * setup_.dx;
+   const real_t pz = setup_.sphereZPosition * setup_.dx;
+   const real_t r  = setup_.sphereRadius * setup_.dx;
 
    const real_t xd = point[0] - px;
    const real_t yd = point[1] - py;
@@ -55,10 +55,10 @@ bool Sphere::contains(const AABB& aabb) const
 
 bool Sphere::intersects(const AABB& aabb, const real_t bufferDistance) const
 {
-   const real_t px = setup_.sphereXPosition;
-   const real_t py = setup_.sphereYPosition;
-   const real_t pz = setup_.sphereZPosition;
-   const real_t r  = setup_.sphereRadius;
+   const real_t px = setup_.sphereXPosition * setup_.dx;
+   const real_t py = setup_.sphereYPosition * setup_.dx;
+   const real_t pz = setup_.sphereZPosition * setup_.dx;
+   const real_t r  = setup_.sphereRadius * setup_.dx;
 
    Vector3< real_t > p(px, py, pz);
 
@@ -88,10 +88,10 @@ real_t Sphere::delta(const Vector3< real_t >& fluid, const Vector3< real_t >& bo
    WALBERLA_CHECK(!contains(fluid))
    WALBERLA_CHECK(contains(boundary))
 
-   const real_t px = setup_.sphereXPosition;
-   const real_t py = setup_.sphereYPosition;
-   const real_t pz = setup_.sphereZPosition;
-   const real_t r  = setup_.sphereRadius;
+   const real_t px = setup_.sphereXPosition * setup_.dx;
+   const real_t py = setup_.sphereYPosition * setup_.dx;
+   const real_t pz = setup_.sphereZPosition * setup_.dx;
+   const real_t r  = setup_.sphereRadius * setup_.dx;
 
    // http://devmag.org.za/2009/04/17/basic-collision-detection-in-2d-part-2/
 

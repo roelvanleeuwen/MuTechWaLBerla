@@ -158,7 +158,7 @@ shared_ptr< SetupBlockForest >
    forest->addWorkloadMemorySUIDAssignmentFunction(
       std::bind(workloadMemoryAndSUIDAssignment, std::placeholders::_1, memoryPerBlock, std::cref(setup)));
 
-   forest->init(AABB(real_c(0), real_c(0), real_c(0), real_c(setup.xCells), real_c(setup.yCells), real_c(setup.zCells)),
+   forest->init(AABB(real_c(0), real_c(0), real_c(0), real_c(setup.xCells) * setup.dx, real_c(setup.yCells) * setup.dx, real_c(setup.zCells) * setup.dx),
                 setup.xBlocks, setup.yBlocks, setup.zBlocks, false, false, true);
 
    MPIManager::instance()->useWorldComm();
@@ -314,18 +314,13 @@ int main(int argc, char** argv)
    // read general simulation parameters
    auto parameters = config->getOneBlock("Parameters");
 
-   const real_t machNumber = parameters.getParameter< real_t >("machNumber");
    const real_t reynoldsNumber = parameters.getParameter< real_t >("reynoldsNumber");
-   const real_t diameterSphere       = parameters.getParameter< real_t >("diameterSphere");
-   const real_t coarseMeshSize       = parameters.getParameter< real_t >("coarseMeshSize");
+   const real_t diameterSphere = parameters.getParameter< real_t >("diameterSphere");
+   const real_t referenceVelocity = parameters.getParameter< real_t >("referenceVelocity");
+   const real_t latticeVelocity = parameters.getParameter< real_t >("latticeVelocity");
+   const real_t coarseMeshSize = parameters.getParameter< real_t >("coarseMeshSize");
    const uint_t timesteps      = parameters.getParameter< uint_t >("timesteps");
-   const uint_t simulationTime      = parameters.getParameter< uint_t >("simulationTime");
-
-   const real_t speedOfSound = real_c(real_c(1.0) / std::sqrt( real_c(3.0) ));
-   const real_t referenceVelocity = real_c(machNumber * speedOfSound);
-   const real_t viscosity = real_c(referenceVelocity / reynoldsNumber);
-   const real_t omega = real_c(real_c(1.0) / (real_c(3.0) * viscosity + real_c(0.5)));
-   const real_t referenceTime = real_c(diameterSphere / referenceVelocity);
+   const uint_t simulationTime = parameters.getParameter< uint_t >("simulationTime");
 
    // read domain parameters
    auto domainParameters = config->getOneBlock("DomainSetup");
@@ -336,6 +331,12 @@ int main(int argc, char** argv)
    const uint_t numGhostLayers = uint_c(2);
    const real_t fineMeshSize = real_c(coarseMeshSize) / real_c( 1 << refinementLevels );
    WALBERLA_LOG_INFO_ON_ROOT("Diameter of the Sphere is resolved with " << diameterSphere / fineMeshSize << " lattice cells.")
+
+   const real_t speedOfSound = real_c(real_c(1.0) / std::sqrt( real_c(3.0) ));
+   const real_t machNumber = latticeVelocity / speedOfSound;
+   const real_t viscosity = real_c((latticeVelocity * (diameterSphere / coarseMeshSize)) / reynoldsNumber);
+   const real_t omega = real_c(real_c(1.0) / (real_c(3.0) * viscosity + real_c(0.5)));
+   const real_t dt = latticeVelocity / referenceVelocity * coarseMeshSize;
 
    auto loggingParameters         = config->getOneBlock("Logging");
    bool writeSetupForestAndReturn = loggingParameters.getParameter< bool >("writeSetupForestAndReturn", false);
@@ -359,7 +360,7 @@ int main(int argc, char** argv)
    setup.numGhostLayers = numGhostLayers;
 
    setup.sphereXPosition = parameters.getParameter< real_t >("SphereXPosition") / coarseMeshSize;
-   setup.sphereYPosition = real_c(setup.yCells) / real_c(2.0);;
+   setup.sphereYPosition = real_c(setup.yCells) / real_c(2.0);
    setup.sphereZPosition = real_c(setup.zCells) / real_c(2.0);
    setup.sphereRadius    = (diameterSphere / real_c(2.0)) / coarseMeshSize;
 
@@ -374,9 +375,9 @@ int main(int argc, char** argv)
 
    setup.viscosity = viscosity;
    setup.rho = real_c(1.0);
-   setup.inflowVelocity = referenceVelocity;
+   setup.inflowVelocity = latticeVelocity;
    setup.dx = coarseMeshSize;
-   setup.dt = 1 / referenceTime;
+   setup.dt = dt;
 
    const uint_t valuesPerCell   = (Stencil_T::Q + VelocityField_T::F_SIZE + uint_c(2) * ScalarField_T::F_SIZE);
    const uint_t sizePerValue    = sizeof(PdfField_T::value_type);
@@ -426,22 +427,24 @@ int main(int argc, char** argv)
 
       WALBERLA_LOG_INFO_ON_ROOT( "Benchmark run data:"
                                 "\n- simulation parameters:"
-                                "\n   + collision model:  " << infoCollisionOperator <<
-                                "\n   + stencil:          " << infoStencil <<
-                                "\n   + streaming:        " << infoStreamingPattern <<
-                                "\n   + compressible:     " << ( StorageSpecification_T::compressible ? "yes" : "no" ) <<
-                                "\n   + mesh levels:      " << refinementLevels + uint_c(1) <<
-                                "\n   + resolution:       " << coarseMeshSize << " - on the coarsest grid)" <<
-                                "\n   + resolution:       " << fineMeshSize << " - on the finest grid)" <<
-                                "\n- simulation properties:"
-                                "\n   + sphere pos.(x):    " << setup.sphereXPosition << " [m]" <<
-                                "\n   + sphere pos.(y):    " << setup.sphereYPosition << " [m]" <<
-                                "\n   + sphere pos.(z):    " << setup.sphereZPosition << " [m]" <<
-                                "\n   + sphere radius:     " << setup.sphereRadius << " [m]" <<
-                                "\n   + kin. viscosity:      " << setup.viscosity << " [m^2/s] (" << setup.viscosity << " - on the coarsest grid)" <<
-                                "\n   + omega:               " << omega << " - on the coarsest grid)" <<
+                                "\n   + collision model:     " << infoCollisionOperator <<
+                                "\n   + stencil:             " << infoStencil <<
+                                "\n   + streaming:           " << infoStreamingPattern <<
+                                "\n   + compressible:        " << ( StorageSpecification_T::compressible ? "yes" : "no" ) <<
+                                "\n   + mesh levels:         " << refinementLevels + uint_c(1) <<
+                                "\n   + resolution:          " << coarseMeshSize << " - on the coarsest grid)" <<
+                                "\n   + resolution:          " << fineMeshSize << " - on the finest grid)" <<
+                                "\n- simulation properties:  "
+                                "\n   + sphere pos.(x):      " << setup.sphereXPosition * setup.dx << " [m]" <<
+                                "\n   + sphere pos.(y):      " << setup.sphereYPosition * setup.dx << " [m]" <<
+                                "\n   + sphere pos.(z):      " << setup.sphereZPosition * setup.dx << " [m]" <<
+                                "\n   + sphere radius:       " << setup.sphereRadius * setup.dx << " [m]" <<
+                                "\n   + kin. viscosity:      " << setup.viscosity * setup.dx * setup.dx / setup.dt << " [m^2/s] (on the coarsest grid)" <<
+                                "\n   + viscosity LB:        " << setup.viscosity  << " [dx*dx/dt] (on the coarsest grid)" <<
+                                "\n   + omega:               " << omega << " (on the coarsest grid)" <<
                                 "\n   + rho:                 " << setup.rho << " [kg/m^3]" <<
-                                "\n   + inflow velocity:     " << setup.inflowVelocity << " [m/s] (" <<
+                                "\n   + inflow velocity:     " << referenceVelocity << " [m/s] (" <<
+                                "\n   + lattice velocity:    " << latticeVelocity << " [dx/dt] (" <<
                                 "\n   + Reynolds number:     " << reynoldsNumber <<
                                 "\n   + Mach number:         " << machNumber <<
                                 "\n   + dx (coarsest grid):  " << setup.dx << " [m]" <<
@@ -547,7 +550,7 @@ int main(int argc, char** argv)
          // if (!isFlagSet(it, domainFlag))
            //  continue;
 
-         velField->get(it.cell(), 0) = referenceVelocity;
+         velField->get(it.cell(), 0) = latticeVelocity;
       }
    }
 
@@ -570,11 +573,11 @@ int main(int argc, char** argv)
    const real_t omegaFinestLevel = lbm_generated::relaxationRateScaling(omega, refinementLevels);
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldGPUID, fluidFlagUID, omegaFinestLevel, referenceVelocity, wallDistanceFunctor, pdfFieldID);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldGPUID, fluidFlagUID, omegaFinestLevel, latticeVelocity, wallDistanceFunctor, pdfFieldID);
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID, referenceVelocity);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID, latticeVelocity);
 #endif
    WALBERLA_MPI_BARRIER()
    WALBERLA_LOG_INFO_ON_ROOT("BOUNDARY HANDLING done")
@@ -641,6 +644,7 @@ int main(int argc, char** argv)
    const bool amrFileFormat        = VTKWriter.getParameter< bool >("amrFileFormat", false);
    const bool oneFilePerProcess    = VTKWriter.getParameter< bool >("oneFilePerProcess", false);
    const real_t samplingResolution = VTKWriter.getParameter< real_t >("samplingResolution", real_c(-1.0));
+   const uint_t initialWriteCallsToSkip = VTKWriter.getParameter< uint_t >("initialWriteCallsToSkip", uint_c(0.0));
 
    auto finalDomain = blocks->getDomain();
    if (vtkWriteFrequency > 0)
@@ -648,6 +652,8 @@ int main(int argc, char** argv)
       auto vtkOutput =
          vtk::createVTKOutput_BlockData(*blocks, "vtk", vtkWriteFrequency, 0, false, "vtk_FlowAroundSphere",
                                         "simulation_step", false, true, true, false, 0, amrFileFormat, oneFilePerProcess);
+
+      vtkOutput->setInitialWriteCallsToSkip(initialWriteCallsToSkip);
 
       vtkOutput->addBeforeFunction([&]() {
          for (auto& block : *blocks)
@@ -742,29 +748,31 @@ int main(int argc, char** argv)
    {
       WALBERLA_LOG_INFO_ON_ROOT("Level " << level << " Blocks: " << blocks->getNumberOfBlocks(level))
    }
+
    WALBERLA_LOG_INFO_ON_ROOT( "Benchmark run data:"
                              "\n- simulation parameters:"
-                             "\n   + collision model:  " << infoCollisionOperator <<
-                             "\n   + stencil:          " << infoStencil <<
-                             "\n   + streaming:        " << infoStreamingPattern <<
-                             "\n   + compressible:     " << ( StorageSpecification_T::compressible ? "yes" : "no" ) <<
-                             "\n   + mesh levels:      " << refinementLevels + uint_c(1) <<
-                             "\n   + resolution:       " << coarseMeshSize << " - on the coarsest grid)" <<
-                             "\n   + resolution:       " << fineMeshSize << " - on the finest grid)" <<
-                             "\n- simulation properties:"
-                             "\n   + fluid cells:         " << fluidCells.numberOfCells() << " (in total on all levels)" <<
-                             "\n   + sphere pos.(x):    " << setup.sphereXPosition << " [m]" <<
-                             "\n   + sphere pos.(y):    " << setup.sphereYPosition << " [m]" <<
-                             "\n   + sphere pos.(z):    " << setup.sphereZPosition << " [m]" <<
-                             "\n   + sphere radius:     " << setup.sphereRadius << " [m]" <<
-                             "\n   + kin. viscosity:      " << setup.viscosity << " [m^2/s] (" << setup.viscosity << " - on the coarsest grid)" <<
-                             "\n   + omega:               " << omega << " - on the coarsest grid)" <<
+                             "\n   + collision model:     " << infoCollisionOperator <<
+                             "\n   + stencil:             " << infoStencil <<
+                             "\n   + streaming:           " << infoStreamingPattern <<
+                             "\n   + compressible:        " << ( StorageSpecification_T::compressible ? "yes" : "no" ) <<
+                             "\n   + mesh levels:         " << refinementLevels + uint_c(1) <<
+                             "\n   + resolution:          " << coarseMeshSize << " - on the coarsest grid)" <<
+                             "\n   + resolution:          " << fineMeshSize << " - on the finest grid)" <<
+                             "\n- simulation properties:  "
+                             "\n   + sphere pos.(x):      " << setup.sphereXPosition * setup.dx << " [m]" <<
+                             "\n   + sphere pos.(y):      " << setup.sphereYPosition * setup.dx << " [m]" <<
+                             "\n   + sphere pos.(z):      " << setup.sphereZPosition * setup.dx << " [m]" <<
+                             "\n   + sphere radius:       " << setup.sphereRadius * setup.dx << " [m]" <<
+                             "\n   + kin. viscosity:      " << setup.viscosity * setup.dx * setup.dx / setup.dt << " [m^2/s] (on the coarsest grid)" <<
+                             "\n   + viscosity LB:        " << setup.viscosity  << " [dx*dx/dt] (on the coarsest grid)" <<
+                             "\n   + omega:               " << omega << " (on the coarsest grid)" <<
                              "\n   + rho:                 " << setup.rho << " [kg/m^3]" <<
-                             "\n   + inflow velocity:     " << setup.inflowVelocity << " [m/s] (" <<
+                             "\n   + inflow velocity:     " << referenceVelocity << " [m/s] (" <<
+                             "\n   + lattice velocity:    " << latticeVelocity << " [dx/dt] (" <<
                              "\n   + Reynolds number:     " << reynoldsNumber <<
                              "\n   + Mach number:         " << machNumber <<
                              "\n   + dx (coarsest grid):  " << setup.dx << " [m]" <<
-                             "\n   + dt (coarsest grid):  " << setup.dt << " [s]" <<
+                             "\n   + dt (coarsest grid):  " << setup.dt << " [s]"
                              "\n   + #time steps:         " << timeloop.getNrOfTimeSteps() << " (on the coarsest grid, " << ( real_t(1) / setup.dt ) << " for 1s of real time)" <<
                              "\n   + simulation time:     " << ( real_c( timeloop.getNrOfTimeSteps() ) * setup.dt ) << " [s]" )
 

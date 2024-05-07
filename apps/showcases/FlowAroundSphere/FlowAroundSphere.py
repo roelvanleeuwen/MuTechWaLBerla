@@ -3,7 +3,7 @@ import numpy as np
 from pystencils import TypedSymbol, Target
 
 from pystencils.field import fields
-from pystencils.simp.subexpression_insertion import insert_constants, insert_aliases
+from pystencils.simp import insert_aliases, insert_constants
 
 from lbmpy import LBStencil, LBMConfig, LBMOptimisation
 from lbmpy.boundaries.boundaryconditions import ExtrapolationOutflow, UBB, QuadraticBounceBack, FreeSlip, NoSlip
@@ -38,15 +38,15 @@ with CodeGeneration() as ctx:
     omega_field = fields(f"omega(1) : {dtype}[{dim}D]", layout='fzyx')
 
     macroscopic_fields = {'density': density_field, 'velocity': velocity_field}
-
+ 
     lbm_config = LBMConfig(
-        method=Method.SRT,
+        method=Method.CUMULANT,
         stencil=stencil,
         relaxation_rate=omega,
         compressible=True,
         galilean_correction=False,
-        subgrid_scale_model=SubgridScaleModel.QR,
-        #fourth_order_correction=0.01,
+        # subgrid_scale_model=SubgridScaleModel.QR,
+        fourth_order_correction=True,
         field_name='pdfs',
         streaming_pattern=streaming_pattern,
     )
@@ -55,8 +55,9 @@ with CodeGeneration() as ctx:
                               symbolic_field=pdfs, symbolic_temporary_field=pdfs_tmp)
 
     collision_rule = create_lb_collision_rule(lbm_config=lbm_config, lbm_optimisation=lbm_opt)
-    # collision_rule = insert_constants(collision_rule)
-    # collision_rule = insert_aliases(collision_rule)
+    if lbm_config.method == Method.CUMULANT:
+        collision_rule = insert_constants(collision_rule)
+        collision_rule = insert_aliases(collision_rule)
     lb_method = collision_rule.method
 
     if ctx.gpu:

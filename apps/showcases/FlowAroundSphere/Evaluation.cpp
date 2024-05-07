@@ -89,7 +89,7 @@ void Evaluation::operator()()
       if (logToStream_)
       {
          WALBERLA_LOG_RESULT_ON_ROOT(
-            "force acting on cylinder (in dimensionless lattice units of the coarsest grid - evaluated in time step "
+            "force acting on sphere (in dimensionless lattice units of the coarsest grid - evaluated in time step "
             << executionCounter_ - uint_c(1) << "):\n   " << force_ << oss.str()
             << "\ndrag and lift coefficients (including extrema of last " << (coefficients_[0].size() * checkFrequency_)
             << " time steps):"
