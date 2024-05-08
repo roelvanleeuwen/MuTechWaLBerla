@@ -44,7 +44,8 @@
 #include <fstream>
 #include <iostream>
 
-#include "lbm/geometry/moving_geometry/MovingGeometry.h"
+#include "lbm/geometry/moving_geometry/PredefinedMovingGeometry.h"
+
 
 namespace walberla
 {
@@ -59,29 +60,6 @@ typedef field::GhostLayerField< real_t, 1 > GeoField_T; // could also set to sin
 /////////////////////
 /// Main Function ///
 /////////////////////
-
-
-class GeometryMovementFunction {
- public:
-   GeometryMovementFunction(AABB domainAABB, Vector3<real_t>  rotationVector, Vector3<real_t> translationVector)
-      : domainAABB_(domainAABB), rotationVector_(rotationVector), translationVector_(translationVector)  {};
-
-   GeometryMovementStruct operator() (uint_t timestep) {
-      GeometryMovementStruct geoMovement;
-      geoMovement.rotationVector = rotationVector_;
-      geoMovement.translationVector = translationVector_;
-      geoMovement.movementBoundingBox = AABB(domainAABB_.xMin(), domainAABB_.yMin(), domainAABB_.zMin(),
-                                               domainAABB_.xMax(), domainAABB_.yMax(), domainAABB_.zMax());
-      geoMovement.timeDependentMovement = true;
-
-      return geoMovement;
-   }
-
- private:
-   AABB domainAABB_;
-   Vector3<real_t> rotationVector_;
-   Vector3<real_t> translationVector_;
-};
 
 
 int main(int argc, char** argv)
@@ -155,6 +133,7 @@ int main(int argc, char** argv)
    auto cellsPerBlock = Vector3<uint_t>(32);
    auto blocks = bfc.createStructuredBlockForest(cellsPerBlock);
    WALBERLA_LOG_INFO_ON_ROOT("<" << blocks->getNumberOfXCells() << "," << blocks->getNumberOfYCells() << "," << blocks->getNumberOfZCells() << ">" )
+   auto domainAABB = blocks->getDomain();
 
    SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
 
@@ -179,15 +158,13 @@ int main(int argc, char** argv)
    /// Rotation Calls    ///
    /////////////////////////
 
-   auto movementFunction = GeometryMovementFunction(aabb, rotationVector, objectVelocity);
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldGPUId,
-                                                                                              movementFunction, distanceOctreeMesh, "geometry",
-                                                                                              maxSuperSamplingDepth, 1, true, false, 0.0, dt);
+   auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldGPUId,
+                                                                                              distanceOctreeMesh, "geometry", maxSuperSamplingDepth, false, 0.0, dt, domainAABB, objectVelocity, rotationVector);
 #else
-   auto objectMover = make_shared<MovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
-                                                                                              movementFunction, distanceOctreeMesh, "geometry",
-                                                                                              maxSuperSamplingDepth, 1, true, false, 0.0, dt);
+   auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
+                                                                                              distanceOctreeMesh, "geometry", maxSuperSamplingDepth, false, 0.0, dt, domainAABB,
+                                                                                                        objectVelocity, rotationVector);
 #endif
 
    mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "meshBase", VTKWriteFrequency);
@@ -199,7 +176,7 @@ int main(int argc, char** argv)
    std::vector<real_t> errorVector;
    const std::function< void() > objectRotatorFunc = [&]() {
       objectMover->resetFractionField();
-      (*objectMover)(timeloop.getCurrentTimeStep());
+      (*objectMover)();
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #endif

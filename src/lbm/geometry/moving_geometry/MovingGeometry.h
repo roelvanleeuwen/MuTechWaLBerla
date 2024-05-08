@@ -57,16 +57,6 @@
 
 namespace walberla
 {
-struct GeometryMovementStruct{
-   //Translation Vector for timestep t for converting cell point from LBM space to geometry space in cells/timestep
-   Vector3<real_t> translationVector;
-   //Rotation Angle for timestep t for converting cell point from LBM space to geometry space in rad/timestep per dimension
-   Vector3<real_t> rotationVector;
-   //Maximum bounding box of the geometry over all timesteps. Used to only update blocks with movement in it. Set to domainAABB if unknown.
-   AABB movementBoundingBox;
-   //If translationVector or rotationAngle is dependent on the timestep, set to true. Update objectVelocityField only once if set to false.
-   bool timeDependentMovement;
-};
 
 
 template < typename FractionField_T, typename VectorField_T, typename GeometryField_T = field::GhostLayerField< real_t, 1 > >
@@ -76,180 +66,91 @@ class MovingGeometry
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    typedef gpu::GPUField< GeometryFieldData_T > GeometryFieldGPU_T;
 #endif
-   using GeometryMovementFunction = std::function<GeometryMovementStruct (uint_t)>;
 
  public:
 
    MovingGeometry(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
                   const BlockDataID fractionFieldId, const BlockDataID objectVelocityId,  const BlockDataID forceFieldId,
-                  const GeometryMovementFunction & movementFunction,
                   shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree, const std::string meshName,
-                  const uint_t superSamplingDepth, const uint_t ghostLayers, bool moving, bool useTauInFractionField, real_t omega, real_t dt)
+                  const uint_t superSamplingDepth, bool useTauInFractionField, real_t omega, real_t dt, AABB movementBoundingBox, 
+                  Vector3<real_t> initialVelocity, Vector3<real_t> initialRotation, bool moving = true)
       : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId), forceFieldId_(forceFieldId),
-        movementFunction_(movementFunction), distOctree_(distOctree), meshName_(meshName),
-        superSamplingDepth_(superSamplingDepth), ghostLayers_(ghostLayers), moving_(moving),
-        useTauInFractionField_(useTauInFractionField), tau_(1.0 / omega), dt_(dt)
-   {
+        distOctree_(distOctree), meshName_(meshName), superSamplingDepth_(superSamplingDepth),
+        useTauInFractionField_(useTauInFractionField), tau_(1.0 / omega), dt_(dt), movementBoundingBox_(movementBoundingBox), moving_(moving) {
 
-      auto geometryMovement = movementFunction_(0);
-      if(useTauInFractionField_)
+      if(!moving_ && initialVelocity.length() > 0.0) {
+         WALBERLA_LOG_WARNING_ON_ROOT("You created a non moving geometry, but your specified the initial velocity to " << initialVelocity)
+      }
+      if(!moving_ && initialRotation.length() > 0.0) {
+         WALBERLA_LOG_WARNING_ON_ROOT("You created a non moving geometry, but your specified the initial velocity to " << initialRotation)
+      }
+
+      if (useTauInFractionField_)
          if (omega > 2.0 || omega < 0.0)
-            WALBERLA_ABORT("If you want to use the relaxation rate for building the fraction field, use a valid value for omega")
+            WALBERLA_ABORT(
+               "If you want to use the relaxation rate for building the fraction field, use a valid value for omega")
+      
+      auto meshCenterPoint         = computeCentroid(*mesh_);
+      meshCenter_  = Vector3< real_t >(meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
+      meshAABB_    = computeAABB(*mesh_);
+      const Vector3< real_t > dxyz = Vector3< real_t >(blocks_->dx(0), blocks_->dy(0),
+                                                       blocks_->dz(0));
+      meshAABB_.extend(2. * dxyz);
 
-      auto meshCenterPoint = computeCentroid(*mesh_);
-      meshCenter_ = Vector3<real_t> (meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
-      meshAABB_ = computeAABB(*mesh_);
-      const Vector3<real_t> dxyz = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
-      meshAABB_.extend(dxyz);
-
-
-
-      //Create one particle to use it for holding velocity and force information and for Euler integration
-      particleStorage_             = walberla::make_shared< mesa_pd::data::ParticleStorage >(1);
-      particleAccessor_            = walberla::make_shared< mesa_pd::data::ParticleAccessor >(particleStorage_);
+      // Create one particle to use it for holding velocity and force information and for Euler integration
+      particleStorage_            = walberla::make_shared< mesa_pd::data::ParticleStorage >(1);
+      particleAccessor_           = walberla::make_shared< mesa_pd::data::ParticleAccessor >(particleStorage_);
       mesa_pd::data::Particle&& p = *particleStorage_->create();
       p.setPosition(meshCenter_);
+      p.setLinearVelocity(initialVelocity);
+      p.setAngularVelocity(initialRotation);
 
-      if(moving_) {
-         WcTimer simTimer;
-         simTimer.start();
-         buildGeometryField(geometryMovement.movementBoundingBox);
-         simTimer.end();
-         double time = simTimer.max();
-         WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
-         WALBERLA_LOG_INFO_ON_ROOT("Finished building Geometry Mesh in " << time << "s")
+
+      WcTimer simTimer;
+      simTimer.start();
+      buildGeometryField();
+      simTimer.end();
+      double time = simTimer.max();
+      WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
+      WALBERLA_LOG_INFO_ON_ROOT("Finished building Geometry Mesh in " << time << "s")
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-         if(geometryField_) {
-            geometryFieldGPU_ = new GeometryFieldGPU_T(geometryField_->xSize(), geometryField_->ySize(), geometryField_->zSize(), geometryField_->fSize(), geometryField_->nrOfGhostLayers(), geometryField_->layout(), true);
-            gpu::fieldCpy(*geometryFieldGPU_, *geometryField_);
-         }
-         WALBERLA_LOG_INFO_ON_ROOT("Finished coppying geometry field")
-#endif
-         getFractionFieldFromGeometryMesh(0);
-         WALBERLA_LOG_INFO_ON_ROOT("Finished getFractionFieldFromGeometryMesh")
-         updateObjectVelocityField(0);
-         WALBERLA_LOG_INFO_ON_ROOT("Finished updateObjectVelocityField")
-      }
-      else {
-         staticFractionFieldId_ = field::addToStorage< FractionField_T >(blocks, "staticFractionField_" + meshName_, real_t(0.0), field::fzyx, ghostLayers_);
-         buildStaticFractionField();
-#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-         staticFractionFieldGPUId_ = gpu::addGPUFieldToStorage< FractionField_T >(blocks_, staticFractionFieldId_, "staticFractionFieldGPU_" + meshName_, true );
-         gpu::fieldCpy< gpu::GPUField< real_t >, FractionField_T >(blocks, staticFractionFieldGPUId_, staticFractionFieldId_);
-#endif
-         addStaticGeometryToFractionField();
-      }
-   }
-
-
-   void operator()(uint_t timestep) {
-      if(moving_) {
-         getFractionFieldFromGeometryMesh(timestep);
-         updateObjectVelocityField(timestep);
-         updateObjectPosition(timestep);
-      }
-      else {
-         addStaticGeometryToFractionField();
-      }
-   }
-
-
-   void updateObjectPosition(uint_t timestep) {
-      auto geometryMovement = movementFunction_(timestep);
-      auto newPosition = particleAccessor_->getPosition(0) + geometryMovement.translationVector * dt_;
-      particleAccessor_->setPosition(0, newPosition);
-      auto newParticleRotation = particleAccessor_->getRotation(0);
-      newParticleRotation.rotate(-geometryMovement.rotationVector * dt_);
-      particleAccessor_->setRotation(0, newParticleRotation);
-   }
-
-
-   void buildStaticFractionField() {
-      const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
-
-      for (auto& block : *blocks_)
+      if (geometryField_)
       {
-         FractionField_T* staticFractionField = block.getData< FractionField_T >(staticFractionFieldId_);
-         auto level = blocks_->getLevel(block);
-         const Vector3<real_t> dxyz = Vector3<real_t>(blocks_->dx(level), blocks_->dy(level), blocks_->dz(level));
-         auto cellBBMesh = blocks_->getCellBBFromAABB( meshAABB_, level );
-
-         CellInterval blockCi = staticFractionField->xyzSizeWithGhostLayer();
-         blocks_->transformBlockLocalToGlobalCellInterval(blockCi, block);
-         cellBBMesh.intersect(blockCi);
-
-         std::queue< CellInterval > ciQueue;
-         ciQueue.push(cellBBMesh);
-
-         while (!ciQueue.empty())
-         {
-            const CellInterval& curCi = ciQueue.front();
-
-            WALBERLA_ASSERT(!curCi.empty(), "Cell Interval: " << curCi);
-
-            const AABB curAABB = blocks_->getAABBFromCellBB(curCi, level);
-
-            WALBERLA_ASSERT(!curAABB.empty(), "AABB: " << curAABB);
-
-            Vector3< real_t > cellCenter = curAABB.center();
-
-            blocks_->mapToPeriodicDomain(cellCenter);
-            const real_t sqSignedDistance = (*distFunct)(cellCenter);
-
-            if (curCi.numCells() == uint_t(1))
-            {
-               real_t fraction;
-               real_t sqDx = dxyz[0] * dxyz[0];
-               real_t sqDxHalf = (0.5 * dxyz[0]) * (0.5 * dxyz[0]);
-               fraction = std::max(0.0, std::min(1.0, (sqDx - (sqSignedDistance + sqDxHalf) ) / sqDx));
-
-               //B2 from "A comparative study of fluid-particle coupling methods for fully resolved lattice Boltzmann simulations" from Rettinger et al
-               if (useTauInFractionField_)
-                  fraction = fraction * (tau_ - 0.5) / ((1.0 - fraction) + (tau_ - 0.5));
-
-               Cell localCell;
-               blocks_->transformGlobalToBlockLocalCell(localCell, block, curCi.min());
-               staticFractionField->get(localCell) = fraction;
-
-               ciQueue.pop();
-               continue;
-            }
-
-            const real_t circumRadius   = curAABB.sizes().length() * real_t(0.5);
-            const real_t sqCircumRadius = circumRadius * circumRadius;
-
-            // the cell interval is fully covered by the mesh
-            if (sqSignedDistance < -sqCircumRadius)
-            {
-               CellInterval localCi;
-               blocks_->transformGlobalToBlockLocalCellInterval(localCi, block, curCi);
-               std::fill(staticFractionField->beginSliceXYZ(localCi), staticFractionField->end(), 1.0);
-
-               ciQueue.pop();
-               continue;
-            }
-            // the cell interval is fully outside of mesh
-            if (sqSignedDistance > sqCircumRadius)
-            {
-               ciQueue.pop();
-               continue;
-            }
-
-            WALBERLA_ASSERT_GREATER(curCi.numCells(), uint_t(1));
-            mesh::BoundarySetup::divideAndPushCellInterval(curCi, ciQueue);
-            ciQueue.pop();
-         }
+         geometryFieldGPU_ = new GeometryFieldGPU_T(
+            geometryField_->xSize(), geometryField_->ySize(), geometryField_->zSize(), geometryField_->fSize(),
+            geometryField_->nrOfGhostLayers(), geometryField_->layout(), true);
+         gpu::fieldCpy(*geometryFieldGPU_, *geometryField_);
+      }
+      WALBERLA_LOG_INFO_ON_ROOT("Finished coppying geometry field")
+#endif
+      getFractionFieldFromGeometryMesh();
+      if(moving_) {
+         updateObjectVelocityField();
       }
    }
 
-   void buildGeometryField(AABB movementBoundingBox) {
+
+   void operator()() {
+
+      getFractionFieldFromGeometryMesh();
+
+      if(moving_) {
+         updateObjectVelocityField();
+         updateObjectPosition();
+      }
+   }
+
+   virtual void updateObjectPosition() = 0;
+
+
+   void buildGeometryField() {
       WALBERLA_LOG_PROGRESS("Getting max level for geometry field size")
       int maxLevel = -1;
       WALBERLA_LOG_PROGRESS("Size of blocks_ is " << blocks_->size())
 
       for (auto& block : *blocks_) {
-         if(movementBoundingBox.intersects(block.getAABB())) {
+         if(movementBoundingBox_.intersects(block.getAABB())) {
             WALBERLA_LOG_PROGRESS("Getting level for block " << block.getId())
             const int level = int(blocks_->getLevel(block));
             if (level > maxLevel)
@@ -304,9 +205,8 @@ class MovingGeometry
       if (timestep == 0) return;
       if (vtk_frequency > 0 && timestep % vtk_frequency == 0 && moving_)
       {
-         auto geometryMovement = movementFunction_(timestep);
-         Vector3< real_t > translationVector = geometryMovement.translationVector * dt_ * real_t(vtk_frequency);
-         Vector3< real_t > rotationVector = geometryMovement.rotationVector * dt_ * real_t(vtk_frequency);
+         Vector3< real_t > translationVector = particleAccessor_->getLinearVelocity(0)* dt_ * real_t(vtk_frequency);
+         Vector3< real_t > rotationVector = particleAccessor_->getAngularVelocity(0) * dt_ * real_t(vtk_frequency);
          auto rotationMatrix = math::Rot3<real_t> (rotationVector);
          mesh::translate(*mesh_, translationVector);
          const Vector3< mesh::TriangleMesh::Scalar > axis_foot(particleAccessor_->getPosition(0));
@@ -322,22 +222,18 @@ class MovingGeometry
          myFile.close();
       }
    }
-
-
-   void getFractionFieldFromGeometryMesh(uint_t timestep);
-   void addStaticGeometryToFractionField();
+   void getFractionFieldFromGeometryMesh();
    void resetFractionField();
-   void updateObjectVelocityField(uint_t timestep);
+   virtual void updateObjectVelocityField();
    void calculateForcesOnBody();
    real_t getVolumeFromFractionField();
 
- private:
+ protected:
    shared_ptr< StructuredBlockForest > blocks_;
    shared_ptr< mesh::TriangleMesh > mesh_;
 
    BlockDataID fractionFieldId_;
    shared_ptr <GeometryField_T> geometryField_; //One Field on every MPI process, not on every block
-   BlockDataID staticFractionFieldId_;
    BlockDataID objectVelocityId_;
    BlockDataID forceFieldId_;
 
@@ -348,15 +244,14 @@ class MovingGeometry
    GeometryFieldGPU_T *geometryFieldGPU_;
 #endif
 
-   GeometryMovementFunction movementFunction_;
    shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>> distOctree_;
    std::string meshName_;
    uint_t superSamplingDepth_;
-   uint_t ghostLayers_;
-   bool moving_;
    bool useTauInFractionField_;
    real_t tau_;
    real_t dt_;
+   AABB movementBoundingBox_;
+   bool moving_;
 
    Vector3<real_t> meshCenter_;
    AABB meshAABB_;

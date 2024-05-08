@@ -25,8 +25,7 @@ namespace walberla
 {
 
 template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
-void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractionFieldFromGeometryMesh(uint_t timestep) {
-   auto geometryMovement = movementFunction_(timestep);
+void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractionFieldFromGeometryMesh() {
    Matrix3<real_t> rotationMatrix = particleAccessor_->getRotation(0).getMatrix();
    auto translationVector = particleAccessor_->getPosition(0) - meshCenter_;
 
@@ -35,7 +34,7 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractio
 
    for (auto& block : *blocks_)
    {
-      if(!geometryMovement.movementBoundingBox.intersects(block.getAABB()) )
+      if(!movementBoundingBox_.intersects(block.getAABB()) )
          continue;
 
       FractionField_T* fractionField = block.getData< FractionField_T >(fractionFieldId_);
@@ -128,21 +127,6 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractio
 }
 
 
-
-template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
-void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::addStaticGeometryToFractionField() {
-   for (auto& block : *blocks_)
-   {
-      FractionField_T* fractionField       = block.getData< FractionField_T >(fractionFieldId_);
-      FractionField_T* staticFractionField = block.getData< FractionField_T >(staticFractionFieldId_);
-      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(
-         fractionField, fractionField->get(x, y, z) =
-                           std::min(1.0, fractionField->get(x, y, z) + staticFractionField->get(x, y, z));)
-   }
-}
-
-
-
 template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
 void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::resetFractionField() {
    for (auto& block : *blocks_)
@@ -152,22 +136,16 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::resetFract
    }
 }
 
-
-
 template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
-void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::updateObjectVelocityField(uint_t timestep) {
-   auto geometryMovement = movementFunction_(timestep);
+void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::updateObjectVelocityField() {
    auto objectPosition = particleAccessor_->getPosition(0);
+   auto objectLinearVelocity = particleAccessor_->getLinearVelocity(0);
+   auto objectAngularVelocity = particleAccessor_->getAngularVelocity(0);
    const Vector3<real_t> dxyz_root = Vector3<real_t>(blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
-   geometryMovement.movementBoundingBox.extend(dxyz_root);
-
-   //update object velocity field only on 0th timestep for time independent movement
-   if(!geometryMovement.timeDependentMovement && timestep > 0)
-      return;
 
    for (auto& block : *blocks_)
    {
-      if(!geometryMovement.movementBoundingBox.intersects(block.getAABB()) )
+      if(!movementBoundingBox_.intersects(block.getAABB()) )
          continue;
 
       auto level = blocks_->getLevel(block);
@@ -175,41 +153,37 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::updateObje
       auto objVelField = block.getData< VectorField_T >(objectVelocityId_);
       auto fractionField = block.getData< FractionField_T >(fractionFieldId_);
 
-      Vector3< real_t > angularVel = geometryMovement.rotationVector;
 
       WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(objVelField,
          Cell cell(x,y,z);
-         if(geometryMovement.timeDependentMovement) {
-            if (fractionField->get(cell, 0) <= 0.0)
-            {
-               objVelField->get(cell, 0) = 0;
-               objVelField->get(cell, 1) = 0;
-               objVelField->get(cell, 2) = 0;
-               continue;
-            }
+         if (fractionField->get(cell, 0) <= 0.0)
+         {
+            objVelField->get(cell, 0) = 0;
+            objVelField->get(cell, 1) = 0;
+            objVelField->get(cell, 2) = 0;
+            continue;
          }
 
          blocks_->transformBlockLocalToGlobalCell(cell, block);
-         if(!geometryMovement.timeDependentMovement) {
-            auto cellAABB = blocks_->getCellAABB(cell, level);
-            if(!cellAABB.intersects(geometryMovement.movementBoundingBox))
-               continue;
-         }
+         auto cellAABB = blocks_->getCellAABB(cell, level);
+         if(!cellAABB.intersects(movementBoundingBox_))
+            continue;
 
          Vector3< real_t > cellCenter = blocks_->getCellCenter(cell, level);
          Vector3< real_t > distance = cellCenter - objectPosition;
 
-         real_t linearVelX = angularVel[1] * distance[2] - angularVel[2] * distance[1];
-         real_t linearVelY = angularVel[2] * distance[0] - angularVel[0] * distance[2];
-         real_t linearVelZ = angularVel[0] * distance[1] - angularVel[1] * distance[0];
+         real_t linearVelX = objectAngularVelocity[1] * distance[2] - objectAngularVelocity[2] * distance[1];
+         real_t linearVelY = objectAngularVelocity[2] * distance[0] - objectAngularVelocity[0] * distance[2];
+         real_t linearVelZ = objectAngularVelocity[0] * distance[1] - objectAngularVelocity[1] * distance[0];
 
          blocks_->transformGlobalToBlockLocalCell(cell, block);
-         objVelField->get(cell, 0) = (linearVelX + geometryMovement.translationVector[0]) * dt_ / dxyz_root[0];
-         objVelField->get(cell, 1) = (linearVelY + geometryMovement.translationVector[1]) * dt_ / dxyz_root[1];
-         objVelField->get(cell, 2) = (linearVelZ + geometryMovement.translationVector[2]) * dt_ / dxyz_root[2];
+         objVelField->get(cell, 0) = (linearVelX + objectLinearVelocity[0]) * dt_ / dxyz_root[0];
+         objVelField->get(cell, 1) = (linearVelY + objectLinearVelocity[1]) * dt_ / dxyz_root[1];
+         objVelField->get(cell, 2) = (linearVelZ + objectLinearVelocity[2]) * dt_ / dxyz_root[2];
       )
    }
 }
+
 
 template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
 void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::calculateForcesOnBody() {
@@ -229,6 +203,7 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::calculateF
    particleAccessor_->setHydrodynamicForce(0, summedForceOnObject);
    //TODO calculate Torque
 }
+
 
 template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
 real_t MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getVolumeFromFractionField() {

@@ -3,4 +3,5 @@ target_sources( lbm
     MovingGeometry.h
     MovingGeometry.impl.h
     MovingGeometry.impl.gpu.h
+    PredefinedMovingGeometry.h
 )

@@ -5,15 +5,15 @@ Parameters
 
     objectResolution 20;
     objectVelocity   <1.0, 0.0, 0.0>;    <0.02, 0.0, 0.0>;  //m/s
-    rotationVector   <1.0, 0.0, 0.0>;               //rad/s
+    rotationVector   <10.0, 0.0, 0.0>;               //rad/s
   	maxSuperSamplingDepth 2;            // for (2^3)^2 < 100 subcells < (2^4)^2
 
     remainingTimeLoggerFrequency 10;    // in seconds
-	VTKwriteFrequency 2;
+	VTKwriteFrequency 1;
 }
 
 DomainSetup
 {
-   meshFile                 ../Meshfiles/Sphere.obj;
+   meshFile                 ../Meshfiles/Cube.obj;
 }
 
