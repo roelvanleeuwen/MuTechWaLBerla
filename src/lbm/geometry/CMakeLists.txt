@@ -4,3 +4,5 @@ target_sources( lbm
     IntersectionRatio.impl.h
     IntersectionRatio.cpp     
     )
+
+add_subdirectory( moving_geometry )

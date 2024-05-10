@@ -18,10 +18,6 @@
 //
 //======================================================================================================================
 
-#pragma once
-#include <gpu/GPUWrapper.h>
-#include <gpu/Atomic.h>
-
 #include "MovingGeometry.h"
 
 #ifdef __GNUC__
@@ -56,6 +52,22 @@ using real_t3 = float3;
 
 namespace walberla
 {
+
+__device__ double atomicAddCAS(double* address, double val)
+{
+   unsigned long long int* address_as_ull = (unsigned long long int*)address;
+   unsigned long long int old = *address_as_ull, assumed;
+
+   do {
+      assumed = old;
+      old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+      // Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+   } while (assumed != old);
+
+   return __longlong_as_double(old);
+}
+
+
 
 __global__ void resetFractionFieldGPUKernel( real_t * RESTRICT const fractionFieldData, int3 fieldSize, int3 stride) {
    const int64_t x = blockDim.x*blockIdx.x + threadIdx.x ;
@@ -404,5 +416,9 @@ real_t MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getVolum
    }
    return summedFraction;
 }
+
+
+
+template class MovingGeometry<field::GhostLayerField< real_t, 1 >, field::GhostLayerField< real_t, 3 >, field::GhostLayerField< real_t, 1 >>;
 
 } //namespace walberla

@@ -47,6 +47,7 @@ target_sources( gpu
         NVTX.h
         Atomic.h
         )
+
 endif (WALBERLA_BUILD_WITH_CUDA)
 
 add_subdirectory( sweeps )

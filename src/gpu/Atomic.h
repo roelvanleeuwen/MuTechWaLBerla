@@ -18,10 +18,16 @@
 //! \author Philipp Suffa <philipp.suffa@fau.de>
 //
 //======================================================================================================================
-#pragma once
 
 // atomicAdd(double) for CUDA compute capabilities < 6.0 from https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#atomic-functions
 // Used in GPUWrapper.h
+
+
+namespace walberla
+{
+namespace gpu
+{
+
 __device__ double atomicAddCAS(double* address, double val)
 {
    unsigned long long int* address_as_ull = (unsigned long long int*)address;
@@ -35,3 +41,5 @@ __device__ double atomicAddCAS(double* address, double val)
 
    return __longlong_as_double(old);
 }
+} //namespace walberla
+} //namespace gpu

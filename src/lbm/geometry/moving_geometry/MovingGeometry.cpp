@@ -17,7 +17,6 @@
 //! \author Philipp Suffa <philipp.suffa@fau.de>
 //
 //======================================================================================================================
-#pragma once
 
 #include "MovingGeometry.h"
 
@@ -220,4 +219,5 @@ real_t MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getVolum
    return summedVolume;
 }
 
+template class MovingGeometry<field::GhostLayerField< double, 1 >, field::GhostLayerField< double, 3 >, field::GhostLayerField< double, 1 >>;
 } // namespace waLBerla

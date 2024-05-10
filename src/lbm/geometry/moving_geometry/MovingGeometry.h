@@ -44,14 +44,14 @@
 #include "mesa_pd/data/ParticleStorage.h"
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-#include "gpu/AddGPUFieldToStorage.h"
-#include "gpu/DeviceSelectMPI.h"
-#include "gpu/FieldCopy.h"
-#include "gpu/GPUWrapper.h"
-#include "gpu/HostFieldAllocator.h"
-#include "gpu/ParallelStreams.h"
-#include "gpu/communication/UniformGPUScheme.h"
-#include <cuda_runtime.h>
+#   include "gpu/AddGPUFieldToStorage.h"
+#   include "gpu/DeviceSelectMPI.h"
+#   include "gpu/FieldCopy.h"
+#   include "gpu/GPUWrapper.h"
+#   include "gpu/HostFieldAllocator.h"
+#   include "gpu/ParallelStreams.h"
+#   include "gpu/communication/UniformGPUScheme.h"
+//#   include <gpu/Atomic.h>
 #endif
 
 
@@ -239,8 +239,6 @@ class MovingGeometry
 
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
-   BlockDataID staticFractionFieldGPUId_;
-   BlockDataID forceFieldGPUId_;
    GeometryFieldGPU_T *geometryFieldGPU_;
 #endif
 
@@ -262,10 +260,5 @@ class MovingGeometry
    shared_ptr< mesa_pd::data::ParticleAccessor > particleAccessor_;
 };
 
-}//namespace waLBerla
 
-#if defined(WALBERLA_BUILD_WITH_CUDA)
-   #include "MovingGeometry.impl.gpu.h"
-#else
-   #include "MovingGeometry.impl.h"
-#endif
+}//namespace waLBerla

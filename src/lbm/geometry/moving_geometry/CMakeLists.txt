@@ -1,7 +1,15 @@
 target_sources( lbm
     PRIVATE
     MovingGeometry.h
-    MovingGeometry.impl.h
-    MovingGeometry.impl.gpu.h
     PredefinedMovingGeometry.h
 )
+
+if(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+    target_sources( lbm
+            PRIVATE
+            MovingGeometry.cu)
+else()
+    target_sources( lbm
+            PRIVATE
+            MovingGeometry.cpp)
+endif()
