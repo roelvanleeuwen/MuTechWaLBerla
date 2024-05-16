@@ -10,8 +10,8 @@ walberla_generate_target_from_python( NAME PSM_Moving_GeometryCodeGen
         PSM_Moving_GeometrySweepCollection.h PSM_Moving_GeometrySweepCollection.${CODEGEN_FILE_SUFFIX}
         PSM_Moving_GeometryBoundaryCollection.h
         NoSlip.${CODEGEN_FILE_SUFFIX} NoSlip.h
-        UBB_top.${CODEGEN_FILE_SUFFIX} UBB_top.h
-        UBB_bot.${CODEGEN_FILE_SUFFIX} UBB_bot.h
+        UBB.${CODEGEN_FILE_SUFFIX} UBB.h
+        ExtrapolationOutflow.${CODEGEN_FILE_SUFFIX} ExtrapolationOutflow.h
         PSM_Moving_Geometry_InfoHeader.h
         PSM_Conditional_Sweep.${CODEGEN_FILE_SUFFIX} PSM_Conditional_Sweep.h
         )

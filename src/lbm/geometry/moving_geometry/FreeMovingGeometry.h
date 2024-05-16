@@ -13,13 +13,14 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file PredefinedMovingGeometry.h
+//! \file FreeMovingGeometry.h
 //! \author Philipp Suffa <philipp.suffa@fau.de>
 //
 //======================================================================================================================
 #pragma once
 
 #include "MovingGeometry.h"
+#include "mesa_pd/kernel/ExplicitEuler.h"
 
 namespace walberla
 {
@@ -28,7 +29,7 @@ namespace walberla
 
 
 template< typename FractionField_T, typename VectorField_T, typename GeometryField_T = field::GhostLayerField< real_t, 1 > >
-class PredefinedMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T, GeometryField_T >
+class FreeMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T, GeometryField_T >
 {
    using MGBase = MovingGeometry< FractionField_T, VectorField_T, GeometryField_T >;
    using GeometryFieldData_T = typename GeometryField_T::value_type;
@@ -37,36 +38,39 @@ class PredefinedMovingGeometry : public MovingGeometry< FractionField_T, VectorF
    #endif
 
  public:
-   PredefinedMovingGeometry(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
+   FreeMovingGeometry(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
                             const BlockDataID fractionFieldId, const BlockDataID objectVelocityId,
                             const BlockDataID forceFieldId, shared_ptr< mesh::DistanceOctree< mesh::TriangleMesh > >& distOctree,
                             const std::string meshName, const uint_t superSamplingDepth, bool useTauInFractionField,
-                            real_t omega, real_t dt, AABB movementBoundingBox, Vector3<real_t> initialVelocity,
-                            Vector3<real_t> initialRotation, bool moving = true)
+                            real_t omega, real_t dt, AABB movementBoundingBox, Vector3<real_t> initialVelocity, Vector3<real_t> initialRotation, real_t objectDensity, bool moving = true)
       : MGBase(blocks, mesh, fractionFieldId, objectVelocityId, forceFieldId, distOctree,
                        meshName, superSamplingDepth, useTauInFractionField, 1.0 / omega, dt, movementBoundingBox, initialVelocity, initialRotation, moving)
-   { }
+   {
+      explEulerIntegrator_ = make_shared<mesa_pd::kernel::ExplicitEuler>(dt);
+      const Vector3< real_t > dxyz = Vector3< real_t >(MGBase::blocks_->dx(0), MGBase::blocks_->dy(0),
+                                                       MGBase::blocks_->dz(0));
+      real_t objectMass = MGBase::getVolumeFromFractionField() * dxyz[0] * dxyz[1] * dxyz[2] * objectDensity;
+      WALBERLA_LOG_INFO_ON_ROOT("Mass of object " << MGBase::meshName_ << " is " << objectMass)
+      MGBase::particleAccessor_->setInvMass(0, 1.0 / objectMass);
+      //TODO inertia for arbitrary object
+      const math::Matrix3<real_t> inertia = math::Matrix3<real_t>::makeDiagonalMatrix( real_c(0.4) * objectMass * 0.5 * 0.5 );
+      MGBase::particleAccessor_->setInvInertiaBF(0, inertia.getInverse());
+   }
+
 
    void updateObjectPosition()
    {
-      auto newPosition      = MGBase::particleAccessor_->getPosition(0) + MGBase::particleAccessor_->getLinearVelocity(0) * MGBase::dt_;
-      MGBase::particleAccessor_->setPosition(0, newPosition);
-      auto newParticleRotation = MGBase::particleAccessor_->getRotation(0);
-      newParticleRotation.rotate(-MGBase::particleAccessor_->getAngularVelocity(0) * MGBase::dt_);
-      MGBase::particleAccessor_->setRotation(0, newParticleRotation);
+      WALBERLA_LOG_INFO(MGBase::particleStorage_->getPosition(0))
+      MGBase::calculateForcesOnBody();
+      WALBERLA_LOG_INFO(MGBase::particleStorage_->getForce(0))
+
+      (*explEulerIntegrator_)(0, *MGBase::particleAccessor_);
    }
 
-
-   // reset velocity (in evey timestep) for time-dependent movement
-   void setObjectLinearVelocity(Vector3<real_t> vel) {
-      MGBase::particleAccessor_->setLinearVelocity(0, vel);
-   }
-
-   void setObjectAngularVelocity(Vector3<real_t> vel) {
-      MGBase::particleAccessor_->setAngularVelocity(0, vel);
-   }
 
  private:
+
+   shared_ptr<mesa_pd::kernel::ExplicitEuler> explEulerIntegrator_;
 
    };
 }//namespace waLBerla

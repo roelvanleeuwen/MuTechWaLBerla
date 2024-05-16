@@ -105,7 +105,6 @@ class MovingGeometry
       p.setLinearVelocity(initialVelocity);
       p.setAngularVelocity(initialRotation);
 
-
       WcTimer simTimer;
       simTimer.start();
       buildGeometryField();
@@ -214,18 +213,18 @@ class MovingGeometry
       }
    }
 
-   void writeForceToFile(uint_t timestep, std::string fileName, real_t physForceFactor) {
+   void writeForceToFile(uint_t timestep, std::string fileName) {
       WALBERLA_ROOT_SECTION(){
-         auto force = particleAccessor_->getHydrodynamicForce(0);
+         auto force = particleAccessor_->getForce(0);
          std::ofstream myFile(fileName, std::ios::app);
-         myFile << real_c(timestep)*dt_ << " " << force[0]*physForceFactor << " " << force[1]*physForceFactor << " " << force[2]*physForceFactor << "\n";
+         myFile << real_c(timestep)*dt_ << " " << force[0] << " " << force[1] << " " << force[2] << "\n";
          myFile.close();
       }
    }
    void getFractionFieldFromGeometryMesh();
    void resetFractionField();
    virtual void updateObjectVelocityField();
-   void calculateForcesOnBody();
+   void calculateForcesOnBody(real_t physForceFactor);
    real_t getVolumeFromFractionField();
 
  protected:

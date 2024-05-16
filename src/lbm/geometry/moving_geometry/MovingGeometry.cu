@@ -326,7 +326,7 @@ __global__ void calculateForcesOnBodyKernel(real_t * RESTRICT const _data_forceF
 }
 
 template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
-void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::calculateForcesOnBody() {
+void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::calculateForcesOnBody(real_t physForceFactor) {
 
    Vector3<real_t> summedForceOnObject;
 
@@ -363,10 +363,9 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::calculateF
    WALBERLA_MPI_SECTION() {
       walberla::mpi::reduceInplace(summedForceOnObject, walberla::mpi::SUM);
    }
-   particleAccessor_->setHydrodynamicForce(0, summedForceOnObject);
+   Vector3<real_t> forceSI = summedForceOnObject * physForceFactor;
+   particleAccessor_->setForce(0, forceSI);
 }
-
-
 
 
 __global__ void getVolumeFromFractionFieldKernel(real_t * RESTRICT const _data_fractionFieldGPU, int3 field_size, int3 stride, real_t* __restrict__ const summedFraction) {
