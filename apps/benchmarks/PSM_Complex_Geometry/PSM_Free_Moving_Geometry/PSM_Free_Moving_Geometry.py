@@ -9,7 +9,7 @@ from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil, ForceM
 from lbmpy.partially_saturated_cells import PSMConfig
 
 from lbmpy.creationfunctions import create_lb_collision_rule, create_psm_update_rule
-from lbmpy.boundaries import NoSlip, UBB
+from lbmpy.boundaries import NoSlip, UBB, SimpleExtrapolationOutflow
 
 from pystencils import TypedSymbol
 
@@ -22,11 +22,6 @@ clear_cache()
 #   =====================
 #      Code Generation
 #   =====================
-
-#TODO change values for every resolution
-dx = 0.0025
-dt = 0.00202857
-u_conversion = dt / dx
 
 with CodeGeneration() as ctx:
     #   ========================
@@ -83,14 +78,13 @@ with CodeGeneration() as ctx:
 
     no_slip = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip', boundary_object=NoSlip())
 
-    ubb_top_vel = (TypedSymbol("ubb_top_vel_x", data_type), 0, 0)
-    ubb_top = lbm_boundary_generator(class_name='UBB_top', flag_uid='UBB_top', boundary_object=UBB(ubb_top_vel, data_type=data_type))
+    ubb_vel = (TypedSymbol("ubb_vel_x", data_type), 0, 0)
+    ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB', boundary_object=UBB(ubb_vel, data_type=data_type))
 
-    ubb_bot_vel = (TypedSymbol("ubb_bot_vel_x", data_type), 0, 0)
-    ubb_bot = lbm_boundary_generator(class_name='UBB_bot', flag_uid='UBB_bot', boundary_object=UBB(ubb_bot_vel, data_type=data_type))
+
 
     #fixedDensity = lbm_boundary_generator(class_name='FixedDensity', flag_uid='FixedDensity', boundary_object=FixedDensity(1.0))
-    #extrapolOutflow = lbm_boundary_generator(class_name='ExtrapolationOutflow', flag_uid='ExtrapolationOutflow', boundary_object=SimpleExtrapolationOutflow((1, 0, 0), stencil))
+    extrapolOutflow = lbm_boundary_generator(class_name='ExtrapolationOutflow', flag_uid='ExtrapolationOutflow', boundary_object=SimpleExtrapolationOutflow((1, 0, 0), stencil))
 
 
     target = ps.Target.GPU if ctx.gpu else ps.Target.CPU
@@ -104,7 +98,7 @@ with CodeGeneration() as ctx:
     generate_lbm_package(ctx, name="PSM_Free_Moving_Geometry",
                          collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=False, boundaries=[no_slip, ubb_top, ubb_bot],
+                         nonuniform=False, boundaries=[no_slip, ubb, extrapolOutflow],
                          macroscopic_fields=macroscopic_fields,
                          cpu_openmp=openmp, cpu_vectorize_info=cpu_vec, target=target)
 

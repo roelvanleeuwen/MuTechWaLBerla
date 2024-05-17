@@ -42,9 +42,9 @@ class PredefinedMovingGeometry : public MovingGeometry< FractionField_T, VectorF
                             const BlockDataID forceFieldId, shared_ptr< mesh::DistanceOctree< mesh::TriangleMesh > >& distOctree,
                             const std::string meshName, const uint_t superSamplingDepth, bool useTauInFractionField,
                             real_t omega, real_t dt, AABB movementBoundingBox, Vector3<real_t> initialVelocity,
-                            Vector3<real_t> initialRotation, bool moving = true)
+                            Vector3<real_t> initialRotation, real_t fluidDensity, bool moving = true)
       : MGBase(blocks, mesh, fractionFieldId, objectVelocityId, forceFieldId, distOctree,
-                       meshName, superSamplingDepth, useTauInFractionField, 1.0 / omega, dt, movementBoundingBox, initialVelocity, initialRotation, moving)
+                       meshName, superSamplingDepth, useTauInFractionField, 1.0 / omega, dt, movementBoundingBox, initialVelocity, initialRotation, fluidDensity, moving)
    { }
 
    void updateObjectPosition()

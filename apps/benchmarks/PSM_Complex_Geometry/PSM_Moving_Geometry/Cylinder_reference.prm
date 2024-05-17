@@ -1,16 +1,17 @@
 
 Parameters 
 {
-	timesteps       30001;
+	timesteps       50001;
 
-    D_lattice  10;
+    D_lattice  20;
+    latticeVel 0.05;
 
     translationPerTimestep   <0.0, 0.0, 0.0>;
     UBB_vel_x   2.0;
 
 
     remainingTimeLoggerFrequency 10;    // in seconds
-	VTKwriteFrequency 500;
+	VTKwriteFrequency 0;
 	maxSuperSamplingDepth 2;            // for (2^3)^2 < 100 subcells < (2^4)^2
 
     forceOutputFile     forceOutput.txt;

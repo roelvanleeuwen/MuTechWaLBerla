@@ -116,14 +116,10 @@ int main(int argc, char** argv)
    auto parameters = walberlaEnv.config()->getOneBlock("Parameters");
 
    const uint_t timesteps = parameters.getParameter< uint_t >("timesteps", uint_c(10));
-   const Vector3< real_t > initialVelocity = parameters.getParameter< Vector3< real_t > >("initialVelocity", Vector3< real_t >(0.0));
-   const real_t UBB_top_vel_x = parameters.getParameter<real_t>("UBB_top_vel_x");
-   const real_t UBB_bot_vel_x = parameters.getParameter<real_t>("UBB_bot_vel_x");
+   const real_t UBB_vel_x = parameters.getParameter<real_t>("UBB_vel_x");
 
-   const real_t dx = parameters.getParameter<real_t>("dx");
-   const real_t dt = parameters.getParameter<real_t>("dt");
-   const real_t physForceFactor = parameters.getParameter<real_t>("physForceFactor");
-   const real_t omega = parameters.getParameter<real_t>("omega");
+   const uint_t D_lattice = parameters.getParameter< uint_t >("D_lattice", uint_c(10));
+   const real_t latticeVel = parameters.getParameter< real_t >("latticeVel", real_t(0.1));
 
    const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(5.0));
    const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
@@ -138,7 +134,6 @@ int main(int argc, char** argv)
    const Vector3<real_t> rotationVector = parameters.getParameter< Vector3<real_t> >("rotationVector", Vector3< real_t >(0.0));
    const Vector3<real_t> objectVelocity = parameters.getParameter< Vector3<real_t> >("objectVelocity", Vector3< real_t >(0.0));
 
-   const real_t objectDensity = parameters.getParameter< real_t >("objectDensity", real_c(1.0));
 
    ////////////////////
    /// PROCESS MESH ///
@@ -154,10 +149,10 @@ int main(int argc, char** argv)
    auto distanceOctreeMesh = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh));
    auto aabb = computeAABB(*mesh);
    real_t D = aabb.zSize();
-   real_t D_resolution = D / dx;    //diameter in lattice units; resolution of diameter, e.g. 20, 40, ... , 320
+   real_t dx = D / real_t(D_lattice);    //diameter in lattice units; resolution of diameter, e.g. 20, 40, ... , 320
 
-   auto domainAABB = AABB(-D, -(1 + 1./15.)*2.*D, -dx/2, 7.*D, 4.*D -(1 + 1./15.)*2.*D, dx/2);
-   //auto domainAABB = AABB(-12.5 * D, -10.0 * D, -dx, 20.0 * D, 10.0 * D, dx);
+   //auto domainAABB = AABB(-D, -(1 + 1./15.)*2.*D, -dx/2, 7.*D, 4.*D -(1 + 1./15.)*2.*D, dx/2);
+   auto domainAABB = AABB(-12.5 * D, -10.0 * D, 0, 20.0 * D, 10.0 * D, dx);
 
    WALBERLA_LOG_INFO("DomainAABB is " << domainAABB << " dx is " << dx )
 
@@ -169,24 +164,32 @@ int main(int argc, char** argv)
    domainAABB = blocks->getDomain();
    WALBERLA_LOG_INFO_ON_ROOT("<" << blocks->getNumberOfXCells() << "," << blocks->getNumberOfYCells() << "," << blocks->getNumberOfZCells() << ">" )
 
-   const real_t latticeViscosity =  1.0/3.0 * (1.0 / omega - 0.5);
-   const real_t u_w_lattice = 0.1 / dx * dt;  
-   const real_t shear_rate = 2 * u_w_lattice / (4 * D_resolution);
-   const real_t ReynoldsNumber = D_resolution * D_resolution * shear_rate / latticeViscosity;
-   const real_t velocity_conversion = dt / dx;
+   const real_t ReynoldsNumber = 100;
+   const real_t densityWaterSI = 1000; // kg/m^3
+   const real_t densityObjectSI= 1000; // kg/m^3
+   const real_t inflowVelSI = UBB_vel_x; // m/s
+   const real_t dt = latticeVel * dx / inflowVelSI;
+   const real_t latticeViscosity =  real_t(D_lattice) * latticeVel / ReynoldsNumber;
+   const real_t omega = 1.0 / (3. * latticeViscosity + 0.5);
+   const real_t velocityFactor = dx / dt; //m/s
+   const real_t massFactor = densityWaterSI * dx * dx * dx; //kg
+   const real_t physForceFactor = massFactor * dx / (dt * dt);
 
    WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter: \n"
-                          << "Domain Decomposition " << numBlocks << " \n" //<< "<" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << "> = " << setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize()  << " root Blocks \n"
-                          << "Cells per Block " << cellsPerBlock << " \n"
-                          << "Number of cells "  << numCells << " \n"
-                          << "Mesh_size " << dx << " m \n"
-                          << "initialVelocity " << initialVelocity[0] << "\n"
-                          << "Timesteps " << timesteps << "\n"
-                          << "Omega " << omega << "\n"
-                          << "rotationVector " << rotationVector << "\n"
-                          << "objectVelocity " << objectVelocity << "\n"
-                          << "Diameter " << D << "\n"
-                          << "Reynolds Number " << ReynoldsNumber << "\n"
+                             << "Domain Decomposition " << numBlocks << " \n" //<< "<" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << "> = " << setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize()  << " root Blocks \n"
+                             << "Cells per Block " << cellsPerBlock << " \n"
+                             << "Number of cells "  << numCells << " \n"
+                             << "Timesteps " << timesteps << "\n"
+                             << "Omega " << omega << "\n"
+                             << "rotationVector " << rotationVector << "\n"
+                             << "objectVelocity " << objectVelocity << "\n"
+                             << "Diameter " << D << "\n"
+                             << "dx " << dx << "\n"
+                             << "dt " << dt << "\n"
+                             << "Reynolds Number " << ReynoldsNumber << "\n"
+                             << "massFactor " << massFactor << "\n"
+                             << "physForceFactor " << physForceFactor << "\n"
+                             << "velocityFactor " << velocityFactor << "\n"
    )
 
 
@@ -229,12 +232,12 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT("Setting up objectMover")
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    auto objectMover = make_shared<FreeMovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldGPUId,
-                                                                                              distanceOctreeMesh, "geometry",
-                                                                                              maxSuperSamplingDepth, true, omega, dt, domainAABB, objectVelocity, rotationVector, objectDensity);
+                                                                                                        distanceOctreeMesh, "geometry",
+                                                                                                        maxSuperSamplingDepth, true, omega, dt, domainAABB, objectVelocity, rotationVector, densityWaterSI, densityObjectSI);
 #else
    auto objectMover = make_shared<FreeMovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
-                                                                                              distanceOctreeMesh, "geometry",
-                                                                                              maxSuperSamplingDepth, true, omega, dt, domainAABB, objectVelocity, rotationVector, objectDensity);
+                                                                                                        distanceOctreeMesh, "geometry",
+                                                                                                        maxSuperSamplingDepth, true, omega, dt, domainAABB, objectVelocity, rotationVector, densityWaterSI, densityObjectSI);
 #endif
    WALBERLA_LOG_INFO_ON_ROOT("Finished Setting up objectMover")
 
@@ -254,12 +257,18 @@ int main(int argc, char** argv)
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #endif
    };
-
+   std::vector<Vector3<real_t>> forceVector;
    std::string forceFile = "forceOutput.txt";
    std::filesystem::remove(forceFile);
    const std::function< void() > forceCalculator = [&]() {
       objectMover->calculateForcesOnBody();
-      objectMover->writeForceToFile(timeloop.getCurrentTimeStep(), forceFile);
+      auto force = objectMover->getForceOnGeometry();
+      WALBERLA_ROOT_SECTION(){
+         std::ofstream myFile(forceFile, std::ios::app);
+         myFile << real_c(timeloop.getCurrentTimeStep())*dt << " " << force[0] << " " << force[1] << " " << force[2] << "\n";
+         myFile.close();
+      }
+      forceVector.push_back(force);
    };
 
    for (auto& block : *blocks)
@@ -281,11 +290,11 @@ int main(int argc, char** argv)
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    SweepCollection_T sweepCollection(blocks, forceFieldGPUId, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega);
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID, UBB_top_vel_x * velocity_conversion, UBB_bot_vel_x * velocity_conversion);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID, UBB_vel_x / velocityFactor);
    pystencils::PSM_Conditional_Sweep psmConditionalSweep( forceFieldGPUId, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega );
 #else
    SweepCollection_T sweepCollection(blocks, forceFieldId, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega);
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID, UBB_top_vel_x * velocity_conversion, UBB_bot_vel_x * velocity_conversion);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID, UBB_vel_x / velocityFactor);
    pystencils::PSM_Conditional_Sweep psmConditionalSweep( forceFieldId, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, omega );
 #endif
 
@@ -293,7 +302,7 @@ int main(int argc, char** argv)
    for (auto& block : *blocks)
    {
       auto velField = block.getData<VectorField_T>(velocityFieldId);
-      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(velField, velField->get(x,y,z,0) = initialVelocity[0];)
+      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(velField, velField->get(x,y,z,0) = latticeVel;)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       gpu::GPUField<real_t> * dst = block.getData<gpu::GPUField<real_t>>( velocityFieldGPUId );
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
@@ -388,12 +397,28 @@ int main(int argc, char** argv)
    timeloop.run(timeloopTiming, true);
    simTimer.end();
 
+
    double time = simTimer.max();
    WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
    performance.logResultOnRoot(timesteps, time);
 
    const auto reducedTimeloopTiming = timeloopTiming.getReduced();
    WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
+
+   real_t averageForceX = 0;
+   real_t maxForceY = 0;
+   for (auto f : forceVector) {
+      averageForceX += f[0];
+      if(f[1] > maxForceY) {
+         maxForceY = f[1];
+      }
+   }
+   averageForceX /= real_t(forceVector.size());
+   WALBERLA_LOG_INFO_ON_ROOT("Average Fx " << averageForceX << ", max Fy " << maxForceY)
+   real_t dragCoeff = averageForceX / (0.5 * D * inflowVelSI * inflowVelSI * densityWaterSI);
+   real_t liftCoeff = maxForceY / (0.5 * D * inflowVelSI * inflowVelSI * densityWaterSI);
+   WALBERLA_LOG_INFO_ON_ROOT("Average drag coeff " << dragCoeff << ", max lift coeff " << liftCoeff)
+
 
    return EXIT_SUCCESS;
 }

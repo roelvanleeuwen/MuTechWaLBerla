@@ -119,6 +119,7 @@ int main(int argc, char** argv)
    const real_t UBB_vel_x = parameters.getParameter<real_t>("UBB_vel_x");
 
    const uint_t D_lattice = parameters.getParameter< uint_t >("D_lattice", uint_c(10));
+   const real_t latticeVel = parameters.getParameter< real_t >("latticeVel", real_t(0.1));
 
    const real_t remainingTimeLoggerFrequency = parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(5.0));
    const uint_t VTKWriteFrequency = parameters.getParameter< uint_t >("VTKwriteFrequency", uint_c(10));
@@ -151,7 +152,7 @@ int main(int argc, char** argv)
    real_t dx = D / real_t(D_lattice);    //diameter in lattice units; resolution of diameter, e.g. 20, 40, ... , 320
 
    //auto domainAABB = AABB(-D, -(1 + 1./15.)*2.*D, -dx/2, 7.*D, 4.*D -(1 + 1./15.)*2.*D, dx/2);
-   auto domainAABB = AABB(-12.5 * D, -10.0 * D, -dx, 20.0 * D, 10.0 * D, dx);
+   auto domainAABB = AABB(-12.5 * D, -10.0 * D, 0, 20.0 * D, 10.0 * D, dx);
 
    WALBERLA_LOG_INFO("DomainAABB is " << domainAABB << " dx is " << dx )
 
@@ -166,7 +167,6 @@ int main(int argc, char** argv)
    const real_t ReynoldsNumber = 100;
    const real_t physDensityWater = 1000; // kg/m^3
    const real_t inflowVelSI = UBB_vel_x; // m/s
-   const real_t latticeVel = 0.1;
    const real_t dt = latticeVel * dx / inflowVelSI;
    const real_t latticeViscosity =  real_t(D_lattice) * latticeVel / ReynoldsNumber;
    const real_t omega = 1.0 / (3. * latticeViscosity + 0.5);
@@ -256,13 +256,19 @@ int main(int argc, char** argv)
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #endif
    };
-
+   std::vector<Vector3<real_t>> forceVector;
    std::string forceFile = "forceOutput.txt";
    std::filesystem::remove(forceFile);
    const std::function< void() > forceCalculator = [&]() {
-      objectMover->calculateForcesOnBody(physForceFactor);
-      objectMover->writeForceToFile(timeloop.getCurrentTimeStep(), forceFile);
+      auto force = objectMover->getForceOnGeometry();
+      WALBERLA_ROOT_SECTION(){
+         std::ofstream myFile(forceFile, std::ios::app);
+         myFile << real_c(timeloop.getCurrentTimeStep())*dt << " " << force[0] << " " << force[1] << " " << force[2] << "\n";
+         myFile.close();
+      }
+      forceVector.push_back(force);
    };
+
 
    for (auto& block : *blocks)
    {
@@ -390,12 +396,28 @@ int main(int argc, char** argv)
    timeloop.run(timeloopTiming, true);
    simTimer.end();
 
+
    double time = simTimer.max();
    WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
    performance.logResultOnRoot(timesteps, time);
 
    const auto reducedTimeloopTiming = timeloopTiming.getReduced();
    WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
+
+   real_t averageForceX = 0;
+   real_t maxForceY = 0;
+   for (auto f : forceVector) {
+      averageForceX += f[0];
+      if(f[1] > maxForceY) {
+         maxForceY = f[1];
+      }
+   }
+   averageForceX /= real_t(forceVector.size());
+   WALBERLA_LOG_INFO_ON_ROOT("Average Fx " << averageForceX << ", max Fy " << maxForceY)
+   real_t dragCoeff = averageForceX / (0.5 * D * inflowVelSI * inflowVelSI * physDensityWater);
+   real_t liftCoeff = maxForceY / (0.5 * D * inflowVelSI * inflowVelSI * physDensityWater);
+   WALBERLA_LOG_INFO_ON_ROOT("Average drag coeff " << dragCoeff << ", max lift coeff " << liftCoeff)
+
 
    return EXIT_SUCCESS;
 }

@@ -42,9 +42,9 @@ class FreeMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T
                             const BlockDataID fractionFieldId, const BlockDataID objectVelocityId,
                             const BlockDataID forceFieldId, shared_ptr< mesh::DistanceOctree< mesh::TriangleMesh > >& distOctree,
                             const std::string meshName, const uint_t superSamplingDepth, bool useTauInFractionField,
-                            real_t omega, real_t dt, AABB movementBoundingBox, Vector3<real_t> initialVelocity, Vector3<real_t> initialRotation, real_t objectDensity, bool moving = true)
+                            real_t omega, real_t dt, AABB movementBoundingBox, Vector3<real_t> initialVelocity, Vector3<real_t> initialRotation, real_t fluidDensity, real_t objectDensity, bool moving = true)
       : MGBase(blocks, mesh, fractionFieldId, objectVelocityId, forceFieldId, distOctree,
-                       meshName, superSamplingDepth, useTauInFractionField, 1.0 / omega, dt, movementBoundingBox, initialVelocity, initialRotation, moving)
+                       meshName, superSamplingDepth, useTauInFractionField, 1.0 / omega, dt, movementBoundingBox, initialVelocity, initialRotation, fluidDensity, moving)
    {
       explEulerIntegrator_ = make_shared<mesa_pd::kernel::ExplicitEuler>(dt);
       const Vector3< real_t > dxyz = Vector3< real_t >(MGBase::blocks_->dx(0), MGBase::blocks_->dy(0),
@@ -60,10 +60,7 @@ class FreeMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T
 
    void updateObjectPosition()
    {
-      WALBERLA_LOG_INFO(MGBase::particleStorage_->getPosition(0))
       MGBase::calculateForcesOnBody();
-      WALBERLA_LOG_INFO(MGBase::particleStorage_->getForce(0))
-
       (*explEulerIntegrator_)(0, *MGBase::particleAccessor_);
    }
 

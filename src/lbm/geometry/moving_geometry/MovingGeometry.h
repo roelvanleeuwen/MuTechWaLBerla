@@ -73,10 +73,10 @@ class MovingGeometry
                   const BlockDataID fractionFieldId, const BlockDataID objectVelocityId,  const BlockDataID forceFieldId,
                   shared_ptr<mesh::DistanceOctree<mesh::TriangleMesh>>& distOctree, const std::string meshName,
                   const uint_t superSamplingDepth, bool useTauInFractionField, real_t omega, real_t dt, AABB movementBoundingBox, 
-                  Vector3<real_t> initialVelocity, Vector3<real_t> initialRotation, bool moving = true)
+                  Vector3<real_t> initialVelocity, Vector3<real_t> initialRotation, real_t fluidDensity, bool moving = true)
       : blocks_(blocks), mesh_(mesh), fractionFieldId_(fractionFieldId), objectVelocityId_(objectVelocityId), forceFieldId_(forceFieldId),
         distOctree_(distOctree), meshName_(meshName), superSamplingDepth_(superSamplingDepth),
-        useTauInFractionField_(useTauInFractionField), tau_(1.0 / omega), dt_(dt), movementBoundingBox_(movementBoundingBox), moving_(moving) {
+        useTauInFractionField_(useTauInFractionField), tau_(1.0 / omega), dt_(dt), movementBoundingBox_(movementBoundingBox), fluidDensity_(fluidDensity), moving_(moving) {
 
       if(!moving_ && initialVelocity.length() > 0.0) {
          WALBERLA_LOG_WARNING_ON_ROOT("You created a non moving geometry, but your specified the initial velocity to " << initialVelocity)
@@ -204,8 +204,9 @@ class MovingGeometry
       if (timestep == 0) return;
       if (vtk_frequency > 0 && timestep % vtk_frequency == 0 && moving_)
       {
-         Vector3< real_t > translationVector = particleAccessor_->getLinearVelocity(0)* dt_ * real_t(vtk_frequency);
-         Vector3< real_t > rotationVector = particleAccessor_->getAngularVelocity(0) * dt_ * real_t(vtk_frequency);
+         auto meshCenter = computeCentroid(*mesh_);
+         Vector3< real_t > translationVector = particleAccessor_->getPosition(0) - Vector3<real_t>(meshCenter[0], meshCenter[1], meshCenter[2]);
+         Vector3< real_t > rotationVector = particleAccessor_->getAngularVelocity(0) * dt_ * real_t(vtk_frequency); //TODO do as above for vel
          auto rotationMatrix = math::Rot3<real_t> (rotationVector);
          mesh::translate(*mesh_, translationVector);
          const Vector3< mesh::TriangleMesh::Scalar > axis_foot(particleAccessor_->getPosition(0));
@@ -213,18 +214,18 @@ class MovingGeometry
       }
    }
 
-   void writeForceToFile(uint_t timestep, std::string fileName) {
-      WALBERLA_ROOT_SECTION(){
-         auto force = particleAccessor_->getForce(0);
-         std::ofstream myFile(fileName, std::ios::app);
-         myFile << real_c(timestep)*dt_ << " " << force[0] << " " << force[1] << " " << force[2] << "\n";
-         myFile.close();
-      }
+   Vector3<real_t> getForceOnGeometry() {
+      return particleAccessor_->getForce(0);
    }
+
+   Vector3<real_t> getTorqueOnGeometry() {
+      return particleAccessor_->getTorque(0);
+   }
+
    void getFractionFieldFromGeometryMesh();
    void resetFractionField();
    virtual void updateObjectVelocityField();
-   void calculateForcesOnBody(real_t physForceFactor);
+   void calculateForcesOnBody();
    real_t getVolumeFromFractionField();
 
  protected:
@@ -248,6 +249,7 @@ class MovingGeometry
    real_t tau_;
    real_t dt_;
    AABB movementBoundingBox_;
+   real_t fluidDensity_;
    bool moving_;
 
    Vector3<real_t> meshCenter_;
