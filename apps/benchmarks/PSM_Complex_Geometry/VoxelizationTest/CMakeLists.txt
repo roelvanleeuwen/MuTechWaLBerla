@@ -9,8 +9,6 @@ if(WALBERLA_BUILD_WITH_GPU_SUPPORT)
     walberla_add_executable ( NAME VoxelizationTest
             FILES VoxelizationTest.cpp
             DEPENDS blockforest gpu core domain_decomposition field geometry mesh mesh_common timeloop lbm stencil vtk )
-            set_source_files_properties(VoxelizationTest.cpp PROPERTIES LANGUAGE CUDA)
-
 else()
     walberla_add_executable ( NAME VoxelizationTest
             FILES VoxelizationTest.cpp

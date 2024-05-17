@@ -28,14 +28,10 @@ namespace walberla
 
 
 
-template< typename FractionField_T, typename VectorField_T, typename GeometryField_T = field::GhostLayerField< real_t, 1 > >
-class FreeMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T, GeometryField_T >
+template< typename FractionField_T, typename VectorField_T > >
+class FreeMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T >
 {
-   using MGBase = MovingGeometry< FractionField_T, VectorField_T, GeometryField_T >;
-   using GeometryFieldData_T = typename GeometryField_T::value_type;
-   #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      typedef gpu::GPUField< GeometryFieldData_T > GeometryFieldGPU_T;
-   #endif
+   using MGBase = MovingGeometry< FractionField_T, VectorField_T >;
 
  public:
    FreeMovingGeometry(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,
@@ -49,7 +45,7 @@ class FreeMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T
       explEulerIntegrator_ = make_shared<mesa_pd::kernel::ExplicitEuler>(dt);
       const Vector3< real_t > dxyz = Vector3< real_t >(MGBase::blocks_->dx(0), MGBase::blocks_->dy(0),
                                                        MGBase::blocks_->dz(0));
-      real_t objectMass = MGBase::getVolumeFromFractionField() * dxyz[0] * dxyz[1] * dxyz[2] * objectDensity;
+      real_t objectMass = mesh::computeVolume(*MGBase::mesh_) * objectDensity;
       WALBERLA_LOG_INFO_ON_ROOT("Mass of object " << MGBase::meshName_ << " is " << objectMass)
       MGBase::particleAccessor_->setInvMass(0, 1.0 / objectMass);
       //TODO inertia for arbitrary object

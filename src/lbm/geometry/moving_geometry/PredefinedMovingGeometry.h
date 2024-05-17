@@ -27,14 +27,10 @@ namespace walberla
 
 
 
-template< typename FractionField_T, typename VectorField_T, typename GeometryField_T = field::GhostLayerField< real_t, 1 > >
-class PredefinedMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T, GeometryField_T >
+template< typename FractionField_T, typename VectorField_T >
+class PredefinedMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T >
 {
-   using MGBase = MovingGeometry< FractionField_T, VectorField_T, GeometryField_T >;
-   using GeometryFieldData_T = typename GeometryField_T::value_type;
-   #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-      typedef gpu::GPUField< GeometryFieldData_T > GeometryFieldGPU_T;
-   #endif
+   using MGBase = MovingGeometry< FractionField_T, VectorField_T >;
 
  public:
    PredefinedMovingGeometry(shared_ptr< StructuredBlockForest >& blocks, shared_ptr< mesh::TriangleMesh >& mesh,

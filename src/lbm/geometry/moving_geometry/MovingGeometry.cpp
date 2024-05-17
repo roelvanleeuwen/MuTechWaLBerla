@@ -23,8 +23,8 @@
 namespace walberla
 {
 
-template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
-void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractionFieldFromGeometryMesh() {
+template < typename FractionField_T, typename VectorField_T >
+void MovingGeometry<FractionField_T, VectorField_T>::getFractionFieldFromGeometryMesh() {
    Matrix3<real_t> rotationMatrix = particleAccessor_->getRotation(0).getMatrix();
    auto translationVector = particleAccessor_->getPosition(0) - meshCenter_;
 
@@ -126,8 +126,8 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getFractio
 }
 
 
-template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
-void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::resetFractionField() {
+template < typename FractionField_T, typename VectorField_T >
+void MovingGeometry<FractionField_T, VectorField_T>::resetFractionField() {
    for (auto& block : *blocks_)
    {
       FractionField_T* fractionField = block.getData< FractionField_T >(fractionFieldId_);
@@ -135,8 +135,8 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::resetFract
    }
 }
 
-template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
-void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::updateObjectVelocityField() {
+template < typename FractionField_T, typename VectorField_T >
+void MovingGeometry<FractionField_T, VectorField_T>::updateObjectVelocityField() {
    auto objectPosition = particleAccessor_->getPosition(0);
    auto objectLinearVelocity = particleAccessor_->getLinearVelocity(0);
    auto objectAngularVelocity = particleAccessor_->getAngularVelocity(0);
@@ -184,8 +184,8 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::updateObje
 }
 
 
-template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
-void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::calculateForcesOnBody() {
+template < typename FractionField_T, typename VectorField_T >
+void MovingGeometry<FractionField_T, VectorField_T>::calculateForcesOnBody() {
    Vector3<real_t> summedForceOnObject;
    for (auto &block : *blocks_) {
       VectorField_T* forceField = block.getData< VectorField_T >(forceFieldId_);
@@ -206,8 +206,8 @@ void MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::calculateF
 }
 
 
-template < typename FractionField_T, typename VectorField_T, typename GeometryField_T >
-real_t MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getVolumeFromFractionField() {
+template < typename FractionField_T, typename VectorField_T >
+real_t MovingGeometry<FractionField_T, VectorField_T>::getVolumeFromFractionField() {
    real_t summedVolume = 0.0;
    for (auto &block : *blocks_) {
       FractionField_T* fractionField = block.getData< FractionField_T >(fractionFieldId_);
@@ -221,5 +221,5 @@ real_t MovingGeometry<FractionField_T, VectorField_T, GeometryField_T>::getVolum
    return summedVolume;
 }
 
-template class MovingGeometry<field::GhostLayerField< double, 1 >, field::GhostLayerField< double, 3 >, field::GhostLayerField< double, 1 >>;
+template class MovingGeometry<field::GhostLayerField< real_t, 1 >, field::GhostLayerField< real_t, 3 >>;
 } // namespace waLBerla

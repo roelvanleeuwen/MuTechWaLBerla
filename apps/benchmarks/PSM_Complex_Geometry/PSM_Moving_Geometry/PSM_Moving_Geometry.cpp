@@ -73,7 +73,6 @@ using blockforest::communication::UniformBufferedScheme;
 
 typedef field::GhostLayerField< real_t, 3 > VectorField_T;
 typedef field::GhostLayerField< real_t, 1 > FracField_T;
-typedef field::GhostLayerField< real_t, 1 > GeoField_T; // could also set to single precision or even bool to save memory
 
 
 
@@ -230,13 +229,13 @@ int main(int argc, char** argv)
 
    WALBERLA_LOG_INFO_ON_ROOT("Setting up objectMover")
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldGPUId,
+   auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldGPUId,
                                                                                               distanceOctreeMesh, "geometry",
-                                                                                              maxSuperSamplingDepth, true, omega, dt, domainAABB, objectVelocity, rotationVector);
+                                                                                              maxSuperSamplingDepth, true, omega, dt, domainAABB, objectVelocity, rotationVector, physDensityWater);
 #else
-   auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
+   auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
                                                                                               distanceOctreeMesh, "geometry",
-                                                                                              maxSuperSamplingDepth, true, omega, dt, domainAABB, objectVelocity, rotationVector);
+                                                                                              maxSuperSamplingDepth, true, omega, dt, domainAABB, objectVelocity, rotationVector, physDensityWater);
 #endif
    WALBERLA_LOG_INFO_ON_ROOT("Finished Setting up objectMover")
 

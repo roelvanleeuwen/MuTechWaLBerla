@@ -59,12 +59,13 @@ namespace walberla
 {
 
 
-template < typename FractionField_T, typename VectorField_T, typename GeometryField_T = field::GhostLayerField< real_t, 1 > >
+template < typename FractionField_T, typename VectorField_T>
 class MovingGeometry
 {
-   using GeometryFieldData_T = typename GeometryField_T::value_type;
+
+   typedef field::GhostLayerField< bool, 1 > GeometryField_T;
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   typedef gpu::GPUField< GeometryFieldData_T > GeometryFieldGPU_T;
+   typedef gpu::GPUField< bool > GeometryFieldGPU_T;
 #endif
 
  public:
@@ -121,9 +122,15 @@ class MovingGeometry
             geometryField_->nrOfGhostLayers(), geometryField_->layout(), true);
          gpu::fieldCpy(*geometryFieldGPU_, *geometryField_);
       }
-      WALBERLA_LOG_INFO_ON_ROOT("Finished coppying geometry field")
 #endif
       getFractionFieldFromGeometryMesh();
+      WALBERLA_ROOT_SECTION(){
+         real_t volumeFromFracField = getVolumeFromFractionField() * dxyz[0] * dxyz[1] * dxyz[2];
+         real_t meshVolume = mesh::computeVolume(*mesh_);
+         real_t discretisationError = pow(volumeFromFracField - meshVolume, 2) / pow(meshVolume, 2);
+         WALBERLA_LOG_INFO_ON_ROOT("Mesh volume is " << meshVolume << ", fraction Field volume is " << volumeFromFracField << ", discretisation Error is " << discretisationError)
+      }
+
       if(moving_) {
          updateObjectVelocityField();
       }
@@ -141,7 +148,6 @@ class MovingGeometry
    }
 
    virtual void updateObjectPosition() = 0;
-
 
    void buildGeometryField() {
       WALBERLA_LOG_PROGRESS("Getting max level for geometry field size")
@@ -170,11 +176,9 @@ class MovingGeometry
       Vector3<real_t> dxyzSS = maxRefinementDxyz_ / real_t(pow(2, real_t(superSamplingDepth_)));
       auto fieldSize = Vector3<uint_t> (uint_t(meshAABB_.xSize() / dxyzSS[0] ), uint_t(meshAABB_.ySize() / dxyzSS[1] ), uint_t(meshAABB_.zSize() / dxyzSS[2] ));
       WALBERLA_LOG_PROGRESS("Building geometry field with size " << fieldSize)
-      geometryField_= make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(real_t(interpolationStencilSize) * 0.5 ), GeometryFieldData_T(0), field::fzyx);
+      geometryField_= make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(real_t(interpolationStencilSize) * 0.5 ), bool(0), field::fzyx);
 
       const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
-      real_t sqDx = dxyzSS[0] * dxyzSS[0];
-      real_t sqDxHalf = (0.5 * dxyzSS[0]) * (0.5 * dxyzSS[0]);
 
       CellInterval blockCi = geometryField_->xyzSizeWithGhostLayer();
 
@@ -192,7 +196,7 @@ class MovingGeometry
                Vector3< real_t > cellCenter = meshAABB_.min() + Vector3< real_t >(cell.x() * dxyzSS[0], cell.y() * dxyzSS[1], cell.z() * dxyzSS[2]) + dxyzSS * 0.5;
                const real_t sqSignedDistance = (*distFunct)(cellCenter);
 
-               GeometryFieldData_T fraction = GeometryFieldData_T(std::max(0.0, std::min(1.0, (sqDx - (sqSignedDistance + sqDxHalf)) / sqDx)));
+               bool fraction = sqSignedDistance < 0.0 ? true : false;
                geometryField_->get(cell) = fraction;
             }
          }

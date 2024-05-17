@@ -55,7 +55,6 @@ namespace walberla
 
 typedef field::GhostLayerField< real_t, 3 > VectorField_T;
 typedef field::GhostLayerField< real_t, 1 > FracField_T;
-typedef field::GhostLayerField< real_t, 1 > GeoField_T; // could also set to single precision or even bool to save memory
 
 /////////////////////
 /// Main Function ///
@@ -112,18 +111,7 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT("dx is " << dx)
    WALBERLA_LOG_INFO_ON_ROOT("aabb size is <" << aabb.xSize() << "," << aabb.ySize() << "," << aabb.zSize() << ">")
 
-   real_t analyticVolume;
-   if(meshFile == "../Meshfiles/Sphere.obj") {
-      real_t radius = (aabb.xSize() +  aabb.ySize() +  aabb.zSize()) / (3 * 2);
-      analyticVolume = (4./3.) * math::pi * radius * radius * radius;
-   }
-   else if(meshFile == "../Meshfiles/Cube.obj") {
-      analyticVolume = aabb.xSize() *  aabb.ySize() *  aabb.zSize();
-   }
-   else if(meshFile == "../Meshfiles/Cylinder.obj") {
-      real_t radius = aabb.xSize() / 2;
-      analyticVolume = math::pi * radius * radius * aabb.ySize();
-   }
+   real_t analyticVolume = mesh::computeVolume(*mesh);
 
    auto domainScaling = Vector3<real_t>(1.5);
    aabb.scale(domainScaling);
@@ -159,12 +147,12 @@ int main(int argc, char** argv)
    /////////////////////////
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
-   auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldGPUId,
-                                                                                              distanceOctreeMesh, "geometry", maxSuperSamplingDepth, false, 0.0, dt, domainAABB, objectVelocity, rotationVector);
+   auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldGPUId,
+                                                                                                     distanceOctreeMesh, "geometry", maxSuperSamplingDepth, false, 0.0, dt, domainAABB, objectVelocity, rotationVector, 0);
 #else
-   auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T, GeoField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
-                                                                                              distanceOctreeMesh, "geometry", maxSuperSamplingDepth, false, 0.0, dt, domainAABB,
-                                                                                                        objectVelocity, rotationVector);
+   auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
+                                                                                                     distanceOctreeMesh, "geometry", maxSuperSamplingDepth, false, 0.0, dt, domainAABB,
+                                                                                                     objectVelocity, rotationVector, 0);
 #endif
 
    mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "meshBase", VTKWriteFrequency);
@@ -184,7 +172,7 @@ int main(int argc, char** argv)
       fractionFieldVolume *= pow(dx,3.);
       real_t l2error = pow(fractionFieldVolume - analyticVolume,2.) / pow(analyticVolume,2.);
       errorVector.push_back(l2error);
-      WALBERLA_LOG_INFO_ON_ROOT("Analytical Volume is " << analyticVolume << ", fraction Field volume is " << fractionFieldVolume << ", L2 error is " << l2error)
+      WALBERLA_LOG_INFO_ON_ROOT("Mesh Volume is " << analyticVolume <<  ", fraction Field volume is " << fractionFieldVolume << ", L2 error is " << l2error)
    };
 
    /////////////////
