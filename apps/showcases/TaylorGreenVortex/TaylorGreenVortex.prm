@@ -1,0 +1,47 @@
+Parameters
+{
+	omega              1.4;
+	timesteps          100;
+	maxLatticeVelocity 0.01;
+}
+
+DomainSetup
+{
+    blocks        <  4,  4,  4 >;
+    cellsPerBlock < 8, 8, 8 >;
+    periodic      <  1,  1,  1 >;
+    numberProcesses 1; // This is for load balancing, overwritten if more than one proc is used
+}
+
+Boundaries 
+{
+    Border { direction S;    walldistance -1;  flag NoSlip; }
+    Border { direction N;    walldistance -1;  flag UBB; }
+}
+
+VTKWriter
+{
+    vtkWriteFrequency 1;
+    velocity true;
+    density true;
+    averageFields false;
+    flag false;
+    writeOnlySlice false;
+    amrFileFormat false;
+    oneFilePerProcess false;
+}
+
+Logging
+{
+    logLevel info;  // info progress detail tracing
+    writeSetupForestAndReturn false;
+    remainingTimeLoggerFrequency 3; // in seconds
+}
+
+Evaluation
+{
+    evaluationCheckFrequency 100;
+    logToStream true;
+    logToFile true;
+    filename Channel.txt;
+}

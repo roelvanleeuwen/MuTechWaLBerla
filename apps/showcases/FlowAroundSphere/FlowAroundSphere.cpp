@@ -425,6 +425,9 @@ int main(int argc, char** argv)
                                                                        memoryPerCell, processMemoryLimit,
                                                                        true );
       sforest->saveToFile( sbffile.c_str() );
+      const uint_t nBlocks = sforest->getNumberOfBlocks();
+      const uint_t nCells = nBlocks * (cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2]);
+      const memory_t totalMemory = memory_t(nCells) * memoryPerCell;
 
       WALBERLA_LOG_INFO_ON_ROOT( "Benchmark run data:"
                                 "\n- simulation parameters:"
@@ -435,6 +438,11 @@ int main(int argc, char** argv)
                                 "\n   + mesh levels:         " << refinementLevels + uint_c(1) <<
                                 "\n   + resolution:          " << coarseMeshSize << " - on the coarsest grid)" <<
                                 "\n   + resolution:          " << fineMeshSize << " - on the finest grid)" <<
+                                "\n- domain properties:      "
+                                "\n   + # blocks:            " << nBlocks <<
+                                "\n   + # cells:             " << uint_c(real_c(nCells) / real_c(1e6)) << " [1e6]"
+                                "\n   + # cells sphere D:    " << diameterSphere / fineMeshSize <<
+                                "\n   + total memory:        " << totalMemory / 1e9 << " [GB]" <<
                                 "\n- simulation properties:  "
                                 "\n   + sphere pos.(x):      " << setup.sphereXPosition * setup.dx << " [m]" <<
                                 "\n   + sphere pos.(y):      " << setup.sphereYPosition * setup.dx << " [m]" <<
@@ -578,7 +586,7 @@ int main(int argc, char** argv)
    WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
    WALBERLA_GPU_CHECK(gpuPeekAtLastError())
 #else
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID, latticeVelocity);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldID, pdfFieldID, fluidFlagUID, omegaFinestLevel, latticeVelocity, wallDistanceFunctor);
 #endif
    WALBERLA_MPI_BARRIER()
    WALBERLA_LOG_INFO_ON_ROOT("BOUNDARY HANDLING done")
