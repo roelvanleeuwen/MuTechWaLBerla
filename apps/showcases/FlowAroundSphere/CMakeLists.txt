@@ -20,7 +20,7 @@ waLBerla_generate_target_from_python(NAME FlowAroundSphereCodeGen
 
 if (WALBERLA_BUILD_WITH_CUDA OR WALBERLA_BUILD_WITH_HIP)
     waLBerla_add_executable ( NAME FlowAroundSphere
-            FILES FlowAroundSphere.cpp Sphere.cpp Evaluation.cpp
+            FILES FlowAroundSphere.cpp Sphere.cpp Evaluation.cpp Sweep.cu
             DEPENDS blockforest boundary core field gpu lbm_generated stencil timeloop vtk FlowAroundSphereCodeGen )
 else()
     waLBerla_add_executable ( NAME FlowAroundSphere

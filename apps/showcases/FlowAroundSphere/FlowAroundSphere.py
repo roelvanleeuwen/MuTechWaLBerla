@@ -46,7 +46,7 @@ with CodeGeneration() as ctx:
         compressible=True,
         galilean_correction=False,
         # subgrid_scale_model=SubgridScaleModel.QR,
-        fourth_order_correction=True,
+        fourth_order_correction=0.01,
         field_name='pdfs',
         streaming_pattern=streaming_pattern,
     )

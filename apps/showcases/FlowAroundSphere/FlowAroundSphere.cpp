@@ -93,6 +93,7 @@
 #include "Evaluation.h"
 #include "FlowAroundSphereInfoHeader.h"
 #include "FlowAroundSphereStaticDefines.h"
+#include "Sweep.h"
 
 using namespace walberla;
 
@@ -104,7 +105,7 @@ using PdfField_T           = lbm_generated::PdfField< StorageSpecification_T >;
 using FlagField_T          = FlagField< uint8_t >;
 using BoundaryCollection_T = lbm::FlowAroundSphereBoundaryCollection< FlagField_T >;
 
-using SweepCollection_T = lbm::FlowAroundSphereSweepCollection;
+using SweepCollection_T = lbm::TestSweepCollection;
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
 using GPUPdfField_T = lbm_generated::GPUPdfField< StorageSpecification_T >;
