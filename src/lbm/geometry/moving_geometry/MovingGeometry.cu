@@ -19,6 +19,7 @@
 //======================================================================================================================
 
 #include "MovingGeometry.h"
+#include "lbm_mesapd_coupling/partially_saturated_cells_method/cuda/PSMUtilityGPU.cuh"
 
 #ifdef __GNUC__
 #define RESTRICT __restrict__
@@ -66,7 +67,6 @@ __device__ double atomicAddCAS(double* address, double val)
 
    return __longlong_as_double(old);
 }
-
 
 
 __global__ void resetFractionFieldGPUKernel( real_t * RESTRICT const fractionFieldData, int3 fieldSize, int3 stride) {
@@ -239,7 +239,8 @@ __global__ void updateObjectVelocityFieldKernel(real_t * RESTRICT const _data_ob
    {
       const int idx = (x) + (y) *field_stride.y + (z) *field_stride.z;
 
-      real_t3 cellCenter = { blockAABBMin.x + real_t(x) * dxyz.x + 0.5 * dxyz.x, blockAABBMin.y + real_t(y) * dxyz.y + 0.5 * dxyz.y,
+      real_t3 cellCenter = { blockAABBMin.x + real_t(x) * dxyz.x + 0.5 * dxyz.x,
+                             blockAABBMin.y + real_t(y) * dxyz.y + 0.5 * dxyz.y,
                              blockAABBMin.z + real_t(z) * dxyz.z + 0.5 * dxyz.z };
 
 
@@ -309,7 +310,7 @@ void MovingGeometry<FractionField_T, VectorField_T>::updateObjectVelocityField()
    }
 }
 
-__global__ void calculateForcesOnBodyKernel(real_t * RESTRICT const _data_forceFieldGPU, real_t * RESTRICT const _data_fractionFieldGPU, int3 field_size, int3 stride, int fStride, real_t* RESTRICT const hydrodynamicForce, real_t* __restrict__ const hydrodynamicTorque) {
+__global__ void calculateForcesOnBodyKernel(real_t * RESTRICT const _data_forceFieldGPU, real_t * RESTRICT const _data_fractionFieldGPU, int3 field_size, int3 stride, int fStride, real_t* RESTRICT const hydrodynamicForce, real_t* __restrict__ const hydrodynamicTorque, real_t3 objectPos, real_t3 blockAABBMin, real_t3 dxyz) {
    const int64_t x = blockDim.x*blockIdx.x + threadIdx.x ;
    const int64_t y = blockDim.y*blockIdx.y + threadIdx.y ;
    const int64_t z = blockDim.z*blockIdx.z + threadIdx.z ;
@@ -318,9 +319,12 @@ __global__ void calculateForcesOnBodyKernel(real_t * RESTRICT const _data_forceF
       const int idx = (x) + (y) * stride.y + (z) * stride.z;
 
       if(_data_fractionFieldGPU[idx] > 0) {
-         gpuAtomicAdd( &(hydrodynamicForce[0]), _data_forceFieldGPU[idx + 0 * fStride ]);
-         gpuAtomicAdd( &(hydrodynamicForce[1]), _data_forceFieldGPU[idx + 1 * fStride ]);
-         gpuAtomicAdd( &(hydrodynamicForce[2]), _data_forceFieldGPU[idx + 2 * fStride ]);
+         real_t force[] = { _data_forceFieldGPU[idx + 0 * fStride ], _data_forceFieldGPU[idx + 1 * fStride ], _data_forceFieldGPU[idx + 2 * fStride ] };
+         real_t cellCenter[] = { blockAABBMin.x + real_t(x) * dxyz.x + 0.5 * dxyz.x,
+                                blockAABBMin.y + real_t(y) * dxyz.y + 0.5 * dxyz.y,
+                                blockAABBMin.z + real_t(z) * dxyz.z + 0.5 * dxyz.z };
+         real_t pos[] = {objectPos.x, objectPos.y, objectPos.z};
+         lbm_mesapd_coupling::psm::gpu::addHydrodynamicForceAtWFPosAtomic(hydrodynamicForce, hydrodynamicTorque, force, pos, cellCenter);
       }
    }
 }
@@ -329,6 +333,8 @@ template < typename FractionField_T, typename VectorField_T >
 void MovingGeometry<FractionField_T, VectorField_T>::calculateForcesOnBody() {
 
    Vector3<real_t> summedForceOnObject;
+   Vector3<real_t> summedTorqueOnObject;
+
 
    real_t * forceOnDevice;
    gpuMalloc((void **) &forceOnDevice, 3 * sizeof(real_t));
@@ -338,6 +344,10 @@ void MovingGeometry<FractionField_T, VectorField_T>::calculateForcesOnBody() {
    gpuMalloc((void **) &torqueOnDevice, 3 * sizeof(real_t));
    cudaMemset(torqueOnDevice, 0, 3 * sizeof(real_t));
 
+   auto objectPosition = particleAccessor_->getPosition(0);
+   real_t3 objectPos = {objectPosition[0], objectPosition[1], objectPosition[2]};
+
+
    for (auto &block : *blocks_) {
       auto forceFieldGPU = block.getData< gpu::GPUField<real_t> >(forceFieldId_);
       real_t * RESTRICT const _data_forceFieldGPU = forceFieldGPU->dataAt(0, 0, 0, 0);
@@ -345,27 +355,41 @@ void MovingGeometry<FractionField_T, VectorField_T>::calculateForcesOnBody() {
       auto fractionFieldGPU = block.getData< gpu::GPUField<real_t> >(fractionFieldId_);
       real_t * RESTRICT const _data_fractionFieldGPU = fractionFieldGPU->dataAt(0, 0, 0, 0);
 
-      int3 size = {int(forceFieldGPU->xSizeWithGhostLayer()), int(forceFieldGPU->ySizeWithGhostLayer()), int(forceFieldGPU->zSizeWithGhostLayer()) };
+      auto blockAABB = block.getAABB();
+      real_t3 blockAABBMin = {blockAABB.minCorner()[0], blockAABB.minCorner()[1], blockAABB.minCorner()[2]};
+
+      auto level = blocks_->getLevel(block);
+      real_t3 dxyz = {real_t(blocks_->dx(level)), real_t(blocks_->dy(level)), real_t(blocks_->dz(level))};
+
+      int3 size = {int(forceFieldGPU->xSize()), int(forceFieldGPU->ySize()), int(forceFieldGPU->zSize()) };
       int3 stride_frac_field = {int(forceFieldGPU->xStride()), int(forceFieldGPU->yStride()), int(forceFieldGPU->zStride())};
       int fStride = forceFieldGPU->fStride();
 
-      uint_t ghostLayers = fractionFieldGPU->nrOfGhostLayers();
+      uint_t ghostLayers = 0;
       dim3 _block(uint64_c(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)), uint64_c(((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))), uint64_c(((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))));
       dim3 _grid(uint64_c(( (size.x - 2 * ghostLayers) % (((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)) == 0 ? (int64_t)(size.x - 2 * ghostLayers) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)) : ( (int64_t)(size.x - 2 * ghostLayers) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)) ) +1 )), uint64_c(( (size.y - 2 * ghostLayers) % (((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))) == 0 ? (int64_t)(size.y - 2 * ghostLayers) / (int64_t)(((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))) : ( (int64_t)(size.y - 2 * ghostLayers) / (int64_t)(((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))) ) +1 )), uint64_c(( (size.z - 2 * ghostLayers) % (((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))) == 0 ? (int64_t)(size.z - 2 * ghostLayers) / (int64_t)(((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))) : ( (int64_t)(size.z - 2 * ghostLayers) / (int64_t)(((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))) ) +1 )));
 
-      calculateForcesOnBodyKernel<<<_grid, _block>>> (_data_forceFieldGPU, _data_fractionFieldGPU, size, stride_frac_field, fStride, forceOnDevice, torqueOnDevice);
+      calculateForcesOnBodyKernel<<<_grid, _block>>> (_data_forceFieldGPU, _data_fractionFieldGPU, size, stride_frac_field, fStride, forceOnDevice, torqueOnDevice, objectPos, blockAABBMin, dxyz);
    }
 
    gpuDeviceSynchronize();
    real_t forceOnHost[3];
+   real_t torqueOnHost[3];
    gpuMemcpy(forceOnHost, forceOnDevice, 3 * sizeof(real_t), gpuMemcpyDeviceToHost);
+   gpuMemcpy(torqueOnHost, torqueOnDevice, 3 * sizeof(real_t), gpuMemcpyDeviceToHost);
+
    summedForceOnObject = Vector3<real_t> (forceOnHost[0], forceOnHost[1], forceOnHost[2]);
+   summedTorqueOnObject = Vector3<real_t> (torqueOnHost[0], torqueOnHost[1], torqueOnHost[2]);
+
    WALBERLA_MPI_SECTION() {
-      walberla::mpi::reduceInplace(summedForceOnObject, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(summedForceOnObject, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(summedTorqueOnObject, walberla::mpi::SUM);
    }
    real_t forceFactor = fluidDensity_ * pow(blocks_->dx(0),4) / (dt_ * dt_); //(kg / m³ -> kg m / s²)
    Vector3<real_t> forceSI = summedForceOnObject * forceFactor;
-   particleAccessor_->setForce(0, forceSI);
+   particleAccessor_->setHydrodynamicForce(0, forceSI);
+   Vector3<real_t> torqueSI = summedTorqueOnObject * forceFactor;
+   particleAccessor_->setTorque(0, torqueSI);
 }
 
 
@@ -397,10 +421,10 @@ real_t MovingGeometry<FractionField_T, VectorField_T>::getVolumeFromFractionFiel
       auto fractionFieldGPU = block.getData< gpu::GPUField<real_t> >(fractionFieldId_);
       real_t * RESTRICT const _data_fractionFieldGPU = fractionFieldGPU->dataAt(0, 0, 0, 0);
 
-      int3 size = {int(fractionFieldGPU->xSizeWithGhostLayer()), int(fractionFieldGPU->ySizeWithGhostLayer()), int(fractionFieldGPU->zSizeWithGhostLayer()) };
+      int3 size = {int(fractionFieldGPU->xSize()), int(fractionFieldGPU->ySize()), int(fractionFieldGPU->zSize()) };
       int3 stride_frac_field = {int(fractionFieldGPU->xStride()), int(fractionFieldGPU->yStride()), int(fractionFieldGPU->zStride())};
 
-      uint_t ghostLayers = fractionFieldGPU->nrOfGhostLayers();
+      uint_t ghostLayers = 0;
       dim3 _block(uint64_c(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)), uint64_c(((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))), uint64_c(((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))));
       dim3 _grid(uint64_c(( (size.x - 2 * ghostLayers) % (((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)) == 0 ? (int64_t)(size.x - 2 * ghostLayers) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)) : ( (int64_t)(size.x - 2 * ghostLayers) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)) ) +1 )), uint64_c(( (size.y - 2 * ghostLayers) % (((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))) == 0 ? (int64_t)(size.y - 2 * ghostLayers) / (int64_t)(((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))) : ( (int64_t)(size.y - 2 * ghostLayers) / (int64_t)(((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))) ) +1 )), uint64_c(( (size.z - 2 * ghostLayers) % (((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))) == 0 ? (int64_t)(size.z - 2 * ghostLayers) / (int64_t)(((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))) : ( (int64_t)(size.z - 2 * ghostLayers) / (int64_t)(((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))) ) +1 )));
 
@@ -412,10 +436,73 @@ real_t MovingGeometry<FractionField_T, VectorField_T>::getVolumeFromFractionFiel
    gpuMemcpy(summedFraction_h, summedFraction_d, 1 * sizeof(real_t), gpuMemcpyDeviceToHost);
    real_t summedFraction = summedFraction_h[0];
    WALBERLA_MPI_SECTION() {
-      walberla::mpi::reduceInplace(summedFraction, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(summedFraction, walberla::mpi::SUM);
    }
    return summedFraction;
 }
+
+/*
+__global__ void getInertiaFromFractionFieldKernel(real_t * RESTRICT const _data_fractionFieldGPU, int3 field_size, int3 stride, real_t* RESTRICT const inertia, real_t3 objectPos, real_t3 blockAABBMin, real_t3 dxyz, real_t objectDensity) {
+   const int64_t x = blockDim.x*blockIdx.x + threadIdx.x ;
+   const int64_t y = blockDim.y*blockIdx.y + threadIdx.y ;
+   const int64_t z = blockDim.z*blockIdx.z + threadIdx.z ;
+   if (x < field_size.x  && y < field_size.y  && z < field_size.z )
+   {
+      const int idx = (x) + (y) * stride.y + (z) * stride.z;
+
+      if(_data_fractionFieldGPU[idx] > 0) {
+         real_t cellCenter[] = { blockAABBMin.x + real_t(x) * dxyz.x + 0.5 * dxyz.x,
+                                 blockAABBMin.y + real_t(y) * dxyz.y + 0.5 * dxyz.y,
+                                 blockAABBMin.z + real_t(z) * dxyz.z + 0.5 * dxyz.z };
+         real_t sqXDist = pow(cellCenter[0] - objectPos.x, 2);
+         real_t sqYDist = pow(cellCenter[1] - objectPos.y, 2);
+         real_t sqZDist = pow(cellCenter[2] - objectPos.z, 2);
+         gpuAtomicAdd(&(inertia[0]), _data_fractionFieldGPU[idx] * objectDensity * dxyz.x * dxyz.y * dxyz.z * (sqYDist + sqZDist));
+         gpuAtomicAdd(&(inertia[1]), _data_fractionFieldGPU[idx] * objectDensity * dxyz.x * dxyz.y * dxyz.z * (sqXDist + sqZDist));
+         gpuAtomicAdd(&(inertia[2]), _data_fractionFieldGPU[idx] * objectDensity * dxyz.x * dxyz.y * dxyz.z * (sqXDist + sqYDist));
+      }
+   }
+}
+
+
+template < typename FractionField_T, typename VectorField_T >
+Vector3<real_t> MovingGeometry<FractionField_T, VectorField_T>::getInertiaFromFractionField(real_t objectDensity) {
+
+   real_t * inertia_d;
+   gpuMalloc((void **) &inertia_d, 3 * sizeof(real_t));
+   cudaMemset(inertia_d, 0, 3 * sizeof(real_t));
+
+   real_t3 objectPos = {particleAccessor_->getPosition(0)[0], particleAccessor_->getPosition(0)[1], particleAccessor_->getPosition(0)[2]};
+   for (auto &block : *blocks_) {
+
+      auto blockAABB = block.getAABB();
+      real_t3 blockAABBMin = {blockAABB.minCorner()[0], blockAABB.minCorner()[1], blockAABB.minCorner()[2]};
+
+      auto level = blocks_->getLevel(block);
+      real_t3 dxyz = {blocks_->dx(level), blocks_->dy(level), blocks_->dz(level)};
+
+      auto fractionFieldGPU = block.getData< gpu::GPUField<real_t> >(fractionFieldId_);
+      real_t * RESTRICT const _data_fractionFieldGPU = fractionFieldGPU->dataAt(0, 0, 0, 0);
+
+      int3 size = {int(fractionFieldGPU->xSizeWithGhostLayer()), int(fractionFieldGPU->ySizeWithGhostLayer()), int(fractionFieldGPU->zSizeWithGhostLayer()) };
+      int3 stride_frac_field = {int(fractionFieldGPU->xStride()), int(fractionFieldGPU->yStride()), int(fractionFieldGPU->zStride())};
+
+      uint_t ghostLayers = fractionFieldGPU->nrOfGhostLayers();
+      dim3 _block(uint64_c(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)), uint64_c(((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))), uint64_c(((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))));
+      dim3 _grid(uint64_c(( (size.x - 2 * ghostLayers) % (((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)) == 0 ? (int64_t)(size.x - 2 * ghostLayers) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)) : ( (int64_t)(size.x - 2 * ghostLayers) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)) ) +1 )), uint64_c(( (size.y - 2 * ghostLayers) % (((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))) == 0 ? (int64_t)(size.y - 2 * ghostLayers) / (int64_t)(((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))) : ( (int64_t)(size.y - 2 * ghostLayers) / (int64_t)(((1024 < ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))) ? 1024 : ((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))) ) +1 )), uint64_c(( (size.z - 2 * ghostLayers) % (((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))) == 0 ? (int64_t)(size.z - 2 * ghostLayers) / (int64_t)(((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))) : ( (int64_t)(size.z - 2 * ghostLayers) / (int64_t)(((64 < ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))))))) ? 64 : ((size.z - 2 * ghostLayers < ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))) ? size.z - 2 * ghostLayers : ((int64_t)(256) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)*((size.y - 2 * ghostLayers < 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers)))) ? size.y - 2 * ghostLayers : 16*((int64_t)(16) / (int64_t)(((16 < size.x - 2 * ghostLayers) ? 16 : size.x - 2 * ghostLayers))))))))) ) +1 )));
+
+      getInertiaFromFractionFieldKernel<<<_grid, _block>>>(_data_fractionFieldGPU, size, stride_frac_field, inertia_d, objectPos, blockAABBMin, dxyz, objectDensity);
+   }
+   gpuDeviceSynchronize();
+   real_t inertia_h[3];
+   gpuMemcpy(inertia_h, inertia_d, 3 * sizeof(real_t), gpuMemcpyDeviceToHost);
+   Vector3<real_t> inertia(inertia_h[0], inertia_h[1], inertia_h[2]);
+   WALBERLA_MPI_SECTION() {
+      walberla::mpi::allReduceInplace(inertia, walberla::mpi::SUM);
+   }
+   return inertia;
+}
+*/
 
 
 

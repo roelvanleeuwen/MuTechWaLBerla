@@ -140,28 +140,22 @@ int main(int argc, char** argv)
 
    auto mesh = make_shared< mesh::TriangleMesh >();
    mesh::readAndBroadcast(meshFile, *mesh);
-   //mesh::scale(*mesh, Vector3<real_t> (0.025));
-   auto meshCenterPoint = mesh::computeCentroid(*mesh);
-   Vector3<real_t> meshCenter = Vector3<real_t> (meshCenterPoint[0], meshCenterPoint[1], meshCenterPoint[2]);
-   mesh::rotate(*mesh, Vector3<mesh::TriangleMesh::Scalar> (1,0,0), math::half_pi, Vector3<mesh::TriangleMesh::Scalar>(meshCenter[0], meshCenter[1], meshCenter[2]));
+   WALBERLA_LOG_INFO_ON_ROOT("Mesh AABB is " << mesh::computeAABB(*mesh))
 
    auto distanceOctreeMesh = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(make_shared< mesh::TriangleDistance< mesh::TriangleMesh > >(mesh));
    auto aabb = computeAABB(*mesh);
    real_t D = aabb.zSize();
    real_t dx = D / real_t(D_lattice);    //diameter in lattice units; resolution of diameter, e.g. 20, 40, ... , 320
 
-   //auto domainAABB = AABB(-D, -(1 + 1./15.)*2.*D, -dx/2, 7.*D, 4.*D -(1 + 1./15.)*2.*D, dx/2);
-   auto domainAABB = AABB(-12.5 * D, -10.0 * D, 0, 20.0 * D, 10.0 * D, dx);
+   auto domainAABB = AABB(-2*D, -2*D, -2*D, 2*D, 2*D, 2*D);
 
-   WALBERLA_LOG_INFO("DomainAABB is " << domainAABB << " dx is " << dx )
+   WALBERLA_LOG_INFO_ON_ROOT("DomainAABB is " << domainAABB << " dx is " << dx )
 
-   auto numBlocks = Vector3<uint_t> (1,1,1);
+   auto numBlocks = Vector3<uint_t> (2,1,1);
    auto cellsPerBlock = Vector3<uint_t>(uint_c(domainAABB.xSize() / dx / real_c(numBlocks[0])), uint_c(domainAABB.ySize() / dx / real_c(numBlocks[1])), uint_c(domainAABB.zSize() / dx / real_c(numBlocks[2])));
-   const uint_t numCells = numBlocks[0] * numBlocks[1] * numBlocks[2] * cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2];
 
    auto blocks = walberla::blockforest::createUniformBlockGrid(domainAABB, numBlocks[0], numBlocks[1], numBlocks[2], cellsPerBlock[0], cellsPerBlock[1], cellsPerBlock[2], true, periodicity[0], periodicity[1], periodicity[2], false);
    domainAABB = blocks->getDomain();
-   WALBERLA_LOG_INFO_ON_ROOT("<" << blocks->getNumberOfXCells() << "," << blocks->getNumberOfYCells() << "," << blocks->getNumberOfZCells() << ">" )
 
    const real_t ReynoldsNumber = 100;
    const real_t densityWaterSI = 1000; // kg/m^3
@@ -177,7 +171,7 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT("Simulation Parameter: \n"
                              << "Domain Decomposition " << numBlocks << " \n" //<< "<" << setupForest->getXSize() << "," << setupForest->getYSize() << "," << setupForest->getZSize() << "> = " << setupForest->getXSize() * setupForest->getYSize() * setupForest->getZSize()  << " root Blocks \n"
                              << "Cells per Block " << cellsPerBlock << " \n"
-                             << "Number of cells "  << numCells << " \n"
+                             << "Number of cells <" << blocks->getNumberOfXCells() << "," << blocks->getNumberOfYCells() << "," << blocks->getNumberOfZCells() << ">" << " \n"
                              << "Timesteps " << timesteps << "\n"
                              << "Omega " << omega << "\n"
                              << "rotationVector " << rotationVector << "\n"
@@ -232,11 +226,11 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    auto objectMover = make_shared<FreeMovingGeometry<FracField_T, VectorField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldGPUId,
                                                                                                         distanceOctreeMesh, "geometry",
-                                                                                                        maxSuperSamplingDepth, true, omega, dt, domainAABB, objectVelocity, rotationVector, densityWaterSI, densityObjectSI);
+                                                                                                        maxSuperSamplingDepth, false, omega, dt, domainAABB, objectVelocity, rotationVector, densityWaterSI, densityObjectSI, Vector3<real_t>(0));
 #else
    auto objectMover = make_shared<FreeMovingGeometry<FracField_T, VectorField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
                                                                                                         distanceOctreeMesh, "geometry",
-                                                                                                        maxSuperSamplingDepth, true, omega, dt, domainAABB, objectVelocity, rotationVector, densityWaterSI, densityObjectSI);
+                                                                                                        maxSuperSamplingDepth, false, omega, dt, domainAABB, objectVelocity, rotationVector, densityWaterSI, densityObjectSI, Vector3<real_t>(0));
 #endif
    WALBERLA_LOG_INFO_ON_ROOT("Finished Setting up objectMover")
 
@@ -255,19 +249,6 @@ int main(int argc, char** argv)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
 #endif
-   };
-   std::vector<Vector3<real_t>> forceVector;
-   std::string forceFile = "forceOutput.txt";
-   std::filesystem::remove(forceFile);
-   const std::function< void() > forceCalculator = [&]() {
-      objectMover->calculateForcesOnBody();
-      auto force = objectMover->getForceOnGeometry();
-      WALBERLA_ROOT_SECTION(){
-         std::ofstream myFile(forceFile, std::ios::app);
-         myFile << real_c(timeloop.getCurrentTimeStep())*dt << " " << force[0] << " " << force[1] << " " << force[2] << "\n";
-         myFile.close();
-      }
-      forceVector.push_back(force);
    };
 
    for (auto& block : *blocks)
@@ -289,11 +270,11 @@ int main(int argc, char** argv)
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    SweepCollection_T sweepCollection(blocks, forceFieldGPUId, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, densityFieldGPUId, velocityFieldGPUId, omega);
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID, UBB_vel_x / velocityFactor);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldGPUId, fluidFlagUID, UBB_vel_x / velocityFactor, -UBB_vel_x / velocityFactor);
    pystencils::PSM_Conditional_Sweep psmConditionalSweep( forceFieldGPUId, fractionFieldGPUId, objectVelocitiesFieldGPUId, pdfFieldGPUId, omega );
 #else
    SweepCollection_T sweepCollection(blocks, forceFieldId, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, densityFieldId, velocityFieldId, omega);
-   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID, UBB_vel_x / velocityFactor);
+   BoundaryCollection_T boundaryCollection(blocks, flagFieldId, pdfFieldId, fluidFlagUID, UBB_vel_x / velocityFactor, -UBB_vel_x / velocityFactor);
    pystencils::PSM_Conditional_Sweep psmConditionalSweep( forceFieldId, fractionFieldId, objectVelocitiesFieldId, pdfFieldId, omega );
 #endif
 
@@ -301,7 +282,7 @@ int main(int argc, char** argv)
    for (auto& block : *blocks)
    {
       auto velField = block.getData<VectorField_T>(velocityFieldId);
-      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(velField, velField->get(x,y,z,0) = latticeVel;)
+      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(velField, velField->get(x,y,z,0) = 0.0;)
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       gpu::GPUField<real_t> * dst = block.getData<gpu::GPUField<real_t>>( velocityFieldGPUId );
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
@@ -344,8 +325,6 @@ int main(int argc, char** argv)
    timeloop.add() << Sweep(deviceSyncWrapper(psmConditionalSweep), "PSMConditionalSweep");
 
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency), "remaining time logger");
-
-   timeloop.addFuncAfterTimeStep(forceCalculator, "Force calculation");
 
 
    /////////////////
@@ -403,21 +382,6 @@ int main(int argc, char** argv)
 
    const auto reducedTimeloopTiming = timeloopTiming.getReduced();
    WALBERLA_LOG_RESULT_ON_ROOT("Time loop timing:\n" << *reducedTimeloopTiming)
-
-   real_t averageForceX = 0;
-   real_t maxForceY = 0;
-   for (auto f : forceVector) {
-      averageForceX += f[0];
-      if(f[1] > maxForceY) {
-         maxForceY = f[1];
-      }
-   }
-   averageForceX /= real_t(forceVector.size());
-   WALBERLA_LOG_INFO_ON_ROOT("Average Fx " << averageForceX << ", max Fy " << maxForceY)
-   real_t dragCoeff = averageForceX / (0.5 * D * inflowVelSI * inflowVelSI * densityWaterSI);
-   real_t liftCoeff = maxForceY / (0.5 * D * inflowVelSI * inflowVelSI * densityWaterSI);
-   WALBERLA_LOG_INFO_ON_ROOT("Average drag coeff " << dragCoeff << ", max lift coeff " << liftCoeff)
-
 
    return EXIT_SUCCESS;
 }

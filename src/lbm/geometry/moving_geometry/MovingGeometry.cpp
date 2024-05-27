@@ -71,7 +71,8 @@ void MovingGeometry<FractionField_T, VectorField_T>::getFractionFieldFromGeometr
                    cellInGeometrySpace[0] >= int32_t(geometryField_->xSize()) ||
                    cellInGeometrySpace[1] < 0 ||
                    cellInGeometrySpace[1] >= int32_t(geometryField_->ySize()) ||
-                   cellInGeometrySpace[2] < 0 || cellInGeometrySpace[2] >= int32_t(geometryField_->zSize()))
+                   cellInGeometrySpace[2] < 0 ||
+                   cellInGeometrySpace[2] >= int32_t(geometryField_->zSize()))
                {
                   fraction = 0.0;
                }
@@ -187,24 +188,35 @@ void MovingGeometry<FractionField_T, VectorField_T>::updateObjectVelocityField()
 template < typename FractionField_T, typename VectorField_T >
 void MovingGeometry<FractionField_T, VectorField_T>::calculateForcesOnBody() {
    Vector3<real_t> summedForceOnObject;
+   Vector3<real_t> summedTorqueOnObject;
+
+   auto objectPosition = particleAccessor_->getPosition(0);
    for (auto &block : *blocks_) {
       VectorField_T* forceField = block.getData< VectorField_T >(forceFieldId_);
       FractionField_T* fractionField = block.getData< FractionField_T >(fractionFieldId_);
-      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(forceField,
+      auto level = blocks_->getLevel(block);
+      WALBERLA_FOR_ALL_CELLS_XYZ(forceField,
          if(fractionField->get(x,y,z,0) > 0.0) {
-            summedForceOnObject += Vector3(forceField->get(x,y,z,0), forceField->get(x,y,z,1), forceField->get(x,y,z,2));
+            auto force = Vector3(forceField->get(x,y,z,0), forceField->get(x,y,z,1), forceField->get(x,y,z,2));
+            summedForceOnObject += force;
+
+            Vector3< real_t > cellCenter = blocks_->getCellCenter(Cell(x,y,z), level);
+            const auto torque = cross(( cellCenter - objectPosition ), force);
+            summedTorqueOnObject += torque;
          }
       )
    }
    WALBERLA_MPI_SECTION() {
-      walberla::mpi::reduceInplace(summedForceOnObject, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(summedForceOnObject, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(summedTorqueOnObject, walberla::mpi::SUM);
+
    }
    real_t forceFactor = fluidDensity_ * pow(blocks_->dx(0),4) / (dt_ * dt_); //(kg / m³ -> kg m / s²)
    Vector3<real_t> forceSI = summedForceOnObject * forceFactor;
-   particleAccessor_->setForce(0, forceSI);
-   //TODO calculate Torque
+   particleAccessor_->setHydrodynamicForce(0, forceSI);
+   Vector3<real_t> torqueSI = summedTorqueOnObject * forceFactor;
+   particleAccessor_->setTorque(0, torqueSI);
 }
-
 
 template < typename FractionField_T, typename VectorField_T >
 real_t MovingGeometry<FractionField_T, VectorField_T>::getVolumeFromFractionField() {
@@ -216,10 +228,39 @@ real_t MovingGeometry<FractionField_T, VectorField_T>::getVolumeFromFractionFiel
       )
    }
    WALBERLA_MPI_SECTION() {
-      walberla::mpi::reduceInplace(summedVolume, walberla::mpi::SUM);
+      walberla::mpi::allReduceInplace(summedVolume, walberla::mpi::SUM);
    }
    return summedVolume;
 }
+
+/*
+template < typename FractionField_T, typename VectorField_T >
+Vector3<real_t> MovingGeometry<FractionField_T, VectorField_T>::getInertiaFromFractionField(real_t objectDensity) {
+   Vector3<real_t> inertia(0.0);
+   auto objectPos = particleAccessor_->getPosition(0);
+   auto dxyz = Vector3<real_t> (blocks_->dx(0), blocks_->dy(0), blocks_->dz(0));
+   for (auto &block : *blocks_) {
+
+      auto level = blocks_->getLevel(block);
+      FractionField_T* fractionField = block.template getData< FractionField_T >(fractionFieldId_);
+
+      WALBERLA_FOR_ALL_CELLS_XYZ(fractionField,
+                                 Vector3< real_t > cellCenter = blocks_->getCellCenter(Cell(x,y,z), level);
+                                 real_t sqXDist = pow(cellCenter[0] - objectPos[0], 2);
+                                 real_t sqYDist = pow(cellCenter[1] - objectPos[1], 2);
+                                 real_t sqZDist = pow(cellCenter[2] - objectPos[2], 2);
+                                 inertia[0] += fractionField->get(x,y,z,0) * objectDensity * dxyz[0] * dxyz[1] * dxyz[2] * (sqYDist + sqZDist);
+                                 inertia[1] += fractionField->get(x,y,z,0) * objectDensity * dxyz[0] * dxyz[1] * dxyz[2] * (sqXDist + sqZDist);
+                                 inertia[2] += fractionField->get(x,y,z,0) * objectDensity * dxyz[0] * dxyz[1] * dxyz[2] * (sqXDist + sqYDist);
+      )
+   }
+   WALBERLA_MPI_SECTION() {
+      walberla::mpi::allReduceInplace(inertia, walberla::mpi::SUM);
+   }
+   return inertia;
+}
+*/
+
 
 template class MovingGeometry<field::GhostLayerField< real_t, 1 >, field::GhostLayerField< real_t, 3 >>;
 } // namespace waLBerla

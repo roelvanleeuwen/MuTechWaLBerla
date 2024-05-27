@@ -1,9 +1,9 @@
 
 Parameters 
 {
-	timesteps       5001;
+	timesteps       50001;
 
-    D_lattice  10;
+    D_lattice  20;
     latticeVel 0.1;
 
     translationPerTimestep   <0.0, 0.0, 0.0>;
@@ -11,21 +11,22 @@ Parameters
 
 
     remainingTimeLoggerFrequency 10;    // in seconds
-	VTKwriteFrequency 100;
-	maxSuperSamplingDepth 2;            // for (2^3)^2 < 100 subcells < (2^4)^2
+	VTKwriteFrequency 1000;
+	maxSuperSamplingDepth 1;            // for (2^3)^2 < 100 subcells < (2^4)^2
 
     forceOutputFile     forceOutput.txt;
 }
 
 DomainSetup
 {
-   meshFile                 Cylinder.obj;
-   periodic                 <  0,  1,  1 >;
+   meshFile                 ../Meshfiles/Cube.obj;
+   periodic                 <  1,  0,  1 >;
 
 }
 
 Boundaries
 {
-    Border { direction W;    walldistance -1;  flag UBB; }
-    Border { direction E;    walldistance -1;  flag ExtrapolationOutflow; }
+    Border { direction T;    walldistance -1;  flag UBB_top; }
+    Border { direction B;    walldistance -1;  flag UBB_bot; }
+
 }

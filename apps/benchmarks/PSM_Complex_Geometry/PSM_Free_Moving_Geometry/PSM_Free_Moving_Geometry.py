@@ -78,8 +78,9 @@ with CodeGeneration() as ctx:
 
     no_slip = lbm_boundary_generator(class_name='NoSlip', flag_uid='NoSlip', boundary_object=NoSlip())
 
-    ubb_vel = (TypedSymbol("ubb_vel_x", data_type), 0, 0)
-    ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB', boundary_object=UBB(ubb_vel, data_type=data_type))
+    ubb_top = lbm_boundary_generator(class_name='UBB_top', flag_uid='UBB_top', boundary_object=UBB((TypedSymbol("ubb_vel_top", data_type), 0, 0), data_type=data_type))
+
+    ubb_bot = lbm_boundary_generator(class_name='UBB_bot', flag_uid='UBB_bot', boundary_object=UBB((TypedSymbol("ubb_vel_bot", data_type), 0, 0), data_type=data_type))
 
 
 
@@ -98,7 +99,7 @@ with CodeGeneration() as ctx:
     generate_lbm_package(ctx, name="PSM_Free_Moving_Geometry",
                          collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=False, boundaries=[no_slip, ubb, extrapolOutflow],
+                         nonuniform=False, boundaries=[no_slip, ubb_top, ubb_bot, extrapolOutflow],
                          macroscopic_fields=macroscopic_fields,
                          cpu_openmp=openmp, cpu_vectorize_info=cpu_vec, target=target)
 

@@ -198,7 +198,6 @@ int main(int argc, char** argv)
    /// Fields Creation   ///
    /////////////////////////
 
-   WALBERLA_LOG_INFO_ON_ROOT("Setting up fields")
 
    const StorageSpecification_T StorageSpec = StorageSpecification_T();
    const BlockDataID pdfFieldId  = lbm_generated::addPdfFieldToStorage(blocks, "pdfs", StorageSpec, uint_c(1), field::fzyx);
@@ -220,7 +219,6 @@ int main(int argc, char** argv)
    const BlockDataID forceFieldGPUId = gpu::addGPUFieldToStorage< VectorField_T >(blocks, forceFieldId, "force field on GPU", true);
 #endif
 
-   WALBERLA_LOG_INFO_ON_ROOT("Finished setting up fields")
 
 
    /////////////////////////
@@ -237,7 +235,6 @@ int main(int argc, char** argv)
                                                                                               distanceOctreeMesh, "geometry",
                                                                                               maxSuperSamplingDepth, true, omega, dt, domainAABB, objectVelocity, rotationVector, physDensityWater);
 #endif
-   WALBERLA_LOG_INFO_ON_ROOT("Finished Setting up objectMover")
 
 
 
@@ -259,7 +256,8 @@ int main(int argc, char** argv)
    std::string forceFile = "forceOutput.txt";
    std::filesystem::remove(forceFile);
    const std::function< void() > forceCalculator = [&]() {
-      auto force = objectMover->getForceOnGeometry();
+      objectMover->calculateForcesOnBody();
+      auto force = objectMover->getHydrodynamicForce();
       WALBERLA_ROOT_SECTION(){
          std::ofstream myFile(forceFile, std::ios::app);
          myFile << real_c(timeloop.getCurrentTimeStep())*dt << " " << force[0] << " " << force[1] << " " << force[2] << "\n";
@@ -297,10 +295,26 @@ int main(int argc, char** argv)
 #endif
 
    WALBERLA_LOG_INFO_ON_ROOT("Initialize Velocity and PDF fields")
+   Vector3<real_t> initialVel(latticeVel, 0,0);
    for (auto& block : *blocks)
    {
       auto velField = block.getData<VectorField_T>(velocityFieldId);
-      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(velField, velField->get(x,y,z,0) = latticeVel;)
+
+#if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
+      gpu::fieldCpy< FracField_T, gpu::GPUField< real_t > >(blocks, fractionFieldId, fractionFieldGPUId);
+      gpu::fieldCpy< VectorField_T, gpu::GPUField< real_t > >(blocks, objectVelocitiesFieldId, objectVelocitiesFieldGPUId);
+#endif
+      auto fracField = block.getData<FracField_T>(fractionFieldId);
+      auto objVelField = block.getData<VectorField_T>(objectVelocitiesFieldId);
+
+
+
+
+      WALBERLA_FOR_ALL_CELLS_INCLUDING_GHOST_LAYER_XYZ(velField,
+                                                       real_t fracValue = fracField->get(x,y,z,0);
+                                                       for (int d = 0; d < 3; ++d)
+                                                         velField->get(x,y,z,d) = (1.0 - fracValue) * initialVel[d] + fracValue * objVelField->get(x,y,z,d);
+                                                       )
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
       gpu::GPUField<real_t> * dst = block.getData<gpu::GPUField<real_t>>( velocityFieldGPUId );
       const VectorField_T * src = block.getData<VectorField_T>( velocityFieldId );
@@ -413,9 +427,14 @@ int main(int argc, char** argv)
    }
    averageForceX /= real_t(forceVector.size());
    WALBERLA_LOG_INFO_ON_ROOT("Average Fx " << averageForceX << ", max Fy " << maxForceY)
-   real_t dragCoeff = averageForceX / (0.5 * D * inflowVelSI * inflowVelSI * physDensityWater);
-   real_t liftCoeff = maxForceY / (0.5 * D * inflowVelSI * inflowVelSI * physDensityWater);
-   WALBERLA_LOG_INFO_ON_ROOT("Average drag coeff " << dragCoeff << ", max lift coeff " << liftCoeff)
+   real_t dragCoeffSI = averageForceX / (0.5 * D * inflowVelSI * inflowVelSI * physDensityWater) / dx;
+   real_t liftCoeffSI = maxForceY / (0.5 * D * inflowVelSI * inflowVelSI * physDensityWater) / dx;
+
+   real_t dragCoeffL = (averageForceX / physForceFactor) / (0.5 * real_t(D_lattice) * latticeVel * latticeVel * 1.0);
+   real_t liftCoeffL = (maxForceY / physForceFactor) / (0.5 * real_t(D_lattice) * latticeVel * latticeVel * 1.0);
+
+   WALBERLA_LOG_INFO_ON_ROOT("Average SI drag coeff " << dragCoeffSI << ", max SI lift coeff " << liftCoeffSI)
+   WALBERLA_LOG_INFO_ON_ROOT("Average lattice drag coeff " << dragCoeffL << ", max lattice lift coeff " << liftCoeffL)
 
 
    return EXIT_SUCCESS;

@@ -124,12 +124,11 @@ class MovingGeometry
       }
 #endif
       getFractionFieldFromGeometryMesh();
-      WALBERLA_ROOT_SECTION(){
-         real_t volumeFromFracField = getVolumeFromFractionField() * dxyz[0] * dxyz[1] * dxyz[2];
-         real_t meshVolume = mesh::computeVolume(*mesh_);
-         real_t discretisationError = pow(volumeFromFracField - meshVolume, 2) / pow(meshVolume, 2);
-         WALBERLA_LOG_INFO_ON_ROOT("Mesh volume is " << meshVolume << ", fraction Field volume is " << volumeFromFracField << ", discretisation Error is " << discretisationError)
-      }
+
+      real_t volumeFromFracField = getVolumeFromFractionField() * dxyz[0] * dxyz[1] * dxyz[2];
+      real_t meshVolume = mesh::computeVolume(*mesh_);
+      real_t discretisationError = pow(volumeFromFracField - meshVolume, 2) / pow(meshVolume, 2);
+      WALBERLA_LOG_INFO_ON_ROOT("Mesh volume is " << meshVolume << ", fraction Field volume is " << volumeFromFracField << ", discretisation Error is " << discretisationError << " (only accurate for fraction field without omega weighting)")
 
       if(moving_) {
          updateObjectVelocityField();
@@ -149,6 +148,7 @@ class MovingGeometry
 
    virtual void updateObjectPosition() = 0;
 
+   //TODO speed this up, maybe also with some supersampling etc
    void buildGeometryField() {
       WALBERLA_LOG_PROGRESS("Getting max level for geometry field size")
       int maxLevel = -1;
@@ -205,25 +205,34 @@ class MovingGeometry
 
    void moveTriangleMesh(uint_t timestep, uint_t vtk_frequency)
    {
-      if (timestep == 0) return;
+      if (timestep == 0) {
+         oldRotation_ = particleAccessor_->getRotation(0).getMatrix();
+         return;
+      }
+
       if (vtk_frequency > 0 && timestep % vtk_frequency == 0 && moving_)
       {
          auto meshCenter = computeCentroid(*mesh_);
          Vector3< real_t > translationVector = particleAccessor_->getPosition(0) - Vector3<real_t>(meshCenter[0], meshCenter[1], meshCenter[2]);
-         Vector3< real_t > rotationVector = particleAccessor_->getAngularVelocity(0) * dt_ * real_t(vtk_frequency); //TODO do as above for vel
-         auto rotationMatrix = math::Rot3<real_t> (rotationVector);
          mesh::translate(*mesh_, translationVector);
+
+         auto rotationMatrix = particleAccessor_->getRotation(0).getMatrix().getInverse() * oldRotation_;
          const Vector3< mesh::TriangleMesh::Scalar > axis_foot(particleAccessor_->getPosition(0));
-         mesh::rotate(*mesh_, rotationMatrix.getMatrix(), axis_foot);
+         mesh::rotate(*mesh_, rotationMatrix, axis_foot);
+         oldRotation_ = particleAccessor_->getRotation(0).getMatrix();
       }
    }
 
-   Vector3<real_t> getForceOnGeometry() {
-      return particleAccessor_->getForce(0);
+   Vector3<real_t> getHydrodynamicForce() {
+      return particleAccessor_->getHydrodynamicForce(0);
    }
 
-   Vector3<real_t> getTorqueOnGeometry() {
+   Vector3<real_t> getTorque() {
       return particleAccessor_->getTorque(0);
+   }
+
+   Vector3<real_t> getLinearVelocity() {
+      return particleAccessor_->getLinearVelocity(0);
    }
 
    void getFractionFieldFromGeometryMesh();
@@ -231,6 +240,7 @@ class MovingGeometry
    virtual void updateObjectVelocityField();
    void calculateForcesOnBody();
    real_t getVolumeFromFractionField();
+   Vector3<real_t> getInertiaFromFractionField(real_t objectDensity);
 
  protected:
    shared_ptr< StructuredBlockForest > blocks_;
@@ -240,7 +250,6 @@ class MovingGeometry
    shared_ptr <GeometryField_T> geometryField_; //One Field on every MPI process, not on every block
    BlockDataID objectVelocityId_;
    BlockDataID forceFieldId_;
-
 
 #if defined(WALBERLA_BUILD_WITH_CUDA)
    GeometryFieldGPU_T *geometryFieldGPU_;
@@ -263,6 +272,7 @@ class MovingGeometry
    //particle objects
    shared_ptr< mesa_pd::data::ParticleStorage > particleStorage_;
    shared_ptr< mesa_pd::data::ParticleAccessor > particleAccessor_;
+   Matrix3<real_t> oldRotation_;
 };
 
 

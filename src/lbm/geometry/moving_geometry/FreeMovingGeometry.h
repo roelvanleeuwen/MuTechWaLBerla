@@ -26,9 +26,7 @@ namespace walberla
 {
 
 
-
-
-template< typename FractionField_T, typename VectorField_T > >
+template< typename FractionField_T, typename VectorField_T >
 class FreeMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T >
 {
    using MGBase = MovingGeometry< FractionField_T, VectorField_T >;
@@ -38,18 +36,15 @@ class FreeMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T
                             const BlockDataID fractionFieldId, const BlockDataID objectVelocityId,
                             const BlockDataID forceFieldId, shared_ptr< mesh::DistanceOctree< mesh::TriangleMesh > >& distOctree,
                             const std::string meshName, const uint_t superSamplingDepth, bool useTauInFractionField,
-                            real_t omega, real_t dt, AABB movementBoundingBox, Vector3<real_t> initialVelocity, Vector3<real_t> initialRotation, real_t fluidDensity, real_t objectDensity, bool moving = true)
-      : MGBase(blocks, mesh, fractionFieldId, objectVelocityId, forceFieldId, distOctree,
-                       meshName, superSamplingDepth, useTauInFractionField, 1.0 / omega, dt, movementBoundingBox, initialVelocity, initialRotation, fluidDensity, moving)
+                            real_t omega, real_t dt, AABB movementBoundingBox, Vector3<real_t> initialVelocity, Vector3<real_t> initialRotation, real_t fluidDensity, real_t objectDensity, Vector3<real_t> externalForce, bool moving = true)
+      : MGBase(blocks, mesh, fractionFieldId, objectVelocityId, forceFieldId, distOctree, meshName, superSamplingDepth, useTauInFractionField, 1.0 / omega, dt, movementBoundingBox, initialVelocity, initialRotation, fluidDensity, moving),
+        objectDensity_(objectDensity), externalForce_(externalForce)
    {
       explEulerIntegrator_ = make_shared<mesa_pd::kernel::ExplicitEuler>(dt);
-      const Vector3< real_t > dxyz = Vector3< real_t >(MGBase::blocks_->dx(0), MGBase::blocks_->dy(0),
-                                                       MGBase::blocks_->dz(0));
-      real_t objectMass = mesh::computeVolume(*MGBase::mesh_) * objectDensity;
-      WALBERLA_LOG_INFO_ON_ROOT("Mass of object " << MGBase::meshName_ << " is " << objectMass)
+      real_t objectMass = mesh::computeVolume(*MGBase::mesh_) * objectDensity_;
       MGBase::particleAccessor_->setInvMass(0, 1.0 / objectMass);
-      //TODO inertia for arbitrary object
-      const math::Matrix3<real_t> inertia = math::Matrix3<real_t>::makeDiagonalMatrix( real_c(0.4) * objectMass * 0.5 * 0.5 );
+
+      auto inertia = mesh::computeInertiaTensor(*MGBase::mesh_) * objectDensity_;
       MGBase::particleAccessor_->setInvInertiaBF(0, inertia.getInverse());
    }
 
@@ -57,11 +52,20 @@ class FreeMovingGeometry : public MovingGeometry< FractionField_T, VectorField_T
    void updateObjectPosition()
    {
       MGBase::calculateForcesOnBody();
+      addHydrodynamicForce();
       (*explEulerIntegrator_)(0, *MGBase::particleAccessor_);
+   }
+
+   void addHydrodynamicForce() {
+      Vector3<real_t> combinedForces = externalForce_ + MGBase::particleAccessor_->getHydrodynamicForce(0);
+      MGBase::particleAccessor_->setForce(0, combinedForces);
    }
 
 
  private:
+
+   real_t objectDensity_;
+   Vector3<real_t> externalForce_;
 
    shared_ptr<mesa_pd::kernel::ExplicitEuler> explEulerIntegrator_;
 

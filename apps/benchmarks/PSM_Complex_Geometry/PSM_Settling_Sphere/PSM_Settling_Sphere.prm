@@ -1,0 +1,23 @@
+
+Parameters 
+{
+	timesteps       25001;
+
+    remainingTimeLoggerFrequency 10;    // in seconds
+	VTKwriteFrequency 0;
+	maxSuperSamplingDepth 1;            // for (2^3)^2 < 100 subcells < (2^4)^2
+
+	fluidType       3;
+}
+
+DomainSetup
+{
+   meshFile                 ../Meshfiles/Sphere.obj;
+   periodic                 <  0,  0,  0 >;
+
+}
+
+Boundaries
+{
+    Border { direction W,E,N,S,T,B;    walldistance -1;  flag NoSlip; }
+}
