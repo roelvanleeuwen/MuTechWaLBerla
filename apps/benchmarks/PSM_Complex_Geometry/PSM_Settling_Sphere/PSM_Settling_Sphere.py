@@ -53,7 +53,7 @@ with CodeGeneration() as ctx:
     psm_config = PSMConfig(
         fraction_field=fraction_field,
         object_velocity_field=object_velocity_field,
-        SC=2,
+        SC=3,
         particle_force_field=force_field
     )
 

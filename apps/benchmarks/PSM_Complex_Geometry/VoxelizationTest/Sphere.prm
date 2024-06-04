@@ -3,17 +3,17 @@ Parameters
 {
 	timesteps       101;
 
-    objectResolution 20;
-    objectVelocity   <0.0, 0.0, 0.0>;    <0.02, 0.0, 0.0>;  //m/s
-    rotationVector   <1.0, 0.0, 0.0>;               //rad/s
-  	maxSuperSamplingDepth 1;            // for (2^3)^2 < 100 subcells < (2^4)^2
+    objectResolution 40;
+    objectVelocity   <0.1, 0.0, 0.0>;    <0.02, 0.0, 0.0>;  //m/s
+    rotationVector   <0.1, 0.1, 0.1>;               //rad/s
+  	maxSuperSamplingDepth 3;            // for (2^3)^2 < 100 subcells < (2^4)^2
 
     remainingTimeLoggerFrequency 10;    // in seconds
-	VTKwriteFrequency 1;
+	VTKwriteFrequency 10;
 }
 
 DomainSetup
 {
-   meshFile                 ../Meshfiles/Cube.obj;
+   meshFile                 ../Meshfiles/bunny.obj;
 }
 

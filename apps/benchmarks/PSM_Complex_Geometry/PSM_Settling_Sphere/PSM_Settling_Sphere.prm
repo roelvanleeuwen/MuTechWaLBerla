@@ -1,13 +1,13 @@
 
 Parameters 
 {
-	timesteps       25001;
+	timesteps       101;
 
     remainingTimeLoggerFrequency 10;    // in seconds
-	VTKwriteFrequency 0;
+	VTKwriteFrequency 10;
 	maxSuperSamplingDepth 1;            // for (2^3)^2 < 100 subcells < (2^4)^2
 
-	fluidType       3;
+	fluidType       1;
 }
 
 DomainSetup

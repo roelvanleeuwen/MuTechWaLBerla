@@ -126,7 +126,6 @@ void MovingGeometry<FractionField_T, VectorField_T>::getFractionFieldFromGeometr
    }
 }
 
-
 template < typename FractionField_T, typename VectorField_T >
 void MovingGeometry<FractionField_T, VectorField_T>::resetFractionField() {
    for (auto& block : *blocks_)
@@ -183,7 +182,6 @@ void MovingGeometry<FractionField_T, VectorField_T>::updateObjectVelocityField()
       )
    }
 }
-
 
 template < typename FractionField_T, typename VectorField_T >
 void MovingGeometry<FractionField_T, VectorField_T>::calculateForcesOnBody() {

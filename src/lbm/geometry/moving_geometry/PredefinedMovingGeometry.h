@@ -62,6 +62,10 @@ class PredefinedMovingGeometry : public MovingGeometry< FractionField_T, VectorF
       MGBase::particleAccessor_->setAngularVelocity(0, vel);
    }
 
+   void setObjectPosition(Vector3<real_t> pos) {
+      MGBase::particleAccessor_->setPosition(0, pos);
+   }
+
  private:
 
    };

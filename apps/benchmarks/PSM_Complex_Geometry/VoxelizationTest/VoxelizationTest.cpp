@@ -113,7 +113,7 @@ int main(int argc, char** argv)
 
    real_t analyticVolume = mesh::computeVolume(*mesh);
 
-   auto domainScaling = Vector3<real_t>(1.5);
+   auto domainScaling = Vector3<real_t>(3.5, 1.6, 1.6);
    aabb.scale(domainScaling);
 
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(dx), mesh::makeExcludeMeshInterior(distanceOctreeMesh, dx));
@@ -148,11 +148,11 @@ int main(int argc, char** argv)
 
 #if defined(WALBERLA_BUILD_WITH_GPU_SUPPORT)
    auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T>> (blocks, mesh, fractionFieldGPUId, objectVelocitiesFieldGPUId, forceFieldGPUId,
-                                                                                                     distanceOctreeMesh, "geometry", maxSuperSamplingDepth, false, 0.0, dt, domainAABB, objectVelocity, rotationVector, 0);
+                                                                                                     distanceOctreeMesh, "geometry", maxSuperSamplingDepth, false, 0.0, dt, domainAABB, objectVelocity * dx / dt, rotationVector / dt, 0);
 #else
    auto objectMover = make_shared<PredefinedMovingGeometry<FracField_T, VectorField_T>> (blocks, mesh, fractionFieldId, objectVelocitiesFieldId, forceFieldId,
                                                                                                      distanceOctreeMesh, "geometry", maxSuperSamplingDepth, false, 0.0, dt, domainAABB,
-                                                                                                     objectVelocity, rotationVector, 0);
+                                                                                                     objectVelocity * dx / dt, rotationVector / dt, 0);
 #endif
 
    mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "meshBase", VTKWriteFrequency);
@@ -172,7 +172,7 @@ int main(int argc, char** argv)
       fractionFieldVolume *= pow(dx,3.);
       real_t l2error = pow(fractionFieldVolume - analyticVolume,2.) / pow(analyticVolume,2.);
       errorVector.push_back(l2error);
-      WALBERLA_LOG_INFO_ON_ROOT("Mesh Volume is " << analyticVolume <<  ", fraction Field volume is " << fractionFieldVolume << ", L2 error is " << l2error)
+      //WALBERLA_LOG_INFO_ON_ROOT("Mesh Volume is " << analyticVolume <<  ", fraction Field volume is " << fractionFieldVolume << ", L2 error is " << l2error)
    };
 
    /////////////////

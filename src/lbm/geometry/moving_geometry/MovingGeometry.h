@@ -176,30 +176,68 @@ class MovingGeometry
       Vector3<real_t> dxyzSS = maxRefinementDxyz_ / real_t(pow(2, real_t(superSamplingDepth_)));
       auto fieldSize = Vector3<uint_t> (uint_t(meshAABB_.xSize() / dxyzSS[0] ), uint_t(meshAABB_.ySize() / dxyzSS[1] ), uint_t(meshAABB_.zSize() / dxyzSS[2] ));
       WALBERLA_LOG_PROGRESS("Building geometry field with size " << fieldSize)
-      geometryField_= make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(real_t(interpolationStencilSize) * 0.5 ), bool(0), field::fzyx);
+      geometryField_= make_shared< GeometryField_T >(fieldSize[0], fieldSize[1], fieldSize[2], uint_t(real_t(interpolationStencilSize) * 0.5 ), false, field::fzyx);
 
       const auto distFunct = make_shared<MeshDistanceFunction<mesh::DistanceOctree<mesh::TriangleMesh>>>( distOctree_ );
 
-      CellInterval blockCi = geometryField_->xyzSizeWithGhostLayer();
+      CellInterval geoFieldBB = geometryField_->xyzSizeWithGhostLayer();
 
       WALBERLA_LOG_PROGRESS("Filling geometry field")
 
-#ifdef _OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-      for (cell_idx_t cellZ = blockCi.zMin(); cellZ < blockCi.zMax(); ++cellZ) {
-         for (cell_idx_t cellY = blockCi.yMin(); cellY < blockCi.yMax(); ++cellY) {
-            for (cell_idx_t cellX = blockCi.xMin(); cellX < blockCi.xMax(); ++cellX) {
+      std::queue< CellInterval > ciQueue;
+      ciQueue.push(geoFieldBB);
 
-               Cell cell(cellX, cellY, cellZ);
+      while (!ciQueue.empty())
+      {
+         const CellInterval& curCi = ciQueue.front();
 
-               Vector3< real_t > cellCenter = meshAABB_.min() + Vector3< real_t >(cell.x() * dxyzSS[0], cell.y() * dxyzSS[1], cell.z() * dxyzSS[2]) + dxyzSS * 0.5;
-               const real_t sqSignedDistance = (*distFunct)(cellCenter);
+         WALBERLA_ASSERT(!curCi.empty(), "Cell Interval: " << curCi);
 
-               bool fraction = sqSignedDistance < 0.0 ? true : false;
-               geometryField_->get(cell) = fraction;
-            }
+
+         const AABB curAABB = AABB(meshAABB_.min()[0] + curCi.min()[0] * dxyzSS[0],
+                                   meshAABB_.min()[1] + curCi.min()[1] * dxyzSS[1],
+                                   meshAABB_.min()[2] + curCi.min()[2] * dxyzSS[2],
+                                   meshAABB_.min()[0] + curCi.max()[0] * dxyzSS[0] + dxyzSS[0],
+                                   meshAABB_.min()[1] + curCi.max()[1] * dxyzSS[1] + dxyzSS[1],
+                                   meshAABB_.min()[2] + curCi.max()[2] * dxyzSS[2] + dxyzSS[2]);
+
+         WALBERLA_ASSERT(!curAABB.empty(), "AABB: " << curAABB);
+
+         Vector3< real_t > cellCenter = curAABB.center();
+
+         const real_t sqSignedDistance = (*distFunct)(cellCenter);
+
+         //only one cell left in the cell interval
+         if (curCi.numCells() == uint_t(1))
+         {
+            bool fraction = sqSignedDistance < 0.0 ? true : false;
+            geometryField_->get(curCi.min()) = fraction;
+            ciQueue.pop();
+            continue;
          }
+
+         const real_t circumRadius   = curAABB.sizes().length() * real_t(0.5);
+         const real_t sqCircumRadius = circumRadius * circumRadius;
+
+         // the cell interval is fully covered by the mesh
+         if (sqSignedDistance < -sqCircumRadius)
+         {
+            std::fill(geometryField_->beginSliceXYZ(curCi), geometryField_->end(), true);
+
+            ciQueue.pop();
+            continue;
+         }
+         // the cell interval is fully outside of mesh
+         if (sqSignedDistance > sqCircumRadius)
+         {
+            std::fill(geometryField_->beginSliceXYZ(curCi), geometryField_->end(), false);
+            ciQueue.pop();
+            continue;
+         }
+
+         WALBERLA_ASSERT_GREATER(curCi.numCells(), uint_t(1));
+         mesh::BoundarySetup::divideAndPushCellInterval(curCi, ciQueue);
+         ciQueue.pop();
       }
    }
 
@@ -240,7 +278,7 @@ class MovingGeometry
    virtual void updateObjectVelocityField();
    void calculateForcesOnBody();
    real_t getVolumeFromFractionField();
-   Vector3<real_t> getInertiaFromFractionField(real_t objectDensity);
+   //Vector3<real_t> getInertiaFromFractionField(real_t objectDensity);
 
  protected:
    shared_ptr< StructuredBlockForest > blocks_;
