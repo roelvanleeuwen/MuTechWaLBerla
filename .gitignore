@@ -77,3 +77,4 @@ CMakeDefs.h
 /moduleStatistics.json
 /walberla-config.cmake
 cmake-build-*
+run

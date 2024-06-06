@@ -10,7 +10,7 @@ from lbmpy.creationfunctions import create_lb_method, create_lb_collision_rule
 from lbmpy import LBMConfig, LBMOptimisation, Stencil, Method, LBStencil
 
 from pystencils_walberla import CodeGeneration, generate_info_header
-from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator
+from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator, RefinementScaling
 
 omega = sp.symbols("omega")
 omega_free = sp.Symbol("omega_free")
@@ -55,10 +55,13 @@ with CodeGeneration() as ctx:
     ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
                                  boundary_object=UBB([0.05, 0, 0], data_type=field_type))
 
+    refinement_scaling = RefinementScaling()
+    refinement_scaling.add_standard_relaxation_rate_scaling( omega )
+
     generate_lbm_package(ctx, name="NonUniformGridGPU",
                          collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=True, boundaries=[no_slip, ubb],
+                         refinement_scaling=refinement_scaling, boundaries=[no_slip, ubb],
                          macroscopic_fields=macroscopic_fields,
                          target=ps.Target.GPU, gpu_indexing_params=gpu_indexing_params,
                          max_threads=max_threads)

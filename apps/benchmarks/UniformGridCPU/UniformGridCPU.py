@@ -150,7 +150,7 @@ with CodeGeneration() as ctx:
     generate_lbm_package(ctx, name="UniformGridCPU",
                          collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=False, boundaries=[no_slip, ubb],
+                         refinement_scaling=None, boundaries=[no_slip, ubb],
                          macroscopic_fields=macroscopic_fields,
                          cpu_openmp=openmp, cpu_vectorize_info=cpu_vec,
                          set_pre_collision_pdfs=False)

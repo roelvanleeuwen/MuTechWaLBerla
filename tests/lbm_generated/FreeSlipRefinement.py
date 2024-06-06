@@ -8,7 +8,7 @@ from lbmpy.boundaries import FreeSlip, UBB, ExtrapolationOutflow
 from lbmpy.creationfunctions import create_lb_method, create_lb_collision_rule
 from lbmpy import LBMConfig, LBMOptimisation, Stencil, Method, LBStencil
 from pystencils_walberla import CodeGeneration, generate_info_header
-from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator
+from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator, RefinementScaling
 
 with CodeGeneration() as ctx:
     target = Target.CPU  # Target.GPU if ctx.cuda else Target.CPU
@@ -38,11 +38,14 @@ with CodeGeneration() as ctx:
     outflow = lbm_boundary_generator(class_name='Outflow', flag_uid='Outflow',
                                      boundary_object=ExtrapolationOutflow(stencil[4], method),
                                      field_data_type=data_type)
+    
+    refinement_scaling = RefinementScaling()
+    refinement_scaling.add_standard_relaxation_rate_scaling( omega )
 
     generate_lbm_package(ctx, name="FreeSlipRefinement",
                          collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=True, boundaries=[freeslip, ubb, outflow],
+                         refinement_scaling=refinement_scaling, boundaries=[freeslip, ubb, outflow],
                          macroscopic_fields=macroscopic_fields,
                          data_type=data_type, pdfs_data_type=data_type)
 
