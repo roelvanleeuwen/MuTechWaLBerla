@@ -12,7 +12,8 @@ from lbmpy_walberla.sweep_collection import generate_lbm_sweep_collection
 def generate_lbm_package(ctx: CodeGenerationContext, name: str,
                          collision_rule: LbmCollisionRule,
                          lbm_config: LBMConfig, lbm_optimisation: LBMOptimisation,
-                         refinement_scaling = None, boundaries: List[Callable] = None,
+                         nonuniform: bool = False, refinement_scaling = None, 
+                         boundaries: List[Callable] = None,
                          macroscopic_fields: Dict[str, Field] = None,
                          target: Target = Target.CPU,
                          data_type=None, pdfs_data_type=None,
@@ -26,9 +27,15 @@ def generate_lbm_package(ctx: CodeGenerationContext, name: str,
 
     method = collision_rule.method
 
-    nonuniform = False    
-    if  refinement_scaling is not None and refinement_scaling.scaling_info:
-        nonuniform = True
+    if refinement_scaling is None:
+        refinement_scaling = RefinementScaling()
+
+    if nonuniform:
+        if not refinement_scaling.scaling_info:
+            omega = get_shear_relaxation_rate(method)
+            refinement_scaling.add_standard_relaxation_rate_scaling(omega)
+    else:
+        refinement_scaling = None
 
     storage_spec_name = f'{name}StorageSpecification'
     generate_lbm_storage_specification(ctx, storage_spec_name, method, lbm_config, lbm_optimisation,
