@@ -1,0 +1,45 @@
+
+DomainSetup {
+    domainSize  < 1.0, 1.0, 1.0 >;
+    rootBlocks  < 2, 2, 2 >;
+    periodic    < 1, 1, 0>;
+    cellsPerBlock   <32, 32, 32>;
+    refinementDepth 2;
+    numProcesses    1;
+
+    writeVTK true;
+    outputStatistics true;
+
+    blockForestFilestem couette;
+
+    AABBRefinementSelection {
+        AABB {
+            AABB [ <0.0, 0.0, 0.6>, <1.0, 1.0, 1.0> ];
+            level 1;
+        }
+
+        AABB {
+            AABB [ <0.0, 0.0, 0.8>, <1.0, 1.0, 1.0> ];
+            level 2;
+        }
+    }
+}
+
+Parameters
+{
+	omega           1.3;
+
+	initialVelocity < 0.0, 0, 0 >;
+	ubbVelocity     < 0.2, 0, 0 >;
+
+	timesteps       26;
+	vtkWriteFrequency 25;
+
+	remainingTimeLoggerFrequency 3; // in seconds
+}
+
+Boundaries
+{
+	Border { direction T; walldistance -1; flag UBB;     }
+	Border { direction B; walldistance -1; flag NoSlip;  }
+}

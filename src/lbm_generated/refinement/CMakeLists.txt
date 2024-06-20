@@ -3,4 +3,5 @@ target_sources( lbm_generated
     BasicRecursiveTimeStep.h
     BasicRecursiveTimeStep.impl.h
     RefinementScaling.h
-    )
+    FixBoundaries.h
+)
