@@ -192,6 +192,7 @@ private:
 
       void configure() override {}
 
+      using vtk::BlockCellDataWriter< uint8_t, Field_T::F_SIZE >::evaluate;
       uint8_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
       {
          WALBERLA_ASSERT( map_.find( this->block_ ) != map_.end() )
@@ -212,6 +213,8 @@ private:
       LocalCoordVTKWriter( const std::string & id ) : vtk::BlockCellDataWriter< cell_idx_t, 3 >( id ) {}
    protected:
       void configure() override {}
+
+      using vtk::BlockCellDataWriter< cell_idx_t, 3 >::evaluate;
       cell_idx_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
       {
          return ( f == cell_idx_t(0) ) ? x : ( ( f == cell_idx_t(1) ) ? y : z );
@@ -225,6 +228,8 @@ private:
       GlobalCoordVTKWriter( const std::string & id ) : vtk::BlockCellDataWriter< cell_idx_t, 3 >( id ) {}
    protected:
       void configure() override {}
+
+      using vtk::BlockCellDataWriter< cell_idx_t, 3 >::evaluate;
       cell_idx_t evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
       {
          Cell cell(x,y,z);
