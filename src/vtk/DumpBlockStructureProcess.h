@@ -40,6 +40,7 @@ protected:
 
    void configure() override {}
 
+   using ::walberla::vtk::BlockCellDataWriter< int >::evaluate;
    int evaluate( const cell_idx_t, const cell_idx_t, const cell_idx_t, const cell_idx_t ) override { return MPIManager::instance()->rank(); }
 
 }; // DumpBlockStructureProcess

@@ -117,6 +117,7 @@ protected:
       field_ = this->block_->template getData< Field_T >( bdid_ );
    }
 
+   using base_t::evaluate;
    OutputType evaluate( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const cell_idx_t f ) override
    {
       WALBERLA_ASSERT_NOT_NULLPTR( field_ );
