@@ -6,8 +6,10 @@ if( WALBERLA_BUILD_WITH_CODEGEN )
     waLBerla_generate_target_from_python(NAME RayleighBenardConvectionCodeGen
             FILE RayleighBenardConvection_codegen.py
             OUT_FILES initialize_thermal_field.cpp initialize_thermal_field.h
+            initialize_zhang_thermal_field.cpp initialize_zhang_thermal_field.h
             initialize_fluid_field.cpp initialize_fluid_field.h
             thermal_lb_step.cpp thermal_lb_step.h
+            zhang_thermal_lb_step.cpp zhang_thermal_lb_step.h
             fluid_lb_step.cpp fluid_lb_step.h
             BC_thermal_Thot.cpp BC_thermal_Thot.h
             BC_thermal_Tcold.cpp BC_thermal_Tcold.h

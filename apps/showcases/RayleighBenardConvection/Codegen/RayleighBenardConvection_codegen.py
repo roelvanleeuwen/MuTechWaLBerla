@@ -27,9 +27,11 @@ from pystencils_walberla import (
 from lbmpy_walberla import generate_boundary#, generate_lb_pack_info
 
 import sympy as sp
+import numpy as np
 
-stencil_thermal = LBStencil(Stencil.D3Q7)
-stencil_fluid = LBStencil(Stencil.D3Q19)
+#todo: aktuell nur D2Q9
+stencil_thermal = LBStencil(Stencil.D2Q9)
+stencil_fluid = LBStencil(Stencil.D2Q9)
 
 target = ps.Target.CPU
 layout = "fzyx"
@@ -116,24 +118,85 @@ setter_eqs_thermal = pdf_initialization_assignments(
     pdf_thermal.center_vector,
 )
 
+#> Zhang Thermal LBM
+pdf_zhang_thermal = fields(
+    f"zhang_lb_thermal_field({stencil_thermal.Q}): [{stencil_thermal.D}D]", layout=layout
+)
+pdf_zhang_thermal_tmp = fields(
+    f"zhang_lb_thermal_field_tmp({stencil_thermal.Q}): [{stencil_thermal.D}D]", layout=layout
+)
+zhang_energy_density_field = fields(f"zhang_energy_density_field: [{stencil_thermal.D}D]", layout=layout)
+
+setter_zhang_eqs_thermal = pdf_initialization_assignments(
+    method_thermal,
+    temperature_field.center,
+    velocity_field.center_vector,
+    pdf_zhang_thermal.center_vector,
+)
+
+#hi = dh.add_array('hi', values_per_cell=len(stencil_thermal))
+#dh.fill('hi', 0.0, ghost_layers=True)
+#hi_tmp = dh.add_array('hi_tmp', values_per_cell=len(stencil_thermal))
+#dh.fill('hi_tmp', 0.0, ghost_layers=True)
+cs2 = 1/3
+# todo: aktuell einfach zum schnellen testen k so gewählt, dass selbes omega für thermo rauskommt wie für fluid
+k = (1/omega_fluid - 1/2) * cs2
+#energyDensity = dh.add_array('energyDensity', values_per_cell=1)
+#dh.fill('energyDensity', 0.0, ghost_layers=True)
+@ps.kernel
+def assignmentCollectionTest(s):
+    u = sp.symbols(f"u_:{stencil_thermal.D}")
+    phi_r = sp.symbols(f"phi_r_:{stencil_thermal.D}")
+    phi = sp.symbols(f"phi_:{stencil_thermal.Q}")
+
+    s.tau_h @= k / cs2 + 1/2
+
+    s.rho @= sum(pdf_fluid.center(i) for i in range(stencil_thermal.Q))
+    for d in range(stencil_thermal.D):
+        u[d] @= sum(stencil_thermal[i][d] * pdf_fluid.center(i) for i in range(stencil_thermal.Q)) / s.rho
+
+    #s.h @= sum(pdf_fluid.center(i) * pdf_zhang_thermal.center(i) for i in range(stencil_thermal.Q)) / s.rho
+    s.h @= sum(pdf_fluid[-np.array(stencil_thermal[i])][i] * pdf_zhang_thermal[-np.array(stencil_thermal[i])][i] for i in range(stencil_thermal.Q)) / s.rho
+    zhang_energy_density_field[0,0] @= s.h
+    for d in range(stencil_thermal.D):
+        #phi_r[d] @= sum(stencil_thermal[j][d] * pdf_fluid.center(j) * (pdf_zhang_thermal.center(j) - s.h) for j in range(stencil_thermal.Q))
+        phi_r[d] @= sum(stencil_thermal[j][d] * pdf_fluid[-np.array(stencil_thermal[j])][j] * (pdf_zhang_thermal[-np.array(stencil_thermal[j])][j] - s.h) for j in range(stencil_thermal.Q))
+    for i in range(stencil_thermal.Q):
+        phi[i] @= sum(((stencil_thermal[i][d] - u[d]) / (s.rho * cs2) * phi_r[d]) for d in range(stencil_thermal.D))
+    for i in range(stencil_thermal.Q):
+        pdf_zhang_thermal_tmp[0,0][i] @= s.h + (1 - 1 / s.tau_h) * phi[i]
+
+
+# todo: hardcoded seperation of main assignments and subexpressions
+zhang_ac = ps.AssignmentCollection(main_assignments=assignmentCollectionTest[-9:], subexpressions=assignmentCollectionTest[:-9])
+strategy = ps.simp.SimplificationStrategy()
+strategy.add(ps.simp.apply_to_all_assignments(sp.expand))
+strategy.add(ps.simp.sympy_cse)
+zhang_ac_cse = strategy(zhang_ac)
+zhang_thermal_collision_kernel_function = ps.create_kernel(zhang_ac_cse).compile()
+#>
+
 cpu_vec = {'assume_inner_stride_one': True, 'nontemporal': True}
 
 # Code Generation
 with CodeGeneration() as ctx:
     # Initializations
     generate_sweep(ctx, "initialize_thermal_field", setter_eqs_thermal, target=target)
+    generate_sweep(ctx, "initialize_zhang_thermal_field", setter_zhang_eqs_thermal, target=target)
     generate_sweep(ctx, "initialize_fluid_field", setter_eqs_fluid, target=target)
 
     # lattice Boltzmann steps
     generate_sweep(ctx, 'thermal_lb_step', thermal_step,
                    field_swaps=[(pdf_thermal, pdf_thermal_tmp)],
                    target=Target.CPU)
+        #> zhang temperature LBM step
+    generate_sweep(ctx, 'zhang_thermal_lb_step', zhang_ac_cse,
+                   field_swaps=[(pdf_zhang_thermal, pdf_zhang_thermal_tmp)], target=Target.CPU)
     generate_sweep(ctx, 'fluid_lb_step', fluid_step,
                    field_swaps=[(pdf_fluid, pdf_fluid_tmp)],
                    target=Target.CPU)
 
     # Boundary conditions
-    #> periodic BCs missing for thermal and fluid part in x-direction (necessary?)
     generate_boundary(ctx, 'BC_thermal_Thot', FixedDensity(Thot), method_thermal,
                       target=Target.CPU)  # bottom wall
     generate_boundary(ctx, 'BC_thermal_Tcold', FixedDensity(Tcold), method_thermal,

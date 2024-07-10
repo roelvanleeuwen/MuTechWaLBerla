@@ -4,9 +4,9 @@ import math
 
 
 class Scenario:
-    def __init__(self, weak_scaling=False, scaling_type=None, cells=(32, 32, 32), timesteps=100):
+    def __init__(self, weak_scaling=False, scaling_type=None, cells=(32, 32, 1), timesteps=100):
         #> Domain Parameters
-        self.domain_size = (32, 32, 32)
+        self.domain_size = (32, 32, 1)
         self.blocks = (4, 1, 1)
         self.periodic = (1, 0, 1)
         self.cells = (self.domain_size[0] // self.blocks[0], self.domain_size[1] // self.blocks[1], self.domain_size[2] // self.blocks[2])
@@ -34,7 +34,7 @@ class Scenario:
         self.omega_thermal = 1. / (3 * self.thermal_diffusivity_LBM + 1./2)
         #print(f"omega_fluid = {self.omega_fluid} | omega_thermal = {self.omega_thermal}")
         #! temperature_hot
-        self.temperature_hot = 0.5
+        self.temperature_hot = 50
         #! temperature_cold
         self.temperature_cold = - self.temperature_hot
         #print(f"temperature_hot = {self.temperature_hot} | temperature_cold = {self.temperature_cold}")
@@ -44,7 +44,7 @@ class Scenario:
         self.gravity_LBM = self.gravity_SI / self.gravity_conversion
         #> Initialization Parameters
         self.delta_temperature = abs(self.temperature_hot) + abs(self.temperature_cold)
-        self.init_amplitude = self.delta_temperature / 20 * self.domain_size[0]
+        self.init_amplitude = self.delta_temperature / 200 * self.domain_size[0]
         self.init_temperature_range = 2 * self.delta_temperature / self.domain_size[0]
         #print(f"init_amplitude = {self.init_amplitude}")
         #print(f"init_temperature_range = {self.init_temperature_range}")

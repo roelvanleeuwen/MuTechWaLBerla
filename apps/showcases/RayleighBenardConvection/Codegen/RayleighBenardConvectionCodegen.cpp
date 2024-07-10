@@ -128,13 +128,15 @@ int main(int argc, char** argv)
          field::addToStorage< VelocityField_T >(blocks, "velocity", real_c(0.0), field::fzyx);
       BlockDataID temperature_field_ID =
          field::addToStorage< TemperatureField_T >(blocks, "Temperature", real_c(0.0), field::fzyx);
+      BlockDataID zhang_energy_density_field_ID =
+         field::addToStorage< TemperatureField_T >(blocks, "zhang_energy_density_field", real_c(0.0), field::fzyx);
 
       /////////////////////////////
       // ADD PHYSICAL PARAMETERS //
       /////////////////////////////
       auto physical_parameters     = config->getOneBlock("PhysicalParameters");
       const real_t omegaFluid      = physical_parameters.getParameter< real_t >("omegaFluid", real_c(1.95));
-      const real_t omegaThermal    = physical_parameters.getParameter< real_t >("omegaThermal");
+      //const real_t omegaThermal    = physical_parameters.getParameter< real_t >("omegaThermal");
       const real_t temperatureHot  = physical_parameters.getParameter< real_t >("temperatureHot", real_c(0.5));
       const real_t temperatureCold = physical_parameters.getParameter< real_t >("temperatureCold", real_c(-0.5));
       const real_t gravity         = physical_parameters.getParameter< real_t >("gravitationalAcceleration");
@@ -159,13 +161,19 @@ int main(int argc, char** argv)
       ////////////////
       pystencils::initialize_fluid_field initializeFluidField(fluid_PDFs_ID, temperature_field_ID, velocity_field_ID,
                                                               gravity);
-      pystencils::initialize_thermal_field initializeThermalField(thermal_PDFs_ID, temperature_field_ID,
-                                                                  velocity_field_ID);
+      //pystencils::initialize_thermal_field initializeThermalField(thermal_PDFs_ID, temperature_field_ID,
+      //                                                            velocity_field_ID);
+      pystencils::initialize_zhang_thermal_field initializeZhangThermalField(temperature_field_ID, velocity_field_ID, thermal_PDFs_ID);
 
       pystencils::fluid_lb_step fluid_lb_step(fluid_PDFs_ID, temperature_field_ID, velocity_field_ID, gravity,
                                               omegaFluid);
-      pystencils::thermal_lb_step thermal_lb_step(thermal_PDFs_ID, temperature_field_ID, velocity_field_ID,
-                                                  omegaThermal);
+      //pystencils::thermal_lb_step thermal_lb_step(thermal_PDFs_ID, temperature_field_ID, velocity_field_ID,
+      //                                            omegaThermal);
+      //> change naming -> for easy testing: just used the variables from the implementation beforehand
+      //> thus:
+      //>   - temperature_field_ID = zhang_energy_density_ID,
+      //>   - thermal_PDFs_ID = zhang_thermal_PDFs_ID
+      pystencils::zhang_thermal_lb_step zhang_thermal_lb_step(fluid_PDFs_ID, zhang_energy_density_field_ID, thermal_PDFs_ID, omegaFluid);
 
       ///////////////////////
       // ADD COMMUNICATION //
@@ -224,7 +232,8 @@ int main(int argc, char** argv)
 
       auto kernelOnlyFuncThermal = [&]() {
          for (auto& block : *blocks)
-            thermal_lb_step(&block);
+            //thermal_lb_step(&block);
+            zhang_thermal_lb_step(&block);
       };
 
       auto boundaryThermal = [&](IBlock* block) {
@@ -237,7 +246,8 @@ int main(int argc, char** argv)
          for (auto& block : *blocks)
          {
             boundaryThermal(&block);
-            thermal_lb_step(&block);
+            //thermal_lb_step(&block);
+            zhang_thermal_lb_step(&block);
          }
          Comm_hydro();
          for (auto& block : *blocks)
@@ -279,21 +289,23 @@ int main(int argc, char** argv)
       SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
       if (!weak_scaling)
       {
-         timeloop.add() << Sweep(thermal_Tcold, "Thermal Tcold boundary conditions");
-         timeloop.add() << Sweep(thermal_Thot, "Thermal Thot boundary conditions")
-                        << AfterFunction(Comm_thermal, "Communication of thermal PDFs");
-         timeloop.add() << Sweep(thermal_lb_step, "Thermal LB Step");
-
          timeloop.add() << BeforeFunction(Comm_hydro, "Communication of fluid PDFs")
                         << Sweep(fluid_NoSlip, "Fluid NoSlip boundary conditions");
          timeloop.add() << Sweep(fluid_lb_step, "Fluid LB Step");
+
+         timeloop.add() << Sweep(thermal_Tcold, "Thermal Tcold boundary conditions");
+         timeloop.add() << Sweep(thermal_Thot, "Thermal Thot boundary conditions")
+                        << AfterFunction(Comm_thermal, "Communication of thermal PDFs");
+         //timeloop.add() << Sweep(thermal_lb_step, "Thermal LB Step");
+         timeloop.add() << Sweep(zhang_thermal_lb_step, "Zhang Thermal LB Step");
 
          // initialize the two lattice Boltzmann fields
          WALBERLA_LOG_INFO_ON_ROOT("initialization of the distributions")
          for (auto& block : *blocks)
          {
             initializeFluidField(&block);
-            initializeThermalField(&block);
+            //initializeThermalField(&block);
+            initializeZhangThermalField(&block);
          }
          WALBERLA_LOG_INFO_ON_ROOT("initialization of the distributions done")
          Comm_hydro();
@@ -319,6 +331,11 @@ int main(int argc, char** argv)
             auto tempWriter =
                make_shared< field::VTKWriter< TemperatureField_T > >(temperature_field_ID, "Temperature");
             vtkOutput->addCellDataWriter(tempWriter);
+
+            // add energy density field as VTK output -> if zhang model is used
+            auto energyDenWriter =
+               make_shared< field::VTKWriter< TemperatureField_T > >(zhang_energy_density_field_ID, "EnergyDensity");
+            vtkOutput->addCellDataWriter(energyDenWriter);
 
             // add thermal flag field as VTK output
             auto thermalFlagWriter =
@@ -395,6 +412,7 @@ int main(int argc, char** argv)
             performanceStatsToFile.close();
          }
          WALBERLA_LOG_INFO_ON_ROOT("Benchmarking done!")
+
          WALBERLA_LOG_INFO_ON_ROOT("————————————————————————————————————————————————————————————————————————")
          WALBERLA_LOG_INFO_ON_ROOT("————————————————————————————————————————————————————————————————————————")
       }
