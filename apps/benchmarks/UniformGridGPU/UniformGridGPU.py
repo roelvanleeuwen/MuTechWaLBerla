@@ -8,6 +8,7 @@ from pystencils.typing import TypedSymbol
 from pystencils.fast_approximation import insert_fast_sqrts, insert_fast_divisions
 
 from lbmpy import LBMConfig, LBMOptimisation, LBStencil, Method, Stencil
+from lbmpy.enums import SubgridScaleModel
 from lbmpy.advanced_streaming import is_inplace
 from lbmpy.advanced_streaming.utility import streaming_patterns
 from lbmpy.boundaries import NoSlip, UBB
@@ -84,7 +85,7 @@ options_dict = {
     },
     'smagorinsky': {
         'method': Method.SRT,
-        'smagorinsky': False,
+        'subgrid_scale_model': SubgridScaleModel.SMAGORINSKY,
         'relaxation_rate': omega,
     }
 }
@@ -168,7 +169,7 @@ with CodeGeneration() as ctx:
                          nonuniform=False, boundaries=[no_slip, ubb],
                          macroscopic_fields=macroscopic_fields,
                          target=ps.Target.GPU, gpu_indexing_params=gpu_indexing_params,
-                         max_threads=max_threads)
+                         max_threads=max_threads, set_pre_collision_pdfs=False)
 
     # Stream only kernel
     vp = [('int32_t', 'cudaBlockSize0'), ('int32_t', 'cudaBlockSize1'), ('int32_t', 'cudaBlockSize2')]

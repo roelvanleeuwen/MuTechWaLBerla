@@ -190,7 +190,7 @@ int main(int argc, char** argv)
       SweepCollection_T sweepCollection(blocks, pdfFieldGpuID, densityFieldGpuID, velFieldGpuID, gpuBlockSize[0], gpuBlockSize[1], gpuBlockSize[2], omega, innerOuterSplit);
       for (auto& iBlock : *blocks)
       {
-         sweepCollection.initialise(&iBlock, 2, nullptr);
+         sweepCollection.initialise(&iBlock, cell_idx_c(1), nullptr);
       }
       WALBERLA_GPU_CHECK(gpuDeviceSynchronize())
       WALBERLA_GPU_CHECK(gpuPeekAtLastError())
@@ -243,7 +243,7 @@ int main(int argc, char** argv)
       {
          auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "vtk", vtkWriteFrequency, 0, false, "vtk_out",
                                                          "simulation_step", false, true, true, false, 0);
-         auto velWriter = make_shared< field::VTKWriter< VelocityField_T > >(velFieldCpuID, "vel");
+         auto velWriter = make_shared< field::VTKWriter< VelocityField_T, float32 > >(velFieldCpuID, "vel");
          vtkOutput->addCellDataWriter(velWriter);
 
          vtkOutput->addBeforeFunction([&]() {

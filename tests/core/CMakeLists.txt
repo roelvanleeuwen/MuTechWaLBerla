@@ -119,6 +119,11 @@ waLBerla_execute_test( NAME SetReductionTest4  COMMAND $<TARGET_FILE:SetReductio
 waLBerla_execute_test( NAME SetReductionTest5  COMMAND $<TARGET_FILE:SetReductionTest> PROCESSES 5 )
 waLBerla_execute_test( NAME SetReductionTest27 COMMAND $<TARGET_FILE:SetReductionTest> PROCESSES 27 )
 
+if ( WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT )
+   waLBerla_compile_test( Name MPIFloat16Test FILES mpi/MPIFloat16Test.cpp DEPENDS core )
+   target_compile_features( MPIFloat16Test PUBLIC cxx_std_23 )
+   waLBerla_execute_test( NAME MPIFloat16Test4 COMMAND $<TARGET_FILE:MPIFloat16Test> PROCESSES 4)
+endif ()
 
 
 ##############
@@ -171,9 +176,6 @@ waLBerla_execute_test( NAME DataTypesTest )
 waLBerla_compile_test( FILES DebugSTLTest.cpp )
 waLBerla_execute_test( NAME DebugSTLTest )
 set_tests_properties(DebugSTLTest PROPERTIES WILL_FAIL TRUE)
-
-waLBerla_compile_test( FILES FP16Test.cpp )
-waLBerla_execute_test( NAME FP16Test )
 
 waLBerla_compile_test( FILES FunctionTraitsTest.cpp )
 waLBerla_execute_test( NAME FunctionTraitsTest )
@@ -235,4 +237,7 @@ if ( WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT )
    # Which features are actually supported depend on the compiler
    target_compile_features( Float16SupportTest PUBLIC cxx_std_23 )
    waLBerla_execute_test(NAME Float16SupportTest)
+
+   waLBerla_compile_test( FILES FP16Test.cpp )
+   waLBerla_execute_test( NAME FP16Test )
 endif ()

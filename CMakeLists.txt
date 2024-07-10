@@ -99,6 +99,7 @@ option ( WALBERLA_PROFILE_USE               "Uses Profile to optimize"          
 option ( WALBERLA_OPTIMIZE_FOR_LOCALHOST    "Enable compiler optimizations spcific to localhost" )
 
 option ( WALBERLA_LOG_SKIPPED               "Log skipped cmake targets"                      ON  )
+option ( WALBERLA_DEPS_ERROR                "Fail if module dependencies are not met"        OFF )
 
 option ( WALBERLA_GIT_SUBMODULE_AUTO        "Check submodules during cmake run"               ON )
 
@@ -215,7 +216,7 @@ endif()
 mark_as_advanced ( WALBERLA_CXX_COMPILER_IS_IBM )
 
 # Check for NEC SX compiler
-if( CMAKE_CXX_COMPILER MATCHES "sxc" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "sxc" OR CMAKE_CXX_COMPILER MATCHES "sxmpic" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "sxmpic" )
+if( CMAKE_CXX_COMPILER MATCHES "/sxc" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "/sxc" OR CMAKE_CXX_COMPILER MATCHES "/sxmpic" OR CMAKE_CXX_COMPILER_ARG1 MATCHES "/sxmpic" )
     option ( WALBERLA_CXX_COMPILER_IS_NEC "Use NEC compiler" ON  )
 else()
     option ( WALBERLA_CXX_COMPILER_IS_NEC "Use NEC compiler" OFF  )
@@ -927,7 +928,7 @@ if( (NOT DEFINED WALBERLA_BUILD_WITH_OPENMESH) OR WALBERLA_BUILD_WITH_OPENMESH )
          add_definitions(-D_USE_MATH_DEFINES )
       endif()
    else()
-      message("   If OpenMesh required, set OPENMESH_DIR to the OpenMesh directory.")
+      message("   If OpenMesh required, set OPENMESH_LIBRARY_DIR to the OpenMesh directory.")
       set( WALBERLA_BUILD_WITH_OPENMESH OFF CACHE BOOL "Build with OpenMesh support" FORCE )
    endif()
 endif()
@@ -1275,12 +1276,6 @@ if ( WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT )
    if ( NOT WALBERLA_SUPPORT_HALF_PRECISION )
       message( FATAL_ERROR "Compiler: ${CMAKE_CXX_COMPILER} Version: ${CMAKE_CXX_COMPILER_VERSION} does not support half precision" )
    endif ()
-
-   # Local host optimization
-   if ( NOT WALBERLA_OPTIMIZE_FOR_LOCALHOST )
-      message( WARNING "[WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT] "
-            "You are not optimizing for localhost. You may encounter linker errors, or WORSE: silent incorrect fp16 arithmetic! Consider also enabling WALBERLA_OPTIMIZE_FOR_LOCALHOST!" )
-   endif () # Local host check
 
 endif () # Check if WALBERLA_BUILD_WITH_HALF_PRECISION_SUPPORT is set
 
