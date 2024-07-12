@@ -60,7 +60,7 @@ void initTemperatureField(const shared_ptr< StructuredBlockStorage >& blocks, Bl
             for (uint_t ySample = uint_c(0); ySample <= sampleSize; ++ySample)
             {
                const real_t yPoint = real_c(globalCell[1]) + real_c(ySample) * stepSize;
-               temperatureField->get(x, y, z) = (yPoint < functionValue) ?  temperatureRange/50 : -temperatureRange/50;
+               temperatureField->get(x, y, z) = (yPoint < functionValue) ?  temperatureRange : -temperatureRange;
             }
          }
       }) // WALBERLA_FOR_ALL_CELLS

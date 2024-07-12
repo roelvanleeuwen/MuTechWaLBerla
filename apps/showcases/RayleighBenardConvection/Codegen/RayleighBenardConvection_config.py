@@ -6,10 +6,11 @@ import math
 class Scenario:
     def __init__(self, weak_scaling=False, scaling_type=None, cells=(32, 32, 1), timesteps=100):
         #> Domain Parameters
-        self.domain_size = (32, 32, 1)
-        self.blocks = (4, 1, 1)
+        #self.domain_size = (32, 32, 1)
+        self.blocks = (4, 2, 1)
         self.periodic = (1, 0, 1)
-        self.cells = (self.domain_size[0] // self.blocks[0], self.domain_size[1] // self.blocks[1], self.domain_size[2] // self.blocks[2])
+        domain_size = (cells[0] * self.blocks[0], cells[1] * self.blocks[1], cells[2] * self.blocks[2])
+        #self.cells = (self.domain_size[0] // self.blocks[0], self.domain_size[1] // self.blocks[1], self.domain_size[2] // self.blocks[2])
         self.cells = cells
         #print(f"self.cells = {self.cells}")
         #> Standard Parameters
@@ -25,7 +26,7 @@ class Scenario:
         self.omega_fluid = 1.95
         #! omega_thermal
         self.length_x_SI = 2
-        self.length_conversion = self.length_x_SI / self.domain_size[0]
+        self.length_conversion = self.length_x_SI / domain_size[0]
         self.viscosity_LBM = 1./3 * (1. / self.omega_fluid - 1./2)
         self.time_conversion = self.viscosity_LBM * self.length_conversion * self.length_conversion / \
                                np.sqrt(self.Prandtl / self.Rayleigh)
@@ -44,8 +45,8 @@ class Scenario:
         self.gravity_LBM = self.gravity_SI / self.gravity_conversion
         #> Initialization Parameters
         self.delta_temperature = abs(self.temperature_hot) + abs(self.temperature_cold)
-        self.init_amplitude = self.delta_temperature / 200 * self.domain_size[0]
-        self.init_temperature_range = 2 * self.delta_temperature / self.domain_size[0]
+        self.init_amplitude = self.delta_temperature / 200 * domain_size[0]
+        self.init_temperature_range = 2 * self.delta_temperature / domain_size[0]
         #print(f"init_amplitude = {self.init_amplitude}")
         #print(f"init_temperature_range = {self.init_temperature_range}")
 
@@ -54,6 +55,8 @@ class Scenario:
         self.scalingType = scaling_type  #"fluid", "thermal", "rbc"
         self.benchmarkingIterations = 5
         self.warmupSteps = 10
+
+        print(f"gravity = {self.gravity_LBM}")
 
         #?self.viscosity_SI = 1.516e-5  #? look
         #?self.thermal_diffusivity_SI = 2.074e-5  #? look
@@ -116,7 +119,7 @@ class Scenario:
 
 def runSimulation():
     scenarios = wlb.ScenarioManager()
-    scenarios.add(Scenario(timesteps=10000))
+    scenarios.add(Scenario(timesteps=10001))
 
 
 def weakScalingBenchmark():

@@ -126,10 +126,11 @@ int main(int argc, char** argv)
          field::addToStorage< PdfField_thermal_T >(blocks, "LB PDF field thermal", real_c(0.0), field::fzyx);
       BlockDataID velocity_field_ID =
          field::addToStorage< VelocityField_T >(blocks, "velocity", real_c(0.0), field::fzyx);
-      BlockDataID temperature_field_ID =
+      /*BlockDataID temperature_field_ID =
          field::addToStorage< TemperatureField_T >(blocks, "Temperature", real_c(0.0), field::fzyx);
+      */
       BlockDataID zhang_energy_density_field_ID =
-         field::addToStorage< TemperatureField_T >(blocks, "zhang_energy_density_field", real_c(0.0), field::fzyx);
+         field::addToStorage< ZhangEnergyDensityField_T >(blocks, "zhang_energy_density_field", real_c(0.0), field::fzyx);
 
       /////////////////////////////
       // ADD PHYSICAL PARAMETERS //
@@ -140,10 +141,10 @@ int main(int argc, char** argv)
       const real_t temperatureHot  = physical_parameters.getParameter< real_t >("temperatureHot", real_c(0.5));
       const real_t temperatureCold = physical_parameters.getParameter< real_t >("temperatureCold", real_c(-0.5));
       const real_t gravity         = physical_parameters.getParameter< real_t >("gravitationalAcceleration");
-//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(omegaFluid)
-//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(omegaThermal)
-//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(temperatureHot)
-//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(temperatureCold)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(omegaFluid)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(temperatureHot)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(temperatureCold)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(gravity)
 
       ///////////////////////////////////
       // ADD INITIALIZATION PARAMETERS //
@@ -151,21 +152,21 @@ int main(int argc, char** argv)
       auto initialization_parameters    = config->getOneBlock("InitializationParameters");
       const real_t initAmplitude        = initialization_parameters.getParameter< real_t >("initAmplitude");
       const real_t initTemperatureRange = initialization_parameters.getParameter< real_t >("initTemperatureRange");
-//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initAmplitude)
-//      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initTemperatureRange)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initAmplitude)
+      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(initTemperatureRange)
 
-      initTemperatureField(blocks, temperature_field_ID, initAmplitude, domainSize, initTemperatureRange);
+      initTemperatureField(blocks, zhang_energy_density_field_ID, initAmplitude, domainSize, initTemperatureRange);
 
       ////////////////
       // ADD SWEEPS //
       ////////////////
-      pystencils::initialize_fluid_field initializeFluidField(fluid_PDFs_ID, temperature_field_ID, velocity_field_ID,
+      pystencils::initialize_fluid_field initializeFluidField(fluid_PDFs_ID, velocity_field_ID, zhang_energy_density_field_ID,
                                                               gravity);
       //pystencils::initialize_thermal_field initializeThermalField(thermal_PDFs_ID, temperature_field_ID,
       //                                                            velocity_field_ID);
-      pystencils::initialize_zhang_thermal_field initializeZhangThermalField(temperature_field_ID, velocity_field_ID, thermal_PDFs_ID);
+      pystencils::initialize_zhang_thermal_field initializeZhangThermalField(velocity_field_ID, zhang_energy_density_field_ID, thermal_PDFs_ID);
 
-      pystencils::fluid_lb_step fluid_lb_step(fluid_PDFs_ID, temperature_field_ID, velocity_field_ID, gravity,
+      pystencils::fluid_lb_step fluid_lb_step(fluid_PDFs_ID, velocity_field_ID, zhang_energy_density_field_ID, gravity,
                                               omegaFluid);
       //pystencils::thermal_lb_step thermal_lb_step(thermal_PDFs_ID, temperature_field_ID, velocity_field_ID,
       //                                            omegaThermal);
@@ -289,13 +290,14 @@ int main(int argc, char** argv)
       SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
       if (!weak_scaling)
       {
-         timeloop.add() << BeforeFunction(Comm_hydro, "Communication of fluid PDFs")
-                        << Sweep(fluid_NoSlip, "Fluid NoSlip boundary conditions");
-         timeloop.add() << Sweep(fluid_lb_step, "Fluid LB Step");
+         //timeloop.add() << BeforeFunction(Comm_hydro, "Communication of fluid PDFs - before lb-step")
+         timeloop.add() << Sweep(fluid_NoSlip, "Fluid NoSlip boundary conditions");
+         timeloop.add() << Sweep(fluid_lb_step, "Fluid LB Step")
+                        << AfterFunction(Comm_hydro, "Communication of fluid PDFs - after lb-step");
 
-         timeloop.add() << Sweep(thermal_Tcold, "Thermal Tcold boundary conditions");
-         timeloop.add() << Sweep(thermal_Thot, "Thermal Thot boundary conditions")
-                        << AfterFunction(Comm_thermal, "Communication of thermal PDFs");
+         timeloop.add() << BeforeFunction(Comm_thermal, "Communication of thermal PDFs")
+                        << Sweep(thermal_Tcold, "Thermal Tcold boundary conditions");
+         timeloop.add() << Sweep(thermal_Thot, "Thermal Thot boundary conditions");
          //timeloop.add() << Sweep(thermal_lb_step, "Thermal LB Step");
          timeloop.add() << Sweep(zhang_thermal_lb_step, "Zhang Thermal LB Step");
 
@@ -328,13 +330,13 @@ int main(int argc, char** argv)
             vtkOutput->addCellDataWriter(velWriter);
 
             // add temperature field as VTK output
-            auto tempWriter =
+            /*auto tempWriter =
                make_shared< field::VTKWriter< TemperatureField_T > >(temperature_field_ID, "Temperature");
             vtkOutput->addCellDataWriter(tempWriter);
-
+            */
             // add energy density field as VTK output -> if zhang model is used
             auto energyDenWriter =
-               make_shared< field::VTKWriter< TemperatureField_T > >(zhang_energy_density_field_ID, "EnergyDensity");
+               make_shared< field::VTKWriter< ZhangEnergyDensityField_T > >(zhang_energy_density_field_ID, "EnergyDensity");
             vtkOutput->addCellDataWriter(energyDenWriter);
 
             // add thermal flag field as VTK output

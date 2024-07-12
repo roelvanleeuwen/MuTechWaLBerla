@@ -53,20 +53,31 @@ pdf_fluid_tmp = fields(
     f"lb_fluid_field_tmp({stencil_fluid.Q}): [{stencil_fluid.D}D]", layout=layout
 )
 
-pdf_thermal = fields(
-    f"lb_thermal_field({stencil_thermal.Q}): [{stencil_thermal.D}D]", layout=layout
-)
-pdf_thermal_tmp = fields(
-    f"lb_thermal_field_tmp({stencil_thermal.Q}): [{stencil_thermal.D}D]", layout=layout
-)
+#pdf_thermal = fields(
+#    f"lb_thermal_field({stencil_thermal.Q}): [{stencil_thermal.D}D]", layout=layout
+#)
+#pdf_thermal_tmp = fields(
+#    f"lb_thermal_field_tmp({stencil_thermal.Q}): [{stencil_thermal.D}D]", layout=layout
+#)
 
 velocity_field = fields(
     f"vel_field({stencil_fluid.D}): [{stencil_fluid.D}D]", layout=layout
 )
-density_field = fields(f"density_field: [{stencil_fluid.D}D]", layout=layout)
-temperature_field = fields(f"temperature_field: [{stencil_thermal.D}D]", layout=layout)
+#density_field = fields(f"density_field: [{stencil_fluid.D}D]", layout=layout)
+#temperature_field = fields(f"temperature_field: [{stencil_thermal.D}D]", layout=layout)
 
-force = sp.Matrix([0, gravity_LBM * temperature_field(0) * rho, 0])
+#force = sp.Matrix([0, gravity_LBM * temperature_field(0) * rho, 0])
+
+#> zhang
+pdf_zhang_thermal = fields(
+    f"zhang_lb_thermal_field({stencil_thermal.Q}): [{stencil_thermal.D}D]", layout=layout
+)
+pdf_zhang_thermal_tmp = fields(
+    f"zhang_lb_thermal_field_tmp({stencil_thermal.Q}): [{stencil_thermal.D}D]", layout=layout
+)
+zhang_energy_density_field = fields(f"zhang_energy_density_field: [{stencil_thermal.D}D]", layout=layout)
+force = sp.Matrix([0, gravity_LBM * zhang_energy_density_field(0) * rho, 0])
+#>
 
 # Fluid LBM
 lbm_config_fluid = LBMConfig(
@@ -101,35 +112,27 @@ lbm_config_thermal = LBMConfig(
     velocity_input=velocity_field,
     equilibrium_order=1,
     entropic=False,
-    output={"density": temperature_field},
+    output={"density": zhang_energy_density_field},
 )
 thermal_step = create_lb_update_rule(
     lbm_config=lbm_config_thermal,
     lbm_optimisation=LBMOptimisation(
-        symbolic_field=pdf_thermal, symbolic_temporary_field=pdf_thermal_tmp
+        symbolic_field=pdf_zhang_thermal, symbolic_temporary_field=pdf_zhang_thermal_tmp
     ),
 )
 method_thermal = thermal_step.method
 
-setter_eqs_thermal = pdf_initialization_assignments(
-    method_thermal,
-    temperature_field.center,
-    velocity_field.center_vector,
-    pdf_thermal.center_vector,
-)
+#setter_eqs_thermal = pdf_initialization_assignments(
+#    method_thermal,
+#    temperature_field.center,
+#    velocity_field.center_vector,
+#    pdf_thermal.center_vector,
+#)
 
 #> Zhang Thermal LBM
-pdf_zhang_thermal = fields(
-    f"zhang_lb_thermal_field({stencil_thermal.Q}): [{stencil_thermal.D}D]", layout=layout
-)
-pdf_zhang_thermal_tmp = fields(
-    f"zhang_lb_thermal_field_tmp({stencil_thermal.Q}): [{stencil_thermal.D}D]", layout=layout
-)
-zhang_energy_density_field = fields(f"zhang_energy_density_field: [{stencil_thermal.D}D]", layout=layout)
-
 setter_zhang_eqs_thermal = pdf_initialization_assignments(
     method_thermal,
-    temperature_field.center,
+    zhang_energy_density_field.center,
     velocity_field.center_vector,
     pdf_zhang_thermal.center_vector,
 )
@@ -168,7 +171,7 @@ def assignmentCollectionTest(s):
 
 
 # todo: hardcoded seperation of main assignments and subexpressions
-zhang_ac = ps.AssignmentCollection(main_assignments=assignmentCollectionTest[-9:], subexpressions=assignmentCollectionTest[:-9])
+zhang_ac = ps.AssignmentCollection(main_assignments=assignmentCollectionTest[-stencil_thermal.Q:], subexpressions=assignmentCollectionTest[:-stencil_thermal.Q])
 strategy = ps.simp.SimplificationStrategy()
 strategy.add(ps.simp.apply_to_all_assignments(sp.expand))
 strategy.add(ps.simp.sympy_cse)
@@ -181,14 +184,14 @@ cpu_vec = {'assume_inner_stride_one': True, 'nontemporal': True}
 # Code Generation
 with CodeGeneration() as ctx:
     # Initializations
-    generate_sweep(ctx, "initialize_thermal_field", setter_eqs_thermal, target=target)
+    #generate_sweep(ctx, "initialize_thermal_field", setter_eqs_thermal, target=target)
     generate_sweep(ctx, "initialize_zhang_thermal_field", setter_zhang_eqs_thermal, target=target)
     generate_sweep(ctx, "initialize_fluid_field", setter_eqs_fluid, target=target)
 
     # lattice Boltzmann steps
-    generate_sweep(ctx, 'thermal_lb_step', thermal_step,
-                   field_swaps=[(pdf_thermal, pdf_thermal_tmp)],
-                   target=Target.CPU)
+    #generate_sweep(ctx, 'thermal_lb_step', thermal_step,
+    #               field_swaps=[(pdf_thermal, pdf_thermal_tmp)],
+    #               target=Target.CPU)
         #> zhang temperature LBM step
     generate_sweep(ctx, 'zhang_thermal_lb_step', zhang_ac_cse,
                    field_swaps=[(pdf_zhang_thermal, pdf_zhang_thermal_tmp)], target=Target.CPU)
@@ -214,10 +217,10 @@ with CodeGeneration() as ctx:
         "Stencil_fluid_T": stencil_fluid,
     }
     field_typedefs = {
-        "PdfField_thermal_T": pdf_thermal,
+        "PdfField_thermal_T": pdf_zhang_thermal,
         "PdfField_fluid_T": pdf_fluid,
         "VelocityField_T": velocity_field,
-        "TemperatureField_T": temperature_field,
+        "ZhangEnergyDensityField_T": zhang_energy_density_field,
     }
     additional_code = f"""
         const char * StencilNameThermal = "{stencil_thermal.name}";
