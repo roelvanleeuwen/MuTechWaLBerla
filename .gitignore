@@ -52,6 +52,8 @@ CMakeLists.txt.user.*
 logfile*.txt
 *TestLog_p*.txt
 
+# Python venvs
+.venv*
 
 # Compiled python
 *.pyc

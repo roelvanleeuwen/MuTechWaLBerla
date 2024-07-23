@@ -1,0 +1,8 @@
+# jinja2
+jinja2
+
+# pystencils
+git+https://i10git.cs.fau.de/pycodegen/pystencils.git@v2.0-dev
+
+# lbmpy: development branch
+git+https://i10git.cs.fau.de/pycodegen/lbmpy.git@fhennig/pystencils2.0-compat
