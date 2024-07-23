@@ -4,13 +4,15 @@ from typing import Union, Dict, DefaultDict
 import warnings
 
 from pystencils import CreateKernelConfig, Target
-from pystencils.backends.simd_instruction_sets import get_supported_instruction_sets
+from pystencils.typing import create_type
 from pystencils.boundaries.createindexlist import boundary_index_array_coordinate_names, direction_member_name
-from pystencils.typing import BasicType, create_type, get_base_type
+
+from pystencils_walberla.compat import get_supported_instruction_sets, BasicType
 
 from lbmpy import LBStencil
 
 from pystencils_walberla.cmake_integration import CodeGenerationContext
+from pystencils_walberla.compat import PS_VERSION
 
 HEADER_EXTENSIONS = {'.h', '.hpp'}
 
@@ -139,8 +141,14 @@ def config_from_context(ctx: CodeGenerationContext, target: Target = Target.CPU,
     cpu_vectorize_info['assume_sufficient_line_padding'] = cpu_vectorize_info.get('assume_sufficient_line_padding',
                                                                                   False)
 
-    config = CreateKernelConfig(target=target, data_type=data_type, default_number_float=data_type,
+    if PS_VERSION == 1:
+        config = CreateKernelConfig(target=target, data_type=data_type, default_number_float=data_type,
                                 cpu_openmp=cpu_openmp, cpu_vectorize_info=cpu_vectorize_info,
+                                **kwargs)
+    else:
+        config = CreateKernelConfig(target=target, default_dtype=data_type,
+                                cpu_openmp=cpu_openmp,
+                                cpu_vectorize_info=None,  # FIXME
                                 **kwargs)
 
     return config
@@ -170,7 +178,7 @@ def merge_sorted_lists(lx, ly, sort_key=lambda x: x, identity_check_key=None):
             return [x] + recursive_merge(lx_intern, ly_intern, ix_intern + 1, iy_intern)
         else:
             return [y] + recursive_merge(lx_intern, ly_intern, ix_intern, iy_intern + 1)
-    return recursive_merge(lx, ly, 0, 0)
+    return recursive_merge(list(lx), list(ly), 0, 0)
 
 
 def merge_lists_of_symbols(lists):

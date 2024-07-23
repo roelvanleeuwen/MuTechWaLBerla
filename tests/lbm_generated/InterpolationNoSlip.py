@@ -47,7 +47,7 @@ with CodeGeneration() as ctx:
     generate_lbm_package(ctx, name="InterpolationNoSlip",
                          collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=True, boundaries=[no_slip, no_slip_bouzidi, no_slip_quadraticbb, ubb],
+                         nonuniform=False, boundaries=[no_slip, no_slip_bouzidi, no_slip_quadraticbb, ubb],
                          macroscopic_fields=macroscopic_fields, data_type=data_type,
                          set_pre_collision_pdfs=False)
 

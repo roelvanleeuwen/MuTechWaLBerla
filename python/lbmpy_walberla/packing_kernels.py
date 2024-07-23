@@ -8,7 +8,8 @@ from jinja2 import Environment, PackageLoader, StrictUndefined
 
 from pystencils import Assignment, CreateKernelConfig, create_kernel, Field, FieldType, fields, Target
 from pystencils.stencil import offset_to_direction_string
-from pystencils.typing import TypedSymbol
+from pystencils import TypedSymbol
+from pystencils.typing import create_type
 from pystencils.stencil import inverse_direction
 from pystencils.bit_masks import flag_cond
 
@@ -17,6 +18,7 @@ from lbmpy.advanced_streaming.communication import _extend_dir
 from lbmpy.enums import Stencil
 from lbmpy.stencils import LBStencil
 
+from pystencils_walberla.compat import IS_PYSTENCILS_2, custom_type, target_string
 from pystencils_walberla.cmake_integration import CodeGenerationContext
 from pystencils_walberla.kernel_selection import KernelFamily, KernelCallNode, SwitchNode
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
@@ -52,7 +54,7 @@ def generate_packing_kernels(generation_context: CodeGenerationContext, class_na
         'class_name': class_name,
         'namespace': namespace,
         'nonuniform': nonuniform,
-        'target': target.name.lower(),
+        'target': target_string(target),
         'dtype': "float" if is_float else "double",
         'is_gpu': target == Target.GPU,
         'kernels': kernels,
@@ -93,7 +95,11 @@ class PackingKernelsCodegen:
         self.inplace = is_inplace(streaming_pattern)
         self.class_name = class_name
         self.config = config
-        self.data_type = config.data_type['pdfs'].numpy_dtype
+
+        if IS_PYSTENCILS_2:
+            self.data_type = create_type(config.default_dtype).numpy_dtype
+        else:
+            self.data_type = config.data_type['pdfs'].numpy_dtype
 
         self.src_field = src_field if src_field else fields(f'pdfs_src({stencil.Q}) :{self.data_type}[{stencil.D}D]')
         self.dst_field = dst_field if dst_field else fields(f'pdfs_dst({stencil.Q}) :{self.data_type}[{stencil.D}D]')
@@ -277,7 +283,7 @@ class PackingKernelsCodegen:
         function_name = f'unpackRedistribute_{dir_string}' + timestep_suffix(timestep)
         iteration_slice = tuple(slice(None, None, 2) for _ in range(self.dim))
         config = CreateKernelConfig(function_name=function_name, iteration_slice=iteration_slice,
-                                    data_type=self.data_type, ghost_layers=0, allow_double_writes=True,
+                                    data_type=self.data_type, allow_double_writes=True,
                                     cpu_openmp=self.config.cpu_openmp, target=self.config.target)
 
         return create_kernel(assignments, config=config)
@@ -315,7 +321,7 @@ class PackingKernelsCodegen:
             assignments.append(Assignment(buffer(i), acc))
 
         iteration_slice = tuple(slice(None, None, 2) for _ in range(self.dim))
-        config = replace(self.config, iteration_slice=iteration_slice, ghost_layers=0)
+        config = replace(self.config, iteration_slice=iteration_slice)
 
         ast = create_kernel(assignments, config=config)
         ast.function_name = f'packPartialCoalescence_{dir_string}' + timestep_suffix(timestep)
@@ -427,7 +433,7 @@ class PackingKernelsCodegen:
 
     def _construct_directionwise_kernel_family(self, create_ast_callback):
         subtrees = []
-        direction_symbol = TypedSymbol('dir', dtype='stencil::Direction')
+        direction_symbol = TypedSymbol('dir', dtype=custom_type('stencil::Direction'))
         for t in get_timesteps(self.streaming_pattern):
             cases_dict = dict()
             for comm_dir in self.full_stencil:

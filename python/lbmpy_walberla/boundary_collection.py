@@ -7,7 +7,7 @@ from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_en
 from lbmpy.advanced_streaming import Timestep, is_inplace
 
 from pystencils_walberla.kernel_selection import KernelCallNode
-from lbmpy_walberla.alternating_sweeps import EvenIntegerCondition, OddIntegerCondition, TimestepTrackerMapping
+from lbmpy_walberla.alternating_sweeps import EvenIntegerCondition, OddIntegerCondition
 from lbmpy_walberla.additional_data_handler import default_additional_data_handler
 
 from pystencils import Target

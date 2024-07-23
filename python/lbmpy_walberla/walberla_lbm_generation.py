@@ -1,6 +1,7 @@
 # import warnings
 from typing import Callable, List
 
+from pystencils_walberla.compat import IS_PYSTENCILS_2
 
 import numpy as np
 import sympy as sp
@@ -12,20 +13,24 @@ from lbmpy.fieldaccess import CollideOnlyInplaceAccessor, StreamPullTwoFieldsAcc
 from lbmpy.relaxationrates import relaxation_rate_scaling
 from lbmpy.updatekernels import create_lbm_kernel, create_stream_only_kernel
 from pystencils import AssignmentCollection, create_kernel, Target
-from pystencils.astnodes import SympyAssignment
-from pystencils.backends.cbackend import CBackend, CustomSympyPrinter, get_headers
-from pystencils.typing import BasicType, CastFunc, TypedSymbol
 from pystencils.field import Field
-from pystencils.node_collection import NodeCollection
 from pystencils.stencil import offset_to_direction_string
 from pystencils.sympyextensions import get_symmetric_part
-from pystencils.typing.transformations import add_types
 
 from pystencils_walberla.kernel_info import KernelInfo
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
 from pystencils_walberla.utility import config_from_context
 
-cpp_printer = CustomSympyPrinter()
+
+if not IS_PYSTENCILS_2:
+    from pystencils.node_collection import NodeCollection
+    from pystencils.astnodes import SympyAssignment
+    from pystencils.backends.cbackend import CBackend, CustomSympyPrinter, get_headers
+    from pystencils.typing import BasicType, CastFunc, TypedSymbol
+    from pystencils.typing.transformations import add_types
+
+    cpp_printer = CustomSympyPrinter()
+
 REFINEMENT_SCALE_FACTOR = sp.Symbol("level_scale_factor")
 
 
@@ -162,6 +167,9 @@ def __lattice_model(generation_context, class_name, config, lb_method, stream_co
 def generate_lattice_model(generation_context, class_name, collision_rule, field_layout='fzyx', refinement_scaling=None,
                            target=Target.CPU, data_type=None, cpu_openmp=None, cpu_vectorize_info=None,
                            **create_kernel_params):
+    
+    if IS_PYSTENCILS_2:
+        raise NotImplementedError("Lattice Model code generation is not available with pystencils 2.0")
 
     config = config_from_context(generation_context, target=target, data_type=data_type,
                                  cpu_openmp=cpu_openmp, cpu_vectorize_info=cpu_vectorize_info, **create_kernel_params)

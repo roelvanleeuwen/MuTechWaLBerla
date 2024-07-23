@@ -10,6 +10,7 @@ from lbmpy import LBMConfig, LBMOptimisation
 from lbmpy.advanced_streaming import is_inplace, get_accessor, Timestep
 from lbmpy.methods import AbstractLbMethod
 
+from pystencils_walberla.compat import get_default_dtype, target_string
 from pystencils_walberla.cmake_integration import CodeGenerationContext
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
 from pystencils_walberla.utility import config_from_context
@@ -35,7 +36,7 @@ def generate_lbm_storage_specification(generation_context: CodeGenerationContext
     # Packing kernels should never be vectorised
     config = replace(config, cpu_vectorize_info=None)
 
-    default_dtype = config.data_type.default_factory()
+    default_dtype = get_default_dtype(config) 
     if issubclass(default_dtype.numpy_dtype.type, np.float64):
         data_type_string = "double"
     elif issubclass(default_dtype.numpy_dtype.type, np.float32):
@@ -107,7 +108,7 @@ def generate_lbm_storage_specification(generation_context: CodeGenerationContext
         'odd_write': _get_access_list(odd_write, stencil.D),
 
         'nonuniform': nonuniform,
-        'target': target.name.lower(),
+        'target': target_string(target),
         'dtype': data_type_string,
         'is_gpu': target == Target.GPU,
         'kernels': kernels,

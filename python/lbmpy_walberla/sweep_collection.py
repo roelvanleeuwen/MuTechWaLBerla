@@ -8,6 +8,7 @@ from pystencils import Target, create_kernel
 from pystencils.config import CreateKernelConfig
 from pystencils.field import Field
 from pystencils.simp import add_subexpressions_for_field_reads
+from pystencils.typing import create_type
 
 from lbmpy.advanced_streaming import is_inplace, get_accessor, Timestep
 from lbmpy.creationfunctions import LbmCollisionRule, LBMConfig, LBMOptimisation
@@ -18,6 +19,7 @@ from lbmpy.updatekernels import create_lbm_kernel, create_stream_only_kernel
 from pystencils_walberla.kernel_selection import KernelCallNode, KernelFamily
 from pystencils_walberla.utility import config_from_context
 from pystencils_walberla import generate_sweep_collection
+from pystencils_walberla.compat import IS_PYSTENCILS_2, get_default_dtype
 from lbmpy_walberla.utility import create_pdf_field
 
 from .alternating_sweeps import EvenIntegerCondition
@@ -41,10 +43,11 @@ def generate_lbm_sweep_collection(ctx, class_name: str, collision_rule: LbmColli
     # coordinates should be ordered in reverse direction i.e. zyx
     lb_method = collision_rule.method
 
-    if field_layout == 'fzyx':
-        config.cpu_vectorize_info['assume_inner_stride_one'] = True
-    elif field_layout == 'zyxf':
-        config.cpu_vectorize_info['assume_inner_stride_one'] = False
+    if not IS_PYSTENCILS_2:
+        if field_layout == 'fzyx':
+            config.cpu_vectorize_info['assume_inner_stride_one'] = True
+        elif field_layout == 'zyxf':
+            config.cpu_vectorize_info['assume_inner_stride_one'] = False
 
     src_field = lbm_optimisation.symbolic_field
     if not src_field:
@@ -73,7 +76,10 @@ def generate_lbm_sweep_collection(ctx, class_name: str, collision_rule: LbmColli
     function_generators.append(generator('stream', family("stream")))
     function_generators.append(generator('streamOnlyNoAdvancement', family("streamOnlyNoAdvancement")))
 
-    config_unoptimized = replace(config, cpu_vectorize_info=None, cpu_prepend_optimizations=[], cpu_blocking=None)
+    if IS_PYSTENCILS_2:
+        config_unoptimized = replace(config, cpu_optim=None)
+    else:
+        config_unoptimized = replace(config, cpu_vectorize_info=None, cpu_prepend_optimizations=[], cpu_blocking=None)
 
     setter_family = get_setter_family(class_name, lb_method, src_field, streaming_pattern, macroscopic_fields,
                                       config_unoptimized, set_pre_collision_pdfs)
@@ -107,7 +113,7 @@ class RefinementScaling:
 def lbm_kernel_family(class_name, kernel_name,
                       collision_rule, streaming_pattern, src_field, dst_field, config: CreateKernelConfig):
 
-    default_dtype = config.data_type.default_factory()
+    default_dtype = get_default_dtype(config)     
     if kernel_name == "streamCollide":
         def lbm_kernel(field_accessor, lb_stencil):
             return create_lbm_kernel(collision_rule, src_field, dst_field, field_accessor, data_type=default_dtype)
@@ -148,7 +154,10 @@ def lbm_kernel_family(class_name, kernel_name,
             update_rule = lbm_kernel(accessor, stencil)
             ast = create_kernel(update_rule, config=config)
             ast.function_name = 'kernel_' + kernel_name + timestep_suffix
-            ast.assumed_inner_stride_one = config.cpu_vectorize_info['assume_inner_stride_one']
+            if IS_PYSTENCILS_2:
+                ast.assumed_inner_stride_one = False
+            else:
+                ast.assumed_inner_stride_one = config.cpu_vectorize_info['assume_inner_stride_one']
             nodes.append(KernelCallNode(ast))
 
         tree = EvenIntegerCondition('timestep', nodes[0], nodes[1], parameter_dtype=np.uint8)
@@ -160,7 +169,10 @@ def lbm_kernel_family(class_name, kernel_name,
         update_rule = lbm_kernel(accessor, stencil)
         ast = create_kernel(update_rule, config=config)
         ast.function_name = 'kernel_' + kernel_name
-        ast.assumed_inner_stride_one = config.cpu_vectorize_info['assume_inner_stride_one']
+        if IS_PYSTENCILS_2:
+            ast.assumed_inner_stride_one = False
+        else:
+            ast.assumed_inner_stride_one = config.cpu_vectorize_info['assume_inner_stride_one']
         node = KernelCallNode(ast)
         family = KernelFamily(node, class_name, temporary_fields=temporary_fields, field_swaps=field_swaps)
 
@@ -173,7 +185,7 @@ def get_setter_family(class_name, lb_method, pdfs, streaming_pattern, macroscopi
     density = macroscopic_fields.get('density', 1.0)
     velocity = macroscopic_fields.get('velocity', [0.0] * dim)
 
-    default_dtype = config.data_type.default_factory()
+    default_dtype = get_default_dtype(config) 
 
     get_timestep = {"field_name": pdfs.name, "function": "getTimestep"}
     temporary_fields = ()
@@ -218,7 +230,7 @@ def get_getter_family(class_name, lb_method, pdfs, streaming_pattern, macroscopi
     if density is None and velocity is None:
         return None
 
-    default_dtype = config.data_type.default_factory()
+    default_dtype = get_default_dtype(config) 
 
     get_timestep = {"field_name": pdfs.name, "function": "getTimestep"}
     temporary_fields = ()

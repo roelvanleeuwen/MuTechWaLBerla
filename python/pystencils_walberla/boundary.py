@@ -1,16 +1,17 @@
 import numpy as np
 from jinja2 import Environment, PackageLoader, StrictUndefined
-from pystencils import Field, FieldType, Target
+from pystencils import Field, FieldType, Target, TypedSymbol
+from pystencils.typing import create_type
 from pystencils.boundaries.boundaryhandling import create_boundary_kernel
 from pystencils.boundaries.createindexlist import numpy_data_type_for_boundary_object
-from pystencils.typing import TypedSymbol, create_type
 
+from pystencils_walberla.compat import KernelFunction
 from pystencils_walberla.utility import config_from_context, struct_from_numpy_dtype
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
 from pystencils_walberla.additional_data_handler import AdditionalDataHandler
 from pystencils_walberla.kernel_selection import (
     KernelFamily, AbstractKernelSelectionNode, KernelCallNode, HighLevelInterfaceSpec)
-from pystencils.astnodes import KernelFunction
+from pystencils_walberla.compat import IS_PYSTENCILS_2, target_string, get_default_dtype
 
 
 def generate_boundary(generation_context,
@@ -44,13 +45,19 @@ def generate_boundary(generation_context,
     config = config_from_context(generation_context, target=target, data_type=data_type, cpu_openmp=cpu_openmp,
                                  **create_kernel_params)
     create_kernel_params = config.__dict__
-    del create_kernel_params['target']
-    del create_kernel_params['index_fields']
-    del create_kernel_params['default_number_int']
-    del create_kernel_params['skip_independence_check']
+    create_kernel_params.pop('target', None)
+    create_kernel_params.pop('index_fields', None)
+    create_kernel_params.pop('index_field', None)
+    create_kernel_params.pop('default_number_int', None)
+    create_kernel_params.pop('index_dtype', None)
+    create_kernel_params.pop('default_dtype', None)
+    create_kernel_params.pop('skip_independence_check', None)
 
     if field_data_type is None:
-        field_data_type = config.data_type[field_name].numpy_dtype
+        if IS_PYSTENCILS_2:
+            field_data_type = config.default_dtype
+        else:
+            field_data_type = config.data_type[field_name].numpy_dtype
 
     index_struct_dtype = numpy_data_type_for_boundary_object(boundary_object, dim)
 
@@ -85,7 +92,8 @@ def generate_boundary(generation_context,
     if additional_data_handler is None:
         additional_data_handler = AdditionalDataHandler(stencil=neighbor_stencil)
 
-    default_dtype = config.data_type.default_factory()
+    default_dtype = get_default_dtype(config) 
+
     is_float = True if issubclass(default_dtype.numpy_dtype.type, np.float32) else False
 
     context = {
@@ -96,7 +104,7 @@ def generate_boundary(generation_context,
         'StructName': struct_name,
         'StructDeclaration': struct_from_numpy_dtype(struct_name, index_struct_dtype),
         'dim': dim,
-        'target': target.name.lower(),
+        'target': target_string(target),
         'namespace': namespace,
         'inner_or_boundary': boundary_object.inner_or_boundary,
         'single_link': boundary_object.single_link,

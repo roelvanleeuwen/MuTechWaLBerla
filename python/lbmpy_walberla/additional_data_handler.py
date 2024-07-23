@@ -1,13 +1,20 @@
 from pystencils import Target
 from pystencils.stencil import inverse_direction
-from pystencils.typing import BasicType
+from pystencils.typing import create_type
+
+from pystencils_walberla.compat import IS_PYSTENCILS_2
 
 from lbmpy.advanced_streaming import AccessPdfValues, numeric_offsets, numeric_index, Timestep, is_inplace
-# until lbmpy version 1.3.2 
-try:
-    from lbmpy.advanced_streaming.indexing import MirroredStencilDirections
-except ImportError:
-    from lbmpy.custom_code_nodes import MirroredStencilDirections
+
+if IS_PYSTENCILS_2:
+    from lbmpy.lookup_tables import MirroredStencilDirections
+else:
+    # until lbmpy version 1.3.2
+    try:
+        from lbmpy.advanced_streaming.indexing import MirroredStencilDirections
+    except ImportError:
+        from lbmpy.custom_code_nodes import MirroredStencilDirections
+
 from lbmpy.boundaries.boundaryconditions import LbBoundary
 from lbmpy.boundaries import (ExtrapolationOutflow, FreeSlip, UBB, DiffusionDirichlet,
                               NoSlipLinearBouzidi, QuadraticBounceBack)
@@ -153,7 +160,7 @@ class NoSlipLinearBouzidiAdditionalDataHandler(AdditionalDataHandler):
     def __init__(self, stencil, boundary_object):
         assert isinstance(boundary_object, NoSlipLinearBouzidi)
 
-        self._dtype = BasicType(boundary_object.data_type).c_name
+        self._dtype = create_type(boundary_object.data_type).c_name
         self._blocks = "const shared_ptr<StructuredBlockForest>&, IBlock&)>"
         super(NoSlipLinearBouzidiAdditionalDataHandler, self).__init__(stencil=stencil)
 
@@ -201,7 +208,7 @@ class QuadraticBounceBackAdditionalDataHandler(AdditionalDataHandler):
     def __init__(self, stencil, boundary_object):
         assert isinstance(boundary_object, QuadraticBounceBack)
 
-        self._dtype = BasicType(boundary_object.data_type).c_name
+        self._dtype = create_type(boundary_object.data_type).c_name
         self._blocks = "const shared_ptr<StructuredBlockForest>&, IBlock&)>"
         super(QuadraticBounceBackAdditionalDataHandler, self).__init__(stencil=stencil)
 
@@ -251,11 +258,11 @@ class OutflowAdditionalDataHandler(AdditionalDataHandler):
         self._normal_direction = boundary_object.normal_direction
         self._field_name = field_name
         self._target = target
-        self._dtype = BasicType(boundary_object.data_type).c_name
+        self._dtype = create_type(boundary_object.data_type).c_name
         if pdfs_data_type is None:
             self._pdfs_data_type = "real_t"
         else:
-            pdfs_data_type = BasicType(pdfs_data_type)
+            pdfs_data_type = create_type(pdfs_data_type)
             self._pdfs_data_type = pdfs_data_type.c_name
 
         self._streaming_pattern = boundary_object.streaming_pattern

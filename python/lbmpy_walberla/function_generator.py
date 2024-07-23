@@ -1,4 +1,4 @@
-from pystencils_walberla.kernel_selection import KernelCallNode, KernelFamily, HighLevelInterfaceSpec
+from pystencils_walberla.kernel_selection import KernelFamily, HighLevelInterfaceSpec
 
 
 def kernel_family_function_generator(class_name: str, kernel_family: KernelFamily,

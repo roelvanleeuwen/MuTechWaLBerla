@@ -4,12 +4,9 @@ from collections import OrderedDict
 from functools import reduce
 from jinja2.filters import do_indent
 from pystencils import Target, TypedSymbol
-from pystencils.backends.cbackend import get_headers
-from pystencils.backends.cuda_backend import CudaSympyPrinter
-from pystencils.typing.typed_sympy import SHAPE_DTYPE
 
 from pystencils_walberla.utility import merge_lists_of_symbols, merge_sorted_lists
-
+from pystencils_walberla.compat import backend_printer, get_headers, SHAPE_DTYPE, IS_PYSTENCILS_2
 
 """
 
@@ -162,6 +159,10 @@ class KernelCallNode(AbstractKernelSelectionNode):
         self.ast = ast
         self.parameters = ast.get_parameters()  # cache parameters here
 
+        if ast.target == Target.GPU and IS_PYSTENCILS_2:
+            #   TODO
+            raise NotImplementedError("Generating GPU kernels is not yet supported with pystencils 2.0")
+
     @property
     def selection_parameters(self) -> Set[TypedSymbol]:
         return set()
@@ -190,7 +191,7 @@ class KernelCallNode(AbstractKernelSelectionNode):
                 "Please only use kernels for generic field sizes!"
 
             indexing_dict = ast.indexing.call_parameters(spatial_shape_symbols)
-            sp_printer_c = CudaSympyPrinter()
+            sp_printer_c = backend_printer()
             block = tuple(sp_printer_c.doprint(e) for e in indexing_dict['block'])
             grid = tuple(sp_printer_c.doprint(e) for e in indexing_dict['grid'])
 
@@ -269,13 +270,19 @@ class KernelFamily:
 
         self._ast_attrs = dict()
 
-    def get_ast_attr(self, name):
+    def get_ast_attr(self, name, default=None):
         """Returns the value of an attribute of the ASTs managed by this KernelFamily only
         if it is the same in all ASTs."""
+        def getattr(ast, name):
+            try:
+                return ast.__getattribute__(name)
+            except AttributeError:
+                return ast.metadata.get(name, default)
+
         if name not in self._ast_attrs:
-            attr = self.representative_ast.__getattribute__(name)
+            attr = getattr(self.representative_ast, name)
             for ast in self.all_asts:
-                if ast.__getattribute__(name) != attr:
+                if getattr(ast, name) != attr:
                     raise ValueError(f'Inconsistency in kernel family: Attribute {name} was different in {ast}!')
             self._ast_attrs[name] = attr
         return self._ast_attrs[name]

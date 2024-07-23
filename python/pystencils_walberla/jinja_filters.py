@@ -7,9 +7,9 @@ except ImportError:
 from collections.abc import Iterable
 import sympy as sp
 
-from pystencils import Target, Backend
-from pystencils.backends.cbackend import generate_c
-from pystencils.typing import TypedSymbol, get_base_type
+from pystencils_walberla.compat import get_base_type, generate_c, Backend, IS_PYSTENCILS_2
+
+from pystencils import Target, TypedSymbol, Field
 from pystencils.field import FieldType
 from pystencils.sympyextensions import prod
 
@@ -74,7 +74,7 @@ def make_field_type(dtype, f_size, is_gpu):
         return f"field::GhostLayerField<{dtype}, {f_size}>"
 
 
-def field_type(field, is_gpu=False):
+def field_type(field: Field, is_gpu=False):
     dtype = get_base_type(field.dtype)
     f_size = get_field_fsize(field)
     return make_field_type(dtype, f_size, is_gpu)
@@ -106,7 +106,7 @@ def get_field_stride(param):
         assert len(additional_strides) == field.index_dimensions
         f_stride_name = stride_names[-1]
         strides.extend([f"{type_str}({e} * {f_stride_name})" for e in reversed(additional_strides)])
-    return strides[param.symbol.coordinate]
+    return strides[param.coordinate if IS_PYSTENCILS_2 else param.symbol.coordinate]
 
 
 def generate_declaration(kernel_info, target=Target.CPU):
@@ -268,7 +268,7 @@ def generate_call(ctx, kernel, ghost_layers_to_include=0, cell_interval=None, st
     assert isinstance(ghost_layers_to_include, str) or ghost_layers_to_include >= 0
     ast_params = kernel.parameters
     vec_info = ctx.get('cpu_vectorize_info', None)
-    instruction_set = kernel.get_ast_attr('instruction_set')
+    instruction_set = kernel.get_ast_attr('instruction_set', default=None)
     if vec_info:
         assume_inner_stride_one = vec_info['assume_inner_stride_one']
         assume_aligned = vec_info['assume_aligned']
@@ -278,7 +278,7 @@ def generate_call(ctx, kernel, ghost_layers_to_include=0, cell_interval=None, st
         assume_aligned = False
 
     cpu_openmp = ctx.get('cpu_openmp', False)
-    kernel_ghost_layers = kernel.get_ast_attr('ghost_layers')
+    kernel_ghost_layers = kernel.get_ast_attr('ghost_layers', default=None)
 
     ghost_layers_to_include = sp.sympify(ghost_layers_to_include)
     if kernel_ghost_layers is None:
@@ -353,7 +353,7 @@ def generate_call(ctx, kernel, ghost_layers_to_include=0, cell_interval=None, st
             type_str = param.symbol.dtype.c_name
             kernel_call_lines.append(f"const {type_str} {param.symbol.name} = {casted_stride};")
         elif param.is_field_shape:
-            coord = param.symbol.coordinate
+            coord = param.coordinate if IS_PYSTENCILS_2 else param.symbol.coordinate
             field = param.fields[0]
             type_str = param.symbol.dtype.c_name
             shape = f"{type_str}({get_end_coordinates(field)[coord]})"
@@ -423,7 +423,7 @@ def generate_function_collection_call(ctx, kernel, parameters_to_ignore=(),
         parameters.append(ghost_layers)
 
     if is_gpu and "gpuStream" not in parameters_to_ignore:
-        parameters.append(f"gpuStream")
+        parameters.append("gpuStream")
 
     return ", ".join(parameters)
 
@@ -591,7 +591,9 @@ def generate_members(ctx, kernel_infos, parameters_to_ignore=None, only_fields=F
             original_field_name = field_name[:-len('_tmp')]
             f_size = get_field_fsize(f)
             field_type = make_field_type(get_base_type(f.dtype), f_size, is_gpu)
-            result.append(temporary_fieldMemberTemplate.format(type=field_type, original_field_name=original_field_name))
+            result.append(
+                temporary_fieldMemberTemplate.format(type=field_type, original_field_name=original_field_name)
+            )
 
     for kernel_info in kernel_infos:
         if hasattr(kernel_info, 'varying_parameters'):
@@ -634,13 +636,13 @@ def generate_plain_parameter_list(ctx, kernel_info, cell_interval=None, ghost_la
         if type(ghost_layers) in (int, ):
             result.append(f"const cell_idx_t ghost_layers = {ghost_layers}")
         else:
-            result.append(f"const cell_idx_t ghost_layers")
+            result.append("const cell_idx_t ghost_layers")
 
     if is_gpu:
         if stream is not None:
             result.append(f"gpuStream_t stream = {stream}")
         else:
-            result.append(f"gpuStream_t stream")
+            result.append("gpuStream_t stream")
 
     return ", ".join(result)
 

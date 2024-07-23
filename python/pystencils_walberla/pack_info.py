@@ -6,9 +6,9 @@ from typing import Dict, Optional, Sequence, Tuple
 from jinja2 import Environment, PackageLoader, StrictUndefined
 
 from pystencils import Assignment, AssignmentCollection, Field, FieldType, Target, create_kernel
-from pystencils.backends.cbackend import get_headers
 from pystencils.stencil import inverse_direction, offset_to_direction_string
 
+from pystencils_walberla.compat import target_string, get_headers
 from pystencils_walberla.cmake_integration import CodeGenerationContext
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
 from pystencils_walberla.kernel_info import KernelInfo
@@ -192,7 +192,7 @@ def generate_pack_info(generation_context: CodeGenerationContext, class_name: st
         'fused_kernel': KernelInfo(fused_kernel),
         'elements_per_cell': elements_per_cell,
         'headers': get_headers(fused_kernel),
-        'target': config.target.name.lower(),
+        'target': target_string(config.target),
         'dtype': dtype,
         'field_name': field_names.pop(),
         'namespace': namespace,

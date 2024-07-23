@@ -1,35 +1,38 @@
 from functools import reduce
 
-from pystencils import Target
-
-from pystencils.backends.cbackend import get_headers
-from pystencils.backends.cuda_backend import CudaSympyPrinter
-from pystencils.typing.typed_sympy import SHAPE_DTYPE
-from pystencils.typing import TypedSymbol
+from pystencils import Target, TypedSymbol
 
 from pystencils_walberla.utility import merge_sorted_lists
+from pystencils_walberla.compat import backend_printer, SHAPE_DTYPE, KernelFunction, IS_PYSTENCILS_2
 
 
 # TODO KernelInfo and KernelFamily should have same interface
 class KernelInfo:
-    def __init__(self, ast, temporary_fields=(), field_swaps=(), varying_parameters=()):
+    def __init__(self, ast: KernelFunction, temporary_fields=(), field_swaps=(), varying_parameters=()):
         self.ast = ast
         self.temporary_fields = tuple(temporary_fields)
         self.field_swaps = tuple(field_swaps)
         self.varying_parameters = tuple(varying_parameters)
         self.parameters = ast.get_parameters()  # cache parameters here
 
+        if ast.target == Target.GPU and IS_PYSTENCILS_2:
+            #   TODO
+            raise NotImplementedError("Generating GPU kernels is not yet supported with pystencils 2.0")
+
     @property
     def fields_accessed(self):
         return self.ast.fields_accessed
 
-    def get_ast_attr(self, name):
+    def get_ast_attr(self, name, default=None):
         """Returns the value of an attribute of the AST managed by this KernelInfo.
         For compatibility with KernelFamily."""
-        return self.ast.__getattribute__(name)
+        try:
+            return self.ast.__getattribute__(name)
+        except AttributeError:
+            return self.ast.metadata.get(name, default)
 
     def get_headers(self):
-        all_headers = [list(get_headers(self.ast))]
+        all_headers = [list(self.ast.required_headers)]
         return reduce(merge_sorted_lists, all_headers)
 
     def generate_kernel_invocation_code(self, **kwargs):
@@ -53,7 +56,7 @@ class KernelInfo:
                 "Please only use kernels for generic field sizes!"
 
             indexing_dict = ast.indexing.call_parameters(spatial_shape_symbols)
-            sp_printer_c = CudaSympyPrinter()
+            sp_printer_c = backend_printer()
             block = tuple(sp_printer_c.doprint(e) for e in indexing_dict['block'])
             grid = tuple(sp_printer_c.doprint(e) for e in indexing_dict['grid'])
 

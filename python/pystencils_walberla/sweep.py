@@ -4,13 +4,12 @@ from jinja2 import Environment, PackageLoader, StrictUndefined
 
 from pystencils import Target, Assignment
 from pystencils import Field, create_kernel, create_staggered_kernel
-from pystencils.astnodes import KernelFunction
-from pystencils.typing import numpy_name_to_c
 
 from pystencils_walberla.cmake_integration import CodeGenerationContext
 from pystencils_walberla.jinja_filters import add_pystencils_filters_to_jinja_env
 from pystencils_walberla.kernel_selection import KernelCallNode, KernelFamily, HighLevelInterfaceSpec
 from pystencils_walberla.utility import config_from_context
+from pystencils_walberla.compat import target_string, IS_PYSTENCILS_2, KernelFunction
 
 
 def generate_sweep(generation_context: CodeGenerationContext, class_name: str, assignments: Sequence[Assignment],
@@ -73,8 +72,10 @@ def generate_sweep(generation_context: CodeGenerationContext, class_name: str, a
     generate_selective_sweep(generation_context, class_name, selection_tree, target=target, namespace=namespace,
                              field_swaps=field_swaps, varying_parameters=varying_parameters,
                              inner_outer_split=inner_outer_split, ghost_layers_to_include=ghost_layers_to_include,
-                             cpu_vectorize_info=config.cpu_vectorize_info,
-                             cpu_openmp=config.cpu_openmp, max_threads=max_threads, block_offset=block_offset)
+                             cpu_vectorize_info=None if IS_PYSTENCILS_2 else config.cpu_vectorize_info,  # FIXME
+                             cpu_openmp=config.cpu_openmp,
+                             max_threads=max_threads,
+                             block_offset=block_offset)
 
 
 def generate_selective_sweep(generation_context, class_name, selection_tree, interface_mappings=(), target=None,
@@ -131,13 +132,13 @@ def generate_selective_sweep(generation_context, class_name, selection_tree, int
     parameters_to_ignore = None
     if isinstance(block_offset, Iterable):
         parameters_to_ignore = [b.name for b in block_offset]
-        block_offset = tuple((b.name, numpy_name_to_c(b.dtype.numpy_dtype.name)) for b in block_offset)
+        block_offset = tuple((b.name, b.dtype.c_name) for b in block_offset)
 
     jinja_context = {
         'kernel': kernel_family,
         'namespace': namespace,
         'class_name': class_name,
-        'target': target.name.lower(),
+        'target': target_string(target),
         'field': representative_field,
         'ghost_layers_to_include': ghost_layers_to_include,
         'inner_outer_split': inner_outer_split,
@@ -199,7 +200,7 @@ def generate_sweep_collection(generation_context: CodeGenerationContext, class_n
         'namespace': namespace,
         'class_name': class_name,
         'headers': headers,
-        'target': target.name.lower(),
+        'target': target_string(target),
         'parameter_scaling': parameter_scaling,
     }
 

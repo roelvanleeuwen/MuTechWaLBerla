@@ -25,9 +25,9 @@
 {%- endif %}
 
 
-{% if target == 'cpu' -%}
+{% if target is equalto 'cpu' -%}
 #define FUNC_PREFIX
-{%- elif target == 'gpu' -%}
+{%- elif target is equalto 'gpu' -%}
 #define FUNC_PREFIX __global__
 {%- endif %}
 
