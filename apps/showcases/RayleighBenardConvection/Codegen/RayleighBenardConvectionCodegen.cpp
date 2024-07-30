@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file RayleighBenardConvection.cpp
+//! \file RayleighBenardConvectionCodegen.cpp
 //! \author Jonas Plewinski <jonas.plewinski@fau.de>
 //
 //======================================================================================================================
@@ -42,6 +42,8 @@
 
 #include "GenDefines.h"
 #include "InitializerFunctions.h"
+#include "SQLProperties.h"
+#include "sqlite/SQLite.h"
 
 using namespace walberla;
 
@@ -170,10 +172,6 @@ int main(int argc, char** argv)
                                               omegaFluid);
       //pystencils::thermal_lb_step thermal_lb_step(thermal_PDFs_ID, temperature_field_ID, velocity_field_ID,
       //                                            omegaThermal);
-      //> change naming -> for easy testing: just used the variables from the implementation beforehand
-      //> thus:
-      //>   - temperature_field_ID = zhang_energy_density_ID,
-      //>   - thermal_PDFs_ID = zhang_thermal_PDFs_ID
       pystencils::zhang_thermal_lb_step zhang_thermal_lb_step(fluid_PDFs_ID, zhang_energy_density_field_ID, thermal_PDFs_ID, omegaFluid);
 
       ///////////////////////
@@ -269,9 +267,9 @@ int main(int argc, char** argv)
       WALBERLA_LOG_INFO_ON_ROOT("block size = (" << blocks->getRootBlockXSize() << ", " << blocks->getRootBlockYSize() << ", " << blocks->getRootBlockZSize() << ")")
       WALBERLA_LOG_INFO_ON_ROOT("domain size = (" << domainSize[0] << ", " << domainSize[1] << ", " << domainSize[2] << ")")
 
-      bool weak_scaling         = benchmark_parameters.getParameter< bool >("weakScaling");
+      bool benchmark         = benchmark_parameters.getParameter< bool >("benchmark");
       std::function< void() > timeStep;
-      if (weak_scaling)
+      if (benchmark)
       {
          if (scaling_type == "fluid") {
             timeStep = std::function< void() >(kernelOnlyFuncFluid); }
@@ -288,7 +286,7 @@ int main(int argc, char** argv)
       }
 
       SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
-      if (!weak_scaling)
+      if (!benchmark)
       {
          //timeloop.add() << BeforeFunction(Comm_hydro, "Communication of fluid PDFs - before lb-step")
          timeloop.add() << Sweep(fluid_NoSlip, "Fluid NoSlip boundary conditions");
@@ -375,45 +373,114 @@ int main(int argc, char** argv)
       {
          timeloop.add() << BeforeFunction(timeStep) << Sweep([](IBlock*) {}, "time step");
 
-         uint_t benchmarkingIterations = benchmark_parameters.getParameter< uint_t >("benchmarkingIterations", 5);
+         //uint_t benchmarkingIterations = benchmark_parameters.getParameter< uint_t >("benchmarkingIterations", 5);
          uint_t warmupSteps            = benchmark_parameters.getParameter< uint_t >("warmupSteps", 10);
          for (uint_t i = 0; i < warmupSteps; ++i)
             timeloop.singleStep();
 
          //std::string performanceStatsFilename = "performance_" + scaling_type + "_" + std::to_string(blocks->getRootBlockXSize()) + ".txt";
-         std::string performanceStatsFilename = "performance.txt";
+         //std::string performanceStatsFilename = "performance.txt";
 
          WALBERLA_LOG_INFO_ON_ROOT("________________________________________________________________________")
          WALBERLA_LOG_INFO_ON_ROOT("------------------------------------------------------------------------")
          WALBERLA_LOG_INFO_ON_ROOT("Start benchmarking!")
-         real_t meanMLUPS = real_c(0.0);
-         real_t timePerTimestep = real_c(0);
-         for (uint_t i = 0; i < benchmarkingIterations; ++i)
-         {
-            timeloop.setCurrentTimeStepToZero();
-            WcTimer simTimer;
-            WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps")
-            simTimer.start();
-            timeloop.run();
-            simTimer.end();
-            WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
-            auto time = real_c(simTimer.last());
-            WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
-            auto nrOfCells = real_c(cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2]);
+         //real_t meanMLUPS = real_c(0.0);
+         //real_t timePerTimestep = real_c(0);
+         //for (uint_t i = 0; i < benchmarkingIterations; ++i)
+         //{
 
-            auto mlupsPerProcess = nrOfCells * real_c(timesteps) / time * 1e-6;
-            meanMLUPS += mlupsPerProcess;
-            timePerTimestep = real_c(time / real_c(timesteps));
-            WALBERLA_LOG_RESULT_ON_ROOT("MLUPS per process " << mlupsPerProcess)
-            WALBERLA_LOG_RESULT_ON_ROOT("Time per time step " << time / real_c(timesteps))
-         }
-         WALBERLA_ROOT_SECTION() {
-            meanMLUPS /= real_t(benchmarkingIterations);
-            std::ofstream performanceStatsToFile(performanceStatsFilename, std::ios::app);
-            performanceStatsToFile << scaling_type << "; " << nrOfProcesses << "; " << blocks->getRootBlockXSize() << "; " << meanMLUPS << "; " << timePerTimestep << "\n";
+         WcTimingPool timingPool;
+         WcTimer simTimer;
+         auto time = real_c(simTimer.last());
+
+         WALBERLA_LOG_INFO_ON_ROOT("Starting simulation with " << timesteps << " time steps")
+
+         timeloop.setCurrentTimeStepToZero();
+         WALBERLA_MPI_WORLD_BARRIER()
+
+         simTimer.start();
+         timeloop.run();
+         simTimer.end();
+
+         WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
+
+         time = simTimer.max();
+         WALBERLA_MPI_SECTION() { walberla::mpi::reduceInplace(time, walberla::mpi::MAX); }
+
+         auto nrOfCells = real_c(cellsPerBlock[0] * cellsPerBlock[1] * cellsPerBlock[2]);
+
+         auto mlups = nrOfCells * real_c(timesteps) / time * 1e-6;
+         auto mlupsPerProcess = mlups / double(nrOfProcesses);
+
+         //meanMLUPS += mlupsPerProcess;
+
+         WALBERLA_LOG_RESULT_ON_ROOT("Total MLUPS " << mlups)
+         WALBERLA_LOG_RESULT_ON_ROOT("MLUPS per process " << mlupsPerProcess)
+         WALBERLA_LOG_RESULT_ON_ROOT("Time per time step " << time / real_c(timesteps))
+         //}
+
+         /*WALBERLA_ROOT_SECTION() {
+         //   meanMLUPS /= real_t(benchmarkingIterations);
+         //   std::ofstream performanceStatsToFile(performanceStatsFilename, std::ios::app);
+            performanceStatsToFile << scaling_type << "; " << nrOfProcesses << "; " << blocks->getRootBlockXSize() << "; " << timePerTimestep << "\n";
             performanceStatsToFile.close();
-         }
+         }*/
          WALBERLA_LOG_INFO_ON_ROOT("Benchmarking done!")
+
+         auto tp_reduced = timingPool.getReduced();
+         WALBERLA_LOG_INFO_ON_ROOT(*tp_reduced)
+
+         WALBERLA_LOG_INFO_ON_ROOT("*** SQL OUTPUT - START ***")
+         WALBERLA_ROOT_SECTION()
+         {
+            std::map< std::string, walberla::int64_t > integerProperties;
+            std::map< std::string, double > realProperties;
+            std::map< std::string, std::string > stringProperties;
+
+            const std::string dbPath             = benchmark_parameters.getParameter< std::string >("dbPath");
+            const std::string dbFilename         = benchmark_parameters.getParameter< std::string >("dbFilename");
+
+            const std::string sqlFile = dbPath + dbFilename;
+            WALBERLA_LOG_DEVEL_VAR_ON_ROOT(sqlFile)
+
+            // BENCHMARK QUANTITIES
+            realProperties["simulationTime"] = time;
+            realProperties["mlups"] = mlups;
+            realProperties["mlupsPerProcess"] = mlupsPerProcess;
+
+            // GENERAL INFORMATION
+            stringProperties["tag"] = "RayleighBenardConvection";
+
+            // BLOCKFOREST PARAMETERS
+
+            // DOMAIN PARAMETERS
+
+            // PHYSICS PARAMETERS
+            integerProperties["timesteps"] = long(timesteps);
+
+            // MODEL PARAMETERS
+            realProperties["omegaFluid"] = omegaFluid;
+            //realProperties["k"] = k; //> thermal capacity?
+            realProperties["temperatureHot"] = temperatureHot;
+            realProperties["temperatureCold"] = temperatureCold;
+            realProperties["gravitationalAcceleration"] = gravity;
+
+            // BENCHMARK PARAMETERS
+            integerProperties["benchmark"]         = benchmark;
+            integerProperties["warmupSteps"]       = long(warmupSteps);
+            stringProperties["scalingType"]        = scaling_type;
+            stringProperties["dbPath"] = dbPath;
+            stringProperties["dbFilename"] = dbFilename;
+
+            addBuildInfoToSQL(integerProperties, realProperties, stringProperties);
+            addDomainPropertiesToSQL(blocks, integerProperties, realProperties, stringProperties);
+            addSlurmPropertiesToSQL(integerProperties, realProperties, stringProperties);
+
+            const uint_t runId = sqlite::storeRunInSqliteDB(sqlFile, integerProperties, stringProperties, realProperties);
+            sqlite::storeTimingPoolInSqliteDB(sqlFile, runId, *tp_reduced, "Timeloop");
+            WALBERLA_LOG_DEVEL_VAR(runId)
+         }
+         WALBERLA_LOG_INFO_ON_ROOT("*** SQL OUTPUT - END ***")
 
          WALBERLA_LOG_INFO_ON_ROOT("————————————————————————————————————————————————————————————————————————")
          WALBERLA_LOG_INFO_ON_ROOT("————————————————————————————————————————————————————————————————————————")

@@ -30,8 +30,8 @@ import sympy as sp
 import numpy as np
 
 #todo: aktuell nur D2Q9
-stencil_thermal = LBStencil(Stencil.D2Q9)
-stencil_fluid = LBStencil(Stencil.D2Q9)
+stencil_thermal = LBStencil(Stencil.D3Q7)
+stencil_fluid = LBStencil(Stencil.D3Q19)
 
 target = ps.Target.CPU
 layout = "fzyx"
@@ -160,14 +160,14 @@ def assignmentCollectionTest(s):
 
     #s.h @= sum(pdf_fluid.center(i) * pdf_zhang_thermal.center(i) for i in range(stencil_thermal.Q)) / s.rho
     s.h @= sum(pdf_fluid[-np.array(stencil_thermal[i])][i] * pdf_zhang_thermal[-np.array(stencil_thermal[i])][i] for i in range(stencil_thermal.Q)) / s.rho
-    zhang_energy_density_field[0,0] @= s.h
+    zhang_energy_density_field[0,0,0] @= s.h
     for d in range(stencil_thermal.D):
         #phi_r[d] @= sum(stencil_thermal[j][d] * pdf_fluid.center(j) * (pdf_zhang_thermal.center(j) - s.h) for j in range(stencil_thermal.Q))
         phi_r[d] @= sum(stencil_thermal[j][d] * pdf_fluid[-np.array(stencil_thermal[j])][j] * (pdf_zhang_thermal[-np.array(stencil_thermal[j])][j] - s.h) for j in range(stencil_thermal.Q))
     for i in range(stencil_thermal.Q):
         phi[i] @= sum(((stencil_thermal[i][d] - u[d]) / (s.rho * cs2) * phi_r[d]) for d in range(stencil_thermal.D))
     for i in range(stencil_thermal.Q):
-        pdf_zhang_thermal_tmp[0,0][i] @= s.h + (1 - 1 / s.tau_h) * phi[i]
+        pdf_zhang_thermal_tmp[0,0,0][i] @= s.h + (1 - 1 / s.tau_h) * phi[i]
 
 
 # todo: hardcoded seperation of main assignments and subexpressions

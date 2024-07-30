@@ -4,10 +4,10 @@ import math
 
 
 class Scenario:
-    def __init__(self, weak_scaling=False, scaling_type=None, cells=(32, 32, 1), timesteps=100):
+    def __init__(self, benchmark=True, scaling_type=None, cells=(32, 32, 1), timesteps=100):
         #> Domain Parameters
         #self.domain_size = (32, 32, 1)
-        self.blocks = (4, 2, 1)
+        self.blocks = (4, 1, 1)
         self.periodic = (1, 0, 1)
         domain_size = (cells[0] * self.blocks[0], cells[1] * self.blocks[1], cells[2] * self.blocks[2])
         #self.cells = (self.domain_size[0] // self.blocks[0], self.domain_size[1] // self.blocks[1], self.domain_size[2] // self.blocks[2])
@@ -51,12 +51,15 @@ class Scenario:
         #print(f"init_temperature_range = {self.init_temperature_range}")
 
         #> Benchmark Parameters
-        self.weakScaling = weak_scaling # True
+        self.benchmark = benchmark
+        #self.weakScaling = weak_scaling # True
         self.scalingType = scaling_type  #"fluid", "thermal", "rbc"
-        self.benchmarkingIterations = 5
+        self.benchmarkingIterations = 1
         self.warmupSteps = 10
+        self.dbPath = './'
+        self.dbFilename = 'rbc_ws_benchmark.sqlite'
 
-        print(f"gravity = {self.gravity_LBM}")
+        #print(f"gravity = {self.gravity_LBM}")
 
         #?self.viscosity_SI = 1.516e-5  #? look
         #?self.thermal_diffusivity_SI = 2.074e-5  #? look
@@ -83,7 +86,7 @@ class Scenario:
             },
             'PhysicalParameters': {  #todo check gravity!
                 'omegaFluid': self.omega_fluid,
-                'omegaThermal': self.omega_thermal,
+                #'omegaThermal': self.omega_thermal,
                 'temperatureHot': self.temperature_hot,
                 'temperatureCold': self.temperature_cold,
                 'gravitationalAcceleration': self.gravity_LBM,  #? is this the right gravity I use here?
@@ -97,10 +100,13 @@ class Scenario:
                 'initTemperatureRange': self.init_temperature_range,
             },
             'BenchmarkParameters': {
-                'weakScaling': self.weakScaling,
+                'benchmark': self.benchmark,
+                #'weakScaling': self.weakScaling,
                 'scalingType': self.scalingType,  #"fluid", "thermal", "rbc"
-                'benchmarkingIterations': self.benchmarkingIterations,
+                #'benchmarkingIterations': self.benchmarkingIterations,
                 'warmupSteps': self.warmupSteps,
+                'dbPath': self.dbPath,
+                'dbFilename': self.dbFilename,
             },
             'Boundaries_Hydro': {
                 'Border': [
@@ -125,13 +131,15 @@ def runSimulation():
 def weakScalingBenchmark():
     scenarios = wlb.ScenarioManager()
     block_sizes = [(i, i, i) for i in (8, 16, 32, 64, 128)]
-    timestepsPerBlockSize = [1024, 512, 256, 128, 64]
 
     for scaling_type in ['rbc', 'fluid', 'thermal']:
-        for block_size, timesteps in [(block_sizes[i], timestepsPerBlockSize[i]) for i in range(len(timestepsPerBlockSize))]:
-            scenario = Scenario(weak_scaling=True, scaling_type=scaling_type, cells=block_size, timesteps=timesteps)
+        for block_size in block_sizes:
+            print(f"block_size = {block_size}")
+            print(f"scaling_type = {scaling_type}")
+            scenario = Scenario(benchmark=True, scaling_type=scaling_type, cells=block_size)
             scenarios.add(scenario)
+            print("---------------------------")
 
 
-runSimulation()
-#weakScalingBenchmark()
+weakScalingBenchmark()
+#runSimulation()
