@@ -88,9 +88,6 @@ int main(int argc, char** argv)
       domainSize[0] = blocksPerDimension[0] * cellsPerBlock[0];
       domainSize[1] = blocksPerDimension[1] * cellsPerBlock[1];
       domainSize[2] = blocksPerDimension[2] * cellsPerBlock[2];
-      //WALBERLA_LOG_INFO_ON_ROOT("cellsPerBlock = (" << cellsPerBlock[0] << ", " << cellsPerBlock[1] << ", " << cellsPerBlock[2] << ")")
-      //WALBERLA_LOG_INFO_ON_ROOT("blocksPerDimension = (" << blocksPerDimension[0] << ", " << blocksPerDimension[1] << ", " << blocksPerDimension[2] << ")")
-      //WALBERLA_LOG_INFO_ON_ROOT("domain size = (" << domainSize[0] << ", " << domainSize[1] << ", " << domainSize[2] << ")")
 
       std::string tmp = "< " + std::to_string(blocksPerDimension[0]) + ", " + std::to_string(blocksPerDimension[1]) + ", " +
                         std::to_string(blocksPerDimension[2]) + " >";
@@ -100,12 +97,6 @@ int main(int argc, char** argv)
       WALBERLA_LOG_DEVEL_VAR_ON_ROOT(*config)
 
       shared_ptr< StructuredBlockForest > blocks = blockforest::createUniformBlockGridFromConfig(config);
-      /*WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getXSize())
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getYSize())
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getZSize())
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockXSize())
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockYSize())
-      WALBERLA_LOG_DEVEL_VAR_ON_ROOT(blocks->getRootBlockZSize())*/
 
       ///////////////////////////////////////
       // ADD GENERAL SIMULATION PARAMETERS //
@@ -115,9 +106,6 @@ int main(int argc, char** argv)
       const uint_t timesteps             = parameters.getParameter< uint_t >("timesteps", uint_c(50));
       const real_t remainingTimeLoggerFrequency =
          parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0));
-      // const uint_t scenario = parameters.getParameter< uint_t >("scenario", uint_c(1));
-      //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(timesteps)
-      //WALBERLA_LOG_DEVEL_VAR_ON_ROOT(remainingTimeLoggerFrequency)
 
       ////////////////////////
       // ADD DATA TO BLOCKS //
@@ -164,14 +152,10 @@ int main(int argc, char** argv)
       ////////////////
       pystencils::initialize_fluid_field initializeFluidField(fluid_PDFs_ID, velocity_field_ID, zhang_energy_density_field_ID,
                                                               gravity);
-      //pystencils::initialize_thermal_field initializeThermalField(thermal_PDFs_ID, temperature_field_ID,
-      //                                                            velocity_field_ID);
       pystencils::initialize_zhang_thermal_field initializeZhangThermalField(velocity_field_ID, zhang_energy_density_field_ID, thermal_PDFs_ID);
 
       pystencils::fluid_lb_step fluid_lb_step(fluid_PDFs_ID, velocity_field_ID, zhang_energy_density_field_ID, gravity,
                                               omegaFluid);
-      //pystencils::thermal_lb_step thermal_lb_step(thermal_PDFs_ID, temperature_field_ID, velocity_field_ID,
-      //                                            omegaThermal);
       pystencils::zhang_thermal_lb_step zhang_thermal_lb_step(fluid_PDFs_ID, zhang_energy_density_field_ID, thermal_PDFs_ID, omegaFluid);
 
       ///////////////////////
@@ -245,7 +229,6 @@ int main(int argc, char** argv)
          for (auto& block : *blocks)
          {
             boundaryThermal(&block);
-            //thermal_lb_step(&block);
             zhang_thermal_lb_step(&block);
          }
          Comm_hydro();
@@ -288,7 +271,6 @@ int main(int argc, char** argv)
       SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
       if (!benchmark)
       {
-         //timeloop.add() << BeforeFunction(Comm_hydro, "Communication of fluid PDFs - before lb-step")
          timeloop.add() << Sweep(fluid_NoSlip, "Fluid NoSlip boundary conditions");
          timeloop.add() << Sweep(fluid_lb_step, "Fluid LB Step")
                         << AfterFunction(Comm_hydro, "Communication of fluid PDFs - after lb-step");
@@ -296,7 +278,6 @@ int main(int argc, char** argv)
          timeloop.add() << BeforeFunction(Comm_thermal, "Communication of thermal PDFs")
                         << Sweep(thermal_Tcold, "Thermal Tcold boundary conditions");
          timeloop.add() << Sweep(thermal_Thot, "Thermal Thot boundary conditions");
-         //timeloop.add() << Sweep(thermal_lb_step, "Thermal LB Step");
          timeloop.add() << Sweep(zhang_thermal_lb_step, "Zhang Thermal LB Step");
 
          // initialize the two lattice Boltzmann fields
@@ -304,7 +285,6 @@ int main(int argc, char** argv)
          for (auto& block : *blocks)
          {
             initializeFluidField(&block);
-            //initializeThermalField(&block);
             initializeZhangThermalField(&block);
          }
          WALBERLA_LOG_INFO_ON_ROOT("initialization of the distributions done")
@@ -327,11 +307,6 @@ int main(int argc, char** argv)
             auto velWriter = make_shared< field::VTKWriter< VelocityField_T > >(velocity_field_ID, "Velocity");
             vtkOutput->addCellDataWriter(velWriter);
 
-            // add temperature field as VTK output
-            /*auto tempWriter =
-               make_shared< field::VTKWriter< TemperatureField_T > >(temperature_field_ID, "Temperature");
-            vtkOutput->addCellDataWriter(tempWriter);
-            */
             // add energy density field as VTK output -> if zhang model is used
             auto energyDenWriter =
                make_shared< field::VTKWriter< ZhangEnergyDensityField_T > >(zhang_energy_density_field_ID, "EnergyDensity");
@@ -371,6 +346,7 @@ int main(int argc, char** argv)
       }
       else
       {
+         //? timingPool funktioniert so nicht
          timeloop.add() << BeforeFunction(timeStep) << Sweep([](IBlock*) {}, "time step");
 
          //uint_t benchmarkingIterations = benchmark_parameters.getParameter< uint_t >("benchmarkingIterations", 5);
@@ -378,16 +354,8 @@ int main(int argc, char** argv)
          for (uint_t i = 0; i < warmupSteps; ++i)
             timeloop.singleStep();
 
-         //std::string performanceStatsFilename = "performance_" + scaling_type + "_" + std::to_string(blocks->getRootBlockXSize()) + ".txt";
-         //std::string performanceStatsFilename = "performance.txt";
-
-         WALBERLA_LOG_INFO_ON_ROOT("________________________________________________________________________")
          WALBERLA_LOG_INFO_ON_ROOT("------------------------------------------------------------------------")
          WALBERLA_LOG_INFO_ON_ROOT("Start benchmarking!")
-         //real_t meanMLUPS = real_c(0.0);
-         //real_t timePerTimestep = real_c(0);
-         //for (uint_t i = 0; i < benchmarkingIterations; ++i)
-         //{
 
          WcTimingPool timingPool;
          WcTimer simTimer;
@@ -399,7 +367,7 @@ int main(int argc, char** argv)
          WALBERLA_MPI_WORLD_BARRIER()
 
          simTimer.start();
-         timeloop.run();
+         timeloop.run(timingPool);
          simTimer.end();
 
          WALBERLA_LOG_INFO_ON_ROOT("Simulation finished")
@@ -412,19 +380,11 @@ int main(int argc, char** argv)
          auto mlups = nrOfCells * real_c(timesteps) / time * 1e-6;
          auto mlupsPerProcess = mlups / double(nrOfProcesses);
 
-         //meanMLUPS += mlupsPerProcess;
-
          WALBERLA_LOG_RESULT_ON_ROOT("Total MLUPS " << mlups)
          WALBERLA_LOG_RESULT_ON_ROOT("MLUPS per process " << mlupsPerProcess)
          WALBERLA_LOG_RESULT_ON_ROOT("Time per time step " << time / real_c(timesteps))
          //}
 
-         /*WALBERLA_ROOT_SECTION() {
-         //   meanMLUPS /= real_t(benchmarkingIterations);
-         //   std::ofstream performanceStatsToFile(performanceStatsFilename, std::ios::app);
-            performanceStatsToFile << scaling_type << "; " << nrOfProcesses << "; " << blocks->getRootBlockXSize() << "; " << timePerTimestep << "\n";
-            performanceStatsToFile.close();
-         }*/
          WALBERLA_LOG_INFO_ON_ROOT("Benchmarking done!")
 
          auto tp_reduced = timingPool.getReduced();
