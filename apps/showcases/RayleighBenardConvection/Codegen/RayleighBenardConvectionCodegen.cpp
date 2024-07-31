@@ -346,8 +346,26 @@ int main(int argc, char** argv)
       }
       else
       {
+         if (scaling_type == "rbc")
+         {
+            timeloop.add() << Sweep(fluid_NoSlip, "Fluid NoSlip boundary conditions");
+            timeloop.add() << Sweep(fluid_lb_step, "Fluid LB Step")
+                           << AfterFunction(Comm_hydro, "Communication of fluid PDFs - after lb-step");
+
+            timeloop.add() << BeforeFunction(Comm_thermal, "Communication of thermal PDFs")
+                           << Sweep(thermal_Tcold, "Thermal Tcold boundary conditions");
+            timeloop.add() << Sweep(thermal_Thot, "Thermal Thot boundary conditions");
+            timeloop.add() << Sweep(zhang_thermal_lb_step, "Zhang Thermal LB Step");
+         } else if (scaling_type == "fluid") {
+            timeloop.add() << Sweep(fluid_lb_step, "Fluid LB Step");
+         } else if (scaling_type == "thermal") {
+            timeloop.add() << Sweep(zhang_thermal_lb_step, "Zhang Thermal LB Step");
+         }
+
+
+
          //? timingPool funktioniert so nicht
-         timeloop.add() << BeforeFunction(timeStep) << Sweep([](IBlock*) {}, "time step");
+         //timeloop.add() << BeforeFunction(timeStep) << Sweep([](IBlock*) {}, "time step");
 
          //uint_t benchmarkingIterations = benchmark_parameters.getParameter< uint_t >("benchmarkingIterations", 5);
          uint_t warmupSteps            = benchmark_parameters.getParameter< uint_t >("warmupSteps", 10);

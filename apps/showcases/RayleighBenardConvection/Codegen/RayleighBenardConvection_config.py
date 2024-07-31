@@ -131,13 +131,18 @@ def runSimulation():
 def weakScalingBenchmark():
     scenarios = wlb.ScenarioManager()
     block_sizes = [(i, i, i) for i in (8, 16, 32, 64, 128)]
+    timestepsPerBlockSize = [8192, 4096, 2048, 1024, 512]
 
     for scaling_type in ['rbc', 'fluid', 'thermal']:
-        for block_size in block_sizes:
-            print(f"block_size = {block_size}")
-            print(f"scaling_type = {scaling_type}")
-            scenario = Scenario(benchmark=True, scaling_type=scaling_type, cells=block_size)
+        for block_size, timesteps in [(block_sizes[i], timestepsPerBlockSize[i]) for i in range(len(timestepsPerBlockSize))]:
+            scenario = Scenario(benchmark=True, scaling_type=scaling_type, cells=block_size, timesteps=timesteps)
             scenarios.add(scenario)
+
+        #for block_size in block_sizes:
+        #    print(f"block_size = {block_size}")
+        #    print(f"scaling_type = {scaling_type}")
+        #    scenario = Scenario(benchmark=True, scaling_type=scaling_type, cells=block_size)
+        #    scenarios.add(scenario)
             print("---------------------------")
 
 
