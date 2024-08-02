@@ -13,7 +13,7 @@
 //  You should have received a copy of the GNU General Public License along
 //  with waLBerla (see COPYING.txt). If not, see <http://www.gnu.org/licenses/>.
 //
-//! \file ShiftedPeriodicity.cpp
+//! \file ShiftedPeriodicity.h
 //! \ingroup boundary
 //! \author Helen Schottenhamml <helen.schottenhamml@fau.de>
 //
@@ -51,21 +51,20 @@
 namespace walberla {
 namespace boundary {
 
-template<typename GhostLayerField_T, typename FlagField_T >
-class ShiftedPeriodicity {
-
-   using ValueType = typename GhostLayerField_T::value_type;
-   using ShiftType = int;
+template<typename Derived_T, typename Field_T>
+class ShiftedPeriodicityBase {
 
  public:
 
-   ShiftedPeriodicity( const std::weak_ptr<StructuredBlockForest> & blockForest,
-                       const BlockDataID& flagFieldID, const BlockDataID & fieldID, const uint_t fieldGhostLayers,
-                       const Vector3<uint_t> & boundaryNormal, const Vector3< ShiftType > & shift )
-      : blockForest_(blockForest), flagFieldID_(flagFieldID),
-        fieldID_( fieldID ), fieldGhostLayers_(fieldGhostLayers),
-        shift_( shift[0], shift[1], shift[2] ),
-        boundaryNormal_(boundaryNormal)
+   using FieldType = Field_T;
+   using ValueType = typename FieldType::value_type;
+   using ShiftType = int;
+
+   ShiftedPeriodicityBase( const std::weak_ptr<StructuredBlockForest> & blockForest,
+                           const BlockDataID & fieldID, const uint_t fieldGhostLayers,
+                           const Vector3<uint_t> & boundaryNormal, const Vector3< ShiftType > & shift )
+      : blockForest_(blockForest), shift_( shift[0], shift[1], shift[2] ),
+        fieldID_( fieldID ), fieldGhostLayers_(fieldGhostLayers)
    {
       auto sbf = blockForest_.lock();
 
@@ -86,7 +85,7 @@ class ShiftedPeriodicity {
 
       uint_t normalSum{};
       for( uint_t d = 0; d < 3; ++d ) {
-         if(boundaryNormal_[d]) {
+         if(boundaryNormal[d]) {
             normalDir_ = d;
             ++normalSum;
          }
@@ -98,18 +97,18 @@ class ShiftedPeriodicity {
       WALBERLA_CHECK_UNEQUAL( shiftDir_, normalDir_, "Direction of periodic shift and boundary normal must not coincide." )
 
       WALBERLA_CHECK( sbf->isPeriodic(shiftDir_), "Blockforest must be periodic in direction " << shiftDir_ << "!" )
-      WALBERLA_CHECK( !sbf->isPeriodic(normalDir_), "Blockforest must NOT be periodic in direction " << boundaryNormal_ << "!" )
+      WALBERLA_CHECK( !sbf->isPeriodic(normalDir_), "Blockforest must NOT be periodic in direction " << boundaryNormal << "!" )
 
       for(uint_t d = 0; d < 3; ++d) {
          WALBERLA_CHECK_LESS(std::abs(shift[d]), sbf->getNumberOfCells(d), "Please chose a shift value whose absolute is smaller than the domain size in shift direction.")
       }
    }
 
-   ShiftedPeriodicity( const std::weak_ptr<StructuredBlockForest> & blockForest,
-                       const BlockDataID& flagFieldID, const BlockDataID & fieldID, const uint_t fieldGhostLayers,
-                       const Vector3<uint_t> & boundaryNormal, const ShiftType xShift, const ShiftType yShift, const ShiftType zShift )
-      : ShiftedPeriodicity(blockForest, flagFieldID, fieldID, fieldGhostLayers,
-                           boundaryNormal, Vector3<ShiftType >(xShift, yShift, zShift))
+   ShiftedPeriodicityBase( const std::weak_ptr<StructuredBlockForest> & blockForest,
+                           const BlockDataID & fieldID, const uint_t fieldGhostLayers,
+                           const Vector3<uint_t> & boundaryNormal, const ShiftType xShift, const ShiftType yShift, const ShiftType zShift )
+      : ShiftedPeriodicityBase(blockForest, fieldID, fieldGhostLayers,
+                               boundaryNormal, Vector3<ShiftType >(xShift, yShift, zShift))
    {}
 
    uint_t shiftDirection() const { return shiftDir_; }
@@ -123,9 +122,9 @@ class ShiftedPeriodicity {
       const auto sbf = blockForest_.lock();
       WALBERLA_ASSERT_NOT_NULLPTR( sbf )
 
-     // if shift equals zero or domain size in this direction, we do not need to do anything
-     if(shift_[shiftDir_] == ShiftType(sbf->getNumberOfCells(shiftDir_)) || shift_[shiftDir_] == 0)
-        return;
+      // if shift equals zero or domain size in this direction, we do not need to do anything
+      if(shift_[shiftDir_] == ShiftType(sbf->getNumberOfCells(shiftDir_)) || shift_[shiftDir_] == 0)
+         return;
 
       if(!setupPeriodicity_){
          setupPeriodicity();
@@ -161,19 +160,15 @@ class ShiftedPeriodicity {
             const auto sendAABB = std::get<2>(sendInfo);
             const auto sendCI = globalAABBToLocalCI(sendAABB, sbf, block);
 
-            const auto sendSize = sendCI.numCells() * GhostLayerField_T::F_SIZE;
+            const auto sendSize = sendCI.numCells() * uint_c(fSize_);
 
-            if (sendRank == currentRank) {
-               buffer[sendTag].resize(sendSize);
-               packBuffer(block, sendCI, buffer[sendTag]);
-            } else {
-               buffer[sendTag].resize(sendSize);
-               packBuffer(block, sendCI, buffer[sendTag]);
+            buffer[sendTag].resize(sendSize);
+            static_cast<Derived_T*>(this)->packBuffer(block, sendCI, buffer[sendTag]);
 
-               // schedule sends
+            // schedule sends if MPI
+            if (sendRank != currentRank) {
                MPI_Isend(buffer[sendTag].data(), int_c(buffer[sendTag].size() * sizeof(ValueType)), MPI_BYTE,
                          sendRank, sendTag, mpiInstance->comm(), & sendRequests[blockID][sendTag]);
-
             }
 
          }
@@ -199,7 +194,7 @@ class ShiftedPeriodicity {
 
             // do not schedule receives for local communication
             if (recvRank != currentRank) {
-               const auto recvSize = recvCI.numCells() * GhostLayerField_T::F_SIZE;
+               const auto recvSize = recvCI.numCells() * uint_c(fSize_);
                buffer[recvTag].resize(recvSize);
 
                // Schedule receives
@@ -230,13 +225,13 @@ class ShiftedPeriodicity {
 
             if(recvRank == currentRank) {
                WALBERLA_ASSERT_GREATER(buffer.count(recvTag), 0)
-               unpackBuffer(block, recvCI, buffer[recvTag]);
+               static_cast<Derived_T*>(this)->unpackBuffer(block, recvCI, buffer[recvTag]);
             } else {
                MPI_Status status;
                MPI_Wait(&recvRequests[blockID][recvTag], &status);
 
                WALBERLA_ASSERT_GREATER(buffer.count(recvTag), 0)
-               unpackBuffer(block, recvCI, buffer[recvTag]);
+               static_cast<Derived_T*>(this)->unpackBuffer(block, recvCI, buffer[recvTag]);
             }
 
          }
@@ -261,7 +256,7 @@ class ShiftedPeriodicity {
  private:
 
    void processDoubleAABB( const AABB & originalAABB, const std::shared_ptr<StructuredBlockForest> & sbf,
-                           const real_t nGL, const BlockID & blockID, const int normalShift ) {
+                          const real_t nGL, const BlockID & blockID, const int normalShift ) {
 
       WALBERLA_ASSERT(normalShift == -1 || normalShift == 1)
 
@@ -337,15 +332,15 @@ class ShiftedPeriodicity {
       domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), recvCenter1 );
       domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), recvCenter2 );
 
-      uint_t sendRank1;
-      uint_t sendRank2;
-      uint_t recvRank1;
-      uint_t recvRank2;
+      uint_t sendRank1{};
+      uint_t sendRank2{};
+      uint_t recvRank1{};
+      uint_t recvRank2{};
 
-      BlockID sendID1;
-      BlockID sendID2;
-      BlockID recvID1;
-      BlockID recvID2;
+      BlockID sendID1{};
+      BlockID sendID2{};
+      BlockID recvID1{};
+      BlockID recvID2{};
 
       const auto blockInformation = sbf->getBlockInformation();
       WALBERLA_ASSERT(blockInformation.active())
@@ -384,7 +379,7 @@ class ShiftedPeriodicity {
    }
 
    void processSingleAABB( const AABB & originalAABB, const std::shared_ptr<StructuredBlockForest> & sbf,
-                           const real_t nGL, const BlockID & blockID, const int normalShift ) {
+                          const real_t nGL, const BlockID & blockID, const int normalShift ) {
 
       WALBERLA_ASSERT(normalShift == -1 || normalShift == 1)
 
@@ -423,11 +418,11 @@ class ShiftedPeriodicity {
       domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), sendCenter );
       domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), recvCenter );
 
-      uint_t sendRank;
-      uint_t recvRank;
+      uint_t sendRank{};
+      uint_t recvRank{};
 
-      BlockID sendID;
-      BlockID recvID;
+      BlockID sendID{};
+      BlockID recvID{};
 
       const auto blockInformation = sbf->getBlockInformation();
       WALBERLA_ASSERT(blockInformation.active())
@@ -474,6 +469,13 @@ class ShiftedPeriodicity {
 
       const bool shiftWholeBlock = (shift_[shiftDir_] % ShiftType(sbf->getNumberOfCells(*localBlocks[0], shiftDir_))) == 0;
 
+      // get f-size
+      {
+         auto* field = localBlocks[0]->getData<FieldType>(fieldID_);
+         WALBERLA_ASSERT_NOT_NULLPTR(field)
+         fSize_ = cell_idx_c(field->fSize());
+      }
+
       for( auto block : localBlocks ) {
 
          // get minimal ghost layer region (in normal direction)
@@ -502,44 +504,6 @@ class ShiftedPeriodicity {
 
    }
 
-   void packBuffer(IBlock * const block, const CellInterval & ci,
-                  std::vector<ValueType> & buffer) {
-
-      // get field
-      auto field = block->getData<GhostLayerField_T>(fieldID_);
-      WALBERLA_ASSERT_NOT_NULLPTR(field)
-
-      auto bufferIt = buffer.begin();
-
-      // forward iterate over ci and add values to value vector
-      for(auto cellIt = ci.begin(); cellIt != ci.end(); ++cellIt) {
-         for(cell_idx_t f = 0; f < cell_idx_c(GhostLayerField_T::F_SIZE); ++f, ++bufferIt) {
-            WALBERLA_ASSERT(field->coordinatesValid(cellIt->x(), cellIt->y(), cellIt->z(), f))
-            *bufferIt = field->get(*cellIt, f);
-         }
-      }
-
-   }
-
-   void unpackBuffer(IBlock* const block, const CellInterval & ci,
-                     const std::vector<ValueType> & buffer) {
-
-      // get field
-      auto field = block->getData<GhostLayerField_T>(fieldID_);
-      WALBERLA_ASSERT_NOT_NULLPTR(field)
-
-      auto bufferIt = buffer.begin();
-
-      // forward iterate over ci and add values to value vector
-      for(auto cellIt = ci.begin(); cellIt != ci.end(); ++cellIt) {
-         for(cell_idx_t f = 0; f < cell_idx_c(GhostLayerField_T::F_SIZE); ++f, ++bufferIt) {
-            WALBERLA_ASSERT(field->coordinatesValid(cellIt->x(), cellIt->y(), cellIt->z(), f))
-            field->get(*cellIt, f) = *bufferIt;
-         }
-      }
-
-   }
-
    Vector3<cell_idx_t> toCellVector( const Vector3<real_t> & point ) {
       return Vector3<cell_idx_t >{ cell_idx_c(point[0]), cell_idx_c(point[1]), cell_idx_c(point[2]) };
    }
@@ -562,14 +526,8 @@ class ShiftedPeriodicity {
 
    std::weak_ptr<StructuredBlockForest> blockForest_;
 
-   const BlockDataID flagFieldID_;
-   const BlockDataID fieldID_;
-
-   const uint_t fieldGhostLayers_;
-
    const Vector3<ShiftType> shift_;
    uint_t shiftDir_;
-   const Vector3<uint_t> boundaryNormal_;
    uint_t normalDir_;
 
    // for each local block, stores the ranks where to send / receive, the corresponding block IDs,
@@ -579,6 +537,78 @@ class ShiftedPeriodicity {
 
    bool setupPeriodicity_{false};
    uint_t numGlobalBlocks_{};
+
+ protected:
+
+   const BlockDataID fieldID_;
+
+   const uint_t fieldGhostLayers_;
+   cell_idx_t fSize_;
+
+}; // class ShiftedPeriodicityBase
+
+template<typename GhostLayerField_T>
+class ShiftedPeriodicity : public ShiftedPeriodicityBase<ShiftedPeriodicity<GhostLayerField_T>, GhostLayerField_T> {
+
+   using Base = ShiftedPeriodicityBase<ShiftedPeriodicity<GhostLayerField_T>, GhostLayerField_T>;
+   friend Base;
+
+ public:
+
+   using ValueType = typename GhostLayerField_T::value_type;
+   using ShiftType = typename Base::ShiftType;
+
+   ShiftedPeriodicity( const std::weak_ptr<StructuredBlockForest> & blockForest,
+                       const BlockDataID & fieldID, const uint_t fieldGhostLayers,
+                       const Vector3<uint_t> & boundaryNormal, const Vector3< ShiftType > & shift )
+      : Base( blockForest, fieldID, fieldGhostLayers, boundaryNormal, shift )
+   {}
+
+   ShiftedPeriodicity( const std::weak_ptr<StructuredBlockForest> & blockForest,
+                       const BlockDataID & fieldID, const uint_t fieldGhostLayers,
+                       const Vector3<uint_t> & boundaryNormal, const ShiftType xShift, const ShiftType yShift, const ShiftType zShift )
+      : Base(blockForest, fieldID, fieldGhostLayers, boundaryNormal, Vector3<ShiftType >(xShift, yShift, zShift))
+   {}
+
+ private:
+
+   void packBuffer(IBlock * const block, const CellInterval & ci,
+                   std::vector<ValueType> & buffer) {
+
+      // get field
+      auto field = block->getData<GhostLayerField_T>(this->fieldID_);
+      WALBERLA_ASSERT_NOT_NULLPTR(field)
+
+      auto bufferIt = buffer.begin();
+
+      // forward iterate over ci and add values to value vector
+      for(auto cellIt = ci.begin(); cellIt != ci.end(); ++cellIt) {
+         for(cell_idx_t f = 0; f < this->fSize_; ++f, ++bufferIt) {
+            WALBERLA_ASSERT(field->coordinatesValid(cellIt->x(), cellIt->y(), cellIt->z(), f))
+            *bufferIt = field->get(*cellIt, f);
+         }
+      }
+
+   }
+
+   void unpackBuffer(IBlock* const block, const CellInterval & ci,
+                     const std::vector<ValueType> & buffer) {
+
+      // get field
+      auto field = block->getData<GhostLayerField_T>(this->fieldID_);
+      WALBERLA_ASSERT_NOT_NULLPTR(field)
+
+      auto bufferIt = buffer.begin();
+
+      // forward iterate over ci and add values to value vector
+      for(auto cellIt = ci.begin(); cellIt != ci.end(); ++cellIt) {
+         for(cell_idx_t f = 0; f < this->fSize_; ++f, ++bufferIt) {
+            WALBERLA_ASSERT(field->coordinatesValid(cellIt->x(), cellIt->y(), cellIt->z(), f))
+            field->get(*cellIt, f) = *bufferIt;
+         }
+      }
+
+   }
 
 }; // class ShiftedPeriodicity
 
