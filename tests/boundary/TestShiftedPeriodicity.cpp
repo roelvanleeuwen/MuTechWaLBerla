@@ -36,7 +36,7 @@
 #include "domain_decomposition/IBlock.h"
 
 #include "field/Layout.h"
-#include "field/vtk/VTKWriter.h"
+//#include "field/vtk/VTKWriter.h"
 
 #include "python_coupling/CreateConfig.h"
 
@@ -49,18 +49,14 @@
 #include <core/debug/Debug.h>
 #include <core/debug/TestSubsystem.h>
 #include <field/AddToStorage.h>
-#include <field/FlagField.h>
 #include <field/GhostLayerField.h>
 #include <memory>
 #include <vector>
 
 namespace walberla {
 
-using flag_t = uint8_t;
-
 using Stencil_T = stencil::D3Q27;
 
-using FlagField_T = FlagField<flag_t>;
 using ValueType_T = real_t;
 using Field_T = GhostLayerField< ValueType_T, 3 >;
 
@@ -101,9 +97,9 @@ class FieldInitialiser {
 
             for (uint_t d = 0; d < FieldType_T::F_SIZE; ++d)
             {
-               field->get(cell, d) = real_c(  (globalCell.x()+2)
-                                            * (globalCell.y()+2)
-                                            * (globalCell.z()+2)
+               field->get(cell, d) = real_c(  (globalCell.x() + 2 * fieldGhostLayers)
+                                            * (globalCell.y() + 2 * fieldGhostLayers)
+                                            * (globalCell.z() + 2 * fieldGhostLayers)
                                             * int_c(d + 1));
             }
          }
@@ -130,7 +126,6 @@ int main( int argc, char **argv ) {
       // create the domain, flag field and vector field (non-uniform initialisation)
       auto blocks = blockforest::createUniformBlockGridFromConfig(config->getBlock("DomainSetup"), nullptr, true);
 
-      const auto flagFieldID = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field");
       const auto fieldID = field::addToStorage< Field_T >(blocks, "test field", real_t(0), field::Layout::fzyx, fieldGhostLayers);
       FieldInitialiser< Field_T > initialiser(blocks, fieldID);
 
@@ -143,8 +138,8 @@ int main( int argc, char **argv ) {
       const Vector3<int> shift = spConfig.getParameter<Vector3<int>>("shift");
       const Vector3<uint_t> boundaryNormal = spConfig.getParameter<Vector3<uint_t>>("normal");
       ;
-      boundary::ShiftedPeriodicity<Field_T, FlagField_T> shiftedPeriodicity(
-         blocks, flagFieldID, fieldID, fieldGhostLayers, boundaryNormal, shift
+      boundary::ShiftedPeriodicity<Field_T> shiftedPeriodicity(
+         blocks, fieldID, fieldGhostLayers, boundaryNormal, shift
       );
 
 //      auto vtkOutput = field::createVTKOutput<Field_T>(fieldID, *blocks, "test_field", 1, fieldGhostLayers,
