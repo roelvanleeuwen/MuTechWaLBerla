@@ -50,10 +50,24 @@ namespace gpu
 {
 
 namespace internal {
+   // GPU kernels - can be extended for other data types
    __global__ void packBufferGPU( gpu::FieldAccessor<real_t> fa, real_t * const buffer );
    __global__ void unpackBufferGPU( gpu::FieldAccessor<real_t> fa, const real_t * const buffer );
 }
 
+//*******************************************************************************************************************
+/*!
+ * A periodicity boundary condition that adds a user-defined spatial shift to the field when applied.
+ * This shift can prevent the locking of large-scale turbulent features in the flow direction, see e.g.,
+ * Munters et al. (https://doi.org/10.1063/1.4941912).
+ *
+ * Periodicity defined in the blockforest must be turned off in the normal-direction.
+ *
+ * This class handles the GPU-specific packing and unpacking of the communication buffers.
+ *
+ * @tparam GhostLayerField_T Type of the ghost-layer field that is shifted periodically
+ */
+//*******************************************************************************************************************
 template< typename GPUField_T >
 class ShiftedPeriodicityGPU : public boundary::ShiftedPeriodicityBase<ShiftedPeriodicityGPU<GPUField_T>, GPUField_T> {
 
