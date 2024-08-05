@@ -51,6 +51,22 @@
 namespace walberla {
 namespace boundary {
 
+//*******************************************************************************************************************
+/*!
+ * A periodicity boundary condition that adds a user-defined spatial shift to the field when applied.
+ * This shift can prevent the locking of large-scale turbulent features in the flow direction, see e.g.,
+ * Munters et al. (https://doi.org/10.1063/1.4941912).
+ *
+ * Periodicity defined in the blockforest must be turned off in the normal-direction. Only uniform grids are supported
+ * for the moment. Normal direction and shift direction must not coincide.
+ * Moreover, this boundary condition is only applied at the minimum and maximum of the domain in a given direction, but
+ * cannot be applied in the interior of the domain for now.
+ *
+ * This base class handles the logistics of splitting the field and communication.
+ *
+ * @tparam Field_T Type of the ghost-layer field that is shifted periodically
+ */
+//*******************************************************************************************************************
 template<typename Derived_T, typename Field_T>
 class ShiftedPeriodicityBase {
 
@@ -126,6 +142,7 @@ class ShiftedPeriodicityBase {
       if(shift_[shiftDir_] == ShiftType(sbf->getNumberOfCells(shiftDir_)) || shift_[shiftDir_] == 0)
          return;
 
+      // only setup send and receive information once at the beginning
       if(!setupPeriodicity_){
          setupPeriodicity();
          setupPeriodicity_ = true;
@@ -255,6 +272,16 @@ class ShiftedPeriodicityBase {
 
  private:
 
+   /*!
+    * Creates send and receive information (source, target rank, source / target blocks, source and destination CI
+    * (here in form of an AABB), and unique communication tag) per block if the shift does not coincide with the
+    * block size.
+    *
+    * If the shift does not coincide with the block size, each block is split into two send sub-blocks and two receive
+    * sub-blocks whose source / target block will differ (maybe also the rank).
+    * Afterwards, all the information necessary for the communication is determined and saved in the corresponding
+    * data structure.
+    */
    void processDoubleAABB( const AABB & originalAABB, const std::shared_ptr<StructuredBlockForest> & sbf,
                           const real_t nGL, const BlockID & blockID, const int normalShift ) {
 
@@ -378,6 +405,11 @@ class ShiftedPeriodicityBase {
       )
    }
 
+   /*!
+    * Does the same things as `processDoubleAABB` but assuming that the shift is a multiple of the block size, i.e.,
+    * every field slice is shifted one or several entire blocks. In this case, every block only has ONE send and ONE
+    * receive block whose information must be stored.
+    */
    void processSingleAABB( const AABB & originalAABB, const std::shared_ptr<StructuredBlockForest> & sbf,
                           const real_t nGL, const BlockID & blockID, const int normalShift ) {
 
@@ -450,6 +482,10 @@ class ShiftedPeriodicityBase {
       )
    }
 
+   /*!
+    * Determines which blocks are participating in the boundary condition / communication, and calls the appropriate
+    * functions to extract and save the communication information.
+    */
    void setupPeriodicity() {
 
       const auto sbf = blockForest_.lock();
@@ -547,6 +583,20 @@ class ShiftedPeriodicityBase {
 
 }; // class ShiftedPeriodicityBase
 
+
+//*******************************************************************************************************************
+/*!
+ * A periodicity boundary condition that adds a user-defined spatial shift to the field when applied.
+ * This shift can prevent the locking of large-scale turbulent features in the flow direction, see e.g.,
+ * Munters et al. (https://doi.org/10.1063/1.4941912).
+ *
+ * Periodicity defined in the blockforest must be turned off in the normal-direction.
+ *
+ * This class handles the CPU-specific packing and unpacking of the communication buffers.
+ *
+ * @tparam GhostLayerField_T Type of the ghost-layer field that is shifted periodically
+ */
+//*******************************************************************************************************************
 template<typename GhostLayerField_T>
 class ShiftedPeriodicity : public ShiftedPeriodicityBase<ShiftedPeriodicity<GhostLayerField_T>, GhostLayerField_T> {
 
