@@ -27,13 +27,13 @@ namespace gpu
 
 namespace internal {
 #ifdef WALBERLA_BUILD_WITH_GPU_SUPPORT
-   __global__ void packBufferGPU( gpu::FieldAccessor<real_t> & fa, real_t * const buffer ) {
+   __global__ void packBufferGPU( gpu::FieldAccessor<real_t> fa, real_t * const buffer ) {
       fa.set(blockIdx, threadIdx);
       if(fa.isValidPosition()) {
          buffer[fa.getLinearIndex(blockIdx, threadIdx, gridDim, blockDim)] = fa.get();
       }
    }
-   __global__ void unpackBufferGPU( gpu::FieldAccessor<real_t> & fa, const real_t * const buffer ) {
+   __global__ void unpackBufferGPU( gpu::FieldAccessor<real_t> fa, const real_t * const buffer ) {
       fa.set(blockIdx, threadIdx);
       if(fa.isValidPosition()) {
          fa.get() = buffer[fa.getLinearIndex(blockIdx, threadIdx, gridDim, blockDim)];

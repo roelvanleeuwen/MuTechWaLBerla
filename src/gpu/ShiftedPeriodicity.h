@@ -50,8 +50,8 @@ namespace gpu
 {
 
 namespace internal {
-   __global__ void packBufferGPU( gpu::FieldAccessor<real_t> & fa, real_t * const buffer );
-   __global__ void unpackBufferGPU( gpu::FieldAccessor<real_t> & fa, const real_t * const buffer );
+   __global__ void packBufferGPU( gpu::FieldAccessor<real_t> fa, real_t * const buffer );
+   __global__ void unpackBufferGPU( gpu::FieldAccessor<real_t> fa, const real_t * const buffer );
 }
 
 template< typename GPUField_T >
@@ -124,7 +124,7 @@ class ShiftedPeriodicityGPU : public boundary::ShiftedPeriodicityBase<ShiftedPer
       // unpack buffer on GPU
       auto unpackKernel = gpu::make_kernel( &internal::unpackBufferGPU );
       unpackKernel.addFieldIndexingParam( FieldIdx_T::interval( *d_field, ci, 0, this->fSize_ ) );
-      unpackKernel.addParam<real_t*>(d_buffer);
+      unpackKernel.addParam<const real_t*>(d_buffer);
       unpackKernel();
 
       WALBERLA_GPU_CHECK(gpuFree(d_buffer))
