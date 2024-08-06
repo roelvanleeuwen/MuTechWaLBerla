@@ -449,8 +449,8 @@ class ShiftedPeriodicityBase {
       recvAABBs_[blockID].emplace_back(mpi::MPIRank(recvRank), recvID, globalAABBToLocalCI(localRecvAABB, sbf, block), recvTag);
 
       WALBERLA_LOG_DETAIL("blockID = " << blockID.getID() << ", normalShift = " << normalShift
-                                       << "\n\tsendRank = " << sendRank1 << "\tsendID = " << sendID.getID() << "\tsendTag = " << sendTag << "\taabb = " << localSendAABB
-                                       << "\n\trecvRank = " << recvRank1 << "\trecvID = " << recvID.getID() << "\trecvTag = " << recvTag << "\taabb = " << localRecvAABB
+                                       << "\n\tsendRank = " << sendRank << "\tsendID = " << sendID.getID() << "\tsendTag = " << sendTag << "\taabb = " << localSendAABB
+                                       << "\n\trecvRank = " << recvRank << "\trecvID = " << recvID.getID() << "\trecvTag = " << recvTag << "\taabb = " << localRecvAABB
       )
    }
 
