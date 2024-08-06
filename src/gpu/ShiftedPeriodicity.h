@@ -82,16 +82,10 @@ class ShiftedPeriodicityGPU : public boundary::ShiftedPeriodicityBase<ShiftedPer
 
    ShiftedPeriodicityGPU(const std::weak_ptr< StructuredBlockForest >& blockForest,
                          const BlockDataID& fieldID, const uint_t fieldGhostLayers,
-                         const Vector3< uint_t >& boundaryNormal, const Vector3< ShiftType >& shift)
-      : Base(blockForest, fieldID, fieldGhostLayers, boundaryNormal, shift)
+                         const uint_t normalDir, const uint_t shiftDir, const ShiftType shiftValue)
+      : Base(blockForest, fieldID, fieldGhostLayers, normalDir, shiftDir, shiftValue)
    {}
 
-   ShiftedPeriodicityGPU(const std::weak_ptr< StructuredBlockForest >& blockForest,
-                         const BlockDataID& fieldID, const uint_t fieldGhostLayers,
-                         const Vector3< uint_t >& boundaryNormal, const ShiftType xShift, const ShiftType yShift,
-                         const ShiftType zShift)
-      : Base(blockForest, fieldID, fieldGhostLayers, boundaryNormal, xShift, yShift, zShift)
-   {}
 
  private:
 

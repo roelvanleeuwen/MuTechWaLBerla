@@ -135,11 +135,12 @@ int main( int argc, char **argv ) {
       // create periodic shift boundary condition
 
       const auto spConfig = config->getBlock("Boundaries").getBlock("ShiftedPeriodicity");
-      const Vector3<int> shift = spConfig.getParameter<Vector3<int>>("shift");
-      const Vector3<uint_t> boundaryNormal = spConfig.getParameter<Vector3<uint_t>>("normal");
-      ;
+      const uint_t shiftDir = spConfig.getParameter<uint_t>("shiftDir");
+      const int shiftValue = spConfig.getParameter<int>("shiftValue");
+      const uint_t normalDir = spConfig.getParameter<uint_t>("normalDir");
+
       boundary::ShiftedPeriodicity<Field_T> shiftedPeriodicity(
-         blocks, fieldID, fieldGhostLayers, boundaryNormal, shift
+         blocks, fieldID, fieldGhostLayers, normalDir, shiftDir, shiftValue
       );
 
 //      auto vtkOutput = field::createVTKOutput<Field_T>(fieldID, *blocks, "test_field", 1, fieldGhostLayers,
@@ -154,9 +155,8 @@ int main( int argc, char **argv ) {
       /// compare values
       // create local domain slices to compare values before and after shift
 
-      const uint_t shiftDir = shiftedPeriodicity.shiftDirection();
-      const uint_t normalDir = shiftedPeriodicity.normalDirection();
       const uint_t remDir = 3 - shiftDir - normalDir;
+      const auto shift = shiftedPeriodicity.shift();
 
       const uint_t shiftSize = blocks->getNumberOfCells(shiftDir);
       const uint_t remSize   = blocks->getNumberOfCells(remDir);

@@ -78,8 +78,8 @@ class ShiftedPeriodicityBase {
 
    ShiftedPeriodicityBase( const std::weak_ptr<StructuredBlockForest> & blockForest,
                            const BlockDataID & fieldID, const uint_t fieldGhostLayers,
-                           const Vector3<uint_t> & boundaryNormal, const Vector3< ShiftType > & shift )
-      : blockForest_(blockForest), shift_( shift[0], shift[1], shift[2] ),
+                           const uint_t normalDir, const uint_t shiftDir, const ShiftType shiftValue )
+      : blockForest_(blockForest), normalDir_(normalDir), shiftDir_(shiftDir),
         fieldID_( fieldID ), fieldGhostLayers_(fieldGhostLayers)
    {
       auto sbf = blockForest_.lock();
@@ -89,44 +89,19 @@ class ShiftedPeriodicityBase {
       WALBERLA_CHECK(sbf->storesUniformBlockGrid(), "Periodic shift is currently only implemented for uniform grids.")
       WALBERLA_CHECK(sbf->containsGlobalBlockInformation(), "For the periodic shift, the blockforest must be constructed to retain global information.")
 
-      WALBERLA_CHECK_GREATER(shift.length(), 0, "Shift value must be a non-negative value.")
-
-      uint_t shiftSum{};
-      for( uint_t d = 0; d < 3; ++d ) {
-         if(std::abs(shift_[d]) > 1e-8) {
-            shiftDir_ = d;
-            ++shiftSum;
-         }
-      }
-
-      uint_t normalSum{};
-      for( uint_t d = 0; d < 3; ++d ) {
-         if(boundaryNormal[d]) {
-            normalDir_ = d;
-            ++normalSum;
-         }
-      }
+      shift_ = Vector3<ShiftType>{};
+      auto adaptedShiftValue = shiftValue % ShiftType(sbf->getNumberOfCells(shiftDir_));
+      shift_[shiftDir_] = ShiftType(adaptedShiftValue >= 0 ? adaptedShiftValue : adaptedShiftValue + sbf->getNumberOfCells(shiftDir_));
 
       // sanity checks
-      WALBERLA_CHECK_EQUAL( shiftSum, 1, "Periodic shift can only be applied in one direction." )
-      WALBERLA_CHECK_EQUAL( normalSum, 1, "Periodic shift can only be applied to straight, axis-aligned boundaries." )
       WALBERLA_CHECK_UNEQUAL( shiftDir_, normalDir_, "Direction of periodic shift and boundary normal must not coincide." )
 
       WALBERLA_CHECK( sbf->isPeriodic(shiftDir_), "Blockforest must be periodic in direction " << shiftDir_ << "!" )
-      WALBERLA_CHECK( !sbf->isPeriodic(normalDir_), "Blockforest must NOT be periodic in direction " << boundaryNormal << "!" )
+      WALBERLA_CHECK( !sbf->isPeriodic(normalDir_), "Blockforest must NOT be periodic in direction " << normalDir_ << "!" )
 
-      for(uint_t d = 0; d < 3; ++d) {
-         WALBERLA_CHECK_LESS(std::abs(shift[d]), sbf->getNumberOfCells(d), "Please chose a shift value whose absolute is smaller than the domain size in shift direction.")
-      }
    }
 
-   ShiftedPeriodicityBase( const std::weak_ptr<StructuredBlockForest> & blockForest,
-                           const BlockDataID & fieldID, const uint_t fieldGhostLayers,
-                           const Vector3<uint_t> & boundaryNormal, const ShiftType xShift, const ShiftType yShift, const ShiftType zShift )
-      : ShiftedPeriodicityBase(blockForest, fieldID, fieldGhostLayers,
-                               boundaryNormal, Vector3<ShiftType >(xShift, yShift, zShift))
-   {}
-
+   Vector3<ShiftType> shift() const { return shift_; }
    uint_t shiftDirection() const { return shiftDir_; }
    uint_t normalDirection() const { return normalDir_; }
 
@@ -137,10 +112,6 @@ class ShiftedPeriodicityBase {
 
       const auto sbf = blockForest_.lock();
       WALBERLA_ASSERT_NOT_NULLPTR( sbf )
-
-      // if shift equals zero or domain size in this direction, we do not need to do anything
-      if(shift_[shiftDir_] == ShiftType(sbf->getNumberOfCells(shiftDir_)) || shift_[shiftDir_] == 0)
-         return;
 
       // only setup send and receive information once at the beginning
       if(!setupPeriodicity_){
@@ -174,8 +145,7 @@ class ShiftedPeriodicityBase {
             const auto sendTag = std::get<3>(sendInfo);
 
             // transform AABB to CI
-            const auto sendAABB = std::get<2>(sendInfo);
-            const auto sendCI = globalAABBToLocalCI(sendAABB, sbf, block);
+            const auto sendCI = std::get<2>(sendInfo);
 
             const auto sendSize = sendCI.numCells() * uint_c(fSize_);
 
@@ -206,8 +176,7 @@ class ShiftedPeriodicityBase {
 
             const auto recvRank = std::get<0>(recvInfo);
             const auto recvTag   = std::get<3>(recvInfo);
-            const auto recvAABB = std::get<2>(recvInfo);
-            const auto recvCI = globalAABBToLocalCI(recvAABB, sbf, block);
+            const auto recvCI = std::get<2>(recvInfo);
 
             // do not schedule receives for local communication
             if (recvRank != currentRank) {
@@ -237,8 +206,7 @@ class ShiftedPeriodicityBase {
             const auto recvRank = std::get<0>(recvInfo);
             const auto recvTag = std::get<3>(recvInfo);
 
-            const auto recvAABB = std::get<2>(recvInfo);
-            const auto recvCI = globalAABBToLocalCI(recvAABB, sbf, block);
+            const auto recvCI = std::get<2>(recvInfo);
 
             if(recvRank == currentRank) {
                WALBERLA_ASSERT_GREATER(buffer.count(recvTag), 0)
@@ -264,7 +232,7 @@ class ShiftedPeriodicityBase {
 
          std::vector<MPI_Request > v;
          std::transform( sendRequests[blockID].begin(), sendRequests[blockID].end(), std::back_inserter( v ),
-                        second( sendRequests[blockID] ));
+                         second( sendRequests[blockID] ));
          MPI_Waitall(int_c(sendRequests[blockID].size()), v.data(), MPI_STATUSES_IGNORE);
       }
 
@@ -392,10 +360,12 @@ class ShiftedPeriodicityBase {
       const int recvTag2 = ((int_c(recvID2.getID()) + int_c(blockID.getID() * numGlobalBlocks_)) * 2 + atMaxTagRecv) * 2 + 0;
       const int recvTag1 = ((int_c(recvID1.getID()) + int_c(blockID.getID() * numGlobalBlocks_)) * 2 + atMaxTagRecv) * 2 + 1;
 
-      sendAABBs_[blockID].emplace_back(mpi::MPIRank(sendRank1), sendID1, localSendAABB1, sendTag1);
-      sendAABBs_[blockID].emplace_back(mpi::MPIRank(sendRank2), sendID2, localSendAABB2, sendTag2);
-      recvAABBs_[blockID].emplace_back(mpi::MPIRank(recvRank2), recvID2, localRecvAABB2, recvTag2);
-      recvAABBs_[blockID].emplace_back(mpi::MPIRank(recvRank1), recvID1, localRecvAABB1, recvTag1);
+      auto block = sbf->getBlock(blockID);
+
+      sendAABBs_[blockID].emplace_back(mpi::MPIRank(sendRank1), sendID1, globalAABBToLocalCI(localSendAABB1, sbf, block), sendTag1);
+      sendAABBs_[blockID].emplace_back(mpi::MPIRank(sendRank2), sendID2, globalAABBToLocalCI(localSendAABB2, sbf, block), sendTag2);
+      recvAABBs_[blockID].emplace_back(mpi::MPIRank(recvRank2), recvID2, globalAABBToLocalCI(localRecvAABB2, sbf, block), recvTag2);
+      recvAABBs_[blockID].emplace_back(mpi::MPIRank(recvRank1), recvID1, globalAABBToLocalCI(localRecvAABB1, sbf, block), recvTag1);
 
       WALBERLA_LOG_DETAIL("blockID = " << blockID.getID() << ", normalShift = " << normalShift
                                        << "\n\tsendRank1 = " << sendRank1 << "\tsendID1 = " << sendID1.getID() << "\tsendTag1 = " << sendTag1 << "\taabb = " << localSendAABB1
@@ -473,8 +443,10 @@ class ShiftedPeriodicityBase {
       const int sendTag = ((int_c(blockID.getID()) + int_c(sendID.getID() * numGlobalBlocks_)) * 2 + atMaxTagSend) * 2 + 0;
       const int recvTag = ((int_c(recvID.getID()) + int_c(blockID.getID() * numGlobalBlocks_)) * 2 + atMaxTagRecv) * 2 + 0;
 
-      sendAABBs_[blockID].emplace_back(mpi::MPIRank(sendRank), sendID, localSendAABB, sendTag);
-      recvAABBs_[blockID].emplace_back(mpi::MPIRank(recvRank), recvID, localRecvAABB, recvTag);
+      auto block = sbf->getBlock(blockID);
+
+      sendAABBs_[blockID].emplace_back(mpi::MPIRank(sendRank), sendID, globalAABBToLocalCI(localSendAABB, sbf, block), sendTag);
+      recvAABBs_[blockID].emplace_back(mpi::MPIRank(recvRank), recvID, globalAABBToLocalCI(localRecvAABB, sbf, block), recvTag);
 
       WALBERLA_LOG_DETAIL("blockID = " << blockID.getID() << ", normalShift = " << normalShift
                                        << "\n\tsendRank = " << sendRank1 << "\tsendID = " << sendID.getID() << "\tsendTag = " << sendTag << "\taabb = " << localSendAABB
@@ -562,14 +534,14 @@ class ShiftedPeriodicityBase {
 
    std::weak_ptr<StructuredBlockForest> blockForest_;
 
-   const Vector3<ShiftType> shift_;
-   uint_t shiftDir_;
    uint_t normalDir_;
+   uint_t shiftDir_;
+   Vector3<ShiftType> shift_;
 
    // for each local block, stores the ranks where to send / receive, the corresponding block IDs,
    // the local AABBs that need to be packed / unpacked, and a unique tag for communication
-   std::map<BlockID, std::vector<std::tuple<mpi::MPIRank, BlockID, AABB, int>>> sendAABBs_{};
-   std::map<BlockID, std::vector<std::tuple<mpi::MPIRank, BlockID, AABB, int>>> recvAABBs_{};
+   std::map<BlockID, std::vector<std::tuple<mpi::MPIRank, BlockID, CellInterval, int>>> sendAABBs_{};
+   std::map<BlockID, std::vector<std::tuple<mpi::MPIRank, BlockID, CellInterval, int>>> recvAABBs_{};
 
    bool setupPeriodicity_{false};
    uint_t numGlobalBlocks_{};
@@ -610,14 +582,8 @@ class ShiftedPeriodicity : public ShiftedPeriodicityBase<ShiftedPeriodicity<Ghos
 
    ShiftedPeriodicity( const std::weak_ptr<StructuredBlockForest> & blockForest,
                        const BlockDataID & fieldID, const uint_t fieldGhostLayers,
-                       const Vector3<uint_t> & boundaryNormal, const Vector3< ShiftType > & shift )
-      : Base( blockForest, fieldID, fieldGhostLayers, boundaryNormal, shift )
-   {}
-
-   ShiftedPeriodicity( const std::weak_ptr<StructuredBlockForest> & blockForest,
-                       const BlockDataID & fieldID, const uint_t fieldGhostLayers,
-                       const Vector3<uint_t> & boundaryNormal, const ShiftType xShift, const ShiftType yShift, const ShiftType zShift )
-      : Base(blockForest, fieldID, fieldGhostLayers, boundaryNormal, Vector3<ShiftType >(xShift, yShift, zShift))
+                      const uint_t normalDir, const uint_t shiftDir, const ShiftType shiftValue )
+      : Base( blockForest, fieldID, fieldGhostLayers, normalDir, shiftDir, shiftValue )
    {}
 
  private:

@@ -2,16 +2,14 @@ import waLBerla as wlb
 
 
 class Scenario:
-    def __init__(self, normal_dir, shift, periodicity):
+    def __init__(self, normal_dir, shift_dir, shift_value, periodicity):
         self.normal_dir = normal_dir
-        self.shift = tuple(shift)
+        self.shift_dir = shift_dir
+        self.shift_value = shift_value
         self.periodicity = tuple(periodicity)
 
     @wlb.member_callback
     def config(self):
-        normal_vector = [0] * 3
-        normal_vector[self.normal_dir] = 1
-        normal_vector = tuple(normal_vector)
 
         return {
             'DomainSetup': {
@@ -22,8 +20,9 @@ class Scenario:
             },
             'Boundaries': {
                 'ShiftedPeriodicity': {
-                    'shift': self.shift,
-                    'normal': normal_vector
+                    'shiftDir': self.shift_dir,
+                    'shiftValue': self.shift_value,
+                    'normalDir': self.normal_dir
                 }
             }
         }
@@ -37,7 +36,5 @@ for normal_dir in (0, 1, 2):
             continue
         periodicity = 3 * [0]
         periodicity[shift_dir] = 1
-        for shift_value in (2, 5, 8, 11):
-            shift = [0] * 3
-            shift[shift_dir] = shift_value
-            scenarios.add(Scenario(normal_dir, shift, periodicity))
+        for shift_value in (0, 2, 5, 8):
+            scenarios.add(Scenario(normal_dir, shift_dir, shift_value, periodicity))
