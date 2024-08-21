@@ -24,6 +24,9 @@ class Scenario:
                     'shiftValue': self.shift_value,
                     'normalDir': self.normal_dir
                 }
+            },
+            'Logging': {
+                'logLevel': "Info"
             }
         }
 
@@ -36,5 +39,5 @@ for normal_dir in (0, 1, 2):
             continue
         periodicity = 3 * [0]
         periodicity[shift_dir] = 1
-        for shift_value in (0, 2, 5, 8):
+        for shift_value in (-3, 0, 2, 5, 8, 15):
             scenarios.add(Scenario(normal_dir, shift_dir, shift_value, periodicity))

@@ -91,7 +91,7 @@ class ShiftedPeriodicityBase {
 
       shift_ = Vector3<ShiftType>{};
       auto adaptedShiftValue = shiftValue % ShiftType(sbf->getNumberOfCells(shiftDir_));
-      shift_[shiftDir_] = ShiftType(adaptedShiftValue >= 0 ? adaptedShiftValue : adaptedShiftValue + sbf->getNumberOfCells(shiftDir_));
+      shift_[shiftDir_] = ShiftType(adaptedShiftValue >= 0 ? adaptedShiftValue : adaptedShiftValue + ShiftType(sbf->getNumberOfCells(shiftDir_)));
 
       // sanity checks
       WALBERLA_CHECK_UNEQUAL( shiftDir_, normalDir_, "Direction of periodic shift and boundary normal must not coincide." )
@@ -144,7 +144,6 @@ class ShiftedPeriodicityBase {
             const auto sendRank = std::get<0>(sendInfo);
             const auto sendTag = std::get<3>(sendInfo);
 
-            // transform AABB to CI
             const auto sendCI = std::get<2>(sendInfo);
 
             const auto sendSize = sendCI.numCells() * uint_c(fSize_);
@@ -255,48 +254,41 @@ class ShiftedPeriodicityBase {
 
       WALBERLA_ASSERT(normalShift == -1 || normalShift == 1)
 
+      const auto localShift = normalShift == 1 ? shift_ : -shift_;
+
       const auto offset = ShiftType(int_c(shift_[shiftDir_]) % int_c(sbf->getNumberOfCellsPerBlock(shiftDir_)));
       Vector3<ShiftType> normalShiftVector{};
       normalShiftVector[normalDir_] = ShiftType(normalShift * int_c(sbf->getNumberOfCellsPerBlock(normalDir_)));
 
-      // aabbs for packing
-      auto sendAABB1 = originalAABB;
-      auto sendAABB2 = originalAABB;
-      sendAABB1.setAxisBounds(shiftDir_, sendAABB1.min(shiftDir_), sendAABB1.max(shiftDir_) - real_c(offset));
-      sendAABB2.setAxisBounds(shiftDir_, sendAABB2.max(shiftDir_) - real_c(offset), sendAABB2.max(shiftDir_));
-
-      auto sendCenter1 = sendAABB1.center();
-      auto sendCenter2 = sendAABB2.center();
-
-      sendAABB1.setAxisBounds(shiftDir_, sendAABB1.min(shiftDir_), sendAABB1.max(shiftDir_) + nGL);
-      sendAABB2.setAxisBounds(shiftDir_, sendAABB2.min(shiftDir_) - nGL, sendAABB2.max(shiftDir_));
-
       const auto remDir = uint_t(3) - normalDir_ - shiftDir_;
 
+      AABB aabb1 = originalAABB;
+      AABB aabb2 = originalAABB;
+
+      if( normalShift == 1 ) {
+         aabb1.setAxisBounds(shiftDir_, aabb1.min(shiftDir_), aabb1.max(shiftDir_) - real_c(offset));
+         aabb2.setAxisBounds(shiftDir_, aabb2.max(shiftDir_) - real_c(offset), aabb2.max(shiftDir_));
+      } else {
+         aabb1.setAxisBounds(shiftDir_, aabb1.min(shiftDir_), aabb1.min(shiftDir_) + real_c(offset));
+         aabb2.setAxisBounds(shiftDir_, aabb2.min(shiftDir_) + real_c(offset), aabb2.max(shiftDir_));
+      }
+
+      auto center1 = aabb1.center();
+      auto center2 = aabb2.center();
+
       // account for ghost layers
-      auto localSendAABB1 = sendAABB1;
-      localSendAABB1.setAxisBounds(remDir, localSendAABB1.min(remDir) - nGL, localSendAABB1.max(remDir) + nGL);
-      auto localSendAABB2 = sendAABB2;
-      localSendAABB2.setAxisBounds(remDir, localSendAABB2.min(remDir) - nGL, localSendAABB2.max(remDir) + nGL);
+      aabb1.setAxisBounds(remDir, aabb1.min(remDir) - nGL, aabb1.max(remDir) + nGL);
+      aabb2.setAxisBounds(remDir, aabb2.min(remDir) - nGL, aabb2.max(remDir) + nGL);
 
-      // aabbs for unpacking
-      auto recvAABB1 = originalAABB;
-      auto recvAABB2 = originalAABB;
+      auto localSendAABB1 = aabb1;
+      auto localRecvAABB1 = aabb1;
+      auto localSendAABB2 = aabb2;
+      auto localRecvAABB2 = aabb2;
 
-      recvAABB1.setAxisBounds(shiftDir_, recvAABB1.min(shiftDir_), recvAABB1.min(shiftDir_) + real_c(offset));
-      recvAABB2.setAxisBounds(shiftDir_, recvAABB2.min(shiftDir_) + real_c(offset), recvAABB2.max(shiftDir_));
-
-      auto recvCenter1 = recvAABB1.center();
-      auto recvCenter2 = recvAABB2.center();
-
-      recvAABB1.setAxisBounds(shiftDir_, recvAABB1.min(shiftDir_) - nGL, recvAABB1.max(shiftDir_));
-      recvAABB2.setAxisBounds(shiftDir_, recvAABB2.min(shiftDir_), recvAABB2.max(shiftDir_) + nGL);
-
-      // receive from the interior of domain in ghost layers
-      auto localRecvAABB1 = recvAABB1;
-      localRecvAABB1.setAxisBounds(remDir, localRecvAABB1.min(remDir) - nGL, localRecvAABB1.max(remDir) + nGL);
-      auto localRecvAABB2 = recvAABB2;
-      localRecvAABB2.setAxisBounds(remDir, localRecvAABB2.min(remDir) - nGL, localRecvAABB2.max(remDir) + nGL);
+      localSendAABB1.setAxisBounds(shiftDir_, localSendAABB1.min(shiftDir_), localSendAABB1.max(shiftDir_) + nGL);
+      localSendAABB2.setAxisBounds(shiftDir_, localSendAABB2.min(shiftDir_) - nGL, localSendAABB2.max(shiftDir_));
+      localRecvAABB1.setAxisBounds(shiftDir_, localRecvAABB1.min(shiftDir_) - nGL, localRecvAABB1.max(shiftDir_));
+      localRecvAABB2.setAxisBounds(shiftDir_, localRecvAABB2.min(shiftDir_), localRecvAABB2.max(shiftDir_) + nGL);
 
       if(normalShift == 1) { // at maximum of domain -> send inner layers, receive ghost layers
          localSendAABB1.setAxisBounds(normalDir_, localSendAABB1.max(normalDir_) - nGL, localSendAABB1.max(normalDir_));
@@ -310,68 +302,56 @@ class ShiftedPeriodicityBase {
          localRecvAABB2.setAxisBounds(normalDir_, localRecvAABB2.min(normalDir_) - nGL, localRecvAABB2.min(normalDir_));
       }
 
-      WALBERLA_ASSERT_FLOAT_EQUAL(localSendAABB1.volume(), localRecvAABB2.volume())
-      WALBERLA_ASSERT_FLOAT_EQUAL(localSendAABB2.volume(), localRecvAABB1.volume())
+      WALBERLA_ASSERT_FLOAT_EQUAL(localSendAABB1.volume(), localRecvAABB1.volume())
+      WALBERLA_ASSERT_FLOAT_EQUAL(localSendAABB2.volume(), localRecvAABB2.volume())
 
-      sendCenter1 += ( shift_ + normalShiftVector);
-      sendCenter2 += ( shift_ + normalShiftVector);
-      recvCenter1 += (-shift_ + normalShiftVector);
-      recvCenter2 += (-shift_ + normalShiftVector);
+      center1 += (localShift + normalShiftVector);
+      center2 += (localShift + normalShiftVector);
 
       std::array<bool, 3> virtualPeriodicity{false};
       virtualPeriodicity[normalDir_] = true;
       virtualPeriodicity[shiftDir_] = true;
 
-      domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), sendCenter1 );
-      domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), sendCenter2 );
-      domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), recvCenter1 );
-      domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), recvCenter2 );
+      domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), center1 );
+      domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), center2 );
 
-      uint_t sendRank1{};
-      uint_t sendRank2{};
-      uint_t recvRank1{};
-      uint_t recvRank2{};
+      uint_t rank1{};
+      uint_t rank2{};
 
-      BlockID sendID1{};
-      BlockID sendID2{};
-      BlockID recvID1{};
-      BlockID recvID2{};
+      BlockID id1{};
+      BlockID id2{};
 
       const auto blockInformation = sbf->getBlockInformation();
       WALBERLA_ASSERT(blockInformation.active())
 
-      blockInformation.getProcess(sendRank1, sendCenter1[0], sendCenter1[1], sendCenter1[2]);
-      blockInformation.getProcess(sendRank2, sendCenter2[0], sendCenter2[1], sendCenter2[2]);
-      blockInformation.getProcess(recvRank1, recvCenter1[0], recvCenter1[1], recvCenter1[2]);
-      blockInformation.getProcess(recvRank2, recvCenter2[0], recvCenter2[1], recvCenter2[2]);
+      blockInformation.getProcess(rank1, center1[0], center1[1], center1[2]);
+      blockInformation.getProcess(rank2, center2[0], center2[1], center2[2]);
 
-      blockInformation.getId(sendID1, sendCenter1[0], sendCenter1[1], sendCenter1[2]);
-      blockInformation.getId(sendID2, sendCenter2[0], sendCenter2[1], sendCenter2[2]);
-      blockInformation.getId(recvID1, recvCenter1[0], recvCenter1[1], recvCenter1[2]);
-      blockInformation.getId(recvID2, recvCenter2[0], recvCenter2[1], recvCenter2[2]);
+      blockInformation.getId(id1, center1[0], center1[1], center1[2]);
+      blockInformation.getId(id2, center2[0], center2[1], center2[2]);
 
       // define unique send / receive tags for communication
 
       const int atMaxTagSend = normalShift < 0 ? 0 : 1;
       const int atMaxTagRecv = normalShift < 0 ? 1 : 0;
 
-      const int sendTag1 = ((int_c(blockID.getID()) + int_c(sendID1.getID() * numGlobalBlocks_)) * 2 + atMaxTagSend) * 2 + 0;
-      const int sendTag2 = ((int_c(blockID.getID()) + int_c(sendID2.getID() * numGlobalBlocks_)) * 2 + atMaxTagSend) * 2 + 1;
-      const int recvTag2 = ((int_c(recvID2.getID()) + int_c(blockID.getID() * numGlobalBlocks_)) * 2 + atMaxTagRecv) * 2 + 0;
-      const int recvTag1 = ((int_c(recvID1.getID()) + int_c(blockID.getID() * numGlobalBlocks_)) * 2 + atMaxTagRecv) * 2 + 1;
+      const int sendTag1 = ((int_c(blockID.getID()) + int_c(id1.getID() * numGlobalBlocks_)) * 2 + atMaxTagSend) * 2 + 0;
+      const int sendTag2 = ((int_c(blockID.getID()) + int_c(id2.getID() * numGlobalBlocks_)) * 2 + atMaxTagSend) * 2 + 1;
+      const int recvTag2 = ((int_c(id2.getID()) + int_c(blockID.getID() * numGlobalBlocks_)) * 2 + atMaxTagRecv) * 2 + 0;
+      const int recvTag1 = ((int_c(id1.getID()) + int_c(blockID.getID() * numGlobalBlocks_)) * 2 + atMaxTagRecv) * 2 + 1;
 
       auto block = sbf->getBlock(blockID);
 
-      sendAABBs_[blockID].emplace_back(mpi::MPIRank(sendRank1), sendID1, globalAABBToLocalCI(localSendAABB1, sbf, block), sendTag1);
-      sendAABBs_[blockID].emplace_back(mpi::MPIRank(sendRank2), sendID2, globalAABBToLocalCI(localSendAABB2, sbf, block), sendTag2);
-      recvAABBs_[blockID].emplace_back(mpi::MPIRank(recvRank2), recvID2, globalAABBToLocalCI(localRecvAABB2, sbf, block), recvTag2);
-      recvAABBs_[blockID].emplace_back(mpi::MPIRank(recvRank1), recvID1, globalAABBToLocalCI(localRecvAABB1, sbf, block), recvTag1);
+      sendAABBs_[blockID].emplace_back(mpi::MPIRank(rank1), id1, globalAABBToLocalCI(localSendAABB1, sbf, block), sendTag1);
+      sendAABBs_[blockID].emplace_back(mpi::MPIRank(rank2), id2, globalAABBToLocalCI(localSendAABB2, sbf, block), sendTag2);
+      recvAABBs_[blockID].emplace_back(mpi::MPIRank(rank2), id2, globalAABBToLocalCI(localRecvAABB2, sbf, block), recvTag2);
+      recvAABBs_[blockID].emplace_back(mpi::MPIRank(rank1), id1, globalAABBToLocalCI(localRecvAABB1, sbf, block), recvTag1);
 
       WALBERLA_LOG_DETAIL("blockID = " << blockID.getID() << ", normalShift = " << normalShift
-                                       << "\n\tsendRank1 = " << sendRank1 << "\tsendID1 = " << sendID1.getID() << "\tsendTag1 = " << sendTag1 << "\taabb = " << localSendAABB1
-                                       << "\n\tsendRank2 = " << sendRank2 << "\tsendID2 = " << sendID2.getID() << "\tsendTag2 = " << sendTag2 << "\taabb = " << localSendAABB2
-                                       << "\n\trecvRank1 = " << recvRank1 << "\trecvID1 = " << recvID1.getID() << "\trecvTag1 = " << recvTag1 << "\taabb = " << localRecvAABB1
-                                       << "\n\trecvRank2 = " << recvRank2 << "\trecvID2 = " << recvID2.getID() << "\trecvTag2 = " << recvTag2 << "\taabb = " << localRecvAABB2
+                                       << "\n\tsendRank1 = " << rank1 << "\tsendID1 = " << id1.getID() << "\tsendTag1 = " << sendTag1 << "\taabb = " << localSendAABB1
+                                       << "\n\tsendRank2 = " << rank2 << "\tsendID2 = " << id2.getID() << "\tsendTag2 = " << sendTag2 << "\taabb = " << localSendAABB2
+                                       << "\n\trecvRank1 = " << rank1 << "\trecvID1 = " << id1.getID() << "\trecvTag1 = " << recvTag1 << "\taabb = " << localRecvAABB1
+                                       << "\n\trecvRank2 = " << rank2 << "\trecvID2 = " << id2.getID() << "\trecvTag2 = " << recvTag2 << "\taabb = " << localRecvAABB2
       )
    }
 
@@ -385,20 +365,18 @@ class ShiftedPeriodicityBase {
 
       WALBERLA_ASSERT(normalShift == -1 || normalShift == 1)
 
+      const auto localShift = normalShift == 1 ? shift_ : -shift_;
+
       Vector3<ShiftType> normalShiftVector{};
       normalShiftVector[normalDir_] = ShiftType(normalShift * int_c(sbf->getNumberOfCellsPerBlock(normalDir_)));
 
-      // aabbs for packing
-      auto sendAABB = originalAABB.getExtended(nGL);
-      auto sendCenter = sendAABB.center();
-
-      // aabbs for unpacking
-      auto recvAABB = originalAABB.getExtended(nGL);
-      auto recvCenter = recvAABB.center();
+      // aabb
+      auto aabb = originalAABB.getExtended(nGL);
+      auto center = aabb.center();
 
       // receive from the interior of domain in ghost layers
-      auto localSendAABB = sendAABB;
-      auto localRecvAABB = recvAABB;
+      auto localSendAABB = aabb;
+      auto localRecvAABB = aabb;
 
       if(normalShift == 1) { // at maximum of domain -> send inner layers, receive ghost layers
          localSendAABB.setAxisBounds(normalDir_, localSendAABB.max(normalDir_) - 2 * nGL, localSendAABB.max(normalDir_) - nGL);
@@ -410,47 +388,41 @@ class ShiftedPeriodicityBase {
 
       WALBERLA_ASSERT_FLOAT_EQUAL(localSendAABB.volume(), localRecvAABB.volume())
 
-      sendCenter += ( shift_ + normalShiftVector);
-      recvCenter += (-shift_ + normalShiftVector);
+      center += (localShift + normalShiftVector);
 
       std::array<bool, 3> virtualPeriodicity{false};
       virtualPeriodicity[normalDir_] = true;
       virtualPeriodicity[shiftDir_] = true;
 
-      domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), sendCenter );
-      domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), recvCenter );
+      domain_decomposition::mapPointToPeriodicDomain( virtualPeriodicity, sbf->getDomain(), center );
 
-      uint_t sendRank{};
-      uint_t recvRank{};
+      uint_t rank{};
 
-      BlockID sendID{};
-      BlockID recvID{};
+      BlockID id{};
 
       const auto blockInformation = sbf->getBlockInformation();
       WALBERLA_ASSERT(blockInformation.active())
 
-      blockInformation.getProcess(sendRank, sendCenter[0], sendCenter[1], sendCenter[2]);
-      blockInformation.getProcess(recvRank, recvCenter[0], recvCenter[1], recvCenter[2]);
+      blockInformation.getProcess(rank, center[0], center[1], center[2]);
 
-      blockInformation.getId(sendID, sendCenter[0], sendCenter[1], sendCenter[2]);
-      blockInformation.getId(recvID, recvCenter[0], recvCenter[1], recvCenter[2]);
+      blockInformation.getId(id, center[0], center[1], center[2]);
 
       // define unique send / receive tags for communication
 
       const int atMaxTagSend = normalShift < 0 ? 0 : 1;
       const int atMaxTagRecv = normalShift < 0 ? 1 : 0;
 
-      const int sendTag = ((int_c(blockID.getID()) + int_c(sendID.getID() * numGlobalBlocks_)) * 2 + atMaxTagSend) * 2 + 0;
-      const int recvTag = ((int_c(recvID.getID()) + int_c(blockID.getID() * numGlobalBlocks_)) * 2 + atMaxTagRecv) * 2 + 0;
+      const int sendTag = ((int_c(blockID.getID()) + int_c(id.getID() * numGlobalBlocks_)) * 2 + atMaxTagSend) * 2 + 0;
+      const int recvTag = ((int_c(id.getID()) + int_c(blockID.getID() * numGlobalBlocks_)) * 2 + atMaxTagRecv) * 2 + 0;
 
       auto block = sbf->getBlock(blockID);
 
-      sendAABBs_[blockID].emplace_back(mpi::MPIRank(sendRank), sendID, globalAABBToLocalCI(localSendAABB, sbf, block), sendTag);
-      recvAABBs_[blockID].emplace_back(mpi::MPIRank(recvRank), recvID, globalAABBToLocalCI(localRecvAABB, sbf, block), recvTag);
+      sendAABBs_[blockID].emplace_back(mpi::MPIRank(rank), id, globalAABBToLocalCI(localSendAABB, sbf, block), sendTag);
+      recvAABBs_[blockID].emplace_back(mpi::MPIRank(rank), id, globalAABBToLocalCI(localRecvAABB, sbf, block), recvTag);
 
       WALBERLA_LOG_DETAIL("blockID = " << blockID.getID() << ", normalShift = " << normalShift
-                                       << "\n\tsendRank = " << sendRank << "\tsendID = " << sendID.getID() << "\tsendTag = " << sendTag << "\taabb = " << localSendAABB
-                                       << "\n\trecvRank = " << recvRank << "\trecvID = " << recvID.getID() << "\trecvTag = " << recvTag << "\taabb = " << localRecvAABB
+                                       << "\n\tsendRank = " << rank << "\tsendID = " << id.getID() << "\tsendTag = " << sendTag << "\taabb = " << localSendAABB
+                                       << "\n\trecvRank = " << rank << "\trecvID = " << id.getID() << "\trecvTag = " << recvTag << "\taabb = " << localRecvAABB
       )
    }
 

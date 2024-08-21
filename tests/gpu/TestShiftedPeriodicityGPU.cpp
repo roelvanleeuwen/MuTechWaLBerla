@@ -191,12 +191,12 @@ int main( int argc, char **argv ) {
          auto * field = block.getData<Field_T>(h_fieldID);
          WALBERLA_ASSERT_NOT_NULLPTR(field)
 
-         Vector3<int> dirVector{};
-         dirVector[normalDir] = atMin ? -1 : 1;
-         const auto dir = stencil::vectorToDirection(dirVector);
-
          // fill innerMin and glMin
          if(atMin) {
+            Vector3<int> dirVector{};
+            dirVector[normalDir] = -1;
+            const auto dir = stencil::vectorToDirection(dirVector);
+
             CellInterval innerMinCI;
             CellInterval glMinCI;
             field->getSliceBeforeGhostLayer(dir, innerMinCI, fieldGhostLayers, false);
@@ -207,7 +207,7 @@ int main( int argc, char **argv ) {
                Cell globalCell;
                blocks->transformBlockLocalToGlobalCell(globalCell, block, cell);
 
-               cell_idx_t idxShiftDir = globalCell[shiftDir] + shift[shiftDir];
+               cell_idx_t idxShiftDir = globalCell[shiftDir] - shift[shiftDir];
                if(idxShiftDir >= cell_idx_c(shiftSize)) idxShiftDir -= cell_idx_c(shiftSize);
                if(idxShiftDir <= - int_c(fieldGhostLayers)) idxShiftDir += cell_idx_c(shiftSize);
 
@@ -239,6 +239,10 @@ int main( int argc, char **argv ) {
 
          // fill innerMax and glMax
          if(atMax) {
+            Vector3<int> dirVector{};
+            dirVector[normalDir] = 1;
+            const auto dir = stencil::vectorToDirection(dirVector);
+
             CellInterval innerMaxCI;
             CellInterval glMaxCI;
             field->getSliceBeforeGhostLayer(dir, innerMaxCI, fieldGhostLayers, false);
