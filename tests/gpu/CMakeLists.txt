@@ -62,7 +62,7 @@ waLBerla_execute_test( NAME GeneratedFieldPackInfoTestGPU )
         waLBerla_link_files_to_builddir( *.py )
 
         waLBerla_compile_test( FILES TestShiftedPeriodicityGPU.cpp DEPENDS gpu blockforest field python_coupling )
-        waLBerla_execute_test( NAME TestShiftedPeriodicityGPU COMMAND $<TARGET_FILE:TestShiftedPeriodicityGPU> ${CMAKE_CURRENT_SOURCE_DIR}/TestShiftedPeriodicitySetup.py )
+        waLBerla_execute_test( NAME TestShiftedPeriodicityGPU COMMAND $<TARGET_FILE:TestShiftedPeriodicityGPU> ${CMAKE_CURRENT_SOURCE_DIR}/TestShiftedPeriodicitySetupGPU.py )
 
     endif()
 
