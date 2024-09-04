@@ -86,7 +86,7 @@ class FieldInitialiser {
       for ( auto & block : *blocks )
       {
          // get field
-         auto * field = block.getData<FieldType_T>(fieldId_);
+         auto * field = block.template getData<FieldType_T>(fieldId_);
          WALBERLA_ASSERT_NOT_NULLPTR(field)
 
          // get cell interval

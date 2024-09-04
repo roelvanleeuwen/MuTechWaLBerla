@@ -45,7 +45,6 @@
 #include <memory>
 #include <tuple>
 #include <vector>
-#include <mpi.h>
 
 
 namespace walberla {
@@ -151,10 +150,13 @@ class ShiftedPeriodicityBase {
             buffer[sendTag].resize(sendSize);
             static_cast<Derived_T*>(this)->packBuffer(block, sendCI, buffer[sendTag]);
 
-            // schedule sends if MPI
-            if (sendRank != currentRank) {
-               MPI_Isend(buffer[sendTag].data(), int_c(buffer[sendTag].size() * sizeof(ValueType)), MPI_BYTE,
-                         sendRank, sendTag, mpiInstance->comm(), & sendRequests[blockID][sendTag]);
+            WALBERLA_MPI_SECTION() {
+               // schedule sends if MPI
+               if (sendRank != currentRank)
+               {
+                  MPI_Isend(buffer[sendTag].data(), mpi::MPISize(buffer[sendTag].size() * sizeof(ValueType)), MPI_BYTE,
+                            sendRank, sendTag, mpiInstance->comm(), &sendRequests[blockID][sendTag]);
+               }
             }
 
          }
@@ -177,15 +179,16 @@ class ShiftedPeriodicityBase {
             const auto recvTag   = std::get<3>(recvInfo);
             const auto recvCI = std::get<2>(recvInfo);
 
-            // do not schedule receives for local communication
-            if (recvRank != currentRank) {
-               const auto recvSize = recvCI.numCells() * uint_c(fSize_);
-               buffer[recvTag].resize(recvSize);
+            WALBERLA_MPI_SECTION() {
+               // do not schedule receives for local communication
+               if (recvRank != currentRank) {
+                  const auto recvSize = recvCI.numCells() * uint_c(fSize_);
+                  buffer[recvTag].resize(recvSize);
 
-               // Schedule receives
-               MPI_Irecv(buffer[recvTag].data(), int_c(buffer[recvTag].size() * sizeof(ValueType)), MPI_BYTE,
-                         recvRank, recvTag, mpiInstance->comm(), & recvRequests[blockID][recvTag]);
-
+                  // Schedule receives
+                  MPI_Irecv(buffer[recvTag].data(), mpi::MPISize(buffer[recvTag].size() * sizeof(ValueType)), MPI_BYTE,
+                            recvRank, recvTag, mpiInstance->comm(), &recvRequests[blockID][recvTag]);
+               }
             }
 
          }
@@ -211,28 +214,32 @@ class ShiftedPeriodicityBase {
                WALBERLA_ASSERT_GREATER(buffer.count(recvTag), 0)
                static_cast<Derived_T*>(this)->unpackBuffer(block, recvCI, buffer[recvTag]);
             } else {
-               MPI_Status status;
-               MPI_Wait(&recvRequests[blockID][recvTag], &status);
+               WALBERLA_MPI_SECTION() {
+                  MPI_Status status;
+                  MPI_Wait(&recvRequests[blockID][recvTag], &status);
 
-               WALBERLA_ASSERT_GREATER(buffer.count(recvTag), 0)
-               static_cast<Derived_T*>(this)->unpackBuffer(block, recvCI, buffer[recvTag]);
+                  WALBERLA_ASSERT_GREATER(buffer.count(recvTag), 0)
+                  static_cast< Derived_T* >(this)->unpackBuffer(block, recvCI, buffer[recvTag]);
+               }
             }
 
          }
 
       }
 
-      // wait for all communication to be finished
-      for(auto & block : localBlocks) {
-         const auto blockID = dynamic_cast<Block*>(block)->getId();
+      WALBERLA_MPI_SECTION() {
+         // wait for all communication to be finished
+         for (auto& block : localBlocks)
+         {
+            const auto blockID = dynamic_cast< Block* >(block)->getId();
 
-         if (sendRequests[blockID].empty())
-            return;
+            if (sendRequests[blockID].empty()) return;
 
-         std::vector<MPI_Request > v;
-         std::transform( sendRequests[blockID].begin(), sendRequests[blockID].end(), std::back_inserter( v ),
-                         second( sendRequests[blockID] ));
-         MPI_Waitall(int_c(sendRequests[blockID].size()), v.data(), MPI_STATUSES_IGNORE);
+            std::vector< MPI_Request > v;
+            std::transform(sendRequests[blockID].begin(), sendRequests[blockID].end(), std::back_inserter(v),
+                           second(sendRequests[blockID]));
+            MPI_Waitall(int_c(sendRequests[blockID].size()), v.data(), MPI_STATUSES_IGNORE);
+         }
       }
 
    }
