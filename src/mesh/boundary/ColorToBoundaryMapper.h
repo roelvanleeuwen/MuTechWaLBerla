@@ -23,8 +23,10 @@
 
 #include "BoundaryInfo.h"
 
+#include "core/config/Config.h"
 #include "core/DataTypes.h"
 #include "core/debug/CheckFunctions.h"
+#include "core/math/Vector3.h"
 
 #include <map>
 
@@ -38,6 +40,32 @@ public:
    typedef typename MeshType::Color Color;
 
    ColorToBoundaryMapper( const BoundaryInfo & defaultBoundaryInfo ) : defaultBoundaryInfo_(defaultBoundaryInfo) { }
+
+   ColorToBoundaryMapper( const Config::BlockHandle & blockHandle )
+   {
+      if ( not blockHandle.isValid() )
+         return;
+
+      const std::string defaultID = blockHandle.getParameter< std::string >( "default" );
+      defaultBoundaryInfo_ = BoundaryInfo( boundary::BoundaryUID( defaultID) );
+
+      Config::Blocks colorBoundaryMappings;
+      blockHandle.getBlocks( colorBoundaryMappings );
+
+      for ( const auto & mapping : colorBoundaryMappings )
+      {
+         const Vector3< real_t > colorRaw = mapping.getParameter< Vector3< real_t > >( "color" );
+         const std::string id = mapping.getParameter< std::string >( "boundary" );
+
+         // TODO: this conversion makes assumptions on the templated type (Color)
+         const Color color{ std::round( 255 * colorRaw[0]),
+                            std::round( 255 * colorRaw[1]),
+                            std::round( 255 * colorRaw[2]) };
+         const BoundaryInfo info{ boundary::BoundaryUID( id ) };
+
+         set( color, info );
+      }
+   }
 
    void set( const Color & c, const BoundaryInfo & bi )
    {

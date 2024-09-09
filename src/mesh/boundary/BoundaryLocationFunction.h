@@ -19,6 +19,8 @@
 //
 //======================================================================================================================
 
+#pragma once
+
 namespace walberla {
 
 template< typename MeshDistanceType, typename MeshType >

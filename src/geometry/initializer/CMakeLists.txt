@@ -24,4 +24,6 @@ target_sources( geometry
     BoundarySetterFlagFieldSpecialization.h
     InitializationManager.cpp
     OverlapFieldFromBody.cpp     
+    BoundaryFromMesh.h
+    BoundaryFromMesh.impl.h
     )

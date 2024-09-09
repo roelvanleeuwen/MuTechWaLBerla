@@ -20,6 +20,8 @@
 //
 //======================================================================================================================
 
+#pragma once
+
 #include "core/math/Vector3.h"
 #include "mesh_common/MatrixVectorOperations.h"
 
