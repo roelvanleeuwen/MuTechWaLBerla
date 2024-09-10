@@ -14,6 +14,7 @@ from lbmpy.creationfunctions import LbmCollisionRule, LBMConfig, LBMOptimisation
 from lbmpy.fieldaccess import CollideOnlyInplaceAccessor
 from lbmpy.macroscopic_value_kernels import macroscopic_values_setter, macroscopic_values_getter
 from lbmpy.updatekernels import create_lbm_kernel, create_stream_only_kernel
+from lbmpy.relaxationrates import relaxation_rate_scaling
 
 from pystencils_walberla.kernel_selection import KernelCallNode, KernelFamily
 from pystencils_walberla.utility import config_from_context
@@ -88,20 +89,6 @@ def generate_lbm_sweep_collection(ctx, class_name: str, collision_rule: LbmColli
     function_generators.append(getter_generator)
 
     generate_sweep_collection(ctx, class_name, function_generators, refinement_scaling)
-
-
-class RefinementScaling:
-    def __init__(self):
-        self.scaling_info = []
-
-    def add_standard_relaxation_rate_scaling(self, viscosity_relaxation_rate):
-        self.add_scaling(viscosity_relaxation_rate)
-
-    def add_scaling(self, parameter):
-        if isinstance(parameter, sp.Symbol):
-            self.scaling_info.append(parameter.name)
-        else:
-            raise ValueError("Only pure symbols allowed")
 
 
 def lbm_kernel_family(class_name, kernel_name,

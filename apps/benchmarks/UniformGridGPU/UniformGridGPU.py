@@ -166,7 +166,7 @@ with CodeGeneration() as ctx:
     generate_lbm_package(ctx, name="UniformGridGPU",
                          collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=False, boundaries=[no_slip, ubb],
+                         refinement_scaling=None, boundaries=[no_slip, ubb],
                          macroscopic_fields=macroscopic_fields,
                          target=ps.Target.GPU, gpu_indexing_params=gpu_indexing_params,
                          max_threads=max_threads, set_pre_collision_pdfs=False)

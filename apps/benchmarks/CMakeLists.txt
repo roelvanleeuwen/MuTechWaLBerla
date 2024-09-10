@@ -23,7 +23,7 @@ if ( WALBERLA_BUILD_WITH_PYTHON )
 
    if ( WALBERLA_BUILD_WITH_CODEGEN )
       add_subdirectory( FlowAroundSphereCodeGen )
-      add_subdirectory( UniformGridCPU )
+      # add_subdirectory( UniformGridCPU )
       add_subdirectory( PhaseFieldAllenCahn )
       add_subdirectory( NonUniformGridCPU )
       add_subdirectory( TurbulentChannel )

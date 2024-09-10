@@ -8,7 +8,7 @@ from lbmpy.boundaries import NoSlip, NoSlipLinearBouzidi, QuadraticBounceBack, U
 from lbmpy.creationfunctions import create_lb_method, create_lb_collision_rule
 from lbmpy import LBMConfig, LBMOptimisation, Stencil, Method, LBStencil
 from pystencils_walberla import CodeGeneration, generate_info_header
-from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator
+from lbmpy_walberla import generate_lbm_package, lbm_boundary_generator, RefinementScaling
 
 import warnings
 
@@ -44,10 +44,13 @@ with CodeGeneration() as ctx:
     ubb = lbm_boundary_generator(class_name='UBB', flag_uid='UBB',
                                  boundary_object=UBB([0.01, 0, 0], data_type=data_type))
 
+    refinement_scaling = RefinementScaling()
+    refinement_scaling.add_standard_relaxation_rate_scaling( omega ) 
+
     generate_lbm_package(ctx, name="InterpolationNoSlip",
                          collision_rule=collision_rule,
                          lbm_config=lbm_config, lbm_optimisation=lbm_opt,
-                         nonuniform=True, boundaries=[no_slip, no_slip_bouzidi, no_slip_quadraticbb, ubb],
+                         refinement_scaling=refinement_scaling, boundaries=[no_slip, no_slip_bouzidi, no_slip_quadraticbb, ubb],
                          macroscopic_fields=macroscopic_fields, data_type=data_type,
                          set_pre_collision_pdfs=False)
 

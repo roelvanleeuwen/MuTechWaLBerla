@@ -13,6 +13,8 @@ from pystencils.typing import TypedSymbol, get_base_type
 from pystencils.field import FieldType
 from pystencils.sympyextensions import prod
 
+import re
+
 temporary_fieldPointerTemplate = """{type}"""
 
 temporary_fieldMemberTemplate = """
@@ -48,13 +50,10 @@ standard_parameter_registration = """
 for (uint_t level = 0; level < blocks->getNumberOfLevels(); level++)
 {{
     const {dtype} level_scale_factor = {dtype}(uint_t(1) << level);
-    const {dtype} one                = {dtype}(1.0);
-    const {dtype} half               = {dtype}(0.5);
     
-    {name}Vector.push_back( {dtype}({name} / (level_scale_factor * (-{name} * half + one) + {name} * half)) );
+    {function_rules}
 }}
 """
-
 
 # the target will enter the jinja filters as string. The reason for that is, that is not easy to work with the
 # enum in the template files.
@@ -232,11 +231,19 @@ def generate_refs_for_kernel_parameters(kernel_info, prefix, parameters_to_ignor
     symbols.difference_update(parameters_to_ignore)
     type_information = {p.symbol.name: p.symbol.dtype for p in kernel_info.parameters if not p.is_field_parameter}
     result = []
-    registered_parameters = [] if not parameter_registration else parameter_registration.scaling_info
+    
+    if parameter_registration is None:
+        registered_parameters = []
+    else:
+        registered_parameters = [scaling[1] for scaling in parameter_registration.scaling_info]
+
+    get_level_added = False
     for s in symbols:
         if s in registered_parameters:
             dtype = type_information[s].c_name
-            result.append("const uint_t level = block->getBlockStorage().getLevel(*block);")
+            if not get_level_added:
+                get_level_added = True
+                result.append("const uint_t level = block->getBlockStorage().getLevel(*block);")
             result.append(f"{dtype} & {s} = {s}Vector[level];")
         else:
             result.append(f"auto & {s} = {prefix}{s}_;")
@@ -459,6 +466,7 @@ def generate_constructor_initializer_list(kernel_infos, parameters_to_ignore=Non
         parameters_to_skip += kernel_info.temporary_fields
 
     parameter_initializer_list = []
+
     # First field pointer
     for kernel_info in kernel_infos:
         for param in kernel_info.parameters:
@@ -468,7 +476,8 @@ def generate_constructor_initializer_list(kernel_infos, parameters_to_ignore=Non
 
     # Then free parameters
     if parameter_registration is not None:
-        parameters_to_skip.extend(parameter_registration.scaling_info)
+        for scaling in parameter_registration.scaling_info:
+            parameters_to_skip.append(scaling[1])
 
     for kernel_info in kernel_infos:
         for param in kernel_info.parameters:
@@ -570,12 +579,17 @@ def generate_members(ctx, kernel_infos, parameters_to_ignore=None, only_fields=F
                 result.append(f"BlockDataID {param.field_name}ID;")
                 params_to_skip.append(param.field_name)
 
+    if parameter_registration is None:
+        scaling_identifiers = []
+    else:
+        scaling_identifiers = [scaling[1] for scaling in parameter_registration.scaling_info]
+    
     for kernel_info in kernel_infos:
         for param in kernel_info.parameters:
             if only_fields and not param.is_field_parameter:
                 continue
             if not param.is_field_parameter and param.symbol.name not in params_to_skip:
-                if parameter_registration and param.symbol.name in parameter_registration.scaling_info:
+                if parameter_registration and param.symbol.name in scaling_identifiers:
                     result.append(f"std::vector<{param.symbol.dtype}> {param.symbol.name}Vector;")
                 else:
                     result.append(f"{param.symbol.dtype} {param.symbol.name}_;")
@@ -702,16 +716,42 @@ def generate_parameter_registration(ctx, kernel_infos, parameter_registration):
 
     params_to_skip = []
     result = []
+
+    scaling_identifiers = [scaling[1] for scaling in parameter_registration.scaling_info]
+    function_rules = []
+
     for kernel_info in kernel_infos:
         for param in kernel_info.parameters:
             if not param.is_field_parameter and param.symbol.name not in params_to_skip:
-                if param.symbol.name in parameter_registration.scaling_info:
-                    result.append(standard_parameter_registration.format(dtype=param.symbol.dtype,
-                                                                         name=param.symbol.name))
-                    params_to_skip.append(param.symbol.name)
+                if param.symbol.name in scaling_identifiers:
+                    name = param.symbol.name
+                    dtype = param.symbol.dtype
+                    idx = scaling_identifiers.index(param.symbol.name)
+
+                    lambda_expr = parameter_registration.scaling_info[idx][2]
+                    
+                    raw_scaling = convert_to_raw_form(name, lambda_expr)
+
+                    function_rules.append(raw_scaling.format(dtype=dtype))
+
+                    params_to_skip.append(name)
+
+    function_rules_baked = "\n    ".join(function_rules)
+    result.append(standard_parameter_registration.format(dtype=dtype, function_rules=function_rules_baked))
 
     return "\n".join(result)
 
+def convert_to_raw_form(name, expression):
+    expr_str = str(expression)
+
+    # Extract the body of the lambda expression
+    start_idx = expr_str.find(":") + 1
+    body = expr_str[start_idx:].strip()
+
+    # Replace numeric constants with the {dtype}(number) format
+    body = re.sub(r'(?<!\w)(\d+(\.\d*)?|\.\d+)(?!\w)', lambda match: f'{{dtype}}({match.group(1)})', body)
+
+    return f"{name}Vector.push_back({{dtype}}({body}));"
 
 @jinja2_context_decorator
 def generate_constructor(ctx, kernel_infos, parameter_registration):
@@ -722,14 +762,28 @@ def generate_constructor(ctx, kernel_infos, parameter_registration):
 
     params_to_skip = []
     result = []
+
+    scaling_identifiers = [scaling[1] for scaling in parameter_registration.scaling_info]
+    function_rules = []
+
     for kernel_info in kernel_infos:
         for param in kernel_info.parameters:
             if not param.is_field_parameter and param.symbol.name not in params_to_skip:
-                if param.symbol.name in parameter_registration.scaling_info:
+                if param.symbol.name in scaling_identifiers:
                     name = param.symbol.name
                     dtype = param.symbol.dtype
-                    result.append(standard_parameter_registration.format(dtype=dtype, name=name))
+                    idx = scaling_identifiers.index(param.symbol.name)
+
+                    lambda_expr = parameter_registration.scaling_info[idx][2]
+                    
+                    raw_scaling = convert_to_raw_form(name, lambda_expr)
+
+                    function_rules.append(raw_scaling.format(dtype=dtype))
+
                     params_to_skip.append(name)
+
+    function_rules_baked = "\n    ".join(function_rules)
+    result.append(standard_parameter_registration.format(dtype=dtype, function_rules=function_rules_baked))
 
     return "\n".join(result)
 
