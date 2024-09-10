@@ -94,6 +94,7 @@ namespace field {
       inline bool           operator==( const FieldIterator& it ) const;
       inline bool           operator!=( const FieldIterator& it ) const;
 
+      template<typename V = T, typename X = std::enable_if_t<!std::is_const_v<V>>>
       operator const FieldIterator<const T, fieldFSize> & () const {
          const FieldIterator<const T, fieldFSize> * ptr;
          ptr = reinterpret_cast< const FieldIterator<const T, fieldFSize>* > ( this );

@@ -45,31 +45,37 @@ public:
       blocks_( blocks ), storageSpecification_( storageSpecification ),
       nrOfGhostLayers_( nrOfGhostLayers ), layout_( layout ), alloc_( alloc ){}
 
+   using Base_T::serialize;
    inline void serialize( IBlock * const block, const BlockDataID & id, mpi::SendBuffer & buffer ) override
    {
       Base_T::serialize( block, id, buffer );
    }
 
+   using Base_T::serializeCoarseToFine;
    void serializeCoarseToFine( Block * const block, const BlockDataID & id, mpi::SendBuffer & buffer, const uint_t child ) override
    {
       Base_T::serializeCoarseToFine( block, id, buffer, child );
    }
 
+   using Base_T::serializeFineToCoarse;
    void serializeFineToCoarse( Block * const block, const BlockDataID & id, mpi::SendBuffer & buffer ) override
    {
       Base_T::serializeFineToCoarse( block, id, buffer );
    }
 
+   using Base_T::deserialize;
    void deserialize( IBlock * const block, const BlockDataID & id, mpi::RecvBuffer & buffer ) override
    {
       Base_T::deserialize( block, id, buffer );
    }
 
+   using Base_T::deserializeCoarseToFine;
    void deserializeCoarseToFine( Block * const block, const BlockDataID & id, mpi::RecvBuffer & buffer ) override
    {
       Base_T::deserializeCoarseToFine( block, id, buffer );
    }
 
+   using Base_T::deserializeFineToCoarse;
    void deserializeFineToCoarse( Block * const block, const BlockDataID & id, mpi::RecvBuffer & buffer, const uint_t child ) override
    {
       Base_T::deserializeFineToCoarse( block, id, buffer, child );
