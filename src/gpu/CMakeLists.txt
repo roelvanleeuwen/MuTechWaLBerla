@@ -47,6 +47,7 @@ if (WALBERLA_BUILD_WITH_CUDA)
 target_sources( gpu
         PRIVATE
         NVTX.h
+        Atomic.h
         )
 endif (WALBERLA_BUILD_WITH_CUDA)
 
