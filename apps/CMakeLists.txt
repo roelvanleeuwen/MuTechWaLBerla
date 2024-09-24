@@ -25,3 +25,8 @@ endif()
 if ( WALBERLA_BUILD_WITH_PYTHON )
     add_subdirectory( pythonmodule )
 endif()
+
+# PowerFlow case simulation
+if ( BUILD_POWERFLOWCASE )
+    add_subdirectory( powerFlowCase )
+endif()
