@@ -841,6 +841,7 @@ option (WALBERLA_ENABLE_GUI "This flag builds the graphical user interface, depe
 if ( WALBERLA_ENABLE_GUI )
 
     message( WARNING "The GUI is deprecated and will probably not work correctly." )
+    set(QT_QMAKE_EXECUTABLE /usr/local/qt4/bin/qmake)
     find_package( Qt4 COMPONENTS QtCore QtGui QtOpenGL QtXml REQUIRED )
     set( OpenGL_GL_PREFERENCE LEGACY )
     find_package( OpenGL REQUIRED )

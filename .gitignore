@@ -77,3 +77,27 @@ CMakeDefs.h
 /moduleStatistics.json
 /walberla-config.cmake
 cmake-build-*
+
+
+# other files types
+*.js
+*.png
+*.jpg
+*.jpeg
+*.css
+*.svg
+*.html
+*.sty
+*.tex
+*.md5
+
+
+# files
+*/doxygen.cfg 
+*/Doxyfile
+*/TestStdFilesystem
+*/CMakeDoxygenDefaults.cmake
+*/CMakeDoxyfile.in
+
+
+
