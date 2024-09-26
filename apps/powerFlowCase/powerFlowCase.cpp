@@ -42,21 +42,22 @@ Description:    This is the main file of the waLBerla implementation of the airf
 #include "mesh_common/vtk/VTKMeshWriter.h"
 #include "mesh/blockforest/BlockExclusion.h"
 #include "mesh/blockforest/BlockForestInitialization.h"
+#include "mesh/blockforest/BlockWorkloadMemory.h"
 #include "mesh/boundary/BoundaryInfo.h"
 #include "mesh/boundary/BoundaryLocation.h"
 #include "mesh/boundary/BoundaryLocationFunction.h"
 #include "mesh/boundary/BoundarySetup.h"
 #include "mesh/boundary/BoundaryUIDFaceDataSource.h"
 #include "mesh/boundary/ColorToBoundaryMapper.h"
+#include "mesh/blockforest/RefinementSelection.h"
 
 #include "timeloop/all.h"
 
 namespace walberla
 {
-uint_t numGhostLayers = uint_t(1);
 
 //! [typedefs]
-using LatticeModel_T         = lbm::D3Q27< lbm::collision_model::SRT >;
+using LatticeModel_T         = lbm::D3Q19< lbm::collision_model::SRT >;
 using Stencil_T              = LatticeModel_T::Stencil;
 using CommunicationStencil_T = LatticeModel_T::CommunicationStencil;
 //! [typedefs]
@@ -119,15 +120,16 @@ int main(int argc, char** argv)
 
    Description: The flow parameters specify the initial state of the flow. For this there is an angle of attack and a velocity magnitude. The initial velocity is calculated based on the angle of attack and the velocity magnitude. 
    */
-   auto parameters = walberlaEnv.config()->getOneBlock("flowParameters");
+   auto flowParameters = walberlaEnv.config()->getOneBlock("flowParameters");
 
    // read the content from the block parameters. This contains: angleOfAttack, velocityMagnitude
-   const real_t angleOfAttack = parameters.getParameter< real_t >("angleOfAttack", real_c(7.8)); // angle of attack in degrees
-   const real_t flowVelocity = parameters.getParameter< real_t >("velocityMagnitude", real_c(10.0)); // velocity magnitude in m/s
+   const real_t angleOfAttack = flowParameters.getParameter< real_t >("angleOfAttack", real_c(7.8)); // angle of attack in degrees
+   const real_t flowVelocity = flowParameters.getParameter< real_t >("velocityMagnitude", real_c(10.0)); // velocity magnitude in m/s
    
    // calculate the initial velocity based on the angle of attack and the flow velocity
-   const Vector3< real_t > initialVelocity = Vector3< real_t >(flowVelocity * cos(angleOfAttack*PI/180),
-                                                               flowVelocity * sin(angleOfAttack*PI/180), Vector3< real_t >());
+   const Vector3< real_t > initialVelocity = Vector3< real_t >(flowVelocity * std::cos(angleOfAttack * M_PI / 180.0),
+                                                               flowVelocity * std::sin(angleOfAttack * M_PI / 180.0), 
+                                                               real_t(0));
    WALBERLA_LOG_INFO_ON_ROOT("Angle of attack: " << angleOfAttack << " degrees")
    WALBERLA_LOG_INFO_ON_ROOT("Flow velocity: " << flowVelocity << " m/s")
    WALBERLA_LOG_INFO_ON_ROOT("Initial velocity < u, v, w >: " << initialVelocity << " m/s")
@@ -146,9 +148,10 @@ int main(int argc, char** argv)
    */
    auto simulationParameters = walberlaEnv.config()->getOneBlock("simulationParameters");
    
-   const uint_t timeSteps = parameters.getParameter< uint_t >("timeSteps", uint_c(10));
+   const real_t omega = simulationParameters.getParameter< real_t >("omega", real_t(1.6)); // relaxation parameter
+   const uint_t timeSteps = simulationParameters.getParameter< uint_t >("timeSteps", uint_c(10));
    const real_t remainingTimeLoggerFrequency =
-      parameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_c(3.0)); // in seconds
+      simulationParameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_t(3.0)); // in seconds
    
    WALBERLA_LOG_INFO_ON_ROOT("Number of time steps: " << timeSteps)
    // END of simulation parameters
@@ -171,42 +174,48 @@ int main(int argc, char** argv)
    auto domainParameters = walberlaEnv.config()->getOneBlock("domainParameters");
 
    std::string meshFile = domainParameters.getParameter< std::string >("meshFile");
-   Vector3< uint_t > domainScaling =
-      domainParameters.getParameter< Vector3< uint_t > >("domainScaling", Vector3< uint_t >(1));
+   const bool scalePowerFlowDomain = domainParameters.getParameter< bool >("scalePowerFlowDomain", false);
 
    const real_t dx = domainParameters.getParameter< real_t >("dx", real_t(1));
-   const real_t numLevels = domainParameters.getParameter< real_t >("numLevels", real_t(0));
-   const real_t fineDX = dx / real_t(std::pow(2, numLevels)); // finest grid spacing based on octree refinement
-   
+   const uint_t numLevels = domainParameters.getParameter< uint_t >("numLevels", uint_t(0));
+   const real_t fineDX = dx / real_t(std::pow(2, numLevels-uint_t(1))); // finest grid spacing based on octree refinement
+   const uint_t numGhostLayers = domainParameters.getParameter< uint_t >("numGhostLayers", uint_t(1));
+
    const Vector3< bool > periodicity =
       domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
    const Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
+   const Vector3< uint_t > numberOfBlocks = domainParameters.getParameter< Vector3< uint_t > >("blocks");
    
    WALBERLA_LOG_INFO_ON_ROOT("Mesh file: " << meshFile)
-   WALBERLA_LOG_INFO_ON_ROOT("Domain scaling: " << domainScaling)
    WALBERLA_LOG_INFO_ON_ROOT("dx: " << dx)
    WALBERLA_LOG_INFO_ON_ROOT("Periodicity < x_sides, y_sides, z_sides: " << periodicity)
    WALBERLA_LOG_INFO_ON_ROOT("Cells per block < nx, ny, nz >: " << cellsPerBlock)
-   WALBERLA_LOG_INFO_ON_ROOT("Number of refinement levels: " << numLevels)
+   WALBERLA_LOG_INFO_ON_ROOT("Number of refinement levels: " << numLevels-uint_t(1))
    WALBERLA_LOG_INFO_ON_ROOT("Fine grid spacing: " << fineDX)
    
 
    // END of domain parameters
 
+   // auto optionsParameters = walberlaEnv.config()->getOneBlock("options");
+   // const bool WriteSetupForestAndReturn = optionsParameters.getParameter< bool >("WriteSetupForestAndReturn", false);
+
 // ================================================================================================================     
    ////////////////////
    /// PROCESS MESH ///
    ////////////////////
-
+   WALBERLA_LOG_INFO_ON_ROOT("")
+   WALBERLA_LOG_INFO_ON_ROOT(" ======================== Start of mesh and domain setup ======================== ")
    //! [readMesh]
    // read in mesh with vertex colors on a single process and broadcast it
    auto mesh = make_shared< mesh::TriangleMesh >();
    mesh->request_vertex_colors();
-   mesh::readAndBroadcast(meshFile, *mesh);
+   mesh::readAndBroadcast(meshFile, *mesh); // read the mesh file and broadcast it to all processes. This is necessary for parallel processing
    //! [readMesh]
 
    // color faces according to vertices
    vertexToFaceColor(*mesh, mesh::TriangleMesh::Color(255, 255, 255));
+
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 1: Mesh read and colored")
 
    //! [triDist]
    // add information to mesh that is required for computing signed distances from a point to a triangle
@@ -218,7 +227,7 @@ int main(int argc, char** argv)
    auto distanceOctree = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(triDist);
    //! [octree]
 
-   WALBERLA_LOG_INFO_ON_ROOT("Octree has height " << distanceOctree->height())
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 2: Octree has height " << distanceOctree->height())
 
    //! [octreeVTK]
    // write distance octree to file
@@ -226,6 +235,7 @@ int main(int argc, char** argv)
    {
       distanceOctree->writeVTKOutput("vtk_out/distanceOctree");
    }
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 3: Distance octree written to vtk_out/distanceOctree.vtk")
    //! [octreeVTK]
 
    ///////////////////////////
@@ -234,8 +244,49 @@ int main(int argc, char** argv)
 
    //! [aabb]
    auto aabb = computeAABB(*mesh);
+   // What is the size of the mesh object in the x, y and z direction? 
+   WALBERLA_LOG_INFO_ON_ROOT("Mesh size in x: " << aabb.xSize())
+   WALBERLA_LOG_INFO_ON_ROOT("Mesh size in y: " << aabb.ySize())
+   WALBERLA_LOG_INFO_ON_ROOT("Mesh size in z: " << aabb.zSize())
+   
+   Vector3< real_t > domainScaling;
+   if (scalePowerFlowDomain)
+   {
+      // The chord length of the airfoil is the x size of the mesh object
+      domainScaling = Vector3< real_t >(100, 
+                                       aabb.ySize() * dx * static_cast<real_t>(cellsPerBlock[1]) * static_cast<real_t>(numberOfBlocks[1]), 
+                                       100 * aabb.xSize() / aabb.zSize()
+                                       );
+   }
+   else
+   {
+      domainScaling = domainParameters.getParameter< Vector3< real_t > >("domainScaling", Vector3< real_t >(1));
+   }
+
+   WALBERLA_LOG_INFO_ON_ROOT("Domain scaling: " << domainScaling)
    aabb.scale(domainScaling); // Scale the domain based on the x, y and z size of the mesh object. 
    aabb.setCenter(aabb.center()); // Place the airfoil in the center of the domain
+   // WALBERLA_LOG_INFO_ON_ROOT("Domain AABB: " << aabb)
+
+   // Check if every a cell is cubic
+   WALBERLA_LOG_INFO_ON_ROOT("Domain size in x: " << aabb.xSize())
+   WALBERLA_LOG_INFO_ON_ROOT("Domain size in y: " << aabb.ySize())
+   WALBERLA_LOG_INFO_ON_ROOT("Domain size in z: " << aabb.zSize())
+   auto cell_dx = aabb.xSize() / static_cast<real_t>(cellsPerBlock[0]) / static_cast<real_t>(numberOfBlocks[0]);
+   auto cell_dy = aabb.ySize() / static_cast<real_t>(cellsPerBlock[1]) / static_cast<real_t>(numberOfBlocks[1]);
+   auto cell_dz = aabb.zSize() / static_cast<real_t>(cellsPerBlock[2]) / static_cast<real_t>(numberOfBlocks[2]);
+   WALBERLA_LOG_INFO_ON_ROOT("Cell size in x: " << cell_dx)
+   WALBERLA_LOG_INFO_ON_ROOT("Cell size in y: " << cell_dy)
+   WALBERLA_LOG_INFO_ON_ROOT("Cell size in z: " << cell_dz)
+   
+   // if (cell_dx != cell_dy || cell_dx != cell_dz || cell_dy != cell_dz)
+   // {
+   //    WALBERLA_LOG_ERROR("The cells are not cubic. The cell size in the x, y and z direction is not equal.")
+   // }
+   // else
+   // {
+   //    WALBERLA_LOG_INFO_ON_ROOT("The cells are cubic. The cell size in the x, y and z direction is equal.")
+   // }
    //! [aabb]
 
    //! [bfc]
@@ -251,26 +302,14 @@ int main(int argc, char** argv)
    bfc.setPeriodicity(periodicity);
    bfc.setRefinementSelectionFunction(
       makeRefinementSelection(distanceOctree, numLevels - uint_t(1), dx, dx * real_t(1)));
-
-    if (WriteSetupForestAndReturn)
-   {
-      WALBERLA_LOG_INFO_ON_ROOT("Setting up SetupBlockForest")
-      auto setupForest = bfc.createSetupBlockForest(blockSize);
-      WALBERLA_LOG_INFO_ON_ROOT("Writing SetupBlockForest to VTK file")
-      WALBERLA_ROOT_SECTION()
-      {
-         setupForest->writeVTKOutput("SetupBlockForest");
-      }
-      // WALBERLA_LOG_INFO_ON_ROOT("Stopping program")
-      // return EXIT_SUCCESS;
-   }
-   
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 4: Refinement selection function set")
    //! [bfc]
 
 
    //! [blockForest]
    // create block forest
    auto blocks = bfc.createStructuredBlockForest(cellsPerBlock);
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 5: Block forest created")
    //! [blockForest]
 
    ////////////////////////////////////
@@ -282,6 +321,7 @@ int main(int argc, char** argv)
    BlockDataID pdfFieldId =
       lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, initialVelocity, real_t(1), numGhostLayers);
    BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field", numGhostLayers);
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 6: Fields created")
 
    /////////////////////////
    /// BOUNDARY HANDLING ///
@@ -301,9 +341,11 @@ int main(int argc, char** argv)
       boundariesConfig.getParameter< Vector3< real_t > >("velocity1", Vector3< real_t >()),
       boundariesConfig.getParameter< real_t >("pressure0", real_c(1.0)),
       boundariesConfig.getParameter< real_t >("pressure1", real_c(1.0)));
-
+   
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 7: Boundary handling created")
    //! [DefaultBoundaryHandling]
 
+   // /*
    //! [colorToBoundary]
    // set NoSlip UID to boundaries that we colored
    mesh::ColorToBoundaryMapper< mesh::TriangleMesh > colorToBoundaryMapper(
@@ -313,6 +355,7 @@ int main(int argc, char** argv)
 
    // mark boundaries
    auto boundaryLocations = colorToBoundaryMapper.addBoundaryInfoToMesh(*mesh);
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 8: Boundaries marked with color")
    //! [colorToBoundary]
 
    //! [VTKMesh]
@@ -322,27 +365,29 @@ int main(int argc, char** argv)
    meshWriter.addDataSource(make_shared< mesh::ColorFaceDataSource< mesh::TriangleMesh > >());
    meshWriter.addDataSource(make_shared< mesh::ColorVertexDataSource< mesh::TriangleMesh > >());
    meshWriter();
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 9: Mesh written to vtk_out/meshBoundaries.vtu")
    //! [VTKMesh]
+   // */
 
    //! [boundarySetup]
    // voxelize mesh
-   WALBERLA_LOG_DEVEL_ON_ROOT("Voxelizing mesh")
+   WALBERLA_LOG_DEVEL_ON_ROOT("Waypoint 10: Voxelizing mesh")
    mesh::BoundarySetup boundarySetup(blocks, makeMeshDistanceFunction(distanceOctree), numGhostLayers);
-   WALBERLA_LOG_DEVEL( "Writing Voxelisation" );
+   WALBERLA_LOG_INFO_ON_ROOT( "Waypoint 11: Writing Voxelisation" );
    boundarySetup.writeVTKVoxelfile();
 
    // set fluid cells
-   WALBERLA_LOG_DEVEL_ON_ROOT("Setting up fluid cells")
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 12: Setting up fluid cells")
    boundarySetup.setDomainCells< BHFactory::BoundaryHandling >(boundaryHandlingId, mesh::BoundarySetup::OUTSIDE);
 
    // set up inflow/outflow/wall boundaries from DefaultBoundaryHandlingFactory
    geometry::initBoundaryHandling< BHFactory::BoundaryHandling >(*blocks, boundaryHandlingId, boundariesConfig);
    
    // set up obstacle boundaries from file
-   WALBERLA_LOG_DEVEL_ON_ROOT("Setting up boundaries")
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 13: Setting up boundaries")
    boundarySetup.setBoundaries< BHFactory::BoundaryHandling >(
       boundaryHandlingId, makeBoundaryLocationFunction(distanceOctree, boundaryLocations), mesh::BoundarySetup::INSIDE);
-   WALBERLA_LOG_DEVEL_ON_ROOT("done")
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 14: Boundaries set")
    //! [boundarySetup]
 
    // Log performance information at the end of the simulation
@@ -354,20 +399,27 @@ int main(int argc, char** argv)
    //////////////////////////////////
 
    // create time loop
-   SweepTimeloop timeloop(blocks->getBlockStorage(), timesteps);
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 15: Setting up time loop")
+   SweepTimeloop timeloop(blocks->getBlockStorage(), timeSteps);
 
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 16: Making sweeps")
    auto sweep = lbm::makeCellwiseSweep< LatticeModel_T, FlagField_T >(pdfFieldId, flagFieldId, fluidFlagUID);
+
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 17: defining refinement time step")
    auto refinementTimeStep = lbm::refinement::makeTimeStep< LatticeModel_T, BHFactory::BoundaryHandling >(
       blocks, sweep, pdfFieldId, boundaryHandlingId);
 
    // The refined cells need a smaller time step to ensure stability
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 18: Adding refinement time step")
    timeloop.addFuncBeforeTimeStep(makeSharedFunctor(refinementTimeStep), "Refinement time step");
 
    // create communication for PdfField
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 19: Adding communication")
    blockforest::communication::UniformBufferedScheme< CommunicationStencil_T > communication(blocks);
    communication.addPackInfo(make_shared< lbm::PdfFieldPackInfo< LatticeModel_T > >(pdfFieldId));
 
    // add LBM sweep and communication to time loop
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 20: Adding sweeps and communication to time loop")
    timeloop.add() << BeforeFunction(communication, "communication")
                   << Sweep(BHFactory::BoundaryHandling::getBlockSweep(boundaryHandlingId), "boundary handling");
    timeloop.add() << Sweep(
@@ -375,11 +427,13 @@ int main(int argc, char** argv)
       "LB stream & collide");
 
    // LBM stability check
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 21: Adding LBM stability check")
    timeloop.addFuncAfterTimeStep(makeSharedFunctor(field::makeStabilityChecker< PdfField_T, FlagField_T >(
                                     walberlaEnv.config(), blocks, pdfFieldId, flagFieldId, fluidFlagUID)),
                                  "LBM stability check");
 
    // log remaining time
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 22: Adding remaining time logger")
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
                                  "remaining time logger");
 
@@ -410,7 +464,7 @@ int main(int argc, char** argv)
    // but calculate the values based on other fields ( here the PdfField )
    field::addFieldAdaptor< lbm::Adaptor< LatticeModel_T >::Density >(blocks, pdfFieldId, "DensityAdaptor");
    field::addFieldAdaptor< lbm::Adaptor< LatticeModel_T >::VelocityVector >(blocks, pdfFieldId, "VelocityAdaptor");
-
+   WALBERLA_LOG_INFO_ON_ROOT("Waypoint 23: VTK output added")
    //////////////////////
    /// RUN SIMULATION ///
    //////////////////////

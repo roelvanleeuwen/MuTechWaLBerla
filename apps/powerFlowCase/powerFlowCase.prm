@@ -1,3 +1,8 @@
+options
+{
+   WriteSetupForestAndReturn False;
+}
+
 flowParameters
 { 
     velocityMagnitude 10;           // [m/s] Absolute velocity of the flow 
@@ -6,7 +11,8 @@ flowParameters
 
 simulationParameters
 {
-    timeSteps   10000;              // Number of time steps in the simulation
+    omega 1.6                       // Relaxation factor for the SRT model
+    timeSteps   1;              // Number of time steps in the simulation
     // useGui      0;                  // The GUI will not be used
     remainingTimeLoggerFrequency 3; // in seconds. This is the frequency with which a time estimate of finilising the simulation is send in the terminal. 
 
@@ -14,13 +20,24 @@ simulationParameters
 
 domainParameters
 {
-    meshFile         MarlonDesign.stl;           // Object geometry of the airfoil
-    numLevels        1;                   // Number of octree levels starting from 1
+    meshFile         NACA0018.obj;    // Object geometry of the airfoil. This must be an ASCII file. If it is binary you should convert it.
+    numLevels        2;                   // Number of octree levels starting from 1
     dx               0.04;                // Unrefined cell size
-    domainScaling    <  100, 1, 556 >;    // Scaling of the domain compared to the object. So < 100, 1, 556 > means 100 times the chord of the airfoil, 1 time the span and 556 times the thickness. 
-    blocks           <  500, 2, 500 >;    // Number of blocks in the < x, y, z > directions
-    cellsPerBlock    <  1, 1, 1 >;        // Number of cells in each block in the < x, y, z > directions
-    periodic         <  0, 0, 1 >;        // Are there period sides? 0 -> No, 1 -> Yes  For every direction < x, y, z >
+    scalePowerFlowDomain true;           // Do you want the full PowerFlow domain. If not, set to false and define an own domainScaling
+    
+    // domainScaling    <  100, 1, 556 >;    // Scaling of the domain compared to the object. So < 100, 1, 556 > means 100 times the chord of the airfoil, 1 time the span and 556 times the thickness. 
+    // blocks           <  500, 2, 500 >;    // Number of blocks in the < x, y, z > directions
+    // cellsPerBlock    <  1, 1, 1 >;        // Number of cells in each block in the < x, y, z > directions. This is also called blockSize in some codes. For refinement at least < 16, 16, 16 > is required
+    
+    // FOR TESTING PURPOSES
+    domainScaling    <  100, 1, 600 >;    // Scaling of the domain compared to the object.  
+    blocks           <  32, 1, 32 >;    // Number of blocks in the < x, y, z > directions
+    cellsPerBlock    <  16, 2, 16 >;        // Number of cells in each block in the < x, y, z > directions. This is also called blockSize in some codes. For refinement at least < 16, 16, 16 > is required
+    
+    
+    
+    periodic         <  0, 1, 0 >;        // Are there period sides? 0 -> No, 1 -> Yes  For every direction < x, y, z >
+    numGhostLayers   4;
 }
 
 boundaryConditions 
@@ -44,18 +61,6 @@ boundaryConditions
 	Border { direction E;    walldistance -1;  Pressure1 {} }
 	Border { direction S,N;  walldistance -1;  NoSlip    {} }
 		
-	// load obstacle geometry from file
-	GrayScaleImage
-	{ 
-		file                 waLBerla.png;
-		extrusionCoordinate  2;
-		rescaleToDomain	     true;
-		
-		BoundaryValueMapping {
-			NoSlip   {}
-			value    0;
-		}
-	}
 }
 
 // Parameters for the stability check. If NaN values occur, the simululation is terminated. 
@@ -71,8 +76,8 @@ VTK
    // for parameter documentation see src/vtk/Initialization.cpp
    fluid_field
    {
-      writeFrequency 100;           // [time steps] Output a VTK file at writeFrequency
-      ghostLayers    1;             // Number of ghostlayers to exclude from the VTK output
+      writeFrequency 1;           // [time steps] Output a VTK file at writeFrequency
+      ghostLayers    4;             // Number of ghostlayers to exclude from the VTK output
       
       vtkBeforFunctions {
          PDFGhostLayerSync;
@@ -91,8 +96,8 @@ VTK
    
    vtkFlagField
    {
-      writeFrequency 100; // write only once
-   // ghostLayers    1;
+      writeFrequency 1; // write only once
+      ghostLayers    4;
       
       writers {
          FlagField;
@@ -101,7 +106,7 @@ VTK
    
    vtkDomainDecomposition
    {
-      writeFrequency 100;           // write only once
+      writeFrequency 1;           // write only once
       outputDomainDecomposition true;
    }
 }
