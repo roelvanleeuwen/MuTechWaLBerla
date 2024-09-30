@@ -9,12 +9,12 @@ using namespace std;
 using namespace walberla;
 
 struct AdjustmentResult {
-    walberla::real_t xzAdjustment;
+    walberla::real_t xyAdjustment;
     walberla::uint_t nBlocks_x;
     walberla::uint_t cellsPerBlock_x;
 };
 
-AdjustmentResult xzAdjustment(const walberla::real_t xSize, const walberla::real_t decreasePowerFlowDomainFactor, const walberla::real_t dx)
+AdjustmentResult xyAdjustment(const walberla::real_t xSize, const walberla::real_t decreasePowerFlowDomainFactor, const walberla::real_t dx)
 {
     walberla::real_t nBlocks_x = 3;
     walberla::real_t nBlocks_x_remember = nBlocks_x;
@@ -40,9 +40,9 @@ AdjustmentResult xzAdjustment(const walberla::real_t xSize, const walberla::real
     cellsPerBlock_x = std::round(cellsPerBlock_x_remember);
     nBlocks_x = nBlocks_x_remember;
 
-    walberla::real_t xzAdjustment = (nBlocks_x * cellsPerBlock_x * dx) / (xSize * decreasePowerFlowDomainFactor);
+    walberla::real_t xyAdjustment = (nBlocks_x * cellsPerBlock_x * dx) / (xSize * decreasePowerFlowDomainFactor);
     
-    return {xzAdjustment, static_cast<walberla::uint_t>(nBlocks_x), static_cast<walberla::uint_t>(cellsPerBlock_x)};
+    return {xyAdjustment, static_cast<walberla::uint_t>(nBlocks_x), static_cast<walberla::uint_t>(cellsPerBlock_x)};
 }
 /*
 void testOne ()

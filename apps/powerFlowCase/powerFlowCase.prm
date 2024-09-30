@@ -2,7 +2,7 @@ options
 {
    // Only one of the two options below can be set to true
    writeSetupForestAndReturn false;  // If set to true, the blocks in the domain will be output in a vtk file. The simulation will be terminated after this to save memory
-   writeVoxelfile true;            // If set to true, the voxels in the domain will be output in a vtk file. The simulation will be terminated after this to save memory
+   writeVoxelfile false;            // If set to true, the voxels in the domain will be output in a vtk file. The simulation will be terminated after this to save memory
 }
 
 flowParameters
@@ -14,7 +14,7 @@ flowParameters
 simulationParameters
 {
     omega 1.6                       // Relaxation factor for the SRT model
-    timeSteps   10000;              // Number of time steps in the simulation
+    timeSteps   100000;              // Number of time steps in the simulation
     remainingTimeLoggerFrequency 3; // in seconds. This is the frequency with which a time estimate of finilising the simulation is send in the terminal. 
 
 }
@@ -22,15 +22,17 @@ simulationParameters
 domainParameters
 {
     meshFile         NACA0018.stl;   		 // Object geometry of the airfoil. This must be an ASCII file. If it is binary you should convert it. Also, the mesh must be watertight so no open sides. 
+    meshZScaling     0.0625;                    // This factor can be used to change the span of the airfoil. The NACA0018 file has a span of 0.081625 which corresponds to a y-scaling of 1
+    
     numLevels        1;                  	 // Number of octree levels starting from 1
-    dx               0.0051015625;          // Unrefined cell size in mm since the airfoil dimensions are in mm
+    dx               0.0051015625;          // Unrefined cell size in mm since the airfoil dimensions are in meters
     scalePowerFlowDomain true;          	 // Do you want the full PowerFlow domain. If not, set to false and define an own domainScaling
     
-    decreasePowerFlowDomainFactor 0.029;		 // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
-    // xzAdjuster 1.000691106;                // Adjust the domain x and z dimension to have a better cell fit.
+    decreasePowerFlowDomainFactor 0.03;		 // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
+    // xyAdjuster 1.000691106;                // Adjust the domain x and z dimension to have a better cell fit.
     // domainScaling    <  100, 1, 600 >;   	 // Scaling of the domain compared to the object.  So < 100, 1, 556 > means 100 times the chord of the airfoil, 1 time the span and 556 times the thickness. 
-    cellsPerBlock    <  20, 1, 20 >;       	 // Number of cells in each block in the < x, y, z > directions. This is also called blockSize in some codes. For refinement at least < 16, 16, 16 > is required
-    periodic         <  0, 1, 0 >;       	 // Are there period sides? 0 -> No, 1 -> Yes  For every direction < x, y, z >
+    cellsPerBlock    <  20, 20, 1 >;       	 // Number of cells in each block in the < x, y, z > directions. This is also called blockSize in some codes. For refinement at least < 16, 16, 16 > is required
+    periodic         <  0, 0, 1 >;       	 // Are there period sides? 0 -> No, 1 -> Yes  For every direction < x, y, z >
     numGhostLayers   4;
 
 }

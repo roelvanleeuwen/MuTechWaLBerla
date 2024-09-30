@@ -53,23 +53,23 @@ Description:    This is the main file of the waLBerla implementation of the airf
 
 #include "timeloop/all.h"
 
-#include "xzAdjustment.cpp"
+#include "xyAdjustment.cpp"
 
 // #include "memoryLogger.cpp"
 
 namespace walberla
 {
 
-//! [typedefs]
-using LatticeModel_T         = lbm::D3Q19< lbm::collision_model::SRT >;
-using Stencil_T              = LatticeModel_T::Stencil;
-using CommunicationStencil_T = LatticeModel_T::CommunicationStencil;
-//! [typedefs]
+      //! [typedefs]
+      using LatticeModel_T         = lbm::D3Q19< lbm::collision_model::SRT >;
+      using Stencil_T              = LatticeModel_T::Stencil;
+      using CommunicationStencil_T = LatticeModel_T::CommunicationStencil;
+      //! [typedefs]
 
-using PdfField_T = lbm::PdfField< LatticeModel_T >;
+      using PdfField_T = lbm::PdfField< LatticeModel_T >;
 
-using flag_t      = walberla::uint8_t;
-using FlagField_T = FlagField< flag_t >;
+      using flag_t      = walberla::uint8_t;
+      using FlagField_T = FlagField< flag_t >;
 
 //! [vertexToFaceColor]
 template< typename MeshType >
@@ -107,6 +107,8 @@ int main(int argc, char** argv)
    walberla::Environment walberlaEnv(argc, argv);
 
    mpi::MPIManager::instance()->useWorldComm();
+
+   
    
    // ================================================================================================================
    
@@ -221,9 +223,24 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT(" ======================== Start of mesh and domain setup ======================== ")
    //! [readMesh]
    // read in mesh with vertex colors on a single process and broadcast it
-   auto mesh = make_shared< mesh::TriangleMesh >();
+   auto mesh = make_shared<mesh::TriangleMesh>();
+
    mesh->request_vertex_colors();
    mesh::readAndBroadcast(meshFile, *mesh); // read the mesh file and broadcast it to all processes. This is necessary for parallel processing
+
+   // Scale factor for the z direction
+   const real_t meshZScaling = domainParameters.getParameter<real_t>("meshZScaling", 1);
+
+   // Scale the mesh in the y direction
+   for (auto vertexIt = mesh->vertices_begin(); vertexIt != mesh->vertices_end(); ++vertexIt)
+   {
+      auto point = mesh->point(*vertexIt);
+      point[2] *= meshZScaling; // Scale the y coordinate
+      mesh->set_point(*vertexIt, point);
+   }
+
+   // Rotate the mesh to have the z axis as the y axis
+
 
    //! [readMesh]
 
@@ -266,24 +283,24 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT("Mesh size in x, y, z: " << aabb.xSize() << ", " << aabb.ySize() << ", " << aabb.zSize())
    
    // The x dimension is 100 times the airfoil chord. This is not to be changed. Therefore it is not in the parameter file. 
-   AdjustmentResult result = xzAdjustment(100*aabb.xSize(), decreasePowerFlowDomainFactor, dx);
-   const real_t xzAdjuster_x = result.xzAdjustment;
-   const real_t xzAdjuster_z = result.xzAdjustment;
+   AdjustmentResult result = xyAdjustment(100*aabb.xSize(), decreasePowerFlowDomainFactor, dx);
+   const real_t xyAdjuster_x = result.xyAdjustment;
+   const real_t xyAdjuster_y = result.xyAdjustment;
    const uint_t cellsPerBlock_x = result.cellsPerBlock_x;
    // change the cellsPerBlock in the x and z direction to the determined cellsPerBlock
    cellsPerBlock[0] = cellsPerBlock_x;
-   cellsPerBlock[2] = cellsPerBlock_x;
+   cellsPerBlock[1] = cellsPerBlock_x;
 
-   WALBERLA_LOG_INFO_ON_ROOT("xzAdjuster: " << xzAdjuster_x)
+   WALBERLA_LOG_INFO_ON_ROOT("xzAdjuster: " << xyAdjuster_x)
    WALBERLA_LOG_INFO_ON_ROOT("Cells per block < nx, ny, nz >: " << cellsPerBlock)
 
    Vector3< real_t > domainScaling;
    if (scalePowerFlowDomain)
    {
       // The chord length of the airfoil is the x size of the mesh object
-      domainScaling = Vector3< real_t >(100*decreasePowerFlowDomainFactor*xzAdjuster_x, 
-                                       1, 
-                                       100 * aabb.xSize() / aabb.zSize() * decreasePowerFlowDomainFactor*xzAdjuster_z
+      domainScaling = Vector3< real_t >(100*decreasePowerFlowDomainFactor*xyAdjuster_x, 
+                                       100 * aabb.xSize() / aabb.ySize() * decreasePowerFlowDomainFactor*xyAdjuster_y, 
+                                       1
                                        );
    }
    else
@@ -298,9 +315,9 @@ int main(int argc, char** argv)
    // WALBERLA_LOG_INFO_ON_ROOT("Domain AABB: " << aabb)
 
    // What will be the number of blocks in the x, y and z direction?
-   real_t nBlocks_x = std::round(aabb.xSize() * xzAdjuster_x / dx / static_cast<real_t>(cellsPerBlock[0]));
-   real_t nBlocks_y = std::round(aabb.ySize() / dx / static_cast<real_t>(cellsPerBlock[1]));
-   real_t nBlocks_z = std::round(aabb.zSize() * xzAdjuster_z / dx / static_cast<real_t>(cellsPerBlock[2]));
+   real_t nBlocks_x = std::round(aabb.xSize() * xyAdjuster_x / dx / static_cast<real_t>(cellsPerBlock[0]));
+   real_t nBlocks_y = std::round(aabb.ySize() * xyAdjuster_y / dx / static_cast<real_t>(cellsPerBlock[1]));
+   real_t nBlocks_z = std::round(aabb.zSize() / dx / static_cast<real_t>(cellsPerBlock[2]));
    WALBERLA_LOG_INFO_ON_ROOT("Number of blocks in x, y, z: " << nBlocks_x << ", " << nBlocks_y << ", " << nBlocks_z)
 
    // Check if every a cell is cubic
@@ -317,9 +334,9 @@ int main(int argc, char** argv)
       WALBERLA_LOG_INFO_ON_ROOT("The cells are not cubic. The cell size in the x, y and z direction is not equal within the tolerance.")
       WALBERLA_LOG_INFO_ON_ROOT("Check the domain generation documentation of the powerFlowCase simulation.")
       WALBERLA_LOG_INFO_ON_ROOT("")
-      WALBERLA_LOG_INFO_ON_ROOT("First determine the number of blocks with a decreasePowerFlowDomainFactor so that the number of cells in the x and z direction are just above 16")
-      WALBERLA_LOG_INFO_ON_ROOT("Then set this number of cells in the x and z direction (y has per definitiion 16 cells in this simulation) to this determinde number (just above 16)")
-      WALBERLA_LOG_INFO_ON_ROOT("Then calculate the xzAdjuster as the (N_blocks * N_blockSize,x * dx)/(L_x,full * decreasePowerFlowDomainFactor)")
+      WALBERLA_LOG_INFO_ON_ROOT("First determine the number of blocks with a decreasePowerFlowDomainFactor so that the number of cells in the x and y direction are just above 16")
+      WALBERLA_LOG_INFO_ON_ROOT("Then set this number of cells in the x and y direction (z has per definitiion 16 cells in this simulation) to this determinde number (just above 16)")
+      WALBERLA_LOG_INFO_ON_ROOT("Then calculate the xyAdjuster as the (N_blocks * N_blockSize,x * dx)/(L_x,full * decreasePowerFlowDomainFactor)")
       WALBERLA_LOG_INFO_ON_ROOT("")
       WALBERLA_LOG_INFO_ON_ROOT("Error: This simulation will end now.")
       return EXIT_SUCCESS;
@@ -360,11 +377,12 @@ int main(int argc, char** argv)
    {
       WALBERLA_LOG_INFO_ON_ROOT("")
       WALBERLA_LOG_INFO_ON_ROOT("Setting up SetupBlockForest")
+      WALBERLA_LOG_INFO_ON_ROOT("Mesh size in x, y, z: " << aabb.xSize() << ", " << aabb.ySize() << ", " << aabb.zSize())
       auto setupForest = bfc.createSetupBlockForest(cellsPerBlock);
       WALBERLA_LOG_INFO_ON_ROOT("Writing SetupBlockForest to VTK file")
       WALBERLA_ROOT_SECTION()
       {
-         setupForest->writeVTKOutput("SetupBlockForest");
+         setupForest->writeVTKOutput("vtk_out/SetupBlockForest");
       }
       WALBERLA_LOG_INFO_ON_ROOT("Stopping program")
       WALBERLA_LOG_INFO_ON_ROOT("")
@@ -459,6 +477,7 @@ int main(int argc, char** argv)
    boundarySetup.setBoundaries< BHFactory::BoundaryHandling >(
       boundaryHandlingId, makeBoundaryLocationFunction(distanceOctree, boundaryLocations), mesh::BoundarySetup::INSIDE);
    WALBERLA_LOG_INFO_ON_ROOT("Waypoint 14: Boundaries set")
+   WALBERLA_LOG_INFO_ON_ROOT("Mesh size in x, y, z: " << aabb.xSize() << ", " << aabb.ySize() << ", " << aabb.zSize())
    //! [boundarySetup]
 
    // Log performance information at the end of the simulation
@@ -486,6 +505,7 @@ int main(int argc, char** argv)
 
       // log remaining time
    WALBERLA_LOG_INFO_ON_ROOT("Waypoint 19: Adding remaining time logger")
+   WALBERLA_LOG_INFO_ON_ROOT("number of time steps: " << timeloop.getNrOfTimeSteps())
    timeloop.addFuncAfterTimeStep(timing::RemainingTimeLogger(timeloop.getNrOfTimeSteps(), remainingTimeLoggerFrequency),
                                  "remaining time logger");
 
