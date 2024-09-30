@@ -1,7 +1,8 @@
 if ( WALBERLA_BUILD_WITH_OPENMESH )
 
 	waLBerla_link_files_to_builddir( "*.obj" )                 
-   waLBerla_link_files_to_builddir( "*.conf" )  
+   waLBerla_link_files_to_builddir( "*.conf" ) 
+    waLBerla_link_files_to_builddir( "*.stl" ) 
                                   
 	waLBerla_add_executable( NAME ComplexGeometry FILES ComplexGeometry.cpp DEPENDS boundary core lbm mesh vtk )
 
