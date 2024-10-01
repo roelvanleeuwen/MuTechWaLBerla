@@ -61,7 +61,7 @@ namespace walberla
 {
 
       //! [typedefs]
-      using LatticeModel_T         = lbm::D3Q19< lbm::collision_model::SRT >;
+      using LatticeModel_T         = lbm::D2Q9< lbm::collision_model::SRT >;
       using Stencil_T              = LatticeModel_T::Stencil;
       using CommunicationStencil_T = LatticeModel_T::CommunicationStencil;
       //! [typedefs]
@@ -281,6 +281,8 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT("")
    WALBERLA_LOG_INFO_ON_ROOT(" ======================== Intermediate domain info ======================== ")
    WALBERLA_LOG_INFO_ON_ROOT("Mesh size in x, y, z: " << aabb.xSize() << ", " << aabb.ySize() << ", " << aabb.zSize())
+
+   // const real_t thickness = aabb.ySize(); // thickness of the airfoil
    
    // The x dimension is 100 times the airfoil chord. This is not to be changed. Therefore it is not in the parameter file. 
    AdjustmentResult result = xyAdjustment(100*aabb.xSize(), decreasePowerFlowDomainFactor, dx);
@@ -310,6 +312,7 @@ int main(int argc, char** argv)
 
    WALBERLA_LOG_INFO_ON_ROOT("Domain scaling: " << domainScaling)
    aabb.scale(domainScaling); // Scale the domain based on the x, y and z size of the mesh object. 
+   // aabb.setCenter(aabb.center() + Vector3< real_t >(0, 0.75 * thickness, 0)); // Place the airfoil in the center of the domain
    aabb.setCenter(aabb.center()); // Place the airfoil in the center of the domain
    
    // WALBERLA_LOG_INFO_ON_ROOT("Domain AABB: " << aabb)
