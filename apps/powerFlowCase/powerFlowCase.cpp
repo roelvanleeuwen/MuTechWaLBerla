@@ -365,7 +365,7 @@ int main(int argc, char** argv)
    bfc.setWorkloadMemorySUIDAssignmentFunction(meshWorkloadMemory);
    bfc.setPeriodicity(periodicity);
    bfc.setRefinementSelectionFunction(
-      makeRefinementSelection(distanceOctree, numLevels - uint_t(1), dx, dx * real_t(1)));
+      makeRefinementSelection(distanceOctree, numLevels, dx, dx * real_t(1)));
    WALBERLA_LOG_INFO_ON_ROOT("Waypoint 4: Refinement selection function set")
    //! [bfc]
 
@@ -548,9 +548,9 @@ int main(int argc, char** argv)
    vtkOutput->addCellInclusionFilter(fluidFilter);
 
    auto velocityWriter = make_shared< lbm::VelocityVTKWriter< LatticeModel_T, float > >(pdfFieldId, "Velocity");
-   auto densityWriter  = make_shared< lbm::DensityVTKWriter< LatticeModel_T, float > >(pdfFieldId, "Density");
+   // auto densityWriter  = make_shared< lbm::DensityVTKWriter< LatticeModel_T, float > >(pdfFieldId, "Density");
    vtkOutput->addCellDataWriter(velocityWriter);
-   vtkOutput->addCellDataWriter(densityWriter);
+   // vtkOutput->addCellDataWriter(densityWriter);
 
    timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
    timeloop.addFuncAfterTimeStep(perfLogger, "Evaluator: performance logging");
