@@ -61,7 +61,7 @@ namespace walberla
 {
 
       //! [typedefs]
-      using LatticeModel_T         = lbm::D2Q9< lbm::collision_model::SRT >;
+      using LatticeModel_T         = lbm::D3Q19< lbm::collision_model::SRT >;
       using Stencil_T              = LatticeModel_T::Stencil;
       using CommunicationStencil_T = LatticeModel_T::CommunicationStencil;
       //! [typedefs]
@@ -318,8 +318,8 @@ int main(int argc, char** argv)
    // WALBERLA_LOG_INFO_ON_ROOT("Domain AABB: " << aabb)
 
    // What will be the number of blocks in the x, y and z direction?
-   real_t nBlocks_x = std::round(aabb.xSize() * xyAdjuster_x / dx / static_cast<real_t>(cellsPerBlock[0]));
-   real_t nBlocks_y = std::round(aabb.ySize() * xyAdjuster_y / dx / static_cast<real_t>(cellsPerBlock[1]));
+   real_t nBlocks_x = static_cast<real_t>(result.nBlocks_x); // std::round(aabb.xSize() / dx / static_cast<real_t>(cellsPerBlock[0]));
+   real_t nBlocks_y = static_cast<real_t>(result.nBlocks_x); // std::round(aabb.ySize() / dx / static_cast<real_t>(cellsPerBlock[1]));
    real_t nBlocks_z = std::round(aabb.zSize() / dx / static_cast<real_t>(cellsPerBlock[2]));
    WALBERLA_LOG_INFO_ON_ROOT("Number of blocks in x, y, z: " << nBlocks_x << ", " << nBlocks_y << ", " << nBlocks_z)
 

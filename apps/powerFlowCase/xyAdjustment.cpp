@@ -16,7 +16,7 @@ struct AdjustmentResult {
 
 AdjustmentResult xyAdjustment(const walberla::real_t xSize, const walberla::real_t decreasePowerFlowDomainFactor, const walberla::real_t dx)
 {
-    walberla::real_t nBlocks_x = 4;
+    walberla::real_t nBlocks_x = 3;
     walberla::real_t nBlocks_x_remember = nBlocks_x;
 
     walberla::real_t cellsPerBlock_x = xSize * decreasePowerFlowDomainFactor / (dx * nBlocks_x);

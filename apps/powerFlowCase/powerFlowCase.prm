@@ -1,7 +1,7 @@
 options
 {
    // Only one of the two options below can be set to true
-   writeSetupForestAndReturn true;  // If set to true, the blocks in the domain will be output in a vtk file. The simulation will be terminated after this to save memory
+   writeSetupForestAndReturn false;  // If set to true, the blocks in the domain will be output in a vtk file. The simulation will be terminated after this to save memory
    writeVoxelfile false;            // If set to true, the voxels in the domain will be output in a vtk file. The simulation will be terminated after this to save memory
 }
 
@@ -28,7 +28,7 @@ domainParameters
     dx               0.0051015625;          // Unrefined cell size in mm since the airfoil dimensions are in meters
     scalePowerFlowDomain true;          	 // Do you want the full PowerFlow domain. If not, set to false and define an own domainScaling
     
-    decreasePowerFlowDomainFactor 1;		 // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
+    decreasePowerFlowDomainFactor 0.028571428;		 // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
     // xyAdjuster 1.000691106;                // Adjust the domain x and z dimension to have a better cell fit.
     // domainScaling    <  100, 1, 600 >;   	 // Scaling of the domain compared to the object.  So < 100, 1, 556 > means 100 times the chord of the airfoil, 1 time the span and 556 times the thickness. 
     cellsPerBlock    <  20, 20, 16 >;       	 // Number of cells in each block in the < x, y, z > directions. This is also called blockSize in some codes. For refinement at least < 16, 16, 16 > is required
