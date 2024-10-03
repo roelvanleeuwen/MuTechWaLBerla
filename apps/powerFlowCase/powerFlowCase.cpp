@@ -288,7 +288,7 @@ int main(int argc, char** argv)
    AdjustmentResult result = xyAdjustment(100*aabb.xSize(), decreasePowerFlowDomainFactor, dx);
    const real_t xyAdjuster_x = result.xyAdjustment;
    const real_t xyAdjuster_y = result.xyAdjustment;
-   const Vector3<real_t> cellsPerBlock = (result.cellsPerBlock_x, result.cellsPerBlock_x, 16); // The z direction has 16 cells per block
+   const Vector3<uint_t> cellsPerBlock = Vector3<uint_t> (result.cellsPerBlock_x, result.cellsPerBlock_x, 16); // The z direction has 16 cells per block
    // change the cellsPerBlock in the x and z direction to the determined cellsPerBlock
    // cellsPerBlock[0] = cellsPerBlock_x;
    // cellsPerBlock[1] = cellsPerBlock_x;
