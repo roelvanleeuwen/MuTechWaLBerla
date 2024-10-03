@@ -195,7 +195,7 @@ int main(int argc, char** argv)
 
    const Vector3< bool > periodicity =
       domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
-   Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
+   // Vector3< uint_t > cellsPerBlock = domainParameters.getParameter< Vector3< uint_t > >("cellsPerBlock");
    // const Vector3< uint_t > numberOfBlocks = domainParameters.getParameter< Vector3< uint_t > >("blocks");
    
    
@@ -288,10 +288,10 @@ int main(int argc, char** argv)
    AdjustmentResult result = xyAdjustment(100*aabb.xSize(), decreasePowerFlowDomainFactor, dx);
    const real_t xyAdjuster_x = result.xyAdjustment;
    const real_t xyAdjuster_y = result.xyAdjustment;
-   const uint_t cellsPerBlock_x = result.cellsPerBlock_x;
+   const Vector3<real_t> cellsPerBlock = (result.cellsPerBlock_x, result.cellsPerBlock_x, 16); // The z direction has 16 cells per block
    // change the cellsPerBlock in the x and z direction to the determined cellsPerBlock
-   cellsPerBlock[0] = cellsPerBlock_x;
-   cellsPerBlock[1] = cellsPerBlock_x;
+   // cellsPerBlock[0] = cellsPerBlock_x;
+   // cellsPerBlock[1] = cellsPerBlock_x;
 
    WALBERLA_LOG_INFO_ON_ROOT("xzAdjuster: " << xyAdjuster_x)
    WALBERLA_LOG_INFO_ON_ROOT("Cells per block < nx, ny, nz >: " << cellsPerBlock)

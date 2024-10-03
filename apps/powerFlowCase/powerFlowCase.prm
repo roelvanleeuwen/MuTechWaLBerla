@@ -28,10 +28,8 @@ domainParameters
     dx               0.0051015625;          // Unrefined cell size in mm since the airfoil dimensions are in meters
     scalePowerFlowDomain true;          	 // Do you want the full PowerFlow domain. If not, set to false and define an own domainScaling
     
-    decreasePowerFlowDomainFactor 0.028571428;		 // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
-    // xyAdjuster 1.000691106;                // Adjust the domain x and z dimension to have a better cell fit.
-    // domainScaling    <  100, 1, 600 >;   	 // Scaling of the domain compared to the object.  So < 100, 1, 556 > means 100 times the chord of the airfoil, 1 time the span and 556 times the thickness. 
-    cellsPerBlock    <  20, 20, 16 >;       	 // Number of cells in each block in the < x, y, z > directions. This is also called blockSize in some codes. For refinement at least < 16, 16, 16 > is required
+    decreasePowerFlowDomainFactor 0.2; // 0.028571428;		 // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
+    // cellsPerBlock    <  20, 20, 16 >;       	 // Number of cells in each block in the < x, y, z > directions. This is also called blockSize in some codes. For refinement at least < 16, 16, 16 > is required
     periodic         <  0, 0, 1 >;       	 // Are there period sides? 0 -> No, 1 -> Yes  For every direction < x, y, z >
     numGhostLayers   4;
 
