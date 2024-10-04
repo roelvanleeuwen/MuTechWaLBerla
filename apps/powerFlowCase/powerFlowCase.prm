@@ -7,8 +7,8 @@ options
 
 flowParameters
 { 
-    velocityMagnitude 1;           // [m/s] Absolute velocity of the flow 
-    angleOfAttack 0.0;              // [deg] Angle of attack of the flow with respect to the airfoil  
+    velocityMagnitude 10;           // [m/s] Absolute velocity of the flow 
+    angleOfAttack 7.8;              // [deg] Angle of attack of the flow with respect to the airfoil  
 }
 
 simulationParameters
@@ -24,11 +24,11 @@ domainParameters
     meshFile         NACA0018.stl;   		 // Object geometry of the airfoil. This must be an ASCII file. If it is binary you should convert it. Also, the mesh must be watertight so no open sides. 
     meshZScaling     1; // 0.0625;                    // This factor can be used to change the span of the airfoil. The NACA0018 file has a span of 0.081625 which corresponds to a y-scaling of 1
     
-    numLevels        4;                  	 // Number of octree levels starting from 1
+    numLevels        3;                  	 // Number of octree levels starting from 1
     dx               0.0051015625;          // Unrefined cell size in mm since the airfoil dimensions are in meters
     scalePowerFlowDomain true;          	 // Do you want the full PowerFlow domain. If not, set to false and define an own domainScaling
     
-    decreasePowerFlowDomainFactor 0.2; // 0.028571428;		 // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
+    decreasePowerFlowDomainFactor 0.028571428;		 // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
     // cellsPerBlock    <  20, 20, 16 >;       	 // Number of cells in each block in the < x, y, z > directions. This is also called blockSize in some codes. For refinement at least < 16, 16, 16 > is required
     periodic         <  0, 0, 1 >;       	 // Are there period sides? 0 -> No, 1 -> Yes  For every direction < x, y, z >
     numGhostLayers   4;
@@ -37,8 +37,8 @@ domainParameters
 
 boundaryConditions 
 {
-	velocity0 < 1, 0, 0 >;        // velocity of cells where Velocity0 boundary is set
-	velocity1 <   0, 0, 0 >;        // velocity of cells where Velocity1 boundary is set
+	velocity0 < 9.99390827, 0.348994967, 0 >;        // velocity of cells where Velocity0 boundary is set (aoa = 2)
+	velocity1 <   1, 0, 0 >;        // velocity of cells where Velocity1 boundary is set
 	pressure0 1.01;		            // pressure of cells where Pressure0 boundary is set
 	pressure1 1.0;			        // pressure of cells where Pressure1 boundary is set
     
@@ -54,15 +54,16 @@ boundaryConditions
     
 	Border { direction W;    walldistance -1;  Velocity0 {} }
 	Border { direction E;    walldistance -1;  Pressure1 {} }
-	Border { direction S,N;  walldistance -1;  Pressure1 {} }
+   Border { direction N;    walldistance -1;  Velocity1 {} }
+	Border { direction S;    walldistance -1;  Velocity0 {} }
 		
 }
 
 // Parameters for the stability check. If NaN values occur, the simululation is terminated. 
 stabilityChecker
 {
-   checkFrequency 1;
-   streamOutput   true;
+   checkFrequency 1; // [time steps]
+   streamOutput   false; // Do not use. This will overload the SSD
    vtkOutput      false;
 }
 
@@ -71,7 +72,7 @@ VTK
    // for parameter documentation see src/vtk/Initialization.cpp
    fluid_field
    {
-      writeFrequency 100000000;           // [time steps] Output a VTK file at writeFrequency
+      writeFrequency 1;           // [time steps] Output a VTK file at writeFrequency
       ghostLayers    4;             // Number of ghostlayers to exclude from the VTK output
       
       vtkBeforFunctions {
