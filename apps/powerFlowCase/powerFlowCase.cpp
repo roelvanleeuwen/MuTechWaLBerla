@@ -134,8 +134,8 @@ int main(int argc, char** argv)
    
    // calculate the initial velocity based on the angle of attack and the flow velocity
    const Vector3< real_t > initialVelocity = Vector3< real_t >(flowVelocity * std::cos(angleOfAttack * M_PI / 180.0),
-                                                               real_t(0), 
-                                                               flowVelocity * std::sin(angleOfAttack * M_PI / 180.0));
+                                                               flowVelocity * std::sin(angleOfAttack * M_PI / 180.0), 
+                                                               real_t(0));
    WALBERLA_LOG_INFO_ON_ROOT("Angle of attack: " << angleOfAttack << " degrees")
    WALBERLA_LOG_INFO_ON_ROOT("Flow velocity: " << flowVelocity << " m/s")
    WALBERLA_LOG_INFO_ON_ROOT("Initial velocity < u, v, w >: " << initialVelocity << " m/s")
@@ -400,7 +400,7 @@ int main(int argc, char** argv)
    // create fields
    LatticeModel_T latticeModel = LatticeModel_T(lbm::collision_model::SRT(omega));
    BlockDataID pdfFieldId =
-      lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, initialVelocity, real_t(1), numGhostLayers);
+      lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, initialVelocity, real_t(1), numGhostLayers); // Here the initialisation of the pdf field. This includes the initial velocity and density
    BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field", numGhostLayers);
    WALBERLA_LOG_INFO_ON_ROOT("Waypoint 6: Fields created")
 
@@ -471,16 +471,14 @@ int main(int argc, char** argv)
    // set fluid cells
    WALBERLA_LOG_INFO_ON_ROOT("Waypoint 12: Setting up fluid cells")
    boundarySetup.setDomainCells< BHFactory::BoundaryHandling >(boundaryHandlingId, mesh::BoundarySetup::OUTSIDE);
-
-   // set up inflow/outflow/wall boundaries from DefaultBoundaryHandlingFactory
-   // geometry::initBoundaryHandling< BHFactory::BoundaryHandling >(*blocks, boundaryHandlingId, boundariesConfig);
    
    // set up obstacle boundaries from file
+   // set up inflow/outflow/wall boundaries from DefaultBoundaryHandlingFactory
+   // geometry::initBoundaryHandling< BHFactory::BoundaryHandling >(*blocks, boundaryHandlingId, boundariesConfig);
    WALBERLA_LOG_INFO_ON_ROOT("Waypoint 13: Setting up boundaries")
    boundarySetup.setBoundaries< BHFactory::BoundaryHandling >(
       boundaryHandlingId, makeBoundaryLocationFunction(distanceOctree, boundaryLocations), mesh::BoundarySetup::INSIDE);
    WALBERLA_LOG_INFO_ON_ROOT("Waypoint 14: Boundaries set")
-   WALBERLA_LOG_INFO_ON_ROOT("Mesh size in x, y, z: " << aabb.xSize() << ", " << aabb.ySize() << ", " << aabb.zSize())
    //! [boundarySetup]
 
    // Log performance information at the end of the simulation

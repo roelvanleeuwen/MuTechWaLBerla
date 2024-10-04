@@ -13,11 +13,11 @@ while true; do
 
     # Append the iotop output to the log
     # Limit output to the first 10 lines for readability
-    iotop -b -n 1 | head -n 10 >> "$LOG_FILE"
+    iotop -b -n 1 | head -n 20 >> "$LOG_FILE"
 
     # Add a separator line for clarity
     echo "======================" >> "$LOG_FILE"
 
     # Sleep for a specified interval (e.g., 5 seconds)
-    sleep 5
+    sleep 1
 done

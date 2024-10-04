@@ -14,7 +14,7 @@ flowParameters
 simulationParameters
 {
     omega 1.6                       // Relaxation factor for the SRT model
-    timeSteps   100000;              // Number of time steps in the simulation
+    timeSteps   10;              // Number of time steps in the simulation
     remainingTimeLoggerFrequency 3; // in seconds. This is the frequency with which a time estimate of finilising the simulation is send in the terminal. 
 
 }
@@ -24,7 +24,7 @@ domainParameters
     meshFile         NACA0018.stl;   		 // Object geometry of the airfoil. This must be an ASCII file. If it is binary you should convert it. Also, the mesh must be watertight so no open sides. 
     meshZScaling     1; // 0.0625;                    // This factor can be used to change the span of the airfoil. The NACA0018 file has a span of 0.081625 which corresponds to a y-scaling of 1
     
-    numLevels        5;                  	 // Number of octree levels starting from 1
+    numLevels        4;                  	 // Number of octree levels starting from 1
     dx               0.0051015625;          // Unrefined cell size in mm since the airfoil dimensions are in meters
     scalePowerFlowDomain true;          	 // Do you want the full PowerFlow domain. If not, set to false and define an own domainScaling
     
