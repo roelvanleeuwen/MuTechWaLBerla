@@ -3,13 +3,13 @@ options
    // Only one of the two options below can be set to true
    writeSetupForestAndReturn false;  // If set to true, the blocks in the domain will be output in a vtk file. The simulation will be terminated after this to save memory
    writeVoxelfile false;            // If set to true, the voxels in the domain will be output in a vtk file. The simulation will be terminated after this to save memory
-   writeAirfoilMesh false;          // If set true the airfoil stl mesh is written in a vtu file.
+   writeAirfoilMeshAndReturn false;          // If set true the airfoil stl mesh is written in a vtu file. The simulation will be terminated after this to save memory
 }
 
 flowParameters
 { 
-   angleOfAttack 2.0;              // [deg] Physical angle of attack of the flow with respect to the airfoil  
-   velocityMagnitude 10;           // [m/s] Physical absolute velocity of the flow 
+   angleOfAttack 0.0;              // [deg] Physical angle of attack of the flow with respect to the airfoil  
+   velocityMagnitude 0;           // [m/s] Physical absolute velocity of the flow 
    kinViscosity 12.15e-6;          // [m2/s] Physical kinematic viscosity of the flow
    rho 1.225;                      // [kg/m3] Physical air density
 }
@@ -24,14 +24,13 @@ simulationParameters
 
 domainParameters
 {
-    meshFile         NACA0018.stl;   		 // Object geometry of the airfoil. This must be an ASCII file. If it is binary you should convert it. Also, the mesh must be watertight so no open sides. 
+    meshFile         NACA0018box.stl;   		 // Object geometry of the airfoil. This must be an ASCII file. If it is binary you should convert it. Also, the mesh must be watertight so no open sides. 
     scalePowerFlowDomain true;          	 // Do you want the full PowerFlow domain. If not, set to false and define an own domainScaling
     decreasePowerFlowDomainFactor 0.028571428;		 // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
     dx               0.0051015625;          // Unrefined cell size in mm since the airfoil dimensions are in meters
-    numLevels        4;                  	 // Number of octree levels starting from 1
-    meshZScaling     1; // 0.0625;                    // This factor can be used to change the span of the airfoil. The NACA0018 file has a span of 0.081625 which corresponds to a y-scaling of 1
+    numLevels        2;                  	 // Number of octree levels starting from 1
+    meshZScaling     1;                    // This factor can be used to change the span of the airfoil. The NACA0018 file has a span of 0.081625 which corresponds to a y-scaling of 1
     
-    // cellsPerBlock    <  20, 20, 16 >;       	 // Number of cells in each block in the < x, y, z > directions. This is also called blockSize in some codes. For refinement at least < 16, 16, 16 > is required
     periodic         <  0, 0, 1 >;       	 // Are there period sides? 0 -> No, 1 -> Yes  For every direction < x, y, z >
     numGhostLayers   4;
 
@@ -39,10 +38,11 @@ domainParameters
 
 boundaryConditions 
 {
-	Velocity0 < 174.844, 6.10569, 0 >;        // velocity of cells where Velocity0 boundary is set (aoa = 2)
-	Velocity1 <   1, 0, 0 >;        // velocity of cells where Velocity1 boundary is set
-	Pressure0 1.01;		            // pressure of cells where Pressure0 boundary is set
-	Pressure1 1.0;			        // pressure of cells where Pressure1 boundary is set
+	// Velocity0 < 174.844, 6.10569, 0 >;        // velocity of cells where Velocity0 boundary is set (aoa = 2)
+   velocity0 < 0, 0, 0 >;        // velocity of cells where Velocity0 boundary is set (aoa = 0)
+	velocity1 <   0, 0, 0 >;        // velocity of cells where Velocity1 boundary is set
+	pressure0 1.1;		            // pressure of cells where Pressure0 boundary is set
+	pressure1 1.0;			        // pressure of cells where Pressure1 boundary is set
     
     /* 
        possible sub-blocks: documentation for the subblocks can be found in src/geometry/initializers/BoundaryFrom*.h
@@ -54,10 +54,11 @@ boundaryConditions
        	   - RGBAImage	     BoundaryFromImage.h
     */
     
-	Border { direction W;    walldistance -1;  Velocity0 {} }
+	Border { direction N,S,W;    walldistance -1;  Velocity0 {} }
 	Border { direction E;    walldistance -1;  Pressure1 {} }
-   Border { direction N;    walldistance -1;  Velocity1 {} }
-	Border { direction S;    walldistance -1;  Velocity0 {} }
+   // Border { direction W;    walldistance -1;  Velocity0 {} }
+	// Border { direction E;    walldistance -1;  Pressure1 {} }
+	// Border { direction S,N;  walldistance -1;  NoSlip    {} }
 		
 }
 

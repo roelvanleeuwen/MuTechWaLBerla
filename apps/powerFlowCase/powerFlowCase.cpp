@@ -66,7 +66,7 @@ namespace walberla
       real_t kinViscosity;    // physical kinematic viscosity
       real_t kinViscosityLU;   // lattice kinematic viscosity
       real_t rho;         // physical density
-      real_t rhoLU;       // lattice density
+      real_t rhoLU = 1;       // lattice density
       real_t angleOfAttack;   // physical angle of attack
       real_t velocityMagnitude;   // physical velocity magnitude
       Vector3<real_t> initialVelocity;  // physical inflow velocity
@@ -115,10 +115,6 @@ namespace walberla
       real_t airfoilThicknessLU;
       real_t airfoilSpanLU;
 
-      bool evaluatePressure;
-      Vector3< real_t > pAlpha;
-      Vector3< real_t > pOmega;
-
       // LBM parameters
       real_t omega;      // relaxation parameter
 
@@ -126,6 +122,8 @@ namespace walberla
       uint_t timeSteps;   // number of time steps
       real_t remainingTimeLoggerFrequency; // in seconds
    };
+
+   // A function that outputs all 
 
       //! [typedefs]
       using LatticeModel_T         = lbm::D3Q19< lbm::collision_model::SRT >;
@@ -382,7 +380,7 @@ int main(int argc, char** argv)
    // create and configure block forest creator
    mesh::ComplexGeometryStructuredBlockforestCreator bfc(aabb, Vector3< real_t >(setup.dx)); // create the structured block forest creator
    bfc.setRootBlockExclusionFunction(mesh::makeExcludeMeshInterior(distanceOctree, setup.dx)); // exclude the object mesh interior with maximum error of dx
-   bfc.setBlockExclusionFunction(mesh::makeExcludeMeshInteriorRefinement(distanceOctree, setup.fineDX)); // refine the maximum erro to fineDX
+   bfc.setBlockExclusionFunction(mesh::makeExcludeMeshInteriorRefinement(distanceOctree, setup.fineDX)); // refine the maximum error to fineDX
 
    auto meshWorkloadMemory = mesh::makeMeshWorkloadMemory(distanceOctree, setup.dx);
    meshWorkloadMemory.setInsideCellWorkload(1);
