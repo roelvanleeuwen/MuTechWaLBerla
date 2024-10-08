@@ -92,7 +92,7 @@ namespace walberla
       Vector3< bool > periodicity;
 
       // Block data
-      Vector3< uint_t > cellsPerBlock;
+      Vector3< uint_t > cellsPerBlock; // Number of cells in each block in the < x, y, z > directions. This is also called blockSize in some codes. For refinement at least < 16, 16, 16 > is required
       real_t nBlocks_x;
       real_t nBlocks_y;
       real_t nBlocks_z;
@@ -226,8 +226,8 @@ int main(int argc, char** argv)
 
    
    // Log the parameters
-   WALBERLA_LOG_INFO_ON_ROOT(" ======================== Initial Parameters ======================== ")
-   WALBERLA_LOG_INFO_ON_ROOT( "Angle of attack: " << setup.angleOfAttack << " degrees"
+   WALBERLA_LOG_INFO_ON_ROOT( " ======================== Initial Parameters ======================== "
+                              "\n + Angle of attack: " << setup.angleOfAttack << " degrees"
                               "\n + Flow velocity: " << setup.velocityMagnitude << " m/s"
                               "\n + Dynamic viscosity: " << setup.kinViscosity << " m^2/s"
                               "\n + Density: " << setup.rho << " kg/m^3"
@@ -320,7 +320,7 @@ int main(int argc, char** argv)
       // The chord length of the airfoil is the x size of the mesh object
       setup.domainScaling = Vector3< real_t >(100*setup.decreasePowerFlowDomainFactor*setup.xyAdjuster_x, 
                                        100 * aabb.xSize() / aabb.ySize() * setup.decreasePowerFlowDomainFactor*setup.xyAdjuster_y, 
-                                       1
+                                       0.5
                                        );
    }
    else
@@ -390,7 +390,7 @@ int main(int argc, char** argv)
    bfc.setWorkloadMemorySUIDAssignmentFunction(meshWorkloadMemory);
    bfc.setPeriodicity(setup.periodicity);
    bfc.setRefinementSelectionFunction(
-      makeRefinementSelection(distanceOctree, setup.numLevels - 1, setup.dx, setup.dx * real_t(1)));
+      makeRefinementSelection(distanceOctree, setup.numLevels - 1 , setup.dx, setup.dx * real_t(1)));
    WALBERLA_LOG_INFO_ON_ROOT("Waypoint 4: Refinement selection function set")
 
    // create block forest
@@ -423,8 +423,9 @@ int main(int argc, char** argv)
    setup.kinViscosityLU = latticeModel.collisionModel().viscosity( uint_t(0) ); // viscosity in lattice units on the coarsest grid
    setup.dt = ( setup.kinViscosityLU * setup.dx * setup.dx ) / setup.kinViscosity; // time step in physical units [s]
    setup.initialVelocityLU = setup.initialVelocity * (setup.dt / setup.dx); // inflow velocity in lattice units
-   WALBERLA_LOG_INFO_ON_ROOT("Viscocisty in physical units: " << setup.kinViscosity << " m^2/s"
-                              "\n + Viscosity in lattice units: " << setup.kinViscosityLU <<
+   WALBERLA_LOG_INFO_ON_ROOT(" ======================== Intermediate Parameters ======================== "
+                              "\n + Kinematic viscocisty in physical units: " << setup.kinViscosity << " m^2/s"
+                              "\n + Kinematic viscosity in lattice units: " << setup.kinViscosityLU <<
                               "\n + Time step in physical units: " << setup.dt << " s"
                               "\n + Initial velocity in lattice units: " << setup.initialVelocityLU <<
                               "\n");
@@ -446,10 +447,10 @@ int main(int argc, char** argv)
    typedef lbm::DefaultBoundaryHandlingFactory< LatticeModel_T, FlagField_T > BHFactory;
    BlockDataID boundaryHandlingId = BHFactory::addBoundaryHandlingToStorage(
       blocks, "boundary handling", flagFieldId, pdfFieldId, fluidFlagUID,
-      boundariesConfig.getParameter< Vector3< real_t > >("Velocity0", Vector3< real_t >()),
-      boundariesConfig.getParameter< Vector3< real_t > >("Velocity1", Vector3< real_t >()),
-      boundariesConfig.getParameter< real_t >("Pressure0", real_c(1.0)),
-      boundariesConfig.getParameter< real_t >("Pressure1", real_c(1.01)));
+      boundariesConfig.getParameter< Vector3< real_t > >("velocity0", Vector3< real_t >()),
+      boundariesConfig.getParameter< Vector3< real_t > >("velocity1", Vector3< real_t >()),
+      boundariesConfig.getParameter< real_t >("pressure0", real_c(1.0)),
+      boundariesConfig.getParameter< real_t >("pressure1", real_c(1.01)));
    
    // Log which boundaries are created
    // WALBERLA_LOG_INFO_ON_ROOT("Boundary handling created with the following boundaries: "
@@ -472,13 +473,14 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT("Waypoint 8: Boundaries marked with color")
 
    // write mesh info to file
-   if (optionsParameters.getParameter("writeAirfoilMesh", false))
+   if (optionsParameters.getParameter("writeAirfoilMeshAndReturn", false))
    {
       mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "airfoil_mesh", 1);
       meshWriter.addDataSource(make_shared< mesh::ColorFaceDataSource< mesh::TriangleMesh > >());
       meshWriter.addDataSource(make_shared< mesh::ColorVertexDataSource< mesh::TriangleMesh > >());
       meshWriter();
       WALBERLA_LOG_INFO_ON_ROOT("Waypoint 9: Mesh written to vtk_out/airfoil_mesh.vtu")
+      return EXIT_SUCCESS;
    }
 
    // voxelize mesh
