@@ -530,7 +530,8 @@ int main(int argc, char** argv)
 
    // create fields
    LatticeModel_T latticeModel = LatticeModel_T(lbm::collision_model::SRT(setup.omega));
-   setup.dt = setup.kinViscosity * std::pow(setup.dx, 2) / setup.velocityMagnitude; // time step in physical units
+   setup.kinViscosityLU        = latticeModel.collisionModel().viscosity(0);     // lattice kinematic viscosity
+   setup.dt = setup.kinViscosityLU * std::pow(setup.dx, 2) / setup.kinViscosity; // time step in physical units
    setup.initialVelocityLU = setup.initialVelocity * setup.dt / setup.dx;  // initial velocity vector in lattice units
    setup.speedOfSound      = std::pow(1.4 * 287.15 * 281, 0.5);            // speed of sound in physical units
    setup.Mach              = setup.velocityMagnitude / setup.speedOfSound; // Mach number in physical units
