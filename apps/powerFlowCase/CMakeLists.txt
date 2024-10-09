@@ -8,7 +8,7 @@ if ( WALBERLA_BUILD_WITH_OPENMESH )
 
     waLBerla_add_executable ( NAME powerFlowCase
                             FILES powerFlowCase.cpp
-                            DEPENDS blockforest core field geometry timeloop mesh boundary lbm vtk )
+                            DEPENDS blockforest core field geometry timeloop mesh boundary lbm vtk mutech_custom )
     message(STATUS "Building powerFlowCase")
 
     # waLBerla_add_executable ( NAME powerFlowCase_previous

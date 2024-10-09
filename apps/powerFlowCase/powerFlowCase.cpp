@@ -55,7 +55,8 @@ airfoil in the x and z direction. In the y direction
 #include "mesh_common/distance_octree/DistanceOctree.h"
 #include "mesh_common/vtk/CommonDataSources.h"
 #include "mesh_common/vtk/VTKMeshWriter.h"
-#include "xyAdjustment.cpp"
+#include "mutech_custom/unitConversion.h"
+#include "mutech_custom/xyAdjustment.h"
 
 // #include "memoryLogger.cpp"
 
