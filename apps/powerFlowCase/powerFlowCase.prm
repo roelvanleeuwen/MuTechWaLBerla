@@ -10,9 +10,9 @@ flowParameters
 { 
    angleOfAttack 0.0;              // [deg] Physical angle of attack of the flow with respect to the airfoil  
    velocityMagnitude 0.010;           // [m/s] Physical absolute velocity of the flow 
-   kinViscosity 12.15e-6;          // [m2/s] Physical kinematic viscosity of the flow
+   kinViscosity 1.461e-05;          // [m2/s] Physical kinematic viscosity of the flow
    rho 1.225;                      // [kg/m3] Physical air density
-   temperature 281;                 // [K] Temperature
+   temperature 288.1;                 // [K] Temperature
 }
 
 simulationParameters
