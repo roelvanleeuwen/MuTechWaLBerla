@@ -276,6 +276,8 @@ int main(int argc, char** argv)
    setup.kinViscosity =
       flowParameters.getParameter< real_t >("kinViscosity", real_t(1.0)); // physical kinematic viscosity in m^2/s
    setup.rho = flowParameters.getParameter< real_t >("rho", real_t(1.0)); // physical density in kg/m^3
+   setup.temperature =
+      flowParameters.getParameter< real_t >("temperature", real_t(281.0)); // physical temperature in Kelvin
 
    // Read the simulation parameters
    setup.omega     = simulationParameters.getParameter< real_t >("omega", real_t(1.6)); // relaxation parameter
@@ -324,7 +326,10 @@ int main(int argc, char** argv)
                                 "\n + Density: "
                              << setup.rho
                              << " kg/m^3"
-                                "\n + Inflow velocity < u, v, w >: "
+                                "\n + Temperature: "
+                             << setup.temperature
+                             << " K"
+                                "\n + Initial velocity < u, v, w >: "
                              << setup.initialVelocity
                              << " m/s"
                                 "\n + Relaxation parameter omega = 1/tau : "
@@ -532,9 +537,9 @@ int main(int argc, char** argv)
    LatticeModel_T latticeModel = LatticeModel_T(lbm::collision_model::SRT(setup.omega));
    setup.kinViscosityLU        = latticeModel.collisionModel().viscosity(0);     // lattice kinematic viscosity
    setup.dt = setup.kinViscosityLU * std::pow(setup.dx, 2) / setup.kinViscosity; // time step in physical units
-   setup.initialVelocityLU = setup.initialVelocity * setup.dt / setup.dx;  // initial velocity vector in lattice units
-   setup.speedOfSound      = std::pow(1.4 * 287.15 * 281, 0.5);            // speed of sound in physical units
-   setup.Mach              = setup.velocityMagnitude / setup.speedOfSound; // Mach number in physical units
+   setup.initialVelocityLU = setup.initialVelocity * setup.dt / setup.dx; // initial velocity vector in lattice units
+   setup.speedOfSound      = std::pow(1.4 * 287.15 * setup.temperature, 0.5); // speed of sound in physical units
+   setup.Mach              = setup.velocityMagnitude / setup.speedOfSound;    // Mach number in physical units
    setup.Re                = setup.velocityMagnitude * setup.airfoilChordLength / setup.kinViscosity; // Reynolds number
 
    WALBERLA_LOG_INFO_ON_ROOT("Physical parameters: "
