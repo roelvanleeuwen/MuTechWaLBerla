@@ -140,6 +140,7 @@ struct Setup
       os << "  kinViscosityLU: " << setup.kinViscosityLU << "\n";
       os << "  rho: " << setup.rho << "\n";
       os << "  rhoLU: " << setup.rhoLU << "\n";
+      os << "  temperature: " << setup.temperature << "\n";
       os << "  angleOfAttack: " << setup.angleOfAttack << "\n";
       os << "  velocityMagnitude: " << setup.velocityMagnitude << "\n";
       os << "  initialVelocity: " << setup.initialVelocity << "\n";
