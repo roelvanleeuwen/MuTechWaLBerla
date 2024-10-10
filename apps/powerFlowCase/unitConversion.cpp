@@ -1,3 +1,5 @@
+#include "blockforest/all.h"
+
 #include "core/Environment.h"
 
 #include <cmath>
