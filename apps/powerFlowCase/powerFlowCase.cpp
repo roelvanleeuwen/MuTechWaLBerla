@@ -69,7 +69,7 @@ struct Setup
    real_t kinViscosity;                 // physical kinematic viscosity
    real_t kinViscosityLU;               // lattice kinematic viscosity
    real_t rho;                          // physical density
-   real_t rhoLU = 1;                    // lattice density
+   real_t rhoLU;                        // lattice density
    real_t angleOfAttack;                // physical angle of attack
    real_t velocityMagnitude;            // physical velocity magnitude
    Vector3< real_t > initialVelocity;   // physical inflow velocity
@@ -82,11 +82,11 @@ struct Setup
    real_t Re;                           // physical Reynolds number
 
    // Space and time parameters
-   real_t dx;       // physical grid spacing
-   real_t fineDX;   // physical grid spacing of the finest grid
-   real_t dt;       // physical time step
-   real_t dxLU = 1; // lattice grid spacing
-   real_t dtLU = 1; // lattice time step
+   real_t dx;     // physical grid spacing
+   real_t fineDX; // physical grid spacing of the finest grid
+   real_t dt;     // physical time step
+   real_t dxLU;   // lattice grid spacing
+   real_t dtLU;   // lattice time step
 
    // Domain parameters
    std::string meshFile;
@@ -157,8 +157,6 @@ struct Setup
       os << "  dx: " << setup.dx << "\n";
       os << "  fineDX: " << setup.fineDX << "\n";
       os << "  dt: " << setup.dt << "\n";
-      os << "  dxLU: " << setup.dxLU << "\n";
-      os << "  dtLU: " << setup.dtLU << "\n";
 
       os << "Domain parameters:\n";
       os << "  meshFile: " << setup.meshFile << "\n";
@@ -313,6 +311,8 @@ int main(int argc, char** argv)
    // Calculate the finest physical grid spacing [m] based on the coarsest grid spacing and the number of refinement
    // levels
    setup.fineDX = setup.dx / real_c(std::pow(2, setup.numLevels));
+
+   // Put physical parameter into the physicalProperties struct from unitConversion.cpp
 
    // Log the parameters
    WALBERLA_LOG_INFO_ON_ROOT(" ======================== Initial Parameters ======================== "
@@ -537,12 +537,27 @@ int main(int argc, char** argv)
 
    // create fields
    LatticeModel_T latticeModel = LatticeModel_T(lbm::collision_model::SRT(setup.omega));
-   setup.kinViscosityLU        = latticeModel.collisionModel().viscosity(0);     // lattice kinematic viscosity
-   setup.dt = setup.kinViscosityLU * std::pow(setup.dx, 2) / setup.kinViscosity; // time step in physical units
-   setup.initialVelocityLU = setup.initialVelocity * setup.dt / setup.dx; // initial velocity vector in lattice units
-   setup.speedOfSound      = std::pow(1.4 * 287.15 * setup.temperature, 0.5); // speed of sound in physical units
-   setup.Mach              = setup.velocityMagnitude / setup.speedOfSound;    // Mach number in physical units
-   setup.Re                = setup.velocityMagnitude * setup.airfoilChordLength / setup.kinViscosity; // Reynolds number
+   // Calculate the parameters in lattice units
+   Units inputUnits;
+   inputUnits.x            = setup.dx;
+   inputUnits.speed        = setup.velocityMagnitude;
+   inputUnits.kinViscosity = setup.kinViscosity;
+   inputUnits.rho          = setup.rho;
+   inputUnits.temperature  = setup.temperature;
+   inputUnits.omega        = setup.omega; // relaxation parameter
+   inputUnits.omegaLevel   = 0;           // level where omega is defined
+   inputUnits.machLU       = 0.1;         // Mach number
+
+   Units simulationUnits =
+      convertToLatticeUnits(inputUnits, optionsParameters.getParameter< bool >("writeUnitsFile", false));
+
+   // setup.kinViscosityLU = latticeModel.collisionModel().viscosity(0);            // lattice kinematic viscosity
+   setup.kinViscosityLU    = simulationUnits.kinViscosityLU;
+   setup.initialVelocityLU = simulationUnits.speedLU / setup.velocityMagnitude * setup.initialVelocity;
+   setup.speedOfSound      = simulationUnits.speedOfSound;
+   setup.Mach              = simulationUnits.mach;
+   setup.Re                = simulationUnits.Re;
+   setup.rhoLU             = simulationUnits.rhoLU;
 
    WALBERLA_LOG_INFO_ON_ROOT("Physical parameters: "
                              "\n + Speed of sound: "
@@ -552,40 +567,46 @@ int main(int argc, char** argv)
                              << setup.Mach
                              << " "
                                 "\n + Reynolds number: "
-                             << setup.Re << " ")
+                             << setup.Re
+                             << " "
+                                "\n + Lattice speed: "
+                             << simulationUnits.speedLU
+                             << " "
+                                "\n + Lattice kinematic viscosity: "
+                             << setup.kinViscosityLU << " ")
 
-   std::vector< real_t > kinViscosityLUList(setup.numLevels);
-   std::vector< real_t > omegaList(setup.numLevels);
-   std::vector< real_t > flowVelocityLUList(setup.numLevels);
-   std::vector< real_t > dxList(setup.numLevels);
-   std::vector< real_t > dtList(setup.numLevels);
-   std::vector< real_t > speedOfSoundLUList(setup.numLevels);
-   std::vector< real_t > MachLUList(setup.numLevels);
+   // std::vector< real_t > kinViscosityLUList(setup.numLevels);
+   // std::vector< real_t > omegaList(setup.numLevels);
+   // std::vector< real_t > flowVelocityLUList(setup.numLevels);
+   // std::vector< real_t > dxList(setup.numLevels);
+   // std::vector< real_t > dtList(setup.numLevels);
+   // std::vector< real_t > speedOfSoundLUList(setup.numLevels);
+   // std::vector< real_t > MachLUList(setup.numLevels);
 
-   for (uint_t i = 0; i < setup.numLevels; ++i)
-   {
-      dxList[i]             = setup.dx / std::pow(2, i);
-      kinViscosityLUList[i] = latticeModel.collisionModel().viscosity(i); // viscosity in lattice units
-      omegaList[i]          = 1 / (3 * kinViscosityLUList[i] + 0.5);      // relaxation parameter
-      dtList[i]             = kinViscosityLUList[i] * std::pow(dxList[i], 2) / setup.kinViscosity; // time step
-      flowVelocityLUList[i] = setup.velocityMagnitude * dtList[i] / dxList[i];
-      speedOfSoundLUList[i] = 1 / std::pow(3.0, 0.5);                        // speed of sound in lattice units
-      MachLUList[i]         = flowVelocityLUList[i] / speedOfSoundLUList[i]; // Mach number in lattice units
-   }
+   // for (uint_t i = 0; i < setup.numLevels; ++i)
+   // {
+   //    dxList[i]             = setup.dx / std::pow(2, i);
+   //    kinViscosityLUList[i] = latticeModel.collisionModel().viscosity(i); // viscosity in lattice units
+   //    omegaList[i]          = 1 / (3 * kinViscosityLUList[i] + 0.5);      // relaxation parameter
+   //    dtList[i]             = kinViscosityLUList[i] * std::pow(dxList[i], 2) / setup.kinViscosity; // time step
+   //    flowVelocityLUList[i] = setup.velocityMagnitude * dtList[i] / dxList[i];
+   //    speedOfSoundLUList[i] = 1 / std::pow(3.0, 0.5);                        // speed of sound in lattice units
+   //    MachLUList[i]         = flowVelocityLUList[i] / speedOfSoundLUList[i]; // Mach number in lattice units
+   // }
 
-   WALBERLA_LOG_INFO_ON_ROOT("---------------------------------------------------------------")
-   WALBERLA_LOG_INFO_ON_ROOT(
-      "| Level | omega   | kinViscosityLU | dx         | dt       | flowVelocityLU | speedOfSoundLU | MachLU   |")
-   WALBERLA_LOG_INFO_ON_ROOT("---------------------------------------------------------------")
-   for (uint_t i = 0; i < setup.numLevels; ++i)
-   {
-      WALBERLA_LOG_INFO_ON_ROOT("| " << std::setw(5) << i << " | " << std::setw(7) << omegaList[i] << " | "
-                                     << std::setw(14) << kinViscosityLUList[i] << " | " << std::setw(8) << dxList[i]
-                                     << " | " << std::setw(8) << dtList[i] << " | " << std::setw(14)
-                                     << flowVelocityLUList[i] << " | " << std::setw(14) << speedOfSoundLUList[i]
-                                     << " | " << std::setw(8) << MachLUList[i] << " |")
-   }
-   WALBERLA_LOG_INFO_ON_ROOT("---------------------------------------------------------------")
+   // WALBERLA_LOG_INFO_ON_ROOT("---------------------------------------------------------------")
+   // WALBERLA_LOG_INFO_ON_ROOT(
+   //    "| Level | omega   | kinViscosityLU | dx         | dt       | flowVelocityLU | speedOfSoundLU | MachLU   |")
+   // WALBERLA_LOG_INFO_ON_ROOT("---------------------------------------------------------------")
+   // for (uint_t i = 0; i < setup.numLevels; ++i)
+   // {
+   //    WALBERLA_LOG_INFO_ON_ROOT("| " << std::setw(5) << i << " | " << std::setw(7) << omegaList[i] << " | "
+   //                                   << std::setw(14) << kinViscosityLUList[i] << " | " << std::setw(8) << dxList[i]
+   //                                   << " | " << std::setw(8) << dtList[i] << " | " << std::setw(14)
+   //                                   << flowVelocityLUList[i] << " | " << std::setw(14) << speedOfSoundLUList[i]
+   //                                   << " | " << std::setw(8) << MachLUList[i] << " |")
+   // }
+   // WALBERLA_LOG_INFO_ON_ROOT("---------------------------------------------------------------")
 
    BlockDataID pdfFieldId =
       lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, setup.initialVelocityLU, setup.rhoLU,
@@ -734,15 +755,17 @@ int main(int argc, char** argv)
    // add VTK output to time loop
    auto VTKParams           = walberlaEnv.config()->getBlock("VTK");
    uint_t vtkWriteFrequency = VTKParams.getBlock("fluid_field").getParameter("writeFrequency", uint_t(0));
-   auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "fluid_field", vtkWriteFrequency, setup.numGhostLayers,
-                                                   false, "vtk_out", "simulation_step", false, true, true, false, 0);
+   auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out",
+                                                   "simulation_step", false, true, true, false, 0);
 
    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
    fluidFilter.addFlag(fluidFlagUID);
    vtkOutput->addCellInclusionFilter(fluidFilter);
 
    auto velocityWriter = make_shared< lbm::VelocityVTKWriter< LatticeModel_T, float > >(pdfFieldId, "Velocity");
-   auto densityWriter  = make_shared< lbm::DensityVTKWriter< LatticeModel_T, float > >(pdfFieldId, "Density");
+   // auto velocitySIWriter = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId,
+   // "VelocitySI");
+   auto densityWriter = make_shared< lbm::DensityVTKWriter< LatticeModel_T, float > >(pdfFieldId, "Density");
    vtkOutput->addCellDataWriter(velocityWriter);
    vtkOutput->addCellDataWriter(densityWriter);
 
