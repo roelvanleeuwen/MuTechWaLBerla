@@ -15,14 +15,14 @@ struct Units
 {
    friend std::ostream& operator<<(std::ostream& os, const Units& units);
    // Physical units
-   real_t x; // input from user (choice: lattice spacing of the coarses refinement level)
-   real_t t;
-   real_t speed;
-   real_t kinViscosity;
-   real_t temperature;
-   real_t rho;
-   real_t mass;
-   real_t speedOfSound;
+   real_t xSI; // input from user (choice: lattice spacing of the coarses refinement level)
+   real_t tSI;
+   real_t speedSI;
+   real_t kinViscositySI;
+   real_t temperatureSI;
+   real_t rhoSI;
+   real_t massSI;
+   real_t speedOfSoundSI;
    real_t mach;
    real_t Re;
 
@@ -37,7 +37,7 @@ struct Units
    real_t omega;               // setting of the relaxation parameter (on the coarsest level)
    uint_t omegaLevel;          // level where omega is defined (choice: coarsest level)
    real_t rhoLU         = 1.0; // density unit FREE PARAMETER
-   real_t temperatureLU = 1.0; // temperature unit FREE PARAMETER
+   real_t temperatureLU = 1.0; // temperatureSI unit FREE PARAMETER
 
    real_t massLU;
    real_t speedLU;
@@ -54,18 +54,18 @@ Units convertToLatticeUnits(const Units& inputUnits, const bool unitsWriter)
 {
    Units units = inputUnits;
    // Calculated physical units
-   units.mass         = units.rho * std::pow(units.x, 3);
-   units.t            = units.speedUnitless / units.speed * units.x;
-   units.speedOfSound = std::sqrt(1.4 * 287.15 * units.temperature);
+   units.massSI         = units.rhoSI * std::pow(units.xSI, 3);
+   units.tSI            = units.speedUnitless / units.speedSI * units.xSI;
+   units.speedOfSoundSI = std::sqrt(1.4 * 287.15 * units.temperatureSI);
 
    // Calculated unitless units
-   units.mach                 = units.speed / units.speedOfSound;
-   units.Re                   = units.speed * units.x / units.kinViscosity;
-   units.kinViscosityUnitless = units.kinViscosity * units.t / (units.x * units.x);
-   units.speedOfSoundUnitless = units.speedOfSound * units.t / units.x;
+   units.mach                 = units.speedSI / units.speedOfSoundSI;
+   units.Re                   = units.speedSI * units.xSI / units.kinViscositySI;
+   units.kinViscosityUnitless = units.kinViscositySI * units.tSI / (units.xSI * units.xSI);
+   units.speedOfSoundUnitless = units.speedOfSoundSI * units.tSI / units.xSI;
 
    // Calculated lattice units
-   units.massLU         = units.rhoLU * std::pow(units.x, 3) / units.rhoUnitless;
+   units.massLU         = units.rhoLU * std::pow(units.xSI, 3) / units.rhoUnitless;
    units.speedLU        = units.machLU * units.pseudoSpeedOfSoundLU;
    units.kinViscosityLU = (1 / units.omega - 0.5) / std::pow(units.pseudoSpeedOfSoundLU, 2);
    units.tLU            = units.kinViscosityLU / units.kinViscosityUnitless * (units.speedUnitless / units.speedLU) *
@@ -94,12 +94,12 @@ std::ostream& operator<<(std::ostream& os, const Units& units)
 {
    os << "================= Units ===============: \n"
       << "User input: \n"
-      << "x: " << units.x << " m \n"
-      << "speed: " << units.speed << " m/s \n"
-      << "kinViscosity: " << units.kinViscosity << " m2/s \n"
-      << "rho: " << units.rho << " kg/m3\n"
-      << "temperature: " << units.temperature << " K \n"
-      << "mass: " << units.mass << " kg \n"
+      << "xSI: " << units.xSI << " m \n"
+      << "speedSI: " << units.speedSI << " m/s \n"
+      << "kinViscositySI: " << units.kinViscositySI << " m2/s \n"
+      << "rhoSI: " << units.rhoSI << " kg/m3\n"
+      << "temperatureSI: " << units.temperatureSI << " K \n"
+      << "massSI: " << units.massSI << " kg \n"
       << "omega: " << units.omega << " - \n"
       << "MachLU: " << units.machLU << " - \n"
       << "  \n"
@@ -110,9 +110,9 @@ std::ostream& operator<<(std::ostream& os, const Units& units)
       << "temperatureLU: " << units.temperatureLU << " tu \n"
       << " \n"
       << "Physical units: \n"
-      << "t: " << units.t << " s \n"
-      << "speedOfSound: " << units.speedOfSound << " m/s \n"
-      << "mass: " << units.mass << " kg \n"
+      << "tSI: " << units.tSI << " s \n"
+      << "speedOfSoundSI: " << units.speedOfSoundSI << " m/s \n"
+      << "massSI: " << units.massSI << " kg \n"
       << " \n"
       << "Calculated unitless units: \n"
       << "mach: " << units.mach << " - \n"
@@ -131,9 +131,9 @@ std::ostream& operator<<(std::ostream& os, const Units& units)
       << "mach_check: " << units.mach_check << " - \n"
       << " \n"
       << "Conversion factors: \n"
-      << " tLU/t: " << units.tLU / units.t << " ts/s \n"
-      << " xLU/x: " << units.xLU / units.x << " lu/m \n"
-      << " massLU/mass: " << units.massLU / units.mass << " mu/kg \n";
+      << " tLU/tSI: " << units.tLU / units.tSI << " ts/s \n"
+      << " xLU/xSI: " << units.xLU / units.xSI << " lu/m \n"
+      << " massLU/massSI: " << units.massLU / units.massSI << " mu/kg \n";
    return os;
 }
 

@@ -173,6 +173,13 @@ public:
       omegaField_->get(x,y,z) = levelDependentRelaxationParameter( level_, _omega, _omega_level );
    }
 
+   // Overload the reset function in case a different omega is used for each cell
+   // It is very important that you know omega needs to be applied at the part of the mesh depending on the level
+   void resetFreeOmega(const cell_idx_t x, const cell_idx_t y, const cell_idx_t z, const real_t _omega)
+   {
+      omegaField_->get(x, y, z) = _omega;
+   }
+
    real_t omega( const cell_idx_t x, const cell_idx_t y, const cell_idx_t z,
                  const Vector3<real_t> & /*velocity*/ = Vector3<real_t>(), const real_t /*rho*/ = real_t(1) ) const
    {
