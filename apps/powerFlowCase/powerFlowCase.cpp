@@ -72,36 +72,43 @@ namespace walberla
 struct Setup
 {
    // Flow parameters
-   real_t kinViscositySI;               // physical kinematic viscosity
-   real_t kinViscosityLU;               // lattice kinematic viscosity
-   real_t rhoSI;                        // physical density
-   real_t rhoLU;                        // lattice density
+   real_t kinViscositySI; // physical kinematic viscosity
+   real_t kinViscosityLU; // lattice kinematic viscosity
+
+   real_t rhoSI; // physical density
+   real_t rhoLU; // lattice density
+
    real_t angleOfAttack;                // physical angle of attack
    real_t velocityMagnitudeSI;          // physical velocity magnitude
-   Vector3< real_t > initialVelocitySI; // physical inflow velocity
-   Vector3< real_t > initialVelocityLU; // lattice inflow velocity
+   Vector3< real_t > initialVelocitySI; // physical initial flow velocity
+   Vector3< real_t > initialVelocityLU; // lattice initial flow velocity
    Vector3< real_t > flowVelocitySI;    // physical flow velocity
    Vector3< real_t > flowVelocityLU;    // lattice flow velocity
-   real_t temperatureSI;                // physical temperatureSI
-   real_t speedOfSoundSI;               // physical speed of sound
-   real_t Mach;                         // physical Mach number
-   real_t Re;                           // physical Reynolds number
+
+   real_t temperatureSI; // physical temperature
+
+   real_t speedOfSoundSI; // physical speed of sound
+   real_t Mach;           // physical Mach number
+   real_t Re;             // physical Reynolds number
 
    // Space and time parameters
    real_t dxSI;     // physical grid spacing
-   real_t dxFineSI; // physical grid spacing of the finest grid
-   real_t dtSI;     // physical time step
    real_t dxLU;     // lattice grid spacing
-   real_t dtLU;     // lattice time step
+   real_t dxFineSI; // physical grid spacing of the finest grid
+
+   real_t dtSI; // physical time step
+   real_t dtLU; // lattice time step
 
    // Domain parameters
-   std::string meshFile;
-   bool scalePowerFlowDomain;
-   real_t decreasePowerFlowDomainFactor;
-   Vector3< real_t > domainScaling;
-   real_t meshZScaling;
-   real_t xyAdjuster_x;
-   real_t xyAdjuster_y;
+   std::string meshFile;                 // mesh file containing the complex geometry (airfoil)
+   bool scalePowerFlowDomain;            // scale the domain equal to the PowerFlow case of Marlon van Crugten
+   real_t decreasePowerFlowDomainFactor; // decrease the PowerFlow domain by a factor 'decreasePowerFlowDomainFactor'
+   Vector3< real_t > domainScaling;      // scaling of the domain w.r.t the meshFile dimensions
+   real_t meshZScaling; // adjust scaling of the mesh in the z direction (change the span of the airfoil)
+
+   real_t xyAdjuster_x; // adjust the x dimension of the domain to perfectly fit the number of blocks in the x direction
+   real_t xyAdjuster_y; // adjust the y dimension of the domain to perfectly fit the number of blocks in the y direction
+
    uint_t numLevels;
    uint_t numGhostLayers;
    Vector3< bool > periodicity;
@@ -109,41 +116,47 @@ struct Setup
    // Block data
    Vector3< uint_t > cellsPerBlock; // Number of cells in each block in the < x, y, z > directions. This is also called
                                     // blockSize in some codes. For refinement at least < 16, 16, 16 > is required
-   real_t nBlocks_x;
-   real_t nBlocks_y;
-   real_t nBlocks_z;
+   real_t nBlocks_x;                // number of blocks in the x direction
+   real_t nBlocks_y;                // number of blocks in the y direction
+   real_t nBlocks_z;                // number of blocks in the z direction
 
-   // Domain data
+   // Domain data in lattice units and physical units
    real_t domainLengthLU; // x dimension in latice units e.g. number of cells in x direction
    real_t domainHeightLU; // y dimension in latice units e.g. number of cells in y direction
    real_t domainWidthLU;  // z dimension in latice units e.g. number of cells in z direction
+
    real_t domainLengthSI; // physical x dimension of the domain in meters
    real_t domainHeightSI; // physical y dimension of the domain in meters
    real_t domainWidthSI;  // physical z dimension of the domain in meters
 
    // Airfoil data
-   real_t airfoilXPositionSI;
-   real_t airfoilYPositionSI;
-   real_t airfoilChordLengthSI;
-   real_t airfoilThicknessSI;
-   real_t airfoilSpanSI;
-   real_t airfoilChordLengthLU;
-   real_t airfoilThicknessLU;
-   real_t airfoilSpanLU;
+   real_t airfoilXPositionSI; // x position of the airfoil origin (LE) in meters
+   real_t airfoilYPositionSI; // y position of the airfoil origin (LE) in meters
+
+   real_t airfoilChordLengthSI; // airfoil chord length in meters
+   real_t airfoilThicknessSI;   // airfoil thickness in meters
+   real_t airfoilSpanSI;        // airfoil span in meters
+
+   real_t airfoilChordLengthLU; // airfoil chord length in lattice units
+   real_t airfoilThicknessLU;   // airfoil thickness in lattice units
+   real_t airfoilSpanLU;        // airfoil span in lattice units
 
    // LBM parameters
-   real_t spongeInnerThicknessFactor;
-   real_t spongeOuterThicknessFactor;
-   real_t sponge_nuT_min;
-   real_t sponge_nuT_max;
-   real_t omega;
-   real_t machLU;
-   real_t pseudoSpeedOfSoundLU;
-   real_t smagorinskyConstant;
+   real_t spongeInnerThicknessFactor; // inner radius factor of the sponge layer >> r_inner = factor * max(L/2, H/2)
+   real_t spongeOuterThicknessFactor; // outer radius factor of the sponge layer >> r_outer = factor * max(L/2, H/2)
+   real_t sponge_nuT_min; // minimum value of additional numerical viscosity in the sponge layer. This is a factor and
+                          // multiplied with the base viscosity of the fluid
+   real_t sponge_nuT_max; // maximum value of additional numerical viscosity in the sponge layer. This is a factor and
+                          // multiplied with the base viscosity of the fluid
+
+   real_t omega;                // relaxation rate
+   real_t machLU;               // lattice Mach number (different from the physical Mach number)
+   real_t pseudoSpeedOfSoundLU; // pseudo speed of sound in lattice units (usually equal to 1/sqrt(3))
+   real_t smagorinskyConstant;  // Smagorinsky constant for LES
 
    // Output parameters
    uint_t timeSteps;                    // number of time steps
-   real_t remainingTimeLoggerFrequency; // in seconds
+   real_t remainingTimeLoggerFrequency; // frequency of the remaining time logger in seconds
 
    // Define the operator<< for Setup
    friend std::ostream& operator<<(std::ostream& os, const Setup& setup)
@@ -161,15 +174,16 @@ struct Setup
       os << "  initialVelocityLU: " << setup.initialVelocityLU << "\n";
       os << "  flowVelocitySI: " << setup.flowVelocitySI << "\n";
       os << "  flowVelocityLU: " << setup.flowVelocityLU << "\n";
-      os << "  temperatureSI: " << setup.temperatureSI << "\n";
       os << "  speedOfSoundSI: " << setup.speedOfSoundSI << "\n";
       os << "  Mach: " << setup.Mach << "\n";
       os << "  Re: " << setup.Re << "\n";
 
       os << "Space and time parameters:\n";
       os << "  dxSI: " << setup.dxSI << "\n";
+      os << "  dxLU: " << setup.dxLU << "\n";
       os << "  dxFineSI: " << setup.dxFineSI << "\n";
       os << "  dtSI: " << setup.dtSI << "\n";
+      os << "  dtLU: " << setup.dtLU << "\n";
 
       os << "Domain parameters:\n";
       os << "  meshFile: " << setup.meshFile << "\n";
@@ -208,7 +222,14 @@ struct Setup
       os << "  airfoilSpanLU: " << setup.airfoilSpanLU << "\n";
 
       os << "LBM parameters:\n";
+      os << "  spongeInnerThicknessFactor: " << setup.spongeInnerThicknessFactor << "\n";
+      os << "  spongeOuterThicknessFactor: " << setup.spongeOuterThicknessFactor << "\n";
+      os << "  sponge_nuT_min: " << setup.sponge_nuT_min << "\n";
+      os << "  sponge_nuT_max: " << setup.sponge_nuT_max << "\n";
       os << "  omega: " << setup.omega << "\n";
+      os << "  machLU: " << setup.machLU << "\n";
+      os << "  pseudoSpeedOfSoundLU: " << setup.pseudoSpeedOfSoundLU << "\n";
+      os << "  smagorinskyConstant: " << setup.smagorinskyConstant << "\n";
 
       os << "Output parameters:\n";
       os << "  timeSteps: " << setup.timeSteps << "\n";
@@ -366,8 +387,8 @@ int main(int argc, char** argv)
       flowParameters.getParameter< real_t >("temperatureSI", real_t(281.0)); // physical temperatureSI in Kelvin
 
    // Read the simulation parameters
-   setup.omega     = simulationParameters.getParameter< real_t >("omega", real_t(1.6)); // relaxation parameter
-   setup.machLU = simulationParameters.getParameter< real_t >("machLU", real_t(0.1)); // Mach number in lattice units
+   setup.omega     = simulationParameters.getParameter< real_t >("omega", real_t(1.6));  // relaxation parameter
+   setup.machLU    = simulationParameters.getParameter< real_t >("machLU", real_t(0.1)); // Mach number in lattice units
    setup.timeSteps = simulationParameters.getParameter< uint_t >("timeSteps", uint_c(10));
    setup.remainingTimeLoggerFrequency =
       simulationParameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_t(3.0)); // in seconds
@@ -642,9 +663,9 @@ int main(int argc, char** argv)
    inputUnits.kinViscositySI = setup.kinViscositySI;
    inputUnits.rhoSI          = setup.rhoSI;
    inputUnits.temperatureSI  = setup.temperatureSI;
-   inputUnits.omega          = setup.omega; // relaxation parameter
-   inputUnits.omegaLevel     = 0;           // level where omega is defined
-   inputUnits.machLU         = setup.machLU;         // Mach number
+   inputUnits.omega          = setup.omega;  // relaxation parameter
+   inputUnits.omegaLevel     = 0;            // level where omega is defined
+   inputUnits.machLU         = setup.machLU; // Mach number
 
    Units simulationUnits =
       convertToLatticeUnits(inputUnits, optionsParameters.getParameter< bool >("writeUnitsFile", false));
