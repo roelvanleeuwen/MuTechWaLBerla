@@ -138,6 +138,7 @@ struct Setup
    real_t sponge_nuT_max;
    real_t omega;
    real_t pseudoSpeedOfSoundLU;
+   real_t smagorinskyConstant;
 
    // Output parameters
    uint_t timeSteps;                    // number of time steps
@@ -369,6 +370,7 @@ int main(int argc, char** argv)
    setup.timeSteps = simulationParameters.getParameter< uint_t >("timeSteps", uint_c(10));
    setup.remainingTimeLoggerFrequency =
       simulationParameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_t(3.0)); // in seconds
+   setup.smagorinskyConstant = simulationParameters.getParameter< real_t >("smagorinskyConstant", real_t(0.12));
 
    // Read the domain parameters
    setup.meshFile = domainParameters.getParameter< std::string >("meshFile"); // mesh file containing the airfoil
@@ -722,7 +724,7 @@ int main(int argc, char** argv)
    BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field", setup.numGhostLayers);
    // Initialize the Smagorinsky LES model
    const lbm::SmagorinskyLES< LatticeModel_T > smagorinskySweep(blocks, pdfFieldId, omegaFieldId, setup.kinViscosityLU,
-                                                                real_c(0.12));
+                                                                setup.smagorinskyConstant);
    WALBERLA_LOG_INFO_ON_ROOT("Waypoint 6: Fields created")
 #pragma endregion
 
