@@ -137,6 +137,7 @@ struct Setup
    real_t sponge_nuT_min;
    real_t sponge_nuT_max;
    real_t omega;
+   real_t machLU;
    real_t pseudoSpeedOfSoundLU;
    real_t smagorinskyConstant;
 
@@ -260,7 +261,6 @@ void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultCo
 #pragma endregion
 
 #pragma region SPONGE_ZONE
-// Function to calculate the sponge zone
 real_t psi(real_t x, real_t dxSI) { return x > 0 ? std::exp(-dxSI / x) : 0; }
 real_t phi(real_t x, real_t x_min = 0.0, real_t x_max = 1.0)
 {
@@ -367,6 +367,7 @@ int main(int argc, char** argv)
 
    // Read the simulation parameters
    setup.omega     = simulationParameters.getParameter< real_t >("omega", real_t(1.6)); // relaxation parameter
+   setup.machLU = simulationParameters.getParameter< real_t >("machLU", real_t(0.1)); // Mach number in lattice units
    setup.timeSteps = simulationParameters.getParameter< uint_t >("timeSteps", uint_c(10));
    setup.remainingTimeLoggerFrequency =
       simulationParameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_t(3.0)); // in seconds
@@ -643,7 +644,7 @@ int main(int argc, char** argv)
    inputUnits.temperatureSI  = setup.temperatureSI;
    inputUnits.omega          = setup.omega; // relaxation parameter
    inputUnits.omegaLevel     = 0;           // level where omega is defined
-   inputUnits.machLU         = 0.1;         // Mach number
+   inputUnits.machLU         = setup.machLU;         // Mach number
 
    Units simulationUnits =
       convertToLatticeUnits(inputUnits, optionsParameters.getParameter< bool >("writeUnitsFile", false));
