@@ -11,7 +11,7 @@ options
 
 flowParameters
 { 
-   angleOfAttack 0.0;              // [deg] Physical angle of attack of the flow with respect to the airfoil  
+   angleOfAttack 2.0;              // [deg] Physical angle of attack of the flow with respect to the airfoil  
    velocityMagnitudeSI 20;           // [m/s] Physical absolute velocity of the flow 
    kinViscositySI 1.461e-05;          // [m2/s] Physical kinematic viscosity of the flow
    rhoSI 1.225;                      // [kg/m3] Physical air density
@@ -21,8 +21,9 @@ flowParameters
 simulationParameters
 {
    omega 1.8;                       // Relaxation factor for the SRT model
-   timeSteps   10;              // Number of time steps in the simulation
-   remainingTimeLoggerFrequency 3; // in seconds. This is the frequency with which a time estimate of finilising the simulation is send in the terminal. 
+   machLU 0.1;
+   timeSteps   1000;              // Number of time steps in the simulation
+   remainingTimeLoggerFrequency 120; // in seconds. This is the frequency with which a time estimate of finilising the simulation is send in the terminal. 
    smagorinskyConstant 0.12;
 }
 
@@ -30,7 +31,7 @@ domainParameters
 {
     meshFile         NACA0018.stl;   		 // Object geometry of the airfoil. This must be an ASCII file. If it is binary you should convert it. Also, the mesh must be watertight so no open sides. 
     scalePowerFlowDomain true;          	 // Do you want the full PowerFlow domain. If not, set to false and define an own domainScaling
-    decreasePowerFlowDomainFactor 0.028571428;		 // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
+    decreasePowerFlowDomainFactor 0.142857142; // 0.028571428;		 // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
     dxSI               0.0051015625;          // Unrefined cell size in mm since the airfoil dimensions are in meters
     numLevels        4;                  	 // Number of octree levels starting from 1
     meshZScaling     1;                    // This factor can be used to change the span of the airfoil. The NACA0018 file has a span of 0.081625 which corresponds to a y-scaling of 1
@@ -42,10 +43,10 @@ domainParameters
 
 spongeZoneParameters
 {
-   spongeInnerThicknessFactor 0.25;
-   spongeOuterThicknessFactor 0.5;
+   spongeInnerThicknessFactor 0.5;
+   spongeOuterThicknessFactor 0.75;
    sponge_nuT_min 0.0;
-   sponge_nuT_max 0.0005;
+   sponge_nuT_max 0.5;
 
 
 }
@@ -53,7 +54,7 @@ spongeZoneParameters
 boundaryConditions 
 {
    velocity0 < 0.057735, 0, 0 >;        // velocity of cells where Velocity0 boundary is set (aoa = 0)
-	velocity1 <   0, 0, 0 >;        // velocity of cells where Velocity1 boundary is set
+	velocity1 <   0.057699829, 2.014922e-3, 0 >;        // velocity of cells where Velocity1 boundary is set
 	pressure0 1.01;		            // pressure of cells where Pressure0 boundary is set
 	pressure1 1.0;			        // pressure of cells where Pressure1 boundary is set
     
@@ -67,7 +68,7 @@ boundaryConditions
        	   - RGBAImage	     BoundaryFromImage.h
     */
     
-	Border { direction N,S,W;    walldistance -1;  Velocity0 {} }
+	Border { direction N,S,W;    walldistance -1;  Velocity1 {} }
 	Border { direction E;    walldistance -1;  Pressure1 {} }
    // Border { direction W;    walldistance -1;  Velocity0 {} }
 	// Border { direction E;    walldistance -1;  Pressure1 {} }
@@ -100,7 +101,7 @@ VTK
    // for parameter documentation see src/vtk/Initialization.cpp
    fluid_field
    {
-      writeFrequency 1;           // [time steps] Output a VTK file at writeFrequency
+      writeFrequency 100;           // [time steps] Output a VTK file at writeFrequency
       ghostLayers    4;             // Number of ghostlayers to exclude from the VTK output
       
       vtkBeforFunctions {
