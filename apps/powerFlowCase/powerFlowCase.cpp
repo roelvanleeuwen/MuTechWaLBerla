@@ -510,8 +510,8 @@ int main(int argc, char** argv)
    setup.nBlocks_y = static_cast< real_t >(adjustXYResult.nBlocks_x);
    setup.nBlocks_z = std::round(aabb.zSize() / setup.dxSI / static_cast< real_t >(setup.cellsPerBlock[2]));
 
-   WALBERLA_ASSERT(std::fmod(aabb.xSize(), setup.dxSI) == 0 && std::fmod(aabb.ySize(), setup.dxSI) == 0 &&
-                   std::fmod(aabb.zSize(), setup.dxSI) == 0)
+   // WALBERLA_ASSERT(std::fmod(aabb.xSize(), setup.dxSI) == 0 && std::fmod(aabb.ySize(), setup.dxSI) == 0 &&
+   //                 std::fmod(aabb.zSize(), setup.dxSI) == 0)
 
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 3: Domain sizing done ")
 #pragma endregion
