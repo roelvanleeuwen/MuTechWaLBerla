@@ -63,6 +63,7 @@ airfoil in the x and z direction. In the y direction
 #include "mesh_common/distance_octree/DistanceOctree.h"
 #include "mesh_common/vtk/CommonDataSources.h"
 #include "mesh_common/vtk/VTKMeshWriter.h"
+#include "vtk/ChainedFilter.h"
 #include "unitConversion.cpp"
 #include "xyAdjustment.cpp"
 
@@ -815,11 +816,22 @@ int main(int argc, char** argv)
 
    uint_t vtkWriteFrequency = VTKParams.getBlock("fluid_field").getParameter("writeFrequency", uint_t(0));
    auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out",
-                                                   "simulation_step", false, true, true, false, 0);
+                                                   "simulation_step", false, true, true, false, 0); //last number determines the initial time step from which the vtk is outputed. 
+
+
+   AABB sliceAABB(real_t(0), real_t(0), real_t(0), real_c(aabb.xSize())*real_t(0.5),
+                     real_c(aabb.ySize()) * real_t(0.5), real_c(aabb.zSize()));
+   vtk::AABBCellFilter aabbSliceFilter(sliceAABB);
 
    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
    fluidFilter.addFlag(fluidFlagUID);
-   vtkOutput->addCellInclusionFilter(fluidFilter);
+
+   vtk::ChainedFilter combinedSliceFilter;
+   combinedSliceFilter.addFilter(fluidFilter);
+   combinedSliceFilter.addFilter(aabbSliceFilter);
+
+   vtkOutput->addCellInclusionFilter(combinedSliceFilter);
+   // vtkOutput->addCellInclusionFilter(fluidFilter);
 
    auto velocityWriter = make_shared< lbm::VelocityVTKWriter< LatticeModel_T, float > >(pdfFieldId, "Velocity");
    // auto velocitySIWriter = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId,
