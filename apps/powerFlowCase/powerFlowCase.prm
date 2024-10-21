@@ -93,7 +93,7 @@ VTK
    // for parameter documentation see src/vtk/Initialization.cpp
    fluid_field
    {
-      writeFrequency 100;           // [time steps] Output a VTK file at writeFrequency
+      writeFrequency 1;           // [time steps] Output a VTK file at writeFrequency
       ghostLayers    4;             // Number of ghostlayers to exclude from the VTK output
       
       vtkBeforFunctions {
