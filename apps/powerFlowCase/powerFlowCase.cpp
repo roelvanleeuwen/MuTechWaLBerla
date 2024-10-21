@@ -1,24 +1,37 @@
 /*
 ================================================================================================================================================================
-File: powerFlowCase.cpp
+\file: powerFlowCase.cpp
 Author: R. van Leeuwen
 Contact: roelvanleeuwen8@gmail.com
 Company: MuTech
 Created: 23-09-2024
-================================================================================================================================================================
-Description:    This is the main file of the waLBerla implementation of the airfoil flow simulation ran in PowerFlow by
-                Marlon van Crugten. The simulation consists of a NACA 0018 airfoil with the MuteSkin add-on. The aim of
-the simulation is to understand the working principle of the add-on better so de understanding can be used in optimising
-MuteSkin.
 
-                The simulation runs a 2.5D airfoil with add-on. The airfoil and the flow have an angle of 7.8 degrees.
-The flow has a velocity of 10 m/s. The ambient pressure is 101325 Pa.
-
-                The domain must be large to prevent boundary effects. The domain is 10 times the chord length of the
-airfoil in the x and z direction. In the y direction
 
 */
 
+// =====================================================================================================================
+//! \file powerFlowCase.cpp
+//! \author R. van Leeuwen
+//! \ingroup apps
+//! \date 23-09-2024
+// ================================================================================================================================================================
+// File description:
+//
+// This is the main file of the waLBerla implementation of the airfoil flow simulation ran in
+// PowerFlow by
+// Marlon van Crugten. The simulation consists of a NACA 0018 airfoil with the MuteSkin add-on. The aim
+// of the simulation is to understand the working principle of the add-on better so de understanding can be used in
+// optimising MuteSkin.
+
+// The simulation runs a 2.5D airfoil with add-on. The airfoil and the flow have an angle of 0.0
+// degrees.
+// The flow has a velocity of 20 m/s. The ambient pressure is 101325 Pa.
+
+// The domain must be large to prevent boundary effects. The domain is 10 times the chord length of the
+// airfoil in the x and z direction. In the y direction
+
+#ifndef __GNUC__
+#endif
 #include "blockforest/all.h"
 
 #include "core/all.h"
@@ -72,32 +85,19 @@ namespace walberla
 struct Setup
 {
    // Flow parameters
-   real_t kinViscositySI; // physical kinematic viscosity
-   real_t kinViscosityLU; // lattice kinematic viscosity
-
-   real_t rhoSI; // physical density
-   real_t rhoLU; // lattice density
-
+   real_t kinViscositySI;               // physical kinematic viscosity
+   real_t rhoSI;                        // physical density
+   real_t temperatureSI;                // physical temperature
    real_t angleOfAttack;                // physical angle of attack
    real_t velocityMagnitudeSI;          // physical velocity magnitude
    Vector3< real_t > initialVelocitySI; // physical initial flow velocity
-   Vector3< real_t > initialVelocityLU; // lattice initial flow velocity
    Vector3< real_t > flowVelocitySI;    // physical flow velocity
-   Vector3< real_t > flowVelocityLU;    // lattice flow velocity
-
-   real_t temperatureSI; // physical temperature
-
-   real_t speedOfSoundSI; // physical speed of sound
-   real_t Mach;           // physical Mach number
-   real_t Re;             // physical Reynolds number
+   real_t MachSI;                       // physical Mach number
+   real_t ReChord;                      // physical Reynolds number
 
    // Space and time parameters
-   real_t dxSI;     // physical grid spacing
-   real_t dxLU;     // lattice grid spacing
-   real_t dxFineSI; // physical grid spacing of the finest grid
-
+   real_t dxSI; // physical grid spacing
    real_t dtSI; // physical time step
-   real_t dtLU; // lattice time step
 
    // Domain parameters
    std::string meshFile;                 // mesh file containing the complex geometry (airfoil)
@@ -149,10 +149,8 @@ struct Setup
    real_t sponge_nuT_max; // maximum value of additional numerical viscosity in the sponge layer. This is a factor and
                           // multiplied with the base viscosity of the fluid
 
-   real_t omega;                // relaxation rate
-   real_t machLU;               // lattice Mach number (different from the physical Mach number)
-   real_t pseudoSpeedOfSoundLU; // pseudo speed of sound in lattice units (usually equal to 1/sqrt(3))
-   real_t smagorinskyConstant;  // Smagorinsky constant for LES
+   real_t omegaEffective;      // chosen relaxation parameter
+   real_t smagorinskyConstant; // Smagorinsky constant for LES
 
    // Output parameters
    uint_t timeSteps;                    // number of time steps
@@ -161,32 +159,34 @@ struct Setup
    // Define the operator<< for Setup
    friend std::ostream& operator<<(std::ostream& os, const Setup& setup)
    {
-      os << "Setup: \n";
+      os << "================= Setup ===============: \n";
       os << "Flow parameters:\n";
-      os << "  kinViscositySI: " << setup.kinViscositySI << "\n";
-      os << "  kinViscosityLU: " << setup.kinViscosityLU << "\n";
-      os << "  rhoSI: " << setup.rhoSI << "\n";
-      os << "  rhoLU: " << setup.rhoLU << "\n";
-      os << "  temperatureSI: " << setup.temperatureSI << "\n";
-      os << "  angleOfAttack: " << setup.angleOfAttack << "\n";
-      os << "  velocityMagnitudeSI: " << setup.velocityMagnitudeSI << "\n";
-      os << "  initialVelocitySI: " << setup.initialVelocitySI << "\n";
-      os << "  initialVelocityLU: " << setup.initialVelocityLU << "\n";
-      os << "  flowVelocitySI: " << setup.flowVelocitySI << "\n";
-      os << "  flowVelocityLU: " << setup.flowVelocityLU << "\n";
-      os << "  speedOfSoundSI: " << setup.speedOfSoundSI << "\n";
-      os << "  Mach: " << setup.Mach << "\n";
-      os << "  Re: " << setup.Re << "\n";
+      os << "  kinViscositySI: " << setup.kinViscositySI << " m2/s \n";
+      os << "  rhoSI: " << setup.rhoSI << " kg/m3 \n";
+      os << "  temperatureSI: " << setup.temperatureSI << " K \n";
+      os << "  angleOfAttack: " << setup.angleOfAttack << " deg \n";
+      os << "  velocityMagnitudeSI: " << setup.velocityMagnitudeSI << " m/s \n";
+      os << "  initialVelocitySI: " << setup.initialVelocitySI << " m/s \n";
+      os << "  flowVelocitySI: " << setup.flowVelocitySI << " m/s \n";
+      os << "  MachSI: " << setup.MachSI << " - \n";
+      os << "  ReSI: " << setup.ReChord << " - \n";
+      os << " \n";
 
       os << "Space and time parameters:\n";
-      os << "  dxSI: " << setup.dxSI << "\n";
-      os << "  dxLU: " << setup.dxLU << "\n";
-      os << "  dxFineSI: " << setup.dxFineSI << "\n";
-      os << "  dtSI: " << setup.dtSI << "\n";
-      os << "  dtLU: " << setup.dtLU << "\n";
+      os << "  dxSI: " << setup.dxSI << " m \n";
+      os << "  dtSI: " << setup.dtSI << " m \n";
+      os << " \n";
 
-      os << "Domain parameters:\n";
+      os << "Airfoil data:\n";
       os << "  meshFile: " << setup.meshFile << "\n";
+      os << "  airfoilXPositionSI: " << setup.airfoilXPositionSI << " m \n";
+      os << "  airfoilYPositionSI: " << setup.airfoilYPositionSI << " m \n";
+      os << "  airfoilChordLengthSI: " << setup.airfoilChordLengthSI << " m \n";
+      os << "  airfoilThicknessSI: " << setup.airfoilThicknessSI << " m \n";
+      os << "  airfoilSpanSI: " << setup.airfoilSpanSI << " m \n";
+      os << " \n";
+
+      os << "Domain scaling:\n";
       os << "  scalePowerFlowDomain: " << setup.scalePowerFlowDomain << "\n";
       os << "  decreasePowerFlowDomainFactor: " << setup.decreasePowerFlowDomainFactor << "\n";
       os << "  domainScaling: " << setup.domainScaling << "\n";
@@ -195,45 +195,37 @@ struct Setup
       os << "  xyAdjuster_y: " << setup.xyAdjuster_y << "\n";
       os << "  numLevels: " << setup.numLevels << "\n";
       os << "  numGhostLayers: " << setup.numGhostLayers << "\n";
-      os << "  periodicity: " << setup.periodicity << "\n";
 
-      os << "Block data:\n";
+      os << "Domain data:\n";
       os << "  cellsPerBlock: " << setup.cellsPerBlock << "\n";
       os << "  nBlocks_x: " << setup.nBlocks_x << "\n";
       os << "  nBlocks_y: " << setup.nBlocks_y << "\n";
       os << "  nBlocks_z: " << setup.nBlocks_z << "\n";
+      os << "  domainLengthSI: " << setup.domainLengthSI << " m \n";
+      os << "  domainHeightSI: " << setup.domainHeightSI << " m\n";
+      os << "  domainWidthSI: " << setup.domainWidthSI << " m \n";
+      os << "  domainLengthLU: " << setup.domainLengthLU << " lu \n";
+      os << "  domainHeightLU: " << setup.domainHeightLU << " lu \n";
+      os << "  domainWidthLU: " << setup.domainWidthLU << " lu \n";
+      os << " \n";
 
-      os << "Domain data:\n";
-      os << "  domainLengthLU: " << setup.domainLengthLU << "\n";
-      os << "  domainHeightLU: " << setup.domainHeightLU << "\n";
-      os << "  domainWidthLU: " << setup.domainWidthLU << "\n";
-      os << "  domainLengthSI: " << setup.domainLengthSI << "\n";
-      os << "  domainHeightSI: " << setup.domainHeightSI << "\n";
-      os << "  domainWidthSI: " << setup.domainWidthSI << "\n";
-
-      os << "Airfoil data:\n";
-      os << "  airfoilXPositionSI: " << setup.airfoilXPositionSI << "\n";
-      os << "  airfoilYPositionSI: " << setup.airfoilYPositionSI << "\n";
-      os << "  airfoilChordLengthSI: " << setup.airfoilChordLengthSI << "\n";
-      os << "  airfoilThicknessSI: " << setup.airfoilThicknessSI << "\n";
-      os << "  airfoilSpanSI: " << setup.airfoilSpanSI << "\n";
-      os << "  airfoilChordLengthLU: " << setup.airfoilChordLengthLU << "\n";
-      os << "  airfoilThicknessLU: " << setup.airfoilThicknessLU << "\n";
-      os << "  airfoilSpanLU: " << setup.airfoilSpanLU << "\n";
+      os << "Boundary conditions:\n";
+      os << "  periodicity: " << setup.periodicity << "\n";
+      os << " \n";
 
       os << "LBM parameters:\n";
       os << "  spongeInnerThicknessFactor: " << setup.spongeInnerThicknessFactor << "\n";
       os << "  spongeOuterThicknessFactor: " << setup.spongeOuterThicknessFactor << "\n";
-      os << "  sponge_nuT_min: " << setup.sponge_nuT_min << "\n";
-      os << "  sponge_nuT_max: " << setup.sponge_nuT_max << "\n";
-      os << "  omega: " << setup.omega << "\n";
-      os << "  machLU: " << setup.machLU << "\n";
-      os << "  pseudoSpeedOfSoundLU: " << setup.pseudoSpeedOfSoundLU << "\n";
-      os << "  smagorinskyConstant: " << setup.smagorinskyConstant << "\n";
+      os << "  sponge_nuT_min: " << setup.sponge_nuT_min << " - \n";
+      os << "  sponge_nuT_max: " << setup.sponge_nuT_max << " - \n";
+      os << "  omegaEffective: " << setup.omegaEffective << " - \n";
+      os << "  smagorinskyConstant: " << setup.smagorinskyConstant << " - \n";
+      os << " \n";
 
       os << "Output parameters:\n";
-      os << "  timeSteps: " << setup.timeSteps << "\n";
-      os << "  remainingTimeLoggerFrequency: " << setup.remainingTimeLoggerFrequency << "\n";
+      os << "  timeSteps: " << setup.timeSteps << " ts \n";
+      os << "  remainingTimeLoggerFrequency: " << setup.remainingTimeLoggerFrequency << " s \n";
+      os << " \n";
 
       // Add other members as needed
       return os;
@@ -254,6 +246,7 @@ using FlagField_T = FlagField< flag_t >; // Flag field for the lattice model. Th
                                          // conditions of the lattice model.
 
 #pragma region MESH_OPERATIONS
+
 template< typename MeshType >
 void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultColor)
 {
@@ -281,9 +274,11 @@ void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultCo
       mesh.set_color(*faceIt, useVertexColor ? vertexColor : defaultColor);
    }
 }
-#pragma endregion
+
+#pragma endregion MESH_OPERATIONS
 
 #pragma region SPONGE_ZONE
+
 // Function to calculate the psi value based on the given x and dxSI
 real_t psi(real_t x, real_t dxSI) { return x > 0 ? std::exp(-dxSI / x) : 0; }
 
@@ -301,8 +296,8 @@ class OmegaSweep
 {
  public:
    // Constructor to initialize the OmegaSweep class with the given parameters
-   OmegaSweep(BlockDataID pdfFieldId, AABB& domain, Setup setup)
-      : pdfFieldId_(pdfFieldId), domain_(domain), setup_(setup)
+   OmegaSweep(BlockDataID pdfFieldId, AABB& domain, Setup setup, Units units)
+      : pdfFieldId_(pdfFieldId), domain_(domain), setup_(setup), units_(units)
    {}
 
    // Operator to perform the sweep operation on the given block
@@ -334,10 +329,10 @@ class OmegaSweep
          real_t nuAddFactor = nuTAdd * setup_.temperatureSI;
 
          // Calculate the lattice kinematic viscosity
-         real_t nuLU = setup_.kinViscosityLU * (1 + nuAddFactor);
+         real_t nuLU = units_.kinViscosityLU * (1 + nuAddFactor);
 
          // Calculate the relaxation rate omega based on the lattice kinematic viscosity
-         real_t omega = 1.0 / (std::pow(setup_.pseudoSpeedOfSoundLU, 2.0) * nuLU + 0.5);
+         real_t omega = 1.0 / (std::pow(units_.pseudoSpeedOfSoundLU, 2.0) * nuLU + 0.5);
 
          // Ensure the relaxation rate omega is within the physical range
          WALBERLA_ASSERT(omega > 0.0 && omega < 2.0);
@@ -351,8 +346,10 @@ class OmegaSweep
    const BlockDataID pdfFieldId_; // PDF field ID
    AABB domain_;                  // Axis-Aligned Bounding Box of the domain
    Setup setup_;                  // Setup parameters
+   Units units_;                  // Units
 };
-#pragma endregion
+
+#pragma endregion SPONGE_ZONE
 
 int main(int argc, char** argv)
 {
@@ -360,7 +357,7 @@ int main(int argc, char** argv)
 
    mpi::MPIManager::instance()->useWorldComm();
 
-// ================================================================================================================
+   // ================================================================================================================
 
 #pragma region PARAMETER BLOCKS
    // Initialize the parameters blocks
@@ -369,9 +366,10 @@ int main(int argc, char** argv)
    auto simulationParameters = walberlaEnv.config()->getOneBlock("simulationParameters");
    auto domainParameters     = walberlaEnv.config()->getOneBlock("domainParameters");
    auto spongeZoneParameters = walberlaEnv.config()->getOneBlock("spongeZoneParameters");
+   auto boudaryParameters    = walberlaEnv.config()->getOneBlock("boundaryConditions");
    auto VTKParams            = walberlaEnv.config()->getBlock("VTK");
 
-#pragma endregion
+#pragma endregion PARAMETER BLOCKS
 
    Setup setup; // Create a setup structure to store all the parameters
 
@@ -386,9 +384,8 @@ int main(int argc, char** argv)
    setup.temperatureSI       = flowParameters.getParameter< real_t >("temperatureSI", real_t(288.1));
 
    // Simulation parameters
-   setup.omega     = simulationParameters.getParameter< real_t >("omega", real_t(1.6));
-   setup.machLU    = simulationParameters.getParameter< real_t >("machLU", real_t(0.1));
-   setup.timeSteps = simulationParameters.getParameter< uint_t >("timeSteps", uint_c(10));
+   setup.omegaEffective = simulationParameters.getParameter< real_t >("omega", real_t(1.6));
+   setup.timeSteps      = simulationParameters.getParameter< uint_t >("timeSteps", uint_c(10));
    setup.remainingTimeLoggerFrequency =
       simulationParameters.getParameter< real_t >("remainingTimeLoggerFrequency", real_t(3.0));
    setup.smagorinskyConstant = simulationParameters.getParameter< real_t >("smagorinskyConstant", real_t(0.12));
@@ -405,7 +402,6 @@ int main(int argc, char** argv)
    setup.numLevels      = domainParameters.getParameter< uint_t >("numLevels", uint_t(1));
    setup.numLevels      = std::max(setup.numLevels, uint_t(1));
    setup.numGhostLayers = domainParameters.getParameter< uint_t >("numGhostLayers", uint_t(4));
-   setup.periodicity    = domainParameters.getParameter< Vector3< bool > >("periodic", Vector3< bool >(true));
    setup.meshZScaling   = domainParameters.getParameter< real_t >("meshZScaling", 1);
 
    // Sponge zone parameters
@@ -416,19 +412,23 @@ int main(int argc, char** argv)
    setup.sponge_nuT_min = spongeZoneParameters.getParameter< real_t >("sponge_nuT_min", real_t(0.0));
    setup.sponge_nuT_max = spongeZoneParameters.getParameter< real_t >("sponge_nuT_max", real_t(0.5));
 
+   // Boundary conditions
+   setup.periodicity = boudaryParameters.getParameter< Vector3< bool > >("periodicity", Vector3< bool >(false));
+
    // Calculate the initial physical velocity [m/s] based on the angle of attack and the velocity magnitude
    setup.initialVelocitySI =
       Vector3< real_t >(setup.velocityMagnitudeSI * std::cos(setup.angleOfAttack * M_PI / 180.0),
                         setup.velocityMagnitudeSI * std::sin(setup.angleOfAttack * M_PI / 180.0), real_t(0));
    setup.flowVelocitySI = setup.initialVelocitySI;
 
-   // Calculate the finest physical grid spacing
-   setup.dxFineSI = setup.dxSI / real_c(std::pow(2, setup.numLevels));
+   real_t dxFineSI = setup.dxSI * std::pow(2.0, setup.numLevels);
 
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 1: Parameters read done ")
-#pragma endregion
+
+#pragma endregion PARAMETER_READ
 
 #pragma region OBJECT_MESH_SETUP
+
    // read in mesh with vertex colors on a single process and broadcast it
    auto mesh = make_shared< mesh::TriangleMesh >();
    mesh->request_vertex_colors();
@@ -453,7 +453,20 @@ int main(int argc, char** argv)
    // building distance octree to determine which cells are inside the airfoil and which are outside
    auto distanceOctree = make_shared< mesh::DistanceOctree< mesh::TriangleMesh > >(triDist);
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 2: Mesh setup done ")
-#pragma endregion
+
+   // write mesh info to file
+   if (optionsParameters.getParameter("writeAirfoilMeshAndReturn", false))
+   {
+      mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "airfoil_mesh", 1);
+      meshWriter.addDataSource(make_shared< mesh::ColorFaceDataSource< mesh::TriangleMesh > >());
+      meshWriter.addDataSource(make_shared< mesh::ColorVertexDataSource< mesh::TriangleMesh > >());
+      meshWriter();
+      WALBERLA_LOG_INFO_ON_ROOT("Mesh written to vtk_out/airfoil_mesh.vtu")
+      WALBERLA_LOG_INFO_ON_ROOT("Stopping program")
+      return EXIT_SUCCESS;
+   }
+
+#pragma endregion OBJECT_MESH_SETUP
 
 #pragma region DOMAIN_SIZING
    // Make the axis-aligned bounding box (AABB) of a mesh object.
@@ -509,11 +522,12 @@ int main(int argc, char** argv)
    setup.nBlocks_y = static_cast< real_t >(adjustXYResult.nBlocks_x);
    setup.nBlocks_z = std::round(aabb.zSize() / setup.dxSI / static_cast< real_t >(setup.cellsPerBlock[2]));
 
-   WALBERLA_ASSERT(std::fmod(aabb.xSize(), setup.dxSI) == 0 && std::fmod(aabb.ySize(), setup.dxSI) == 0 &&
-                   std::fmod(aabb.zSize(), setup.dxSI) == 0)
+   WALBERLA_ASSERT_IDENTICAL(std::fmod(aabb.xSize(), setup.dxSI), 0, "The blocks do not fit in the x direction")
+   WALBERLA_ASSERT_IDENTICAL(std::fmod(aabb.ySize(), setup.dxSI), 0, "The blocks do not fit in the y direction")
+   WALBERLA_ASSERT_IDENTICAL(std::fmod(aabb.zSize(), setup.dxSI), 0, "The blocks do not fit in the z direction")
 
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 3: Domain sizing done ")
-#pragma endregion
+#pragma endregion DOMAIN_SIZING
 
 #pragma region BLOCK_FOREST_CREATION
    // create the structured block forest creator
@@ -521,7 +535,7 @@ int main(int argc, char** argv)
 
    // exclude the object mesh interior with maximum error of dxSI and refine the maximum error to dxFineSI
    bfc.setRootBlockExclusionFunction(mesh::makeExcludeMeshInterior(distanceOctree, setup.dxSI));
-   bfc.setBlockExclusionFunction(mesh::makeExcludeMeshInteriorRefinement(distanceOctree, setup.dxFineSI));
+   bfc.setBlockExclusionFunction(mesh::makeExcludeMeshInteriorRefinement(distanceOctree, dxFineSI));
 
    // set the workload memory assignment function
    auto meshWorkloadMemory = mesh::makeMeshWorkloadMemory(distanceOctree, setup.dxSI);
@@ -548,31 +562,31 @@ int main(int argc, char** argv)
       return EXIT_SUCCESS;
    }
 
-#pragma endregion
+#pragma endregion BLOCK_FOREST_CREATION
 
-#pragma region UNIT_CONVERSION
+#pragma region UNIT_CONVERSION_AND_SETUP
    // Calculate the parameters in lattice units
    Units inputUnits;
+
    inputUnits.xSI            = setup.dxSI;
    inputUnits.speedSI        = setup.velocityMagnitudeSI;
    inputUnits.kinViscositySI = setup.kinViscositySI;
    inputUnits.rhoSI          = setup.rhoSI;
    inputUnits.temperatureSI  = setup.temperatureSI;
-   inputUnits.omega          = setup.omega;  // relaxation parameter
-   inputUnits.omegaLevel     = 0;            // level where omega is defined
-   inputUnits.machLU         = setup.machLU; // Mach number
+   inputUnits.omegaEffective = setup.omegaEffective; // relaxation parameter
+   inputUnits.omegaLevel     = 0;                    // level where omega is defined
 
-   Units simulationUnits =
-      convertToLatticeUnits(inputUnits, optionsParameters.getParameter< bool >("writeUnitsFile", false));
+   Units simulationUnits = convertToLatticeUnitsAcousticScaling(inputUnits); // convert the parameters to lattice units
 
-   // setup.kinViscosityLU = latticeModel.collisionModel().viscosity(0);            // lattice kinematic viscosity
-   setup.kinViscosityLU       = simulationUnits.kinViscosityLU;
-   setup.initialVelocityLU    = simulationUnits.speedLU / setup.velocityMagnitudeSI * setup.initialVelocitySI;
-   setup.speedOfSoundSI       = simulationUnits.speedOfSoundSI;
-   setup.Mach                 = simulationUnits.mach;
-   setup.Re                   = simulationUnits.Re;
-   setup.rhoLU                = simulationUnits.rhoLU;
-   setup.pseudoSpeedOfSoundLU = simulationUnits.pseudoSpeedOfSoundLU;
+   simulationUnits.initialVelocityLU =
+      setup.initialVelocitySI * simulationUnits.thetaSpeed; // initial velocity in lattice units
+   simulationUnits.flowVelocityLU = setup.flowVelocitySI * simulationUnits.thetaSpeed; // flow velocity in lattice units
+
+   setup.dtSI = simulationUnits.tSI; // physical time step
+   setup.ReChord =
+      setup.airfoilChordLengthSI * setup.velocityMagnitudeSI / setup.kinViscositySI; // Reynolds number based on
+                                                                                     // the airfoil chord length
+   setup.MachSI = simulationUnits.MachSI;                                            // Mach number
 
    // std::vector< real_t > kinViscosityLUList(setup.numLevels);
    // std::vector< real_t > omegaList(setup.numLevels);
@@ -609,9 +623,6 @@ int main(int argc, char** argv)
    // WALBERLA_LOG_INFO_ON_ROOT("---------------------------------------------------------------")
 
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 5: Unit conversion done ")
-#pragma endregion
-
-#pragma region SIM_SETUP
 
    WALBERLA_LOG_INFO_ON_ROOT(" ======================== Initial Parameters ======================== "
                              "\n "
@@ -625,20 +636,37 @@ int main(int argc, char** argv)
                                 "\n + Initial velocity < u, v, w >: "
                              << setup.initialVelocitySI
                              << " m/s"
+                                " + Chord based Reynolds number: "
+                             << setup.ReChord
+                             << " - "
+                                "\n + Mach number: "
+                             << setup.MachSI
+                             << " - "
+                                "\n + Kinematic viscosity: "
+                             << setup.kinViscositySI
+                             << " m2/s"
+                                "\n + Density: "
+                             << setup.rhoSI
+                             << " kg/m3"
+                                "\n + Temperature: "
+                             << setup.temperatureSI
+                             << " K"
                                 "\n "
                                 "\n ________________________ Simulation parameters ________________________ "
-                                "\n + Mesh file: "
-                             << setup.meshFile
-                             << ""
                                 "\n + Number of time steps: "
                              << setup.timeSteps
                              << ""
                                 "\n + Relaxation parameter at the coarsest cells omega = 1/tau : "
-                             << setup.omega
+                             << setup.omegaEffective
+                             << " - "
+                                "\n + Theoretical relaxation paramter based on acoustic scaling: "
+                             << simulationUnits.omegaLUTheory
                              << ""
-                                "\n "
                                 "\n ________________________ Domain parameters ________________________ "
-                                "\n + Coarse dxSI: "
+                                "\n + Mesh file: "
+                             << setup.meshFile
+                             << ""
+                                "\n + Coarse lattice spacing: "
                              << setup.dxSI
                              << " m"
                                 "\n + Number of refinement levels: "
@@ -650,63 +678,53 @@ int main(int argc, char** argv)
                                 "\n + Airfoil size < x, y, z >: "
                              << setup.airfoilChordLengthSI << ", " << setup.airfoilThicknessSI << ", "
                              << setup.airfoilSpanSI
-                             << ""
+                             << " m "
                                 "\n + Domain size < x, y, z >: "
                              << setup.domainLengthSI << ", " << setup.domainHeightSI << ", " << setup.domainWidthSI
-                             << ""
+                             << " m "
                                 "\n + Number of blocks < x, y, z >: "
-                                "\n + Mesh Z scaling: "
-                             << setup.meshZScaling
+                             << setup.nBlocks_x << ", " << setup.nBlocks_y << ", " << setup.nBlocks_z
                              << ""
-                                "\n"
                                 "\n ________________________ Boundary parameters ________________________ "
                                 "\n + Periodicity < x_sides, y_sides, z_sides >: "
                              << setup.periodicity
                              << ""
                                 "\n ");
-   WALBERLA_LOG_INFO_ON_ROOT("Physical parameters: "
-                             "\n + Speed of sound: "
-                             << setup.speedOfSoundSI
-                             << " "
-                                "\n + Physical Mach number: "
-                             << setup.Mach
-                             << " "
-                                "\n + Reynolds number: "
-                             << setup.Re
-                             << " "
-                                "\n + Lattice speed: "
-                             << simulationUnits.speedLU
-                             << " "
-                                "\n + Lattice kinematic viscosity: "
-                             << setup.kinViscosityLU << " ")
 
-   // Make a file with the simulation Setup struct to be used in the post processing
-   std::ofstream outFile("vtk_out/simulation_setup.txt");
-   if (outFile.is_open())
+   if (optionsParameters.getParameter< bool >("writeSimulationSetupAndUnits", false))
    {
-      outFile << setup;
-      outFile.close();
-      WALBERLA_LOG_INFO_ON_ROOT("Simulation setup written to file successfully")
+      // Make a file with the simulation Setup struct to be used in the post pocessing
+      WALBERLA_LOG_INFO_ON_ROOT("Writing simulation setup to file")
+      std::ofstream outFile("simulation_log.txt");
+      if (outFile.is_open())
+      {
+         outFile << setup;
+         outFile << simulationUnits;
+         outFile.close();
+         WALBERLA_LOG_INFO_ON_ROOT("Simulation log written to file successfully")
+      }
+      else { WALBERLA_LOG_INFO_ON_ROOT("Failed to open file for writing simulation log") }
    }
-   else { WALBERLA_LOG_INFO_ON_ROOT("Failed to open file for writing simulation setup") }
 
-#pragma endregion
+#pragma endregion UNIT_CONVERSION_AND_SETUP
 
 #pragma region FIELD_CREATION
-   BlockDataID omegaFieldId    = field::addToStorage< ScalarField_T >(blocks, "Flag field", setup.omega);
+
+   BlockDataID omegaFieldId    = field::addToStorage< ScalarField_T >(blocks, "Flag field", setup.omegaEffective);
    LatticeModel_T latticeModel = LatticeModel_T(lbm::collision_model::SRTField< ScalarField_T >(omegaFieldId));
 
-   BlockDataID pdfFieldId =
-      lbm::addPdfFieldToStorage(blocks, "pdf field", latticeModel, setup.initialVelocityLU, setup.rhoLU,
-                                setup.numGhostLayers); // Here the initialisation of the pdf field. This includes the
-                                                       // initial velocity and density in lattice units
+   BlockDataID pdfFieldId = lbm::addPdfFieldToStorage(
+      blocks, "pdf field", latticeModel, simulationUnits.initialVelocityLU, simulationUnits.rhoLU,
+      setup.numGhostLayers); // Here the initialisation of the pdf field. This includes the
+                             // initial velocity and density in lattice units
    BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field", setup.numGhostLayers);
 
    // Initialize the Smagorinsky LES model
-   const lbm::SmagorinskyLES< LatticeModel_T > smagorinskySweep(blocks, pdfFieldId, omegaFieldId, setup.kinViscosityLU,
-                                                                setup.smagorinskyConstant);
+   const lbm::SmagorinskyLES< LatticeModel_T > smagorinskySweep(
+      blocks, pdfFieldId, omegaFieldId, simulationUnits.kinViscosityLU, setup.smagorinskyConstant);
    WALBERLA_LOG_INFO_ON_ROOT("Checkpoint 6: Fields created")
-#pragma endregion
+
+#pragma endregion FIELD_CREATION
 
 #pragma region BOUNDARY_HANDLING
    // create and initialize boundary handling
@@ -728,18 +746,6 @@ int main(int argc, char** argv)
 
    // mark boundaries
    auto boundaryLocations = colorToBoundaryMapper.addBoundaryInfoToMesh(*mesh);
-
-   // write mesh info to file
-   if (optionsParameters.getParameter("writeAirfoilMeshAndReturn", false))
-   {
-      mesh::VTKMeshWriter< mesh::TriangleMesh > meshWriter(mesh, "airfoil_mesh", 1);
-      meshWriter.addDataSource(make_shared< mesh::ColorFaceDataSource< mesh::TriangleMesh > >());
-      meshWriter.addDataSource(make_shared< mesh::ColorVertexDataSource< mesh::TriangleMesh > >());
-      meshWriter();
-      WALBERLA_LOG_INFO_ON_ROOT("Mesh written to vtk_out/airfoil_mesh.vtu")
-      WALBERLA_LOG_INFO_ON_ROOT("Stopping program")
-      return EXIT_SUCCESS;
-   }
 
    // voxelize mesh
    mesh::BoundarySetup boundarySetup(blocks, makeMeshDistanceFunction(distanceOctree), setup.numGhostLayers);
@@ -764,7 +770,7 @@ int main(int argc, char** argv)
       boundaryHandlingId, makeBoundaryLocationFunction(distanceOctree, boundaryLocations), mesh::BoundarySetup::INSIDE);
 
    WALBERLA_LOG_INFO_ON_ROOT("Checkpoint 7: Boundary handling done")
-#pragma endregion
+#pragma endregion BOUNDARY_HANDLING
 
    // Log performance information at the end of the simulation
    lbm::BlockForestEvaluation< FlagField_T >(blocks, flagFieldId, fluidFlagUID).logInfoOnRoot();
@@ -775,7 +781,9 @@ int main(int argc, char** argv)
    // create time loop
    SweepTimeloop timeloop(blocks->getBlockStorage(), setup.timeSteps);
 
-   timeloop.add() << Sweep(OmegaSweep(pdfFieldId, aabb, setup), "OmegaSweep");
+   // add Smagorinsky LES model
+   timeloop.add() << BeforeFunction(smagorinskySweep, "Sweep: Smagorinsky turbulence model");
+   timeloop.add() << Sweep(OmegaSweep(pdfFieldId, aabb, setup, simulationUnits), "OmegaSweep");
 
    auto sweepBoundary = lbm::makeCellwiseSweep< LatticeModel_T, FlagField_T >(pdfFieldId, flagFieldId, fluidFlagUID);
 
@@ -809,7 +817,8 @@ int main(int argc, char** argv)
                                  "LBM stability check");
 
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 8: Sweeps and time loop done ")
-#pragma endregion
+
+#pragma endregion SWEEPS_AND_TIME_LOOP
 
 #pragma region VTK_OUTPUT
 
@@ -833,7 +842,7 @@ int main(int argc, char** argv)
    timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
    // timeloop.addFuncAfterTimeStep(perfLogger, "Evaluator: performance logging");
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 8: VTK output added")
-#pragma endregion
+#pragma endregion VTK_OUTPUT
 
 #pragma region RUN_SIMULATION
 
@@ -843,7 +852,7 @@ int main(int argc, char** argv)
    timingPool.unifyRegisteredTimersAcrossProcesses();
    timingPool.logResultOnRoot(timing::REDUCE_TOTAL, true);
 
-#pragma endregion
+#pragma endregion RUN_SIMULATION
 
    return EXIT_SUCCESS;
 }

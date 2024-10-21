@@ -13,128 +13,128 @@ namespace walberla
 
 struct Units
 {
-   friend std::ostream& operator<<(std::ostream& os, const Units& units);
    // Physical units
    real_t xSI; // input from user (choice: lattice spacing of the coarses refinement level)
    real_t tSI;
-   real_t speedSI;
-   real_t kinViscositySI;
-   real_t temperatureSI;
    real_t rhoSI;
    real_t massSI;
+   real_t temperatureSI;
+   real_t speedSI;
    real_t speedOfSoundSI;
-   real_t mach;
-   real_t Re;
-
-   // Unitless units
-   real_t rhoUnitless   = 1.0; // density unit FREE PARAMETER
-   real_t speedUnitless = 1.0; // velocity unit FREE PARAMETER
-
-   real_t kinViscosityUnitless;
-   real_t speedOfSoundUnitless;
+   real_t kinViscositySI;
+   real_t MachSI;
+   real_t ReSI;
 
    // Lattice units
-   real_t omega;               // setting of the relaxation parameter (on the coarsest level)
-   uint_t omegaLevel;          // level where omega is defined (choice: coarsest level)
-   real_t rhoLU         = 1.0; // density unit FREE PARAMETER
+   real_t xLU           = 1.0; // length unit FREE PARAMETER set to unitity
+   real_t tLU           = 1.0; // time unit FREE PARAMETER set to unitity
+   real_t rhoLU         = 1.0; // density unit FREE PARAMETER set to unitity
+   real_t massLU        = rhoLU * std::pow(xLU, 3);
    real_t temperatureLU = 1.0; // temperatureSI unit FREE PARAMETER
-
-   real_t massLU;
    real_t speedLU;
    real_t kinViscosityLU;
-   real_t tLU;
-   real_t xLU;
    real_t speedOfSoundLU;
    real_t pseudoSpeedOfSoundLU = 1 / std::sqrt(3.0);
-   real_t machLU; // Mach number in lattice units FREE PARAMETER set around 0.1 for incompressible flow
-   real_t mach_check;
+   real_t MachLU; // Mach number in lattice units FREE PARAMETER set around 0.1 for incompressible flow
+   real_t ReLU;
+   real_t omegaLUTheory;  // theoretical omega value from acoustic scaling
+   real_t omegaEffective; // effective relaxation parameter
+   uint_t omegaLevel;     // level where omega is defined (choice: coarsest level)
+
+   // Conversion factors
+   real_t thetaMass;
+   real_t thetaTime;
+   real_t thetaLength;
+   real_t thetaTemperature;
+   real_t thetaSpeed;
+
+   // Simulation conditions
+   Vector3 < real_t > initialVelocityLU;
+   Vector3 < real_t > flowVelocityLU;
+
+   // Define the operator<< for Units
+   friend std::ostream& operator<<(std::ostream& os, const Units& units)
+   {
+      os << "================= Units ===============: \n"
+         << "User input: \n"
+         << "  xSI: " << units.xSI << " m \n"
+         << "  tSI: " << units.tSI << " s \n"
+         << "  rhoSI: " << units.rhoSI << " kg/m3\n"
+         << "  massSI: " << units.massSI << " kg \n"
+         << "  temperatureSI: " << units.temperatureSI << " K \n"
+         << "  speedSI: " << units.speedSI << " m/s \n"
+         << "  speedOfSoundSI: " << units.speedOfSoundSI << " m/s \n"
+         << "  kinViscositySI: " << units.kinViscositySI << " m2/s \n"
+         << " \n"
+         << "Lattice units: \n"
+         << "  xLU: " << units.xLU << " lu\n"
+         << "  tLU: " << units.tLU << " ts\n"
+         << "  rhoLU: " << units.rhoLU << " - \n"
+         << "  massLU: " << units.massLU << " mu \n"
+         << "  temperatureLU: " << units.temperatureLU << " - \n"
+         << "  speedLU: " << units.speedLU << " lu/ts\n"
+         << "  kinViscosityLU: " << units.kinViscosityLU << " lu2/ts\n"
+         << "  speedOfSoundLU: " << units.speedOfSoundLU << " lu/ts\n"
+         << "  pseudoSpeedOfSoundLU: " << units.pseudoSpeedOfSoundLU << " lu/ts\n"
+         << "  MachLU: " << units.MachLU << " - \n"
+         << "  ReLU: " << units.ReLU << " - \n"
+         << " \n"
+         << "Conversion factors: \n"
+         << "  thetaMass: " << units.thetaMass << " mu/kg \n"
+         << "  thetaTime: " << units.thetaTime << " ts/s \n"
+         << "  thetaLength: " << units.thetaLength << " lu/m \n"
+         << "  thetaTemperature: " << units.thetaTemperature << " - \n"
+         << " \n"
+         << "Other parameters: \n"
+         << "  omegaLUTheory: " << units.omegaLUTheory << " - \n"
+         << "  omegaEffective: " << units.omegaEffective << " - \n"
+         << "  omegaLevel: " << units.omegaLevel << " - \n"
+         << " \n"
+         << "Initial conditions and boundary conditions: \n"
+         << "  initialVelocityLU: " << units.initialVelocityLU << " lu/ts \n"
+         << "  flowVelocityLU: " << units.flowVelocityLU << " lu/ts \n"
+         << " \n";
+
+         // Add other members as needed
+         return os;
+   }
 };
 
-Units convertToLatticeUnits(const Units& inputUnits, const bool unitsWriter)
+Units convertToLatticeUnitsAcousticScaling(Units& units)
 {
-   Units units = inputUnits;
+   // Input units:
+   //    xSI
+   //    speedSI
+   //    kinViscositySI
+   //    rhoSI
+   //    temperatureSI
+   //    omega_chosen
+   //    omega_level
+
    // Calculated physical units
    units.massSI         = units.rhoSI * std::pow(units.xSI, 3);
-   units.tSI            = units.speedUnitless / units.speedSI * units.xSI;
    units.speedOfSoundSI = std::sqrt(1.4 * 287.15 * units.temperatureSI);
+   units.MachSI         = units.speedSI / units.speedOfSoundSI;
 
-   // Calculated unitless units
-   units.mach                 = units.speedSI / units.speedOfSoundSI;
-   units.Re                   = units.speedSI * units.xSI / units.kinViscositySI;
-   units.kinViscosityUnitless = units.kinViscositySI * units.tSI / (units.xSI * units.xSI);
-   units.speedOfSoundUnitless = units.speedOfSoundSI * units.tSI / units.xSI;
+   // Acoustic scaling
+   units.MachLU  = units.MachSI;
+   units.tSI     = units.xSI * units.pseudoSpeedOfSoundLU / units.speedOfSoundSI;
+   units.speedLU = units.MachLU * units.pseudoSpeedOfSoundLU;
 
-   // Calculated lattice units
-   units.massLU         = units.rhoLU * std::pow(units.xSI, 3) / units.rhoUnitless;
-   units.speedLU        = units.machLU * units.pseudoSpeedOfSoundLU;
-   units.kinViscosityLU = (1 / units.omega - 0.5) / std::pow(units.pseudoSpeedOfSoundLU, 2);
-   units.tLU            = units.kinViscosityLU / units.kinViscosityUnitless * (units.speedUnitless / units.speedLU) *
-               (units.speedUnitless / units.speedLU);
-   units.xLU            = units.kinViscosityLU / units.kinViscosityUnitless * units.speedUnitless / units.speedLU;
-   units.speedOfSoundLU = units.speedOfSoundUnitless * units.xLU / units.tLU;
-   // units.MachLU         = units.speedLU / units.pseudoSpeedOfSoundLU;
-   units.mach_check = units.speedLU / units.speedOfSoundLU;
+   units.ReSI           = units.speedSI * units.xSI / units.kinViscositySI;
+   units.kinViscosityLU = units.kinViscositySI * units.tSI / (std::pow(units.xSI, 2.0));
+   units.ReLU           = units.speedLU * units.xLU / units.kinViscosityLU;
+   real_t tauLU         = 0.5 + units.kinViscosityLU / std::pow(units.pseudoSpeedOfSoundLU, 2);
+   units.omegaLUTheory  = 1.0 / (tauLU);
 
-   if (unitsWriter)
-   {
-      // Write the simulation setup to a file
-      std::ofstream outFile("Units.txt");
-      if (outFile.is_open())
-      {
-         outFile << units;
-         outFile.close();
-         WALBERLA_LOG_INFO_ON_ROOT("Units written to file successfully")
-      }
-      else { WALBERLA_LOG_INFO_ON_ROOT("Failed to open file for writing Units") }
-   };
+   // Scaling factors
+   units.thetaMass        = units.massLU / units.massSI;
+   units.thetaTime        = units.tLU / units.tSI;
+   units.thetaLength      = units.xLU / units.xSI;
+   units.thetaTemperature = units.temperatureLU / units.temperatureSI;
+   units.thetaSpeed       = units.thetaLength / units.thetaTime;
 
    return units;
-}
-std::ostream& operator<<(std::ostream& os, const Units& units)
-{
-   os << "================= Units ===============: \n"
-      << "User input: \n"
-      << "xSI: " << units.xSI << " m \n"
-      << "speedSI: " << units.speedSI << " m/s \n"
-      << "kinViscositySI: " << units.kinViscositySI << " m2/s \n"
-      << "rhoSI: " << units.rhoSI << " kg/m3\n"
-      << "temperatureSI: " << units.temperatureSI << " K \n"
-      << "massSI: " << units.massSI << " kg \n"
-      << "omega: " << units.omega << " - \n"
-      << "MachLU: " << units.machLU << " - \n"
-      << "  \n"
-      << "Default units: \n"
-      << "rhoUnitless: " << units.rhoUnitless << " - \n"
-      << "speedUnitless: " << units.speedUnitless << " - \n"
-      << "rhoLU: " << units.rhoLU << " mu/lu3\n"
-      << "temperatureLU: " << units.temperatureLU << " tu \n"
-      << " \n"
-      << "Physical units: \n"
-      << "tSI: " << units.tSI << " s \n"
-      << "speedOfSoundSI: " << units.speedOfSoundSI << " m/s \n"
-      << "massSI: " << units.massSI << " kg \n"
-      << " \n"
-      << "Calculated unitless units: \n"
-      << "mach: " << units.mach << " - \n"
-      << "Re: " << units.Re << " - \n"
-      << "kinViscosityUnitless: " << units.kinViscosityUnitless << " - \n"
-      << "speedOfSoundUnitless: " << units.speedOfSoundUnitless << " - \n"
-      << " \n"
-      << "Calculated lattice units: \n"
-      << "massLU: " << units.massLU << " mu \n"
-      << "speedLU: " << units.speedLU << " lu/ts\n"
-      << "kinViscosityLU: " << units.kinViscosityLU << " lu2/ts\n"
-      << "tLU: " << units.tLU << " ts\n"
-      << "xLU: " << units.xLU << " lu\n"
-      << "speedOfSoundLU: " << units.speedOfSoundLU << " lu/ts\n"
-      << "pseudoSpeedOfSoundLU: " << units.pseudoSpeedOfSoundLU << " lu/ts\n"
-      << "mach_check: " << units.mach_check << " - \n"
-      << " \n"
-      << "Conversion factors: \n"
-      << " tLU/tSI: " << units.tLU / units.tSI << " ts/s \n"
-      << " xLU/xSI: " << units.xLU / units.xSI << " lu/m \n"
-      << " massLU/massSI: " << units.massLU / units.massSI << " mu/kg \n";
-   return os;
 }
 
 } // namespace walberla
