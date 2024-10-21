@@ -51,6 +51,7 @@ Created: 23-09-2024
 #include "gui/all.h"
 
 #include "lbm/all.h"
+#include "lbm/blockforest/communication/SimpleCommunication.h"
 #include "lbm/lattice_model/SmagorinskyLES.h"
 
 #include "mesh/blockforest/BlockExclusion.h"
@@ -213,7 +214,7 @@ struct Setup
       os << "Boundary conditions:\n";
       os << "  periodicity: " << setup.periodicity << "\n";
       os << " \n";
-
+      
       os << "LBM parameters:\n";
       os << "  spongeInnerThicknessFactor: " << setup.spongeInnerThicknessFactor << "\n";
       os << "  spongeOuterThicknessFactor: " << setup.spongeOuterThicknessFactor << "\n";
@@ -237,6 +238,7 @@ using ScalarField_T = GhostLayerField< real_t, 1 >;
 // using LatticeModel_T = lbm::D3Q19< lbm::collision_model::SRT >;
 using LatticeModel_T = lbm::D3Q19< lbm::collision_model::SRTField< ScalarField_T >, true, lbm::force_model::None, 1 >;
 using Stencil_T      = LatticeModel_T::Stencil;
+
 using CommunicationStencil_T = LatticeModel_T::CommunicationStencil;
 
 using PdfField_T = lbm::PdfField< LatticeModel_T >; // Probability density function field for the lattice model. The pdf
@@ -330,14 +332,14 @@ class OmegaSweep
          real_t nuAddFactor = nuTAdd * setup_.temperatureSI;
 
          // Calculate the lattice kinematic viscosity
-         real_t nuLU = units_.kinViscosityLU * (1 + nuAddFactor);
+         real_t viscosity_old = pdfField->latticeModel().collisionModel().viscosity(it.x(), it.y(), it.z());
+         real_t nuLU = units_.kinViscosityLU * nuAddFactor + viscosity_old;
 
          // Calculate the relaxation rate omega based on the lattice kinematic viscosity
          real_t omega = 1.0 / (std::pow(units_.pseudoSpeedOfSoundLU, 2.0) * nuLU + 0.5);
 
          // Ensure the relaxation rate omega is within the physical range
          WALBERLA_ASSERT(omega > 0.0 && omega < 2.0);
-
          // Set the relaxation rate omega in the collision model of the lattice model
          pdfField->latticeModel().collisionModel().reset(it.x(), it.y(), it.z(), omega);
       }
@@ -345,6 +347,7 @@ class OmegaSweep
 
  private:
    const BlockDataID pdfFieldId_; // PDF field ID
+   BlockDataID omegaFieldId_;     // Omega field ID
    AABB domain_;                  // Axis-Aligned Bounding Box of the domain
    Setup setup_;                  // Setup parameters
    Units units_;                  // Units
@@ -523,9 +526,9 @@ int main(int argc, char** argv)
    setup.nBlocks_y = static_cast< real_t >(adjustXYResult.nBlocks_x);
    setup.nBlocks_z = std::round(aabb.zSize() / setup.dxSI / static_cast< real_t >(setup.cellsPerBlock[2]));
 
-   WALBERLA_ASSERT_LESS(std::abs(aabb.xSize() - setup.dxSI), 1e-6, "The blocks do not fit in the x direction")
-   WALBERLA_ASSERT_LESS(std::abs(aabb.ySize() - setup.dxSI), 1e-6, "The blocks do not fit in the y direction")
-   WALBERLA_ASSERT_LESS(std::abs(aabb.zSize() - setup.dxSI), 1e-6, "The blocks do not fit in the z direction")
+   WALBERLA_ASSERT_LESS(std::abs(aabb.xSize() - setup.dxSI * setup.nBlocks_x * static_cast< real_t >(setup.cellsPerBlock[0])), 1e-6, "The blocks do not fit in the x direction")
+   WALBERLA_ASSERT_LESS(std::abs(aabb.ySize() - setup.dxSI * setup.nBlocks_y * static_cast< real_t >(setup.cellsPerBlock[1])), 1e-6, "The blocks do not fit in the y direction")
+   WALBERLA_ASSERT_LESS(std::abs(aabb.zSize() - setup.dxSI * setup.nBlocks_z * static_cast< real_t >(setup.cellsPerBlock[2])), 1e-6, "The blocks do not fit in the z direction")
 
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 3: Domain sizing done ")
 #pragma endregion DOMAIN_SIZING
@@ -662,7 +665,7 @@ int main(int argc, char** argv)
                              << " - "
                                 "\n + Theoretical relaxation paramter based on acoustic scaling: "
                              << simulationUnits.omegaLUTheory
-                             << ""
+                             << "\n "
                                 "\n ________________________ Domain parameters ________________________ "
                                 "\n + Mesh file: "
                              << setup.meshFile
@@ -685,7 +688,7 @@ int main(int argc, char** argv)
                              << " m "
                                 "\n + Number of blocks < x, y, z >: "
                              << setup.nBlocks_x << ", " << setup.nBlocks_y << ", " << setup.nBlocks_z
-                             << ""
+                             << "\n "
                                 "\n ________________________ Boundary parameters ________________________ "
                                 "\n + Periodicity < x_sides, y_sides, z_sides >: "
                              << setup.periodicity
@@ -711,7 +714,7 @@ int main(int argc, char** argv)
 
 #pragma region FIELD_CREATION
 
-   BlockDataID omegaFieldId    = field::addToStorage< ScalarField_T >(blocks, "Flag field", setup.omegaEffective);
+   BlockDataID omegaFieldId    = field::addToStorage< ScalarField_T >(blocks, "Flag field", setup.omegaEffective, field::fzyx, setup.numGhostLayers);
    LatticeModel_T latticeModel = LatticeModel_T(lbm::collision_model::SRTField< ScalarField_T >(omegaFieldId));
 
    BlockDataID pdfFieldId = lbm::addPdfFieldToStorage(
@@ -720,9 +723,6 @@ int main(int argc, char** argv)
                              // initial velocity and density in lattice units
    BlockDataID flagFieldId = field::addFlagFieldToStorage< FlagField_T >(blocks, "flag field", setup.numGhostLayers);
 
-   // Initialize the Smagorinsky LES model
-   const lbm::SmagorinskyLES< LatticeModel_T > smagorinskySweep(
-      blocks, pdfFieldId, omegaFieldId, simulationUnits.kinViscosityLU, setup.smagorinskyConstant);
    WALBERLA_LOG_INFO_ON_ROOT("Checkpoint 6: Fields created")
 
 #pragma endregion FIELD_CREATION
@@ -783,10 +783,21 @@ int main(int argc, char** argv)
    SweepTimeloop timeloop(blocks->getBlockStorage(), setup.timeSteps);
 
    // add Smagorinsky LES model
-   timeloop.add() << BeforeFunction(smagorinskySweep, "Sweep: Smagorinsky turbulence model");
-   timeloop.add() << Sweep(OmegaSweep(pdfFieldId, aabb, setup, simulationUnits), "OmegaSweep");
+   // Initialize the Smagorinsky LES model
+   const lbm::SmagorinskyLES< LatticeModel_T > smagorinskySweep(
+      blocks, pdfFieldId, omegaFieldId, simulationUnits.kinViscosityLU, setup.smagorinskyConstant);
 
    auto sweepBoundary = lbm::makeCellwiseSweep< LatticeModel_T, FlagField_T >(pdfFieldId, flagFieldId, fluidFlagUID);
+   blockforest::communication::UniformBufferedScheme< CommunicationStencil_T > communication( blocks );
+   timeloop.add()
+               // Smagorinsky turbulence model
+               << BeforeFunction(smagorinskySweep, "Sweep: Smagorinsky turbulence model")
+               << Sweep(OmegaSweep(pdfFieldId, aabb, setup, simulationUnits), "OmegaSweep")
+               << Sweep(lbm::makeCollideSweep(sweepBoundary), "Sweep: collision after Smagorinsky sweep");
+               // << AfterFunction(Communication_T(blocks, pdfFieldId),
+               //                  "Communication: after collision sweep with preceding Smagorinsky sweep");
+
+
 
    auto refinementTimeStep = lbm::refinement::makeTimeStep< LatticeModel_T, BHFactory::BoundaryHandling >(
       blocks, sweepBoundary, pdfFieldId, boundaryHandlingId);
@@ -828,9 +839,10 @@ int main(int argc, char** argv)
                                                    "simulation_step", false, true, true, false, 0); //last number determines the initial time step from which the vtk is outputed. 
 
 
-   AABB sliceAABB(real_t(0), real_t(0), real_t(0), real_c(aabb.xSize())*real_t(0.5),
-                     real_c(aabb.ySize()) * real_t(0.5), real_c(aabb.zSize()));
-   vtk::AABBCellFilter aabbSliceFilter(sliceAABB);
+   // AABB sliceAABB(real_t(0), real_t(0), real_t(0), real_c(aabb.xSize())*real_t(0.5),
+   //                   real_c(aabb.ySize()) * real_t(0.5), real_c(aabb.zSize()));
+   // vtk::AABBCellFilter aabbSliceFilter(sliceAABB);
+   vtk::AABBCellFilter aabbSliceFilter(aabb);
 
    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
    fluidFilter.addFlag(fluidFlagUID);
@@ -842,18 +854,16 @@ int main(int argc, char** argv)
    vtkOutput->addCellInclusionFilter(combinedSliceFilter);
    // vtkOutput->addCellInclusionFilter(fluidFilter);
 
-   auto velocityWriter = make_shared< lbm::VelocityVTKWriter< LatticeModel_T, float > >(pdfFieldId, "Velocity");
-   auto velocitySIWriter = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.xSI, simulationUnits.tSI, "VelocitySI");
-   auto densityWriter = make_shared< lbm::DensityVTKWriter< LatticeModel_T, float > >(pdfFieldId, "Density");
+   auto velocitySIWriter = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.xSI, simulationUnits.tSI, "Velocity ");
+   auto densitySIWriter = make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.rhoSI, "Density");
    auto omegaWriter   = make_shared< field::VTKWriter< ScalarField_T > >(omegaFieldId, "Omega");
-   vtkOutput->addCellDataWriter(velocityWriter);
    vtkOutput->addCellDataWriter(velocitySIWriter);
-   vtkOutput->addCellDataWriter(densityWriter);
+   vtkOutput->addCellDataWriter(densitySIWriter);
    vtkOutput->addCellDataWriter(omegaWriter);
 
    timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
    // timeloop.addFuncAfterTimeStep(perfLogger, "Evaluator: performance logging");
-   WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 8: VTK output added")
+   WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 9: VTK output added")
 #pragma endregion VTK_OUTPUT
 
 #pragma region RUN_SIMULATION
@@ -868,6 +878,7 @@ int main(int argc, char** argv)
 
    return EXIT_SUCCESS;
 }
+
 } // namespace walberla
 
 int main(int argc, char** argv) { walberla::main(argc, argv); }
