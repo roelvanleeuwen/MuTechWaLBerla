@@ -523,9 +523,9 @@ int main(int argc, char** argv)
    setup.nBlocks_y = static_cast< real_t >(adjustXYResult.nBlocks_x);
    setup.nBlocks_z = std::round(aabb.zSize() / setup.dxSI / static_cast< real_t >(setup.cellsPerBlock[2]));
 
-   WALBERLA_ASSERT_LESS(std::fmod(aabb.xSize(), setup.dxSI), 1e-6, "The blocks do not fit in the x direction")
-   WALBERLA_ASSERT_LESS(std::fmod(aabb.ySize(), setup.dxSI), 1e-6, "The blocks do not fit in the y direction")
-   WALBERLA_ASSERT_LESS(std::fmod(aabb.zSize(), setup.dxSI), 1e-6, "The blocks do not fit in the z direction")
+   WALBERLA_ASSERT_LESS(std::abs(aabb.xSize() - setup.dxSI), 1e-6, "The blocks do not fit in the x direction")
+   WALBERLA_ASSERT_LESS(std::abs(aabb.ySize() - setup.dxSI), 1e-6, "The blocks do not fit in the y direction")
+   WALBERLA_ASSERT_LESS(std::abs(aabb.zSize() - setup.dxSI), 1e-6, "The blocks do not fit in the z direction")
 
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 3: Domain sizing done ")
 #pragma endregion DOMAIN_SIZING
