@@ -10,7 +10,7 @@ options
 
 flowParameters
 { 
-   angleOfAttack 2.0;               // [deg] Physical angle of attack of the flow with respect to the airfoil  
+   angleOfAttack 0.0;               // [deg] Physical angle of attack of the flow with respect to the airfoil  
    velocityMagnitudeSI 20;          // [m/s] Physical absolute velocity of the flow 
    kinViscositySI 1.461e-05;        // [m2/s] Physical kinematic viscosity of the flow
    rhoSI 1.225;                     // [kg/m3] Physical air density
@@ -54,7 +54,7 @@ boundaryConditions
 	pressure0 1.01;		                           // pressure of cells where Pressure0 boundary is set
 	pressure1 1.0;			                           // pressure of cells where Pressure1 boundary is set
     
-	Border { direction N,S,W;    walldistance -1;  Velocity1 {} }     // Inflow walls
+	Border { direction N,S,W;    walldistance -1;  Velocity0 {} }     // Inflow walls
 	Border { direction E;    walldistance -1;  Pressure1 {} }         // Outflow wall
 
       /* 
