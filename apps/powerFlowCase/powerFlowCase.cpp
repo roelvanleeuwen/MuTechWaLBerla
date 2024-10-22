@@ -79,6 +79,7 @@ Created: 23-09-2024
 #include "mesh_common/distance_octree/DistanceOctree.h"
 #include "mesh_common/vtk/CommonDataSources.h"
 #include "mesh_common/vtk/VTKMeshWriter.h"
+#include "spongeZone.cpp"
 #include "unitConversion.cpp"
 #include "xyAdjustment.cpp"
 
@@ -283,6 +284,70 @@ void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultCo
 
 #pragma endregion MESH_OPERATIONS
 
+#pragma region VTK_OUTPUT
+
+/////////
+// VTK //
+/////////
+
+template< typename LatticeModel_T >
+class MyVTKOutput
+{
+ public:
+   MyVTKOutput(const ConstBlockDataID& pdfField, const ConstBlockDataID& flagField,
+               const vtk::VTKOutput::BeforeFunction& pdfGhostLayerSync)
+      : pdfField_(pdfField), flagField_(flagField), pdfGhostLayerSync_(pdfGhostLayerSync)
+   {}
+
+   void operator()(std::vector< shared_ptr< vtk::BlockCellDataWriterInterface > >& writers,
+                   std::map< std::string, vtk::VTKOutput::CellFilter >& filters,
+                   std::map< std::string, vtk::VTKOutput::BeforeFunction >& beforeFunctions);
+
+ private:
+   const ConstBlockDataID pdfField_;
+   const ConstBlockDataID flagField_;
+
+   vtk::VTKOutput::BeforeFunction pdfGhostLayerSync_;
+
+}; // class MyVTKOutput
+
+template< typename LatticeModel_T >
+void MyVTKOutput< LatticeModel_T >::operator()(std::vector< shared_ptr< vtk::BlockCellDataWriterInterface > >& writers,
+                                               std::map< std::string, vtk::VTKOutput::CellFilter >& filters,
+                                               std::map< std::string, vtk::VTKOutput::BeforeFunction >& beforeFunctions)
+{
+   // block data writers
+
+   writers.push_back(make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfField_, units_.xSI, units_.tSI,
+                                                                                      "VelocityFromPDF"));
+   writers.push_back(
+      make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfField_, units_.rhoSI, "DensityFromPDF"));
+   writers.push_back(make_shared< lbm::VTKWriter< ScalarField_T > >(omegaField_, "OmegaField"));
+   writers.push_back(make_shared< field::VTKWriter< FlagField_T > >(flagField_, "FlagField"));
+
+   // cell filters
+
+   field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagField_);
+   fluidFilter.addFlag(Fluid_Flag);
+   filters["FluidFilter"] = fluidFilter;
+
+   field::FlagFieldCellFilter< FlagField_T > obstacleFilter(flagField_);
+   obstacleFilter.addFlag(NoSlip_Flag);
+   obstacleFilter.addFlag(Obstacle_Flag);
+   obstacleFilter.addFlag(Curved_Flag);
+   obstacleFilter.addFlag(UBB_Flag);
+   obstacleFilter.addFlag(PressureOutlet_Flag);
+   obstacleFilter.addFlag(Outlet21_Flag);
+   obstacleFilter.addFlag(Outlet43_Flag);
+   filters["ObstacleFilter"] = obstacleFilter;
+
+   // before functions
+
+   beforeFunctions["PDFGhostLayerSync"] = pdfGhostLayerSync_;
+}
+
+#pragma endregion VTK_OUTPUT
+
 #pragma region SPONGE_ZONE
 
 // Function to calculate the psi value based on the given x and dxSI
@@ -309,8 +374,9 @@ class OmegaSweep
    // Operator to perform the sweep operation on the given block
    void operator()(IBlock* block)
    {
-      auto pdfField  = block->getData< PdfField_T >(pdfFieldId_); // Get the PDF field of the block
-      auto blockAABB = block->getAABB();                          // Get the AABB of the block
+      auto pdfField = block->getData< PdfField_T >(pdfFieldId_); // Get the PDF field of the block
+
+      auto blockAABB = block->getAABB(); // Get the AABB of the block
 
       // Calculate the inner and outer radius of the sponge zone
       real_t sponge_rmin = setup_.spongeInnerThicknessFactor * std::max(domain_.yMax(), domain_.xMax());
@@ -496,7 +562,7 @@ int main(int argc, char** argv)
    setup.xyAdjuster_x              = adjustXYResult.xyAdjustment;
    setup.xyAdjuster_y              = adjustXYResult.xyAdjustment;
    setup.cellsPerBlock             = Vector3< uint_t >(adjustXYResult.cellsPerBlock_x, adjustXYResult.cellsPerBlock_x,
-                                                       16); // The z direction has 16 cells per block
+                                           16); // The z direction has 16 cells per block
 
    if (setup.scalePowerFlowDomain)
    {
@@ -726,7 +792,7 @@ int main(int argc, char** argv)
 #pragma region FIELD_CREATION
 
    BlockDataID omegaFieldId    = field::addToStorage< ScalarField_T >(blocks, "Flag field", setup.omegaEffective,
-                                                                      field::fzyx, setup.numGhostLayers);
+                                                                   field::fzyx, setup.numGhostLayers);
    LatticeModel_T latticeModel = LatticeModel_T(lbm::collision_model::SRTField< ScalarField_T >(omegaFieldId));
 
    BlockDataID pdfFieldId = lbm::addPdfFieldToStorage(
@@ -802,11 +868,11 @@ int main(int argc, char** argv)
    auto sweepBoundary = lbm::makeCellwiseSweep< LatticeModel_T, FlagField_T >(pdfFieldId, flagFieldId, fluidFlagUID);
    blockforest::communication::UniformBufferedScheme< CommunicationStencil_T > communication(blocks);
    timeloop.add()
-               // Smagorinsky turbulence model
-               << BeforeFunction(smagorinskySweep, "Sweep: Smagorinsky turbulence model")
-               << Sweep(lbm::makeCollideSweep(sweepBoundary), "Sweep: collision after Smagorinsky sweep");
-               // << AfterFunction(Communication_T(blocks, pdfFieldId),
-               //                  "Communication: after collision sweep with preceding Smagorinsky sweep");
+      // Smagorinsky turbulence model
+      << BeforeFunction(smagorinskySweep, "Sweep: Smagorinsky turbulence model")
+      << Sweep(lbm::makeCollideSweep(sweepBoundary), "Sweep: collision after Smagorinsky sweep");
+   // << AfterFunction(Communication_T(blocks, pdfFieldId),
+   //                  "Communication: after collision sweep with preceding Smagorinsky sweep");
    timeloop.add() << Sweep(OmegaSweep(pdfFieldId, aabb, setup, simulationUnits), "OmegaSweep");
 
    auto refinementTimeStep = lbm::refinement::makeTimeStep< LatticeModel_T, BHFactory::BoundaryHandling >(
@@ -843,11 +909,24 @@ int main(int argc, char** argv)
 #pragma endregion SWEEPS_AND_TIME_LOOP
 
 #pragma region VTK_OUTPUT
+   // blockforest::communication::NonUniformBufferedScheme< typename lbm::NeighborsStencil< LatticeModel_T >::type >
+   //    pdfGhostLayerSync(blocks, None, Empty);
+   // pdfGhostLayerSync.addPackInfo(make_shared< lbm::refinement::PdfFieldSyncPackInfo< LatticeModel_T > >(pdfFieldId));
 
-   uint_t vtkWriteFrequency = VTKParams.getBlock("fluid_field").getParameter("writeFrequency", uint_t(0));
-   auto vtkOutput           = vtk::createVTKOutput_BlockData(
-      *blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out", "simulation_step", false, true, true, false,
-      0); // last number determines the initial time step from which the vtk is outputed.
+   // MyVTKOutput< LatticeModel_T > myVTKOutput(pdfFieldId, flagFieldId, pdfGhostLayerSync);
+
+   // std::map< std::string, vtk::SelectableOutputFunction > vtkOutputFunctions;
+   // vtk::initializeVTKOutput(vtkOutputFunctions, myVTKOutput, blocks, config);
+
+   // vtk::initializeVTKOutput(std::map< std::string, SelectableOutputFunction > & outputFunctions,
+   //                          const RegisterVTKOutputFunction& registerVTKOutputFunction,
+   //                          const shared_ptr< const StructuredBlockStorage >& storage,
+   //                          const shared_ptr< Config >& config, const std::string& configBlockName)
+
+      uint_t vtkWriteFrequency = VTKParams.getBlock("fluid_field").getParameter("writeFrequency", uint_t(0));
+   auto vtkOutput              = vtk::createVTKOutput_BlockData(
+                   *blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out", "simulation_step", false, true, true, false,
+                   0); // last number determines the initial time step from which the vtk is outputed.
 
    AABB sliceAABB(real_c(aabb.xSize()) * real_t(-0.1), real_c(aabb.ySize()) * real_t(-0.1), real_c(-1 * aabb.zSize()),
                   real_c(aabb.xSize()) * real_t(0.15), real_c(aabb.ySize()) * real_t(0.1), real_c(aabb.zSize()));
@@ -882,16 +961,13 @@ int main(int argc, char** argv)
 
    WcTimingPool timingPool;
    WALBERLA_LOG_INFO_ON_ROOT("Starting timeloop")
-   for (uint_t i = 0; i < setup.timeSteps; ++i )
+   for (uint_t i = 0; i < setup.timeSteps; ++i)
    {
       // perform a single simulation step
-      timeloop.singleStep( timingPool );
+      timeloop.singleStep(timingPool);
 
       // evaluate measurements (note: reflect simulation behavior BEFORE the evaluation)
-      if( vtkWriteFrequency > 0 && i % vtkWriteFrequency == 0 && i > 0)
-      {
-         
-      }
+      if (vtkWriteFrequency > 0 && i % vtkWriteFrequency == 0 && i > 0) {}
    }
 
    timeloop.run(timingPool);
