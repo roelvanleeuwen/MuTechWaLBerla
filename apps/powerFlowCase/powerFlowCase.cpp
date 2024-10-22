@@ -871,10 +871,11 @@ int main(int argc, char** argv)
       // Smagorinsky turbulence model
       << BeforeFunction(smagorinskySweep, "Sweep: Smagorinsky turbulence model")
       << Sweep(lbm::makeCollideSweep(sweepBoundary), "Sweep: collision after Smagorinsky sweep");
-      // << AfterFunction(Communication_T(blocks, pdfFieldId),
-      //               "Communication: after collision sweep with preceding Smagorinsky sweep");
-   
-   const OmegaSweep_new< LatticeModel_T > omegaSweep_new(blocks, pdfFieldId, omegaFieldId, aabb, setup, simulationUnits);
+   // << AfterFunction(Communication_T(blocks, pdfFieldId),
+   //               "Communication: after collision sweep with preceding Smagorinsky sweep");
+
+   const OmegaSweep_new< LatticeModel_T > omegaSweep_new(blocks, pdfFieldId, omegaFieldId, aabb, setup,
+                                                         simulationUnits);
    timeloop.add() << BeforeFunction(omegaSweep_new, "OmegaSweep_new")
                   << Sweep(lbm::makeCollideSweep(sweepBoundary), "Sweep: collision after OmegaSweep_new");
 
@@ -928,10 +929,10 @@ int main(int argc, char** argv)
    //                          const shared_ptr< const StructuredBlockStorage >& storage,
    //                          const shared_ptr< Config >& config, const std::string& configBlockName)
 
-      uint_t vtkWriteFrequency = VTKParams.getBlock("fluid_field").getParameter("writeFrequency", uint_t(0));
-   auto vtkOutput              = vtk::createVTKOutput_BlockData(
-                   *blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out", "simulation_step", false, true, true, false,
-                   0); // last number determines the initial time step from which the vtk is outputed.
+   uint_t vtkWriteFrequency = VTKParams.getBlock("fluid_field").getParameter("writeFrequency", uint_t(0));
+   auto vtkOutput           = vtk::createVTKOutput_BlockData(
+                *blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out", "simulation_step", false, true, true, false,
+                0); // last number determines the initial time step from which the vtk is outputed.
 
    AABB sliceAABB(real_c(aabb.xSize()) * real_t(-0.1), real_c(aabb.ySize()) * real_t(-0.1), real_c(-1 * aabb.zSize()),
                   real_c(aabb.xSize()) * real_t(0.15), real_c(aabb.ySize()) * real_t(0.1), real_c(aabb.zSize()));
