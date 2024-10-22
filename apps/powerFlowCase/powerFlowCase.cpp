@@ -45,6 +45,7 @@ Created: 23-09-2024
 #include "field/all.h"
 #include "field/communication/PackInfo.h"
 #include "field/iterators/FieldPointer.h"
+#include "field/iterators/IteratorMacros.h"
 
 #include "geometry/all.h"
 
@@ -79,7 +80,7 @@ Created: 23-09-2024
 #include "mesh_common/distance_octree/DistanceOctree.h"
 #include "mesh_common/vtk/CommonDataSources.h"
 #include "mesh_common/vtk/VTKMeshWriter.h"
-#include "spongeZone_2.h"
+// #include "spongeZone_2.h"
 #include "unitConversion.cpp"
 #include "xyAdjustment.cpp"
 
@@ -284,69 +285,69 @@ void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultCo
 
 #pragma endregion MESH_OPERATIONS
 
-#pragma region VTK_OUTPUT
+// #pragma region VTK_OUTPUT
 
-/////////
-// VTK //
-/////////
+// /////////
+// // VTK //
+// /////////
 
-template< typename LatticeModel_T >
-class MyVTKOutput
-{
- public:
-   MyVTKOutput(const ConstBlockDataID& pdfField, const ConstBlockDataID& flagField,
-               const vtk::VTKOutput::BeforeFunction& pdfGhostLayerSync)
-      : pdfField_(pdfField), flagField_(flagField), pdfGhostLayerSync_(pdfGhostLayerSync)
-   {}
+// template< typename LatticeModel_T >
+// class MyVTKOutput
+// {
+//  public:
+//    MyVTKOutput(const ConstBlockDataID& pdfField, const ConstBlockDataID& flagField,
+//                const vtk::VTKOutput::BeforeFunction& pdfGhostLayerSync)
+//       : pdfField_(pdfField), flagField_(flagField), pdfGhostLayerSync_(pdfGhostLayerSync)
+//    {}
 
-   void operator()(std::vector< shared_ptr< vtk::BlockCellDataWriterInterface > >& writers,
-                   std::map< std::string, vtk::VTKOutput::CellFilter >& filters,
-                   std::map< std::string, vtk::VTKOutput::BeforeFunction >& beforeFunctions);
+//    void operator()(std::vector< shared_ptr< vtk::BlockCellDataWriterInterface > >& writers,
+//                    std::map< std::string, vtk::VTKOutput::CellFilter >& filters,
+//                    std::map< std::string, vtk::VTKOutput::BeforeFunction >& beforeFunctions);
 
- private:
-   const ConstBlockDataID pdfField_;
-   const ConstBlockDataID flagField_;
+//  private:
+//    const ConstBlockDataID pdfField_;
+//    const ConstBlockDataID flagField_;
 
-   vtk::VTKOutput::BeforeFunction pdfGhostLayerSync_;
+//    vtk::VTKOutput::BeforeFunction pdfGhostLayerSync_;
 
-}; // class MyVTKOutput
+// }; // class MyVTKOutput
 
-template< typename LatticeModel_T >
-void MyVTKOutput< LatticeModel_T >::operator()(std::vector< shared_ptr< vtk::BlockCellDataWriterInterface > >& writers,
-                                               std::map< std::string, vtk::VTKOutput::CellFilter >& filters,
-                                               std::map< std::string, vtk::VTKOutput::BeforeFunction >& beforeFunctions)
-{
-   // block data writers
+// template< typename LatticeModel_T >
+// void MyVTKOutput< LatticeModel_T >::operator()(std::vector< shared_ptr< vtk::BlockCellDataWriterInterface > >& writers,
+//                                                std::map< std::string, vtk::VTKOutput::CellFilter >& filters,
+//                                                std::map< std::string, vtk::VTKOutput::BeforeFunction >& beforeFunctions)
+// {
+//    // block data writers
 
-   writers.push_back(make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfField_, units_.xSI, units_.tSI,
-                                                                                      "VelocityFromPDF"));
-   writers.push_back(
-      make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfField_, units_.rhoSI, "DensityFromPDF"));
-   writers.push_back(make_shared< lbm::VTKWriter< ScalarField_T > >(omegaField_, "OmegaField"));
-   writers.push_back(make_shared< field::VTKWriter< FlagField_T > >(flagField_, "FlagField"));
+//    writers.push_back(make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfField_, units_.xSI, units_.tSI,
+//                                                                                       "VelocityFromPDF"));
+//    writers.push_back(
+//       make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfField_, units_.rhoSI, "DensityFromPDF"));
+//    writers.push_back(make_shared< lbm::VTKWriter< ScalarField_T > >(omegaField_, "OmegaField"));
+//    writers.push_back(make_shared< field::VTKWriter< FlagField_T > >(flagField_, "FlagField"));
 
-   // cell filters
+//    // cell filters
 
-   field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagField_);
-   fluidFilter.addFlag(Fluid_Flag);
-   filters["FluidFilter"] = fluidFilter;
+//    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagField_);
+//    fluidFilter.addFlag(Fluid_Flag);
+//    filters["FluidFilter"] = fluidFilter;
 
-   field::FlagFieldCellFilter< FlagField_T > obstacleFilter(flagField_);
-   obstacleFilter.addFlag(NoSlip_Flag);
-   obstacleFilter.addFlag(Obstacle_Flag);
-   obstacleFilter.addFlag(Curved_Flag);
-   obstacleFilter.addFlag(UBB_Flag);
-   obstacleFilter.addFlag(PressureOutlet_Flag);
-   obstacleFilter.addFlag(Outlet21_Flag);
-   obstacleFilter.addFlag(Outlet43_Flag);
-   filters["ObstacleFilter"] = obstacleFilter;
+//    field::FlagFieldCellFilter< FlagField_T > obstacleFilter(flagField_);
+//    obstacleFilter.addFlag(NoSlip_Flag);
+//    obstacleFilter.addFlag(Obstacle_Flag);
+//    obstacleFilter.addFlag(Curved_Flag);
+//    obstacleFilter.addFlag(UBB_Flag);
+//    obstacleFilter.addFlag(PressureOutlet_Flag);
+//    obstacleFilter.addFlag(Outlet21_Flag);
+//    obstacleFilter.addFlag(Outlet43_Flag);
+//    filters["ObstacleFilter"] = obstacleFilter;
 
-   // before functions
+//    // before functions
 
-   beforeFunctions["PDFGhostLayerSync"] = pdfGhostLayerSync_;
-}
+//    beforeFunctions["PDFGhostLayerSync"] = pdfGhostLayerSync_;
+// }
 
-#pragma endregion VTK_OUTPUT
+// #pragma endregion VTK_OUTPUT
 
 #pragma region SPONGE_ZONE
 
@@ -367,16 +368,22 @@ class OmegaSweep
 {
  public:
    // Constructor to initialize the OmegaSweep class with the given parameters
-   OmegaSweep(BlockDataID pdfFieldId, AABB& domain, Setup setup, Units units)
-      : pdfFieldId_(pdfFieldId), domain_(domain), setup_(setup), units_(units)
+   OmegaSweep(BlockDataID pdfFieldId, BlockDataID omegaFieldId,
+                  AABB& domain, Setup setup, Units units)
+      : pdfFieldId_(pdfFieldId), omegaFieldId_(omegaFieldId), domain_(domain), setup_(setup), units_(units)
    {}
 
    // Operator to perform the sweep operation on the given block
    void operator()(IBlock* block)
    {
       auto pdfField = block->getData< PdfField_T >(pdfFieldId_); // Get the PDF field of the block
-
+      auto omegaField = block->getData< ScalarField_T >(omegaFieldId_);
       auto blockAABB = block->getAABB(); // Get the AABB of the block
+
+      WALBERLA_ASSERT_NOT_NULLPTR(pdfField);
+      WALBERLA_ASSERT_NOT_NULLPTR(omegaField);
+
+      WALBERLA_ASSERT_EQUAL(pdfField->xyzSizeWithGhostLayer(), omegaField->xyzSizeWithGhostLayer());
 
       // Calculate the inner and outer radius of the sponge zone
       real_t sponge_rmin = setup_.spongeInnerThicknessFactor * std::max(domain_.yMax(), domain_.xMax());
@@ -410,15 +417,17 @@ class OmegaSweep
          // Ensure the relaxation rate omega is within the physical range
          WALBERLA_ASSERT(omega > 0.0 && omega < 2.0);
          // Set the relaxation rate omega in the collision model of the lattice model
-         pdfField->latticeModel().collisionModel().reset(it.x(), it.y(), it.z(), omega);
+         omegaField->get(it.x(), it.y(), it.z()) = omega;
+         // pdfField->latticeModel().collisionModel().reset(it.x(), it.y(), it.z(), omega);
       }
    }
 
  private:
    const BlockDataID pdfFieldId_; // PDF field ID
-   AABB domain_;                  // Axis-Aligned Bounding Box of the domain
-   Setup setup_;                  // Setup parameters
-   Units units_;                  // Units
+   BlockDataID omegaFieldId_;
+   AABB domain_; // Domain
+   Setup setup_; // Setup parameters
+   Units units_; // Units
 };
 
 #pragma endregion SPONGE_ZONE
@@ -874,12 +883,12 @@ int main(int argc, char** argv)
    // << AfterFunction(Communication_T(blocks, pdfFieldId),
    //               "Communication: after collision sweep with preceding Smagorinsky sweep");
 
-   const OmegaSweep_new< LatticeModel_T > omegaSweep_new(blocks, pdfFieldId, omegaFieldId, aabb, setup,
-                                                         simulationUnits);
-   timeloop.add() << BeforeFunction(omegaSweep_new, "OmegaSweep_new")
-                  << Sweep(lbm::makeCollideSweep(sweepBoundary), "Sweep: collision after OmegaSweep_new");
+   // OmegaSweep_new< LatticeModel_T > omegaSweepnew(blocks, pdfFieldId, omegaFieldId, aabb, setup,
+   //                                                       simulationUnits);
+   // timeloop.add() << BeforeFunction(omegaSweepnew, "OmegaSweep_new")
+   //                << Sweep(lbm::makeCollideSweep(sweepBoundary), "Sweep: collision after OmegaSweep_new");
 
-   // timeloop.add() << Sweep(OmegaSweep(pdfFieldId, aabb, setup, simulationUnits), "OmegaSweep");
+   timeloop.add() << Sweep(OmegaSweep(pdfFieldId, omegaFieldId, aabb, setup, simulationUnits), "OmegaSweep");
 
    auto refinementTimeStep = lbm::refinement::makeTimeStep< LatticeModel_T, BHFactory::BoundaryHandling >(
       blocks, sweepBoundary, pdfFieldId, boundaryHandlingId);
@@ -934,10 +943,10 @@ int main(int argc, char** argv)
                 *blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out", "simulation_step", false, true, true, false,
                 0); // last number determines the initial time step from which the vtk is outputed.
 
-   AABB sliceAABB(real_c(aabb.xSize()) * real_t(-0.1), real_c(aabb.ySize()) * real_t(-0.1), real_c(-1 * aabb.zSize()),
-                  real_c(aabb.xSize()) * real_t(0.15), real_c(aabb.ySize()) * real_t(0.1), real_c(aabb.zSize()));
-   vtk::AABBCellFilter aabbSliceFilter(sliceAABB);
-   // vtk::AABBCellFilter aabbSliceFilter(aabb);
+   // AABB sliceAABB(real_c(aabb.xSize()) * real_t(-0.1), real_c(aabb.ySize()) * real_t(-0.1), real_c(-1 * aabb.zSize()),
+   //                real_c(aabb.xSize()) * real_t(0.15), real_c(aabb.ySize()) * real_t(0.1), real_c(aabb.zSize()));
+   // vtk::AABBCellFilter aabbSliceFilter(sliceAABB);
+   vtk::AABBCellFilter aabbSliceFilter(aabb);
 
    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
    fluidFilter.addFlag(fluidFlagUID);
