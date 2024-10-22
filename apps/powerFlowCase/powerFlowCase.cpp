@@ -79,7 +79,7 @@ Created: 23-09-2024
 #include "mesh_common/distance_octree/DistanceOctree.h"
 #include "mesh_common/vtk/CommonDataSources.h"
 #include "mesh_common/vtk/VTKMeshWriter.h"
-#include "spongeZone.cpp"
+#include "spongeZone_2.h"
 #include "unitConversion.cpp"
 #include "xyAdjustment.cpp"
 
@@ -871,9 +871,14 @@ int main(int argc, char** argv)
       // Smagorinsky turbulence model
       << BeforeFunction(smagorinskySweep, "Sweep: Smagorinsky turbulence model")
       << Sweep(lbm::makeCollideSweep(sweepBoundary), "Sweep: collision after Smagorinsky sweep");
-   // << AfterFunction(Communication_T(blocks, pdfFieldId),
-   //                  "Communication: after collision sweep with preceding Smagorinsky sweep");
-   timeloop.add() << Sweep(OmegaSweep(pdfFieldId, aabb, setup, simulationUnits), "OmegaSweep");
+      // << AfterFunction(Communication_T(blocks, pdfFieldId),
+      //               "Communication: after collision sweep with preceding Smagorinsky sweep");
+   
+   const OmegaSweep_new< LatticeModel_T > omegaSweep_new(blocks, pdfFieldId, omegaFieldId, aabb, setup, simulationUnits);
+   timeloop.add() << BeforeFunction(omegaSweep_new, "OmegaSweep_new")
+                  << Sweep(lbm::makeCollideSweep(sweepBoundary), "Sweep: collision after OmegaSweep_new");
+
+   // timeloop.add() << Sweep(OmegaSweep(pdfFieldId, aabb, setup, simulationUnits), "OmegaSweep");
 
    auto refinementTimeStep = lbm::refinement::makeTimeStep< LatticeModel_T, BHFactory::BoundaryHandling >(
       blocks, sweepBoundary, pdfFieldId, boundaryHandlingId);
