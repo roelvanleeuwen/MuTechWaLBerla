@@ -11,7 +11,8 @@ options
 flowParameters
 { 
    angleOfAttack 0.0;               // [deg] Physical angle of attack of the flow with respect to the airfoil  
-   velocityMagnitudeSI 20;          // [m/s] Physical absolute velocity of the flow 
+   velocityMagnitudeSI 20;          // [m/s] Physical absolute velocity of the flow
+   initialVelocityMagnitudeSI 0; 
    kinViscositySI 1.461e-05;        // [m2/s] Physical kinematic viscosity of the flow
    rhoSI 1.225;                     // [kg/m3] Physical air density
    temperatureSI 288.1;             // [K] Temperature
@@ -21,7 +22,7 @@ simulationParameters
 {
    omega 1.99994;                      // Relaxation factor for the SRT model
    timeSteps   1000;                   // Number of time steps in the simulation
-   remainingTimeLoggerFrequency 10;   // in seconds. This is the frequency with which a time estimate of finilising the simulation is send in the terminal. 
+   remainingTimeLoggerFrequency 120;   // in seconds. This is the frequency with which a time estimate of finilising the simulation is send in the terminal. 
    smagorinskyConstant 0.12;           // Smagorinsky constant for the Smagorinky LES turbulence model
 }
 
@@ -93,7 +94,7 @@ VTK
    // for parameter documentation see src/vtk/Initialization.cpp
    fluid_field
    {
-      writeFrequency 1;           // [time steps] Output a VTK file at writeFrequency
+      writeFrequency 50;           // [time steps] Output a VTK file at writeFrequency
       ghostLayers    4;             // Number of ghostlayers to exclude from the VTK output
       
       vtkBeforFunctions {
@@ -109,21 +110,12 @@ VTK
          Density;
          Omega;
       }
-   }
-   
-   vtkFlagField
+
+   TE_zone
    {
-      writeFrequency 1000000000; // write only once
-      ghostLayers    4;
       
-      writers {
-         FlagField;
-      }
+   }
+
    }
    
-   vtkDomainDecomposition
-   {
-      writeFrequency 1000000000;           // write only once
-      outputDomainDecomposition true;
-   }
 }

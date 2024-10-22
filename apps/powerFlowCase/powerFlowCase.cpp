@@ -68,6 +68,8 @@ Created: 23-09-2024
 #include "timeloop/SweepTimeloop.h"
 #include "timeloop/all.h"
 
+#include "vtk/ChainedFilter.h"
+
 #include "mesh_common/DistanceComputations.h"
 #include "mesh_common/DistanceFunction.h"
 #include "mesh_common/MatrixVectorOperations.h"
@@ -77,7 +79,6 @@ Created: 23-09-2024
 #include "mesh_common/distance_octree/DistanceOctree.h"
 #include "mesh_common/vtk/CommonDataSources.h"
 #include "mesh_common/vtk/VTKMeshWriter.h"
-#include "vtk/ChainedFilter.h"
 #include "unitConversion.cpp"
 #include "xyAdjustment.cpp"
 
@@ -92,6 +93,7 @@ struct Setup
    real_t temperatureSI;                // physical temperature
    real_t angleOfAttack;                // physical angle of attack
    real_t velocityMagnitudeSI;          // physical velocity magnitude
+   real_t initialVelocityMagnitudeSI;   // initial velocity magnitude
    Vector3< real_t > initialVelocitySI; // physical initial flow velocity
    Vector3< real_t > flowVelocitySI;    // physical flow velocity
    real_t MachSI;                       // physical Mach number
@@ -168,6 +170,7 @@ struct Setup
       os << "  temperatureSI: " << setup.temperatureSI << " K \n";
       os << "  angleOfAttack: " << setup.angleOfAttack << " deg \n";
       os << "  velocityMagnitudeSI: " << setup.velocityMagnitudeSI << " m/s \n";
+      os << "  initialVelocityMagnitudeSI: " << setup.initialVelocityMagnitudeSI << " m/s \n";
       os << "  initialVelocitySI: " << setup.initialVelocitySI << " m/s \n";
       os << "  flowVelocitySI: " << setup.flowVelocitySI << " m/s \n";
       os << "  MachSI: " << setup.MachSI << " - \n";
@@ -214,7 +217,7 @@ struct Setup
       os << "Boundary conditions:\n";
       os << "  periodicity: " << setup.periodicity << "\n";
       os << " \n";
-      
+
       os << "LBM parameters:\n";
       os << "  spongeInnerThicknessFactor: " << setup.spongeInnerThicknessFactor << "\n";
       os << "  spongeOuterThicknessFactor: " << setup.spongeOuterThicknessFactor << "\n";
@@ -333,7 +336,7 @@ class OmegaSweep
 
          // Calculate the lattice kinematic viscosity
          real_t viscosity_old = pdfField->latticeModel().collisionModel().viscosity(it.x(), it.y(), it.z());
-         real_t nuLU = units_.kinViscosityLU * nuAddFactor + viscosity_old;
+         real_t nuLU          = units_.kinViscosityLU * nuAddFactor + viscosity_old;
 
          // Calculate the relaxation rate omega based on the lattice kinematic viscosity
          real_t omega = 1.0 / (std::pow(units_.pseudoSpeedOfSoundLU, 2.0) * nuLU + 0.5);
@@ -347,7 +350,6 @@ class OmegaSweep
 
  private:
    const BlockDataID pdfFieldId_; // PDF field ID
-   BlockDataID omegaFieldId_;     // Omega field ID
    AABB domain_;                  // Axis-Aligned Bounding Box of the domain
    Setup setup_;                  // Setup parameters
    Units units_;                  // Units
@@ -381,11 +383,12 @@ int main(int argc, char** argv)
    // Read the meaning of the parameters from the parameter blocks in the configuration file powerFlowCase.prm
 
    // Flow parameters
-   setup.angleOfAttack       = flowParameters.getParameter< real_t >("angleOfAttack", real_c(7.8));
-   setup.velocityMagnitudeSI = flowParameters.getParameter< real_t >("velocityMagnitudeSI", real_c(10.0));
-   setup.kinViscositySI      = flowParameters.getParameter< real_t >("kinViscositySI", real_t(1.0));
-   setup.rhoSI               = flowParameters.getParameter< real_t >("rhoSI", real_t(1.0));
-   setup.temperatureSI       = flowParameters.getParameter< real_t >("temperatureSI", real_t(288.1));
+   setup.angleOfAttack              = flowParameters.getParameter< real_t >("angleOfAttack", real_c(0.0));
+   setup.velocityMagnitudeSI        = flowParameters.getParameter< real_t >("velocityMagnitudeSI", real_c(20.0));
+   setup.initialVelocityMagnitudeSI = flowParameters.getParameter< real_t >("initialVelocityMagnitudeSI", real_c(20.0));
+   setup.kinViscositySI             = flowParameters.getParameter< real_t >("kinViscositySI", real_t(1.451e-6));
+   setup.rhoSI                      = flowParameters.getParameter< real_t >("rhoSI", real_t(1.225));
+   setup.temperatureSI              = flowParameters.getParameter< real_t >("temperatureSI", real_t(288.1));
 
    // Simulation parameters
    setup.omegaEffective = simulationParameters.getParameter< real_t >("omega", real_t(1.6));
@@ -421,9 +424,11 @@ int main(int argc, char** argv)
 
    // Calculate the initial physical velocity [m/s] based on the angle of attack and the velocity magnitude
    setup.initialVelocitySI =
+      Vector3< real_t >(setup.initialVelocityMagnitudeSI * std::cos(setup.angleOfAttack * M_PI / 180.0),
+                        setup.initialVelocityMagnitudeSI * std::sin(setup.angleOfAttack * M_PI / 180.0), real_t(0));
+   setup.flowVelocitySI =
       Vector3< real_t >(setup.velocityMagnitudeSI * std::cos(setup.angleOfAttack * M_PI / 180.0),
                         setup.velocityMagnitudeSI * std::sin(setup.angleOfAttack * M_PI / 180.0), real_t(0));
-   setup.flowVelocitySI = setup.initialVelocitySI;
 
    real_t dxFineSI = setup.dxSI * std::pow(2.0, setup.numLevels);
 
@@ -491,7 +496,7 @@ int main(int argc, char** argv)
    setup.xyAdjuster_x              = adjustXYResult.xyAdjustment;
    setup.xyAdjuster_y              = adjustXYResult.xyAdjustment;
    setup.cellsPerBlock             = Vector3< uint_t >(adjustXYResult.cellsPerBlock_x, adjustXYResult.cellsPerBlock_x,
-                                           16); // The z direction has 16 cells per block
+                                                       16); // The z direction has 16 cells per block
 
    if (setup.scalePowerFlowDomain)
    {
@@ -526,9 +531,15 @@ int main(int argc, char** argv)
    setup.nBlocks_y = static_cast< real_t >(adjustXYResult.nBlocks_x);
    setup.nBlocks_z = std::round(aabb.zSize() / setup.dxSI / static_cast< real_t >(setup.cellsPerBlock[2]));
 
-   WALBERLA_ASSERT_LESS(std::abs(aabb.xSize() - setup.dxSI * setup.nBlocks_x * static_cast< real_t >(setup.cellsPerBlock[0])), 1e-6, "The blocks do not fit in the x direction")
-   WALBERLA_ASSERT_LESS(std::abs(aabb.ySize() - setup.dxSI * setup.nBlocks_y * static_cast< real_t >(setup.cellsPerBlock[1])), 1e-6, "The blocks do not fit in the y direction")
-   WALBERLA_ASSERT_LESS(std::abs(aabb.zSize() - setup.dxSI * setup.nBlocks_z * static_cast< real_t >(setup.cellsPerBlock[2])), 1e-6, "The blocks do not fit in the z direction")
+   WALBERLA_ASSERT_LESS(
+      std::abs(aabb.xSize() - setup.dxSI * setup.nBlocks_x * static_cast< real_t >(setup.cellsPerBlock[0])), 1e-6,
+      "The blocks do not fit in the x direction")
+   WALBERLA_ASSERT_LESS(
+      std::abs(aabb.ySize() - setup.dxSI * setup.nBlocks_y * static_cast< real_t >(setup.cellsPerBlock[1])), 1e-6,
+      "The blocks do not fit in the y direction")
+   WALBERLA_ASSERT_LESS(
+      std::abs(aabb.zSize() - setup.dxSI * setup.nBlocks_z * static_cast< real_t >(setup.cellsPerBlock[2])), 1e-6,
+      "The blocks do not fit in the z direction")
 
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 3: Domain sizing done ")
 #pragma endregion DOMAIN_SIZING
@@ -714,7 +725,8 @@ int main(int argc, char** argv)
 
 #pragma region FIELD_CREATION
 
-   BlockDataID omegaFieldId    = field::addToStorage< ScalarField_T >(blocks, "Flag field", setup.omegaEffective, field::fzyx, setup.numGhostLayers);
+   BlockDataID omegaFieldId    = field::addToStorage< ScalarField_T >(blocks, "Flag field", setup.omegaEffective,
+                                                                      field::fzyx, setup.numGhostLayers);
    LatticeModel_T latticeModel = LatticeModel_T(lbm::collision_model::SRTField< ScalarField_T >(omegaFieldId));
 
    BlockDataID pdfFieldId = lbm::addPdfFieldToStorage(
@@ -788,16 +800,14 @@ int main(int argc, char** argv)
       blocks, pdfFieldId, omegaFieldId, simulationUnits.kinViscosityLU, setup.smagorinskyConstant);
 
    auto sweepBoundary = lbm::makeCellwiseSweep< LatticeModel_T, FlagField_T >(pdfFieldId, flagFieldId, fluidFlagUID);
-   blockforest::communication::UniformBufferedScheme< CommunicationStencil_T > communication( blocks );
+   blockforest::communication::UniformBufferedScheme< CommunicationStencil_T > communication(blocks);
    timeloop.add()
                // Smagorinsky turbulence model
                << BeforeFunction(smagorinskySweep, "Sweep: Smagorinsky turbulence model")
-               << Sweep(OmegaSweep(pdfFieldId, aabb, setup, simulationUnits), "OmegaSweep")
                << Sweep(lbm::makeCollideSweep(sweepBoundary), "Sweep: collision after Smagorinsky sweep");
                // << AfterFunction(Communication_T(blocks, pdfFieldId),
                //                  "Communication: after collision sweep with preceding Smagorinsky sweep");
-
-
+   timeloop.add() << Sweep(OmegaSweep(pdfFieldId, aabb, setup, simulationUnits), "OmegaSweep");
 
    auto refinementTimeStep = lbm::refinement::makeTimeStep< LatticeModel_T, BHFactory::BoundaryHandling >(
       blocks, sweepBoundary, pdfFieldId, boundaryHandlingId);
@@ -835,14 +845,14 @@ int main(int argc, char** argv)
 #pragma region VTK_OUTPUT
 
    uint_t vtkWriteFrequency = VTKParams.getBlock("fluid_field").getParameter("writeFrequency", uint_t(0));
-   auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out",
-                                                   "simulation_step", false, true, true, false, 0); //last number determines the initial time step from which the vtk is outputed. 
+   auto vtkOutput           = vtk::createVTKOutput_BlockData(
+      *blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out", "simulation_step", false, true, true, false,
+      0); // last number determines the initial time step from which the vtk is outputed.
 
-
-   // AABB sliceAABB(real_t(0), real_t(0), real_t(0), real_c(aabb.xSize())*real_t(0.5),
-   //                   real_c(aabb.ySize()) * real_t(0.5), real_c(aabb.zSize()));
-   // vtk::AABBCellFilter aabbSliceFilter(sliceAABB);
-   vtk::AABBCellFilter aabbSliceFilter(aabb);
+   AABB sliceAABB(real_c(aabb.xSize()) * real_t(-0.1), real_c(aabb.ySize()) * real_t(-0.1), real_c(-1 * aabb.zSize()),
+                  real_c(aabb.xSize()) * real_t(0.15), real_c(aabb.ySize()) * real_t(0.1), real_c(aabb.zSize()));
+   vtk::AABBCellFilter aabbSliceFilter(sliceAABB);
+   // vtk::AABBCellFilter aabbSliceFilter(aabb);
 
    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
    fluidFilter.addFlag(fluidFlagUID);
@@ -854,9 +864,11 @@ int main(int argc, char** argv)
    vtkOutput->addCellInclusionFilter(combinedSliceFilter);
    // vtkOutput->addCellInclusionFilter(fluidFilter);
 
-   auto velocitySIWriter = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.xSI, simulationUnits.tSI, "Velocity ");
-   auto densitySIWriter = make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.rhoSI, "Density");
-   auto omegaWriter   = make_shared< field::VTKWriter< ScalarField_T > >(omegaFieldId, "Omega");
+   auto velocitySIWriter = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(
+      pdfFieldId, simulationUnits.xSI, simulationUnits.tSI, "Velocity ");
+   auto densitySIWriter =
+      make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.rhoSI, "Density");
+   auto omegaWriter = make_shared< field::VTKWriter< ScalarField_T > >(omegaFieldId, "Omega");
    vtkOutput->addCellDataWriter(velocitySIWriter);
    vtkOutput->addCellDataWriter(densitySIWriter);
    vtkOutput->addCellDataWriter(omegaWriter);
@@ -870,8 +882,20 @@ int main(int argc, char** argv)
 
    WcTimingPool timingPool;
    WALBERLA_LOG_INFO_ON_ROOT("Starting timeloop")
+   for (uint_t i = 0; i < setup.timeSteps; ++i )
+   {
+      // perform a single simulation step
+      timeloop.singleStep( timingPool );
+
+      // evaluate measurements (note: reflect simulation behavior BEFORE the evaluation)
+      if( vtkWriteFrequency > 0 && i % vtkWriteFrequency == 0 && i > 0)
+      {
+         
+      }
+   }
+
    timeloop.run(timingPool);
-   timingPool.unifyRegisteredTimersAcrossProcesses();
+   // timingPool.unifyRegisteredTimersAcrossProcesses();
    timingPool.logResultOnRoot(timing::REDUCE_TOTAL, true);
 
 #pragma endregion RUN_SIMULATION

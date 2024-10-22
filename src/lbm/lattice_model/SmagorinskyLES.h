@@ -153,6 +153,10 @@ void SmagorinskyLES< LatticeModel_T, Filter_T >::operator()( IBlock * block, con
                                                                     ( real_t(0.5) * ( std::sqrt( tau * tau + factor * std::sqrt( real_t(2) * filteredMeanMomentum ) ) - tau ) );
 
          omegaField->get(x,y,z) = real_t(1) / ( tau + tauTurbulent );
+         if(tauTurbulent > 1e-2)
+         {
+         WALBERLA_LOG_INFO_ON_ROOT("Tau tubulent: " << tauTurbulent << "")
+         }
       }
    )
 }

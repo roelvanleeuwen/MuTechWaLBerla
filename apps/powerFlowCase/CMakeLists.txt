@@ -2,9 +2,7 @@ if ( WALBERLA_BUILD_WITH_OPENMESH )
 
     waLBerla_link_files_to_builddir( *.prm )
     waLBerla_link_files_to_builddir( *.stl )
-    waLBerla_link_files_to_builddir( *.dat )
     waLBerla_link_files_to_builddir( *.md )
-    waLBerla_link_files_to_builddir( *.obj)
 
     waLBerla_add_executable ( NAME powerFlowCase
                             FILES powerFlowCase.cpp
