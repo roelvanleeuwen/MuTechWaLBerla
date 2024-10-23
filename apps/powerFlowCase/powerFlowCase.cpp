@@ -875,7 +875,7 @@ int main(int argc, char** argv)
    const bool amrFileFormat       = generalVTKSettings.getParameter("amrFileFormat", false);
 
    // TE_zone
-   const auto zoneParams                    = VTKParams.getOneBlock("TE_zone");
+   const auto zoneParams                    = VTKParams.getBlock("TE_zone");
    const std::string TEZoneName             = zoneParams.getParameter("identifier", std::string("TE_zone"));
    uint_t TEZoneWriteFrequency              = zoneParams.getParameter("writeFrequency", uint_t(0));
    const uint_t TEZoneGhostLayers           = zoneParams.getParameter("ghostLayers", uint_t(0));
@@ -897,8 +897,8 @@ int main(int argc, char** argv)
    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
    fluidFilter.addFlag(fluidFlagUID);
 
-   Vector3< real_t > TEZoneMin = zoneParams.getBlock("AABB_TE_filter").getParameter< Vector3< real_t > >("min", Vector3 <real_t>(0.0));
-   Vector3< real_t > TEZoneMax = zoneParams.getBlock("AABB_TE_filter").getParameter< Vector3< real_t > >("max", Vector3 <real_t>(0.0));
+   Vector3< real_t > TEZoneMin = zoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3 <real_t>(-1.0));
+   Vector3< real_t > TEZoneMax = zoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3 <real_t>(1.0));
    AABB TEZoneAABB = AABB(TEZoneMin, TEZoneMax);
    vtk::AABBCellFilter TEZoneFilter(TEZoneAABB);
    vtk::ChainedFilter combinedTEZoneFilter;

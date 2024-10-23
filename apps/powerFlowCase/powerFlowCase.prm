@@ -21,7 +21,7 @@ flowParameters
 simulationParameters
 {
    omega 1.99994;                      // Relaxation factor for the SRT model
-   timeSteps   1000;                   // Number of time steps in the simulation
+   timeSteps   3;                   // Number of time steps in the simulation
    remainingTimeLoggerFrequency 120;   // in seconds. This is the frequency with which a time estimate of finilising the simulation is send in the terminal. 
    smagorinskyConstant 0.12;           // Smagorinsky constant for the Smagorinky LES turbulence model
 }
@@ -138,27 +138,9 @@ VTK
       samplingDy         1; // forces the output to use this dy (= cell y-spacing)
       samplingDz         1; // forces the output to use this dz (= cell z-spacing)
       
-
-      /*
-      before_functions // (OPTIONAL, APPLICATION-DEPENDENT!)
-      {
-         [NameOfTheFirstFunction];   // the mapping of this name to a function pointer/functor is
-         [NameOfTheSecondFunction];  // done by the RegisterVTKOutputFunction "registerVTKOutputFunction"
-         [...]                       // which must be implemented by the user
-      }
-      */
+      AABBMin < 0.15, -0.05, -0.081625/2 >;
+      AABBMax < 0.25, 0.05, 0.081625/2 >;
  
-      // AABB filters are OPTIONAL. AABB filters are sub blocks that must start with "AABB_filter".
-      // AABB filters can be selected as either inclusion or exclusion filters. In order to select an
-      // AABB filter "AABB_filter_XXX" as inclusion/exclusion filter, its name/identifier (in this
-      // example: "AABB_filter_XXX") must be added to the list of inclusion/exclusion filters in
-      // the sub block inclusion_filters/inclusion_filters.
- 
-      AABB_TE_filter
-      {
-         min < 0.15, -0.05, -0.081625/2 >;
-         max < 0.25, 0.05, 0.081625/2 >;
-      }
    }   
    }
 
