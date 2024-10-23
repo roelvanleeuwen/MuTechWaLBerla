@@ -411,8 +411,8 @@ std::shared_ptr< walberla::vtk::VTKOutput > myAABBVTKOutput(const std::string id
    Vector3< real_t > AABBMin = zoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3< real_t >(-1.0));
    Vector3< real_t > AABBMax = zoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3< real_t >(1.0));
 
-   AABB AABBZoneFilter = AABB(AABBMin, AABBMax);
-   vtk::AABBCellFilter AABBZoneFilter(AABBZoneFilter);
+   AABB AABBZone = AABB(AABBMin, AABBMax);
+   vtk::AABBCellFilter AABBZoneFilter(AABBZone);
    vtk::ChainedFilter combinedFilter;
    combinedFilter.addFilter(fluidFilter);
    combinedFilter.addFilter(AABBZoneFilter);
@@ -920,7 +920,7 @@ int main(int argc, char** argv)
 
 #pragma region VTK_OUTPUT
    auto TEZoneOutput = myAABBVTKOutput("TE_zone", blocks, pdfFieldId, flagFieldId, fluidFlagUID, VTKParams, simulationUnits);
-   
+
    timeloop.addFuncAfterTimeStep(vtk::writeFiles(TEZoneOutput), "TE Zone VTK Output");
    // // General VTK settings (forcePVTU, continuous numbering, binary, littleEndian, useMPIIO, amrFileFormat)
    // const auto generalVTKSettings  = VTKParams.getBlock("General_settings");
