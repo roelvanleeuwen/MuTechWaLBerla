@@ -109,7 +109,8 @@ VTK
       vtkWriters {
          Velocity;
          Density;
-         Omega;
+         OmegaField;
+         FlagField;
       }
 
    TE_zone
@@ -118,8 +119,8 @@ VTK
                                        // in parallel (optional, default=0 [=disabled])
 
       initialExecutionCount   0;       // optional, default=0
-      initialWriteCallsToSkip 2;       // optional, default=0
-      writeFrequency          50;      // output frequency = number of times "writeBlocks" must be
+      initialWriteCallsToSkip 0;       // optional, default=0
+      writeFrequency          1;      // output frequency = number of times "writeBlocks" must be
                                        // called for triggering an output (optional, default=1)
                                        // 0 disables output
       forcePVTU               false;   // if true, (P)VTU files are created, and not (P)VTI files
@@ -140,20 +141,25 @@ VTK
  
       useMPIIO                  false; // use MPI I/O to write only one file per time step
                                        // (optional, default=true)
- 
+
+
       // You can either specify "samplingResolution" or "samplingDx", "samplingDy", and "samplingDz"
-      samplingResolution [floating point value]; // "samplingResolution VALUE" has the same effect as
-                                                 // setting "samplingDx", "samplingDy", and "samplingDz" to VALUE
+      samplingResolution 1;     // "samplingResolution VALUE" has the same effect as setting "samplingDx", "samplingDy", and "samplingDz" to VALUE
+
+      /*
       samplingDx         [floating point value]; // forces the output to use this dx (= cell x-spacing)
       samplingDy         [floating point value]; // forces the output to use this dy (= cell y-spacing)
       samplingDz         [floating point value]; // forces the output to use this dz (= cell z-spacing)
- 
+      */
+
+      /*
       before_functions // (OPTIONAL, APPLICATION-DEPENDENT!)
       {
          [NameOfTheFirstFunction];   // the mapping of this name to a function pointer/functor is
          [NameOfTheSecondFunction];  // done by the RegisterVTKOutputFunction "registerVTKOutputFunction"
          [...]                       // which must be implemented by the user
       }
+      */
  
       // AABB filters are OPTIONAL. AABB filters are sub blocks that must start with "AABB_filter".
       // AABB filters can be selected as either inclusion or exclusion filters. In order to select an
@@ -180,10 +186,11 @@ VTK
       // example: "CellBB_filter_XXX") must be added to the list of inclusion/exclusion filters in
       // the sub block inclusion_filters/inclusion_filters.
       // CellBB filters are AABB filters that are defined using discrete (!) global cell coordinates.
- 
-      CellBB_filter_0
+
+      /*
+      CellBB_TE_filter
       {
-         level [integer value]; // the cell level to which the following coordinates correspond to
+         level 0; // the cell level to which the following coordinates correspond to
                                 // (optional, default=0)
          min < [x: integer value], [y: integer value], [z: integer value] >;
          max < [x: integer value], [y: integer value], [z: integer value] >;
@@ -195,6 +202,8 @@ VTK
       // }
       // CellBB_filter_2 { ... }
       // CellBB_filter_* { ... }
+
+      */
  
       // In terms of set theory: all filters listed as inclusion filters are "added" together,
       // resulting in a union of all filters.

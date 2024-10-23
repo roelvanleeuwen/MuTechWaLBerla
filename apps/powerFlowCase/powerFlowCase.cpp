@@ -81,6 +81,7 @@ Created: 23-09-2024
 #include "mesh_common/vtk/CommonDataSources.h"
 #include "mesh_common/vtk/VTKMeshWriter.h"
 // #include "spongeZone_2.h"
+#include "apps/powerFlowCase/myVTKOutput.h"
 #include "unitConversion.cpp"
 #include "xyAdjustment.cpp"
 
@@ -285,70 +286,6 @@ void vertexToFaceColor(MeshType& mesh, const typename MeshType::Color& defaultCo
 
 #pragma endregion MESH_OPERATIONS
 
-// #pragma region VTK_OUTPUT
-
-// /////////
-// // VTK //
-// /////////
-
-// template< typename LatticeModel_T >
-// class MyVTKOutput
-// {
-//  public:
-//    MyVTKOutput(const ConstBlockDataID& pdfField, const ConstBlockDataID& flagField,
-//                const vtk::VTKOutput::BeforeFunction& pdfGhostLayerSync)
-//       : pdfField_(pdfField), flagField_(flagField), pdfGhostLayerSync_(pdfGhostLayerSync)
-//    {}
-
-//    void operator()(std::vector< shared_ptr< vtk::BlockCellDataWriterInterface > >& writers,
-//                    std::map< std::string, vtk::VTKOutput::CellFilter >& filters,
-//                    std::map< std::string, vtk::VTKOutput::BeforeFunction >& beforeFunctions);
-
-//  private:
-//    const ConstBlockDataID pdfField_;
-//    const ConstBlockDataID flagField_;
-
-//    vtk::VTKOutput::BeforeFunction pdfGhostLayerSync_;
-
-// }; // class MyVTKOutput
-
-// template< typename LatticeModel_T >
-// void MyVTKOutput< LatticeModel_T >::operator()(std::vector< shared_ptr< vtk::BlockCellDataWriterInterface > >& writers,
-//                                                std::map< std::string, vtk::VTKOutput::CellFilter >& filters,
-//                                                std::map< std::string, vtk::VTKOutput::BeforeFunction >& beforeFunctions)
-// {
-//    // block data writers
-
-//    writers.push_back(make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfField_, units_.xSI, units_.tSI,
-//                                                                                       "VelocityFromPDF"));
-//    writers.push_back(
-//       make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfField_, units_.rhoSI, "DensityFromPDF"));
-//    writers.push_back(make_shared< lbm::VTKWriter< ScalarField_T > >(omegaField_, "OmegaField"));
-//    writers.push_back(make_shared< field::VTKWriter< FlagField_T > >(flagField_, "FlagField"));
-
-//    // cell filters
-
-//    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagField_);
-//    fluidFilter.addFlag(Fluid_Flag);
-//    filters["FluidFilter"] = fluidFilter;
-
-//    field::FlagFieldCellFilter< FlagField_T > obstacleFilter(flagField_);
-//    obstacleFilter.addFlag(NoSlip_Flag);
-//    obstacleFilter.addFlag(Obstacle_Flag);
-//    obstacleFilter.addFlag(Curved_Flag);
-//    obstacleFilter.addFlag(UBB_Flag);
-//    obstacleFilter.addFlag(PressureOutlet_Flag);
-//    obstacleFilter.addFlag(Outlet21_Flag);
-//    obstacleFilter.addFlag(Outlet43_Flag);
-//    filters["ObstacleFilter"] = obstacleFilter;
-
-//    // before functions
-
-//    beforeFunctions["PDFGhostLayerSync"] = pdfGhostLayerSync_;
-// }
-
-// #pragma endregion VTK_OUTPUT
-
 #pragma region SPONGE_ZONE
 
 // Function to calculate the psi value based on the given x and dxSI
@@ -368,17 +305,16 @@ class OmegaSweep
 {
  public:
    // Constructor to initialize the OmegaSweep class with the given parameters
-   OmegaSweep(BlockDataID pdfFieldId, BlockDataID omegaFieldId,
-                  AABB& domain, Setup setup, Units units)
+   OmegaSweep(BlockDataID pdfFieldId, BlockDataID omegaFieldId, AABB& domain, Setup setup, Units units)
       : pdfFieldId_(pdfFieldId), omegaFieldId_(omegaFieldId), domain_(domain), setup_(setup), units_(units)
    {}
 
    // Operator to perform the sweep operation on the given block
    void operator()(IBlock* block)
    {
-      auto pdfField = block->getData< PdfField_T >(pdfFieldId_); // Get the PDF field of the block
+      auto pdfField   = block->getData< PdfField_T >(pdfFieldId_); // Get the PDF field of the block
       auto omegaField = block->getData< ScalarField_T >(omegaFieldId_);
-      auto blockAABB = block->getAABB(); // Get the AABB of the block
+      auto blockAABB  = block->getAABB(); // Get the AABB of the block
 
       WALBERLA_ASSERT_NOT_NULLPTR(pdfField);
       WALBERLA_ASSERT_NOT_NULLPTR(omegaField);
@@ -431,6 +367,70 @@ class OmegaSweep
 };
 
 #pragma endregion SPONGE_ZONE
+
+#pragma region VTK_MAKER
+/////////
+// VTK //
+/////////
+
+template< typename LatticeModel_T >
+class MyVTKOutput
+{
+ public:
+   MyVTKOutput(const ConstBlockDataID& pdfField, const ConstBlockDataID& omegaField, const ConstBlockDataID& flagField,
+               const vtk::VTKOutput::BeforeFunction& pdfGhostLayerSync)
+      : pdfField_(pdfField), omegaField_(omegaField), flagField_(flagField), pdfGhostLayerSync_(pdfGhostLayerSync)
+   {}
+
+   void operator()(std::vector< shared_ptr< vtk::BlockCellDataWriterInterface > >& writers,
+                   std::map< std::string, vtk::VTKOutput::CellFilter >& filters,
+                   std::map< std::string, vtk::VTKOutput::BeforeFunction >& beforeFunctions);
+
+ private:
+   const ConstBlockDataID pdfField_;
+   const ConstBlockDataID omegaField_;
+   const ConstBlockDataID flagField_;
+
+   vtk::VTKOutput::BeforeFunction pdfGhostLayerSync_;
+
+}; // class MyVTKOutput
+
+template< typename LatticeModel_T >
+void MyVTKOutput< LatticeModel_T >::operator()(std::vector< shared_ptr< vtk::BlockCellDataWriterInterface > >& writers,
+                                               std::map< std::string, vtk::VTKOutput::CellFilter >& filters,
+                                               std::map< std::string, vtk::VTKOutput::BeforeFunction >& beforeFunctions)
+{
+   // block data writers
+
+   writers.push_back(make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfField_, units_.xSI, units_.tSI,
+                                                                                      "Velocity"));
+   writers.push_back(
+      make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfField_, units_.rhoSI, "Density"));
+   writers.push_back(make_shared< lbm::VTKWriter< ScalarField_T > >(omegaField_, "OmegaField"));
+   writers.push_back(make_shared< field::VTKWriter< FlagField_T > >(flagField_, "FlagField"));
+
+   // cell filters
+
+   field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagField_);
+   fluidFilter.addFlag(Fluid_Flag);
+   filters["FluidFilter"] = fluidFilter;
+
+   // field::FlagFieldCellFilter< FlagField_T > obstacleFilter(flagField_);
+   // obstacleFilter.addFlag(NoSlip_Flag);
+   // obstacleFilter.addFlag(Obstacle_Flag);
+   // obstacleFilter.addFlag(Curved_Flag);
+   // obstacleFilter.addFlag(UBB_Flag);
+   // obstacleFilter.addFlag(PressureOutlet_Flag);
+   // obstacleFilter.addFlag(Outlet21_Flag);
+   // obstacleFilter.addFlag(Outlet43_Flag);
+   // filters["ObstacleFilter"] = obstacleFilter;
+
+   // before functions
+
+   beforeFunctions["PDFGhostLayerSync"] = pdfGhostLayerSync_;
+}
+#pragma endregion VTK_MAKER
+
 
 int main(int argc, char** argv)
 {
@@ -924,51 +924,54 @@ int main(int argc, char** argv)
 #pragma endregion SWEEPS_AND_TIME_LOOP
 
 #pragma region VTK_OUTPUT
-   // blockforest::communication::NonUniformBufferedScheme< typename lbm::NeighborsStencil< LatticeModel_T >::type >
-   //    pdfGhostLayerSync(blocks, None, Empty);
-   // pdfGhostLayerSync.addPackInfo(make_shared< lbm::refinement::PdfFieldSyncPackInfo< LatticeModel_T > >(pdfFieldId));
+   blockforest::communication::NonUniformBufferedScheme< typename lbm::NeighborsStencil< LatticeModel_T >::type >
+      pdfGhostLayerSync(blocks);
+   pdfGhostLayerSync.addPackInfo(make_shared< lbm::refinement::PdfFieldSyncPackInfo< LatticeModel_T > >(pdfFieldId));
+   
+   MyVTKOutput< LatticeModel_T > myVTKOutput(pdfFieldId, omegaFieldId, flagFieldId, pdfGhostLayerSync);
 
-   // MyVTKOutput< LatticeModel_T > myVTKOutput(pdfFieldId, flagFieldId, pdfGhostLayerSync);
+   std::map< std::string, vtk::SelectableOutputFunction > vtkOutputFunctions;
+   vtk::initializeVTKOutput(vtkOutputFunctions, myVTKOutput, blocks, walberlaEnv.config());
 
-   // std::map< std::string, vtk::SelectableOutputFunction > vtkOutputFunctions;
-   // vtk::initializeVTKOutput(vtkOutputFunctions, myVTKOutput, blocks, config);
 
-   // vtk::initializeVTKOutput(std::map< std::string, SelectableOutputFunction > & outputFunctions,
-   //                          const RegisterVTKOutputFunction& registerVTKOutputFunction,
-   //                          const shared_ptr< const StructuredBlockStorage >& storage,
-   //                          const shared_ptr< Config >& config, const std::string& configBlockName)
 
-   uint_t vtkWriteFrequency = VTKParams.getBlock("fluid_field").getParameter("writeFrequency", uint_t(0));
-   auto vtkOutput           = vtk::createVTKOutput_BlockData(
-                *blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out", "simulation_step", false, true, true, false,
-                0); // last number determines the initial time step from which the vtk is outputed.
+   //    uint_t vtkWriteFrequency = VTKParams.getBlock("fluid_field").getParameter("writeFrequency", uint_t(0));
+   // auto vtkOutput              = vtk::createVTKOutput_BlockData(
+   //                 *blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out", "simulation_step", false, true, true, false,
+   //                 0); // last number determines the initial time step from which the vtk is outputed.
 
-   // AABB sliceAABB(real_c(aabb.xSize()) * real_t(-0.1), real_c(aabb.ySize()) * real_t(-0.1), real_c(-1 * aabb.zSize()),
-   //                real_c(aabb.xSize()) * real_t(0.15), real_c(aabb.ySize()) * real_t(0.1), real_c(aabb.zSize()));
-   // vtk::AABBCellFilter aabbSliceFilter(sliceAABB);
-   vtk::AABBCellFilter aabbSliceFilter(aabb);
+   // // AABB sliceAABB(real_c(aabb.xSize()) * real_t(-0.1), real_c(aabb.ySize()) * real_t(-0.1), real_c(-1 *
+   // // aabb.zSize()),
+   // //                real_c(aabb.xSize()) * real_t(0.15), real_c(aabb.ySize()) * real_t(0.1), real_c(aabb.zSize()));
+   // // vtk::AABBCellFilter aabbSliceFilter(sliceAABB);
+   // vtk::AABBCellFilter aabbSliceFilter(aabb);
 
-   field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
-   fluidFilter.addFlag(fluidFlagUID);
+   // field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
+   // fluidFilter.addFlag(fluidFlagUID);
 
-   vtk::ChainedFilter combinedSliceFilter;
-   combinedSliceFilter.addFilter(fluidFilter);
-   combinedSliceFilter.addFilter(aabbSliceFilter);
+   // vtk::ChainedFilter combinedSliceFilter;
+   // combinedSliceFilter.addFilter(fluidFilter);
+   // combinedSliceFilter.addFilter(aabbSliceFilter);
 
-   vtkOutput->addCellInclusionFilter(combinedSliceFilter);
-   // vtkOutput->addCellInclusionFilter(fluidFilter);
+   // vtkOutput->addCellInclusionFilter(combinedSliceFilter);
+   // // vtkOutput->addCellInclusionFilter(fluidFilter);
 
-   auto velocitySIWriter = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(
-      pdfFieldId, simulationUnits.xSI, simulationUnits.tSI, "Velocity ");
-   auto densitySIWriter =
-      make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.rhoSI, "Density");
-   auto omegaWriter = make_shared< field::VTKWriter< ScalarField_T > >(omegaFieldId, "Omega");
-   vtkOutput->addCellDataWriter(velocitySIWriter);
-   vtkOutput->addCellDataWriter(densitySIWriter);
-   vtkOutput->addCellDataWriter(omegaWriter);
+   // auto velocitySIWriter = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(
+   //    pdfFieldId, simulationUnits.xSI, simulationUnits.tSI, "Velocity ");
+   // auto densitySIWriter =
+   //    make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.rhoSI, "Density");
+   // auto omegaWriter = make_shared< field::VTKWriter< ScalarField_T > >(omegaFieldId, "Omega");
+   // vtkOutput->addCellDataWriter(velocitySIWriter);
+   // vtkOutput->addCellDataWriter(densitySIWriter);
+   // vtkOutput->addCellDataWriter(omegaWriter);
 
-   timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
-   // timeloop.addFuncAfterTimeStep(perfLogger, "Evaluator: performance logging");
+   // timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
+   // // timeloop.addFuncAfterTimeStep(perfLogger, "Evaluator: performance logging");
+
+   for( auto output = vtkOutputFunctions.begin(); output != vtkOutputFunctions.end(); ++output )
+         timeloop.addFuncAfterTimeStep( output->second.outputFunction, std::string("VTK: ") + output->first,
+                                        output->second.requiredGlobalStates, output->second.incompatibleGlobalStates );
+
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 9: VTK output added")
 #pragma endregion VTK_OUTPUT
 
