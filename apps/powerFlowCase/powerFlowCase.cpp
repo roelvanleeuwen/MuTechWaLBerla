@@ -874,17 +874,17 @@ int main(int argc, char** argv)
    const bool useMPIIO            = generalVTKSettings.getParameter("useMPIIO", false);
    const bool amrFileFormat       = generalVTKSettings.getParameter("amrFileFormat", false);
 
-   // TE_zone
-   const auto zoneParams                    = VTKParams.getBlock("TE_zone");
-   const std::string TEZoneName             = zoneParams.getParameter("identifier", std::string("TE_zone"));
-   uint_t TEZoneWriteFrequency              = zoneParams.getParameter("writeFrequency", uint_t(0));
-   const uint_t TEZoneGhostLayers           = zoneParams.getParameter("ghostLayers", uint_t(0));
-   const std::string TEZoneBaseFolder       = zoneParams.getParameter("baseFolder", std::string("vtk_out/TE_zone"));
-   const std::string TEZoneExecutionFolder  = zoneParams.getParameter("executionFolder", std::string("simulation_step"));
-   const uint_t TEZoneInitialExecutionCount = zoneParams.getParameter("initialExecutionCount", uint_t(0));
-   const real_t TEZoneSamplingResolutionDx    = zoneParams.getParameter("samplingDx", real_t(1));
-   const real_t TEZoneSamplingResolutionDy    = zoneParams.getParameter("samplingDy", real_t(1));
-   const real_t TEZoneSamplingResolutionDz    = zoneParams.getParameter("samplingDz", real_t(1));
+   // Full_domain
+   const auto FullDomainParams                    = VTKParams.getBlock("TE_zone");
+   const std::string TEZoneName             = FullDomainParams.getParameter("identifier", std::string("TE_zone"));
+   uint_t TEZoneWriteFrequency              = FullDomainParams.getParameter("writeFrequency", uint_t(0));
+   const uint_t TEZoneGhostLayers           = FullDomainParams.getParameter("ghostLayers", uint_t(0));
+   const std::string TEZoneBaseFolder       = FullDomainParams.getParameter("baseFolder", std::string("vtk_out/TE_zone"));
+   const std::string TEZoneExecutionFolder  = FullDomainParams.getParameter("executionFolder", std::string("simulation_step"));
+   const uint_t TEZoneInitialExecutionCount = FullDomainParams.getParameter("initialExecutionCount", uint_t(0));
+   const real_t TEZoneSamplingResolutionDx    = FullDomainParams.getParameter("samplingDx", real_t(1));
+   const real_t TEZoneSamplingResolutionDy    = FullDomainParams.getParameter("samplingDy", real_t(1));
+   const real_t TEZoneSamplingResolutionDz    = FullDomainParams.getParameter("samplingDz", real_t(1));
    auto TEZoneOutput = vtk::createVTKOutput_BlockData(
       *blocks, TEZoneName, TEZoneWriteFrequency, TEZoneGhostLayers, forcePVTU, TEZoneBaseFolder, TEZoneExecutionFolder,
       continuousNumbering, binaryVTK, littleEndianVTK, useMPIIO, TEZoneInitialExecutionCount, amrFileFormat);
@@ -897,8 +897,9 @@ int main(int argc, char** argv)
    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
    fluidFilter.addFlag(fluidFlagUID);
 
-   Vector3< real_t > TEZoneMin = zoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3 <real_t>(-1.0));
-   Vector3< real_t > TEZoneMax = zoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3 <real_t>(1.0));
+   Vector3< real_t > TEZoneMin = TEzoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3 <real_t>(-1.0));
+   Vector3< real_t > TEZoneMax = TEzoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3 <real_t>(1.0));
+   
    AABB TEZoneAABB = AABB(TEZoneMin, TEZoneMax);
    vtk::AABBCellFilter TEZoneFilter(TEZoneAABB);
    vtk::ChainedFilter combinedTEZoneFilter;
@@ -915,6 +916,50 @@ int main(int argc, char** argv)
    TEZoneOutput->addCellDataWriter(densitySIWriterTEZone);
 
    timeloop.addFuncAfterTimeStep(vtk::writeFiles(TEZoneOutput), "TE Zone VTK Output");
+
+   // TE_zone
+   const auto TEzoneParams                    = VTKParams.getBlock("TE_zone");
+   const std::string TEZoneName             = TEzoneParams.getParameter("identifier", std::string("TE_zone"));
+   uint_t TEZoneWriteFrequency              = TEzoneParams.getParameter("writeFrequency", uint_t(0));
+   const uint_t TEZoneGhostLayers           = TEzoneParams.getParameter("ghostLayers", uint_t(0));
+   const std::string TEZoneBaseFolder       = TEzoneParams.getParameter("baseFolder", std::string("vtk_out/TE_zone"));
+   const std::string TEZoneExecutionFolder  = TEzoneParams.getParameter("executionFolder", std::string("simulation_step"));
+   const uint_t TEZoneInitialExecutionCount = TEzoneParams.getParameter("initialExecutionCount", uint_t(0));
+   const real_t TEZoneSamplingResolutionDx    = TEzoneParams.getParameter("samplingDx", real_t(1));
+   const real_t TEZoneSamplingResolutionDy    = TEzoneParams.getParameter("samplingDy", real_t(1));
+   const real_t TEZoneSamplingResolutionDz    = TEzoneParams.getParameter("samplingDz", real_t(1));
+   auto TEZoneOutput = vtk::createVTKOutput_BlockData(
+      *blocks, TEZoneName, TEZoneWriteFrequency, TEZoneGhostLayers, forcePVTU, TEZoneBaseFolder, TEZoneExecutionFolder,
+      continuousNumbering, binaryVTK, littleEndianVTK, useMPIIO, TEZoneInitialExecutionCount, amrFileFormat);
+   
+   blockforest::communication::NonUniformBufferedScheme< Stencil_T > pdfGhostLayerSync(blocks);
+   pdfGhostLayerSync.addPackInfo(make_shared< lbm::refinement::PdfFieldSyncPackInfo< LatticeModel_T > >(pdfFieldId));
+   TEZoneOutput->addBeforeFunction(pdfGhostLayerSync);
+   TEZoneOutput->setSamplingResolution(TEZoneSamplingResolutionDx, TEZoneSamplingResolutionDy, TEZoneSamplingResolutionDz);
+
+   field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
+   fluidFilter.addFlag(fluidFlagUID);
+
+   Vector3< real_t > TEZoneMin = TEzoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3 <real_t>(-1.0));
+   Vector3< real_t > TEZoneMax = TEzoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3 <real_t>(1.0));
+   
+   AABB TEZoneAABB = AABB(TEZoneMin, TEZoneMax);
+   vtk::AABBCellFilter TEZoneFilter(TEZoneAABB);
+   vtk::ChainedFilter combinedTEZoneFilter;
+   combinedTEZoneFilter.addFilter(fluidFilter);
+   combinedTEZoneFilter.addFilter(TEZoneFilter);
+   TEZoneOutput->addCellInclusionFilter(combinedTEZoneFilter);
+
+   auto velocitySIWriterTEZone = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(
+      pdfFieldId, simulationUnits.xSI, simulationUnits.tSI, "Velocity ");
+   auto densitySIWriterTEZone = make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId,
+                                                                                             simulationUnits.rhoSI,
+                                                                                                 "Density");
+   TEZoneOutput->addCellDataWriter(velocitySIWriterTEZone);
+   TEZoneOutput->addCellDataWriter(densitySIWriterTEZone);
+
+   timeloop.addFuncAfterTimeStep(vtk::writeFiles(TEZoneOutput), "TE Zone VTK Output");
+
 
 
    // timeloop.addFuncAfterTimeStep(perfLogger, "Evaluator: performance logging");
@@ -936,7 +981,7 @@ int main(int argc, char** argv)
    // }
 
    timeloop.run(timingPool);
-   // timingPool.unifyRegisteredTimersAcrossProcesses();
+   timingPool.unifyRegisteredTimersAcrossProcesses();
    timingPool.logResultOnRoot(timing::REDUCE_TOTAL, true);
 
 #pragma endregion RUN_SIMULATION

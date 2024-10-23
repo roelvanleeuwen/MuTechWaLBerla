@@ -122,6 +122,7 @@ VTK
          OmegaField;
          FlagField;
       }
+   }
 
    TE_zone
    {
@@ -129,8 +130,8 @@ VTK
       writeFrequency          1;      // output frequency = number of times "writeBlocks" must be
                                        // called for triggering an output (optional, default=1)
                                        // 0 disables output
-      ghostLayers             4;       // number of ghost layers (optional, default=0)                              
-      baseFolder              vtk_out/TE_zone;
+      ghostLayers             0;       // number of ghost layers (optional, default=0)                              
+      baseFolder              vtk_out;
       executionFolder         simulation_step;
       initialExecutionCount   0;
 
@@ -138,11 +139,10 @@ VTK
       samplingDy         1; // forces the output to use this dy (= cell y-spacing)
       samplingDz         1; // forces the output to use this dz (= cell z-spacing)
       
-      AABBMin < 0.15, -0.05, -0.081625/2 >;
-      AABBMax < 0.25, 0.05, 0.081625/2 >;
+      AABBMin < 0.15, -0.05, -0.0408125 >;
+      AABBMax < 0.25, 0.05, 0.0408125 >;
  
    }   
-   }
 
    }
    
