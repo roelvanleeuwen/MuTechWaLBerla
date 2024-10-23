@@ -91,6 +91,9 @@ stabilityChecker
 
 VTK 
 {
+   // for parameter documentation see src/vtk/Initialization.cpp 
+   // or https://www.walberla.net/doxygen/namespacewalberla_1_1vtk.html#a0826685f4bd7089f42a9025d850c3988
+
    General_settings
    {
       forcePVTU            false;
@@ -101,27 +104,24 @@ VTK
       amrFileFormat        false;
    }
 
-   // for parameter documentation see src/vtk/Initialization.cpp 
-   // or https://www.walberla.net/doxygen/namespacewalberla_1_1vtk.html#a0826685f4bd7089f42a9025d850c3988
-   fluid_field
+   full_domain
    {
-      writeFrequency 50;           // [time steps] Output a VTK file at writeFrequency
-      ghostLayers    4;             // Number of ghostlayers to exclude from the VTK output
+      identifier              full_domain;
+      writeFrequency          1;      // output frequency = number of times "writeBlocks" must be
+                                       // called for triggering an output (optional, default=1)
+                                       // 0 disables output
+      ghostLayers             0;       // number of ghost layers (optional, default=0)                              
+      baseFolder              vtk_out;
+      executionFolder         simulation_step;
+      initialExecutionCount   0;
+
+      samplingDx         1; // forces the output to use this dx (= cell x-spacing)
+      samplingDy         1; // forces the output to use this dy (= cell y-spacing)
+      samplingDz         1; // forces the output to use this dz (= cell z-spacing)
       
-      vtkBeforFunctions {
-         PDFGhostLayerSync;
-      }
-      
-      vtkInclusionFilters {
-         DomainFilter;
-      }
-      
-      vtkWriters {
-         Velocity;
-         Density;
-         OmegaField;
-         FlagField;
-      }
+      AABBMin < 0.15, -0.05, -0.0408125 >;
+      AABBMax < 0.25, 0.05, 0.0408125 >;
+ 
    }
 
    TE_zone
