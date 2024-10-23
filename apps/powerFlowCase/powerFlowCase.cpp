@@ -882,9 +882,9 @@ int main(int argc, char** argv)
    const std::string TEZoneBaseFolder       = zoneParams.getParameter("baseFolder", std::string("vtk_out/TE_zone"));
    const std::string TEZoneExecutionFolder  = zoneParams.getParameter("executionFolder", std::string("simulation_step"));
    const uint_t TEZoneInitialExecutionCount = zoneParams.getParameter("initialExecutionCount", uint_t(0));
-   const uint_t TEZoneSamplingResolutionDx    = zoneParams.getParameter("samplingDx", uint_t(1));
-   const uint_t TEZoneSamplingResolutionDy    = zoneParams.getParameter("samplingDy", uint_t(1));
-   const uint_t TEZoneSamplingResolutionDz    = zoneParams.getParameter("samplingDz", uint_t(1));
+   const real_t TEZoneSamplingResolutionDx    = zoneParams.getParameter("samplingDx", real_t(1));
+   const real_t TEZoneSamplingResolutionDy    = zoneParams.getParameter("samplingDy", real_t(1));
+   const real_t TEZoneSamplingResolutionDz    = zoneParams.getParameter("samplingDz", real_t(1));
    auto TEZoneOutput = vtk::createVTKOutput_BlockData(
       *blocks, TEZoneName, TEZoneWriteFrequency, TEZoneGhostLayers, forcePVTU, TEZoneBaseFolder, TEZoneExecutionFolder,
       continuousNumbering, binaryVTK, littleEndianVTK, useMPIIO, TEZoneInitialExecutionCount, amrFileFormat);
@@ -948,4 +948,4 @@ int main(int argc, char** argv)
 } // namespace MuTech
 } // namespace walberla
 
-int main(int argc, char** argv) { walberla::main(argc, argv); }
+int main(int argc, char** argv) { walberla::MuTech::powerFlowCase::main(argc, argv); }
