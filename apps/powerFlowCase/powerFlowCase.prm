@@ -21,7 +21,7 @@ flowParameters
 simulationParameters
 {
    omega 1.99994;                      // Relaxation factor for the SRT model
-   timeSteps   3;                   // Number of time steps in the simulation
+   timeSteps   10;                   // Number of time steps in the simulation
    remainingTimeLoggerFrequency 120;   // in seconds. This is the frequency with which a time estimate of finilising the simulation is send in the terminal. 
    smagorinskyConstant 0.12;           // Smagorinsky constant for the Smagorinky LES turbulence model
 }
@@ -110,39 +110,41 @@ VTK
       writeFrequency          1;      // output frequency = number of times "writeBlocks" must be
                                        // called for triggering an output (optional, default=1)
                                        // 0 disables output
-      ghostLayers             0;       // number of ghost layers (optional, default=0)                              
+      ghostLayers             0;       // number of ghost layers for vtk output. KEEP EQUAL TO 0 TO PREVENT ERRORS WHEN OPENING VTK                             
       baseFolder              vtk_out;
       executionFolder         simulation_step;
       initialExecutionCount   0;
+      startStep 5;
 
       samplingDx         1; // forces the output to use this dx (= cell x-spacing)
       samplingDy         1; // forces the output to use this dy (= cell y-spacing)
       samplingDz         1; // forces the output to use this dz (= cell z-spacing)
       
-      AABBMin < -1, -1, -1 >;
-      AABBMax < 1, 1, 1 >;
+      AABBMin < -3, -3, -0.0408125 >;
+      AABBMax < 3, 3, 0.0408125 >;
  
    }
 
-   TE_zone
+   airfoil_proximity
    {
-      identifier              TE_zone;
+      identifier              airfoil_proximity;
       writeFrequency          1;      // output frequency = number of times "writeBlocks" must be
                                        // called for triggering an output (optional, default=1)
                                        // 0 disables output
-      ghostLayers             0;       // number of ghost layers (optional, default=0)                              
+      ghostLayers             0;       // number of ghost layers for vtk output. KEEP EQUAL TO 0 TO PREVENT ERRORS WHEN OPENING VTK                            
       baseFolder              vtk_out;
       executionFolder         simulation_step;
       initialExecutionCount   0;
+      startStep 8;
 
       samplingDx         1; // forces the output to use this dx (= cell x-spacing)
       samplingDy         1; // forces the output to use this dy (= cell y-spacing)
       samplingDz         1; // forces the output to use this dz (= cell z-spacing)
       
-      AABBMin < 0.15, -0.05, -0.0408125 >;
-      AABBMax < 0.25, 0.05, 0.0408125 >;
+      AABBMin < -0.2, -0.1, -0.0408125 >;
+      AABBMax < 0.4, 0.1, 0.0408125 >;
  
-   }   
+   }
 
    }
    

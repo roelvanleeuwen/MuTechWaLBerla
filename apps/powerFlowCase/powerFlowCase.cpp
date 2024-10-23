@@ -373,9 +373,11 @@ class OmegaSweep
 
 #pragma endregion SPONGE_ZONE
 
-std::shared_ptr< walberla::vtk::VTKOutput > myAABBVTKOutput(const std::string identifier, const AABB aabb,
-                                                            const shared_ptr< const StructuredBlockStorage >& blocks,
-                                                            const BlockDataID pdfFieldId, const BlockDataID flagFieldId,
+#pragma region VTK_OUTPUT_FUNCTIONS
+
+std::shared_ptr< walberla::vtk::VTKOutput > myAABBVTKOutput(const std::string identifier,
+                                                            const shared_ptr< StructuredBlockForest >& blocks,
+                                                            const BlockDataID pdfFieldId, const BlockDataID omegaFieldId, const BlockDataID flagFieldId,
                                                             const FlagUID fluidFlagUID,
                                                             const walberla::config::Config::BlockHandle& VTKconfig,
                                                             const Units units)
@@ -401,32 +403,15 @@ std::shared_ptr< walberla::vtk::VTKOutput > myAABBVTKOutput(const std::string id
    const real_t zoneSamplingResolutionDy  = zoneParams.getParameter("samplingDy", real_t(1));
    const real_t zoneSamplingResolutionDz  = zoneParams.getParameter("samplingDz", real_t(1));
    auto zoneOutput                        = vtk::createVTKOutput_BlockData(
-                             *blocks, zoneName, zoneWriteFrequency, zoneGhostLayers, forcePVTU, zoneBaseFolder, zoneExecutionFolder,
-                             continuousNumbering, binaryVTK, littleEndianVTK, useMPIIO, zoneInitialExecutionCount, amrFileFormat);
+      *blocks, zoneName, zoneWriteFrequency, zoneGhostLayers, forcePVTU, zoneBaseFolder, zoneExecutionFolder,
+      continuousNumbering, binaryVTK, littleEndianVTK, useMPIIO, zoneInitialExecutionCount, amrFileFormat);
 
-   // zoneOutput->setSamplingResolution(zoneSamplingResolutionDx, zoneSamplingResolutionDy, zoneSamplingResolutionDz);
-
-   // field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
-   // fluidFilter.addFlag(fluidFlagUID);
-
-
-   // AABB AABBZone(aabb);
-   
-   // vtk::AABBCellFilter AABBZoneFilter(aabb);
-   // vtk::AABBCellFilter AABBZoneFilter(AABBZone);
-
-   // Combine the AABBFilter with the fluidFilter. The order matters. First select the domain part and then select what the fluid is. 
-   // vtk::ChainedFilter combinedFilter;
-   // combinedFilter.addFilter(AABBZoneFilter);
-   // combinedFilter.addFilter(fluidFilter);
+   zoneOutput->setSamplingResolution(zoneSamplingResolutionDx, zoneSamplingResolutionDy, zoneSamplingResolutionDz);
 
    Vector3< real_t > AABBMin = zoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3< real_t >(-1.0));
    Vector3< real_t > AABBMax = zoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3< real_t >(1.0));
 
-   AABB AABBZone(real_c(aabb.xSize()) * AABBMin[0], real_c(aabb.ySize()) * AABBMin[1],
-                 real_c(aabb.zSize()) * AABBMin[2], real_c(aabb.xSize()) * AABBMax[0],
-                 real_c(aabb.ySize()) * AABBMax[1], real_c(aabb.zSize()) * AABBMax[0]);
-
+   AABB AABBZone(AABBMin[0], AABBMin[1], AABBMin[2], AABBMax[0], AABBMax[1], AABBMax[2]);
    vtk::AABBCellFilter AABBZoneFilter(AABBZone);
 
    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
@@ -442,10 +427,14 @@ std::shared_ptr< walberla::vtk::VTKOutput > myAABBVTKOutput(const std::string id
       make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, units.xSI, units.tSI, "Velocity ");
    auto densitySIWriterZone =
       make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, units.rhoSI, "Density");
+   auto omegaWriterZone = make_shared< field::VTKWriter< ScalarField_T > > (omegaFieldId, "Omega");
    zoneOutput->addCellDataWriter(velocitySIWriterZone);
    zoneOutput->addCellDataWriter(densitySIWriterZone);
+   zoneOutput->addCellDataWriter(omegaWriterZone);
    return zoneOutput;
 }
+
+#pragma endregion VTK_OUTPUT_FUNCTIONS
 
 int main(int argc, char** argv)
 {
@@ -586,7 +575,7 @@ int main(int argc, char** argv)
    setup.xyAdjuster_x              = adjustXYResult.xyAdjustment;
    setup.xyAdjuster_y              = adjustXYResult.xyAdjustment;
    setup.cellsPerBlock             = Vector3< uint_t >(adjustXYResult.cellsPerBlock_x, adjustXYResult.cellsPerBlock_x,
-                                           16); // The z direction has 16 cells per block
+                                                       16); // The z direction has 16 cells per block
 
    if (setup.scalePowerFlowDomain)
    {
@@ -816,7 +805,7 @@ int main(int argc, char** argv)
 #pragma region FIELD_CREATION
 
    BlockDataID omegaFieldId    = field::addToStorage< ScalarField_T >(blocks, "Flag field", setup.omegaEffective,
-                                                                   field::fzyx, setup.numGhostLayers);
+                                                                      field::fzyx, setup.numGhostLayers);
    LatticeModel_T latticeModel = LatticeModel_T(lbm::collision_model::SRTField< ScalarField_T >(omegaFieldId));
 
    BlockDataID pdfFieldId = lbm::addPdfFieldToStorage(
@@ -941,207 +930,18 @@ int main(int argc, char** argv)
 #pragma region VTK_OUTPUT
    // // auto TEZoneOutput = myAABBVTKOutput("TE_zone", aabb, blocks, pdfFieldId, flagFieldId, fluidFlagUID, VTKParams,
    // //                                     simulationUnits);
-   auto fullDomainOutput = myAABBVTKOutput("full_domain", aabb, blocks, pdfFieldId, flagFieldId, fluidFlagUID,
-                                           VTKParams, simulationUnits);
+   auto airfoilProximityOutput = myAABBVTKOutput("airfoil_proximity", blocks, pdfFieldId, omegaFieldId, flagFieldId,
+                                                 fluidFlagUID, VTKParams, simulationUnits);
+   // uint_t airfoilProximityWriteFrequency              = VTKParams.getBlock("airfoil_proximity").getParameter("writeFrequency", uint_t(0));
+   // uint_t airfoilProximityStartStep = VTKParams.getBlock("airfoil_proximity").getParameter("startStep", uint_t(0));
 
-   timeloop.addFuncAfterTimeStep(vtk::writeFiles(fullDomainOutput), "VTK");
-    // General VTK settings (forcePVTU, continuous numbering, binary, littleEndian, useMPIIO, amrFileFormat)
-   // const auto VTKconfig = VTKParams;
-   // const auto generalVTKSettings  = VTKconfig.getBlock("General_settings");
-   // const bool forcePVTU           = generalVTKSettings.getParameter("forcePVTU", false);
-   // const bool continuousNumbering = generalVTKSettings.getParameter("continuousNumbering", false);
-   // const bool binaryVTK           = generalVTKSettings.getParameter("binary", true);
-   // const bool littleEndianVTK     = generalVTKSettings.getParameter("littleEndian", true);
-   // const bool useMPIIO            = generalVTKSettings.getParameter("useMPIIO", false);
-   // const bool amrFileFormat       = generalVTKSettings.getParameter("amrFileFormat", false);
+   auto fullDomainOutput =
+      myAABBVTKOutput("full_domain", blocks, pdfFieldId, omegaFieldId, flagFieldId, fluidFlagUID, VTKParams, simulationUnits);
+   // uint_t fullDomainWriteFrequency              = VTKParams.getBlock("full_domain").getParameter("writeFrequency", uint_t(0));
+   // uint_t fullDomainStartStep = VTKParams.getBlock("full_domain").getParameter("startStep", uint_t(0));
 
-   // // zone specific parameters
-   // const std::string identifier = "full_domain";
-   // const auto zoneParams                  = VTKconfig.getBlock(identifier);
-   // const std::string zoneName             = zoneParams.getParameter("identifier", std::string("no_name"));
-   // uint_t zoneWriteFrequency              = zoneParams.getParameter("writeFrequency", uint_t(0));
-   // const uint_t zoneGhostLayers           = zoneParams.getParameter("ghostLayers", uint_t(0));
-   // const std::string zoneBaseFolder       = zoneParams.getParameter("baseFolder", std::string("vtk_out"));
-   // const std::string zoneExecutionFolder  = zoneParams.getParameter("executionFolder", std::string("simulation_step"));
-   // const uint_t zoneInitialExecutionCount = zoneParams.getParameter("initialExecutionCount", uint_t(0));
-   // const real_t zoneSamplingResolutionDx  = zoneParams.getParameter("samplingDx", real_t(1));
-   // const real_t zoneSamplingResolutionDy  = zoneParams.getParameter("samplingDy", real_t(1));
-   // const real_t zoneSamplingResolutionDz  = zoneParams.getParameter("samplingDz", real_t(1));
-   // auto zoneOutput                        = vtk::createVTKOutput_BlockData(
-   //                           blocks, zoneName, zoneWriteFrequency, zoneGhostLayers, forcePVTU, zoneBaseFolder, zoneExecutionFolder,
-   //                           continuousNumbering, binaryVTK, littleEndianVTK, useMPIIO, zoneInitialExecutionCount, amrFileFormat);
-
-   // // zoneOutput->setSamplingResolution(zoneSamplingResolutionDx, zoneSamplingResolutionDy, zoneSamplingResolutionDz);
-
-   // // Make filter, only selecting the fluid cells
-   // field::FlagFieldCellFilter< FlagField_T > fluidFilter2(flagFieldId);
-   // fluidFilter2.addFlag(fluidFlagUID);
-
-   // // Vector3< real_t > AABBMin = zoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3< real_t >(-1.0));
-   // // Vector3< real_t > AABBMax = zoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3< real_t >(1.0));
-
-   // // AABB AABBZone(real_c(aabb.xSize()) * AABBMin[0], real_c(aabb.ySize()) * AABBMin[1],
-   // //               real_c(aabb.zSize()) * AABBMin[2], real_c(aabb.xSize()) * AABBMax[0],
-   // //               real_c(aabb.ySize()) * AABBMax[1], real_c(aabb.zSize()) * AABBMax[0]);
-   // AABB AABBZone(real_t(0), real_t(0), real_t(0), real_c(aabb.xSize())*real_t(0.5),
-   //                   real_c(aabb.ySize()) * real_t(0.5), real_c(aabb.zSize()));
-   // // AABB AABBZone(aabb);
-
-   // // vtk::AABBCellFilter AABBZoneFilter(aabb);
-
-   // // Make a filter, only selecting a specific region of the domain
-   // vtk::AABBCellFilter AABBZoneFilter(AABBZone);                 // Select only the fluid cells
-   // // zoneOutput->addCellInclusionFilter(AABBZoneFilter); // Select the desired part of the total domain (fluid and airfoil)
-
-   // vtk::ChainedFilter combinedFilter;
-   // combinedFilter.addFilter(fluidFilter2);
-   // combinedFilter.addFilter(AABBZoneFilter);
-   // zoneOutput->addCellInclusionFilter(combinedFilter);
-
-   // auto velocitySIWriterZone =
-   //    make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.xSI, simulationUnits.tSI, "Velocity ");
-   // auto densitySIWriterZone =
-   //    make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.rhoSI, "Density");
-   // zoneOutput->addCellDataWriter(velocitySIWriterZone);
-   // zoneOutput->addCellDataWriter(densitySIWriterZone);
-
-   // timeloop.addFuncAfterTimeStep(vtk::writeFiles(zoneOutput), "VTK");
-
-
-   // timeloop.addFuncAfterTimeStep(vtk::writeFiles(TEZoneOutput), "TE Zone VTK Output");
-   // timeloop.addFuncAfterTimeStep(vtk::writeFiles(fullDomainOutput), " Full Domain Output");
-
-   // // General VTK settings (forcePVTU, continuous numbering, binary, littleEndian, useMPIIO, amrFileFormat)
-   // const auto generalVTKSettings  = VTKParams.getBlock("General_settings");
-   // const bool forcePVTU           = generalVTKSettings.getParameter("forcePVTU", false);
-   // const bool continuousNumbering = generalVTKSettings.getParameter("continuousNumbering", false);
-   // const bool binaryVTK           = generalVTKSettings.getParameter("binary", true);
-   // const bool littleEndianVTK     = generalVTKSettings.getParameter("littleEndian", true);
-   // const bool useMPIIO            = generalVTKSettings.getParameter("useMPIIO", false);
-   // const bool amrFileFormat       = generalVTKSettings.getParameter("amrFileFormat", false);
-
-   // // Full_domain
-   // const auto FullDomainParams        = VTKParams.getBlock("TE_zone");
-   // const std::string TEZoneName       = FullDomainParams.getParameter("identifier", std::string("TE_zone"));
-   // uint_t TEZoneWriteFrequency        = FullDomainParams.getParameter("writeFrequency", uint_t(0));
-   // const uint_t TEZoneGhostLayers     = FullDomainParams.getParameter("ghostLayers", uint_t(0));
-   // const std::string TEZoneBaseFolder = FullDomainParams.getParameter("baseFolder", std::string("vtk_out/TE_zone"));
-   // const std::string TEZoneExecutionFolder =
-   //    FullDomainParams.getParameter("executionFolder", std::string("simulation_step"));
-   // const uint_t TEZoneInitialExecutionCount = FullDomainParams.getParameter("initialExecutionCount", uint_t(0));
-   // const real_t TEZoneSamplingResolutionDx  = FullDomainParams.getParameter("samplingDx", real_t(1));
-   // const real_t TEZoneSamplingResolutionDy  = FullDomainParams.getParameter("samplingDy", real_t(1));
-   // const real_t TEZoneSamplingResolutionDz  = FullDomainParams.getParameter("samplingDz", real_t(1));
-   // auto TEZoneOutput                        = vtk::createVTKOutput_BlockData(
-   //                           *blocks, TEZoneName, TEZoneWriteFrequency, TEZoneGhostLayers, forcePVTU,
-   //                           TEZoneBaseFolder, TEZoneExecutionFolder, continuousNumbering, binaryVTK,
-   //                           littleEndianVTK, useMPIIO, TEZoneInitialExecutionCount, amrFileFormat);
-
-   // blockforest::communication::NonUniformBufferedScheme< Stencil_T > pdfGhostLayerSync(blocks);
-   // pdfGhostLayerSync.addPackInfo(make_shared< lbm::refinement::PdfFieldSyncPackInfo< LatticeModel_T > >(pdfFieldId));
-   // TEZoneOutput->addBeforeFunction(pdfGhostLayerSync);
-   // TEZoneOutput->setSamplingResolution(TEZoneSamplingResolutionDx, TEZoneSamplingResolutionDy,
-   //                                     TEZoneSamplingResolutionDz);
-
-   // field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
-   // fluidFilter.addFlag(fluidFlagUID);
-
-   // Vector3< real_t > TEZoneMin = TEzoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3< real_t >(-1.0));
-   // Vector3< real_t > TEZoneMax = TEzoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3< real_t >(1.0));
-
-   // AABB TEZoneAABB = AABB(TEZoneMin, TEZoneMax);
-   // vtk::AABBCellFilter TEZoneFilter(TEZoneAABB);
-   // vtk::ChainedFilter combinedTEZoneFilter;
-   // combinedTEZoneFilter.addFilter(fluidFilter);
-   // combinedTEZoneFilter.addFilter(TEZoneFilter);
-   // TEZoneOutput->addCellInclusionFilter(combinedTEZoneFilter);
-
-   // auto velocitySIWriterTEZone = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(
-   //    pdfFieldId, simulationUnits.xSI, simulationUnits.tSI, "Velocity ");
-   // auto densitySIWriterTEZone =
-   //    make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.rhoSI, "Density");
-   // TEZoneOutput->addCellDataWriter(velocitySIWriterTEZone);
-   // TEZoneOutput->addCellDataWriter(densitySIWriterTEZone);
-
-   // timeloop.addFuncAfterTimeStep(vtk::writeFiles(TEZoneOutput), "TE Zone VTK Output");
-
-   // // TE_zone
-   // const auto TEzoneParams            = VTKParams.getBlock("TE_zone");
-   // const std::string TEZoneName       = TEzoneParams.getParameter("identifier", std::string("TE_zone"));
-   // uint_t TEZoneWriteFrequency        = TEzoneParams.getParameter("writeFrequency", uint_t(0));
-   // const uint_t TEZoneGhostLayers     = TEzoneParams.getParameter("ghostLayers", uint_t(0));
-   // const std::string TEZoneBaseFolder = TEzoneParams.getParameter("baseFolder", std::string("vtk_out/TE_zone"));
-   // const std::string TEZoneExecutionFolder =
-   //    TEzoneParams.getParameter("executionFolder", std::string("simulation_step"));
-   // const uint_t TEZoneInitialExecutionCount = TEzoneParams.getParameter("initialExecutionCount", uint_t(0));
-   // const real_t TEZoneSamplingResolutionDx  = TEzoneParams.getParameter("samplingDx", real_t(1));
-   // const real_t TEZoneSamplingResolutionDy  = TEzoneParams.getParameter("samplingDy", real_t(1));
-   // const real_t TEZoneSamplingResolutionDz  = TEzoneParams.getParameter("samplingDz", real_t(1));
-   // auto TEZoneOutput                        = vtk::createVTKOutput_BlockData(
-   //                           *blocks, TEZoneName, TEZoneWriteFrequency, TEZoneGhostLayers, forcePVTU,
-   //                           TEZoneBaseFolder, TEZoneExecutionFolder, continuousNumbering, binaryVTK,
-   //                           littleEndianVTK, useMPIIO, TEZoneInitialExecutionCount, amrFileFormat);
-
-   // blockforest::communication::NonUniformBufferedScheme< Stencil_T > pdfGhostLayerSync(blocks);
-   // pdfGhostLayerSync.addPackInfo(make_shared< lbm::refinement::PdfFieldSyncPackInfo< LatticeModel_T > >(pdfFieldId));
-   // TEZoneOutput->addBeforeFunction(pdfGhostLayerSync);
-   // TEZoneOutput->setSamplingResolution(TEZoneSamplingResolutionDx, TEZoneSamplingResolutionDy,
-   //                                     TEZoneSamplingResolutionDz);
-
-   // field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
-   // fluidFilter.addFlag(fluidFlagUID);
-
-   // Vector3< real_t > TEZoneMin = TEzoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3< real_t >(-1.0));
-   // Vector3< real_t > TEZoneMax = TEzoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3< real_t >(1.0));
-
-   // AABB TEZoneAABB = AABB(TEZoneMin, TEZoneMax);
-   // vtk::AABBCellFilter TEZoneFilter(TEZoneAABB);
-   // vtk::ChainedFilter combinedTEZoneFilter;
-   // combinedTEZoneFilter.addFilter(fluidFilter);
-   // combinedTEZoneFilter.addFilter(TEZoneFilter);
-   // TEZoneOutput->addCellInclusionFilter(combinedTEZoneFilter);
-
-   // auto velocitySIWriterTEZone = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(
-   //    pdfFieldId, simulationUnits.xSI, simulationUnits.tSI, "Velocity ");
-   // auto densitySIWriterTEZone =
-   //    make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, simulationUnits.rhoSI, "Density");
-   // TEZoneOutput->addCellDataWriter(velocitySIWriterTEZone);
-   // TEZoneOutput->addCellDataWriter(densitySIWriterTEZone);
-
-   // timeloop.addFuncAfterTimeStep(vtk::writeFiles(TEZoneOutput), "TE Zone VTK Output");
-
-   // timeloop.addFuncAfterTimeStep(perfLogger, "Evaluator: performance logging");
-
-   // uint_t vtkWriteFrequency = VTKParams.getBlock("fluid_field").getParameter("writeFrequency", uint_t(0));
-
-
-   // uint_t vtkWriteFrequency = 1;
-   // auto vtkOutput = vtk::createVTKOutput_BlockData(*blocks, "fluid_field", vtkWriteFrequency, 0, false, "vtk_out",
-   //                                                 "simulation_step", false, true, true, false, 0); //last number determines the initial time step from which the vtk is outputed. 
-   // AABB sliceAABB(real_t(0), real_t(0), real_t(0), real_c(aabb.xSize())*real_t(0.5),
-   //                   real_c(aabb.ySize()) * real_t(0.5), real_c(aabb.zSize()));
-   // vtk::AABBCellFilter aabbSliceFilter(sliceAABB);
-
-   // field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
-   // fluidFilter.addFlag(fluidFlagUID);
-   // // vtkOutput->addCellInclusionFilter(fluidFilter);
-   // vtk::ChainedFilter combinedSliceFilter;
-   // combinedSliceFilter.addFilter(aabbSliceFilter);
-   // combinedSliceFilter.addFilter(fluidFilter);
-   // vtkOutput->addCellInclusionFilter(combinedSliceFilter);
-   // // vtkOutput->addCellInclusionFilter(fluidFilter);
-
-   // auto velocityWriter = make_shared< lbm::VelocityVTKWriter< LatticeModel_T, float > >(pdfFieldId, "Velocity");
-   // // auto velocitySIWriter = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId,
-   // // "VelocitySI");
-   // auto densityWriter = make_shared< lbm::DensityVTKWriter< LatticeModel_T, float > >(pdfFieldId, "Density");
-   // auto omegaWriter   = make_shared< field::VTKWriter< ScalarField_T > >(omegaFieldId, "Omega");
-   // vtkOutput->addCellDataWriter(velocityWriter);
-   // vtkOutput->addCellDataWriter(densityWriter);
-   // vtkOutput->addCellDataWriter(omegaWriter);
-
-   // timeloop.addFuncAfterTimeStep(vtk::writeFiles(vtkOutput), "VTK Output");
-
+   timeloop.addFuncAfterTimeStep(vtk::writeFiles(fullDomainOutput), "VTK Full Domain");
+   timeloop.addFuncAfterTimeStep(vtk::writeFiles(airfoilProximityOutput), "VTK Airfoil Proximity");
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 9: VTK output added")
 #pragma endregion VTK_OUTPUT
 
@@ -1151,11 +951,21 @@ int main(int argc, char** argv)
    WALBERLA_LOG_INFO_ON_ROOT("Starting timeloop")
    // for (uint_t i = 0; i < setup.timeSteps; ++i)
    // {
-   //    // perform a single simulation step
-   //    timeloop.singleStep(timingPool);
 
-   //    // evaluate measurements (note: reflect simulation behavior BEFORE the evaluation)
-   //    if (vtkWriteFrequency > 0 && i % vtkWriteFrequency == 0 && i > 0) {}
+   //    if (i > fullDomainStartStep && fullDomainWriteFrequency > 0 && i % fullDomainWriteFrequency == 0) 
+   //    {
+   //       WALBERLA_LOG_INFO_ON_ROOT(i)
+   //       WALBERLA_LOG_RESULT_ON_ROOT("proximity")
+   //       airfoilProximityOutput->write();
+   //    }
+
+   //    if (i > airfoilProximityStartStep && airfoilProximityWriteFrequency > 0 && i % airfoilProximityWriteFrequency == 0) 
+   //    {
+   //       airfoilProximityOutput->write();
+   //    }
+
+   //    // perform a single simulation step
+   //    timeloop.singleStep(timingPool, true);
    // }
 
    timeloop.run(timingPool);
