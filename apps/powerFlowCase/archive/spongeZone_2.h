@@ -77,7 +77,7 @@ void OmegaSweep_new< LatticeModel_T >::operator()(IBlock* block)
       WALBERLA_ASSERT(omega > 0.0 && omega < 2.0);
       // Set the relaxation rate omega in the collision model of the lattice model
       // pdfField->latticeModel().collisionModel().reset(x, y, z, omega);
-      omegaField->get(x, y, z) = omega);
+      omegaField->get(x, y, z) = omega)
 }
 
 } // namespace walberla
