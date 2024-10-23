@@ -87,6 +87,10 @@ Created: 23-09-2024
 
 namespace walberla
 {
+namespace MuTech
+{
+namespace powerFlowCase
+{
 
 struct Setup
 {
@@ -979,14 +983,14 @@ int main(int argc, char** argv)
 
    WcTimingPool timingPool;
    WALBERLA_LOG_INFO_ON_ROOT("Starting timeloop")
-   for (uint_t i = 0; i < setup.timeSteps; ++i)
-   {
-      // perform a single simulation step
-      timeloop.singleStep(timingPool);
+   // for (uint_t i = 0; i < setup.timeSteps; ++i)
+   // {
+   //    // perform a single simulation step
+   //    timeloop.singleStep(timingPool);
 
-      // evaluate measurements (note: reflect simulation behavior BEFORE the evaluation)
-      if (vtkWriteFrequency > 0 && i % vtkWriteFrequency == 0 && i > 0) {}
-   }
+   //    // evaluate measurements (note: reflect simulation behavior BEFORE the evaluation)
+   //    if (vtkWriteFrequency > 0 && i % vtkWriteFrequency == 0 && i > 0) {}
+   // }
 
    timeloop.run(timingPool);
    // timingPool.unifyRegisteredTimersAcrossProcesses();
@@ -997,6 +1001,8 @@ int main(int argc, char** argv)
    return EXIT_SUCCESS;
 }
 
+} // namespace powerFlowCase
+} // namespace MuTech
 } // namespace walberla
 
 int main(int argc, char** argv) { walberla::main(argc, argv); }
