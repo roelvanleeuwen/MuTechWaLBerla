@@ -373,12 +373,11 @@ class OmegaSweep
 
 #pragma endregion SPONGE_ZONE
 
-std::shared_ptr< walberla::vtk::VTKOutput > myAABBVTKOutput(const std::string identifier,
-                                                            const bool isFullDomain,
-                                                            const AABB aabb,
+std::shared_ptr< walberla::vtk::VTKOutput > myAABBVTKOutput(const std::string identifier, const AABB aabb,
                                                             const shared_ptr< const StructuredBlockStorage >& blocks,
                                                             const BlockDataID pdfFieldId, const BlockDataID flagFieldId,
-                                                            const FlagUID fluidFlagUID, const walberla::config::Config::BlockHandle& VTKconfig,
+                                                            const FlagUID fluidFlagUID,
+                                                            const walberla::config::Config::BlockHandle& VTKconfig,
                                                             const Units units)
 {
    // General VTK settings (forcePVTU, continuous numbering, binary, littleEndian, useMPIIO, amrFileFormat)
@@ -409,15 +408,15 @@ std::shared_ptr< walberla::vtk::VTKOutput > myAABBVTKOutput(const std::string id
 
    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
    fluidFilter.addFlag(fluidFlagUID);
-   AABB AABBZone = aabb;
 
-   if(!isFullDomain)
-   {
-      Vector3< real_t > AABBMin = zoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3< real_t >(-1.0));
-      Vector3< real_t > AABBMax = zoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3< real_t >(1.0));
-      AABBZone = AABB(AABBMin, AABBMax);
-   }
-   
+   Vector3< real_t > AABBMin = zoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3< real_t >(-1.0));
+   Vector3< real_t > AABBMax = zoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3< real_t >(1.0));
+
+   // AABB AABBZone(real_c(aabb.xSize()) * AABBMin[0], real_c(aabb.ySize()) * AABBMin[1],
+   //               real_c(aabb.zSize()) * AABBMin[2], real_c(aabb.xSize()) * AABBMax[0],
+   //               real_c(aabb.ySize()) * AABBMax[1], real_c(aabb.zSize()) * AABBMax[0]);
+   AABB AABBZone(aabb);
+
    vtk::AABBCellFilter AABBZoneFilter(AABBZone);
    vtk::ChainedFilter combinedFilter;
    combinedFilter.addFilter(fluidFilter);
@@ -925,12 +924,13 @@ int main(int argc, char** argv)
 #pragma endregion SWEEPS_AND_TIME_LOOP
 
 #pragma region VTK_OUTPUT
-   auto TEZoneOutput = myAABBVTKOutput("TE_zone", false, aabb, blocks, pdfFieldId, flagFieldId, fluidFlagUID, VTKParams, simulationUnits);
-   auto fullDomainOutput = myAABBVTKOutput("full_domain", true, aabb, blocks, pdfFieldId, flagFieldId, fluidFlagUID, VTKParams, simulationUnits);
+   auto TEZoneOutput = myAABBVTKOutput("TE_zone", aabb, blocks, pdfFieldId, flagFieldId, fluidFlagUID, VTKParams,
+                                       simulationUnits);
+   auto fullDomainOutput = myAABBVTKOutput("full_domain", aabb, blocks, pdfFieldId, flagFieldId, fluidFlagUID,
+                                           VTKParams, simulationUnits);
 
    timeloop.addFuncAfterTimeStep(vtk::writeFiles(TEZoneOutput), "TE Zone VTK Output");
    timeloop.addFuncAfterTimeStep(vtk::writeFiles(fullDomainOutput), " Full Domain Output");
-
 
    // // General VTK settings (forcePVTU, continuous numbering, binary, littleEndian, useMPIIO, amrFileFormat)
    // const auto generalVTKSettings  = VTKParams.getBlock("General_settings");

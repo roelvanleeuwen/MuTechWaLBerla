@@ -119,8 +119,8 @@ VTK
       samplingDy         1; // forces the output to use this dy (= cell y-spacing)
       samplingDz         1; // forces the output to use this dz (= cell z-spacing)
       
-      AABBMin < 0.15, -0.05, -0.0408125 >;
-      AABBMax < 0.25, 0.05, 0.0408125 >;
+      AABBMin < -1, -1, -1 >;
+      AABBMax < 1, 1, 1 >;
  
    }
 
