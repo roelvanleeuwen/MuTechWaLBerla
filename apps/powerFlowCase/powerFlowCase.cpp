@@ -463,7 +463,7 @@ class VelDensPressPointEvaluator
                          const Vector3< real_t >& evalCoord, uint_t evalInterval,
                          const std::shared_ptr< std::vector< real_t > >& densityPressureVelocity, Units units)
       : blocks_(blocks), pdfFieldID_(pdfFieldID), evalCoord_(evalCoord), evalInterval_(evalInterval),
-        densityPressureVelocity_(densityPressureVelocity), units_(units) executionCounter_(uint_c(0))
+        densityPressureVelocity_(densityPressureVelocity), units_(units), executionCounter_(uint_c(0))
    {}
 
    void operator()()
@@ -1094,13 +1094,13 @@ int main(int argc, char** argv)
    uint_t probe1WriteFrequency              = probeParams.getParameter("writeFrequency", uint_t(0));
    const uint_t probe1InitialExecutionCount = probeParams.getParameter("initialExecutionCount", uint_t(0));
    const Vector3< real_t > probe1Coord      = probeParams.getParameter("coordinate", Vector3< real_t >(0));
-   const std::vector < std::string > probeResultHeader = { "Density", "Pressure", "Vx", "Vy", "Vz", "Vtot" };
 
    timeloop.addFuncAfterTimeStep(
       VelDensPressPointEvaluator< PdfField_T >(blocks, pdfFieldId, probe1Coord, probe1WriteFrequency, densityPressureVelocityP1, simulationUnits),
       "Evaluation at " + probe1Name);
    const std::string fileResultP1 =
       std::string("results/probes/") + probe1Name + ".txt";
+   const std::vector < std::string > probeResultHeader = { "Density", "Pressure", "Vx", "Vy", "Vz", "Vtot" };
 
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 9: VTK output added")
 #pragma endregion VTK_OUTPUT
