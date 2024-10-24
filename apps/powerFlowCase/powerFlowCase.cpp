@@ -392,7 +392,7 @@ std::shared_ptr< walberla::vtk::VTKOutput >
    // Create the VTK output object. Many options are hard coded since they will not be changed.
    auto zoneOutput =
       vtk::createVTKOutput_BlockData(*blocks, zoneName, zoneWriteFrequency, 0, false, "vtk_out", "simulation_step",
-                                     false, true, true, false, zoneInitialExecutionCount, false);
+                                     false, true, true, false, zoneInitialExecutionCount, false, false);
 
    // Set the sampling resolution of the VTK output. This is in SI units, based on the coarses grid resolution and the
    // desired level of resolution which is the same as the refinement levels.
@@ -418,39 +418,40 @@ std::shared_ptr< walberla::vtk::VTKOutput >
    // Add the combined filter to the zone output.
    zoneOutput->addCellInclusionFilter(combinedFilter);
 
-   // Add the cell data writers to the zone output. The data consists of the velocity, density, pressure, omega, etc. You can choose which you want in the paramter file 
+   // Add the cell data writers to the zone output. The data consists of the velocity, density, pressure, omega, etc.
+   // You can choose which you want in the paramter file
    if (zoneParams.getParameter("writeVelocity", false))
    {
-      auto velocitySIWriterZone =
-            make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, units.xSI, units.tSI, "Velocity ");
+      auto velocitySIWriterZone = make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(
+         pdfFieldId, units.xSI, units.tSI, "Velocity ");
       zoneOutput->addCellDataWriter(velocitySIWriterZone);
    }
 
-   if(zoneParams.getParameter("writeDensity", false))
+   if (zoneParams.getParameter("writeDensity", false))
    {
       auto densitySIWriterZone =
          make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, units.rhoSI, "Density");
       zoneOutput->addCellDataWriter(densitySIWriterZone);
    }
 
-   if(zoneParams.getParameter("writeOmega", false))
+   if (zoneParams.getParameter("writeOmega", false))
    {
       auto omegaWriterZone = make_shared< field::VTKWriter< ScalarField_T > >(omegaFieldId, "Omega");
       zoneOutput->addCellDataWriter(omegaWriterZone);
    }
 
-   if(zoneParams.getParameter("writePressure", false))
+   if (zoneParams.getParameter("writePressure", false))
    {
-      auto pressureSIWriterZone =
-         make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, units.rhoSI * std::pow(units.speedOfSoundSI, 2), "Pressure");
+      auto pressureSIWriterZone = make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(
+         pdfFieldId, units.rhoSI * std::pow(units.speedOfSoundSI, 2), "Pressure");
       zoneOutput->addCellDataWriter(pressureSIWriterZone);
    }
 
    return zoneOutput;
 
    // Example use:
-   // auto VTKOutput = myAABBVTKOutput("zone1", blocks, pdfFieldId, omegaFieldId, flagFieldId, fluidFlagUID, VTKParams, setup, units);
-   // vtk::writeFiles(VTKOutput)
+   // auto VTKOutput = myAABBVTKOutput("zone1", blocks, pdfFieldId, omegaFieldId, flagFieldId, fluidFlagUID, VTKParams,
+   // setup, units); vtk::writeFiles(VTKOutput)
 }
 
 #pragma endregion VTK_OUTPUT_FUNCTIONS
@@ -594,7 +595,7 @@ int main(int argc, char** argv)
    setup.xyAdjuster_x              = adjustXYResult.xyAdjustment;
    setup.xyAdjuster_y              = adjustXYResult.xyAdjustment;
    setup.cellsPerBlock             = Vector3< uint_t >(adjustXYResult.cellsPerBlock_x, adjustXYResult.cellsPerBlock_x,
-                                           16); // The z direction has 16 cells per block
+                                                       16); // The z direction has 16 cells per block
 
    if (setup.scalePowerFlowDomain)
    {
@@ -824,7 +825,7 @@ int main(int argc, char** argv)
 #pragma region FIELD_CREATION
 
    BlockDataID omegaFieldId    = field::addToStorage< ScalarField_T >(blocks, "Flag field", setup.omegaEffective,
-                                                                   field::fzyx, setup.numGhostLayers);
+                                                                      field::fzyx, setup.numGhostLayers);
    LatticeModel_T latticeModel = LatticeModel_T(lbm::collision_model::SRTField< ScalarField_T >(omegaFieldId));
 
    BlockDataID pdfFieldId = lbm::addPdfFieldToStorage(
@@ -947,21 +948,29 @@ int main(int argc, char** argv)
 #pragma endregion SWEEPS_AND_TIME_LOOP
 
 #pragma region VTK_OUTPUT
-   // // auto TEZoneOutput = myAABBVTKOutput("TE_zone", aabb, blocks, pdfFieldId, flagFieldId, fluidFlagUID, VTKParams,
-   // //                                     simulationUnits);
    auto airfoilProximityOutput = myAABBVTKOutput("airfoil_proximity", blocks, pdfFieldId, omegaFieldId, flagFieldId,
                                                  fluidFlagUID, VTKParams, setup, simulationUnits);
-   uint_t airfoilProximityWriteFrequency              =
-   VTKParams.getBlock("airfoil_proximity").getParameter("writeFrequency", uint_t(0)); uint_t
-   airfoilProximityStartStep = VTKParams.getBlock("airfoil_proximity").getParameter("startStep", uint_t(0));
+
+   uint_t airfoilProximityWriteFrequency =
+      VTKParams.getBlock("airfoil_proximity").getParameter("writeFrequency", uint_t(0));
+   uint_t airfoilProximityInitialExecutionCount = VTKParams.getBlock("airfoil_proximity").getParameter("initialExecutionCount", uint_t(0));
 
    auto fullDomainOutput = myAABBVTKOutput("full_domain", blocks, pdfFieldId, omegaFieldId, flagFieldId, fluidFlagUID,
                                            VTKParams, setup, simulationUnits);
-   uint_t fullDomainWriteFrequency              = VTKParams.getBlock("full_domain").getParameter("writeFrequency",
-   uint_t(0)); uint_t fullDomainStartStep = VTKParams.getBlock("full_domain").getParameter("startStep", uint_t(0));
 
-   timeloop.addFuncAfterTimeStep(vtk::writeFiles(fullDomainOutput), "VTK Full Domain");
-   timeloop.addFuncAfterTimeStep(vtk::writeFiles(airfoilProximityOutput), "VTK Airfoil Proximity");
+   uint_t fullDomainWriteFrequency = VTKParams.getBlock("full_domain").getParameter("writeFrequency", uint_t(0));
+   uint_t fullDomainInitialExecutionCount      = VTKParams.getBlock("full_domain").getParameter("initialExecutionCount", uint_t(0));
+
+   auto InitDomainOutput = myAABBVTKOutput("initial_domain", blocks, pdfFieldId, omegaFieldId, flagFieldId, fluidFlagUID,
+                                           VTKParams, setup, simulationUnits);
+
+   uint_t InitDomainWriteFrequency = VTKParams.getBlock("initial_domain").getParameter("writeFrequency", uint_t(0));
+   uint_t InitDomainInitialExecutionCount      = VTKParams.getBlock("initial_domain").getParameter("initialExecutionCount", uint_t(0));
+
+
+
+   // timeloop.addFuncAfterTimeStep(vtk::writeFiles(fullDomainOutput), "VTK Full Domain");
+   // timeloop.addFuncAfterTimeStep(vtk::writeFiles(airfoilProximityOutput), "VTK Airfoil Proximity");
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 9: VTK output added")
 #pragma endregion VTK_OUTPUT
 
@@ -969,22 +978,27 @@ int main(int argc, char** argv)
 
    WcTimingPool timingPool;
    WALBERLA_LOG_INFO_ON_ROOT("Starting timeloop")
-   for (uint_t i = 0; i < setup.timeSteps; ++i)
-   {
 
-      if (i > fullDomainStartStep && fullDomainWriteFrequency > 0 && i % fullDomainWriteFrequency == 0)
+   // Initial fields and data for checking purposes
+   if (InitDomainOutput != nullptr) { InitDomainOutput->write(true, 0); }
+
+
+   for (uint_t i = 0; i < setup.timeSteps+1; ++i)
+   {      
+      // perform a single simulation step
+      timeloop.singleStep(timingPool, true);
+
+      // After the time step, vtk output is added
+      if (i > fullDomainInitialExecutionCount && fullDomainWriteFrequency > 0 && i % fullDomainWriteFrequency == 0)
       {
          if (fullDomainOutput != nullptr) { fullDomainOutput->write(true, 0); }
       }
 
-      if (i > airfoilProximityStartStep && airfoilProximityWriteFrequency > 0 && i % airfoilProximityWriteFrequency
-      == 0)
+      if (i > airfoilProximityInitialExecutionCount && airfoilProximityWriteFrequency > 0 &&
+          i % airfoilProximityWriteFrequency == 0)
       {
          if (airfoilProximityOutput != nullptr) { airfoilProximityOutput->write(true, 0); }
       }
-
-      // perform a single simulation step
-      timeloop.singleStep(timingPool, true);
    }
 
    // timeloop.run(timingPool);
