@@ -391,7 +391,7 @@ std::shared_ptr< walberla::vtk::VTKOutput >
 
    // Create the VTK output object. Many options are hard coded since they will not be changed.
    auto zoneOutput =
-      vtk::createVTKOutput_BlockData(*blocks, zoneName, zoneWriteFrequency, 0, false, "vtk_out", "simulation_step",
+      vtk::createVTKOutput_BlockData(*blocks, zoneName, zoneWriteFrequency, 0, false, "results/vtk_out", "simulation_step",
                                      false, true, true, false, zoneInitialExecutionCount, false, false);
 
    // Set the sampling resolution of the VTK output. This is in SI units, based on the coarses grid resolution and the
@@ -452,6 +452,84 @@ std::shared_ptr< walberla::vtk::VTKOutput >
    // Example use:
    // auto VTKOutput = myAABBVTKOutput("zone1", blocks, pdfFieldId, omegaFieldId, flagFieldId, fluidFlagUID, VTKParams,
    // setup, units); vtk::writeFiles(VTKOutput)
+}
+
+// get the current velocity and density at the given coordinate "evalCoord"
+template< typename PdfField_T >
+class VelDensPointEvaluator
+{
+ public:
+   VelDensPointEvaluator(const std::shared_ptr< StructuredBlockForest >& blocks, const BlockDataID& pdfFieldID,
+                         const Vector3< real_t >& evalCoord, uint_t evalInterval,
+                         const std::shared_ptr< std::vector< real_t > >& densityVelocity)
+      : blocks_(blocks), pdfFieldID_(pdfFieldID), evalCoord_(evalCoord), evalInterval_(evalInterval),
+        densityVelocity_(densityVelocity), executionCounter_(uint_c(0))
+   {}
+
+   void operator()()
+   {
+      ++executionCounter_;
+
+      // only evaluate in given intervals
+      if (executionCounter_ % evalInterval_ != uint_c(0)) { return; }
+
+      // update density and velocity at evalCoord_
+      updateDensityVelocity();
+   }
+
+ private:
+   const std::shared_ptr< StructuredBlockForest > blocks_;
+   const BlockDataID pdfFieldID_;
+   const Vector3< real_t > evalCoord_;
+   const uint_t evalInterval_;
+   const std::shared_ptr< std::vector< real_t > > densityVelocity_;
+
+   uint_t executionCounter_; // number of times operator() has been called
+
+   void updateDensityVelocity()
+   {
+      real_t density = real_c(0);
+      Vector3< real_t > velocity(real_c(0));
+      
+      for (auto blockIterator = blocks_->begin(); blockIterator != blocks_->end(); ++blockIterator)
+      {
+         if (blockIterator->getAABB().contains(evalCoord_, 1e-6))
+         {
+            Cell localCell       = blocks_->getBlockLocalCell(*blockIterator, evalCoord_);
+            PdfField_T* pdfField = blockIterator->template getData< PdfField_T >(pdfFieldID_);
+
+            velocity = pdfField->getVelocity(localCell);
+            density  = pdfField->getDensity(localCell);
+
+            *densityVelocity_ = { density, velocity[0], velocity[1], velocity[2], length(velocity) };
+         }
+      }
+   }
+}; // class VelDensPointEvaluator
+
+template< typename T >
+std::string toStringWithPrecision(const T a_value, const int n /*= 12*/)
+{
+   std::ostringstream out;
+   out.precision(n);
+
+   out << std::fixed << a_value;
+   return out.str();
+}
+
+template< typename T >
+void writeVector(const std::vector< T >& data, const uint_t& timestep, const std::string& filename)
+{
+   std::ofstream file;
+   file.open(filename, std::ofstream::app);
+
+   file << timestep;
+   for (const auto i : data)
+   {
+      file << "\t" << toStringWithPrecision(i, 12);
+   }
+   file << "\n";
+   file.close();
 }
 
 #pragma endregion VTK_OUTPUT_FUNCTIONS
@@ -953,24 +1031,39 @@ int main(int argc, char** argv)
 
    uint_t airfoilProximityWriteFrequency =
       VTKParams.getBlock("airfoil_proximity").getParameter("writeFrequency", uint_t(0));
-   uint_t airfoilProximityInitialExecutionCount = VTKParams.getBlock("airfoil_proximity").getParameter("initialExecutionCount", uint_t(0));
+   uint_t airfoilProximityInitialExecutionCount =
+      VTKParams.getBlock("airfoil_proximity").getParameter("initialExecutionCount", uint_t(0));
 
    auto fullDomainOutput = myAABBVTKOutput("full_domain", blocks, pdfFieldId, omegaFieldId, flagFieldId, fluidFlagUID,
                                            VTKParams, setup, simulationUnits);
 
    uint_t fullDomainWriteFrequency = VTKParams.getBlock("full_domain").getParameter("writeFrequency", uint_t(0));
-   uint_t fullDomainInitialExecutionCount      = VTKParams.getBlock("full_domain").getParameter("initialExecutionCount", uint_t(0));
+   uint_t fullDomainInitialExecutionCount =
+      VTKParams.getBlock("full_domain").getParameter("initialExecutionCount", uint_t(0));
 
-   auto InitDomainOutput = myAABBVTKOutput("initial_domain", blocks, pdfFieldId, omegaFieldId, flagFieldId, fluidFlagUID,
-                                           VTKParams, setup, simulationUnits);
-
-   uint_t InitDomainWriteFrequency = VTKParams.getBlock("initial_domain").getParameter("writeFrequency", uint_t(0));
-   uint_t InitDomainInitialExecutionCount      = VTKParams.getBlock("initial_domain").getParameter("initialExecutionCount", uint_t(0));
-
+   auto InitDomainOutput = myAABBVTKOutput("initial_domain", blocks, pdfFieldId, omegaFieldId, flagFieldId,
+                                           fluidFlagUID, VTKParams, setup, simulationUnits);
 
 
    // timeloop.addFuncAfterTimeStep(vtk::writeFiles(fullDomainOutput), "VTK Full Domain");
    // timeloop.addFuncAfterTimeStep(vtk::writeFiles(airfoilProximityOutput), "VTK Airfoil Proximity");
+
+   // add sweep for getting velocity and density at predefined coordinates
+   auto densityVelocityP1 = std::make_shared< std::vector< real_t > >();
+
+   const auto probeParams                   = VTKParams.getBlock("probe1");
+   const std::string probe1Name             = probeParams.getParameter("identifier", std::string("no_name"));
+   uint_t probe1WriteFrequency              = probeParams.getParameter("writeFrequency", uint_t(0));
+   const uint_t probe1InitialExecutionCount = probeParams.getParameter("initialExecutionCount", uint_t(0));
+   const Vector3< real_t > probe1Coord      = probeParams.getParameter("coordinate", Vector3< real_t >(0));
+
+   timeloop.addFuncAfterTimeStep(
+      VelDensPointEvaluator< PdfField_T >(blocks, pdfFieldId, probe1Coord, probe1WriteFrequency, densityVelocityP1),
+      "Evaluation at " + probe1Name);
+   const std::string fileResultP1 =
+      std::string("results/probes/") + probe1Name + ".txt";
+   WALBERLA_LOG_INFO_ON_ROOT(fileResultP1)
+
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 9: VTK output added")
 #pragma endregion VTK_OUTPUT
 
@@ -982,9 +1075,8 @@ int main(int argc, char** argv)
    // Initial fields and data for checking purposes
    if (InitDomainOutput != nullptr) { InitDomainOutput->write(true, 0); }
 
-
-   for (uint_t i = 0; i < setup.timeSteps+1; ++i)
-   {      
+   for (uint_t i = 0; i < setup.timeSteps + 1; ++i)
+   {
       // perform a single simulation step
       timeloop.singleStep(timingPool, true);
 
@@ -999,9 +1091,18 @@ int main(int argc, char** argv)
       {
          if (airfoilProximityOutput != nullptr) { airfoilProximityOutput->write(true, 0); }
       }
+
+      // write current density and velocity at P1, P2, and P3 to files
+      if (i > probe1InitialExecutionCount && probe1WriteFrequency > 0 && i % probe1WriteFrequency == uint_c(0))
+      {
+         if (!(*densityVelocityP1).empty()) 
+         { 
+            writeVector(*densityVelocityP1, i, fileResultP1); 
+         }
+      }
    }
 
-   // timeloop.run(timingPool);
+   timeloop.run(timingPool);
    timingPool.unifyRegisteredTimersAcrossProcesses();
    timingPool.logResultOnRoot(timing::REDUCE_TOTAL, true);
 

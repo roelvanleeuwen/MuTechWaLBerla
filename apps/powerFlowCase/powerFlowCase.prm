@@ -165,5 +165,13 @@ VTK
       writeOmega true;
    }
 
+   probe1
+   {
+      identifier probe1;
+      writeFrequency 1;
+      initialExecutionCount 0;
+      coordinate < 0.22, 0, 0 >;
+   }
+
    }
    
