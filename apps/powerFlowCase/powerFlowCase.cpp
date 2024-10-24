@@ -520,37 +520,33 @@ std::string toStringWithPrecision(const T a_value, const int n /*= 12*/)
 template< typename T >
 void writeVector(const std::vector< T >& data, const uint_t& timestep, const std::string& filename)
 {
-   std::ofstream file(filename);;
-   // Check if fil exists
+   std::ofstream file;
+
+   // Check if file exists
    if (std::filesystem::exists(filename))
    {
-      WALBERLA_LOG_INFO_ON_ROOT("exist")
+      WALBERLA_LOG_INFO_ON_ROOT("File exists, appending data")
       file.open(filename, std::ofstream::app);
+   }
+   else
+   {
+      WALBERLA_LOG_INFO_ON_ROOT("File does not exist, creating new file")
+      file.open(filename, std::ofstream::out);
+   }
 
+   if (file.is_open())
+   {
       file << timestep;
-      for (const auto i : data)
+      for (const auto& i : data)
       {
          file << "\t" << toStringWithPrecision(i, 12);
-      }  
+      }
       file << "\n";
       file.close();
    }
    else
    {
-      
-      if (file.is_open())
-      {
-      // file.open(filename, std::ofstream::out);
-         WALBERLA_LOG_INFO_ON_ROOT("not exist")
-         file << timestep;
-         for (const auto i : data)
-         {
-            file << "\t" << toStringWithPrecision(i, 12);
-         }  
-         file << "\n";
-         file.close();
-      }
-
+      WALBERLA_LOG_ERROR_ON_ROOT("Failed to open file: " << filename)
    }
 }
 
@@ -1084,7 +1080,6 @@ int main(int argc, char** argv)
       "Evaluation at " + probe1Name);
    const std::string fileResultP1 =
       std::string("results/probes/") + probe1Name + ".txt";
-   WALBERLA_LOG_INFO_ON_ROOT(fileResultP1)
 
    WALBERLA_LOG_INFO_ON_ROOT(" Checkpoint 9: VTK output added")
 #pragma endregion VTK_OUTPUT
