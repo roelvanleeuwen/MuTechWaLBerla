@@ -493,7 +493,7 @@ class VelDensPointEvaluator
       
       for (auto blockIterator = blocks_->begin(); blockIterator != blocks_->end(); ++blockIterator)
       {
-         if (blockIterator->getAABB().contains(evalCoord_, 1e-6))
+         if (blockIterator->getAABB().contains(evalCoord_))
          {
             Cell localCell       = blocks_->getBlockLocalCell(*blockIterator, evalCoord_);
             PdfField_T* pdfField = blockIterator->template getData< PdfField_T >(pdfFieldID_);
@@ -518,19 +518,29 @@ std::string toStringWithPrecision(const T a_value, const int n /*= 12*/)
 }
 
 template< typename T >
-void writeVector(const std::vector< T >& data, const uint_t& timestep, const std::string& filename)
+void writeVector(const std::vector< T >& data, const uint_t& timestep, const uint_t& initialtimestep, const std::string& filename)
 {
    std::ofstream file;
 
+   
    // Check if file exists
+   if (timestep == initialtimestep)
+   {
+      std::filesystem::remove(filename);
+   }
+
    if (std::filesystem::exists(filename))
    {
-      WALBERLA_LOG_INFO_ON_ROOT("File exists, appending data")
       file.open(filename, std::ofstream::app);
    }
    else
    {
-      WALBERLA_LOG_INFO_ON_ROOT("File does not exist, creating new file")
+      std::filesystem::path path = filename;
+      if (!std::filesystem::exists(path.parent_path()))
+      {
+         std::filesystem::create_directories(path.parent_path());
+      }
+
       file.open(filename, std::ofstream::out);
    }
 
@@ -546,7 +556,7 @@ void writeVector(const std::vector< T >& data, const uint_t& timestep, const std
    }
    else
    {
-      WALBERLA_LOG_ERROR_ON_ROOT("Failed to open file: " << filename)
+      WALBERLA_LOG_INFO_ON_ROOT("Failed to open file: " << filename)
    }
 }
 
@@ -1098,23 +1108,23 @@ int main(int argc, char** argv)
       timeloop.singleStep(timingPool, true);
 
       // After the time step, vtk output is added
-      if (i > fullDomainInitialExecutionCount && fullDomainWriteFrequency > 0 && i % fullDomainWriteFrequency == 0)
+      if (i >= fullDomainInitialExecutionCount && fullDomainWriteFrequency > 0 && i % fullDomainWriteFrequency == 0)
       {
          if (fullDomainOutput != nullptr) { fullDomainOutput->write(true, 0); }
       }
 
-      if (i > airfoilProximityInitialExecutionCount && airfoilProximityWriteFrequency > 0 &&
+      if (i >= airfoilProximityInitialExecutionCount && airfoilProximityWriteFrequency > 0 &&
           i % airfoilProximityWriteFrequency == 0)
       {
          if (airfoilProximityOutput != nullptr) { airfoilProximityOutput->write(true, 0); }
       }
 
       // write current density and velocity at P1, P2, and P3 to files
-      if (i > probe1InitialExecutionCount && probe1WriteFrequency > 0 && i % probe1WriteFrequency == uint_c(0))
+      if (i >= probe1InitialExecutionCount && probe1WriteFrequency > 0 && i % probe1WriteFrequency == uint_c(0))
       {
          if (!(*densityVelocityP1).empty()) 
          { 
-            writeVector(*densityVelocityP1, i, fileResultP1); 
+            writeVector(*densityVelocityP1, i, probe1InitialExecutionCount, fileResultP1); 
          }
       }
    }
