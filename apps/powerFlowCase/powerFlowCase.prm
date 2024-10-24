@@ -21,7 +21,7 @@ flowParameters
 simulationParameters
 {
    omega 1.99994;                      // Relaxation factor for the SRT model
-   timeSteps   10;                   // Number of time steps in the simulation
+   timeSteps   3;                   // Number of time steps in the simulation
    remainingTimeLoggerFrequency 120;   // in seconds. This is the frequency with which a time estimate of finilising the simulation is send in the terminal. 
    smagorinskyConstant 0.12;           // Smagorinsky constant for the Smagorinky LES turbulence model
 }
@@ -116,9 +116,10 @@ VTK
       initialExecutionCount   0;
       startStep 5;
 
-      samplingDx         1; // forces the output to use this dx (= cell x-spacing)
-      samplingDy         1; // forces the output to use this dy (= cell y-spacing)
-      samplingDz         1; // forces the output to use this dz (= cell z-spacing)
+      samplingDxLevel         2; // forces the output to use this dx (= cell x-spacing)
+      samplingDyLevel         2; // forces the output to use this dy (= cell y-spacing)
+      samplingDzLevel         2; // forces the output to use this dz (= cell z-spacing)
+      resolutionLevel < 1, 1, 1 >;
       
       AABBMin < -3, -3, -0.0408125 >;
       AABBMax < 3, 3, 0.0408125 >;
@@ -137,13 +138,13 @@ VTK
       initialExecutionCount   0;
       startStep 8;
 
-      samplingDx         1; // forces the output to use this dx (= cell x-spacing)
-      samplingDy         1; // forces the output to use this dy (= cell y-spacing)
-      samplingDz         1; // forces the output to use this dz (= cell z-spacing)
+      samplingDxLevel         2; // forces the output to use this dx (= cell x-spacing)
+      samplingDyLevel         2; // forces the output to use this dy (= cell y-spacing)
+      samplingDzLevel         2; // forces the output to use this dz (= cell z-spacing)
       
       AABBMin < -0.2, -0.1, -0.0408125 >;
       AABBMax < 0.4, 0.1, 0.0408125 >;
- 
+      resolutionLevel < 2, 2, 2 >;
    }
 
    }

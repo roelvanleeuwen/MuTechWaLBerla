@@ -375,38 +375,25 @@ class OmegaSweep
 
 #pragma region VTK_OUTPUT_FUNCTIONS
 
-std::shared_ptr< walberla::vtk::VTKOutput > myAABBVTKOutput(const std::string identifier,
-                                                            const shared_ptr< StructuredBlockForest >& blocks,
-                                                            const BlockDataID pdfFieldId, const BlockDataID omegaFieldId, const BlockDataID flagFieldId,
-                                                            const FlagUID fluidFlagUID,
-                                                            const walberla::config::Config::BlockHandle& VTKconfig,
-                                                            const Units units)
+std::shared_ptr< walberla::vtk::VTKOutput >
+   myAABBVTKOutput(const std::string identifier, const shared_ptr< StructuredBlockForest >& blocks,
+                   const BlockDataID pdfFieldId, const BlockDataID omegaFieldId, const BlockDataID flagFieldId,
+                   const FlagUID fluidFlagUID, const walberla::config::Config::BlockHandle& VTKconfig, const Setup setup,
+                   const Units units)
 {
-   // General VTK settings (forcePVTU, continuous numbering, binary, littleEndian, useMPIIO, amrFileFormat)
-   const auto generalVTKSettings  = VTKconfig.getBlock("General_settings");
-   const bool forcePVTU           = generalVTKSettings.getParameter("forcePVTU", false);
-   const bool continuousNumbering = generalVTKSettings.getParameter("continuousNumbering", false);
-   const bool binaryVTK           = generalVTKSettings.getParameter("binary", true);
-   const bool littleEndianVTK     = generalVTKSettings.getParameter("littleEndian", true);
-   const bool useMPIIO            = generalVTKSettings.getParameter("useMPIIO", false);
-   const bool amrFileFormat       = generalVTKSettings.getParameter("amrFileFormat", false);
-
    // zone specific parameters
    const auto zoneParams                  = VTKconfig.getBlock(identifier);
    const std::string zoneName             = zoneParams.getParameter("identifier", std::string("no_name"));
    uint_t zoneWriteFrequency              = zoneParams.getParameter("writeFrequency", uint_t(0));
-   const uint_t zoneGhostLayers           = zoneParams.getParameter("ghostLayers", uint_t(0));
-   const std::string zoneBaseFolder       = zoneParams.getParameter("baseFolder", std::string("vtk_out"));
-   const std::string zoneExecutionFolder  = zoneParams.getParameter("executionFolder", std::string("simulation_step"));
    const uint_t zoneInitialExecutionCount = zoneParams.getParameter("initialExecutionCount", uint_t(0));
-   const real_t zoneSamplingResolutionDx  = zoneParams.getParameter("samplingDx", real_t(1));
-   const real_t zoneSamplingResolutionDy  = zoneParams.getParameter("samplingDy", real_t(1));
-   const real_t zoneSamplingResolutionDz  = zoneParams.getParameter("samplingDz", real_t(1));
+   const Vector3< real_t > resolutionLevel = zoneParams.getParameter("resolutionLevel", Vector3< real_t >(setup.numLevels));
    auto zoneOutput                        = vtk::createVTKOutput_BlockData(
-      *blocks, zoneName, zoneWriteFrequency, zoneGhostLayers, forcePVTU, zoneBaseFolder, zoneExecutionFolder,
-      continuousNumbering, binaryVTK, littleEndianVTK, useMPIIO, zoneInitialExecutionCount, amrFileFormat);
+      *blocks, zoneName, zoneWriteFrequency, 0, false, "vtk_out", "simulation_step",
+      false, true, true, false, zoneInitialExecutionCount, false);
 
-   zoneOutput->setSamplingResolution(zoneSamplingResolutionDx, zoneSamplingResolutionDy, zoneSamplingResolutionDz);
+   
+   zoneOutput->setSamplingResolution(setup.dxSI * std::pow(1 / 2, resolutionLevel[0]), setup.dxSI * std::pow(1 / 2, resolutionLevel[1]),
+                                     setup.dxSI * std::pow(1 / 2, resolutionLevel[2])); // Sampling resolution in SI dx, dy and dz
 
    Vector3< real_t > AABBMin = zoneParams.getParameter< Vector3< real_t > >("AABBMin", Vector3< real_t >(-1.0));
    Vector3< real_t > AABBMax = zoneParams.getParameter< Vector3< real_t > >("AABBMax", Vector3< real_t >(1.0));
@@ -416,7 +403,7 @@ std::shared_ptr< walberla::vtk::VTKOutput > myAABBVTKOutput(const std::string id
 
    field::FlagFieldCellFilter< FlagField_T > fluidFilter(flagFieldId);
    fluidFilter.addFlag(fluidFlagUID);
-   
+
    vtk::ChainedFilter combinedFilter;
    combinedFilter.addFilter(AABBZoneFilter);
    combinedFilter.addFilter(fluidFilter);
@@ -427,7 +414,7 @@ std::shared_ptr< walberla::vtk::VTKOutput > myAABBVTKOutput(const std::string id
       make_shared< lbm::VelocitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, units.xSI, units.tSI, "Velocity ");
    auto densitySIWriterZone =
       make_shared< lbm::DensitySIVTKWriter< LatticeModel_T, float > >(pdfFieldId, units.rhoSI, "Density");
-   auto omegaWriterZone = make_shared< field::VTKWriter< ScalarField_T > > (omegaFieldId, "Omega");
+   auto omegaWriterZone = make_shared< field::VTKWriter< ScalarField_T > >(omegaFieldId, "Omega");
    zoneOutput->addCellDataWriter(velocitySIWriterZone);
    zoneOutput->addCellDataWriter(densitySIWriterZone);
    zoneOutput->addCellDataWriter(omegaWriterZone);
@@ -930,15 +917,16 @@ int main(int argc, char** argv)
 #pragma region VTK_OUTPUT
    // // auto TEZoneOutput = myAABBVTKOutput("TE_zone", aabb, blocks, pdfFieldId, flagFieldId, fluidFlagUID, VTKParams,
    // //                                     simulationUnits);
-   auto airfoilProximityOutput = myAABBVTKOutput("airfoil_proximity", blocks, pdfFieldId, omegaFieldId, flagFieldId,
-                                                 fluidFlagUID, VTKParams, simulationUnits);
-   // uint_t airfoilProximityWriteFrequency              = VTKParams.getBlock("airfoil_proximity").getParameter("writeFrequency", uint_t(0));
-   // uint_t airfoilProximityStartStep = VTKParams.getBlock("airfoil_proximity").getParameter("startStep", uint_t(0));
+   auto airfoilProximityOutput = myAABBVTKOutput("airfoil_proximity", blocks, pdfFieldId, omegaFieldId,
+                                                 flagFieldId, fluidFlagUID, VTKParams, setup, simulationUnits);
+   // uint_t airfoilProximityWriteFrequency              =
+   // VTKParams.getBlock("airfoil_proximity").getParameter("writeFrequency", uint_t(0)); uint_t
+   // airfoilProximityStartStep = VTKParams.getBlock("airfoil_proximity").getParameter("startStep", uint_t(0));
 
-   auto fullDomainOutput =
-      myAABBVTKOutput("full_domain", blocks, pdfFieldId, omegaFieldId, flagFieldId, fluidFlagUID, VTKParams, simulationUnits);
-   // uint_t fullDomainWriteFrequency              = VTKParams.getBlock("full_domain").getParameter("writeFrequency", uint_t(0));
-   // uint_t fullDomainStartStep = VTKParams.getBlock("full_domain").getParameter("startStep", uint_t(0));
+   auto fullDomainOutput = myAABBVTKOutput("full_domain", blocks, pdfFieldId, omegaFieldId, flagFieldId,
+                                           fluidFlagUID, VTKParams, setup, simulationUnits);
+   // uint_t fullDomainWriteFrequency              = VTKParams.getBlock("full_domain").getParameter("writeFrequency",
+   // uint_t(0)); uint_t fullDomainStartStep = VTKParams.getBlock("full_domain").getParameter("startStep", uint_t(0));
 
    timeloop.addFuncAfterTimeStep(vtk::writeFiles(fullDomainOutput), "VTK Full Domain");
    timeloop.addFuncAfterTimeStep(vtk::writeFiles(airfoilProximityOutput), "VTK Airfoil Proximity");
@@ -952,14 +940,15 @@ int main(int argc, char** argv)
    // for (uint_t i = 0; i < setup.timeSteps; ++i)
    // {
 
-   //    if (i > fullDomainStartStep && fullDomainWriteFrequency > 0 && i % fullDomainWriteFrequency == 0) 
+   //    if (i > fullDomainStartStep && fullDomainWriteFrequency > 0 && i % fullDomainWriteFrequency == 0)
    //    {
    //       WALBERLA_LOG_INFO_ON_ROOT(i)
    //       WALBERLA_LOG_RESULT_ON_ROOT("proximity")
    //       airfoilProximityOutput->write();
    //    }
 
-   //    if (i > airfoilProximityStartStep && airfoilProximityWriteFrequency > 0 && i % airfoilProximityWriteFrequency == 0) 
+   //    if (i > airfoilProximityStartStep && airfoilProximityWriteFrequency > 0 && i % airfoilProximityWriteFrequency
+   //    == 0)
    //    {
    //       airfoilProximityOutput->write();
    //    }
