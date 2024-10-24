@@ -585,6 +585,48 @@ void writeVector(const std::vector< T >& data, const std::vector< std::string >&
    }
 }
 
+struct FilterSetting {
+   std::string filterName;
+   std::string filterType;
+   real_t writeFrequencyHz;
+   real_t writeFrequencyStep;
+
+   Vector3< real_t > AABBmin;
+   Vector3< real_t > AABBmax;
+
+   Vector3< real_t > probeCoord;
+
+   uint_t startStep;
+   real_t startTime;
+
+   uint_t endStep;
+   real_t endTime;
+
+   friend std::ostream& operator<<(std::ostream& os, const FilterSetting& filter)
+   {
+      os << "Filter name: " << filter.filterName << " ";
+      os << "  Filter type: " << filter.filterType << " ";
+      if (filter.filterType == "AABB")
+      {
+         os << "     Minimum corner: " << filter.AABBmin << " ";
+         os << "     Maximum corner: " << filter.AABBmax << " ";
+      }
+      if (filter.filterType == "probe")
+      {
+         os << "     Probe coordinate: " << filter.probeCoord << " ";
+      }
+      os << "  Start timestep: " << filter.startStep << " or start time: " << filter.startTime << " s";
+      os << "  End timestep: " << filter.endStep << " or end time: " << filter.endTime << " s";
+
+      return os;
+   }
+};
+
+void makeFilterSettingFile()
+{
+
+}
+
 #pragma endregion VTK_OUTPUT_FUNCTIONS
 
 int main(int argc, char** argv)
@@ -1090,6 +1132,7 @@ int main(int argc, char** argv)
 
    auto fullDomainOutput = myAABBVTKOutput("full_domain", blocks, pdfFieldId, omegaFieldId, flagFieldId, fluidFlagUID,
                                            VTKParams, setup, simulationUnits);
+   FilterSetting fullDomainFilter;
 
    uint_t fullDomainWriteFrequencyHz = VTKParams.getBlock("full_domain").getParameter("writeFrequency", uint_t(0));
    uint_t fullDomainWriteFrequencyStep = HzToStep(fullDomainWriteFrequencyHz, simulationUnits.tSI);
