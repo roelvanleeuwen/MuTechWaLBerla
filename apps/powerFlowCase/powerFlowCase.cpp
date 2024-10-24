@@ -375,6 +375,18 @@ class OmegaSweep
 
 #pragma region VTK_OUTPUT_FUNCTIONS
 
+uint_t HzToStep(const real_t freqHz, const real_t tStep)
+{
+   if (freqHz !=0)
+   {
+   return {freqHz > 1.0 ? std::floor( 1 / freqHz / tStep) : real_c(1) };
+   }
+   else
+   {
+      return uint_t(0)
+   }
+}
+
 std::shared_ptr< walberla::vtk::VTKOutput >
    myAABBVTKOutput(const std::string identifier, const shared_ptr< StructuredBlockForest >& blocks,
                    const BlockDataID pdfFieldId, const BlockDataID omegaFieldId, const BlockDataID flagFieldId,
@@ -384,14 +396,17 @@ std::shared_ptr< walberla::vtk::VTKOutput >
    // zone specific parameters
    const auto zoneParams                  = VTKconfig.getBlock(identifier);
    const std::string zoneName             = zoneParams.getParameter("identifier", std::string("no_name"));
-   uint_t zoneWriteFrequency              = zoneParams.getParameter("writeFrequency", uint_t(0));
+   uint_t frequencyHz              = zoneParams.getParameter("writeFrequency", uint_t(0));
    const uint_t zoneInitialExecutionCount = zoneParams.getParameter("initialExecutionCount", uint_t(0));
    const Vector3< real_t > resolutionLevel =
       zoneParams.getParameter("resolutionLevel", Vector3< real_t >(setup.numLevels));
 
+   
+   uint_t frequencyStep = HzToStep(frequencyHz, units.tSI);
+
    // Create the VTK output object. Many options are hard coded since they will not be changed.
    auto zoneOutput =
-      vtk::createVTKOutput_BlockData(*blocks, zoneName, zoneWriteFrequency, 0, false, "results/vtk_out", "simulation_step",
+      vtk::createVTKOutput_BlockData(*blocks, zoneName, frequencyStep, 0, false, "results/vtk_out", "simulation_step",
                                      false, true, true, false, zoneInitialExecutionCount, false, false);
 
    // Set the sampling resolution of the VTK output. This is in SI units, based on the coarses grid resolution and the
@@ -1067,15 +1082,17 @@ int main(int argc, char** argv)
    auto airfoilProximityOutput = myAABBVTKOutput("airfoil_proximity", blocks, pdfFieldId, omegaFieldId, flagFieldId,
                                                  fluidFlagUID, VTKParams, setup, simulationUnits);
 
-   uint_t airfoilProximityWriteFrequency =
+   uint_t airfoilProximityWriteFrequencyHz =
       VTKParams.getBlock("airfoil_proximity").getParameter("writeFrequency", uint_t(0));
+   uint_t airfoilProximityWriteFrequencyStep = HzToStep(airfoilProximityWriteFrequencyHz, simulationUnits.tSI);
    uint_t airfoilProximityInitialExecutionCount =
       VTKParams.getBlock("airfoil_proximity").getParameter("initialExecutionCount", uint_t(0));
 
    auto fullDomainOutput = myAABBVTKOutput("full_domain", blocks, pdfFieldId, omegaFieldId, flagFieldId, fluidFlagUID,
                                            VTKParams, setup, simulationUnits);
 
-   uint_t fullDomainWriteFrequency = VTKParams.getBlock("full_domain").getParameter("writeFrequency", uint_t(0));
+   uint_t fullDomainWriteFrequencyHz = VTKParams.getBlock("full_domain").getParameter("writeFrequency", uint_t(0));
+   uint_t fullDomainWriteFrequencyStep = HzToStep(fullDomainWriteFrequencyHz, simulationUnits.tSI);
    uint_t fullDomainInitialExecutionCount =
       VTKParams.getBlock("full_domain").getParameter("initialExecutionCount", uint_t(0));
 
@@ -1091,12 +1108,14 @@ int main(int argc, char** argv)
 
    const auto probeParams                   = VTKParams.getBlock("probe1");
    const std::string probe1Name             = probeParams.getParameter("identifier", std::string("no_name"));
-   uint_t probe1WriteFrequency              = probeParams.getParameter("writeFrequency", uint_t(0));
+   uint_t probe1WriteFrequencyHz              = probeParams.getParameter("writeFrequency", uint_t(0));
    const uint_t probe1InitialExecutionCount = probeParams.getParameter("initialExecutionCount", uint_t(0));
    const Vector3< real_t > probe1Coord      = probeParams.getParameter("coordinate", Vector3< real_t >(0));
 
+   uint_t probe1WriteFrequencyStep = HzToStep(probe1WriteFrequencyHz, simulationUnits.tSI);   
+
    timeloop.addFuncAfterTimeStep(
-      VelDensPressPointEvaluator< PdfField_T >(blocks, pdfFieldId, probe1Coord, probe1WriteFrequency, densityPressureVelocityP1, simulationUnits),
+      VelDensPressPointEvaluator< PdfField_T >(blocks, pdfFieldId, probe1Coord, probe1WriteFrequencyStep, densityPressureVelocityP1, simulationUnits),
       "Evaluation at " + probe1Name);
    const std::string fileResultP1 =
       std::string("results/probes/") + probe1Name + ".txt";
@@ -1119,19 +1138,19 @@ int main(int argc, char** argv)
       timeloop.singleStep(timingPool, true);
 
       // After the time step, vtk output is added
-      if (i >= fullDomainInitialExecutionCount && fullDomainWriteFrequency > 0 && i % fullDomainWriteFrequency == 0)
+      if (i >= fullDomainInitialExecutionCount && fullDomainWriteFrequencyStep > 0 && i % fullDomainWriteFrequencyStep == 0)
       {
          if (fullDomainOutput != nullptr) { fullDomainOutput->write(true, 0); }
       }
 
-      if (i >= airfoilProximityInitialExecutionCount && airfoilProximityWriteFrequency > 0 &&
-          i % airfoilProximityWriteFrequency == 0)
+      if (i >= airfoilProximityInitialExecutionCount && airfoilProximityWriteFrequencyStep > 0 &&
+          i % airfoilProximityWriteFrequencyStep == 0)
       {
          if (airfoilProximityOutput != nullptr) { airfoilProximityOutput->write(true, 0); }
       }
 
       // write current density and velocity at P1, P2, and P3 to files
-      if (i >= probe1InitialExecutionCount && probe1WriteFrequency > 0 && i % probe1WriteFrequency == uint_c(0))
+      if (i >= probe1InitialExecutionCount && probe1WriteFrequencyStep > 0 && i % probe1WriteFrequencyStep == uint_c(0))
       {
          if (!(*densityPressureVelocityP1).empty()) 
          { 

@@ -21,7 +21,7 @@ flowParameters
 simulationParameters
 {
    omega 1.99994;                      // Relaxation factor for the SRT model
-   timeSteps   5;                   // Number of time steps in the simulation
+   timeSteps   100;                   // Number of time steps in the simulation
    remainingTimeLoggerFrequency 120;   // in seconds. This is the frequency with which a time estimate of finilising the simulation is send in the terminal. 
    smagorinskyConstant 0.12;           // Smagorinsky constant for the Smagorinky LES turbulence model
 }
@@ -32,7 +32,7 @@ domainParameters
     scalePowerFlowDomain true;          	      // Do you want the full PowerFlow domain. If not, set to false and define an own 'domainScaling'
     decreasePowerFlowDomainFactor 0.142857142; // 0.028571428;  // Set to 1 if the full domain is desired. Change the number of cells in a block accordingly
     dxSI               0.0051015625;            // Unrefined cell size in mm since the airfoil dimensions are in meters
-    numLevels        3;                  	      // Number of octree levels starting from 1
+    numLevels        4;                  	      // Number of octree levels starting from 1
     meshZScaling     1;                         // This factor can be used to change the span of the airfoil. The NACA0018 file has a span of 0.081625 which corresponds to a y-scaling of 1
     numGhostLayers   4;                         // Number of ghost layers on each block. Used for communication (overlap) and boundary conditions.
 
@@ -128,20 +128,20 @@ VTK
    full_domain
    {
       identifier              full_domain;
-      writeFrequency          500;      // output frequency = number of times "writeBlocks" must be
+      writeFrequency          50;      // output frequency = number of times "writeBlocks" must be
                                        // called for triggering an output (optional, default=1)
                                        // 0 disables output                          
-      initialExecutionCount   500;
+      initialExecutionCount   50;
 
-      resolutionLevel < 1, 1, 1 >; // if disabled, the resolution level is the maximal refined level
+      // resolutionLevel < 3, 3, 3 >; // if disabled, the resolution level is the maximal refined level
       
       AABBMin < -3, -3, -0.0408125 >;
       AABBMax < 3, 3, 0.0408125 >;
 
       writeVelocity true;
       writePressure true;
-      writeDensity true;
-      writeOmega true;
+      writeDensity false;
+      writeOmega false;
    }
 
    airfoil_proximity
@@ -150,7 +150,7 @@ VTK
       writeFrequency          1;      // output frequency = number of times "writeBlocks" must be
                                        // called for triggering an output (optional, default=1)
                                        // 0 disables output
-      initialExecutionCount   2;
+      initialExecutionCount   95;
 
       resolutionLevel < 2, 2, 2 >;
 
@@ -169,7 +169,7 @@ VTK
    {
       identifier probe1;
       writeFrequency 1;
-      initialExecutionCount 0;
+      initialExecutionCount 3;
       coordinate < 0.22, 0, 0 >;
    }
 
