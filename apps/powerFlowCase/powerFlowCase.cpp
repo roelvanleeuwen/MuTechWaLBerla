@@ -456,14 +456,14 @@ std::shared_ptr< walberla::vtk::VTKOutput >
 
 // get the current velocity and density at the given coordinate "evalCoord"
 template< typename PdfField_T >
-class VelDensPointEvaluator
+class VelDensPressPointEvaluator
 {
  public:
-   VelDensPointEvaluator(const std::shared_ptr< StructuredBlockForest >& blocks, const BlockDataID& pdfFieldID,
+   VelDensPressPointEvaluator(const std::shared_ptr< StructuredBlockForest >& blocks, const BlockDataID& pdfFieldID,
                          const Vector3< real_t >& evalCoord, uint_t evalInterval,
-                         const std::shared_ptr< std::vector< real_t > >& densityVelocity)
+                         const std::shared_ptr< std::vector< real_t > >& densityPressureVelocity, Units units)
       : blocks_(blocks), pdfFieldID_(pdfFieldID), evalCoord_(evalCoord), evalInterval_(evalInterval),
-        densityVelocity_(densityVelocity), executionCounter_(uint_c(0))
+        densityPressureVelocity_(densityPressureVelocity), units_(units) executionCounter_(uint_c(0))
    {}
 
    void operator()()
@@ -474,7 +474,7 @@ class VelDensPointEvaluator
       if (executionCounter_ % evalInterval_ != uint_c(0)) { return; }
 
       // update density and velocity at evalCoord_
-      updateDensityVelocity();
+      updateDensityPressureVelocity();
    }
 
  private:
@@ -482,11 +482,12 @@ class VelDensPointEvaluator
    const BlockDataID pdfFieldID_;
    const Vector3< real_t > evalCoord_;
    const uint_t evalInterval_;
-   const std::shared_ptr< std::vector< real_t > > densityVelocity_;
+   const std::shared_ptr< std::vector< real_t > > densityPressureVelocity_;
+   Units units_;
 
    uint_t executionCounter_; // number of times operator() has been called
 
-   void updateDensityVelocity()
+   void updateDensityPressureVelocity()
    {
       real_t density = real_c(0);
       Vector3< real_t > velocity(real_c(0));
@@ -501,7 +502,7 @@ class VelDensPointEvaluator
             velocity = pdfField->getVelocity(localCell);
             density  = pdfField->getDensity(localCell);
 
-            *densityVelocity_ = { density, velocity[0], velocity[1], velocity[2], length(velocity) };
+            *densityPressureVelocity_ = { density*units_.rhoSI, density*units_.rhoSI*std::pow(units_.speedOfSoundSI, 2), velocity[0]*units_.thetaSpeed, velocity[1]*units_.thetaSpeed, velocity[2]*units_.thetaSpeed, length(velocity)*units_.thetaSpeed };
          }
       }
    }
@@ -518,7 +519,7 @@ std::string toStringWithPrecision(const T a_value, const int n /*= 12*/)
 }
 
 template< typename T >
-void writeVector(const std::vector< T >& data, const uint_t& timestep, const uint_t& initialtimestep, const std::string& filename)
+void writeVector(const std::vector< T >& data, const std::vector< std::string >& dataheader, const uint_t& timestep, const uint_t& initialtimestep, const std::string& filename)
 {
    std::ofstream file;
 
@@ -527,14 +528,7 @@ void writeVector(const std::vector< T >& data, const uint_t& timestep, const uin
    if (timestep == initialtimestep)
    {
       std::filesystem::remove(filename);
-   }
-
-   if (std::filesystem::exists(filename))
-   {
-      file.open(filename, std::ofstream::app);
-   }
-   else
-   {
+   
       std::filesystem::path path = filename;
       if (!std::filesystem::exists(path.parent_path()))
       {
@@ -542,7 +536,21 @@ void writeVector(const std::vector< T >& data, const uint_t& timestep, const uin
       }
 
       file.open(filename, std::ofstream::out);
+      // Write the header
+      file << "TimeStep";
+      for (const auto& i : dataheader)
+      {
+         file << "\t" << i;
+      }
+      file << "\n";
+
+      file.close();
+
    }
+
+   if (std::filesystem::exists(filename))
+   {
+      file.open(filename, std::ofstream::app);
 
    if (file.is_open())
    {
@@ -552,11 +560,13 @@ void writeVector(const std::vector< T >& data, const uint_t& timestep, const uin
          file << "\t" << toStringWithPrecision(i, 12);
       }
       file << "\n";
+
       file.close();
    }
    else
    {
       WALBERLA_LOG_INFO_ON_ROOT("Failed to open file: " << filename)
+   }
    }
 }
 
@@ -1077,16 +1087,17 @@ int main(int argc, char** argv)
    // timeloop.addFuncAfterTimeStep(vtk::writeFiles(airfoilProximityOutput), "VTK Airfoil Proximity");
 
    // add sweep for getting velocity and density at predefined coordinates
-   auto densityVelocityP1 = std::make_shared< std::vector< real_t > >();
+   auto densityPressureVelocityP1 = std::make_shared< std::vector< real_t > >();
 
    const auto probeParams                   = VTKParams.getBlock("probe1");
    const std::string probe1Name             = probeParams.getParameter("identifier", std::string("no_name"));
    uint_t probe1WriteFrequency              = probeParams.getParameter("writeFrequency", uint_t(0));
    const uint_t probe1InitialExecutionCount = probeParams.getParameter("initialExecutionCount", uint_t(0));
    const Vector3< real_t > probe1Coord      = probeParams.getParameter("coordinate", Vector3< real_t >(0));
+   const std::vector < std::string > probeResultHeader = { "Density", "Pressure", "Vx", "Vy", "Vz", "Vtot" };
 
    timeloop.addFuncAfterTimeStep(
-      VelDensPointEvaluator< PdfField_T >(blocks, pdfFieldId, probe1Coord, probe1WriteFrequency, densityVelocityP1),
+      VelDensPressPointEvaluator< PdfField_T >(blocks, pdfFieldId, probe1Coord, probe1WriteFrequency, densityPressureVelocityP1, simulationUnits),
       "Evaluation at " + probe1Name);
    const std::string fileResultP1 =
       std::string("results/probes/") + probe1Name + ".txt";
@@ -1122,9 +1133,9 @@ int main(int argc, char** argv)
       // write current density and velocity at P1, P2, and P3 to files
       if (i >= probe1InitialExecutionCount && probe1WriteFrequency > 0 && i % probe1WriteFrequency == uint_c(0))
       {
-         if (!(*densityVelocityP1).empty()) 
+         if (!(*densityPressureVelocityP1).empty()) 
          { 
-            writeVector(*densityVelocityP1, i, probe1InitialExecutionCount, fileResultP1); 
+            writeVector(*densityPressureVelocityP1, probeResultHeader, i, probe1InitialExecutionCount, fileResultP1); 
          }
       }
    }
