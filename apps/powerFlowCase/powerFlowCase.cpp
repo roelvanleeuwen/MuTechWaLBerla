@@ -520,10 +520,11 @@ std::string toStringWithPrecision(const T a_value, const int n /*= 12*/)
 template< typename T >
 void writeVector(const std::vector< T >& data, const uint_t& timestep, const std::string& filename)
 {
-   std::ofstream file;
+   std::ofstream file(filename);;
    // Check if fil exists
-   if (std:filesystem::exists(filename))
+   if (std::filesystem::exists(filename))
    {
+      WALBERLA_LOG_INFO_ON_ROOT("exist")
       file.open(filename, std::ofstream::app);
 
       file << timestep;
@@ -536,15 +537,19 @@ void writeVector(const std::vector< T >& data, const uint_t& timestep, const std
    }
    else
    {
-      file.open(filename, std::ofstream::out);
-
-      file << timestep;
-      for (const auto i : data)
+      
+      if (file.is_open())
       {
-         file << "\t" << toStringWithPrecision(i, 12);
-      }  
-      file << "\n";
-      file.close();
+      // file.open(filename, std::ofstream::out);
+         WALBERLA_LOG_INFO_ON_ROOT("not exist")
+         file << timestep;
+         for (const auto i : data)
+         {
+            file << "\t" << toStringWithPrecision(i, 12);
+         }  
+         file << "\n";
+         file.close();
+      }
 
    }
 }
