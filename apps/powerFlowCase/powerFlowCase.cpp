@@ -521,15 +521,32 @@ template< typename T >
 void writeVector(const std::vector< T >& data, const uint_t& timestep, const std::string& filename)
 {
    std::ofstream file;
-   file.open(filename, std::ofstream::app);
-
-   file << timestep;
-   for (const auto i : data)
+   // Check if fil exists
+   if (std:filesystem::exists(filename))
    {
-      file << "\t" << toStringWithPrecision(i, 12);
+      file.open(filename, std::ofstream::app);
+
+      file << timestep;
+      for (const auto i : data)
+      {
+         file << "\t" << toStringWithPrecision(i, 12);
+      }  
+      file << "\n";
+      file.close();
    }
-   file << "\n";
-   file.close();
+   else
+   {
+      file.open(filename, std::ofstream::out);
+
+      file << timestep;
+      for (const auto i : data)
+      {
+         file << "\t" << toStringWithPrecision(i, 12);
+      }  
+      file << "\n";
+      file.close();
+
+   }
 }
 
 #pragma endregion VTK_OUTPUT_FUNCTIONS
