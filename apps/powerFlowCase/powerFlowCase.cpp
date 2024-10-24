@@ -379,11 +379,11 @@ uint_t HzToStep(const real_t freqHz, const real_t tStep)
 {
    if (freqHz !=0)
    {
-   return {freqHz > 1.0 ? std::floor( 1 / freqHz / tStep) : real_c(1) };
+   return {freqHz > 1.0 ? static_cast<uint_t>(std::floor(1 / freqHz / tStep)) : uint_t(1)};
    }
    else
    {
-      return uint_t(0)
+      return uint_t(0);
    }
 }
 
